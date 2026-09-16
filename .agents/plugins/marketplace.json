@@ -1,0 +1,12 @@
+{
+  "name": "auto-research-agent-local",
+  "interface": { "displayName": "AutoResearchAgent" },
+  "plugins": [
+    {
+      "name": "auto-research-agent",
+      "source": { "source": "local", "path": "./plugins/auto-research-agent" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}
