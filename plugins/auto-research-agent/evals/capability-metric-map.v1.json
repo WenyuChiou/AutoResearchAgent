@@ -72,7 +72,7 @@
       "metric_role": "enabler",
       "owner_path": ".github/scripts/validate_research_pr.py",
       "problem": "A contributor can otherwise add a plausible research capability without linking the observed failure, target metric, deterministic evidence, and live A/B decision.",
-      "mechanism": "Reject pull-request descriptions with unknown capability IDs, metric targets that disagree with the capability registry, missing hard measures, missing human judgment, missing guardrails, or a missing skill test mini-report when a skill changes.",
+      "mechanism": "Reject pull-request descriptions with unknown capability IDs, metric targets that disagree with the capability registry, missing hard measures, missing human judgment, missing guardrails, unreported external pull requests, an absent evidence-qualified improvement statement, an incorrect merge owner, or a missing skill test mini-report when a skill changes.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -81,6 +81,11 @@
             "every pull request names a registered capability ID",
             "declared pull-request metrics overlap the capability registry",
             "per-pull-request metric evidence and the live A/B decision are recorded",
+            "related cross-repository pull requests are linked or explicitly recorded as absent",
+            "each pull request states whether improvement is demonstrated and names the current evidence",
+            "each pull request gives a one-sentence plain-language problem, change, and benefit summary",
+            "each executor reports complete, partial, or blocked status and identifies remaining work",
+            "the core team is recorded as the review and merge owner",
             "every changed skill records its scenario, command, expected result, actual result, and limitations"
           ],
           "human_judgment": "Whether the proposed evidence is sufficient to support the claimed research-harness change."

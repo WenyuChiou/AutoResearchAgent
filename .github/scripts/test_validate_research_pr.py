@@ -10,12 +10,14 @@ from validate_research_pr import changed_files, validate_pr_body
 
 
 VALID = """## Why
+- Plain-language summary: Keep a searchable record so another person can see why each paper was kept or removed.
 - Target primary metric(s): P2
 Target metric P2 has a measured coverage failure.
 
 ## What
 - Affected capability ID(s): skill:stage1-literature
 - Capability decision: wrap
+- Related external PR(s): None
 Wrap the existing search command.
 
 ## How
@@ -30,11 +32,15 @@ After: incomplete cluster continues.
 - Human judgment rubric: blinded P2 score
 - Major-error guardrail: no fabricated source
 - Per-PR metric evidence: synthetic coverage-gate regression passed
+- Improvement statement: not yet demonstrated — deterministic behavior is implemented but live quality remains unknown; evidence: 18 validator tests passed and live A/B is deferred to the Stage 1 milestone
 - Live paired A/B: deferred to Stage 1 executable milestone
 Compare paired P2 counts and blinded judgments.
 
 ## Validation
 Synthetic regression tests passed.
+- Execution status: complete
+- Remaining work or blocker: None
+- Review and merge owner: core team
 - Skill test scenario: synthetic missing coverage cluster
 - Skill test command: python -m unittest discover
 - Skill test expected: the skill loads and returns continue
@@ -71,8 +77,8 @@ class ResearchPullRequestContractTests(unittest.TestCase):
 
     def test_metric_and_capability_decision_are_required(self):
         body = VALID.replace("P2", "coverage").replace(
-            "- Capability decision: wrap\nWrap the existing search command.",
-            "- Capability decision:\nAdd another search step.",
+            "- Capability decision: wrap",
+            "- Capability decision:",
         )
         errors = validate_pr_body(body, CAPABILITIES)
         self.assertIn(
@@ -95,6 +101,28 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         self.assertIn("Example requires a non-empty 'Before:' value", errors)
         self.assertIn("Example requires a non-empty 'After:' value", errors)
 
+    def test_plain_language_summary_is_required(self):
+        body = VALID.replace(
+            "- Plain-language summary: Keep a searchable record so another person "
+            "can see why each paper was kept or removed.",
+            "- Plain-language summary:",
+        )
+        self.assertIn(
+            "Why requires a non-empty 'Plain-language summary:' value",
+            validate_pr_body(body, CAPABILITIES),
+        )
+
+        placeholder = VALID.replace(
+            "Keep a searchable record so another person can see why each paper was "
+            "kept or removed.",
+            "TBD",
+        )
+        self.assertIn(
+            "Plain-language summary must be one concrete sentence explaining the "
+            "problem, change, and benefit",
+            validate_pr_body(placeholder, CAPABILITIES),
+        )
+
     def test_unknown_capability_and_metric_mismatch_fail(self):
         unknown = VALID.replace("skill:stage1-literature", "tool:unregistered-search")
         errors = validate_pr_body(unknown, CAPABILITIES)
@@ -114,14 +142,126 @@ class ResearchPullRequestContractTests(unittest.TestCase):
 
     def test_decision_keyword_elsewhere_does_not_fill_decision_label(self):
         body = VALID.replace(
-            "- Capability decision: wrap\nWrap the existing search command.",
-            "- Capability decision: TBD\nDo not reuse the existing search command.",
+            "- Capability decision: wrap",
+            "- Capability decision: TBD",
         )
         errors = validate_pr_body(body, CAPABILITIES)
         self.assertIn(
             "Capability decision must be exactly reuse, wrap, extend, or build-new",
             errors,
         )
+
+    def test_external_prs_must_be_none_or_linked(self):
+        invalid = VALID.replace(
+            "- Related external PR(s): None",
+            "- Related external PR(s): research-hub PR pending",
+        )
+        self.assertIn(
+            "Related external PR(s) must be 'None' or a semicolon-separated list "
+            "of external GitHub pull-request URLs",
+            validate_pr_body(invalid, CAPABILITIES),
+        )
+
+        linked = VALID.replace(
+            "- Related external PR(s): None",
+            "- Related external PR(s): https://github.com/WenyuChiou/research-hub/pull/123; "
+            "https://github.com/WenyuChiou/ai-research-skills/pull/456",
+        )
+        self.assertEqual(validate_pr_body(linked, CAPABILITIES), [])
+
+        mixed_with_unlinked = VALID.replace(
+            "- Related external PR(s): None",
+            "- Related external PR(s): https://github.com/WenyuChiou/research-hub/pull/123; "
+            "ai-research-skills PR pending",
+        )
+        self.assertTrue(
+            any(
+                error.startswith("Related external PR(s) must")
+                for error in validate_pr_body(mixed_with_unlinked, CAPABILITIES)
+            )
+        )
+
+        current_repo = VALID.replace(
+            "- Related external PR(s): None",
+            "- Related external PR(s): "
+            "https://github.com/WenyuChiou/AutoResearchAgent/pull/4",
+        )
+        self.assertTrue(
+            any(
+                error.startswith("Related external PR(s) must")
+                for error in validate_pr_body(current_repo, CAPABILITIES)
+            )
+        )
+
+    def test_improvement_statement_requires_status_and_concrete_evidence(self):
+        for value in (
+            "TBD",
+            "improved",
+            "improved — this change definitely works very well",
+            "improved — trace completeness increased; evidence: works very well",
+            "unknown — coverage changed; evidence: 3 tests passed",
+        ):
+            body = VALID.replace(
+                "not yet demonstrated — deterministic behavior is implemented but live "
+                "quality remains unknown; evidence: 18 validator tests passed and live "
+                "A/B is deferred to the Stage 1 milestone",
+                value,
+            )
+            self.assertTrue(
+                any(
+                    error.startswith("Improvement statement must")
+                    for error in validate_pr_body(body, CAPABILITIES)
+                ),
+                value,
+            )
+
+        for value in (
+            "improved — trace completeness increased from 60% to 100%; evidence: paired metric artifact run-03.json",
+            "not improved — paired P2 remained unchanged across three runs; evidence: 3 paired runs scored 1",
+            "not yet demonstrated — deterministic behavior exists but live quality is unknown; evidence: 18 tests passed and live A/B is deferred to the Stage 1 milestone",
+        ):
+            body = VALID.replace(
+                "not yet demonstrated — deterministic behavior is implemented but live "
+                "quality remains unknown; evidence: 18 validator tests passed and live "
+                "A/B is deferred to the Stage 1 milestone",
+                value,
+            )
+            self.assertEqual(validate_pr_body(body, CAPABILITIES), [], value)
+
+    def test_core_team_is_the_review_and_merge_owner(self):
+        body = VALID.replace(
+            "- Review and merge owner: core team",
+            "- Review and merge owner: contributor",
+        )
+        self.assertIn(
+            "Review and merge owner must be exactly 'core team'",
+            validate_pr_body(body, CAPABILITIES),
+        )
+
+    def test_execution_report_status_and_blocker_are_consistent(self):
+        invalid_status = VALID.replace(
+            "- Execution status: complete",
+            "- Execution status: done",
+        )
+        self.assertIn(
+            "Execution status must be exactly complete, partial, or blocked",
+            validate_pr_body(invalid_status, CAPABILITIES),
+        )
+
+        missing_blocker = VALID.replace(
+            "- Execution status: complete",
+            "- Execution status: partial",
+        )
+        self.assertIn(
+            "Partial or blocked execution must describe the remaining work or blocker",
+            validate_pr_body(missing_blocker, CAPABILITIES),
+        )
+
+        reported_blocker = missing_blocker.replace(
+            "- Remaining work or blocker: None",
+            "- Remaining work or blocker: Waiting for the related research-hub PR review",
+        )
+        self.assertEqual(validate_pr_body(reported_blocker, CAPABILITIES), [])
 
     def test_skill_change_requires_concrete_test_mini_report(self):
         labels = (

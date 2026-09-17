@@ -72,9 +72,49 @@ P1-P9 targets, a capability decision other than the exact values `reuse`,
 `wrap`, `extend`, or `build-new`, changed capability paths omitted from the PR,
 or blank metric evidence fields.
 
+Write all six sections in plain language that a new teammate can understand on
+the first read. Prefer short sentences, concrete inputs and outputs, and one
+specific example. Define a necessary technical term where it first appears.
+The required `Plain-language summary` says in one sentence what is wrong, what
+will change, and why that change helps. CI checks that this summary exists; the
+core team checks whether the whole PR is actually clear.
+
 Each PR should implement one coherent capability. Include deterministic tests
 and update the capability metric map in the same PR. State whether the frozen
 paired A/B is required immediately or deferred to the stage milestone.
+
+Every PR must include one `Improvement statement` beginning with `improved`,
+`not improved`, or `not yet demonstrated`. In the same sentence, name the
+behavior that changed, then add `; evidence:` followed by a measurement,
+passed/failed test, artifact, or explicit milestone deferral. Use `not yet
+demonstrated` when only deterministic tests exist; do not turn a passing test
+into an unsupported scientific-quality claim.
+
+## Review ownership and cross-repository work
+
+The core team is the organizer. It defines task boundaries, priorities,
+dependencies and milestones; monitors progress; reviews the research direction
+and evidence; and performs the merge. Contributors are executors. They
+implement only the assigned scope, test it, open the PR, report progress and
+respond to review comments. Contributors must not approve or merge their own
+harness PRs.
+
+The completed PR description is the contributor's execution report. It must
+record `Execution status` as `complete`, `partial`, or `blocked`, and name any
+remaining work or blocker. Together with the test results, improvement
+statement and related PR links, this gives the core team enough information to
+supervise progress and decide the next assignment. A partial or blocked report
+cannot use `None` for the remaining work or blocker.
+
+List every related PR outside this repository in `Related external PR(s)` as
+GitHub PR URLs separated by semicolons, including changes proposed to
+`research-hub`, `ai-research-skills`, or another dependency. Do not list the
+current AutoResearchAgent PR in this field. Use `None` only when no external PR
+exists. Send the core team each link as soon as the external PR is opened and
+keep it unmerged until the core team reviews it. If repository permissions
+prevent the core team from merging, the contributor merges only after explicit
+core-team approval and records the resulting merge commit in the
+AutoResearchAgent PR.
 
 ## Commits and merge
 
@@ -88,5 +128,6 @@ AI contribution:
 Human verification:
 ```
 
-After required checks and review pass, merge with a merge commit and delete the
-branch. Verify the Stage 1 workflow on `main` after merge.
+After required checks and core-team review pass, the core team merges with a
+merge commit and deletes the branch. The core team then verifies the Stage 1
+workflow on `main` after merge.
