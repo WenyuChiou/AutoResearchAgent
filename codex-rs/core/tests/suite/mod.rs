@@ -113,6 +113,7 @@ mod mcp_optional_startup_grace;
 #[cfg(unix)]
 mod mcp_refresh_cleanup;
 mod mcp_startup_refresh_http_proxy;
+mod mcp_subagent_elicitation;
 mod mcp_tool_cache;
 mod mcp_tool_exposure;
 mod mcp_turn_metadata;
@@ -181,6 +182,7 @@ mod skill_approval;
 mod skills;
 mod skills_extension;
 mod spawn_agent_description;
+mod spawn_agent_tool_descriptions;
 mod sqlite_state;
 mod startup_cancellation;
 mod step_settings;
@@ -215,3 +217,6 @@ mod window_headers;
 mod windows_sandbox;
 mod workspace_roots;
 mod worktree_trust;
+
+#[path = "guardian_sender_messages_tests.rs"]
+mod guardian_sender_messages;
