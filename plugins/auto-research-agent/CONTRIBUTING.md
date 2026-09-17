@@ -39,6 +39,30 @@ verify the metric interface and prevent regressions. They do not prove that the
 scientific score improved. Only the frozen paired live A/B at the declared
 milestone can support that claim.
 
+### Minimum skill test and mini-report
+
+Every PR that adds or changes a `skill:*` capability must include a small,
+repeatable test and a five-line mini-report in the PR `Validation` section:
+
+- `Skill test scenario`: one representative input or synthetic fixture;
+- `Skill test command`: the exact command or CI job that ran;
+- `Skill test expected`: the observable behavior or artifact expected;
+- `Skill test actual`: the observed result, including pass/fail and useful counts;
+- `Skill test limitations`: what this test does not establish.
+
+The minimum test must prove that the skill is discoverable or loadable and that
+one representative path produces its declared artifact or behavior. It must
+also exercise one relevant guardrail or explicit failure state. A declarative
+workflow skill may satisfy this with contract/schema tests and a synthetic
+scenario; it does not need a live literature run in every PR. A skill with
+executable orchestration must test the executable path rather than only inspect
+its prompt text.
+
+This mini-report is deliberately short so contributors can iterate quickly. It
+is evidence that the capability behaves as specified, not evidence that P1-P9
+improved. Scientific improvement still requires the paired live A/B and human
+judgment at the declared stage milestone.
+
 ## Pull requests
 
 Use the repository template and complete all six sections: Why, What, How,

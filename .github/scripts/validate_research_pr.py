@@ -14,6 +14,18 @@ HEADING = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 METRIC = re.compile(r"\bP[1-9]\b")
 CAPABILITY_DECISIONS = {"reuse", "wrap", "extend", "build-new"}
+SKILL_TEST_LABELS = (
+    "Skill test scenario",
+    "Skill test command",
+    "Skill test expected",
+    "Skill test actual",
+    "Skill test limitations",
+)
+PLACEHOLDER_VALUE = re.compile(
+    r"^(?:tbd|todo|n/?a|none|pending|unknown|not[ -]tested|not[ -]run|"
+    r"placeholder|fill[ -](?:this|me))(?:\s+(?:later|yet|here|please|soon))?$",
+    re.IGNORECASE,
+)
 REQUIRED_LABELS = {
     "Why": ("Target primary metric(s)",),
     "What": ("Affected capability ID(s)", "Capability decision"),
@@ -57,6 +69,11 @@ def label_value(value, label):
     pattern = re.compile(rf"^-\s*{re.escape(label)}:[ \t]*([^\r\n]+)$", re.MULTILINE)
     match = pattern.search(visible_text(value))
     return match.group(1).strip() if match else ""
+
+
+def label_has_concrete_value(value, label):
+    candidate = label_value(value, label).strip().strip("`._- ")
+    return bool(candidate and not PLACEHOLDER_VALUE.fullmatch(candidate))
 
 
 def load_capability_metrics(path=DEFAULT_REGISTRY):
@@ -158,6 +175,15 @@ def validate_pr_body(body, known_capabilities=None, changed_paths=None):
     declared_capabilities = capability_ids(
         label_value(parsed.get("What", ""), "Affected capability ID(s)")
     )
+    if any(
+        capability_id.startswith("skill:") for capability_id in declared_capabilities
+    ):
+        validation = parsed.get("Validation", "")
+        for label in SKILL_TEST_LABELS:
+            if not label_has_concrete_value(validation, label):
+                errors.append(
+                    f"Validation requires a concrete '{label}:' value for skill changes"
+                )
     if known_capabilities is not None:
         for capability_id in declared_capabilities:
             if capability_id not in known_capabilities:

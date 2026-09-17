@@ -43,6 +43,15 @@ needs the frozen paired live A/B protocol.
 List commands and actual results, review evidence, limitations, and whether a
 live A/B run is required now or deferred to the milestone.
 
+When any affected capability ID starts with `skill:`, add the five-line skill
+test mini-report from the PR template. The report names the scenario, exact
+command, expected result, actual result and limitations. The test must cover
+loading/discovery, one representative behavior, and one relevant guardrail or
+explicit failure state. Contract/schema tests with a synthetic fixture are
+acceptable for a declarative workflow skill. Executable skills must exercise
+their executable path. This report does not replace milestone A/B evidence or
+blinded scientific scoring.
+
 ## Filled example
 
 ### Why
@@ -92,6 +101,15 @@ with the triggering query and candidate decisions linked from the gate result.
 - Synthetic backend failure and decision-reversal tests pass.
 - Stage 1 evaluation artifact validates against the public schema.
 - Three paired live A/B repeats are deferred to the Stage 1 milestone.
+- Skill test scenario: synthetic incomplete closest-work cluster with one
+  backend failure and one include-to-exclude reversal.
+- Skill test command: `python -m unittest discover -s plugins/auto-research-agent/tests -p "test_*.py"`.
+- Skill test expected: the skill loads, preserves both decisions, records the
+  backend failure, and returns `continue`.
+- Skill test actual: all targeted tests pass and the synthetic artifacts
+  validate; attach the test count and artifact path from the current run.
+- Skill test limitations: deterministic fixtures do not establish a P2 or P3
+  improvement on live literature retrieval.
 
 ## Commit and merge record
 

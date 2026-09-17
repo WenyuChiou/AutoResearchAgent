@@ -1,6 +1,7 @@
 """Regression tests for the research pull-request contract."""
 
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -34,6 +35,11 @@ Compare paired P2 counts and blinded judgments.
 
 ## Validation
 Synthetic regression tests passed.
+- Skill test scenario: synthetic missing coverage cluster
+- Skill test command: python -m unittest discover
+- Skill test expected: the skill loads and returns continue
+- Skill test actual: 4 tests passed and the fixture validated
+- Skill test limitations: no live retrieval or human P2 score
 """
 
 CAPABILITIES = {
@@ -53,9 +59,11 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             "## Example\nBefore: count reached.\nAfter: incomplete cluster continues.\n\n",
             "",
         )
-        body = body.replace(
-            "## Validation\nSynthetic regression tests passed.",
+        body = re.sub(
+            r"## Validation.*\Z",
             "## Validation\n<!-- fill this -->",
+            body,
+            flags=re.DOTALL,
         )
         errors = validate_pr_body(body, CAPABILITIES)
         self.assertIn("missing section: ## Example", errors)
@@ -112,6 +120,99 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         errors = validate_pr_body(body, CAPABILITIES)
         self.assertIn(
             "Capability decision must be exactly reuse, wrap, extend, or build-new",
+            errors,
+        )
+
+    def test_skill_change_requires_concrete_test_mini_report(self):
+        labels = (
+            "Skill test scenario",
+            "Skill test command",
+            "Skill test expected",
+            "Skill test actual",
+            "Skill test limitations",
+        )
+        for label in labels:
+            body = VALID.replace(
+                next(
+                    line
+                    for line in VALID.splitlines()
+                    if line.startswith(f"- {label}:")
+                ),
+                f"- {label}:",
+            )
+            errors = validate_pr_body(body, CAPABILITIES)
+            self.assertIn(
+                f"Validation requires a concrete '{label}:' value for skill changes",
+                errors,
+            )
+
+    def test_skill_change_rejects_placeholder_test_report_values(self):
+        replacements = {
+            "Skill test scenario": "TBD",
+            "Skill test command": "n/a",
+            "Skill test expected": "TODO later",
+            "Skill test actual": "pending",
+            "Skill test limitations": "none",
+        }
+        body = VALID
+        for label, placeholder in replacements.items():
+            original = next(
+                line for line in body.splitlines() if line.startswith(f"- {label}:")
+            )
+            body = body.replace(original, f"- {label}: {placeholder}")
+        errors = validate_pr_body(body, CAPABILITIES)
+        for label in replacements:
+            self.assertIn(
+                f"Validation requires a concrete '{label}:' value for skill changes",
+                errors,
+            )
+
+    def test_skill_change_accepts_concrete_values_starting_with_placeholder_words(
+        self,
+    ):
+        body = (
+            VALID.replace(
+                "- Skill test scenario: synthetic missing coverage cluster",
+                "- Skill test scenario: Pending citations exercise the stop gate",
+            )
+            .replace(
+                "- Skill test expected: the skill loads and returns continue",
+                "- Skill test expected: Unknown sources remain explicitly unverified",
+            )
+            .replace(
+                "- Skill test limitations: no live retrieval or human P2 score",
+                "- Skill test limitations: Not tested on Windows; Linux CI passed",
+            )
+        )
+        self.assertEqual(validate_pr_body(body, CAPABILITIES), [])
+
+    def test_non_skill_change_does_not_require_skill_test_mini_report(self):
+        body = "\n".join(
+            line for line in VALID.splitlines() if not line.startswith("- Skill test ")
+        ).replace("skill:stage1-literature", "validator:research-pr-contract")
+        capabilities = {
+            "validator:research-pr-contract": {
+                "metrics": {"P2"},
+                "owner_path": ".github/scripts/validate_research_pr.py",
+            }
+        }
+        self.assertEqual(validate_pr_body(body, capabilities), [])
+
+    def test_mixed_capability_change_requires_skill_test_mini_report(self):
+        body = VALID.replace(
+            "skill:stage1-literature",
+            "validator:research-pr-contract, skill:stage1-literature",
+        ).replace("- Skill test actual: 4 tests passed and the fixture validated", "")
+        capabilities = {
+            **CAPABILITIES,
+            "validator:research-pr-contract": {
+                "metrics": {"P2"},
+                "owner_path": ".github/scripts/validate_research_pr.py",
+            },
+        }
+        errors = validate_pr_body(body, capabilities)
+        self.assertIn(
+            "Validation requires a concrete 'Skill test actual:' value for skill changes",
             errors,
         )
 

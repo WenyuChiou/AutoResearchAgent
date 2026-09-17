@@ -51,6 +51,15 @@ After:
 
 Commands and actual results:
 
+<!-- Required when any affected capability ID starts with skill:. Keep this
+mini-report concrete; a full live A/B remains deferred unless this is a stage
+milestone. Remove these five lines when the PR does not change a skill. -->
+- Skill test scenario:
+- Skill test command:
+- Skill test expected:
+- Skill test actual:
+- Skill test limitations:
+
 ## Commit and AI record
 
 - Commits are single-purpose and include Why, What, Tests, AI contribution,
