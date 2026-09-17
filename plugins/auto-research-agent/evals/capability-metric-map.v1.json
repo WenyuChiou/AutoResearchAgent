@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0.0",
+  "registry_version": "capability-metric-map-v1",
+  "requirements": {
+    "all_production_capabilities_registered": true,
+    "allowed_kinds": ["skill", "mcp-tool", "cli", "validator", "gate"],
+    "allowed_statuses": ["foundation", "experimental", "active", "deprecated"],
+    "allowed_metric_roles": ["enabler", "direct"],
+    "allowed_directions": [
+      "improve",
+      "non-decrease",
+      "establish-measurement",
+      "reduce-cost"
+    ]
+  },
+  "capabilities": [
+    {
+      "capability_id": "skill:stage1-literature",
+      "kind": "skill",
+      "status": "foundation",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/skills/stage1-literature",
+      "problem": "Stock research can produce a plausible literature list without explicit coverage obligations, evidence levels, decision history, or a reasoned stop decision.",
+      "mechanism": "Define the bounded Stage 1 workflow and evidence obligations while retrieval, validation, and coverage execution remain separate later milestones.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "identity status and evidence level are represented separately",
+            "claim evidence can reference a versioned artifact"
+          ],
+          "human_judgment": "Whether central methods and findings are substantively supported by the cited source."
+        },
+        {
+          "metric_id": "P2",
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "coverage obligations are declared",
+            "recent and closest-work checks are required before a sufficient stop"
+          ],
+          "human_judgment": "Whether an alternative source is equally direct and whether the retrieved set is sufficient for the research decision."
+        },
+        {
+          "metric_id": "P3",
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "search actions and failures have artifact references",
+            "inclusion, exclusion, reversal, and human decisions retain reasons"
+          ],
+          "human_judgment": "Whether the preserved trace is sufficient to reconstruct and challenge the important research decisions."
+        }
+      ],
+      "guardrails": [
+        "no benchmark answer key in production context",
+        "no executable-harness claim before retrieval and gates exist",
+        "bounded stage context"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_plugin_loading.py",
+        "plugins/auto-research-agent/tests/test_stage_contracts.py",
+        "plugins/auto-research-agent/tests/test_stage1_evaluation_contract.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage1-executable-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:research-pr-contract",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": ".github/scripts/validate_research_pr.py",
+      "problem": "A contributor can otherwise add a plausible research capability without linking the observed failure, target metric, deterministic evidence, and live A/B decision.",
+      "mechanism": "Reject pull-request descriptions with unknown capability IDs, metric targets that disagree with the capability registry, missing hard measures, missing human judgment, or missing guardrails.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "every pull request names a registered capability ID",
+            "declared pull-request metrics overlap the capability registry",
+            "per-pull-request metric evidence and the live A/B decision are recorded"
+          ],
+          "human_judgment": "Whether the proposed evidence is sufficient to support the claimed research-harness change."
+        }
+      ],
+      "guardrails": [
+        "does not convert deterministic test success into a scientific quality claim",
+        "does not expose the frozen benchmark answer key",
+        "does not permit an unregistered production capability"
+      ],
+      "test_refs": [
+        ".github/scripts/test_validate_research_pr.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "not-applicable-governance-enabler",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:stage1-evaluation-result",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/validators/stage1_evaluation_result.py",
+      "problem": "A JSON-schema-valid Stage 1 result can still contain impossible totals, ratios, efficiency counts, or adjudication states.",
+      "mechanism": "Apply cross-field semantic checks after structural schema validation and return explicit errors for inconsistent counts and judgment states.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "bibliographic and claim count parts equal their totals",
+            "central source mismatch count is explicit"
+          ],
+          "human_judgment": "Whether the verified source actually supports the central method and finding."
+        },
+        {
+          "metric_id": "P2",
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "coverage numerators do not exceed denominators",
+            "recent work counts and latest-year state are internally consistent"
+          ],
+          "human_judgment": "Whether the retrieved set covers the closest relevant work or a defensible substitute."
+        },
+        {
+          "metric_id": "P3",
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "trace numerators do not exceed denominators",
+            "adjudicated status requires complete R1, R2, and ADJ scores"
+          ],
+          "human_judgment": "Whether the trace is sufficient to reconstruct and challenge the research decision."
+        }
+      ],
+      "guardrails": [
+        "semantic validity is not reported as scientific quality improvement",
+        "structural JSON Schema validation runs before semantic validation",
+        "private benchmark answers are not read"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_evaluation_contract.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage1-executable-milestone",
+      "quality_improvement_claimed": false
+    }
+  ]
+}

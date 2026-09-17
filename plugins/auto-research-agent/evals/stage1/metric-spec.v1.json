@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0.0",
+  "metric_spec_version": "stage1-primary-metrics-v1",
+  "scorecard_version": "primary-scorecard-v1",
+  "status": "frozen",
+  "measurement_model": {
+    "type": "hybrid",
+    "hard_measures": "Counts, ratios, schema validity, artifact presence, timestamps, failures, and efficiency are mechanically reproducible once source adjudication is fixed.",
+    "human_judgments": "Two blinded raters and an adjudicator score substantive support, relevance, substitute-source equivalence, and scientific sufficiency on the frozen 0-2 scale.",
+    "automation_boundary": "A valid result artifact is necessary but cannot by itself establish a passing P1, P2, or P3 scientific judgment."
+  },
+  "primary_metrics": [
+    {
+      "id": "P1",
+      "name": "Evidence Reliability",
+      "measurement_type": "hybrid",
+      "required_counts": [
+        "fact_metrics.bibliographic_identity",
+        "fact_metrics.identifier_or_link",
+        "fact_metrics.claim_support",
+        "fact_metrics.central_source_mismatch"
+      ],
+      "score_2": "Core sources are identifiable, no conclusion-changing fabrication or mismatch is present, central methods and findings are supported, and evidence level is explicit.",
+      "constraint": "P1 cannot receive 2 until the central-claim audit is complete."
+    },
+    {
+      "id": "P2",
+      "name": "Relevant Coverage",
+      "measurement_type": "hybrid",
+      "required_counts": [
+        "fact_metrics.coverage.clusters_hit",
+        "fact_metrics.coverage.core_hit",
+        "fact_metrics.coverage.must_have_hit",
+        "fact_metrics.coverage.recent_works",
+        "fact_metrics.coverage.latest_year"
+      ],
+      "score_2": "All four clusters are supported, direct consumer or economic LLM evidence is present, and a count-based stop has not omitted an obvious recent precedent.",
+      "constraint": "The frozen core is a development-case anchor, not an exhaustive field truth; raters may document an equally direct substitute."
+    },
+    {
+      "id": "P3",
+      "name": "Auditability",
+      "measurement_type": "hybrid",
+      "required_counts": [
+        "fact_metrics.auditability.works_with_trace",
+        "fact_metrics.auditability.claims_with_locator",
+        "fact_metrics.auditability.decisions_with_reason",
+        "fact_metrics.auditability.versions_with_access_date",
+        "fact_metrics.auditability.stop_decision_with_evidence"
+      ],
+      "score_2": "Searches, candidates, inclusion and exclusion decisions, source versions, claim evidence, and the stopping decision can be reconstructed from artifacts.",
+      "constraint": "A final DOI list without discovery and inclusion history is capped at 1."
+    }
+  ],
+  "coverage_clusters": [
+    "aging, life cycle, retirement, and household consumption",
+    "population projection to synthetic or reweighted agents",
+    "consumer or economic ABM and LLM-driven decisions",
+    "calibration, independent validation, distributional alignment, and limitations"
+  ],
+  "major_error_gate": [
+    "conclusion-changing fabricated or mismatched source, identifier, method, or finding",
+    "unsupported universal absence claim used as the main novelty",
+    "incomplete Stage 1 output scored as complete"
+  ],
+  "efficiency_guardrails": [
+    "elapsed_seconds",
+    "tool_calls",
+    "failed_tool_calls",
+    "human_interventions",
+    "retries",
+    "tokens",
+    "cost"
+  ],
+  "comparison": {
+    "unit": "stage x repeat x condition",
+    "paired_effect": "treatment - baseline",
+    "minimum_development_repeats": 3,
+    "primary_success_rule": "P2 and P3 improve, P1 does not regress, and no major error is added.",
+    "statistical_claim": "Three pairs describe direction and variability; they do not establish statistical significance."
+  },
+  "evaluation_isolation": {
+    "runtime_readable": false,
+    "answer_keys_committed": false,
+    "production_queries_may_use_benchmark_titles": false,
+    "ci_fixture_type": "synthetic"
+  },
+  "benchmark_anchor_policy": {
+    "set_type": "minimum-development-anchor-set",
+    "core_total": 10,
+    "must_have_total": 2,
+    "influenced_by_exploratory_baseline": true,
+    "blind_holdout": false,
+    "exhaustive_field_truth": false,
+    "same_work_version_substitution_allowed": true,
+    "equally_direct_substitute_changes_core_recall": false,
+    "equally_direct_substitute_requires_human_adjudication": true,
+    "classic_or_most_important_claim_status": "not-established",
+    "future_curation_required_roles": [
+      "theoretical mechanism",
+      "quantitative empirical evidence",
+      "population-to-agent coupling",
+      "simulation and reweighting methods",
+      "cross-setting cases",
+      "individual, distributional, and population validation"
+    ],
+    "classic_definition": {
+      "minimum_age_years": 5,
+      "dimensions": [
+        "independent field recognition",
+        "theoretical or methodological foundation",
+        "durable cross-time or cross-setting use"
+      ],
+      "score_range_per_dimension": [0, 2],
+      "minimum_total": 5,
+      "no_zero_dimension": true
+    },
+    "decision_critical_definition": {
+      "dimensions": [
+        "directness to the benchmark question",
+        "impact on closest-work, gap, method, baseline, or claim-boundary decisions",
+        "source and evidence quality",
+        "absence of an equally direct substitute"
+      ],
+      "must_have_rule": "Directness and decision impact each score 2, evidence quality scores at least 1, and two raters confirm no equally direct substitute."
+    },
+    "curation_evidence_status": "Sources and inclusion reasons are frozen, but a complete independent dual-rater candidate-screening log is not documented for v1.",
+    "future_blind_case_requirement": "Build and freeze anchors after the harness and rubric are frozen, using independent candidate generation, two raters, adjudication, and a versioned manifest."
+  },
+  "external_benchmark_binding": {
+    "case_id": "aging-llm-coupling-tw-v1",
+    "benchmark_version": "aging-llm-frozen-benchmark-v1",
+    "rubric_version": "aging-llm-rubric-v1",
+    "prompt_version": "stage123-isolated-v1",
+    "benchmark_bundle_sha256": "5c83f963d5275ebd39e713566e88c7062647553484b5e6420a68cec92e7d3ebc",
+    "primary_evaluation_bundle_sha256": "bed394d581163064de9cd860ea7082357535a6889bfbb7c3bbf744a02aecd971",
+    "primary_metrics_source_sha256": "bcb30469b30408a44e1dd086a3760d630ab5274179e6b575a7812fd9761528b8",
+    "baseline_diagnosis_source_sha256": "121119b1d614637ff30806ba4a808e566fa0e873df07a800ee071d28f45f9c1c"
+  }
+}

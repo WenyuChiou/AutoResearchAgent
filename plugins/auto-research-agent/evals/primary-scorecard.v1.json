@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0.0",
+  "scorecard_version": "primary-scorecard-v1",
+  "status": "frozen",
+  "frozen_at": "2026-09-13T00:00:00-04:00",
+  "scoring": {
+    "scale": [0, 1, 2],
+    "anchors": {
+      "0": "Missing, invalid, or not executable with the stated method.",
+      "1": "Relevant content exists, but evidence, coverage, reasoning, or execution detail is insufficient.",
+      "2": "Verifiable evidence and sound reasoning are sufficient for the next research decision or implementation step."
+    },
+    "raters": ["R1", "R2", "ADJ"],
+    "composite_total": false,
+    "comparison": "Within-stage, within-repeat treatment minus baseline."
+  },
+  "stages": [
+    {
+      "stage": 1,
+      "metrics": [
+        {
+          "id": "P1",
+          "name": "Evidence Reliability",
+          "question": "Are bibliography, identifiers, methods, and findings correct and source-supported?"
+        },
+        {
+          "id": "P2",
+          "name": "Relevant Coverage",
+          "question": "Are necessary research clusters and the closest recent work covered?"
+        },
+        {
+          "id": "P3",
+          "name": "Auditability",
+          "question": "Can literature and central claims be traced to searches, decisions, source versions, and evidence locations?"
+        }
+      ]
+    },
+    {
+      "stage": 2,
+      "metrics": [
+        {
+          "id": "P4",
+          "name": "Comparison Quality",
+          "question": "Are studies compared on shared dimensions rather than summarized separately?"
+        },
+        {
+          "id": "P5",
+          "name": "Gap Validity",
+          "question": "Is closest work correctly positioned and is the proposed gap evidence-backed and bounded?"
+        },
+        {
+          "id": "P6",
+          "name": "Research Value and Selection",
+          "question": "Is the contribution meaningful and the recommended direction rationally prioritized?"
+        }
+      ]
+    },
+    {
+      "stage": 3,
+      "metrics": [
+        {
+          "id": "P7",
+          "name": "Scientific Design Validity",
+          "question": "Do the question, estimand, hypotheses, coupling, method, and claim boundary agree?"
+        },
+        {
+          "id": "P8",
+          "name": "Validation Strength",
+          "question": "Are baselines, three validation layers, and calibration-validation separation credible?"
+        },
+        {
+          "id": "P9",
+          "name": "Feasibility",
+          "question": "Are data, compute, schedule, risks, and fallbacks executable within the project constraints?"
+        }
+      ]
+    }
+  ]
+}

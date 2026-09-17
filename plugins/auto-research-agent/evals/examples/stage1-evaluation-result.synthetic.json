@@ -1,0 +1,93 @@
+{
+  "kind": "Stage1EvaluationResult",
+  "schema_version": "1.0.0",
+  "run_id": "synthetic-stage1-r01-treatment",
+  "condition": "treatment",
+  "benchmark_version": "synthetic-public-fixture-v1",
+  "metric_spec_version": "stage1-primary-metrics-v1",
+  "prompt_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "fact_metrics": {
+    "bibliographic_identity": {
+      "correct": 3,
+      "incorrect": 0,
+      "unverifiable": 1,
+      "total": 4
+    },
+    "identifier_or_link": {
+      "correct": 3,
+      "incorrect": 0,
+      "unverifiable": 1,
+      "total": 4
+    },
+    "claim_support": {
+      "supported": 2,
+      "partial": 1,
+      "contradicted": 0,
+      "unverifiable": 1,
+      "total": 4
+    },
+    "central_source_mismatch": 0,
+    "coverage": {
+      "clusters_hit": 4,
+      "clusters_total": 4,
+      "core_hit": 0,
+      "core_total": 10,
+      "must_have_hit": 0,
+      "must_have_total": 2,
+      "recent_works": 2,
+      "year_confirmed_works": 4,
+      "latest_year": 2026
+    },
+    "auditability": {
+      "works_with_trace": 4,
+      "works_total": 4,
+      "claims_with_locator": 3,
+      "claims_total": 4,
+      "decisions_with_reason": 6,
+      "decisions_total": 6,
+      "versions_with_access_date": 4,
+      "included_works_total": 4,
+      "stop_decision_with_evidence": true
+    }
+  },
+  "judgment_scores": {
+    "P1": {
+      "R1": 1,
+      "R2": 1,
+      "ADJ": 1,
+      "status": "adjudicated",
+      "notes": "One claim remains unverifiable."
+    },
+    "P2": {
+      "R1": 1,
+      "R2": 1,
+      "ADJ": 1,
+      "status": "adjudicated",
+      "notes": "Synthetic fixture does not contain the external benchmark anchors."
+    },
+    "P3": {
+      "R1": 2,
+      "R2": 2,
+      "ADJ": 2,
+      "status": "adjudicated",
+      "notes": "All decisions and works have trace artifacts."
+    }
+  },
+  "major_issues": [],
+  "efficiency": {
+    "elapsed_seconds": 90,
+    "tool_calls": 8,
+    "failed_tool_calls": 1,
+    "human_interventions": 0,
+    "retries": 0,
+    "tokens": null,
+    "cost": null
+  },
+  "artifacts": [
+    {
+      "type": "query-events",
+      "path": "artifacts/query_events.jsonl",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ]
+}

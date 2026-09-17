@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "baseline_id": "aging-llm-run01-exploratory",
+  "status": "diagnostic-only",
+  "formal_paired_ab_baseline": false,
+  "source": {
+    "benchmark_version": "aging-llm-frozen-benchmark-v1",
+    "scorecard_version": "primary-scorecard-v1",
+    "diagnosis_sha256": "121119b1d614637ff30806ba4a808e566fa0e873df07a800ee071d28f45f9c1c"
+  },
+  "delivery": {
+    "deduplicated_works": 15,
+    "coverage_clusters_hit": 4,
+    "coverage_clusters_total": 4
+  },
+  "P1": {
+    "adjudicated_score": null,
+    "status": "claim-audit-incomplete",
+    "observed": "Completed metadata checks found no fabricated reference, but the full central-claim audit was not completed."
+  },
+  "P2": {
+    "adjudicated_score": 1,
+    "frozen_core_hit": 7,
+    "frozen_core_total": 10,
+    "must_have_hit": 0,
+    "must_have_total": 2,
+    "recent_works": 1,
+    "year_confirmed_works": 15
+  },
+  "P3": {
+    "adjudicated_score": 1,
+    "web_calls": 21,
+    "search_calls": 16,
+    "query_strings": 57,
+    "candidate_ledger_present": false,
+    "claim_locators_present": false,
+    "source_versions_recorded_for_all_included_works": false
+  },
+  "comparison_warning": "Do not compare this exploratory single-prompt run directly with a later treatment. Formal A/B requires newly paired baseline and treatment runs under the frozen isolated prompt."
+}
