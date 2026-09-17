@@ -14,15 +14,50 @@ HEADING = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 METRIC = re.compile(r"\bP[1-9]\b")
 CAPABILITY_DECISIONS = {"reuse", "wrap", "extend", "build-new"}
+EXECUTION_STATUSES = {"complete", "partial", "blocked"}
+EXTERNAL_PR = re.compile(r"https://github\.com/([^/\s]+)/([^/\s]+)/pull/\d+/?$")
+IMPROVEMENT_STATEMENT = re.compile(
+    r"^(improved|not improved|not yet demonstrated)\s*(?:—|:|-)\s*"
+    r"(.+?);\s*evidence:\s*(.+)$",
+    re.IGNORECASE,
+)
+EVIDENCE_SIGNAL = re.compile(
+    r"(?:\b\d+(?:/\d+|(?:\.\d+)?%)?\b|\btests?\s+(?:pass(?:ed)?|fail(?:ed)?)\b|"
+    r"\b(?:artifact|schema|fixture|benchmark|paired|metric|measurement|milestone|a/b)\b|"
+    r"https://|[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+)",
+    re.IGNORECASE,
+)
+SKILL_TEST_LABELS = (
+    "Skill test scenario",
+    "Skill test command",
+    "Skill test expected",
+    "Skill test actual",
+    "Skill test limitations",
+)
+PLACEHOLDER_VALUE = re.compile(
+    r"^(?:tbd|todo|n/?a|none|pending|unknown|not[ -]tested|not[ -]run|"
+    r"placeholder|fill[ -](?:this|me))(?:\s+(?:later|yet|here|please|soon))?$",
+    re.IGNORECASE,
+)
 REQUIRED_LABELS = {
-    "Why": ("Target primary metric(s)",),
-    "What": ("Affected capability ID(s)", "Capability decision"),
+    "Why": ("Plain-language summary", "Target primary metric(s)"),
+    "What": (
+        "Affected capability ID(s)",
+        "Capability decision",
+        "Related external PR(s)",
+    ),
     "Evaluation": (
         "Hard measures",
         "Human judgment rubric",
         "Major-error guardrail",
         "Per-PR metric evidence",
+        "Improvement statement",
         "Live paired A/B",
+    ),
+    "Validation": (
+        "Execution status",
+        "Remaining work or blocker",
+        "Review and merge owner",
     ),
 }
 DEFAULT_REGISTRY = (
@@ -57,6 +92,15 @@ def label_value(value, label):
     pattern = re.compile(rf"^-\s*{re.escape(label)}:[ \t]*([^\r\n]+)$", re.MULTILINE)
     match = pattern.search(visible_text(value))
     return match.group(1).strip() if match else ""
+
+
+def label_has_concrete_value(value, label):
+    return text_is_concrete(label_value(value, label))
+
+
+def text_is_concrete(value):
+    candidate = value.strip().strip("`._- ")
+    return bool(candidate and not PLACEHOLDER_VALUE.fullmatch(candidate))
 
 
 def load_capability_metrics(path=DEFAULT_REGISTRY):
@@ -154,10 +198,78 @@ def validate_pr_body(body, known_capabilities=None, changed_paths=None):
         errors.append(
             "Capability decision must be exactly reuse, wrap, extend, or build-new"
         )
+    plain_summary = label_value(parsed.get("Why", ""), "Plain-language summary")
+    if plain_summary and (
+        not text_is_concrete(plain_summary) or len(plain_summary) < 25
+    ):
+        errors.append(
+            "Plain-language summary must be one concrete sentence explaining the "
+            "problem, change, and benefit"
+        )
+    external_prs = label_value(parsed.get("What", ""), "Related external PR(s)")
+    if external_prs and external_prs.casefold() != "none":
+        external_entries = [entry.strip() for entry in external_prs.split(";")]
+        invalid_external = []
+        for entry in external_entries:
+            match = EXTERNAL_PR.fullmatch(entry)
+            if not match or (
+                match.group(1).casefold() == "wenyuchiou"
+                and match.group(2).casefold() == "autoresearchagent"
+            ):
+                invalid_external.append(entry)
+        if invalid_external:
+            errors.append(
+                "Related external PR(s) must be 'None' or a semicolon-separated "
+                "list of external GitHub pull-request URLs"
+            )
+    improvement = label_value(parsed.get("Evaluation", ""), "Improvement statement")
+    improvement_match = IMPROVEMENT_STATEMENT.fullmatch(improvement)
+    if not improvement_match:
+        errors.append(
+            "Improvement statement must begin with improved, not improved, or "
+            "not yet demonstrated and use '; evidence:' in the same sentence"
+        )
+    else:
+        change = improvement_match.group(2)
+        evidence = improvement_match.group(3)
+        if (
+            not text_is_concrete(change)
+            or len(change.split()) < 4
+            or not text_is_concrete(evidence)
+            or not EVIDENCE_SIGNAL.search(evidence)
+        ):
+            errors.append(
+                "Improvement statement must include a concrete change and a "
+                "measurement, test result, artifact, or explicit milestone deferral"
+            )
+    merge_owner = label_value(parsed.get("Validation", ""), "Review and merge owner")
+    if merge_owner.casefold() != "core team":
+        errors.append("Review and merge owner must be exactly 'core team'")
+    execution_status = label_value(
+        parsed.get("Validation", ""), "Execution status"
+    ).casefold()
+    if execution_status not in EXECUTION_STATUSES:
+        errors.append("Execution status must be exactly complete, partial, or blocked")
+    remaining = label_value(parsed.get("Validation", ""), "Remaining work or blocker")
+    if remaining and remaining.casefold() != "none" and not text_is_concrete(remaining):
+        errors.append("Remaining work or blocker must be 'None' or concrete")
+    if execution_status in {"partial", "blocked"} and remaining.casefold() == "none":
+        errors.append(
+            "Partial or blocked execution must describe the remaining work or blocker"
+        )
     declared_metrics = set(METRIC.findall(why_and_evaluation))
     declared_capabilities = capability_ids(
         label_value(parsed.get("What", ""), "Affected capability ID(s)")
     )
+    if any(
+        capability_id.startswith("skill:") for capability_id in declared_capabilities
+    ):
+        validation = parsed.get("Validation", "")
+        for label in SKILL_TEST_LABELS:
+            if not label_has_concrete_value(validation, label):
+                errors.append(
+                    f"Validation requires a concrete '{label}:' value for skill changes"
+                )
     if known_capabilities is not None:
         for capability_id in declared_capabilities:
             if capability_id not in known_capabilities:
