@@ -95,6 +95,35 @@
     "same_work_version_substitution_allowed": true,
     "equally_direct_substitute_changes_core_recall": false,
     "equally_direct_substitute_requires_human_adjudication": true,
+    "classic_or_most_important_claim_status": "not-established",
+    "future_curation_required_roles": [
+      "theoretical mechanism",
+      "quantitative empirical evidence",
+      "population-to-agent coupling",
+      "simulation and reweighting methods",
+      "cross-setting cases",
+      "individual, distributional, and population validation"
+    ],
+    "classic_definition": {
+      "minimum_age_years": 5,
+      "dimensions": [
+        "independent field recognition",
+        "theoretical or methodological foundation",
+        "durable cross-time or cross-setting use"
+      ],
+      "score_range_per_dimension": [0, 2],
+      "minimum_total": 5,
+      "no_zero_dimension": true
+    },
+    "decision_critical_definition": {
+      "dimensions": [
+        "directness to the benchmark question",
+        "impact on closest-work, gap, method, baseline, or claim-boundary decisions",
+        "source and evidence quality",
+        "absence of an equally direct substitute"
+      ],
+      "must_have_rule": "Directness and decision impact each score 2, evidence quality scores at least 1, and two raters confirm no equally direct substitute."
+    },
     "curation_evidence_status": "Sources and inclusion reasons are frozen, but a complete independent dual-rater candidate-screening log is not documented for v1.",
     "future_blind_case_requirement": "Build and freeze anchors after the harness and rubric are frozen, using independent candidate generation, two raters, adjudication, and a versioned manifest."
   },

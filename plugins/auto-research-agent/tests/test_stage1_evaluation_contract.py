@@ -56,6 +56,17 @@ class Stage1EvaluationContractTests(unittest.TestCase):
         self.assertTrue(anchors["influenced_by_exploratory_baseline"])
         self.assertFalse(anchors["blind_holdout"])
         self.assertFalse(anchors["exhaustive_field_truth"])
+        self.assertEqual(
+            anchors["classic_or_most_important_claim_status"], "not-established"
+        )
+        self.assertEqual(len(anchors["future_curation_required_roles"]), 6)
+        self.assertEqual(anchors["classic_definition"]["minimum_age_years"], 5)
+        self.assertEqual(anchors["classic_definition"]["minimum_total"], 5)
+        self.assertTrue(anchors["classic_definition"]["no_zero_dimension"])
+        self.assertIn(
+            "two raters",
+            anchors["decision_critical_definition"]["must_have_rule"],
+        )
         self.assertTrue(
             anchors["equally_direct_substitute_requires_human_adjudication"]
         )

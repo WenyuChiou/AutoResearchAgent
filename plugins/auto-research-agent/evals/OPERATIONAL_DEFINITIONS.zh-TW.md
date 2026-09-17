@@ -12,7 +12,27 @@
 2. 它不是 unseen holdout；run01 已參與 benchmark 與 rubric 的形成。
 3. 現有 bundle 記錄了來源與納入理由，但未完整記錄獨立雙評分者的候選篩選過程，所以不能宣稱這 10 篇由完整 systematic review 得出。
 
-未來 blind case 的 anchor set 必須在 harness 與 rubric 凍結後建立：先定義題目、截止日和 clusters；由資料庫搜尋、backward/forward citation chaining 與 expert seeds 產生候選；核對來源；兩位評分者獨立判斷 directness、role 與 inclusion；分歧交由第三人裁定；最後保存納入排除理由、版本、日期與 manifest hash。被測 agent 不可參與選答案。
+因此 v1 的 `classic / most-important` claim 狀態是 **not established**。要改成已確認，curation audit 必須同時檢查六種角色：理論機制、量化實證、人口到 agent 的耦合、simulation／reweighting 方法、跨國或跨情境案例，以及三層 validation。每個角色都要保存候選來源、納入排除理由與 reviewer 裁定；citation count 只能作為參考，不能代替與本題的直接性。
+
+未來 blind case 的 anchor set 必須在 harness 與 rubric 凍結後建立：先定義題目、截止日、clusters 和上述六種角色；由資料庫搜尋、backward/forward citation chaining 與 expert seeds 產生候選；核對來源；兩位評分者獨立判斷 directness、role 與 inclusion；分歧交由第三人裁定；最後保存納入排除理由、版本、日期與 manifest hash。被測 agent 不可參與選答案。
+
+### 如何定義「經典」與「重要」
+
+`classic` 和 `decision-critical` 分開評，因為剛出版的 closest work 可能非常重要，但還沒有足夠時間成為經典。
+
+| 判斷 | 0 分 | 1 分 | 2 分 |
+|---|---|---|---|
+| Classic—領域認可 | 找不到獨立認可證據 | 一個可靠 review／guideline／textbook 採用，或有初步引用延續 | 至少兩個獨立權威來源視為基礎，或有五年以上可追查的持續採用 |
+| Classic—理論／方法奠基 | 只做小幅應用 | 明確擴展既有理論或方法 | 首創、正式化或成為後續研究反覆使用的標準方法 |
+| Classic—耐久性 | 尚無跨時間使用證據 | 在另一資料、國家或情境被使用 | 五年以上持續在多個獨立情境被使用或檢驗 |
+| Importance—與本題直接性 | 只碰到關鍵字 | 提供間接機制或一般方法 | 直接研究本題的 population、decision、outcome 或 validation link |
+| Importance—決策影響 | 漏掉不改變判斷 | 會補充理由但不改變選擇 | 漏掉會改變 closest work、gap、方法、baseline 或 claim boundary |
+| Importance—證據品質 | 身份或內容無法核實 | 可核實但資料／方法有明顯限制 | primary source 可核實，方法與限制足以支持指定角色 |
+| Importance—替代性 | 有多個等價來源 | 有部分替代但證據不完全相同 | 沒有 equally direct substitute，或替代後仍失去關鍵資訊 |
+
+Classic 候選必須在 benchmark 截止日前至少出版五年、三個 Classic 項目都不為 0，且合計至少 `5/6`。這個時間條件不適用於 recent closest work。`must-have` 必須在 directness 與 decision impact 都得 2、evidence quality 至少 1，且兩位評分者確認沒有 equally direct substitute。門檻、原始證據與不同門檻下的 sensitivity check 都要在凍結前保存。
+
+`core anchor` 可以是符合 Classic 門檻的 foundational work，也可以是未滿五年但符合 must-have 規則的 decision-critical work。不能因 citation count 高就自動列入，也不能因文章新就排除 closest work。
 
 ### Core、must-have 與替代來源
 
