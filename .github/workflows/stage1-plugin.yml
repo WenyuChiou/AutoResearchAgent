@@ -1,17 +1,8 @@
 name: Stage 1 plugin
 
 on:
-  pull_request:
-    paths:
-      - ".agents/plugins/marketplace.json"
-      - "plugins/auto-research-agent/**"
-      - ".github/workflows/stage1-plugin.yml"
-  push:
-    branches: [main]
-    paths:
-      - ".agents/plugins/marketplace.json"
-      - "plugins/auto-research-agent/**"
-      - ".github/workflows/stage1-plugin.yml"
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,5 +27,9 @@ jobs:
           version: "0.11.3"
       - run: npm install --global @openai/codex@0.153.0
       - run: codex --version
+      - name: Check plugin and CI Python formatting
+        run: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py
+      - name: Check plugin spelling
+        run: uvx --from codespell==2.4.3 codespell plugins/auto-research-agent .agents/plugins/marketplace.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py
       - name: Plugin loading and stage contracts
         run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s plugins/auto-research-agent/tests -v

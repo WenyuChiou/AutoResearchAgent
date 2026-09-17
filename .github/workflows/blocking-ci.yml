@@ -8,9 +8,29 @@ on:
     branches: [main]
 
 jobs:
+  scope:
+    name: Select checks for changed components
+    runs-on: ubuntu-24.04
+    outputs:
+      plugin_only: ${{ steps.select.outputs.plugin_only }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: python3 -m unittest discover -s .github/scripts -p test_ci_scope.py -v
+      - id: select
+        run: python3 .github/scripts/ci_scope.py
+
+  stage1:
+    name: Stage 1 harness
+    uses: ./.github/workflows/stage1-plugin.yml
+
   # Keep reusable workflow calls alphabetized. The `required` job below is the
   # version-controlled list that the main-branch ruleset should require.
   bazel:
+    needs: scope
+    if: needs.scope.outputs.plugin_only != 'true'
     name: Bazel
     uses: ./.github/workflows/bazel.yml
     secrets: inherit
@@ -21,26 +41,36 @@ jobs:
     secrets: inherit
 
   cargo-deny:
+    needs: scope
+    if: needs.scope.outputs.plugin_only != 'true'
     name: cargo-deny
     uses: ./.github/workflows/cargo-deny.yml
     secrets: inherit
 
   codespell:
+    needs: scope
+    if: needs.scope.outputs.plugin_only != 'true'
     name: Codespell
     uses: ./.github/workflows/codespell.yml
     secrets: inherit
 
   repo-checks:
+    needs: scope
+    if: needs.scope.outputs.plugin_only != 'true'
     name: repo-checks
     uses: ./.github/workflows/repo-checks.yml
     secrets: inherit
 
   rust-ci:
+    needs: scope
+    if: needs.scope.outputs.plugin_only != 'true'
     name: rust-ci
     uses: ./.github/workflows/rust-ci.yml
     secrets: inherit
 
   sdk:
+    needs: scope
+    if: needs.scope.outputs.plugin_only != 'true'
     name: sdk
     uses: ./.github/workflows/sdk.yml
     secrets: inherit
@@ -51,6 +81,8 @@ jobs:
     # required check can appear successful instead of reporting the failure.
     if: ${{ always() }}
     needs:
+      - scope
+      - stage1
       - bazel
       - blob-size-policy
       - cargo-deny
@@ -69,4 +101,4 @@ jobs:
       - name: Require successful dependencies
         env:
           NEEDS: ${{ toJSON(needs) }}
-        run: python3 .github/scripts/check_ci_results.py
+        run: python3 .github/scripts/ci_scope.py check
