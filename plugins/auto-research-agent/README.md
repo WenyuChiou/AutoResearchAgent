@@ -40,3 +40,12 @@ The [shared contracts](references/stage-contracts.md) describe all six research
 stages. Their tests exercise valid records, malformed references, missing
 fields, version rejection, human authorization and blocked stop decisions.
 They do not replace the later artifact validator or Stage 1 coverage gate.
+
+The [evaluation contract](evals/README.md) freezes the primary P1-P9 scorecard
+and operationalizes Stage 1 P1-P3 without committing benchmark answer keys.
+Routine CI validates only schemas and synthetic examples. Paired live A/B runs
+use the separately controlled frozen benchmark bundle.
+
+All contributors must follow [CONTRIBUTING.md](CONTRIBUTING.md). Every new
+skill, tool, validator or gate must declare its target metrics and tests in the
+[capability metric map](evals/capability-metric-map.v1.json).
