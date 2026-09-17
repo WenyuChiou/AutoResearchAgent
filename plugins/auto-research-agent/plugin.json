@@ -1,0 +1,8 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "auto-research-agent",
+  "version": "0.1.0",
+  "description": "Stage 1 literature discovery and evidence contracts for AutoResearchAgent.",
+  "repository": "https://github.com/WenyuChiou/AutoResearchAgent",
+  "license": "Apache-2.0"
+}

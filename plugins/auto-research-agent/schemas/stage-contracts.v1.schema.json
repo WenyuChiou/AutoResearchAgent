@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage-contracts:1.0.0",
+  "title": "AutoResearchAgent shared stage contracts",
+  "oneOf": [
+    {"$ref": "#/$defs/ResearchRun"},
+    {"$ref": "#/$defs/StageRun"},
+    {"$ref": "#/$defs/ArtifactRef"},
+    {"$ref": "#/$defs/DecisionEvent"},
+    {"$ref": "#/$defs/GateResult"},
+    {"$ref": "#/$defs/StageResult"}
+  ],
+  "$defs": {
+    "Text": {"type": "string", "minLength": 1},
+    "Timestamp": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$", "minLength": 64, "maxLength": 64},
+    "Version": {"const": "1.0.0"},
+    "Stage": {"type": "integer", "minimum": 1, "maximum": 6},
+    "Status": {"enum": ["pending", "running", "blocked", "human-review", "completed", "failed"]},
+    "Texts": {"type": "array", "items": {"$ref": "#/$defs/Text"}},
+    "Refs": {"type": "array", "items": {"$ref": "#/$defs/ArtifactRef"}},
+    "ArtifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "artifact_id", "artifact_type", "path", "sha256", "producer", "created_at"],
+      "properties": {
+        "kind": {"const": "ArtifactRef"},
+        "schema_version": {"$ref": "#/$defs/Version"},
+        "artifact_id": {"$ref": "#/$defs/Text"},
+        "artifact_type": {"$ref": "#/$defs/Text"},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\u0000-\\u001f/]+(?:/[^\\\\:\\u0000-\\u001f/]+)*(?![\\s\\S])"},
+        "sha256": {"$ref": "#/$defs/Hash"},
+        "producer": {"$ref": "#/$defs/Text"},
+        "created_at": {"$ref": "#/$defs/Timestamp"}
+      }
+    },
+    "ResearchRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "run_id", "objective", "created_at", "current_stage", "constraints", "versions", "input_refs"],
+      "properties": {
+        "kind": {"const": "ResearchRun"},
+        "schema_version": {"$ref": "#/$defs/Version"},
+        "run_id": {"$ref": "#/$defs/Text"},
+        "objective": {"$ref": "#/$defs/Text"},
+        "created_at": {"$ref": "#/$defs/Timestamp"},
+        "current_stage": {"$ref": "#/$defs/Stage"},
+        "constraints": {"$ref": "#/$defs/Texts"},
+        "versions": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/Text"}},
+        "input_refs": {"$ref": "#/$defs/Refs"}
+      }
+    },
+    "StageRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "stage_run_id", "run_id", "stage", "phase", "status", "attempt", "started_at", "ended_at", "input_refs"],
+      "properties": {
+        "kind": {"const": "StageRun"},
+        "schema_version": {"$ref": "#/$defs/Version"},
+        "stage_run_id": {"$ref": "#/$defs/Text"},
+        "run_id": {"$ref": "#/$defs/Text"},
+        "stage": {"$ref": "#/$defs/Stage"},
+        "phase": {"enum": ["plan", "execute", "extract", "validate", "gate", "checkpoint"]},
+        "status": {"$ref": "#/$defs/Status"},
+        "attempt": {"type": "integer", "minimum": 1},
+        "started_at": {"anyOf": [{"$ref": "#/$defs/Timestamp"}, {"type": "null"}]},
+        "ended_at": {"anyOf": [{"$ref": "#/$defs/Timestamp"}, {"type": "null"}]},
+        "input_refs": {"$ref": "#/$defs/Refs"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "pending"}}},
+          "then": {"properties": {"started_at": {"type": "null"}, "ended_at": {"type": "null"}}},
+          "else": {"properties": {"started_at": {"$ref": "#/$defs/Timestamp"}}}
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["completed", "failed"]}}},
+          "then": {"properties": {"ended_at": {"$ref": "#/$defs/Timestamp"}}},
+          "else": {"properties": {"ended_at": {"type": "null"}}}
+        }
+      ]
+    },
+    "DecisionEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "event_id", "run_id", "stage_run_id", "sequence", "created_at", "actor", "actor_type", "subject_id", "prior_decision", "new_decision", "reason_code", "rationale", "evidence_refs", "reverses_event_id", "authorization"],
+      "properties": {
+        "kind": {"const": "DecisionEvent"},
+        "schema_version": {"$ref": "#/$defs/Version"},
+        "event_id": {"$ref": "#/$defs/Text"},
+        "run_id": {"$ref": "#/$defs/Text"},
+        "stage_run_id": {"$ref": "#/$defs/Text"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "created_at": {"$ref": "#/$defs/Timestamp"},
+        "actor": {"$ref": "#/$defs/Text"},
+        "actor_type": {"enum": ["agent", "human", "system"]},
+        "subject_id": {"$ref": "#/$defs/Text"},
+        "prior_decision": {"anyOf": [{"$ref": "#/$defs/Text"}, {"type": "null"}]},
+        "new_decision": {"$ref": "#/$defs/Text"},
+        "reason_code": {"$ref": "#/$defs/Text"},
+        "rationale": {"$ref": "#/$defs/Text"},
+        "evidence_refs": {"$ref": "#/$defs/Refs"},
+        "reverses_event_id": {"anyOf": [{"$ref": "#/$defs/Text"}, {"type": "null"}]},
+        "authorization": {"anyOf": [{"$ref": "#/$defs/HumanAuthorization"}, {"type": "null"}]}
+      },
+      "if": {"properties": {"actor_type": {"const": "human"}}},
+      "then": {"properties": {"authorization": {"$ref": "#/$defs/HumanAuthorization"}}},
+      "else": {"properties": {"authorization": {"type": "null"}}}
+    },
+    "HumanAuthorization": {
+      "type": "object", "additionalProperties": false,
+      "required": ["input", "state_sha256"],
+      "properties": {"input": {"$ref": "#/$defs/Text"}, "state_sha256": {"$ref": "#/$defs/Hash"}}
+    },
+    "GateResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "gate_name", "outcome", "reasons", "blocking_items", "evidence_refs"],
+      "properties": {
+        "kind": {"const": "GateResult"},
+        "schema_version": {"$ref": "#/$defs/Version"},
+        "gate_name": {"$ref": "#/$defs/Text"},
+        "outcome": {"enum": ["pass", "fail", "review-required"]},
+        "reasons": {"$ref": "#/$defs/Texts", "minItems": 1},
+        "blocking_items": {"$ref": "#/$defs/Texts"},
+        "evidence_refs": {"$ref": "#/$defs/Refs"}
+      },
+      "if": {"properties": {"outcome": {"const": "pass"}}},
+      "then": {"properties": {"blocking_items": {"maxItems": 0}}}
+    },
+    "StageResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "stage_run_id", "status", "outputs", "validator_report", "metrics", "gate", "next_allowed_action"],
+      "properties": {
+        "kind": {"const": "StageResult"},
+        "schema_version": {"$ref": "#/$defs/Version"},
+        "stage_run_id": {"$ref": "#/$defs/Text"},
+        "status": {"$ref": "#/$defs/Status"},
+        "outputs": {"$ref": "#/$defs/Refs"},
+        "validator_report": {"$ref": "#/$defs/ArtifactRef"},
+        "metrics": {"type": "object", "additionalProperties": {"type": ["number", "null"]}},
+        "gate": {"$ref": "#/$defs/GateResult"},
+        "next_allowed_action": {"enum": ["continue", "revise-query", "pause-blocked", "stop-sufficient", "human-review", "none"]}
+      },
+      "if": {"properties": {"next_allowed_action": {"const": "stop-sufficient"}}},
+      "then": {"properties": {"status": {"const": "completed"}, "gate": {"properties": {"outcome": {"const": "pass"}}}}}
+    }
+  }
+}
