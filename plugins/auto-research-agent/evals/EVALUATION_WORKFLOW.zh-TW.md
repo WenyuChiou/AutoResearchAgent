@@ -86,6 +86,11 @@ inaccessible、judge disagreement、B/T 只差一個 ordinal point，或準備�
 - hard checks 與必要 audit 全部完成；
 - runtime、tool calls、cost、human interventions 分開報告，不能抵銷品質退步。
 
+`paired_evaluation.py` 像三場配對比賽的記分員：只接受 plan 指定的六個可用 bundle，
+先核對每次 run 的 condition、build、runtime 與 process-boundary attestation，再分開比較
+P1–P9。Target 至少兩場改善且零退步；non-target 不可退步；新增 major error 直接否決。
+相鄰分數與 P5/P6 分布變化先 audit。輸出綁定 request hash，不算總分或核准對外宣稱。
+
 三對 runs 只顯示方向與波動，沒有預先註冊且足夠樣本時不宣稱統計顯著。P1 用 stage
 summary；P5 保留各方向分布與 minimum；P6 保留各方向與 final recommendation；其他
 metric 使用完整 stage-level unit。不得把 P1–P9 加總成一個總分。

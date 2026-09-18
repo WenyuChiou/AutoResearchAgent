@@ -120,6 +120,9 @@ def validate_bundle(bundle):
         return errors
     if plan["plan_id"] != bundle["plan"]["plan_id"]:
         errors.append("plan_id does not match the bound evaluation plan")
+    if plan["status"] != "frozen" or plan["frozen_at"] is None:
+        errors.append("judge bundles require a frozen evaluation plan")
+        return errors
 
     known_runs = {
         run["run_id"]: run["subject_id"]
@@ -275,6 +278,17 @@ def validate_bundle(bundle):
             )
         expected_status = "agreed"
         expected_selected, expected_usable = r1["evaluation_id"], True
+
+    bundle_time = datetime.fromisoformat(bundle["created_at"])
+    latest_input_time = max(
+        datetime.fromisoformat(result["created_at"]) for result in automatic_results
+    )
+    if audit is not None:
+        latest_input_time = max(
+            latest_input_time, datetime.fromisoformat(audit["completed_at"])
+        )
+    if bundle_time < latest_input_time:
+        errors.append("judge bundle must be created after all judge and audit inputs")
 
     if bundle["status"] != expected_status:
         errors.append(f"status must be {expected_status} for the observed judge state")

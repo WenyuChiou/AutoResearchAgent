@@ -15,6 +15,12 @@ answers outside the production agent.
   bind judge outputs to one frozen plan and subject. They compare every unit's
   score and major-error IDs, require Auto-ADJ on disagreement, require the
   declared human audit, and block paired evaluation until the bundle is usable.
+- `schemas/paired-evaluation-request.v1.schema.json`,
+  `schemas/paired-evaluation-decision.v1.schema.json`, and
+  `../validators/paired_evaluation.py` consume exactly six usable bundles,
+  verify each run's condition/build/runtime/process attestation, apply the
+  three-pair rule per metric, require close-pair audits, bind output to the
+  request hash, block added errors, and report quality separately from costs.
 - `EVALUATION_WORKFLOW.zh-TW.md` explains the complete frozen-case, paired-run,
   judge, adjudication, audit and reporting flow in plain language.
 - `schemas/holdout-manifest.v1.schema.json` and
@@ -65,6 +71,7 @@ separately. A targeted human audit is required for the triggers named in the
 rubric and before an external generalization claim.
 Report factual items as counts and proportions. Do not sum P1-P9 into one total.
 Major errors and efficiency measures remain separate from quality scores.
+The paired runner sets `external_claim_ready` to false until the core team completes the separately governed external-claim audit.
 
 ## Hard measures and rubric-based AI judgments
 
