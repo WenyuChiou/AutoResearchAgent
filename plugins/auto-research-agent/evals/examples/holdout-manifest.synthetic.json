@@ -4,6 +4,7 @@
   "manifest_id": "holdout-synthetic-v1",
   "case_id": "aging-bidirectional-development-v1",
   "rubric_version": "aging-bidirectional-rubric-v1",
+  "use_class": "synthetic",
   "status": "frozen",
   "cutoff_date": "2026-09-17",
   "coverage_clusters": [

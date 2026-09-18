@@ -43,6 +43,11 @@ class HoldoutManifestTests(unittest.TestCase):
             canonical_sha256(self.example), canonical_sha256(reordered_array)
         )
 
+    def test_existing_v1_manifest_without_use_class_remains_valid(self):
+        legacy = deepcopy(self.example)
+        legacy.pop("use_class")
+        self.assertEqual(validate_manifest(legacy), [])
+
     def test_manifest_covers_exact_frozen_clusters_and_roles(self):
         missing_role = deepcopy(self.example)
         missing_role["anchors"][0]["roles"].remove("validation")
