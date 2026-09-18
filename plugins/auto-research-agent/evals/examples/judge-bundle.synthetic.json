@@ -1,0 +1,34 @@
+{
+  "kind": "JudgeBundle",
+  "schema_version": "1.0.0",
+  "bundle_id": "bundle-run01-a-v1",
+  "plan": {
+    "plan_id": "aging-stage1-synthetic-plan-v1",
+    "artifact": {
+      "path": "examples/evaluation-plan.synthetic.json",
+      "canonical_sha256": "6c13e735071a6586d86bd6d0396536563c2413e71fca4974554118886b692130"
+    }
+  },
+  "run_id": "run01-a",
+  "subject_id": "subject-0000000000000001",
+  "artifacts": {
+    "auto_r1": {
+      "path": "examples/rubric-judge-result-stage1-r1.synthetic.json",
+      "canonical_sha256": "f143b705460370aff3bda236a7fa9f2e3a8ec166d660ee1f170477f69efb25fa"
+    },
+    "auto_r2": {
+      "path": "examples/rubric-judge-result-stage1-r2.synthetic.json",
+      "canonical_sha256": "db5e5fc8b81c2d39652ee33f7803afe5c2f49d4e423583c7b462587946fcd5f7"
+    },
+    "auto_adj": null,
+    "human_audit": null
+  },
+  "status": "agreed",
+  "selected_evaluation_id": "eval-run01-a-r1",
+  "usable_for_pairing": true,
+  "created_at": "2026-09-17T16:10:00-04:00",
+  "subject_artifact": {
+    "path": "examples/subject-stage1.synthetic.json",
+    "sha256": "1f4c85bf2a3a5710c832c6bc79f5d06da05f1b0316f14e833feec6e5004e52cf"
+  }
+}

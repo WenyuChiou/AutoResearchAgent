@@ -46,7 +46,11 @@
       "properties": {
         "role": {"enum": ["auto-r1", "auto-r2", "auto-adj", "human-audit"]},
         "model": {"type": "string", "minLength": 1},
+        "reasoning": {"enum": ["low", "medium", "high", "xhigh", "max", "ultra"]},
         "config_id": {"$ref": "#/$defs/id"},
+        "prompt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "evaluation_config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "execution_context_id": {"$ref": "#/$defs/id"},
         "condition_blinded": {"type": "boolean"}
       }
     },

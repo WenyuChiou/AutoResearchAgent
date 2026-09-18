@@ -11,6 +11,10 @@ answers outside the production agent.
   boundaries for all three stages.
 - `schemas/rubric-judge-result.v1.schema.json` defines a blinded Auto-R1,
   Auto-R2, Auto-ADJ or targeted human-audit result.
+- `schemas/judge-bundle.v1.schema.json` and `../validators/judge_bundle.py`
+  bind judge outputs to one frozen plan and subject. They compare every unit's
+  score and major-error IDs, require Auto-ADJ on disagreement, require the
+  declared human audit, and block paired evaluation until the bundle is usable.
 - `EVALUATION_WORKFLOW.zh-TW.md` explains the complete frozen-case, paired-run,
   judge, adjudication, audit and reporting flow in plain language.
 - `schemas/holdout-manifest.v1.schema.json` and

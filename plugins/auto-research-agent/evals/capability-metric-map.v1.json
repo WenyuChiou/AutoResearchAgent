@@ -227,6 +227,45 @@
       "test_refs": ["plugins/auto-research-agent/tests/test_evaluation_plan.py", "plugins/auto-research-agent/tests/test_capability_metric_map.py"],
       "live_ab_required_at": "stage-executable-milestone",
       "quality_improvement_claimed": false
+    },
+{
+      "capability_id": "validator:judge-bundle",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/validators/judge_bundle.py",
+      "problem": "Independent judges can silently score different subjects, disagree without adjudication, or be used in paired A/B before a required human audit is complete.",
+      "mechanism": "Verify subject and audit bytes, hash-bind R1, R2, and optional ADJ artifacts to one frozen plan and subject, compare every unit score and major-error set, and enforce provenance, chronology, adjudication, audit, and pairing-readiness states.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.DECISION_TRACE",
+            "P3.FAILURE_STATE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "R1 and R2 artifacts are hash-bound to the same frozen plan and subject",
+            "subject and human-audit bytes match their declared SHA-256",
+            "judge configuration and timestamps match the frozen plan and execution order",
+            "every score or major-error disagreement requires Auto-ADJ",
+            "required human audit blocks pairing until accepted"
+          ],
+          "human_judgment": "A named human audits only declared trigger cases and may accept, reject, or mark the bundle inconclusive."
+        }
+      ],
+      "guardrails": [
+        "judge agreement does not prove scientific correctness",
+        "audit rejection and inconclusive decisions cannot be used for pairing",
+        "P1-P9 remain separate and no composite score is created",
+        "human identity still requires external attestation"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_judge_bundle.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage-executable-milestone",
+      "quality_improvement_claimed": false
     }
   ]
 }

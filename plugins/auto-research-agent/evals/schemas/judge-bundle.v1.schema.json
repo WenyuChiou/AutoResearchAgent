@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/auto-research-agent/judge-bundle.v1.schema.json",
+  "title": "JudgeBundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "bundle_id", "plan", "run_id", "subject_id", "subject_artifact", "artifacts", "status", "selected_evaluation_id", "usable_for_pairing", "created_at"],
+  "properties": {
+    "kind": {"const": "JudgeBundle"},
+    "schema_version": {"const": "1.0.0"},
+    "bundle_id": {"$ref": "#/$defs/id"},
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan_id", "artifact"],
+      "properties": {
+        "plan_id": {"$ref": "#/$defs/id"},
+        "artifact": {"$ref": "#/$defs/jsonArtifact"}
+      }
+    },
+    "run_id": {"$ref": "#/$defs/id"},
+    "subject_id": {"$ref": "#/$defs/id"},
+    "subject_artifact": {"$ref": "#/$defs/byteArtifact"},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["auto_r1", "auto_r2", "auto_adj", "human_audit"],
+      "properties": {
+        "auto_r1": {"$ref": "#/$defs/jsonArtifact"},
+        "auto_r2": {"$ref": "#/$defs/jsonArtifact"},
+        "auto_adj": {"oneOf": [{"$ref": "#/$defs/jsonArtifact"}, {"type": "null"}]},
+        "human_audit": {"oneOf": [{"$ref": "#/$defs/humanAudit"}, {"type": "null"}]}
+      }
+    },
+    "status": {"enum": ["agreed", "audit-required", "completed"]},
+    "selected_evaluation_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "usable_for_pairing": {"type": "boolean"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "jsonArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "canonical_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "canonical_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "humanAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audit_id", "actor_id", "actor_type", "attestation_ref", "reviewed_evaluation_ids", "decision", "reason", "artifact", "completed_at"],
+      "properties": {
+        "audit_id": {"$ref": "#/$defs/id"},
+        "actor_id": {"$ref": "#/$defs/id"},
+        "actor_type": {"const": "human"},
+        "attestation_ref": {"type": "string", "minLength": 1},
+        "reviewed_evaluation_ids": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "decision": {"enum": ["accept-selected", "reject", "inconclusive"]},
+        "reason": {"type": "string", "minLength": 1},
+        "artifact": {"$ref": "#/$defs/byteArtifact"},
+        "completed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "byteArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/hash"}
+      }
+    }
+  }
+}

@@ -107,7 +107,11 @@ class RubricJudgeResultTests(unittest.TestCase):
             "judge": {
                 "role": "auto-r1",
                 "model": "synthetic-judge",
+                "reasoning": "high",
                 "config_id": "judge-config-v1",
+                "prompt_sha256": "b" * 64,
+                "evaluation_config_sha256": "c" * 64,
+                "execution_context_id": "judge-context-v1",
                 "condition_blinded": True,
             },
             "study_mode": "exploratory",
@@ -122,6 +126,17 @@ class RubricJudgeResultTests(unittest.TestCase):
         self.assertEqual(validate_result(self.example), [])
         for stage in (1, 2, 3):
             self.assertEqual(validate_result(self.result(stage)), [])
+
+    def test_existing_v1_result_without_bundle_provenance_remains_valid(self):
+        legacy = self.result(3)
+        for field in (
+            "reasoning",
+            "prompt_sha256",
+            "evaluation_config_sha256",
+            "execution_context_id",
+        ):
+            del legacy["judge"][field]
+        self.assertEqual(validate_result(legacy), [])
 
     def test_schema_rejects_numeric_metric_and_empty_hard_measures(self):
         invalid = deepcopy(self.example)
