@@ -17,15 +17,18 @@
     {
       "capability_id": "skill:stage1-literature",
       "kind": "skill",
-      "status": "foundation",
+      "status": "experimental",
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/skills/stage1-literature",
       "problem": "Stock research can produce a plausible literature list without explicit coverage obligations, evidence levels, decision history, or a reasoned stop decision.",
-      "mechanism": "Define the bounded Stage 1 workflow and evidence obligations while retrieval, validation, and coverage execution remain separate later milestones.",
+      "mechanism": "Guide a saved-observation Stage 1 ledger through extraction, validation, conservative readiness and checkpoint; live retrieval and scientific coverage remain later integration work.",
       "metric_effects": [
         {
           "metric_id": "P1",
-          "rubric_criteria": ["P1.EVIDENCE_LEVEL", "P1.CLAIM_SUPPORT"],
+          "rubric_criteria": [
+            "P1.EVIDENCE_LEVEL",
+            "P1.CLAIM_SUPPORT"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "identity status and evidence level are represented separately",
@@ -35,7 +38,11 @@
         },
         {
           "metric_id": "P2",
-          "rubric_criteria": ["P2.CLUSTERS", "P2.RECENT", "P2.CLOSEST_WORK"],
+          "rubric_criteria": [
+            "P2.CLUSTERS",
+            "P2.RECENT",
+            "P2.CLOSEST_WORK"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "coverage obligations are declared",
@@ -68,7 +75,8 @@
         "plugins/auto-research-agent/tests/test_plugin_loading.py",
         "plugins/auto-research-agent/tests/test_stage_contracts.py",
         "plugins/auto-research-agent/tests/test_stage1_evaluation_contract.py",
-        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py",
+        "plugins/auto-research-agent/tests/test_stage1_ledger.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -267,6 +275,161 @@
       "live_ab_required_at": "stage-executable-milestone",
       "quality_improvement_claimed": false
     },
-    {"capability_id":"validator:paired-evaluation","kind":"validator","status":"active","metric_role":"enabler","owner_path":"plugins/auto-research-agent/validators/paired_evaluation.py","problem":"Even valid individual judge bundles can be cherry-picked, paired against the wrong run, averaged into a misleading total, or called improved despite regression, added major errors, missing audits, or hidden costs.","mechanism":"Load exactly six frozen bundles, verify hash-bound run condition/build/runtime/process attestations, compare each metric within three planned pairs, conservatively preserve P5 and P6 distributions, enforce close-pair audits and the preregistered rule, bind output to the request hash, and report costs separately.","metric_effects":[{"metric_id":"P1","rubric_criteria":["P1.IDENTITY"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P2","rubric_criteria":["P2.CORE"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P3","rubric_criteria":["P3.DECISION_TRACE"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P4","rubric_criteria":["P4.SHARED_DIMENSIONS"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P5","rubric_criteria":["P5.CLOSEST_WORK"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P6","rubric_criteria":["P6.SELECTION"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P7","rubric_criteria":["P7.FEEDBACK_LOOP"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P8","rubric_criteria":["P8.CALIBRATION_HOLDOUT"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P9","rubric_criteria":["P9.DECISION_GATES"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."}],"guardrails":["P1-P9 remain separate","no statistical-significance claim","external_claim_ready is always false","missing or rejected pair audit yields inconclusive","added treatment major errors prevent improvement","output is hash-bound to the exact request and six bundles"],"test_refs":["plugins/auto-research-agent/tests/test_paired_evaluation.py","plugins/auto-research-agent/tests/test_capability_metric_map.py"],"live_ab_required_at":"stage-executable-milestone","quality_improvement_claimed":false}
+    {"capability_id":"validator:paired-evaluation","kind":"validator","status":"active","metric_role":"enabler","owner_path":"plugins/auto-research-agent/validators/paired_evaluation.py","problem":"Even valid individual judge bundles can be cherry-picked, paired against the wrong run, averaged into a misleading total, or called improved despite regression, added major errors, missing audits, or hidden costs.","mechanism":"Load exactly six frozen bundles, verify hash-bound run condition/build/runtime/process attestations, compare each metric within three planned pairs, conservatively preserve P5 and P6 distributions, enforce close-pair audits and the preregistered rule, bind output to the request hash, and report costs separately.","metric_effects":[{"metric_id":"P1","rubric_criteria":["P1.IDENTITY"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P2","rubric_criteria":["P2.CORE"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P3","rubric_criteria":["P3.DECISION_TRACE"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P4","rubric_criteria":["P4.SHARED_DIMENSIONS"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P5","rubric_criteria":["P5.CLOSEST_WORK"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P6","rubric_criteria":["P6.SELECTION"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P7","rubric_criteria":["P7.FEEDBACK_LOOP"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P8","rubric_criteria":["P8.CALIBRATION_HOLDOUT"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P9","rubric_criteria":["P9.DECISION_GATES"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."}],"guardrails":["P1-P9 remain separate","no statistical-significance claim","external_claim_ready is always false","missing or rejected pair audit yields inconclusive","added treatment major errors prevent improvement","output is hash-bound to the exact request and six bundles"],"test_refs":["plugins/auto-research-agent/tests/test_paired_evaluation.py","plugins/auto-research-agent/tests/test_capability_metric_map.py"],"live_ab_required_at":"stage-executable-milestone","quality_improvement_claimed":false},
+    {
+      "capability_id": "cli:stage1-ledger",
+      "kind": "cli",
+      "status": "experimental",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
+      "problem": "Repeated discoveries and changed screening decisions otherwise overwrite provenance or confuse a backend failure with an empty search.",
+      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": [
+            "P1.IDENTITY",
+            "P1.EVIDENCE_LEVEL",
+            "P1.LOCATOR"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three queries preserve four backend attempts including HTTP 429",
+            "duplicate DOI retains two discovery paths",
+            "include and exclude remain separate events",
+            "unknown counts stay null when validation cannot complete"
+          ],
+          "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.SEARCH_TRACE",
+            "P3.DECISION_TRACE",
+            "P3.FAILURE_STATE",
+            "P3.VERSION_DATE",
+            "P3.CLAIM_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three queries preserve four backend attempts including HTTP 429",
+            "duplicate DOI retains two discovery paths",
+            "include and exclude remain separate events",
+            "unknown counts stay null when validation cannot complete"
+          ],
+          "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
+        }
+      ],
+      "guardrails": [
+        "no frozen answers in production or fixtures",
+        "offline import is not reported as a live backend run",
+        "structural validity and claim annotations do not establish scientific truth"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_ledger.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage1-executable-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:stage1-run",
+      "kind": "validator",
+      "status": "experimental",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/validators/stage1_run.py",
+      "problem": "A plausible ledger can refer to missing or changed evidence or disagree with its own source records.",
+      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": [
+            "P1.EVIDENCE_LEVEL",
+            "P1.LOCATOR"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "missing raw evidence exits nonzero with its path",
+            "rehashing a fabricated summary does not bypass semantic validation",
+            "pending attempts survive recovery without a retry"
+          ],
+          "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.SEARCH_TRACE",
+            "P3.DECISION_TRACE",
+            "P3.CLAIM_TRACE",
+            "P3.FAILURE_STATE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "missing raw evidence exits nonzero with its path",
+            "rehashing a fabricated summary does not bypass semantic validation",
+            "pending attempts survive recovery without a retry"
+          ],
+          "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
+        }
+      ],
+      "guardrails": [
+        "no frozen answers in production or fixtures",
+        "offline import is not reported as a live backend run",
+        "structural validity and claim annotations do not establish scientific truth"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_ledger.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage1-executable-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "gate:stage1-readiness",
+      "kind": "gate",
+      "status": "experimental",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/gates/stage1_readiness.py",
+      "problem": "A mechanically valid run can still lack verified closest work and cannot justify stopping research.",
+      "mechanism": "Return continue or human-review with explicit unresolved obligations; this offline slice never returns stop-sufficient.",
+      "metric_effects": [
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.CLOSEST_WORK"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "missing closest-work verification prevents stop-sufficient",
+            "invalid evidence, backend failure or extraction failure requires human review"
+          ],
+          "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.FAILURE_STATE",
+            "P3.STOP_EVIDENCE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "missing closest-work verification prevents stop-sufficient",
+            "invalid evidence, backend failure or extraction failure requires human review"
+          ],
+          "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
+        }
+      ],
+      "guardrails": [
+        "no frozen answers in production or fixtures",
+        "offline import is not reported as a live backend run",
+        "structural validity and claim annotations do not establish scientific truth"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_ledger.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage1-executable-milestone",
+      "quality_improvement_claimed": false
+    }
   ]
 }
