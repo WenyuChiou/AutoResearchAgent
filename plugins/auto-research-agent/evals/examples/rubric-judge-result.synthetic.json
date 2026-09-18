@@ -7,7 +7,7 @@
   "rubric_version": "aging-bidirectional-rubric-v1",
   "stage": 3,
   "subject_artifact": {"path": "evals/runs/run-synthetic-001/stage3-output.json", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-  "judge": {"role": "auto-r1", "model": "synthetic-judge", "config_id": "judge-config-synthetic-v1", "condition_blinded": true},
+  "judge": {"role": "auto-r1", "model": "synthetic-judge", "reasoning": "high", "config_id": "judge-config-synthetic-v1", "prompt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "evaluation_config_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "execution_context_id": "judge-context-v1", "condition_blinded": true},
   "study_mode": "exploratory",
   "metric_results": [
     {

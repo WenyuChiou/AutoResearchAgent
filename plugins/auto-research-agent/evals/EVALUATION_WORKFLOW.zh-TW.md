@@ -66,6 +66,12 @@ criterion outcome、evidence IDs、hard-fact status、0–2 分、major-error ID
 evidence、confidence 與 audit triggers。任一 unit 分數或 major-error IDs 不同就交給
 Auto-ADJ，並保留兩份輸入與裁定理由。
 
+`judge_bundle.py` 就像「兩份考卷的對答案機」：它先核對兩位 judge 是否真的看同一份
+匿名作業、是否使用 plan 指定的模型與設定、檔案 hash 是否正確，再逐 unit 比較分數和
+major error。兩人相同才可直接進入 paired comparison；不同就一定要 Auto-ADJ。若觸發
+human audit，在人類完成並接受前，`usable_for_pairing` 必須保持 false。人類若拒絕或
+判定資料不足，紀錄雖已完成，結果仍不能拿去宣稱 harness 改善。
+
 以下情況需要 targeted human audit：major error、low confidence、central evidence
 inaccessible、judge disagreement、B/T 只差一個 ordinal point，或準備對外宣稱改善。
 沒有 completed audit 時只能輸出 audit-required 或 inconclusive。
