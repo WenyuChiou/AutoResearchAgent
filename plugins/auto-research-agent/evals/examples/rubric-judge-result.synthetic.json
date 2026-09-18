@@ -1,0 +1,86 @@
+{
+  "kind": "RubricJudgeResult",
+  "schema_version": "1.0.0",
+  "evaluation_id": "eval-synthetic-001",
+  "run_id": "run-synthetic-001",
+  "case_id": "aging-bidirectional-development-v1",
+  "rubric_version": "aging-bidirectional-rubric-v1",
+  "stage": 3,
+  "subject_artifact": {"path": "evals/runs/run-synthetic-001/stage3-output.json", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "judge": {"role": "auto-r1", "model": "synthetic-judge", "config_id": "judge-config-synthetic-v1", "condition_blinded": true},
+  "study_mode": "exploratory",
+  "metric_results": [
+    {
+      "metric_id": "P7",
+      "unit_type": "proposed_study",
+      "unit_id": "study-synthetic-001",
+      "score": 2,
+      "hard_fact_status": "pass",
+      "hard_measures": {"synthetic_contract_check": "pass"},
+      "criterion_results": [
+        {"criterion_id": "P7.QUESTION_MODE", "outcome": "pass", "evidence_ids": ["evidence-p7-question_mode"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P7.ESTIMAND_OR_EXPLORATION_TARGET", "outcome": "pass", "evidence_ids": ["evidence-p7-estimand_or_exploration_target"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P7.DEMOGRAPHIC_TO_AGENT", "outcome": "pass", "evidence_ids": ["evidence-p7-demographic_to_agent"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P7.FEEDBACK_LOOP", "outcome": "pass", "evidence_ids": ["evidence-p7-feedback_loop"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P7.LLM_ROLE", "outcome": "pass", "evidence_ids": ["evidence-p7-llm_role"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P7.TEMPORAL_UPDATE", "outcome": "pass", "evidence_ids": ["evidence-p7-temporal_update"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P7.AGGREGATION", "outcome": "pass", "evidence_ids": ["evidence-p7-aggregation"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P7.CLAIM_SCOPE", "outcome": "pass", "evidence_ids": ["evidence-p7-claim_scope"], "reason": "Synthetic evidence satisfies the frozen criterion."}
+      ],
+      "missing_evidence": [],
+      "major_error_ids": [],
+      "reason": "All applicable frozen criteria pass in this synthetic contract fixture.",
+      "confidence": "high",
+      "needs_human_review": false
+    },
+    {
+      "metric_id": "P8",
+      "unit_type": "validation_plan",
+      "unit_id": "validation-synthetic-001",
+      "score": 2,
+      "hard_fact_status": "pass",
+      "hard_measures": {"synthetic_contract_check": "pass"},
+      "criterion_results": [
+        {"criterion_id": "P8.POPULATION_VALIDATION", "outcome": "pass", "evidence_ids": ["evidence-p8-population_validation"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P8.DECISION_VALIDATION", "outcome": "pass", "evidence_ids": ["evidence-p8-decision_validation"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P8.FEEDBACK_VALIDATION", "outcome": "pass", "evidence_ids": ["evidence-p8-feedback_validation"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P8.OUTCOME_VALIDATION", "outcome": "pass", "evidence_ids": ["evidence-p8-outcome_validation"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P8.CALIBRATION_HOLDOUT", "outcome": "pass", "evidence_ids": ["evidence-p8-calibration_holdout"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P8.NON_LLM_BASELINE", "outcome": "pass", "evidence_ids": ["evidence-p8-non_llm_baseline"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P8.LLM_ABLATION", "outcome": "pass", "evidence_ids": ["evidence-p8-llm_ablation"], "reason": "Synthetic evidence satisfies the frozen criterion."}
+      ],
+      "missing_evidence": [],
+      "major_error_ids": [],
+      "reason": "All applicable frozen criteria pass in this synthetic contract fixture.",
+      "confidence": "high",
+      "needs_human_review": false
+    },
+    {
+      "metric_id": "P9",
+      "unit_type": "execution_plan",
+      "unit_id": "plan-synthetic-001",
+      "score": 2,
+      "hard_fact_status": "pass",
+      "hard_measures": {"synthetic_contract_check": "pass"},
+      "criterion_results": [
+        {"criterion_id": "P9.DATA_ACCESS", "outcome": "pass", "evidence_ids": ["evidence-p9-data_access"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P9.MVP", "outcome": "pass", "evidence_ids": ["evidence-p9-mvp"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P9.SCHEDULE", "outcome": "pass", "evidence_ids": ["evidence-p9-schedule"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P9.COMPUTE_CALLS_COST", "outcome": "pass", "evidence_ids": ["evidence-p9-compute_calls_cost"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P9.DECISION_GATES", "outcome": "pass", "evidence_ids": ["evidence-p9-decision_gates"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P9.RISKS", "outcome": "pass", "evidence_ids": ["evidence-p9-risks"], "reason": "Synthetic evidence satisfies the frozen criterion."},
+        {"criterion_id": "P9.FALLBACKS", "outcome": "pass", "evidence_ids": ["evidence-p9-fallbacks"], "reason": "Synthetic evidence satisfies the frozen criterion."}
+      ],
+      "missing_evidence": [],
+      "major_error_ids": [],
+      "reason": "All applicable frozen criteria pass in this synthetic contract fixture.",
+      "confidence": "high",
+      "needs_human_review": false
+    }
+  ],
+  "audit_trigger_ids": [],
+  "created_at": "2026-09-17T18:00:00-04:00",
+  "requires_human_audit": false,
+  "catalog_sha256": "ab175e1ebbf6c399e84808ba16f094b4b141776edd23ece79c829d1dfd73efdd",
+  "expected_units": {"P7": {"proposed_study": ["study-synthetic-001"]}, "P8": {"validation_plan": ["validation-synthetic-001"]}, "P9": {"execution_plan": ["plan-synthetic-001"]}}
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/auto-research-agent/rubric-judge-result.v1.schema.json",
+  "title": "RubricJudgeResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "evaluation_id", "run_id", "case_id", "rubric_version", "catalog_sha256", "stage", "expected_units", "subject_artifact", "judge", "study_mode", "metric_results", "audit_trigger_ids", "requires_human_audit", "created_at"],
+  "properties": {
+    "kind": {"const": "RubricJudgeResult"},
+    "schema_version": {"const": "1.0.0"},
+    "evaluation_id": {"$ref": "#/$defs/id"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "case_id": {"$ref": "#/$defs/id"},
+    "rubric_version": {"const": "aging-bidirectional-rubric-v1"},
+    "stage": {"type": "integer", "minimum": 1, "maximum": 3},
+    "subject_artifact": {"$ref": "#/$defs/artifact"},
+    "judge": {"$ref": "#/$defs/judge"},
+    "study_mode": {"enum": ["confirmatory", "exploratory", "method-development", "simulation-discovery"]},
+    "metric_results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/metricResult"}
+    },
+    "audit_trigger_ids": {"$ref": "#/$defs/stringArray"},
+    "adjudicates_evaluation_ids": {"$ref": "#/$defs/nonEmptyStringArray"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "requires_human_audit": {"type": "boolean"},
+    "catalog_sha256": {"const": "ab175e1ebbf6c399e84808ba16f094b4b141776edd23ece79c829d1dfd73efdd"},
+    "expected_units": {"$ref": "#/$defs/expectedUnits"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "judge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "model", "config_id", "condition_blinded"],
+      "properties": {
+        "role": {"enum": ["auto-r1", "auto-r2", "auto-adj", "human-audit"]},
+        "model": {"type": "string", "minLength": 1},
+        "config_id": {"$ref": "#/$defs/id"},
+        "condition_blinded": {"type": "boolean"}
+      }
+    },
+    "metricResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "unit_type", "unit_id", "score", "hard_fact_status", "hard_measures", "criterion_results", "missing_evidence", "major_error_ids", "reason", "confidence", "needs_human_review"],
+      "properties": {
+        "metric_id": {"type": "string", "enum": ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9"]},
+        "unit_type": {"type": "string", "enum": ["included_work", "central_claim", "stage_summary", "literature_set", "stage1_run", "comparison", "research_direction", "final_recommendation", "proposed_study", "validation_plan", "execution_plan"]},
+        "unit_id": {"$ref": "#/$defs/id"},
+        "score": {"type": "integer", "minimum": 0, "maximum": 2},
+        "hard_fact_status": {"enum": ["pass", "fail", "unverifiable"]},
+        "hard_measures": {"type": "object", "minProperties": 1},
+        "criterion_results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/criterionResult"}
+        },
+        "missing_evidence": {"$ref": "#/$defs/stringArray"},
+        "major_error_ids": {"$ref": "#/$defs/stringArray"},
+        "reason": {"type": "string", "minLength": 1},
+        "confidence": {"enum": ["low", "medium", "high"]},
+        "needs_human_review": {"type": "boolean"}
+      }
+    },
+    "criterionResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterion_id", "outcome", "evidence_ids", "reason"],
+      "properties": {
+        "criterion_id": {"type": "string", "pattern": "^P[1-9]\\.[A-Z0-9_]+$"},
+        "outcome": {"enum": ["fail", "partial", "pass", "unverifiable", "not-applicable"]},
+        "evidence_ids": {"$ref": "#/$defs/stringArray"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "stringArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "expectedUnits": {"type": "object", "minProperties": 1, "propertyNames": {"pattern": "^P[1-9]$"}, "additionalProperties": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}}}
+  }
+}
