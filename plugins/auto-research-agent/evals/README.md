@@ -19,6 +19,13 @@ answers outside the production agent.
   prove runtime isolation or artifact bytes; the later evaluation runner must
   attest both. The committed one-anchor example is only a synthetic contract
   fixture, not an acceptable scientific holdout.
+- `schemas/evaluation-plan.v1.schema.json` and
+  `../validators/evaluation_plan.py` freeze the prompt, runtime, builds,
+  holdout, blinded judges, three alternating pairs, audit triggers and decision
+  rule before execution. The committed plan is synthetic and cannot support a
+  scientific improvement claim. Human approval records still require the core
+  team or trusted roster system to verify identity and artifact bytes; the
+  runner must also attest the reviewed treatment diff and opaque judge packets.
 - `stage1/metric-spec.v1.json` defines the required Stage 1 counts, 0-2
   anchors, major-error gate and paired comparison rule.
 - `schemas/stage1-evaluation-result.v1.schema.json` defines one scored run.

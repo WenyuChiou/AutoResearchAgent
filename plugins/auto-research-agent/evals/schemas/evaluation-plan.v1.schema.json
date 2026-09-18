@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/auto-research-agent/evaluation-plan.v1.schema.json",
+  "title": "EvaluationPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "plan_id", "case_id", "stage", "execution_class", "status", "study_mode", "metric_ids", "target_metric_ids", "bindings", "subject_runtime", "judge_configs", "paired_repeats", "decision_rule", "human_audit", "human_approvals", "isolation", "created_at", "frozen_at"],
+  "properties": {
+    "kind": {"const": "EvaluationPlan"},
+    "schema_version": {"const": "1.0.0"},
+    "plan_id": {"$ref": "#/$defs/id"},
+    "case_id": {"$ref": "#/$defs/id"},
+    "stage": {"type": "integer", "minimum": 1, "maximum": 3},
+    "execution_class": {"enum": ["synthetic", "formal"]},
+    "status": {"enum": ["draft", "frozen"]},
+    "study_mode": {"enum": ["confirmatory", "exploratory", "method-development", "simulation-discovery"]},
+    "metric_ids": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"pattern": "^P[1-9]$"}},
+    "target_metric_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"pattern": "^P[1-9]$"}},
+    "bindings": {"$ref": "#/$defs/bindings"},
+    "subject_runtime": {"$ref": "#/$defs/runtime"},
+    "judge_configs": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/judgeConfig"}},
+    "paired_repeats": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/repeat"}},
+    "decision_rule": {"$ref": "#/$defs/decisionRule"},
+    "human_audit": {"$ref": "#/$defs/humanAudit"},
+    "human_approvals": {"type": "array", "items": {"$ref": "#/$defs/approval"}},
+    "isolation": {"$ref": "#/$defs/isolation"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "frozen_at": {"oneOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/hash"}}
+    },
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rubric", "criterion_catalog", "capability_registry", "holdout", "prompt", "condition_map", "baseline_build", "treatment_build"],
+      "properties": {
+        "rubric": {"type": "object", "additionalProperties": false, "required": ["version", "path", "canonical_sha256"], "properties": {"version": {"const": "aging-bidirectional-rubric-v1"}, "path": {"type": "string", "minLength": 1}, "canonical_sha256": {"$ref": "#/$defs/hash"}}},
+        "criterion_catalog": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "record_count"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/hash"}, "record_count": {"type": "integer", "minimum": 1}}},
+        "capability_registry": {"type": "object", "additionalProperties": false, "required": ["path", "canonical_sha256"], "properties": {"path": {"const": "capability-metric-map.v1.json"}, "canonical_sha256": {"$ref": "#/$defs/hash"}}},
+        "holdout": {"type": "object", "additionalProperties": false, "required": ["manifest_id", "use_class", "path", "canonical_sha256"], "properties": {"manifest_id": {"$ref": "#/$defs/id"}, "use_class": {"enum": ["synthetic", "scientific"]}, "path": {"type": "string", "minLength": 1}, "canonical_sha256": {"$ref": "#/$defs/hash"}}},
+        "prompt": {"type": "object", "additionalProperties": false, "required": ["version", "artifact"], "properties": {"version": {"$ref": "#/$defs/id"}, "artifact": {"$ref": "#/$defs/artifact"}}},
+        "condition_map": {"$ref": "#/$defs/artifact"},
+        "baseline_build": {"$ref": "#/$defs/build"},
+        "treatment_build": {"$ref": "#/$defs/build"}
+      }
+    },
+    "build": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version_id", "core_revision", "extension_revision", "reviewed_diff_sha256", "capability_ids", "changed_owner_paths"],
+      "properties": {
+        "version_id": {"$ref": "#/$defs/id"},
+        "core_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "extension_revision": {"oneOf": [{"type": "string", "pattern": "^[0-9a-f]{40}$"}, {"type": "null"}]},
+        "reviewed_diff_sha256": {"oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]},
+        "capability_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "changed_owner_paths": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "reasoning", "mode", "app_version", "system_instructions_sha256", "project_instructions_sha256", "tool_profile_id", "tool_profile_sha256", "loaded_extensions", "environment_profile_sha256", "search_enabled", "data_cutoff", "time_limit_policy", "fixed_limit_seconds", "human_assistance_policy"],
+      "properties": {
+        "model_id": {"type": "string", "minLength": 1},
+        "reasoning": {"enum": ["low", "medium", "high", "xhigh", "max", "ultra"]},
+        "mode": {"enum": ["plan", "default"]},
+        "app_version": {"type": "string", "minLength": 1},
+        "system_instructions_sha256": {"$ref": "#/$defs/hash"},
+        "project_instructions_sha256": {"$ref": "#/$defs/hash"},
+        "tool_profile_id": {"$ref": "#/$defs/id"},
+        "tool_profile_sha256": {"$ref": "#/$defs/hash"},
+        "loaded_extensions": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "environment_profile_sha256": {"$ref": "#/$defs/hash"},
+        "search_enabled": {"type": "boolean"},
+        "data_cutoff": {"type": "string", "format": "date"},
+        "time_limit_policy": {"enum": ["no-artificial-limit", "fixed-limit"]},
+        "fixed_limit_seconds": {"oneOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]},
+        "human_assistance_policy": {"enum": ["clarification-only", "none"]}
+      }
+    },
+    "judgeConfig": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "config_id", "evaluation_config_sha256", "execution_context_id", "model_id", "reasoning", "prompt_sha256", "condition_blinded"],
+      "properties": {
+        "role": {"enum": ["auto-r1", "auto-r2", "auto-adj"]},
+        "config_id": {"$ref": "#/$defs/id"},
+        "evaluation_config_sha256": {"$ref": "#/$defs/hash"},
+        "execution_context_id": {"$ref": "#/$defs/id"},
+        "model_id": {"type": "string", "minLength": 1},
+        "reasoning": {"enum": ["low", "medium", "high", "xhigh", "max", "ultra"]},
+        "prompt_sha256": {"$ref": "#/$defs/hash"},
+        "condition_blinded": {"const": true}
+      }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["run_id", "subject_id"],
+      "properties": {"run_id": {"$ref": "#/$defs/id"}, "subject_id": {"$ref": "#/$defs/id"}}
+    },
+    "repeat": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repeat", "order", "baseline", "treatment"],
+      "properties": {
+        "repeat": {"type": "integer", "minimum": 1, "maximum": 3},
+        "order": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"enum": ["baseline", "treatment"]}},
+        "baseline": {"$ref": "#/$defs/run"},
+        "treatment": {"$ref": "#/$defs/run"}
+      }
+    },
+    "decisionRule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["minimum_pairs_improved_per_target", "allow_target_regression", "allow_non_target_regression", "allow_added_major_error", "incomplete_outcome", "no_composite_total", "statistical_claim"],
+      "properties": {
+        "minimum_pairs_improved_per_target": {"const": 2},
+        "allow_target_regression": {"const": false},
+        "allow_non_target_regression": {"const": false},
+        "allow_added_major_error": {"const": false},
+        "incomplete_outcome": {"const": "inconclusive"},
+        "no_composite_total": {"const": true},
+        "statistical_claim": {"const": "direction-and-variability-only"}
+      }
+    },
+    "humanAudit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["trigger_ids", "required_before_external_claim", "missing_audit_outcome"],
+      "properties": {
+        "trigger_ids": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"enum": ["major-error", "low-confidence", "evidence-unverifiable", "judge-disagreement", "close-paired-result", "external-claim"]}},
+        "required_before_external_claim": {"const": true},
+        "missing_audit_outcome": {"const": "inconclusive"}
+      }
+    },
+    "approval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actor_id", "actor_type", "role", "attestation_ref", "approved_at", "artifact"],
+      "properties": {"actor_id": {"$ref": "#/$defs/id"}, "actor_type": {"const": "human"}, "role": {"const": "approver"}, "attestation_ref": {"type": "string", "minLength": 1}, "approved_at": {"type": "string", "format": "date-time"}, "artifact": {"$ref": "#/$defs/artifact"}}
+    },
+    "isolation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["production_runtime_may_read_holdout", "judges_receive_condition_labels", "runner_must_attest_artifact_bytes", "runner_must_attest_process_boundary"],
+      "properties": {
+        "production_runtime_may_read_holdout": {"const": false},
+        "judges_receive_condition_labels": {"const": false},
+        "runner_must_attest_artifact_bytes": {"const": true},
+        "runner_must_attest_process_boundary": {"const": true}
+      }
+    }
+  }
+}
