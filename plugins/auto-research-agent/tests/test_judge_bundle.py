@@ -156,6 +156,7 @@ class JudgeBundleTests(unittest.TestCase):
         bundle["status"] = "completed"
         bundle["selected_evaluation_id"] = adj["evaluation_id"]
         bundle["usable_for_pairing"] = True
+        bundle["created_at"] = "2026-09-17T16:30:00-04:00"
         self.assertEqual(validate_bundle(bundle), [])
 
     def test_rejected_audit_completes_record_but_blocks_pairing(self):
@@ -184,6 +185,7 @@ class JudgeBundleTests(unittest.TestCase):
         bundle["status"] = "completed"
         bundle["selected_evaluation_id"] = None
         bundle["usable_for_pairing"] = False
+        bundle["created_at"] = "2026-09-17T16:30:00-04:00"
         self.assertEqual(validate_bundle(bundle), [])
 
     def test_subject_provenance_mode_config_and_time_are_bound(self):
