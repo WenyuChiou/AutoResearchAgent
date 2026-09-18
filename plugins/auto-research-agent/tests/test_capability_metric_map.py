@@ -10,6 +10,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
 REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.v1.json"
 SCORECARD = PLUGIN_ROOT / "evals/primary-scorecard.v1.json"
+RUBRIC = PLUGIN_ROOT / "evals/rubrics/aging-bidirectional-rubric.v1.json"
 CAPABILITY_ID = re.compile(
     r"^(?:skill|mcp-tool|cli|validator|gate):[a-z0-9]+(?:-[a-z0-9]+)*$"
 )
@@ -22,6 +23,12 @@ class CapabilityMetricMapTests(unittest.TestCase):
         scorecard = json.loads(SCORECARD.read_text(encoding="utf-8"))
         cls.metric_ids = {
             metric["id"] for stage in scorecard["stages"] for metric in stage["metrics"]
+        }
+        rubric = json.loads(RUBRIC.read_text(encoding="utf-8"))
+        cls.rubric_criteria = {
+            criterion_id: metric["id"]
+            for metric in rubric["metrics"]
+            for criterion_id in metric["criterion_ids"]
         }
 
     def test_capability_ids_and_owner_paths_are_unique(self):
@@ -69,6 +76,11 @@ class CapabilityMetricMapTests(unittest.TestCase):
                 self.assertTrue(entry["metric_effects"])
                 for effect in entry["metric_effects"]:
                     self.assertIn(effect["metric_id"], self.metric_ids)
+                    self.assertTrue(effect["rubric_criteria"])
+                    for criterion_id in effect["rubric_criteria"]:
+                        self.assertEqual(
+                            self.rubric_criteria[criterion_id], effect["metric_id"]
+                        )
                     self.assertIn(
                         effect["expected_direction"],
                         requirements["allowed_directions"],

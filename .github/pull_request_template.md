@@ -40,8 +40,11 @@ After:
 ## Evaluation
 
 - Baseline and treatment:
+- Rubric version: <!-- aging-bidirectional-rubric-v1 -->
+- Rubric criterion ID(s): <!-- Exact IDs such as P3.DECISION_TRACE, separated by commas. -->
+- Evaluation mode: <!-- exactly one: deterministic / ai-judge / hybrid -->
 - Hard measures:
-- Human judgment rubric:
+- AI-judge evidence: <!-- Use artifact: PATH, deferred: REASON, or not-applicable: REASON. -->
 - Major-error guardrail:
 - Per-PR metric evidence:
 - Improvement statement: <!-- Format: STATUS — what changed; evidence: measurement, passed/failed test, artifact, or explicit milestone deferral. STATUS is improved / not improved / not yet demonstrated. -->

@@ -46,10 +46,11 @@ paste frozen core-source titles or adjudication keys into production prompts.
 
 ### Evaluation
 
-State the baseline, treatment, hard measures, human judgments, major-error
-guardrail and cost measures. Include the actual per-PR metric evidence and the
-live A/B decision. Routine PRs need deterministic checks; a stage milestone
-needs the frozen paired live A/B protocol.
+State the baseline, treatment, registered rubric version, exact criterion IDs,
+evaluation mode, hard measures, AI-judge evidence, major-error guardrail and
+cost measures. Include the actual per-PR metric evidence and the live A/B
+decision. Routine PRs need deterministic checks; a stage milestone needs the
+frozen paired live A/B protocol.
 
 Add one `Improvement statement` beginning with `improved`, `not improved`, or
 `not yet demonstrated`. State the behavior, then add `; evidence:` followed by
@@ -121,9 +122,14 @@ with the triggering query and candidate decisions linked from the gate result.
 
 - Baseline and treatment: stock search versus the same search wrapped with the
   candidate ledger and coverage gate.
+- Rubric version: aging-bidirectional-rubric-v1.
+- Rubric criterion ID(s): P2.CLUSTERS, P2.CLOSEST_WORK,
+  P3.DECISION_TRACE, P3.FAILURE_STATE, P3.STOP_EVIDENCE.
+- Evaluation mode: hybrid.
 - Hard measures: cluster coverage, frozen-anchor recall, decision-reason
   completeness, trace completeness, failures, time and tool calls.
-- Human judgment rubric: blinded P2 and P3 scores from R1, R2 and ADJ.
+- AI-judge evidence: deferred: waiting for the Stage 1 executable milestone; this PR
+  provides deterministic synthetic artifacts only.
 - Major-error guardrail: no benchmark title enters production logic and no
   backend failure is reported as an empty result.
 - Per-PR metric evidence: synthetic missing-cluster, backend-failure and reversal tests

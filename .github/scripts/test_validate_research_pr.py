@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import unittest
 
-from validate_research_pr import changed_files, validate_pr_body
+from validate_research_pr import changed_files, load_rubrics, validate_pr_body
 
 
 VALID = """## Why
@@ -28,8 +28,11 @@ Before: count reached.
 After: incomplete cluster continues.
 
 ## Evaluation
+- Rubric version: aging-bidirectional-rubric-v1
+- Rubric criterion ID(s): P2.CLUSTERS, P2.CLOSEST_WORK
+- Evaluation mode: hybrid
 - Hard measures: cluster and trace counts
-- Human judgment rubric: blinded P2 score
+- AI-judge evidence: deferred: waiting for the Stage 1 executable milestone; synthetic schema artifact passed
 - Major-error guardrail: no fabricated source
 - Per-PR metric evidence: synthetic coverage-gate regression passed
 - Improvement statement: not yet demonstrated — deterministic behavior is implemented but live quality remains unknown; evidence: 18 validator tests passed and live A/B is deferred to the Stage 1 milestone
@@ -51,12 +54,37 @@ Synthetic regression tests passed.
 CAPABILITIES = {
     "skill:stage1-literature": {
         "metrics": {"P1", "P2", "P3"},
+        "criteria": {
+            "P1.CLAIM_SUPPORT",
+            "P2.CLUSTERS",
+            "P2.CLOSEST_WORK",
+            "P3.DECISION_TRACE",
+        },
         "owner_path": "plugins/auto-research-agent/skills/stage1-literature",
     }
 }
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
+    def test_only_frozen_unique_rubrics_are_registered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "draft.json").write_text(
+                '{"status":"draft","rubric_version":"draft-v1","metrics":[]}',
+                encoding="utf-8",
+            )
+            (root / "frozen.json").write_text(
+                '{"status":"frozen","rubric_version":"frozen-v1","metrics":[{"id":"P1","criterion_ids":["P1.ONE"]}]}',
+                encoding="utf-8",
+            )
+            self.assertEqual(load_rubrics(root), {"frozen-v1": {"P1.ONE": "P1"}})
+            (root / "duplicate.json").write_text(
+                '{"status":"frozen","rubric_version":"duplicate-v1","metrics":[{"id":"P1","criterion_ids":["P1.DUP"]},{"id":"P2","criterion_ids":["P1.DUP"]}]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate criterion ID"):
+                load_rubrics(root)
+
     def test_complete_body_passes(self):
         self.assertEqual(validate_pr_body(VALID, CAPABILITIES), [])
 
@@ -82,7 +110,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         )
         errors = validate_pr_body(body, CAPABILITIES)
         self.assertIn(
-            "Why or Evaluation must name at least one primary metric P1-P9", errors
+            "Target primary metric(s) must name at least one metric P1-P9", errors
         )
         self.assertIn(
             "Capability decision must be exactly reuse, wrap, extend, or build-new",
@@ -100,6 +128,69 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         self.assertIn("Evaluation requires a non-empty 'Hard measures:' value", errors)
         self.assertIn("Example requires a non-empty 'Before:' value", errors)
         self.assertIn("Example requires a non-empty 'After:' value", errors)
+
+    def test_registered_rubric_criteria_and_evaluation_mode_are_required(self):
+        missing_version = VALID.replace(
+            "- Rubric version: aging-bidirectional-rubric-v1\n", ""
+        )
+        errors = validate_pr_body(missing_version, CAPABILITIES)
+        self.assertTrue(any("Rubric version" in error for error in errors))
+
+        wrong_version = VALID.replace(
+            "aging-bidirectional-rubric-v1", "aging-bidirectional-rubric-v9"
+        )
+        self.assertIn(
+            "Rubric version must name a registered rubric version",
+            validate_pr_body(wrong_version, CAPABILITIES),
+        )
+
+        unknown_criterion = VALID.replace("P2.CLUSTERS", "P2.NOT_REAL")
+        self.assertIn(
+            "unknown rubric criterion ID(s): P2.NOT_REAL",
+            validate_pr_body(unknown_criterion, CAPABILITIES),
+        )
+
+        wrong_metric = VALID.replace("P2.CLUSTERS", "P3.SEARCH_TRACE")
+        self.assertIn(
+            "rubric criteria require undeclared target metric(s): P3",
+            validate_pr_body(wrong_metric, CAPABILITIES),
+        )
+
+        invalid_mode = VALID.replace(
+            "- Evaluation mode: hybrid", "- Evaluation mode: manual"
+        )
+        self.assertIn(
+            "Evaluation mode must be exactly deterministic, ai-judge, or hybrid",
+            validate_pr_body(invalid_mode, CAPABILITIES),
+        )
+
+        missing_metric_criterion = VALID.replace(
+            "- Target primary metric(s): P2", "- Target primary metric(s): P1, P2"
+        )
+        self.assertIn(
+            "target metrics missing a rubric criterion ID: P1",
+            validate_pr_body(missing_metric_criterion, CAPABILITIES),
+        )
+
+        placeholder_judge = VALID.replace(
+            "deferred: waiting for the Stage 1 executable milestone; synthetic schema artifact passed",
+            "TBD",
+        )
+        self.assertIn(
+            "AI-judge evidence must use 'artifact: PATH', 'deferred: REASON', "
+            "or 'not-applicable: REASON' with concrete detail",
+            validate_pr_body(placeholder_judge, CAPABILITIES),
+        )
+        arbitrary_judge = VALID.replace(
+            "deferred: waiting for the Stage 1 executable milestone; synthetic schema artifact passed",
+            "banana",
+        )
+        self.assertTrue(
+            any(
+                "AI-judge evidence must use" in error
+                for error in validate_pr_body(arbitrary_judge, CAPABILITIES)
+            )
+        )
 
     def test_plain_language_summary_is_required(self):
         body = VALID.replace(
@@ -138,6 +229,20 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             "capability 'skill:stage1-literature' has no declared target metric in "
             "common with its registry entry (P1, P2, P3)",
             errors,
+        )
+
+        criterion_mismatch = VALID.replace(
+            "P2.CLUSTERS, P2.CLOSEST_WORK", "P3.VERSION_DATE"
+        ).replace("P2", "P3")
+        errors = validate_pr_body(criterion_mismatch, CAPABILITIES)
+        self.assertTrue(
+            any(
+                error.startswith(
+                    "capability 'skill:stage1-literature' has no declared rubric "
+                    "criterion in common"
+                )
+                for error in errors
+            )
         )
 
     def test_decision_keyword_elsewhere_does_not_fill_decision_label(self):
@@ -333,6 +438,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         capabilities = {
             "validator:research-pr-contract": {
                 "metrics": {"P2"},
+                "criteria": {"P2.CLUSTERS"},
                 "owner_path": ".github/scripts/validate_research_pr.py",
             }
         }
@@ -347,6 +453,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             **CAPABILITIES,
             "validator:research-pr-contract": {
                 "metrics": {"P2"},
+                "criteria": {"P2.CLUSTERS"},
                 "owner_path": ".github/scripts/validate_research_pr.py",
             },
         }
@@ -365,6 +472,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             **CAPABILITIES,
             "validator:research-pr-contract": {
                 "metrics": {"P3"},
+                "criteria": {"P3.DECISION_TRACE"},
                 "owner_path": ".github/scripts/validate_research_pr.py",
             },
         }
