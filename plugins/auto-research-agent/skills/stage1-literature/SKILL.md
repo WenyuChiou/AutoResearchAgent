@@ -1,14 +1,14 @@
 ---
 name: stage1-literature
-description: Plan an auditable literature-research run with coverage obligations and source-level evidence records. Use for Stage 1 literature discovery and evidence review; later research stages have interfaces only.
+description: Plan Stage 1 literature research and record saved observations with an auditable local ledger. Use for literature discovery planning, source-level evidence records, screening history, validation and conservative checkpoints; live retrieval integration and later research stages remain incomplete.
 ---
 
 # Stage 1 literature research
 
-This foundation release supplies plugin discovery and shared stage contracts.
-The retrieval runner, artifact validator and coverage gate are not implemented
-yet. Do not present this release as an executable Stage 1 harness or invent
-commands for those capabilities. Read the [plugin status](../../README.md).
+This release supplies plugin discovery, shared contracts and a local ledger
+for saved observations. It does not execute live searches or establish coverage
+sufficiency. Read the [plugin status](../../README.md) and, before executing any
+ledger command, the [Stage 1 CLI contract](../../references/stage1-ledger.md).
 When creating or reviewing records, read the
 [shared stage contracts](../../references/stage-contracts.md).
 
@@ -25,6 +25,16 @@ When preparing a literature run:
    references. A cold-start screening suggestion remains unverified.
 6. Require a recent sweep, closest-work verification and a reasoned coverage
    decision. Reaching a paper count or exhausting a budget is insufficient.
+
+For the available local path, initialize an `offline-import` run, register each
+query and backend attempt, and save exact observed outputs before completing
+their receipts. Then run `extract`, add reason-coded screening and claim
+annotations, run `validate`, and save a `checkpoint`. Keep actual CLI outputs.
+Do not label imported observations as tool execution performed by this CLI.
+Do not use unmerged research-hub APIs. The local gate reports unresolved closest
+work and never emits `stop-sufficient`. If validation fails, preserve the report
+and evidence, diagnose the cause and verify a targeted fix before retrying.
+Use `recover` to inspect unfinished attempts; it does not repeat searches.
 
 Load only the current stage's bounded records and unresolved items. Keep raw
 material in artifacts. Freeze rules and software identity before execution;
