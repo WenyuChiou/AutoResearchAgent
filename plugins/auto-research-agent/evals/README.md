@@ -11,6 +11,14 @@ answers outside the production agent.
   boundaries for all three stages.
 - `schemas/rubric-judge-result.v1.schema.json` defines a blinded Auto-R1,
   Auto-R2, Auto-ADJ or targeted human-audit result.
+- `EVALUATION_WORKFLOW.zh-TW.md` explains the complete frozen-case, paired-run,
+  judge, adjudication, audit and reporting flow in plain language.
+- `schemas/holdout-manifest.v1.schema.json` and
+  `../validators/holdout_manifest.py` define private holdout curation,
+  private-artifact declarations and canonical hashing. The validator does not
+  prove runtime isolation or artifact bytes; the later evaluation runner must
+  attest both. The committed one-anchor example is only a synthetic contract
+  fixture, not an acceptable scientific holdout.
 - `stage1/metric-spec.v1.json` defines the required Stage 1 counts, 0-2
   anchors, major-error gate and paired comparison rule.
 - `schemas/stage1-evaluation-result.v1.schema.json` defines one scored run.
