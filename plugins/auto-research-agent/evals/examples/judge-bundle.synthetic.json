@@ -14,11 +14,11 @@
   "artifacts": {
     "auto_r1": {
       "path": "examples/rubric-judge-result-stage1-r1.synthetic.json",
-      "canonical_sha256": "2f4d14aeb59fbe144bb095e3b49e5293c29eb53d34460ae5020aa2861c4cfe3c"
+      "canonical_sha256": "f143b705460370aff3bda236a7fa9f2e3a8ec166d660ee1f170477f69efb25fa"
     },
     "auto_r2": {
       "path": "examples/rubric-judge-result-stage1-r2.synthetic.json",
-      "canonical_sha256": "1211164030183e68794a391d4c0270fac81795e426d2d005c56c29a42a712072"
+      "canonical_sha256": "db5e5fc8b81c2d39652ee33f7803afe5c2f49d4e423583c7b462587946fcd5f7"
     },
     "auto_adj": null,
     "human_audit": null
@@ -29,6 +29,6 @@
   "created_at": "2026-09-17T16:10:00-04:00",
   "subject_artifact": {
     "path": "examples/subject-stage1.synthetic.json",
-    "sha256": "ade8fa2cfaf2c92dc881fc385c71b29fc75d57e75704d1e3b56b7799ec659376"
+    "sha256": "1f4c85bf2a3a5710c832c6bc79f5d06da05f1b0316f14e833feec6e5004e52cf"
   }
 }

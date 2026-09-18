@@ -58,6 +58,11 @@ class JudgeBundleTests(unittest.TestCase):
         }
 
     def test_agreed_fixture_is_pairing_ready(self):
+        subject_bytes = (
+            EVAL_ROOT / self.example["subject_artifact"]["path"]
+        ).read_bytes()
+        self.assertNotIn(b"\r", subject_bytes)
+        self.assertNotIn(b"\n", subject_bytes)
         self.schema_validator.validate(self.example)
         self.assertEqual(validate_bundle(self.example), [])
 
