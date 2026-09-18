@@ -25,30 +25,38 @@
       "metric_effects": [
         {
           "metric_id": "P1",
+          "rubric_criteria": ["P1.EVIDENCE_LEVEL", "P1.CLAIM_SUPPORT"],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "identity status and evidence level are represented separately",
             "claim evidence can reference a versioned artifact"
           ],
-          "human_judgment": "Whether central methods and findings are substantively supported by the cited source."
+          "human_judgment": "A blinded AI judge applies the frozen rubric to whether central methods and findings are substantively supported; targeted human audit handles rubric triggers."
         },
         {
           "metric_id": "P2",
+          "rubric_criteria": ["P2.CLUSTERS", "P2.RECENT", "P2.CLOSEST_WORK"],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "coverage obligations are declared",
             "recent and closest-work checks are required before a sufficient stop"
           ],
-          "human_judgment": "Whether an alternative source is equally direct and whether the retrieved set is sufficient for the research decision."
+          "human_judgment": "A blinded AI judge applies the frozen rubric to source equivalence and decision sufficiency; targeted human audit handles rubric triggers."
         },
         {
           "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.SEARCH_TRACE",
+            "P3.DECISION_TRACE",
+            "P3.FAILURE_STATE",
+            "P3.STOP_EVIDENCE"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "search actions and failures have artifact references",
             "inclusion, exclusion, reversal, and human decisions retain reasons"
           ],
-          "human_judgment": "Whether the preserved trace is sufficient to reconstruct and challenge the important research decisions."
+          "human_judgment": "A blinded AI judge applies the frozen rubric to whether the trace supports reconstruction and challenge."
         }
       ],
       "guardrails": [
@@ -72,14 +80,16 @@
       "metric_role": "enabler",
       "owner_path": ".github/scripts/validate_research_pr.py",
       "problem": "A contributor can otherwise add a plausible research capability without linking the observed failure, target metric, deterministic evidence, and live A/B decision.",
-      "mechanism": "Reject pull-request descriptions with unknown capability IDs, metric targets that disagree with the capability registry, missing hard measures, missing human judgment, missing guardrails, unreported external pull requests, an absent evidence-qualified improvement statement, an incorrect merge owner, or a missing skill test mini-report when a skill changes.",
+      "mechanism": "Reject pull-request descriptions with unknown capability IDs, metric or rubric targets that disagree with the registries, missing evaluation evidence or guardrails, unreported external pull requests, an absent evidence-qualified improvement statement, an incorrect merge owner, or a missing skill test mini-report when a skill changes.",
       "metric_effects": [
         {
           "metric_id": "P3",
+          "rubric_criteria": ["P3.DECISION_TRACE"],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "every pull request names a registered capability ID",
             "declared pull-request metrics overlap the capability registry",
+            "declared rubric criteria exist and belong to declared metrics",
             "per-pull-request metric evidence and the live A/B decision are recorded",
             "related cross-repository pull requests are linked or explicitly recorded as absent",
             "each pull request states whether improvement is demonstrated and names the current evidence",
@@ -88,7 +98,7 @@
             "the core team is recorded as the review and merge owner",
             "every changed skill records its scenario, command, expected result, actual result, and limitations"
           ],
-          "human_judgment": "Whether the proposed evidence is sufficient to support the claimed research-harness change."
+          "human_judgment": "The core team checks whether the proposed implementation evidence supports the claimed harness change; milestone scientific quality uses the blinded AI judge."
         }
       ],
       "guardrails": [
@@ -114,30 +124,49 @@
       "metric_effects": [
         {
           "metric_id": "P1",
+          "rubric_criteria": [
+            "P1.IDENTITY",
+            "P1.IDENTIFIER",
+            "P1.CLAIM_SUPPORT",
+            "P1.CENTRAL_MISMATCH"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "bibliographic and claim count parts equal their totals",
             "central source mismatch count is explicit"
           ],
-          "human_judgment": "Whether the verified source actually supports the central method and finding."
+          "human_judgment": "A blinded AI judge applies the frozen rubric to whether the verified source supports the central method and finding."
         },
         {
           "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.CLUSTERS",
+            "P2.CORE",
+            "P2.MUST_HAVE",
+            "P2.RECENT"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "coverage numerators do not exceed denominators",
             "recent work counts and latest-year state are internally consistent"
           ],
-          "human_judgment": "Whether the retrieved set covers the closest relevant work or a defensible substitute."
+          "human_judgment": "A blinded AI judge applies the frozen rubric to closest-work and substitute-source sufficiency."
         },
         {
           "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.SEARCH_TRACE",
+            "P3.DECISION_TRACE",
+            "P3.VERSION_DATE",
+            "P3.CLAIM_TRACE",
+            "P3.STOP_EVIDENCE"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "trace numerators do not exceed denominators",
             "adjudicated status requires complete R1, R2, and ADJ scores"
           ],
-          "human_judgment": "Whether the trace is sufficient to reconstruct and challenge the research decision."
+          "human_judgment": "A blinded AI judge applies the frozen rubric to trace sufficiency."
         }
       ],
       "guardrails": [

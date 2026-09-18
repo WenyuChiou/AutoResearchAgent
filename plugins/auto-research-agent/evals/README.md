@@ -6,6 +6,11 @@ answers outside the production agent.
 ## What is versioned here
 
 - `primary-scorecard.v1.json` freezes the nine primary judgments, P1-P9.
+- `rubrics/aging-bidirectional-rubric.v1.json` freezes machine-addressable
+  criteria, 0-2 anchors, major errors, research modes and bidirectional case
+  boundaries for all three stages.
+- `schemas/rubric-judge-result.v1.schema.json` defines a blinded Auto-R1,
+  Auto-R2, Auto-ADJ or targeted human-audit result.
 - `stage1/metric-spec.v1.json` defines the required Stage 1 counts, 0-2
   anchors, major-error gate and paired comparison rule.
 - `schemas/stage1-evaluation-result.v1.schema.json` defines one scored run.
@@ -36,20 +41,24 @@ definitions and aggregate evidence only.
 3. **Before a generalization claim:** evaluate one blind case disclosed only
    after the harness and rubric are frozen.
 
-For each primary metric, preserve R1, R2 and adjudicated scores separately.
+For each primary metric, preserve Auto-R1, Auto-R2 and Auto-ADJ scores
+separately. A targeted human audit is required for the triggers named in the
+rubric and before an external generalization claim.
 Report factual items as counts and proportions. Do not sum P1-P9 into one total.
 Major errors and efficiency measures remain separate from quality scores.
 
-## Hard measures and human judgments
+## Hard measures and rubric-based AI judgments
 
 The scorecard is hybrid. Reconstructable counts, ratios, schema validity,
-artifact presence, timestamps, failures and costs are hard measures. Whether a
-claim is substantively supported, an alternative source is equally direct, or
-an audit trail is sufficient remains a blinded human judgment. Automated CI
-must not present a passing schema as a passing P1-P3 scientific score.
+artifact presence, timestamps, failures and costs are hard measures. A blinded
+AI judge applies the human-defined rubric to substantive support, substitute
+sources and scientific sufficiency. Hard facts take precedence over the judge.
+Missing evidence remains unverifiable. Automated CI must not present a passing
+schema as a passing P1-P9 scientific score.
 
-Therefore, “check the metric for every tool” has two levels. Every PR must prove
-that its metric-producing behavior and guardrails work on deterministic data.
+Therefore, “check the metric for every tool” has two levels. Every PR must name
+the exact rubric criterion IDs it changes and prove that its metric-producing
+behavior and guardrails work on deterministic data.
 The stage-level paired A/B is run when an executable vertical slice is ready,
 because running a live literature benchmark for every small commit would mix
 in model and search variability and would expose the holdout too often.

@@ -15,6 +15,14 @@ COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 METRIC = re.compile(r"\bP[1-9]\b")
 CAPABILITY_DECISIONS = {"reuse", "wrap", "extend", "build-new"}
 EXECUTION_STATUSES = {"complete", "partial", "blocked"}
+EVALUATION_MODES = {"deterministic", "ai-judge", "hybrid"}
+AI_JUDGE_EVIDENCE = re.compile(
+    r"^(artifact|deferred|not-applicable)\s*:\s*(.+)$", re.IGNORECASE
+)
+ARTIFACT_REF = re.compile(
+    r"(?:https://|[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+|"
+    r"[A-Za-z0-9_.-]+\.(?:jsonl?|md|txt|csv|ya?ml))"
+)
 EXTERNAL_PR = re.compile(r"https://github\.com/([^/\s]+)/([^/\s]+)/pull/\d+/?$")
 IMPROVEMENT_STATEMENT = re.compile(
     r"^(improved|not improved|not yet demonstrated)\s*(?:—|:|-)\s*"
@@ -47,8 +55,11 @@ REQUIRED_LABELS = {
         "Related external PR(s)",
     ),
     "Evaluation": (
+        "Rubric version",
+        "Rubric criterion ID(s)",
+        "Evaluation mode",
         "Hard measures",
-        "Human judgment rubric",
+        "AI-judge evidence",
         "Major-error guardrail",
         "Per-PR metric evidence",
         "Improvement statement",
@@ -63,6 +74,9 @@ REQUIRED_LABELS = {
 DEFAULT_REGISTRY = (
     Path(__file__).resolve().parents[2]
     / "plugins/auto-research-agent/evals/capability-metric-map.v1.json"
+)
+DEFAULT_RUBRIC_DIR = (
+    Path(__file__).resolve().parents[2] / "plugins/auto-research-agent/evals/rubrics"
 )
 
 
@@ -108,6 +122,11 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
     return {
         entry["capability_id"]: {
             "metrics": {effect["metric_id"] for effect in entry["metric_effects"]},
+            "criteria": {
+                criterion_id
+                for effect in entry["metric_effects"]
+                for criterion_id in effect["rubric_criteria"]
+            },
             "owner_path": entry["owner_path"],
         }
         for entry in registry["capabilities"]
@@ -116,6 +135,27 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
 
 def capability_ids(value):
     return [item.strip() for item in re.split(r"[,;]", value) if item.strip()]
+
+
+def load_rubrics(directory=DEFAULT_RUBRIC_DIR):
+    rubrics = {}
+    for path in sorted(directory.glob("*.json")):
+        rubric = json.loads(path.read_text(encoding="utf-8"))
+        if rubric.get("status") != "frozen":
+            continue
+        version = rubric["rubric_version"]
+        if version in rubrics:
+            raise ValueError(f"duplicate rubric version: {version}")
+        criteria = {}
+        for metric in rubric["metrics"]:
+            for criterion_id in metric["criterion_ids"]:
+                if criterion_id in criteria:
+                    raise ValueError(
+                        f"duplicate criterion ID in {version}: {criterion_id}"
+                    )
+                criteria[criterion_id] = metric["id"]
+        rubrics[version] = criteria
+    return rubrics
 
 
 def path_is_capability_entry(path):
@@ -176,7 +216,9 @@ def changed_files(base_sha, head_sha, cwd=None):
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def validate_pr_body(body, known_capabilities=None, changed_paths=None):
+def validate_pr_body(
+    body, known_capabilities=None, changed_paths=None, known_rubrics=None
+):
     parsed = sections(body or "")
     errors = []
     for name in REQUIRED_SECTIONS:
@@ -188,11 +230,9 @@ def validate_pr_body(body, known_capabilities=None, changed_paths=None):
         for label in labels:
             if not label_has_value(parsed.get(section, ""), label):
                 errors.append(f"{section} requires a non-empty '{label}:' value")
-    why_and_evaluation = "\n".join(
-        visible_text(parsed.get(name, "")) for name in ("Why", "Evaluation")
-    )
-    if not METRIC.search(why_and_evaluation):
-        errors.append("Why or Evaluation must name at least one primary metric P1-P9")
+    target_metrics = label_value(parsed.get("Why", ""), "Target primary metric(s)")
+    if not METRIC.search(target_metrics):
+        errors.append("Target primary metric(s) must name at least one metric P1-P9")
     decision = label_value(parsed.get("What", ""), "Capability decision").lower()
     if decision not in CAPABILITY_DECISIONS:
         errors.append(
@@ -257,7 +297,62 @@ def validate_pr_body(body, known_capabilities=None, changed_paths=None):
         errors.append(
             "Partial or blocked execution must describe the remaining work or blocker"
         )
-    declared_metrics = set(METRIC.findall(why_and_evaluation))
+    declared_metrics = set(METRIC.findall(target_metrics))
+    rubrics = known_rubrics if known_rubrics is not None else load_rubrics()
+    rubric_version = label_value(parsed.get("Evaluation", ""), "Rubric version")
+    rubric_criteria = rubrics.get(rubric_version, {})
+    if rubric_version and rubric_version not in rubrics:
+        errors.append("Rubric version must name a registered rubric version")
+    declared_criteria = capability_ids(
+        label_value(parsed.get("Evaluation", ""), "Rubric criterion ID(s)")
+    )
+    unknown_criteria = [
+        criterion_id
+        for criterion_id in declared_criteria
+        if criterion_id not in rubric_criteria
+    ]
+    if unknown_criteria:
+        errors.append(
+            "unknown rubric criterion ID(s): " + ", ".join(sorted(unknown_criteria))
+        )
+    criterion_metrics = {
+        rubric_criteria[criterion_id]
+        for criterion_id in declared_criteria
+        if criterion_id in rubric_criteria
+    }
+    undeclared_criterion_metrics = criterion_metrics.difference(declared_metrics)
+    if undeclared_criterion_metrics:
+        errors.append(
+            "rubric criteria require undeclared target metric(s): "
+            + ", ".join(sorted(undeclared_criterion_metrics))
+        )
+    missing_criterion_metrics = declared_metrics.difference(criterion_metrics)
+    if missing_criterion_metrics:
+        errors.append(
+            "target metrics missing a rubric criterion ID: "
+            + ", ".join(sorted(missing_criterion_metrics))
+        )
+    evaluation_mode = label_value(
+        parsed.get("Evaluation", ""), "Evaluation mode"
+    ).casefold()
+    if evaluation_mode not in EVALUATION_MODES:
+        errors.append(
+            "Evaluation mode must be exactly deterministic, ai-judge, or hybrid"
+        )
+    ai_judge_evidence = label_value(parsed.get("Evaluation", ""), "AI-judge evidence")
+    evidence_match = AI_JUDGE_EVIDENCE.fullmatch(ai_judge_evidence)
+    evidence_kind = evidence_match.group(1).casefold() if evidence_match else ""
+    evidence_detail = evidence_match.group(2).strip() if evidence_match else ""
+    invalid_evidence = not evidence_match or not text_is_concrete(evidence_detail)
+    if evidence_kind == "artifact":
+        invalid_evidence |= ARTIFACT_REF.search(evidence_detail) is None
+    elif evidence_kind in {"deferred", "not-applicable"}:
+        invalid_evidence |= len(evidence_detail.split()) < 5
+    if ai_judge_evidence and invalid_evidence:
+        errors.append(
+            "AI-judge evidence must use 'artifact: PATH', 'deferred: REASON', "
+            "or 'not-applicable: REASON' with concrete detail"
+        )
     declared_capabilities = capability_ids(
         label_value(parsed.get("What", ""), "Affected capability ID(s)")
     )
@@ -284,6 +379,17 @@ def validate_pr_body(body, known_capabilities=None, changed_paths=None):
                 errors.append(
                     f"capability '{capability_id}' has no declared target metric in common "
                     f"with its registry entry ({expected})"
+                )
+            capability_criteria = known_capabilities[capability_id].get(
+                "criteria", set()
+            )
+            if capability_criteria and set(declared_criteria).isdisjoint(
+                capability_criteria
+            ):
+                expected = ", ".join(sorted(capability_criteria))
+                errors.append(
+                    f"capability '{capability_id}' has no declared rubric criterion "
+                    f"in common with its registry entry ({expected})"
                 )
         if changed_paths is not None:
             required, unowned = capabilities_for_changed_paths(
@@ -334,7 +440,7 @@ def main():
             return 0
         body = context["body"]
         paths = changed_files(context["base_sha"], context["head_sha"])
-    errors = validate_pr_body(body, load_capability_metrics(), paths)
+    errors = validate_pr_body(body, load_capability_metrics(), paths, load_rubrics())
     if errors:
         print("Research PR contract failed:")
         for error in errors:

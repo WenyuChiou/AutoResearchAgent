@@ -24,7 +24,7 @@ Every production skill, MCP tool, CLI, validator or gate must have one entry in
 - owner path and capability status;
 - target primary metrics and expected direction;
 - hard measures produced by the implementation;
-- the question that still requires blinded human judgment;
+- the question that requires blinded rubric-based AI judgment;
 - guardrails, regression tests and the live A/B milestone.
 
 CI checks that plugin skills, the repository PR validator, and capabilities in
@@ -60,8 +60,8 @@ its prompt text.
 
 This mini-report is deliberately short so contributors can iterate quickly. It
 is evidence that the capability behaves as specified, not evidence that P1-P9
-improved. Scientific improvement still requires the paired live A/B and human
-judgment at the declared stage milestone.
+improved. Scientific improvement still requires the paired live A/B and
+rubric-based AI judging at the declared stage milestone.
 
 ## Pull requests
 
@@ -82,6 +82,13 @@ core team checks whether the whole PR is actually clear.
 Each PR should implement one coherent capability. Include deterministic tests
 and update the capability metric map in the same PR. State whether the frozen
 paired A/B is required immediately or deferred to the stage milestone.
+
+Each PR must also name the registered rubric version, exact criterion IDs and
+evaluation mode (`deterministic`, `ai-judge`, or `hybrid`). Criterion IDs must
+belong to the declared P1-P9 targets. Record the AI-judge result artifact, or a
+concrete milestone deferral when the PR only establishes an interface. A test
+pass proves implementation behavior; only the paired milestone result can
+prove a scientific-quality gain.
 
 Every PR must include one `Improvement statement` beginning with `improved`,
 `not improved`, or `not yet demonstrated`. In the same sentence, name the
