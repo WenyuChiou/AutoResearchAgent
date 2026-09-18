@@ -1,0 +1,422 @@
+{
+  "schema_version": "1.0.0",
+  "rubric_version": "aging-bidirectional-rubric-v1",
+  "status": "frozen",
+  "frozen_at": "2026-09-17T00:00:00-04:00",
+  "purpose": "Judge Stage 1-3 research outputs for the aging and bidirectional LLM-consumer simulation development case.",
+  "case_scope": {
+    "forward_coupling": "Demographic and household states define or update consumer agents and their decision context.",
+    "feedback_coupling": "Aggregated consumption, work, saving, market, service, and policy outcomes update the next-period environment and agent states.",
+    "demographic_transition_guardrail": "Fertility, mortality, migration, retirement, household formation, and health transitions require empirical transition models, explicit scenarios, or documented constraints; an LLM may not invent these transitions as ground truth.",
+    "allowed_research_modes": [
+      "confirmatory",
+      "exploratory",
+      "method-development",
+      "simulation-discovery"
+    ]
+  },
+  "evaluation_model": {
+    "scale": [
+      0,
+      1,
+      2
+    ],
+    "score_meanings": {
+      "0": "Missing, invalid, contradicted, or unsafe for the next research decision.",
+      "1": "Relevant work exists, but evidence or execution detail is incomplete.",
+      "2": "Evidence and reasoning are sufficient for the next stated research decision."
+    },
+    "pipeline": [
+      "deterministic checks",
+      "blinded Auto-R1 judge",
+      "blinded Auto-R2 judge",
+      "Auto-ADJ when scores or major-error decisions differ",
+      "targeted human audit"
+    ],
+    "hard_fact_precedence": "A semantic judge cannot override a deterministic count, schema failure, missing artifact, or verified source mismatch.",
+    "abstention": "Missing or inaccessible evidence is unverifiable, not correct or incorrect. A central unverifiable claim caps the affected metric at 1.",
+    "condition_blinding": true,
+    "no_composite_total": true,
+    "human_audit_triggers": [
+      "major-error candidate",
+      "low judge confidence",
+      "Auto-R1 and Auto-R2 disagree",
+      "central evidence is inaccessible",
+      "baseline and treatment differ by one ordinal point",
+      "final external research claim"
+    ]
+  },
+  "benchmark_binding": {
+    "status": "pending-v2-curation",
+    "note": "The prior four-cluster Stage 1 benchmark remains diagnostic v1 evidence. A six-cluster anchor bundle and newly paired baseline are required before formal aging-bidirectional A/B evaluation.",
+    "production_runtime_may_read_answer_key": false
+  },
+  "coverage_clusters": [
+    "aging, life cycle, retirement, and household-consumption mechanisms",
+    "population synthesis, reweighting, and dynamic demographic transitions",
+    "household decision, microsimulation, ABM, and macroeconomic models",
+    "LLM consumer or household agents and behavioral fidelity",
+    "bidirectional market, environment, social interaction, and multi-period feedback",
+    "calibration, independent validation, uncertainty, and claim limitations"
+  ],
+  "metrics": [
+    {
+      "id": "P1",
+      "stage": 1,
+      "name": "Evidence Reliability",
+      "question": "Are source identities, methods, findings, and decision-relevant claims correct and source-supported?",
+      "unit": "included scholarly work and central claim",
+      "criterion_ids": [
+        "P1.IDENTITY",
+        "P1.IDENTIFIER",
+        "P1.CLAIM_SUPPORT",
+        "P1.LOCATOR",
+        "P1.EVIDENCE_LEVEL",
+        "P1.CENTRAL_MISMATCH"
+      ],
+      "central_claim_scope": [
+        "established finding",
+        "confirmatory hypothesis rationale",
+        "exploratory question or pattern interpretation",
+        "gap or novelty",
+        "method, data, or validation choice",
+        "claim boundary"
+      ],
+      "required_evidence": [
+        "claim ID and text",
+        "source identity and version",
+        "DOI or source URL",
+        "evidence level",
+        "reproducible locator",
+        "support status"
+      ],
+      "hard_measures": [
+        "metadata accuracy",
+        "identifier accuracy",
+        "central-claim audit completion",
+        "claim support counts",
+        "locator coverage",
+        "evidence-level coverage",
+        "central mismatch count"
+      ],
+      "score_0": "A central source or claim is fabricated, mismatched, contradicted, materially overstated, or too incomplete to support the next decision.",
+      "score_1": "No conclusion-changing fabrication is established, but full-text support, locators, evidence levels, or the central-claim audit are incomplete.",
+      "score_2": "Central source identities and identifiers are correct; all central claims are audited and locatable; evidence levels are explicit; no central claim is contradicted or mismatched; exploratory findings remain labeled exploratory.",
+      "evaluation_units": [
+        {
+          "unit_type": "included_work",
+          "cardinality": "one-per-included-work"
+        },
+        {
+          "unit_type": "central_claim",
+          "cardinality": "one-per-central-claim"
+        },
+        {
+          "unit_type": "stage_summary",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Report all item outcomes; stage_summary is 0 on any P1 major error, at most 1 while any central item is unverifiable, and 2 only when every central item passes.",
+      "major_error_ids": [
+        "P1.ME.FABRICATED_SOURCE",
+        "P1.ME.WRONG_IDENTIFIER",
+        "P1.ME.CONTRADICTED_CLAIM",
+        "P1.ME.UNSUPPORTED_ABSENCE",
+        "P1.ME.EXPLORATORY_AS_CONFIRMATORY",
+        "P1.ME.FALSE_VERIFICATION"
+      ]
+    },
+    {
+      "id": "P2",
+      "stage": 1,
+      "name": "Relevant Coverage",
+      "question": "Does the evidence cover the six necessary clusters, closest work, recent work, and the bound development anchors?",
+      "unit": "deduplicated literature set",
+      "criterion_ids": [
+        "P2.CLUSTERS",
+        "P2.CORE",
+        "P2.MUST_HAVE",
+        "P2.RECENT",
+        "P2.CLOSEST_WORK",
+        "P2.SUBSTITUTE"
+      ],
+      "hard_measures": [
+        "supported clusters out of six",
+        "core and must-have recall after v2 binding",
+        "recent works and latest confirmed year",
+        "closest-work search completion"
+      ],
+      "score_0": "One or more decision-critical clusters are absent, or the set cannot support the stated research decision.",
+      "score_1": "Most clusters are represented, but recent, closest-work, feedback-loop, validation, or anchor coverage is incomplete.",
+      "score_2": "All six clusters have verified support; recent and closest-work searches are complete; bound anchors or adjudicated equally direct substitutes support the decision; stopping is not count-only.",
+      "evaluation_units": [
+        {
+          "unit_type": "literature_set",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Score the deduplicated set once; all six clusters and bound anchor obligations must be satisfied for 2.",
+      "major_error_ids": [
+        "P2.ME.OMITTED_CLOSEST_WORK",
+        "P2.ME.KEYWORD_AS_VERIFIED",
+        "P2.ME.ANSWER_KEY_LEAK"
+      ]
+    },
+    {
+      "id": "P3",
+      "stage": 1,
+      "name": "Auditability",
+      "question": "Can another evaluator reconstruct searches, sources, decisions, claim evidence, failures, and the stop decision?",
+      "unit": "Stage 1 run",
+      "criterion_ids": [
+        "P3.SEARCH_TRACE",
+        "P3.DECISION_TRACE",
+        "P3.VERSION_DATE",
+        "P3.CLAIM_TRACE",
+        "P3.FAILURE_STATE",
+        "P3.STOP_EVIDENCE"
+      ],
+      "hard_measures": [
+        "included works with discovery path",
+        "central claims with locator",
+        "decisions with reason and evidence reference",
+        "included works with version and access date",
+        "tool actions with timestamp, parameters, status, and raw-output reference"
+      ],
+      "score_0": "Important searches or decisions cannot be reconstructed, or failures are represented as successful empty results.",
+      "score_1": "A partial trace exists, but a candidate ledger, decision history, source version, central locator, failure state, or reasoned stop is missing.",
+      "score_2": "All included works, central claims, decisions, tool actions, failures, and stop evidence are reconstructable from versioned artifacts.",
+      "evaluation_units": [
+        {
+          "unit_type": "stage1_run",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Score the complete Stage 1 run once; any irreconstructable central action or P3 major error forces 0.",
+      "major_error_ids": [
+        "P3.ME.FAILURE_AS_EMPTY",
+        "P3.ME.OVERWRITTEN_HISTORY",
+        "P3.ME.MISSING_AS_VERIFIED"
+      ]
+    },
+    {
+      "id": "P4",
+      "stage": 2,
+      "name": "Comparison Quality",
+      "question": "Are studies compared on shared dimensions and evidence rather than summarized separately?",
+      "unit": "complete comparison",
+      "criterion_ids": [
+        "P4.SHARED_DIMENSIONS",
+        "P4.EVIDENCE_LINKS",
+        "P4.AGREEMENT_CONFLICT",
+        "P4.CONDITION_EFFECT"
+      ],
+      "required_dimensions": [
+        "objective",
+        "data and population",
+        "demographic representation and transitions",
+        "decision mechanism",
+        "bidirectional feedback and temporal update",
+        "outcomes",
+        "validation and limitations"
+      ],
+      "score_0": "The output is a sequence of summaries or uses incomparable labels that do not support a research decision.",
+      "score_1": "Some shared comparison exists, but dimensions, evidence links, conflicts, or consequences for the proposed study are incomplete.",
+      "score_2": "The same necessary dimensions are applied across studies; major agreements, conflicts, and condition-dependent results link to evidence and change the downstream decision.",
+      "evaluation_units": [
+        {
+          "unit_type": "comparison",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Score the complete cross-study comparison once; missing applicable dimensions remain explicit rather than silently omitted.",
+      "major_error_ids": [
+        "P4.ME.INCOMPATIBLE_EQUIVALENCE",
+        "P4.ME.OUT_OF_PACKET_SOURCE"
+      ]
+    },
+    {
+      "id": "P5",
+      "stage": 2,
+      "name": "Gap Validity",
+      "question": "Is each gap bounded, closest-work-aware, evidence-backed, and vulnerable to disconfirming evidence?",
+      "unit": "research direction",
+      "criterion_ids": [
+        "P5.CLOSEST_WORK",
+        "P5.KNOWN_VS_MISSING",
+        "P5.BOUNDARY",
+        "P5.INCREMENT",
+        "P5.FALSIFIER",
+        "P5.TRACE"
+      ],
+      "score_0": "The gap is unsupported, contradicted by known work, universal without evidence, or unrelated to the proposed contribution.",
+      "score_1": "A plausible gap is stated, but closest work, scope, increment, evidence trace, or disconfirming condition is incomplete.",
+      "score_2": "The direction states what closest work already does, what remains missing, the bounded conditions, the proposed increment, supporting evidence, and what new evidence would weaken the gap.",
+      "evaluation_units": [
+        {
+          "unit_type": "research_direction",
+          "cardinality": "one-per-proposed-direction"
+        }
+      ],
+      "aggregation_rule": "Score each direction separately; report the distribution and minimum, never an unweighted average that hides a weak direction.",
+      "major_error_ids": [
+        "P5.ME.UNSUPPORTED_NO_PRIOR_WORK",
+        "P5.ME.MISREPRESENTED_CLOSEST_WORK",
+        "P5.ME.SEARCH_OMISSION_AS_NOVELTY"
+      ]
+    },
+    {
+      "id": "P6",
+      "stage": 2,
+      "name": "Research Value and Selection",
+      "question": "Are candidate directions compared consistently and is the recommendation valuable and executable?",
+      "unit": "direction and final recommendation",
+      "criterion_ids": [
+        "P6.SCIENTIFIC_VALUE",
+        "P6.INCREMENT",
+        "P6.DATA",
+        "P6.VALIDATION",
+        "P6.FEASIBILITY",
+        "P6.RISK_FALLBACK",
+        "P6.SELECTION"
+      ],
+      "comparison_dimensions": [
+        "literature evidence",
+        "scientific value",
+        "increment over closest work",
+        "data availability",
+        "validation strength",
+        "16-week feasibility",
+        "compute and LLM cost",
+        "risk and fallback"
+      ],
+      "score_0": "The recommendation is arbitrary, infeasible, or unsupported by a consistent comparison.",
+      "score_1": "Directions and a recommendation exist, but tradeoffs, value, feasibility, or fallback evidence is incomplete.",
+      "score_2": "Two or more directions are compared on the same dimensions, the recommended increment matters to an identified audience, constraints and alternatives are explicit, and the final choice remains a recorded human decision.",
+      "evaluation_units": [
+        {
+          "unit_type": "research_direction",
+          "cardinality": "one-per-proposed-direction"
+        },
+        {
+          "unit_type": "final_recommendation",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Score alternatives and the final recommendation separately; the recommendation cannot score 2 unless every alternative was compared on the declared dimensions.",
+      "major_error_ids": [
+        "P6.ME.INCONSISTENT_SELECTION",
+        "P6.ME.HIDDEN_INFEASIBILITY"
+      ]
+    },
+    {
+      "id": "P7",
+      "stage": 3,
+      "name": "Scientific Design Validity",
+      "question": "Do the question, research mode, coupling, decision process, aggregation, and claim boundary form one testable or auditable design?",
+      "unit": "complete proposed study",
+      "criterion_ids": [
+        "P7.QUESTION_MODE",
+        "P7.ESTIMAND_OR_EXPLORATION_TARGET",
+        "P7.DEMOGRAPHIC_TO_AGENT",
+        "P7.FEEDBACK_LOOP",
+        "P7.LLM_ROLE",
+        "P7.TEMPORAL_UPDATE",
+        "P7.AGGREGATION",
+        "P7.CLAIM_SCOPE"
+      ],
+      "mode_requirements": {
+        "confirmatory": "Hypotheses specify observable predictions, comparisons, and weakening results.",
+        "exploratory": "Questions specify the search space, units, outcomes, pattern rules, multiplicity handling, and later confirmation path.",
+        "method-development": "The method names baselines, success criteria, and failure cases.",
+        "simulation-discovery": "Emergent patterns have detection and robustness rules and are not relabeled as preregistered hypotheses."
+      },
+      "score_0": "The components answer different questions, the feedback loop is undefined, LLM outputs are unconstrained, or claims exceed the design.",
+      "score_1": "The design is plausible but one or more key mappings, feedback variables, temporal updates, research-mode obligations, aggregation rules, or claim boundaries are incomplete.",
+      "score_2": "The research mode is explicit; demographic states map to agents; decisions update the environment; empirically governed feedback updates later states; LLM inputs, choices, failures, timing, aggregation, and allowable claims are reproducible.",
+      "evaluation_units": [
+        {
+          "unit_type": "proposed_study",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Score the complete proposed study once after mode-specific and bidirectional-coupling obligations are checked.",
+      "major_error_ids": [
+        "P7.ME.EXPLORATORY_AS_CONFIRMATORY",
+        "P7.ME.LLM_DEMOGRAPHIC_TRUTH",
+        "P7.ME.SIMULATION_AS_CAUSAL",
+        "P7.ME.METHOD_STRUCTURE_CONFLICT"
+      ]
+    },
+    {
+      "id": "P8",
+      "stage": 3,
+      "name": "Validation Strength",
+      "question": "Does validation independently test the population, LLM choices, feedback dynamics, and population outcomes against credible baselines?",
+      "unit": "complete validation plan",
+      "criterion_ids": [
+        "P8.POPULATION_VALIDATION",
+        "P8.DECISION_VALIDATION",
+        "P8.FEEDBACK_VALIDATION",
+        "P8.OUTCOME_VALIDATION",
+        "P8.CALIBRATION_HOLDOUT",
+        "P8.NON_LLM_BASELINE",
+        "P8.LLM_ABLATION"
+      ],
+      "score_0": "Validation reuses calibration evidence as final proof, lacks a real target, or relies only on plausibility or self-evaluation.",
+      "score_1": "Some layers and baselines exist, but independent data, feedback validation, holdout separation, or ablation is incomplete.",
+      "score_2": "Synthetic population, LLM decisions, feedback dynamics, and aggregate outcomes each have data and metrics; calibration and final validation are separate; transparent non-LLM and unconditioned or ablated LLM baselines are included.",
+      "evaluation_units": [
+        {
+          "unit_type": "validation_plan",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Score the complete four-layer validation plan once; a missing required layer prevents score 2.",
+      "major_error_ids": [
+        "P8.ME.CALIBRATION_AS_VALIDATION",
+        "P8.ME.JUDGE_ONLY_GROUND_TRUTH",
+        "P8.ME.HIDDEN_LLM_UNDERPERFORMANCE"
+      ]
+    },
+    {
+      "id": "P9",
+      "stage": 3,
+      "name": "Feasibility",
+      "question": "Can the study be executed in 16 weeks with accessible data, ordinary compute, bounded LLM use, decision gates, and fallbacks?",
+      "unit": "complete execution plan",
+      "criterion_ids": [
+        "P9.DATA_ACCESS",
+        "P9.MVP",
+        "P9.SCHEDULE",
+        "P9.COMPUTE_CALLS_COST",
+        "P9.DECISION_GATES",
+        "P9.RISKS",
+        "P9.FALLBACKS"
+      ],
+      "score_0": "A critical input, resource, permission, validation target, or schedule dependency is unavailable with no workable fallback.",
+      "score_1": "A plausible plan exists, but estimates, access evidence, decision gates, or fallbacks are incomplete.",
+      "score_2": "The MVP, data access, variables, licenses, 16-week schedule, compute, LLM calls, actual or bounded cost, dependencies, decision gates, risks, and executable fallbacks are explicit.",
+      "evaluation_units": [
+        {
+          "unit_type": "execution_plan",
+          "cardinality": "exactly-one"
+        }
+      ],
+      "aggregation_rule": "Score the complete execution plan once; an unavailable critical dependency without fallback forces 0.",
+      "major_error_ids": [
+        "P9.ME.UNKNOWN_COST_AS_ZERO",
+        "P9.ME.UNVERIFIED_PRIVATE_DATA",
+        "P9.ME.UNBOUNDED_MVP"
+      ]
+    }
+  ],
+  "criterion_catalog": {
+    "path": "rubrics/aging-bidirectional-criteria.v1.jsonl",
+    "sha256": "ab175e1ebbf6c399e84808ba16f094b4b141776edd23ece79c829d1dfd73efdd",
+    "record_count": 86,
+    "criterion_record_type": "criterion",
+    "major_error_record_type": "major_error",
+    "hash_canonicalization": "UTF-8 with LF line endings"
+  }
+}
