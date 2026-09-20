@@ -12,11 +12,33 @@ def require(condition, message):
 
 class CoverageReplay:
     def __init__(self, manifest, read_ref):
+        from .evidence import EvidenceReplay
+
         self.manifest, self.read_ref = manifest, read_ref
         self.plan = self.plan_ref = self.binding = self.active = None
         self.queries, self.starts, self.completed, self.receipts = {}, {}, {}, {}
         self.works, self.baseline = set(), set()
         self.closed = []
+        self.evidence = EvidenceReplay()
+
+    def expansion_arguments(self, operation, work_id, version_id):
+        require(self.active is not None, "coverage-round-not-open")
+        require(operation in {"references", "cited-by"}, "unknown-expansion-operation")
+        work = self.evidence.candidates.get(work_id)
+        require(
+            work and version_id in work["version_ids"],
+            "expansion-needs-discovered-version",
+        )
+        return dict(
+            operation=operation,
+            limit=self.binding["limit"],
+            coverage=dict(
+                plan_event_id=self.binding["event_id"],
+                round_number=self.active,
+                seed_work_id=work_id,
+                seed_version_id=version_id,
+            ),
+        )
 
     def arguments(self, planned_id):
         require(self.active is not None, "coverage-round-not-open")
@@ -39,6 +61,21 @@ class CoverageReplay:
             return
         if payload["operation"] == "search":
             arguments = payload["arguments"]
+            require(
+                isinstance(arguments.get("coverage"), dict), "coverage-query-binding"
+            )
+            if "seed_work_id" in arguments.get("coverage", {}):
+                seed = arguments["coverage"]
+                require(
+                    arguments
+                    == self.expansion_arguments(
+                        arguments.get("operation"),
+                        seed["seed_work_id"],
+                        seed.get("seed_version_id"),
+                    ),
+                    "coverage-expansion-binding",
+                )
+                return
             planned = arguments.get("coverage", {}).get("planned_query_id")
             require(planned in self.queries, "coverage-query-binding")
             require(arguments == self.arguments(planned), "coverage-query-binding")
@@ -55,7 +92,9 @@ class CoverageReplay:
         }
         results = [p for p in self.completed.values() if p["query_id"] in starts]
         require(len(results) == len(starts), "round-has-pending-actions")
-        attempted = {p["arguments"]["coverage"]["planned_query_id"] for p in results}
+        attempted = {
+            p["arguments"]["coverage"].get("planned_query_id") for p in results
+        }
         missing = [i for i in self.queries if i not in attempted]
         failed, truncated = [], []
         for result in results:
@@ -136,3 +175,4 @@ class CoverageReplay:
             require(payload["summary"] == self.summary(), "coverage-round-replay")
             self.closed.append(payload)
             self.active = None
+        self.evidence.observe(payload, self.plan)

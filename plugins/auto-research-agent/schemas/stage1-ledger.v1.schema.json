@@ -48,6 +48,9 @@
     },
     {
       "$ref": "#/$defs/CoverageRoundClosed"
+    },
+    {
+      "$ref": "#/$defs/CoverageWorkReview"
     }
   ],
   "$defs": {
@@ -1001,6 +1004,9 @@
     },
     "CoverageRoundClosed": {
       "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageRoundClosed"
+    },
+    "CoverageWorkReview": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageWorkReview"
     }
   }
 }

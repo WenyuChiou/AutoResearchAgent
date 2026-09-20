@@ -352,7 +352,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/validators/stage1_run.py",
       "problem": "A plausible ledger can refer to missing or changed evidence or disagree with its own source records.",
-      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims.",
+      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -405,7 +405,8 @@
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_identity_comparison.py",
-        "plugins/auto-research-agent/tests/test_coverage_rounds.py"
+        "plugins/auto-research-agent/tests/test_coverage_rounds.py",
+        "plugins/auto-research-agent/tests/test_coverage_evidence.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -464,7 +465,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_coverage",
       "problem": "Search can begin without a frozen decomposition, complete query families or explicit recent and closest-work obligations.",
-      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay. Bind a validated plan before search; replay exact query and backend obligations, append truncation receipts and complete-round summaries.",
+      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay. Bind a validated plan before search; replay exact query and backend obligations, append truncation receipts and complete-round summaries. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -508,7 +509,8 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_coverage.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
-        "plugins/auto-research-agent/tests/test_coverage_rounds.py"
+        "plugins/auto-research-agent/tests/test_coverage_rounds.py",
+        "plugins/auto-research-agent/tests/test_coverage_evidence.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false

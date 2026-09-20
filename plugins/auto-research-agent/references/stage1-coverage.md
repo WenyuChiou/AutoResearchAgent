@@ -1,8 +1,8 @@
 # Stage 1 coverage planning
 
-The coverage CLI freezes a plan and records saved execution rounds against it.
-It does not contact providers, choose closest works, or implement a
-sufficient-stop gate. Search completion is distinct from qualified coverage.
+The coverage CLI freezes a plan, records saved execution rounds and preserves
+version-bound coverage reviews. It does not contact providers or choose closest
+works. Search completion is distinct from qualified coverage.
 
 The skill authors the decomposition using the actual question. Identify the
 population, phenomenon, proposed method and validation question. Split the
@@ -85,3 +85,27 @@ round. Closed rounds and failures remain immutable, including after recovery.
 The round records newly discovered work IDs, which are not qualified or
 verified works. Completing an empty round or exhausting the three-round budget
 does not establish coverage or permit `stop-sufficient`.
+
+## Versioned work reviews and expansion
+
+Use `review-work --run RUN --request review.json` to record an assessor's
+coverage judgment. The request names `work_id`, `version_id`, `cluster_claims`
+(cluster ID to relevance claim event ID), `closest`, `identity_status`,
+`identity_claims`, `assessor` and `rationale`. The CLI binds the review to the
+current candidate revision and include decision. A later discovery or screening
+decision makes it stale; re-review appends a replacement event.
+
+Identity claims have five keys: `title`, `authors`, `year`, `identifier`,
+`version`. Use `null` for unavailable evidence and status `unverifiable` or
+`conflict`. Status `verified` requires five distinct, supported, located claims
+from saved full text for that version, without unresolved metadata conflict.
+The assessor must read each source and explain the field comparison. A resolver
+response, abstract or metadata match does not meet this contract. The validator
+checks links and quotes, not the truth of those judgments, source authenticity
+or a person's identity. The event explicitly says `reviewer-attestation` and
+does not overwrite bibliographic comparisons or candidate identity state.
+
+Use `expand --run RUN --request expansion.json` with `operation` (`references`
+or `cited-by`), `work_id` and `version_id`. The seed must already have been
+discovered in this run. Record backend output and a receipt using the same
+ledger path as search. Expansion failures and truncation remain visible.

@@ -26,10 +26,18 @@ def main(argv=None):
     compile_command.add_argument("--actor", required=True)
     validate = commands.add_parser("validate")
     validate.add_argument("directory", type=Path)
-    for name in ("bind", "open-round", "start-query", "receipt", "close-round"):
+    for name in (
+        "bind",
+        "open-round",
+        "start-query",
+        "receipt",
+        "close-round",
+        "expand",
+        "review-work",
+    ):
         command = commands.add_parser(name)
         command.add_argument("--run", type=Path, required=True)
-        if name in {"bind", "receipt"}:
+        if name in {"bind", "receipt", "expand", "review-work"}:
             command.add_argument("--request", type=Path, required=True)
         if name == "bind":
             command.add_argument("--plan", type=Path, required=True)
@@ -61,6 +69,10 @@ def main(argv=None):
                 result = {"query_id": ledger.start_planned(args.planned_id)}
             elif args.command == "receipt":
                 result = ledger.receipt(**request)
+            elif args.command == "expand":
+                result = {"query_id": ledger.start_expansion(**request)}
+            elif args.command == "review-work":
+                result = ledger.review_work(**request)
             else:
                 result = ledger.close_round()
         sys.stdout.buffer.write(canonical(result) + b"\n")
