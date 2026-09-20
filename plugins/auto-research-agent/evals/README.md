@@ -23,6 +23,8 @@ answers outside the production agent.
   request hash, block added errors, and report quality separately from costs.
 - `EVALUATION_WORKFLOW.zh-TW.md` explains the complete frozen-case, paired-run,
   judge, adjudication, audit and reporting flow in plain language.
+- `READINESS_AND_TEAM_WORKFLOW.zh-TW.md` defines the four readiness levels,
+  executable acceptance checks, teammate deliverables and core-team ownership.
 - `schemas/holdout-manifest.v1.schema.json` and
   `../validators/holdout_manifest.py` define private holdout curation,
   private-artifact declarations and canonical hashing. The validator does not

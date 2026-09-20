@@ -52,3 +52,9 @@ use the separately controlled frozen benchmark bundle.
 All contributors must follow [CONTRIBUTING.md](CONTRIBUTING.md). Every new
 skill, tool, validator or gate must declare its target metrics and tests in the
 [capability metric map](evals/capability-metric-map.v1.json).
+
+Codex contributors must also follow the plugin-scoped [AGENTS.md](AGENTS.md),
+which fixes the required reading order and delivery responsibilities. The
+[readiness and team workflow](evals/READINESS_AND_TEAM_WORKFLOW.zh-TW.md)
+separates instruction readiness, evaluation readiness, an executable Stage
+harness, and a demonstrated live A/B improvement.
