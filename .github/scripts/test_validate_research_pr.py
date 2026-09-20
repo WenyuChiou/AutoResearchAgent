@@ -1,12 +1,26 @@
 """Regression tests for the research pull-request contract."""
 
 from pathlib import Path
+import hashlib
+import json
 import re
 import subprocess
 import tempfile
 import unittest
 
-from validate_research_pr import changed_files, load_rubrics, validate_pr_body
+from validate_research_pr import (
+    CRITERION_INVARIANTS,
+    EVALUATOR_INVARIANTS,
+    RUNTIME_INVARIANTS,
+    changed_files,
+    load_bound_readiness_manifest,
+    load_criterion_submetrics,
+    load_invariant_registry,
+    load_operational_submetrics,
+    load_rubrics,
+    validate_pr_body,
+    validate_readiness_manifest,
+)
 
 
 VALID = """## Why
@@ -18,6 +32,8 @@ Target metric P2 has a measured coverage failure.
 - Affected capability ID(s): skill:stage1-literature
 - Capability decision: wrap
 - Related external PR(s): None
+- Internal prerequisite PR(s): None
+- External dependency pin(s): None
 Wrap the existing search command.
 
 ## How
@@ -28,14 +44,21 @@ Before: count reached.
 After: incomplete cluster continues.
 
 ## Evaluation
+- Evaluation readiness: implementation-only
 - Rubric version: aging-bidirectional-rubric-v1
-- Rubric criterion ID(s): P2.CLUSTERS, P2.CLOSEST_WORK
+- Rubric criterion ID(s): P2.CLUSTERS
+- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations
+- Required invariant IDs: pr-readiness-enforced
+- Invariant test evidence: pr-readiness-enforced -> .github/scripts/test_validate_research_pr.py::ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence -> passed
 - Evaluation mode: hybrid
 - Hard measures: cluster and trace counts
 - AI-judge evidence: deferred: waiting for the Stage 1 executable milestone; synthetic schema artifact passed
 - Major-error guardrail: no fabricated source
-- Per-PR metric evidence: synthetic coverage-gate regression passed
+- Per-PR metric evidence: synthetic coverage-gate test passed
 - Improvement statement: not yet demonstrated — deterministic behavior is implemented but live quality remains unknown; evidence: 18 validator tests passed and live A/B is deferred to the Stage 1 milestone
+- Live smoke evidence: deferred: the stage executable milestone will produce the first live run and validator report
+- Paired evaluation evidence: deferred: the frozen three-pair evaluation runs only after the stage executable milestone
+- Runtime integrity evidence: deferred: runtime hashes and resume checks belong to the stage executable milestone
 - Live paired A/B: deferred to Stage 1 executable milestone
 Compare paired P2 counts and blinded judgments.
 
@@ -57,15 +80,42 @@ CAPABILITIES = {
         "criteria": {
             "P1.CLAIM_SUPPORT",
             "P2.CLUSTERS",
-            "P2.CLOSEST_WORK",
             "P3.DECISION_TRACE",
         },
         "owner_path": "plugins/auto-research-agent/skills/stage1-literature",
     }
 }
+FIXTURE_ROOT = Path(__file__).parent / "fixtures/pr_bodies"
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
+    def test_frozen_criteria_and_derived_invariants_are_fully_registered(self):
+        rubrics = load_rubrics()
+        criterion_submetrics = load_criterion_submetrics()
+        operational_submetrics = load_operational_submetrics()
+        every_criterion = {
+            criterion_id for criteria in rubrics.values() for criterion_id in criteria
+        }
+        self.assertEqual(set(criterion_submetrics), every_criterion)
+        for criterion_id, submetric_ids in criterion_submetrics.items():
+            self.assertTrue(submetric_ids, criterion_id)
+            self.assertTrue(
+                submetric_ids.issubset(operational_submetrics),
+                (criterion_id, submetric_ids),
+            )
+        invariants = load_invariant_registry()
+        derived = set().union(
+            *CRITERION_INVARIANTS.values(),
+            RUNTIME_INVARIANTS,
+            EVALUATOR_INVARIANTS,
+        )
+        self.assertTrue(derived.issubset(invariants))
+        for invariant_id, registration in invariants.items():
+            self.assertTrue(registration["path_patterns"], invariant_id)
+            for pattern in registration["path_patterns"]:
+                re.compile(pattern)
+            re.compile(registration["selector_pattern"])
+
     def test_only_frozen_unique_rubrics_are_registered(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -87,6 +137,48 @@ class ResearchPullRequestContractTests(unittest.TestCase):
 
     def test_complete_body_passes(self):
         self.assertEqual(validate_pr_body(VALID, CAPABILITIES), [])
+
+    def test_readiness_manifest_rejects_unbound_evidence(self):
+        body = VALID.replace(
+            "- Evaluation readiness: implementation-only",
+            "- Evaluation readiness: stage-executable",
+        ).replace(
+            "- Live smoke evidence: deferred: the stage executable milestone will produce the first live run and validator report",
+            "- Live smoke evidence: artifact: manifest=missing.json; sha256="
+            + "a" * 64,
+        )
+        errors = validate_pr_body(
+            body,
+            CAPABILITIES,
+            execute_invariant_tests=False,
+        )
+        self.assertTrue(
+            any("readiness manifest does not exist" in error for error in errors)
+        )
+
+    def test_all_three_readiness_body_fixtures_pass(self):
+        for readiness in (
+            "implementation-only",
+            "stage-executable",
+            "improvement-demonstrated",
+        ):
+            with self.subTest(readiness=readiness):
+                body = (FIXTURE_ROOT / f"{readiness}.md").read_text(encoding="utf-8")
+                self.assertEqual(
+                    validate_pr_body(
+                        body,
+                        CAPABILITIES,
+                        allow_contract_fixtures=True,
+                    ),
+                    [],
+                )
+                if readiness != "implementation-only":
+                    self.assertTrue(
+                        any(
+                            "contract-fixture evidence cannot support" in error
+                            for error in validate_pr_body(body, CAPABILITIES)
+                        )
+                    )
 
     def test_missing_and_empty_sections_fail(self):
         body = VALID.replace(
@@ -128,6 +220,15 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         self.assertIn("Evaluation requires a non-empty 'Hard measures:' value", errors)
         self.assertIn("Example requires a non-empty 'Before:' value", errors)
         self.assertIn("Example requires a non-empty 'After:' value", errors)
+        placeholder_result = VALID.replace(
+            "- Per-PR metric evidence: synthetic coverage-gate test passed",
+            "- Per-PR metric evidence: TBD",
+        )
+        self.assertIn(
+            "Per-PR metric evidence must name an actual passed/failed result, count, "
+            "measurement, or artifact",
+            validate_pr_body(placeholder_result, CAPABILITIES),
+        )
 
     def test_registered_rubric_criteria_and_evaluation_mode_are_required(self):
         missing_version = VALID.replace(
@@ -231,9 +332,9 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             errors,
         )
 
-        criterion_mismatch = VALID.replace(
-            "P2.CLUSTERS, P2.CLOSEST_WORK", "P3.VERSION_DATE"
-        ).replace("P2", "P3")
+        criterion_mismatch = VALID.replace("P2.CLUSTERS", "P3.VERSION_DATE").replace(
+            "P2", "P3"
+        )
         errors = validate_pr_body(criterion_mismatch, CAPABILITIES)
         self.assertTrue(
             any(
@@ -271,6 +372,13 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             "- Related external PR(s): None",
             "- Related external PR(s): https://github.com/WenyuChiou/research-hub/pull/123; "
             "https://github.com/WenyuChiou/ai-research-skills/pull/456",
+        ).replace(
+            "- External dependency pin(s): None",
+            "- External dependency pin(s): https://github.com/WenyuChiou/research-hub/pull/123 @ "
+            + "a" * 40
+            + " @ open; https://github.com/WenyuChiou/ai-research-skills/pull/456 @ "
+            + "b" * 40
+            + " @ open",
         )
         self.assertEqual(validate_pr_body(linked, CAPABILITIES), [])
 
@@ -321,7 +429,6 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             )
 
         for value in (
-            "improved — trace completeness increased from 60% to 100%; evidence: paired metric artifact run-03.json",
             "not improved — paired P2 remained unchanged across three runs; evidence: 3 paired runs scored 1",
             "not yet demonstrated — deterministic behavior exists but live quality is unknown; evidence: 18 tests passed and live A/B is deferred to the Stage 1 milestone",
         ):
@@ -332,6 +439,278 @@ class ResearchPullRequestContractTests(unittest.TestCase):
                 value,
             )
             self.assertEqual(validate_pr_body(body, CAPABILITIES), [], value)
+
+    def test_readiness_is_required_and_implementation_only_can_defer(self):
+        missing = VALID.replace("- Evaluation readiness: implementation-only\n", "")
+        self.assertIn(
+            "Evaluation readiness must be exactly implementation-only, "
+            "stage-executable, or improvement-demonstrated",
+            validate_pr_body(missing, CAPABILITIES),
+        )
+        premature = VALID.replace(
+            "not yet demonstrated — deterministic behavior is implemented but live "
+            "quality remains unknown; evidence: 18 validator tests passed and live "
+            "A/B is deferred to the Stage 1 milestone",
+            "improved — trace completeness increased from 60% to 100%; evidence: "
+            "paired metric artifact run-03.json",
+        )
+        self.assertIn(
+            "implementation-only readiness cannot claim 'improved' before the frozen "
+            "paired evaluation",
+            validate_pr_body(premature, CAPABILITIES),
+        )
+        self.assertEqual(validate_pr_body(VALID, CAPABILITIES), [])
+
+    def test_each_declared_criterion_needs_operational_mapping(self):
+        body = VALID.replace(
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.missing_symbol",
+        )
+        self.assertIn(
+            "operational mapping target does not exist under a declared production owner: SKILL.missing_symbol",
+            validate_pr_body(body, CAPABILITIES),
+        )
+        wrong_submetric = VALID.replace(
+            "P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+            "P2.CLUSTERS -> S1_DELIVERY -> SKILL.coverage_obligations",
+        )
+        self.assertIn(
+            "criterion P2.CLUSTERS must map to frozen submetric(s): S1_COVER",
+            validate_pr_body(wrong_submetric, CAPABILITIES),
+        )
+        closest_to_count = VALID.replace(
+            "- Rubric criterion ID(s): P2.CLUSTERS",
+            "- Rubric criterion ID(s): P2.CLUSTERS, P2.CLOSEST_WORK",
+        ).replace(
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations; P2.CLOSEST_WORK -> S1_DELIVERY -> SKILL.closest_work",
+        )
+        self.assertIn(
+            "criterion P2.CLOSEST_WORK must map to frozen submetric(s): S1_COVER",
+            validate_pr_body(closest_to_count, CAPABILITIES),
+        )
+
+    def test_derived_invariant_and_real_test_selector_are_required(self):
+        missing_id = VALID.replace(
+            "- Rubric criterion ID(s): P2.CLUSTERS",
+            "- Rubric criterion ID(s): P2.CLUSTERS, P2.CLOSEST_WORK",
+        ).replace(
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations; P2.CLOSEST_WORK -> S1_COVER -> SKILL.closest_work",
+        )
+        self.assertIn(
+            "Required invariant IDs missing derived invariant(s): "
+            "unverified-closest-blocks-stop",
+            validate_pr_body(missing_id, CAPABILITIES),
+        )
+        missing_selector = VALID.replace(
+            "ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence",
+            "ResearchPullRequestContractTests.test_method_does_not_exist",
+        )
+        self.assertTrue(
+            any(
+                "test selector does not exist" in error
+                for error in validate_pr_body(missing_selector, CAPABILITIES)
+            )
+        )
+
+    def test_stop_evidence_requires_all_stop_inputs_invariant(self):
+        body = (
+            VALID.replace("P2.CLUSTERS", "P2.CLUSTERS, P3.STOP_EVIDENCE")
+            .replace(
+                "P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+                "P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations; P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE -> SKILL.coverage_stop",
+            )
+            .replace(
+                "- Target primary metric(s): P2", "- Target primary metric(s): P2, P3"
+            )
+        )
+        self.assertIn(
+            "Required invariant IDs missing derived invariant(s): all-stop-inputs-required",
+            validate_pr_body(body, CAPABILITIES),
+        )
+
+    def test_p1_identity_claim_and_locator_require_binding_invariants(self):
+        body = (
+            VALID.replace(
+                "- Target primary metric(s): P2", "- Target primary metric(s): P1"
+            )
+            .replace(
+                "P2.CLUSTERS",
+                "P1.IDENTITY, P1.CLAIM_SUPPORT, P1.LOCATOR",
+            )
+            .replace(
+                "P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+                "P1.IDENTITY -> S1_META -> SKILL.source_version; "
+                "P1.CLAIM_SUPPORT -> S1_CLAIM -> SKILL.claim_verification; "
+                "P1.LOCATOR -> S1_CLAIM_LOCATOR -> SKILL.source_documents",
+            )
+        )
+        capabilities = {
+            "skill:stage1-literature": {
+                **CAPABILITIES["skill:stage1-literature"],
+                "criteria": {"P1.IDENTITY", "P1.CLAIM_SUPPORT", "P1.LOCATOR"},
+            }
+        }
+        errors = validate_pr_body(body, capabilities)
+        self.assertTrue(
+            any(
+                all(
+                    invariant in error
+                    for invariant in (
+                        "artifact-producer-bound",
+                        "evidence-work-version-bound",
+                        "missing-evidence-fails-closed",
+                    )
+                )
+                for error in errors
+            )
+        )
+
+    def test_stage_executable_requires_live_runtime_and_complete_status(self):
+        body = VALID.replace(
+            "- Evaluation readiness: implementation-only",
+            "- Evaluation readiness: stage-executable",
+        )
+        errors = validate_pr_body(body, CAPABILITIES)
+        self.assertTrue(any("Live smoke evidence" in error for error in errors))
+        self.assertTrue(any("Runtime integrity evidence" in error for error in errors))
+
+        complete = (FIXTURE_ROOT / "stage-executable.md").read_text(encoding="utf-8")
+        self.assertEqual(
+            validate_pr_body(
+                complete,
+                CAPABILITIES,
+                allow_contract_fixtures=True,
+            ),
+            [],
+        )
+        weak_hash = re.sub(r"sha256=[0-9a-f]{64}", "sha256=" + "a" * 64, complete)
+        self.assertTrue(
+            any(
+                "manifest sha256 does not match" in error
+                for error in validate_pr_body(
+                    weak_hash,
+                    CAPABILITIES,
+                    allow_contract_fixtures=True,
+                )
+            )
+        )
+
+        cross_repo_internal = VALID.replace(
+            "- Internal prerequisite PR(s): None",
+            "- Internal prerequisite PR(s): "
+            "https://github.com/WenyuChiou/research-hub/pull/137",
+        )
+        self.assertIn(
+            "Internal prerequisite PR(s) must be 'None' or a semicolon-separated "
+            "list of WenyuChiou/AutoResearchAgent pull-request URLs",
+            validate_pr_body(cross_repo_internal, CAPABILITIES),
+        )
+        manifest = {
+            "readiness": "stage-executable",
+            "evidence_scope": "live-smoke",
+            "execution_status": "complete",
+            "validator_status": "passed",
+            "resume_status": "failed",
+            "_verified_roles": {
+                "live-run",
+                "validator-report",
+                "runtime-bytes",
+                "dependency-bytes",
+                "resume-report",
+            },
+        }
+        self.assertIn(
+            "readiness manifest resume_status must be 'passed'",
+            validate_readiness_manifest(
+                manifest, "stage-executable", "not yet demonstrated"
+            ),
+        )
+
+    def test_improvement_demonstrated_requires_full_paired_bundle(self):
+        body = (FIXTURE_ROOT / "improvement-demonstrated.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(
+            validate_pr_body(body, CAPABILITIES, allow_contract_fixtures=True), []
+        )
+        missing = re.sub(
+            r"- Paired evaluation evidence: artifact:.*",
+            "- Paired evaluation evidence: deferred: paired evidence is intentionally missing for this negative test",
+            body,
+        )
+        self.assertTrue(
+            any(
+                "requires hash-bound paired evidence" in error
+                for error in validate_pr_body(
+                    missing,
+                    CAPABILITIES,
+                    allow_contract_fixtures=True,
+                )
+            )
+        )
+
+    def test_improvement_claim_is_recomputed_by_formal_paired_evaluator(self):
+        repo_root = Path(__file__).resolve().parents[2]
+        detail = (
+            "manifest=.github/scripts/fixtures/pr_evidence/"
+            "improvement-demonstrated.manifest.json; sha256="
+            "a4f7c8ad503b1f074312403fbafc84625945923f5320482a55693b67f2a9aa2f"
+        )
+        manifest, load_errors = load_bound_readiness_manifest(
+            detail,
+            repo_root,
+            allow_contract_fixtures=True,
+        )
+        self.assertEqual(load_errors, [])
+        manifest["evidence_scope"] = "formal-paired"
+        errors = validate_readiness_manifest(
+            manifest,
+            "improvement-demonstrated",
+            "improved",
+            repo_root=repo_root,
+        )
+        self.assertTrue(
+            any(error.startswith("formal paired evaluator:") for error in errors),
+            errors,
+        )
+
+    def test_live_cli_and_evaluator_capabilities_derive_integrity_invariants(self):
+        cli_capabilities = {
+            "cli:stage1-live": {
+                "metrics": {"P2"},
+                "criteria": {"P2.CLUSTERS"},
+                "owner_path": "plugins/auto-research-agent/cli/stage1_live",
+                "kind": "cli",
+            }
+        }
+        cli_body = VALID.replace("skill:stage1-literature", "cli:stage1-live")
+        errors = validate_pr_body(cli_body, cli_capabilities)
+        self.assertTrue(
+            any(
+                "dependency-sha-bound" in error
+                and "resume-no-reexecution" in error
+                and "runtime-bytes-bound" in error
+                for error in errors
+            )
+        )
+
+        validator_capabilities = {
+            "validator:example": {
+                "metrics": {"P2"},
+                "criteria": {"P2.CLUSTERS"},
+                "owner_path": "plugins/auto-research-agent/validators/example.py",
+                "kind": "validator",
+            }
+        }
+        validator_body = VALID.replace("skill:stage1-literature", "validator:example")
+        self.assertTrue(
+            any(
+                "rehash-tamper-rejected" in error
+                for error in validate_pr_body(validator_body, validator_capabilities)
+            )
+        )
 
     def test_core_team_is_the_review_and_merge_owner(self):
         body = VALID.replace(
@@ -435,6 +814,10 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         body = "\n".join(
             line for line in VALID.splitlines() if not line.startswith("- Skill test ")
         ).replace("skill:stage1-literature", "validator:research-pr-contract")
+        body = body.replace(
+            "P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+            "P2.CLUSTERS -> S1_COVER -> validate_research_pr.required_ids",
+        )
         capabilities = {
             "validator:research-pr-contract": {
                 "metrics": {"P2"},
@@ -443,6 +826,112 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             }
         }
         self.assertEqual(validate_pr_body(body, capabilities), [])
+
+    def test_rehash_tamper_rejected_for_every_readiness_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = root / "run.json"
+            artifact.write_text('{"status":"complete"}\n', encoding="utf-8")
+            manifest = root / "manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "kind": "ReadinessEvidenceManifest",
+                        "schema_version": "1.0.0",
+                        "evidence_scope": "live-smoke",
+                        "artifacts": [
+                            {
+                                "role": "live-run",
+                                "path": "run.json",
+                                "sha256": "0" * 64,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+            _, errors = load_bound_readiness_manifest(
+                f"manifest=manifest.json; sha256={digest}", root
+            )
+            self.assertIn(
+                "readiness artifact 'live-run' sha256 does not match file bytes",
+                errors,
+            )
+
+        unrelated = VALID.replace(
+            "ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence",
+            "ResearchPullRequestContractTests.test_complete_body_passes",
+        )
+        self.assertTrue(
+            any(
+                "is not allowed by invariant-registry.v1.json" in error
+                for error in validate_pr_body(unrelated, CAPABILITIES)
+            )
+        )
+
+    def test_exact_invariant_selector_must_execute_successfully(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skill = root / "plugins/auto-research-agent/skills/example/SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("coverage obligations\n", encoding="utf-8")
+            test_path = root / "tests/test_invariant.py"
+            test_path.parent.mkdir()
+            test_path.write_text(
+                "import unittest\n\n"
+                "class InvariantTests(unittest.TestCase):\n"
+                "    def test_readiness_bound(self):\n"
+                "        self.fail('controlled invariant failure')\n\n"
+                "if __name__ == '__main__':\n"
+                "    unittest.main()\n",
+                encoding="utf-8",
+            )
+            body = (
+                VALID.replace("skill:stage1-literature", "skill:example")
+                .replace("pr-readiness-enforced", "fixture-invariant")
+                .replace(
+                    ".github/scripts/test_validate_research_pr.py::ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence",
+                    "tests/test_invariant.py::InvariantTests.test_readiness_bound",
+                )
+            )
+            capabilities = {
+                "skill:example": {
+                    "metrics": {"P2"},
+                    "criteria": {"P2.CLUSTERS"},
+                    "owner_path": "plugins/auto-research-agent/skills/example",
+                }
+            }
+            invariants = {
+                "fixture-invariant": {
+                    "path_patterns": [r"tests/test_invariant\.py"],
+                    "selector_pattern": r"InvariantTests\.test_readiness_bound",
+                }
+            }
+            errors = validate_pr_body(
+                body,
+                capabilities,
+                known_rubrics={"aging-bidirectional-rubric-v1": {"P2.CLUSTERS": "P2"}},
+                known_submetrics={"S1_COVER": {"P2"}},
+                known_criterion_submetrics={"P2.CLUSTERS": {"S1_COVER"}},
+                known_invariants=invariants,
+                repo_root=root,
+            )
+            self.assertTrue(
+                any("exact test selector failed" in error for error in errors), errors
+            )
+
+    def test_wrapped_mapping_and_invariant_lines_are_supported(self):
+        body = VALID.replace(
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER ->\n"
+            "  SKILL.coverage_obligations",
+        ).replace(
+            "- Invariant test evidence: pr-readiness-enforced -> .github/scripts/test_validate_research_pr.py::ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence -> passed",
+            "- Invariant test evidence: pr-readiness-enforced ->\n"
+            "  .github/scripts/test_validate_research_pr.py::ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence -> passed",
+        )
+        self.assertEqual(validate_pr_body(body, CAPABILITIES), [])
 
     def test_mixed_capability_change_requires_skill_test_mini_report(self):
         body = VALID.replace(

@@ -80,7 +80,7 @@
       "metric_role": "enabler",
       "owner_path": ".github/scripts/validate_research_pr.py",
       "problem": "A contributor can otherwise add a plausible research capability without linking the observed failure, target metric, deterministic evidence, and live A/B decision.",
-      "mechanism": "Reject pull-request descriptions with unknown capability IDs, metric or rubric targets that disagree with the registries, missing evaluation evidence or guardrails, unreported external pull requests, an absent evidence-qualified improvement statement, an incorrect merge owner, or a missing skill test mini-report when a skill changes.",
+      "mechanism": "Reject pull-request descriptions with unknown capabilities, invalid exact criterion-to-submetric mappings, missing production symbols, unrelated or failing invariant selectors, unsupported readiness claims, unverified artifact bytes, incomplete evidence bindings, or missing execution and ownership reports.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -90,6 +90,9 @@
             "every pull request names a registered capability ID",
             "declared pull-request metrics overlap the capability registry",
             "declared rubric criteria exist and belong to declared metrics",
+            "every criterion uses its frozen allowed submetric and an existing production field or function",
+            "criterion-derived invariant IDs use registered non-skipped selectors that CI executes successfully",
+            "stage and improvement manifests and every listed artifact pass SHA-256 verification",
             "per-pull-request metric evidence and the live A/B decision are recorded",
             "related cross-repository pull requests are linked or explicitly recorded as absent",
             "each pull request states whether improvement is demonstrated and names the current evidence",
@@ -108,6 +111,41 @@
       ],
       "test_refs": [
         ".github/scripts/test_validate_research_pr.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "not-applicable-governance-enabler",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:research-pr-dependency-contract",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": ".github/scripts/check_research_pr_dependencies.py",
+      "problem": "A PR description can claim that a stacked or external dependency is ready even when it is open, has changes requested, or no longer matches the recorded SHA.",
+      "mechanism": "Resolve every declared prerequisite and external dependency through GitHub, reject cross-repository PRs in the internal field, allow open prerequisites only for Draft PRs, and require executable readiness to use an approved immutable merge SHA.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": ["P3.DECISION_TRACE", "P3.VERSION_DATE"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "internal prerequisites belong to WenyuChiou/AutoResearchAgent",
+            "ready stacked PR prerequisites are merged and do not have changes requested",
+            "open dependency pins match the current 40-character head SHA",
+            "merged dependency pins match the immutable 40-character merge SHA",
+            "stage-executable and improvement-demonstrated claims use merged dependencies"
+          ],
+          "human_judgment": "The core team decides whether the dependency is scientifically appropriate; CI verifies its review state and immutable identity."
+        }
+      ],
+      "guardrails": [
+        "network or GitHub CLI failure fails closed",
+        "dependency state does not prove scientific validity",
+        "contributors still report every cross-repository PR to the core team"
+      ],
+      "test_refs": [
+        ".github/scripts/test_check_research_pr_dependencies.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py"
       ],
       "live_ab_required_at": "not-applicable-governance-enabler",
