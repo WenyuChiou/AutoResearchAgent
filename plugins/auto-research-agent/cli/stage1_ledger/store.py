@@ -69,6 +69,14 @@ class Ledger(Journal):
 
     @mutation
     def start(self, operation, arguments, *, backend=None, parent_id=None):
+        from stage1_coverage.rounds import CoverageReplay
+
+        coverage = CoverageReplay(self.manifest, self.read_ref)
+        for row in self.events():
+            coverage.observe(row["payload"])
+        coverage.check_start(
+            dict(operation=operation, arguments=arguments, backend=backend)
+        )
         if operation == "search" and (parent_id is not None or backend is not None):
             raise LedgerError("search-has-backend-parent")
         if parent_id is not None:

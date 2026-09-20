@@ -8,6 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from stage1_coverage.plan import compile_plan, validate_bundle
+from stage1_coverage.run import CoverageLedger
 from stage1_ledger.journal import canonical, decode
 
 
@@ -25,6 +26,15 @@ def main(argv=None):
     compile_command.add_argument("--actor", required=True)
     validate = commands.add_parser("validate")
     validate.add_argument("directory", type=Path)
+    for name in ("bind", "open-round", "start-query", "receipt", "close-round"):
+        command = commands.add_parser(name)
+        command.add_argument("--run", type=Path, required=True)
+        if name in {"bind", "receipt"}:
+            command.add_argument("--request", type=Path, required=True)
+        if name == "bind":
+            command.add_argument("--plan", type=Path, required=True)
+        if name == "start-query":
+            command.add_argument("--planned-id", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "compile":
@@ -34,8 +44,25 @@ def main(argv=None):
                 as_of=args.as_of,
                 actor=args.actor,
             )
-        else:
+        elif args.command == "validate":
             result = validate_bundle(args.directory)
+        else:
+            ledger = CoverageLedger(args.run)
+            request = (
+                decode(args.request.read_bytes(), str(args.request))
+                if hasattr(args, "request")
+                else {}
+            )
+            if args.command == "bind":
+                result = ledger.bind_plan(args.plan, **request)
+            elif args.command == "open-round":
+                result = ledger.open_round()
+            elif args.command == "start-query":
+                result = {"query_id": ledger.start_planned(args.planned_id)}
+            elif args.command == "receipt":
+                result = ledger.receipt(**request)
+            else:
+                result = ledger.close_round()
         sys.stdout.buffer.write(canonical(result) + b"\n")
         return 1 if result.get("valid") is False else 0
     except (OSError, ValueError, TypeError) as error:

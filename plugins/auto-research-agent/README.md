@@ -9,7 +9,9 @@ Stage 1 research run.
 
 The experimental [coverage compiler](references/stage1-coverage.md) freezes an
 authored question decomposition and its unexecuted query families before search.
-Execution and completed-coverage integration are still under development.
+Saved execution rounds now bind exact queries to that plan and reject failed,
+missing or truncated results as evidence of search completion. Qualified-work
+coverage and the sufficient-stop policy are still under development.
 
 ## Install from this checkout
 

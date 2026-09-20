@@ -10,6 +10,7 @@ from .journal import Journal, LedgerError, canonical, contained, decode, digest
 from .readiness import coverage_text, readiness
 from .semantics import SUCCESS, claim_check, completion_count, query_fields
 from .verification import comparison
+from stage1_coverage.rounds import CoverageReplay
 
 
 COUNT_NAMES = (
@@ -55,6 +56,7 @@ def validate_run(root):
     try:
         manifest = journal.manifest
         check_manifest(manifest)
+        coverage = CoverageReplay(manifest, read_ref)
         events = journal.reconcile(repair=False)
         contained(journal.root, "coverage_and_stop.md").read_bytes()
         for row in events:
@@ -87,7 +89,8 @@ def validate_run(root):
                     ref["artifact_id"] not in stored, "duplicate-artifact-registration"
                 )
                 require(
-                    ref["artifact_type"] in {"raw-output", "validator-report"},
+                    ref["artifact_type"]
+                    in {"raw-output", "validator-report", "coverage-input"},
                     "unknown-artifact-type",
                 )
                 require(
@@ -102,7 +105,12 @@ def validate_run(root):
                     )
                 else:
                     require(
-                        ref["producer"] == "stage1-validator",
+                        ref["producer"]
+                        == (
+                            "stage1-plan"
+                            if ref["artifact_type"] == "coverage-input"
+                            else "stage1-validator"
+                        ),
                         "unknown-validator-producer",
                     )
                 require(
@@ -342,6 +350,7 @@ def validate_run(root):
                     == ("human-review" if action == "human-review" else "running"),
                     "checkpoint-status-mismatch",
                 )
+            coverage.observe(p)
             if kind != "Checkpoint" and not (
                 kind == "ArtifactStored"
                 and p["ref"]["artifact_type"] == "validator-report"

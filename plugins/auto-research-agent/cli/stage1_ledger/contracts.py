@@ -18,14 +18,23 @@ def validator(name):
     schema = decode(
         (directory / "stage1-ledger.v1.schema.json").read_bytes(), "ledger schema"
     )
+    coverage = decode(
+        (directory / "stage1-coverage-run.v1.schema.json").read_bytes(),
+        "coverage schema",
+    )
     registry = Registry().with_resources(
         [
             (shared["$id"], Resource.from_contents(shared)),
             (schema["$id"], Resource.from_contents(schema)),
+            (coverage["$id"], Resource.from_contents(coverage)),
         ]
     )
     return Draft202012Validator(
-        {"$ref": schema["$id"] + "#/$defs/" + name},
+        {
+            "$ref": (coverage if name in coverage["$defs"] else schema)["$id"]
+            + "#/$defs/"
+            + name
+        },
         registry=registry,
         format_checker=FormatChecker(),
     )
@@ -58,6 +67,10 @@ def check_payload(value):
         "Checkpoint",
         "ExtractionFailure",
         "IdentityComparison",
+        "CoveragePlanBound",
+        "CoverageRoundOpened",
+        "CoverageReceipt",
+        "CoverageRoundClosed",
     }
     if not isinstance(value, dict) or value.get("kind") not in kinds:
         raise LedgerError("unknown-event-kind")

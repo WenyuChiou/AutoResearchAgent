@@ -339,7 +339,8 @@
         "plugins/auto-research-agent/tests/test_provenance_bindings.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
-        "plugins/auto-research-agent/tests/test_identity_comparison.py"
+        "plugins/auto-research-agent/tests/test_identity_comparison.py",
+        "plugins/auto-research-agent/tests/test_coverage_rounds.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -403,7 +404,8 @@
         "plugins/auto-research-agent/tests/test_provenance_bindings.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
-        "plugins/auto-research-agent/tests/test_identity_comparison.py"
+        "plugins/auto-research-agent/tests/test_identity_comparison.py",
+        "plugins/auto-research-agent/tests/test_coverage_rounds.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -462,7 +464,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_coverage",
       "problem": "Search can begin without a frozen decomposition, complete query families or explicit recent and closest-work obligations.",
-      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay.",
+      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay. Bind a validated plan before search; replay exact query and backend obligations, append truncation receipts and complete-round summaries.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -475,7 +477,9 @@
           "hard_measures": [
             "every cluster has a query family",
             "every family has topical, adversarial and recent queries",
-            "recent window freezes the as-of year and previous two years"
+            "recent window freezes the as-of year and previous two years",
+            "failed, missing or truncated query receipts cannot complete a round",
+            "rehashed round summaries fail independent replay"
           ],
           "human_judgment": "A blinded judge assesses whether the authored decomposition and query families cover the actual research question."
         },
@@ -489,7 +493,9 @@
           "hard_measures": [
             "planned queries retain cluster, family and purpose",
             "all compiled actions remain explicitly not-executed",
-            "changed plan artifacts fail validation"
+            "changed plan artifacts fail validation",
+            "failed, missing or truncated query receipts cannot complete a round",
+            "rehashed round summaries fail independent replay"
           ],
           "human_judgment": "A reviewer checks whether execution and stopping later discharge the frozen obligations."
         }
@@ -501,7 +507,8 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_coverage.py",
-        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py",
+        "plugins/auto-research-agent/tests/test_coverage_rounds.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
