@@ -74,7 +74,9 @@ def tree_files(root, *, code_only=False):
         ]
         for directory in dirs:
             if (Path(folder) / directory).is_symlink():
-                raise LedgerError("runtime-code-symlink-directory")
+                raise LedgerError(
+                    "runtime-code-symlink-directory: " + str(Path(folder) / directory)
+                )
         for name in names:
             path = Path(folder) / name
             if code_only and path.suffix.lower() not in {
@@ -88,11 +90,21 @@ def tree_files(root, *, code_only=False):
                 ".pth",
             }:
                 continue
-            if path.is_symlink():
-                raise LedgerError("runtime-code-symlink-file")
             paths.append(path)
 
     def hash_file(path):
+        if path.is_symlink():
+            target = path.resolve(strict=True)
+            if not target.is_file():
+                raise LedgerError("runtime-code-link-not-file: " + str(path))
+            # Preserve the alias as well as its target; neither retargeting a
+            # link nor changing external target bytes may reuse a frozen pin.
+            binding = dict(
+                link=os.readlink(path),
+                target=str(target),
+                sha256=digest(path.read_bytes()),
+            )
+            return str(path.absolute()), digest(canonical(binding))
         return str(path.resolve()), digest(path.read_bytes())
 
     with ThreadPoolExecutor(max_workers=8) as workers:

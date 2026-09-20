@@ -97,6 +97,8 @@ Use absolute `argv_prefix` entries: `[PYTHON, "-I", "-B", SCRIPT]` or
 `freeze-runtime` records the interpreter import roots, installed package files,
 bytecode, extension libraries, venv configuration, missing import paths, and the
 script code tree. File names and SHA-256 values both contribute to the digest.
+File symlinks bind the alias, link text, resolved target and target content hash;
+retargeting or changed bytes invalidate the pin. Directory symlinks are rejected.
 The interpreter probe uses public Python import machinery without importing the
 research CLI. The adapter never imports research-hub implementation modules.
 

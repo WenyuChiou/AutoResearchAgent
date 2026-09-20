@@ -50,6 +50,6 @@ jobs:
       - name: Check plugin spelling
         run: uvx --from codespell==2.4.3 codespell plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py
       - name: Plugin loading and stage contracts
-        run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s plugins/auto-research-agent/tests -v
+        run: uv run --isolated --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s plugins/auto-research-agent/tests -v
       - name: Research PR contract tests
         run: python -m unittest discover -s .github/scripts -p test_validate_research_pr.py -v

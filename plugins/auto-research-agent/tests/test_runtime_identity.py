@@ -111,8 +111,32 @@ class RuntimeIdentityTests(unittest.TestCase):
         inactive.mkdir(parents=True)
         code = inactive / "synthetic.py"
         code.write_bytes(b"# synthetic")
-        self.assertNotIn(str(code), tree_files(self.root))
-        self.assertIn(str(code), tree_files(inactive))
+        self.assertNotIn(str(code.resolve()), tree_files(self.root))
+        self.assertIn(str(code.resolve()), tree_files(inactive))
+
+    def test_file_symlinks_bind_external_target_and_target_bytes(self):
+        imported = self.root / "imported"
+        imported.mkdir()
+        first, second = self.root / "first.py", self.root / "second.py"
+        first.write_bytes(b"# original")
+        second.write_bytes(first.read_bytes())
+        link = imported / "linked.py"
+        try:
+            link.symlink_to(first)
+        except OSError:
+            self.skipTest("Host does not grant symlink creation")
+        original = tree_files(imported)
+        self.assertEqual(len(original), 1)
+        self.assertIn(str(link.absolute()), original)
+        link.unlink()
+        link.symlink_to(second)
+        retargeted = tree_files(imported)
+        self.assertNotEqual(original, retargeted)
+        second.write_bytes(b"# changed")
+        self.assertNotEqual(retargeted, tree_files(imported))
+        second.unlink()
+        with self.assertRaises(OSError):
+            tree_files(imported)
 
     def test_freeze_cli_writes_once_and_init_checks_saved_code(self):
         pin = runtime(self.root)
