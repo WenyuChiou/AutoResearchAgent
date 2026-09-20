@@ -166,6 +166,15 @@ def validate_run(root):
                     completion_count(p, read_ref) == p["result_count"],
                     "completion-count-mismatch",
                 )
+                if manifest["mode"] == "research-hub-cli" or "execution_ref" in p:
+                    from stage1_retrieval.receipt import validate_execution
+
+                    validate_execution(manifest, attempt, p, read_ref)
+                    require(
+                        attempt["arguments"]["input"]
+                        == starts[attempt["parent_id"]]["arguments"],
+                        "execution-query-mismatch",
+                    )
                 finishes[p["attempt_id"]] = p
                 if p["outcome"] not in SUCCESS:
                     counts["backend_failures"] += 1

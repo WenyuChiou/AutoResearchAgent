@@ -21,7 +21,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/skills/stage1-literature",
       "problem": "Stock research can produce a plausible literature list without explicit coverage obligations, evidence levels, decision history, or a reasoned stop decision.",
-      "mechanism": "Guide authored decomposition, frozen queries, saved backend receipts, version-bound source reviews, operational coverage and human actions through validation and checkpoint; live retrieval and scientific evaluation remain separate milestones. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted.",
+      "mechanism": "Guide authored decomposition, frozen queries, saved backend receipts, version-bound source reviews, operational coverage and human actions through validation and checkpoint; live retrieval and scientific evaluation remain separate milestones. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -83,7 +83,8 @@
         "plugins/auto-research-agent/tests/test_coverage_rounds.py",
         "plugins/auto-research-agent/tests/test_coverage_evidence.py",
         "plugins/auto-research-agent/tests/test_coverage_gate.py",
-        "plugins/auto-research-agent/tests/test_stage1_handoff.py"
+        "plugins/auto-research-agent/tests/test_stage1_handoff.py",
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -290,7 +291,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
       "problem": "Repeated discoveries and changed screening decisions otherwise overwrite provenance or confuse a backend failure with an empty search.",
-      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research.",
+      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -354,8 +355,9 @@
         "plugins/auto-research-agent/tests/test_identity_comparison.py",
         "plugins/auto-research-agent/tests/test_coverage_rounds.py",
         "plugins/auto-research-agent/tests/test_stage1_handoff.py",
+        "plugins/auto-research-agent/tests/test_stage1_export.py",
         "plugins/auto-research-agent/tests/test_coverage_view.py",
-        "plugins/auto-research-agent/tests/test_stage1_export.py"
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -367,7 +369,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/validators/stage1_run.py",
       "problem": "A plausible ledger can refer to missing or changed evidence or disagree with its own source records.",
-      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research.",
+      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -434,7 +436,8 @@
         "plugins/auto-research-agent/tests/test_coverage_evidence.py",
         "plugins/auto-research-agent/tests/test_coverage_gate.py",
         "plugins/auto-research-agent/tests/test_stage1_handoff.py",
-        "plugins/auto-research-agent/tests/test_coverage_view.py"
+        "plugins/auto-research-agent/tests/test_coverage_view.py",
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -446,7 +449,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/gates/stage1_readiness.py",
       "problem": "A mechanically valid run can still lack verified closest work and cannot justify stopping research.",
-      "mechanism": "Replay qualified coverage, recent search, located closest-work review attestations, both citation directions and two complete zero-yield rounds; preserve state-bound human requests without overriding missing evidence. Unbound runs retain conservative readiness.",
+      "mechanism": "Replay qualified coverage, recent search, located closest-work review attestations, both citation directions and two complete zero-yield rounds; preserve state-bound human requests without overriding missing evidence. Unbound runs retain conservative readiness. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -488,7 +491,8 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
-        "plugins/auto-research-agent/tests/test_coverage_gate.py"
+        "plugins/auto-research-agent/tests/test_coverage_gate.py",
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -500,7 +504,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_coverage",
       "problem": "Search can begin without a frozen decomposition, complete query families or explicit recent and closest-work obligations.",
-      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay. Bind a validated plan before search; replay exact query and backend obligations, append truncation receipts and complete-round summaries. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions.",
+      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay. Bind a validated plan before search; replay exact query and backend obligations, append truncation receipts and complete-round summaries. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -551,7 +555,8 @@
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_coverage_rounds.py",
         "plugins/auto-research-agent/tests/test_coverage_evidence.py",
-        "plugins/auto-research-agent/tests/test_coverage_gate.py"
+        "plugins/auto-research-agent/tests/test_coverage_gate.py",
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -563,7 +568,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_export",
       "problem": "Ledger counts can be mistaken for scientific scores, and an evaluator cannot replay an export if source evidence or denominators are missing.",
-      "mechanism": "Freeze only validated known source files and recompute versioned metric and efficiency inputs; preserve unavailable audits and usage separately from recorded counts. Optionally wrap explicitly supplied public Codex exec events and process bounds, bind them to source run/state/journal hashes, and replay separate captured-invocation usage without inferring whole-stage totals.",
+      "mechanism": "Freeze only validated known source files and recompute versioned metric and efficiency inputs; preserve unavailable audits and usage separately from recorded counts. Optionally wrap explicitly supplied public Codex exec events and process bounds, bind them to source run/state/journal hashes, and replay separate captured-invocation usage without inferring whole-stage totals. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -632,7 +637,71 @@
         "plugins/auto-research-agent/tests/test_export_stop_fields.py",
         "plugins/auto-research-agent/tests/test_stage1_export.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
-        "plugins/auto-research-agent/tests/test_native_capture.py"
+        "plugins/auto-research-agent/tests/test_native_capture.py",
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py"
+      ],
+      "live_ab_required_at": "stage1-executable-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:stage1-retrieval",
+      "kind": "cli",
+      "status": "experimental",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage1_retrieval",
+      "problem": "A final search list hides provider failures, pre-merge discovery paths and whether a process was already attempted.",
+      "mechanism": "Wrap the documented research-hub CLI and audit schema. Register exact commands before execution, seal process captures, replay pre-merge rows and observed outcomes, and resume saved evidence without repeating network actions.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": [
+            "P1.IDENTITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "metadata observations never upgrade identity or claim verification"
+          ],
+          "human_judgment": "Independent blinded source audits assess scientific relevance, identity and sufficiency at the Stage 1 executable milestone."
+        },
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.RECENT",
+            "P2.CLOSEST_WORK"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "frozen year and query variants reach the public CLI unchanged",
+            "naturally discovered version identifiers determine citation expansion"
+          ],
+          "human_judgment": "Independent blinded source audits assess scientific relevance, identity and sufficiency at the Stage 1 executable milestone."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.SEARCH_TRACE",
+            "P3.FAILURE_STATE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "partial backend results retain provenance and failure status",
+            "saved process recovery performs no new search",
+            "missing raw files and rehashed forged receipts fail validation",
+            "unknown provider usage remains unavailable"
+          ],
+          "human_judgment": "Independent blinded source audits assess scientific relevance, identity and sufficiency at the Stage 1 executable milestone."
+        }
+      ],
+      "guardrails": [
+        "no undocumented research-hub imports",
+        "no model service or implicit agent launch",
+        "development-unmerged dependency cannot pass the coverage gate",
+        "no scientific improvement claim before frozen paired A/B"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_retrieval_audit.py",
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false

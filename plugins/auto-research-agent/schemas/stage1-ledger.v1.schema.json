@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:auto-research-agent:stage1-ledger:1.0.0",
-  "title": "Stage 1 local observation ledger (no network execution)",
+  "title": "Stage 1 observation ledger and optional public CLI execution receipts",
   "oneOf": [
     {"$ref": "#/$defs/SourceImportStarted"},
     {
@@ -206,11 +206,9 @@
         "research_run": {
           "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ResearchRun"
         },
-        "mode": {
-          "const": "offline-import"
-        },
+        "mode": {"enum": ["offline-import", "research-hub-cli"]},
         "research_hub_pin": {
-          "type": "null"
+          "type": ["null", "object"]
         },
         "max_artifact_bytes": {
           "type": "integer",
@@ -358,7 +356,7 @@
         "outcome": {
           "enum": [
             "success_nonempty",
-            "success_empty",
+            "success_empty", "success_evidence",
             "rate_limited",
             "not_found",
             "timeout",
@@ -366,7 +364,8 @@
             "http_error",
             "parse_error",
             "interrupted",
-            "unknown_error"
+            "unknown_error",
+            "partial_failure"
           ]
         },
         "http_status": {
@@ -403,6 +402,9 @@
         "result_count": {
           "type": "integer",
           "minimum": 0
+        },
+        "execution_ref": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"
         }
       }
     },
@@ -448,7 +450,7 @@
         "outcome": {
           "enum": [
             "success_nonempty",
-            "success_empty",
+            "success_empty", "success_evidence",
             "partial_failure",
             "failed"
           ]

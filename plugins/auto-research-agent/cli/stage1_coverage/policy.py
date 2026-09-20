@@ -48,7 +48,8 @@ def record_round(state, payload):
 def query_complete(state, query):
     return (
         query["outcome"] in SUCCESS
-        and set(query["attempted_backends"]) == set(state.binding["backends"])
+        and set(query["attempted_backends"])
+        == set(state.backends_for(query["arguments"]))
         and state.receipts.get(query["event_id"], {}).get("truncated") is False
         and query["result_count"] < state.binding["limit"]
     )
@@ -60,6 +61,10 @@ def evaluate(state):
     proposal, current = state.plan["proposal"], state.evidence.current()
     policy = proposal["stop_policy"]
     blockers, coverage = [], {}
+    if (state.manifest.get("research_hub_pin") or {}).get(
+        "status"
+    ) == "development-unmerged":
+        blockers.append("development-dependency-unmerged")
     for cluster in proposal["clusters"]:
         cluster_id = cluster["cluster_id"]
         works = sorted(

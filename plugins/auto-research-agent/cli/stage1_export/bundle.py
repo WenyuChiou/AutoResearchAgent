@@ -69,7 +69,9 @@ def export_run(root, output, *, native_capture=None):
     # Same writer lock, but no automatic projection repair during read-only export.
     with ledger.writing(repair=False):
         ledger, report, events, checkpoint = source_state(ledger.root)
-        inputs, efficiency = derive(ledger.manifest, events, report, checkpoint)
+        inputs, efficiency = derive(
+            ledger.manifest, events, report, checkpoint, ledger.read_ref
+        )
         check(inputs)
         data = {
             "source/" + name: contained(ledger.root, name).read_bytes()
@@ -130,7 +132,9 @@ def validate_export(root):
             expected_paths |= native.FILES
         if set(paths) != expected_paths:
             raise LedgerError("export-source-file-set")
-        inputs, efficiency = derive(ledger.manifest, events, report, checkpoint)
+        inputs, efficiency = derive(
+            ledger.manifest, events, report, checkpoint, ledger.read_ref
+        )
         if "native_capture_contract" in manifest:
             if data["native_usage.json"] != native.attach(
                 data, efficiency, ledger, report

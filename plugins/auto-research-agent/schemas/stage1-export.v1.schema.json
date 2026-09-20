@@ -26,7 +26,7 @@
       "properties": {
         "kind": {"const": "Stage1ExportManifest"}, "exporter_version": {"const": "1.0.0"},
         "native_capture_contract": {"const": "codex-exec-json-v1"},
-        "source_run_id": {"type": "string", "minLength": 1}, "source_mode": {"const": "offline-import"},
+        "source_run_id": {"type": "string", "minLength": 1}, "source_mode": {"enum": ["offline-import", "research-hub-cli"]},
         "source_checkpoint_event_id": {"type": "string", "pattern": "^e[0-9]{6,}$"},
         "source_journal_sha256": {"$ref": "#/$defs/Hash"}, "evaluation_status": {"const": "not-scored"},
         "files": {"type": "array", "minItems": 1, "items": {
@@ -101,7 +101,7 @@
       "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
       "required": ["source_mode", "recorded_queries", "recorded_backend_attempts", "backend_outcomes", "pending_backend_attempts", "recorded_human_actions", "observed_ledger_span_seconds", "elapsed_seconds", "tool_calls", "failed_tool_calls", "model_calls", "human_interventions", "retries", "tokens", "cost", "scope"],
       "properties": {
-        "kind": {"const": "Stage1EfficiencyInputs"}, "source_mode": {"const": "offline-import"},
+        "kind": {"const": "Stage1EfficiencyInputs"}, "source_mode": {"enum": ["offline-import", "research-hub-cli"]},
         "native_capture": {"const": {"path": "native_usage.json", "scope": "captured-invocation"}},
         "recorded_queries": {"$ref": "#/$defs/Count"}, "recorded_backend_attempts": {"$ref": "#/$defs/Count"},
         "backend_outcomes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Count"}},
@@ -109,7 +109,45 @@
         "observed_ledger_span_seconds": {"type": "number", "minimum": 0},
         "elapsed_seconds": {"type": "null"}, "tool_calls": {"type": "null"}, "failed_tool_calls": {"type": "null"},
         "model_calls": {"type": "null"}, "human_interventions": {"type": "null"}, "retries": {"type": "null"},
-        "tokens": {"type": "null"}, "cost": {"type": "null"}, "scope": {"type": "string", "minLength": 1}
+        "tokens": {"type": "null"}, "cost": {"type": "null"}, "scope": {"type": "string", "minLength": 1},
+        "retrieval_usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "completed_cli_invocations",
+            "provider_attempts",
+            "http_attempts",
+            "incomplete_captures",
+            "scope"
+          ],
+          "properties": {
+            "completed_cli_invocations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "provider_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "http_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "incomplete_captures": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "scope": {
+              "const": "saved public CLI attempts only; pending invocations and whole-stage model usage are separate"
+            }
+          }
+        }
       }
     }
   }

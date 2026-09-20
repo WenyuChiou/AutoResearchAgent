@@ -24,7 +24,10 @@ class CoverageReplay:
 
     def expansion_arguments(self, operation, work_id, version_id):
         require(self.active is not None, "coverage-round-not-open")
-        require(operation in {"references", "cited-by"}, "unknown-expansion-operation")
+        require(
+            operation in {"references", "cited-by", "enrich", "verify"},
+            "unknown-expansion-operation",
+        )
         work = self.evidence.candidates.get(work_id)
         require(
             work and version_id in work["version_ids"],
@@ -81,7 +84,29 @@ class CoverageReplay:
             require(planned in self.queries, "coverage-query-binding")
             require(arguments == self.arguments(planned), "coverage-query-binding")
         else:
-            require(payload["backend"] in self.binding["backends"], "unplanned-backend")
+            parent = self.starts.get(payload.get("parent_id"), {})
+            expected = self.backends_for(parent.get("arguments", {}))
+            require(payload["backend"] in expected, "unplanned-backend")
+
+    def backends_for(self, arguments):
+        if arguments.get("operation") == "enrich":
+            return [
+                name
+                for name in self.binding["backends"]
+                if name in {"openalex", "arxiv", "semantic-scholar"}
+            ]
+        if arguments.get("operation") == "verify":
+            seed = arguments.get("coverage", {})
+            work = self.evidence.candidates.get(seed.get("seed_work_id"), {})
+            records = [
+                d["record"]
+                for d in work.get("discoveries", [])
+                if d["version_id"] == seed.get("seed_version_id")
+            ]
+            return ["doi.org"] if any(r.get("doi") for r in records) else ["arxiv.org"]
+        if arguments.get("operation") in {"references", "cited-by"}:
+            return self.binding.get("citation_backends", self.binding["backends"])
+        return self.binding["backends"]
 
     def summary(self):
         require(self.active is not None, "coverage-round-not-open")
@@ -102,7 +127,7 @@ class CoverageReplay:
             event_id = result["event_id"]
             if result["outcome"] not in SUCCESS or set(
                 result["attempted_backends"]
-            ) != set(self.binding["backends"]):
+            ) != set(self.backends_for(result["arguments"])):
                 failed.append(event_id)
             receipt = self.receipts.get(event_id)
             # At the cap, absence of an explicit provider continuation record cannot
