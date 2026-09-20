@@ -63,6 +63,6 @@ jobs:
         run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s plugins/auto-research-agent/tests -v
       - name: Research PR contract tests
         run: |
-          python -m unittest discover -s .github/scripts -p "test_validate_research_pr.py" -v
-          python -m unittest discover -s .github/scripts -p "test_check_research_pr_dependencies.py" -v
-          python -m unittest discover -s .github/scripts -p "test_stage1_ci_quality.py" -v
+          uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s .github/scripts -p "test_validate_research_pr.py" -v
+          uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s .github/scripts -p "test_check_research_pr_dependencies.py" -v
+          uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s .github/scripts -p "test_stage1_ci_quality.py" -v
