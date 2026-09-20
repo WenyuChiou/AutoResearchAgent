@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage1-coverage-plan:1.0.0",
+  "$defs": {
+    "Proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "decomposition": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "population": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "phenomenon": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "validation": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "population",
+            "phenomenon",
+            "method",
+            "validation"
+          ]
+        },
+        "inclusion_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "exclusion_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "concepts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "concept_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "terms": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "concept_id",
+              "terms"
+            ]
+          },
+          "minItems": 1
+        },
+        "clusters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cluster_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "min_included_works": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "query_families": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "family_id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*$"
+                    },
+                    "concept_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]*$"
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    },
+                    "adversarial_queries": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "concept_ids",
+                    "adversarial_queries"
+                  ]
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "cluster_id",
+              "label",
+              "question",
+              "min_included_works",
+              "query_families"
+            ]
+          },
+          "minItems": 1
+        },
+        "stop_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_rounds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "consecutive_zero_yield_rounds": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "closest_min_verified": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "require_references": {
+              "const": true
+            },
+            "require_cited_by": {
+              "const": true
+            }
+          },
+          "required": [
+            "max_rounds",
+            "consecutive_zero_yield_rounds",
+            "closest_min_verified",
+            "require_references",
+            "require_cited_by"
+          ]
+        }
+      },
+      "required": [
+        "plan_id",
+        "topic",
+        "decomposition",
+        "inclusion_criteria",
+        "exclusion_criteria",
+        "concepts",
+        "clusters",
+        "stop_policy"
+      ]
+    },
+    "CoveragePlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "CoveragePlan"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "proposal": {
+          "$ref": "#/$defs/Proposal"
+        },
+        "as_of": {
+          "type": "string",
+          "format": "date"
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "recent_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "from_year": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 9999
+            },
+            "through_year": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 9999
+            }
+          },
+          "required": [
+            "from_year",
+            "through_year"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "proposal",
+        "as_of",
+        "actor",
+        "recent_window"
+      ]
+    },
+    "PlannedQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "PlannedQuery"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "query_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "plan_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "cluster_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "family_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "purpose": {
+          "enum": [
+            "topical",
+            "adversarial",
+            "recent"
+          ]
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rank_by": {
+          "anyOf": [
+            {
+              "const": "year"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_status": {
+          "const": "not-executed"
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "query_id",
+        "plan_id",
+        "cluster_id",
+        "family_id",
+        "purpose",
+        "query",
+        "year",
+        "rank_by",
+        "execution_status"
+      ]
+    },
+    "CoveragePlanManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "CoveragePlanManifest"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "plan_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "proposal_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "ref",
+              "bytes"
+            ]
+          },
+          "minItems": 1
+        },
+        "execution_status": {
+          "const": "not-executed"
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "plan_id",
+        "proposal_sha256",
+        "artifacts",
+        "execution_status"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Proposal"
+    },
+    {
+      "$ref": "#/$defs/CoveragePlan"
+    },
+    {
+      "$ref": "#/$defs/PlannedQuery"
+    },
+    {
+      "$ref": "#/$defs/CoveragePlanManifest"
+    }
+  ]
+}

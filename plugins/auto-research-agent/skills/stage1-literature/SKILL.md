@@ -9,6 +9,11 @@ This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations. It does not execute live searches or establish coverage
 sufficiency. Read the [plugin status](../../README.md) and, before executing any
 ledger command, the [Stage 1 CLI contract](../../references/stage1-ledger.md).
+For question decomposition, first read the
+[coverage planning contract](../../references/stage1-coverage.md), write a
+question-specific Proposal and compile it with `stage1_coverage`. Freeze its
+as-of date, clusters, query families, synonyms and screening criteria. Treat all
+compiled queries as planned until actual execution receipts exist.
 When creating or reviewing records, read the
 [shared stage contracts](../../references/stage-contracts.md).
 

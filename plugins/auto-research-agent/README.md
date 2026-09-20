@@ -7,6 +7,10 @@ Live retrieval, identity verification, scientific coverage policy and metric
 export remain later milestones. Installation does not establish a complete
 Stage 1 research run.
 
+The experimental [coverage compiler](references/stage1-coverage.md) freezes an
+authored question decomposition and its unexecuted query families before search.
+Execution and completed-coverage integration are still under development.
+
 ## Install from this checkout
 
 From the repository root, use the public Codex CLI:
