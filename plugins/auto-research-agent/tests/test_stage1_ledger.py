@@ -391,6 +391,13 @@ class Stage1LedgerTests(unittest.TestCase):
         ledger.start("search", {"query": "synthetic fractional time"})
         self.assertTrue(validate_run(ledger.root)["valid"])
 
+    def test_first_event_cannot_precede_manifest(self):
+        ledger = self.ledger
+        ledger.clock = lambda: "2025-12-31T23:59:59Z"
+        with self.assertRaisesRegex(LedgerError, "clock-regression"):
+            ledger.start("search", {"query": "synthetic early clock"})
+        self.assertEqual((ledger.root / "stage_events.jsonl").read_bytes(), b"")
+
     def test_coverage_view_tampering_and_interrupted_checkpoint_recover(self):
         ledger = self.ledger
         ledger.checkpoint()
