@@ -56,6 +56,7 @@ def check_payload(value):
         "ClaimEvidence",
         "Checkpoint",
         "ExtractionFailure",
+        "IdentityComparison",
     }
     if not isinstance(value, dict) or value.get("kind") not in kinds:
         raise LedgerError("unknown-event-kind")

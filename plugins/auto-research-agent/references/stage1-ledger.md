@@ -140,6 +140,41 @@ stay inside the run; symlinks and parent traversal are rejected. This is a
 single-writer local ledger, not a distributed transaction service. The journal
 detects accidental changes; it is not an externally signed audit log.
 
+## Compare saved bibliographic evidence
+
+After extracting the saved observations, `compare-identity --request request.json`
+appends an IdentityComparison to `stage_events.jsonl`. The request contains
+`target_work_id`, `target_discovery_id`, `assessor`, and exactly one of
+`reference_discovery_id` or `resolver_ref` (omit the unused field or set it to
+null). Discovery IDs come from candidate provenance; resolver_ref is a stored
+ArtifactRef. The CLI reads saved bytes only.
+
+Each comparison reports title, ordered authors, year, DOI, arXiv, PMID, explicit
+version and arXiv revision as match, mismatch, unavailable or invalid. Identifier
+normalization preserves namespace and checks secondary identifiers even when
+DOI matches. A missing year is unavailable. Different versions remain distinct.
+
+Work agreement is consistent only when title, authors and year match, at least
+one shared identifier matches, no shared identifier conflicts, neither candidate
+has unresolved metadata conflicts, and the discoveries name different backends.
+Different backend names do not establish independent underlying authorities.
+Version agreement additionally requires a matching explicit version or arXiv
+revision and no conflicting version observation. Unknown versions stay
+unverified. Resolver-only evidence and repeated observations from the same
+backend cannot establish independent agreement. A discovery cannot check itself.
+
+This records bibliographic consistency, not authenticated identity or scientific
+claim verification. Candidate identity and claim evidence levels are unchanged.
+The live identity wrapper and source review must still establish source
+authenticity and version relationships before sufficient stopping is possible.
+
+`identity-status` first validates the run, then returns the latest comparison per
+target work/version. Each has a `current` flag bound to both candidate revisions;
+a new discovery makes affected older comparisons stale. Rechecking appends a new
+event with `previous_comparison_id`. Validator replay recomputes comparisons and
+rejects changed outcomes, altered source references and incorrect history even
+when someone recomputes the journal hashes.
+
 ## Reproduce the acceptance example
 
 ```shell

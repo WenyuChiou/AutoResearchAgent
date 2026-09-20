@@ -322,6 +322,49 @@ class Ledger(Journal):
         return self.append(value)["event_id"]
 
     @mutation
+    def compare_identity(
+        self,
+        *,
+        target_work_id,
+        target_discovery_id,
+        reference_discovery_id=None,
+        resolver_ref=None,
+        assessor,
+    ):
+        from .verification import comparison
+
+        events = [row["payload"] for row in self.events()]
+        starts = {p["event_id"]: p for p in events if p["kind"] == "ActionStarted"}
+        history = {
+            (p["target_work_id"], p["target_version_id"]): p
+            for p in events
+            if p["kind"] == "IdentityComparison"
+        }
+        payload = comparison(
+            self.candidates(),
+            starts,
+            history,
+            self.read_ref,
+            target_work_id=target_work_id,
+            target_discovery_id=target_discovery_id,
+            reference_discovery_id=reference_discovery_id,
+            resolver_ref=resolver_ref,
+            assessor=assessor,
+        )
+        return self.append(payload)["event_id"]
+
+    def identity_status(self):
+        from .validation import validate_run
+        from .verification import current_comparisons
+
+        report = validate_run(self.root)
+        if not report["valid"]:
+            raise LedgerError("invalid-identity-state: " + "; ".join(report["errors"]))
+        return current_comparisons(
+            self.candidates(), [row["payload"] for row in self.events()]
+        )
+
+    @mutation
     def checkpoint(self):
         from .validation import validate_run
         from .readiness import readiness

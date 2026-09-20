@@ -283,21 +283,25 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
       "problem": "Repeated discoveries and changed screening decisions otherwise overwrite provenance or confuse a backend failure with an empty search.",
-      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency.",
+      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims.",
       "metric_effects": [
         {
           "metric_id": "P1",
           "rubric_criteria": [
             "P1.IDENTITY",
             "P1.EVIDENCE_LEVEL",
-            "P1.LOCATOR"
+            "P1.LOCATOR",
+            "P1.IDENTIFIER"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "three queries preserve four backend attempts including HTTP 429",
             "duplicate DOI retains two discovery paths",
             "include and exclude remain separate events",
-            "unknown counts stay null when validation cannot complete"
+            "unknown counts stay null when validation cannot complete",
+            "saved identity comparisons retain field conflicts and version disagreement",
+            "resolver-only and same-backend evidence cannot establish independent bibliographic agreement",
+            "new candidate revisions make previous comparisons stale"
           ],
           "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
         },
@@ -315,7 +319,10 @@
             "three queries preserve four backend attempts including HTTP 429",
             "duplicate DOI retains two discovery paths",
             "include and exclude remain separate events",
-            "unknown counts stay null when validation cannot complete"
+            "unknown counts stay null when validation cannot complete",
+            "saved identity comparisons retain field conflicts and version disagreement",
+            "resolver-only and same-backend evidence cannot establish independent bibliographic agreement",
+            "new candidate revisions make previous comparisons stale"
           ],
           "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
         }
@@ -323,11 +330,13 @@
       "guardrails": [
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
-        "structural validity and claim annotations do not establish scientific truth"
+        "structural validity and claim annotations do not establish scientific truth",
+        "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
-        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py",
+        "plugins/auto-research-agent/tests/test_identity_comparison.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -339,19 +348,24 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/validators/stage1_run.py",
       "problem": "A plausible ledger can refer to missing or changed evidence or disagree with its own source records.",
-      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report.",
+      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims.",
       "metric_effects": [
         {
           "metric_id": "P1",
           "rubric_criteria": [
             "P1.EVIDENCE_LEVEL",
-            "P1.LOCATOR"
+            "P1.LOCATOR",
+            "P1.IDENTITY",
+            "P1.IDENTIFIER"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "missing raw evidence exits nonzero with its path",
             "rehashing a fabricated summary does not bypass semantic validation",
-            "pending attempts survive recovery without a retry"
+            "pending attempts survive recovery without a retry",
+            "saved identity comparisons retain field conflicts and version disagreement",
+            "resolver-only and same-backend evidence cannot establish independent bibliographic agreement",
+            "new candidate revisions make previous comparisons stale"
           ],
           "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
         },
@@ -367,7 +381,10 @@
           "hard_measures": [
             "missing raw evidence exits nonzero with its path",
             "rehashing a fabricated summary does not bypass semantic validation",
-            "pending attempts survive recovery without a retry"
+            "pending attempts survive recovery without a retry",
+            "saved identity comparisons retain field conflicts and version disagreement",
+            "resolver-only and same-backend evidence cannot establish independent bibliographic agreement",
+            "new candidate revisions make previous comparisons stale"
           ],
           "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
         }
@@ -375,11 +392,13 @@
       "guardrails": [
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
-        "structural validity and claim annotations do not establish scientific truth"
+        "structural validity and claim annotations do not establish scientific truth",
+        "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
-        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py",
+        "plugins/auto-research-agent/tests/test_identity_comparison.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false

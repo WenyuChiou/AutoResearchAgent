@@ -7,6 +7,7 @@ from .identity import candidate_revision, work_key
 from .journal import Journal, LedgerError, canonical, contained, decode, digest
 from .readiness import coverage_text, readiness
 from .semantics import SUCCESS, claim_check, completion_count, query_fields
+from .verification import comparison
 
 
 COUNT_NAMES = (
@@ -34,6 +35,7 @@ def validate_run(root):
     starts, finishes, queries, stored, works, decisions = {}, {}, {}, {}, {}, {}
     seen, expected_discoveries, material = set(), set(), []
     failed_extractions = set()
+    comparisons = {}
     errors, pending = [], []
     state_sha256 = None
 
@@ -261,6 +263,23 @@ def validate_run(root):
                 )
                 claim_check(p, read_ref)
                 counts["claims"] += 1
+            elif kind == "IdentityComparison":
+                expected = comparison(
+                    works,
+                    starts,
+                    comparisons,
+                    read_ref,
+                    target_work_id=p["target_work_id"],
+                    target_discovery_id=p["target_discovery_id"],
+                    reference_discovery_id=p["reference_discovery_id"],
+                    resolver_ref=p["resolver_ref"],
+                    assessor=p["assessor"],
+                )
+                require(
+                    {k: v for k, v in p.items() if k not in META} == expected,
+                    "identity-comparison-replay-mismatch",
+                )
+                comparisons[(p["target_work_id"], p["target_version_id"])] = p
             elif kind == "Checkpoint":
                 result = p["stage_result"]
                 require(

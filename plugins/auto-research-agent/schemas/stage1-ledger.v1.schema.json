@@ -32,6 +32,9 @@
     },
     {
       "$ref": "#/$defs/ExtractionFailure"
+    },
+    {
+      "$ref": "#/$defs/IdentityComparison"
     }
   ],
   "$defs": {
@@ -707,6 +710,216 @@
         },
         "error": {
           "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        }
+      }
+    },
+    "IdentityComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "event_id",
+        "created_at",
+        "target_work_id",
+        "target_version_id",
+        "target_candidate_event_id",
+        "target_discovery_id",
+        "reference_discovery_id",
+        "reference_candidate_event_id",
+        "resolver_ref",
+        "assessor",
+        "fields",
+        "source_relationship",
+        "work_agreement",
+        "version_agreement",
+        "evidence_refs",
+        "previous_comparison_id",
+        "scope"
+      ],
+      "properties": {
+        "kind": {
+          "const": "IdentityComparison"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^e[0-9]{6,}$"
+        },
+        "created_at": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Timestamp"
+        },
+        "target_work_id": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "target_version_id": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "target_candidate_event_id": {
+          "type": "string",
+          "pattern": "^e[0-9]{6,}$"
+        },
+        "target_discovery_id": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "reference_discovery_id": {
+          "anyOf": [
+            {
+              "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reference_candidate_event_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^e[0-9]{6,}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolver_ref": {
+          "anyOf": [
+            {
+              "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "assessor": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "title": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            },
+            "authors": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            },
+            "year": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            },
+            "doi": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            },
+            "arxiv": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            },
+            "pmid": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            },
+            "version": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            },
+            "arxiv_version": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unavailable",
+                "invalid"
+              ]
+            }
+          },
+          "required": [
+            "title",
+            "authors",
+            "year",
+            "doi",
+            "arxiv",
+            "pmid",
+            "version",
+            "arxiv_version"
+          ]
+        },
+        "source_relationship": {
+          "enum": [
+            "resolver-only",
+            "same-backend",
+            "different-backends"
+          ]
+        },
+        "work_agreement": {
+          "enum": [
+            "consistent",
+            "conflict",
+            "unverified"
+          ]
+        },
+        "version_agreement": {
+          "enum": [
+            "consistent",
+            "conflict",
+            "unverified"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "previous_comparison_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^e[0-9]{6,}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "const": "saved-bibliographic-comparison"
         }
       }
     }

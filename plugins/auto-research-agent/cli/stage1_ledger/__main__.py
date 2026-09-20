@@ -29,12 +29,19 @@ def main(argv=None):
     )
     save.add_argument("--source", type=Path, required=True)
     save.add_argument("--producer", required=True)
-    for name in ("finish", "decide", "claim"):
+    for name in ("finish", "decide", "claim", "compare-identity"):
         command = commands.add_parser(name)
         command.add_argument("--request", type=Path, required=True)
     query = commands.add_parser("complete-query")
     query.add_argument("--query-id", required=True)
-    for name in ("extract", "validate", "gate", "checkpoint", "recover"):
+    for name in (
+        "extract",
+        "validate",
+        "gate",
+        "checkpoint",
+        "recover",
+        "identity-status",
+    ):
         commands.add_parser(name)
     args = parser.parse_args(argv)
     try:
@@ -44,11 +51,13 @@ def main(argv=None):
                 args.run, run_id=args.run_id, objective=args.objective
             )
             result = ledger.manifest
-        elif args.command in {"start", "finish", "decide", "claim"}:
+        elif args.command in {"start", "finish", "decide", "claim", "compare-identity"}:
             request = decode(args.request.read_bytes(), str(args.request))
             if not isinstance(request, dict):
                 raise LedgerError("request-must-be-object")
-            result = {"event_id": getattr(ledger, args.command)(**request)}
+            result = {
+                "event_id": getattr(ledger, args.command.replace("-", "_"))(**request)
+            }
         elif args.command == "save":
             if args.source.stat().st_size > ledger.manifest["max_artifact_bytes"]:
                 raise LedgerError("artifact-size-limit")
@@ -61,7 +70,7 @@ def main(argv=None):
             gate, action = readiness(validate_run(args.run))
             result = {"gate": gate, "next_allowed_action": action}
         else:
-            result = getattr(ledger, args.command)()
+            result = getattr(ledger, args.command.replace("-", "_"))()
         sys.stdout.buffer.write(canonical(result) + b"\n")
         failed = (args.command == "validate" and not result["valid"]) or (
             args.command == "extract" and result["extraction_failures"]
