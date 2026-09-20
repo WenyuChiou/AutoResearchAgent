@@ -25,6 +25,7 @@
       "required": ["exporter_version", "source_run_id", "source_mode", "source_checkpoint_event_id", "source_journal_sha256", "evaluation_status", "files"],
       "properties": {
         "kind": {"const": "Stage1ExportManifest"}, "exporter_version": {"const": "1.0.0"},
+        "native_capture_contract": {"const": "codex-exec-json-v1"},
         "source_run_id": {"type": "string", "minLength": 1}, "source_mode": {"const": "offline-import"},
         "source_checkpoint_event_id": {"type": "string", "pattern": "^e[0-9]{6,}$"},
         "source_journal_sha256": {"$ref": "#/$defs/Hash"}, "evaluation_status": {"const": "not-scored"},
@@ -69,11 +70,39 @@
       }
     },
     "Unscored": {"const": {"R1": null, "R2": null, "ADJ": null, "status": "not_scored"}},
+    "Stage1NativeCaptureSpec": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "schema_version", "format", "scope", "runtime_version", "source_run_id", "source_state_sha256", "source_journal_sha256", "expected_thread_id", "events_sha256", "started_at", "ended_at", "exit_code"],
+      "properties": {
+        "kind": {"const": "Stage1NativeCaptureSpec"}, "schema_version": {"const": "1.0.0"}, "format": {"const": "codex-exec-json-v1"}, "scope": {"const": "captured-invocation"},
+        "runtime_version": {"type": "string", "minLength": 1}, "source_run_id": {"type": "string", "minLength": 1},
+        "source_state_sha256": {"$ref": "#/$defs/Hash"}, "source_journal_sha256": {"$ref": "#/$defs/Hash"}, "events_sha256": {"$ref": "#/$defs/Hash"},
+        "expected_thread_id": {"type": "string", "minLength": 1}, "started_at": {"type": "string"}, "ended_at": {"type": "string"}, "exit_code": {"type": "integer"}
+      }
+    },
+    "Stage1NativeUsage": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["format", "scope", "runtime_version", "thread_id", "capture_status", "elapsed_seconds", "observed_tool_items", "tool_outcomes", "tool_items", "reported_turn_usage", "unknown_event_types", "unknown_item_types", "fatal_error_lines", "terminal_event", "exit_code", "model_calls", "human_interventions", "retries", "cost", "limitation"],
+      "properties": {
+        "kind": {"const": "Stage1NativeUsage"}, "format": {"const": "codex-exec-json-v1"}, "scope": {"const": "captured-invocation"},
+        "runtime_version": {"type": "string", "minLength": 1}, "thread_id": {"type": "string", "minLength": 1}, "capture_status": {"enum": ["complete", "incomplete", "failed"]},
+        "elapsed_seconds": {"type": "number", "minimum": 0}, "observed_tool_items": {"$ref": "#/$defs/Count"},
+        "tool_outcomes": {"type": "object", "propertyNames": {"enum": ["succeeded", "failed", "declined", "unknown", "pending"]}, "additionalProperties": {"$ref": "#/$defs/Count"}},
+        "tool_items": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "type", "first_line", "end_line", "outcome"], "properties": {
+          "id": {"type": "string", "minLength": 1}, "type": {"type": "string", "minLength": 1}, "first_line": {"type": "integer", "minimum": 1}, "end_line": {"type": ["integer", "null"], "minimum": 1}, "outcome": {"enum": ["succeeded", "failed", "declined", "unknown", "pending"]}
+        }}},
+        "reported_turn_usage": {"type": ["object", "null"], "required": ["input_tokens", "cached_input_tokens", "output_tokens"], "additionalProperties": {"$ref": "#/$defs/Count"}},
+        "unknown_event_types": {"$ref": "#/$defs/Ids"}, "unknown_item_types": {"$ref": "#/$defs/Ids"}, "fatal_error_lines": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "terminal_event": {"enum": ["turn.completed", "turn.failed", null]}, "exit_code": {"type": "integer"},
+        "model_calls": {"type": "null"}, "human_interventions": {"type": "null"}, "retries": {"type": "null"}, "cost": {"type": "null"}, "limitation": {"type": "string", "minLength": 1}
+      }
+    },
     "Stage1EfficiencyInputs": {
       "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
       "required": ["source_mode", "recorded_queries", "recorded_backend_attempts", "backend_outcomes", "pending_backend_attempts", "recorded_human_actions", "observed_ledger_span_seconds", "elapsed_seconds", "tool_calls", "failed_tool_calls", "model_calls", "human_interventions", "retries", "tokens", "cost", "scope"],
       "properties": {
         "kind": {"const": "Stage1EfficiencyInputs"}, "source_mode": {"const": "offline-import"},
+        "native_capture": {"const": {"path": "native_usage.json", "scope": "captured-invocation"}},
         "recorded_queries": {"$ref": "#/$defs/Count"}, "recorded_backend_attempts": {"$ref": "#/$defs/Count"},
         "backend_outcomes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Count"}},
         "pending_backend_attempts": {"$ref": "#/$defs/Count"}, "recorded_human_actions": {"$ref": "#/$defs/Count"},

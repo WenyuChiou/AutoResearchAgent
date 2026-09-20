@@ -59,3 +59,53 @@ evaluation contract requires facts the ledger cannot supply. An independent
 evaluator must bind this bundle to its frozen plan/builds, native logs, answer,
 private holdout and required audits before using the existing evaluation
 validators. Production export never reads the holdout or evaluation directory.
+
+## Attach an existing public execution capture
+
+Use the documented [Codex exec JSONL stream](https://learn.chatgpt.com/docs/non-interactive-mode#make-output-machine-readable)
+when the approved research runner already captures it. This exporter launches no
+agent and does not read private desktop session files. Supplying a capture does
+not select or change the frozen model, prompt, tool configuration or runtime.
+
+```shell
+python plugins/auto-research-agent/cli/stage1_export create --run RUN --output EXPORT --native-capture CAPTURE
+python plugins/auto-research-agent/cli/stage1_export validate EXPORT
+```
+
+`CAPTURE` contains exactly the two inputs used here: `events.jsonl` (saved stdout
+from `codex exec --json`) and `capture.json`. Other files are not copied. The
+runner records time bounds and process exit code and binds the finished stream
+to the intended checkpoint. `capture.json` follows `Stage1NativeCaptureSpec` in
+the production export schema. Its required fields are:
+
+| Fields | Source |
+| --- | --- |
+| kind, schema_version, format, scope | `Stage1NativeCaptureSpec`, `1.0.0`, `codex-exec-json-v1`, `captured-invocation` |
+| source_run_id | ResearchRun run_id |
+| source_state_sha256, source_journal_sha256 | Current checkpoint state and SHA-256 of exact stage_events.jsonl bytes |
+| expected_thread_id, events_sha256 | Captured thread ID and SHA-256 of exact events.jsonl bytes |
+| runtime_version | Actual runner CLI version, recorded externally |
+| started_at, ended_at, exit_code | Runner-observed timezone-aware process bounds and exit code |
+
+Only one thread and one turn per capture are supported. Multiple turns/threads,
+duplicate terminals, invalid usage, wrong bindings, malformed JSON and a torn
+last line are rejected. Pending items, unknown event/item types and absent turn
+completion remain incomplete. Turn failures and fatal errors remain failed.
+An individual failed tool does not prevent the agent from finishing its turn.
+
+The export adds `native/capture.json`, `native/events.jsonl`, `native_usage.json`
+and manifest flag `native_capture_contract: codex-exec-json-v1`. The derived report
+replays tool IDs and line locators, outcomes, elapsed time and reported turn
+usage. Updates to one item do not count as extra calls. Command/MCP/file-change/
+collaboration status determines known outcomes; completed web items without an
+explicit status remain unknown. Changing derived counts and rehashing them fails
+validation. Legacy bundles without the flag retain their original format.
+
+These are **captured invocation** observations. They do not establish complete
+Stage 1 time, hidden model calls, human interventions, retries or billed cost.
+Top-level unknown efficiency totals remain null; `efficiency.json.native_capture`
+points to the measured subset. Input/cache/output counters are preserved without
+adding cache tokens a second time or treating turns as model calls. Runtime and
+time declarations are not authenticated by this validator. The integrator must
+verify capture provenance and coverage before using it in a formal comparison.
+Keep raw streams private until their task content has been reviewed for sharing.

@@ -14,6 +14,7 @@ from stage1_ledger.store import Ledger
 from stage1_ledger.validation import validate_run
 from .contracts import check
 from .derive import derive
+from . import native
 
 
 def source_state(root):
@@ -41,7 +42,7 @@ def source_paths(events):
 
 
 def manifest_for(data, ledger, report, checkpoint):
-    return dict(
+    result = dict(
         kind="Stage1ExportManifest",
         schema_version="1.0.0",
         exporter_version="1.0.0",
@@ -56,9 +57,12 @@ def manifest_for(data, ledger, report, checkpoint):
             for name, raw in sorted(data.items())
         ],
     )
+    if "native/capture.json" in data:
+        result["native_capture_contract"] = native.CONTRACT
+    return result
 
 
-def export_run(root, output):
+def export_run(root, output, *, native_capture=None):
     ledger, target = Ledger(root), Path(output).resolve()
     if target.is_relative_to(ledger.root):
         raise LedgerError("export-must-be-outside-source-run")
@@ -67,11 +71,14 @@ def export_run(root, output):
         ledger, report, events, checkpoint = source_state(ledger.root)
         inputs, efficiency = derive(ledger.manifest, events, report, checkpoint)
         check(inputs)
-        check(efficiency)
         data = {
             "source/" + name: contained(ledger.root, name).read_bytes()
             for name in source_paths(events)
         }
+        if native_capture is not None:
+            data.update(native.read_capture(native_capture))
+            data["native_usage.json"] = native.attach(data, efficiency, ledger, report)
+        check(efficiency)
         data.update(
             {
                 "metric_inputs.json": canonical(inputs) + b"\n",
@@ -119,9 +126,16 @@ def validate_export(root):
             "metric_inputs.json",
             "efficiency.json",
         }
+        if "native_capture_contract" in manifest:
+            expected_paths |= native.FILES
         if set(paths) != expected_paths:
             raise LedgerError("export-source-file-set")
         inputs, efficiency = derive(ledger.manifest, events, report, checkpoint)
+        if "native_capture_contract" in manifest:
+            if data["native_usage.json"] != native.attach(
+                data, efficiency, ledger, report
+            ):
+                raise LedgerError("native-usage-replay")
         for name, value in [
             ("metric_inputs.json", inputs),
             ("efficiency.json", efficiency),

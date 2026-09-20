@@ -17,12 +17,13 @@ def main(argv=None):
     create = commands.add_parser("create")
     create.add_argument("--run", type=Path, required=True)
     create.add_argument("--output", type=Path, required=True)
+    create.add_argument("--native-capture", type=Path)
     validate = commands.add_parser("validate")
     validate.add_argument("directory", type=Path)
     args = parser.parse_args(argv)
     try:
         result = (
-            export_run(args.run, args.output)
+            export_run(args.run, args.output, native_capture=args.native_capture)
             if args.command == "create"
             else validate_export(args.directory)
         )

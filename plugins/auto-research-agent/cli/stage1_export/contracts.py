@@ -19,6 +19,8 @@ def check(value):
         "Stage1ExportManifest",
         "Stage1MetricInputs",
         "Stage1EfficiencyInputs",
+        "Stage1NativeCaptureSpec",
+        "Stage1NativeUsage",
     }:
         raise LedgerError("unknown-export-kind")
     error = next(validator(kind).iter_errors(value), None)

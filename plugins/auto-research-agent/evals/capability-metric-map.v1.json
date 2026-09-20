@@ -563,7 +563,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_export",
       "problem": "Ledger counts can be mistaken for scientific scores, and an evaluator cannot replay an export if source evidence or denominators are missing.",
-      "mechanism": "Freeze only validated known source files and recompute versioned metric and efficiency inputs; preserve unavailable audits and usage separately from recorded counts.",
+      "mechanism": "Freeze only validated known source files and recompute versioned metric and efficiency inputs; preserve unavailable audits and usage separately from recorded counts. Optionally wrap explicitly supplied public Codex exec events and process bounds, bind them to source run/state/journal hashes, and replay separate captured-invocation usage without inferring whole-stage totals.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -610,7 +610,11 @@
             "source files and derived counts replay without the original directory",
             "rehashed invented counts fail validation",
             "failed, empty and pending backend attempts stay separate",
-            "zero denominators and unknown usage do not become perfect ratios or zero cost"
+            "zero denominators and unknown usage do not become perfect ratios or zero cost",
+            "native tool updates deduplicate by item ID while preserving outcomes and line locators",
+            "native failures and incomplete observation cannot become successful complete captures",
+            "changed native summaries are rejected even after rehashing",
+            "native usage remains scoped to its captured invocation"
           ],
           "human_judgment": "Independent blinded judges and required human audits supply scientific judgments; an export validation pass only proves replay consistency."
         }
@@ -619,11 +623,14 @@
         "no benchmark answers or evaluator imports in production",
         "no source mutation or implicit recovery on export",
         "no scientific-quality claim or automatic scores",
-        "copied evidence is not public by default"
+        "copied evidence is not public by default",
+        "no private session parsing or agent execution",
+        "reported turn tokens do not establish model-call counts or billed cost"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_export.py",
-        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py",
+        "plugins/auto-research-agent/tests/test_native_capture.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
