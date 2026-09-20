@@ -222,6 +222,9 @@
         },
         "checkpoint_output_contract": {
           "const": "stage1-handoff-v1"
+        },
+        "coverage_view_contract": {
+          "const": "stage1-coverage-view-v1"
         }
       }
     },

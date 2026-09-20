@@ -296,13 +296,10 @@ class Journal:
 
     @mutation
     def recover(self):
-        from .readiness import coverage_text
+        from .coverage_view import render
 
-        checkpoints = [
-            e["payload"] for e in self.events() if e["payload"]["kind"] == "Checkpoint"
-        ]
         contained(self.root, "coverage_and_stop.md").write_text(
-            coverage_text(checkpoints[-1] if checkpoints else None),
+            render(self.manifest, [r["payload"] for r in self.events()], self.read_ref),
             encoding="utf-8",
             newline="\n",
         )

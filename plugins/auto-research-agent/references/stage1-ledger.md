@@ -197,6 +197,26 @@ event with `previous_comparison_id`. Validator replay recomputes comparisons and
 rejects changed outcomes, altered source references and incorrect history even
 when someone recomputes the journal hashes.
 
+## Read the coverage and stop report
+
+New runs declare `coverage_view_contract: stage1-coverage-view-v1`. At each
+checkpoint, `coverage_and_stop.md` displays the existing cluster counts, recent
+status, reviewer-selected candidates and versions, marginal yield, historical
+backend failures with raw paths, unresolved work and evidence refs. It reuses
+the saved validator report and current reviews; it does not rank papers or
+compute another gate. Missing coverage remains unavailable.
+
+This view describes its named checkpoint only. Later decisions do not silently
+rewrite that snapshot; save a new checkpoint to update it. `validate` rejects
+altered report text, and `recover` rebuilds the derived Markdown without repeating
+queries or replacing raw evidence. Legacy runs without the view declaration
+retain their original compact report. Unknown view versions are rejected.
+
+Each table displays at most 20 rows and each cell at most 240 characters, with
+explicit shortening notices and paths to the full artifacts. Source text is
+escaped as data. A displayed reviewer attestation is not source authentication
+or a scientific score. Only load the current needed sections into model context.
+
 ## Reproduce the acceptance example
 
 ```shell

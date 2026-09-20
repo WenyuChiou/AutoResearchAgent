@@ -290,7 +290,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
       "problem": "Repeated discoveries and changed screening decisions otherwise overwrite provenance or confuse a backend failure with an empty search.",
-      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted.",
+      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -319,7 +319,8 @@
             "P3.DECISION_TRACE",
             "P3.FAILURE_STATE",
             "P3.VERSION_DATE",
-            "P3.CLAIM_TRACE"
+            "P3.CLAIM_TRACE",
+            "P3.STOP_EVIDENCE"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
@@ -331,7 +332,10 @@
             "resolver-only and same-backend evidence cannot establish independent bibliographic agreement",
             "new candidate revisions make previous comparisons stale",
             "checkpoint inputs replay against an immutable source-state hash",
-            "changed decisions create new snapshots without changing earlier inputs"
+            "changed decisions create new snapshots without changing earlier inputs",
+            "cluster, recent, candidate, failure and marginal-yield evidence appears in the checkpoint report",
+            "later events cannot silently alter earlier checkpoint views",
+            "untrusted summary text is escaped and truncation is disclosed"
           ],
           "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
         }
@@ -349,7 +353,8 @@
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_identity_comparison.py",
         "plugins/auto-research-agent/tests/test_coverage_rounds.py",
-        "plugins/auto-research-agent/tests/test_stage1_handoff.py"
+        "plugins/auto-research-agent/tests/test_stage1_handoff.py",
+        "plugins/auto-research-agent/tests/test_coverage_view.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
@@ -361,7 +366,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/validators/stage1_run.py",
       "problem": "A plausible ledger can refer to missing or changed evidence or disagree with its own source records.",
-      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted.",
+      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -390,7 +395,8 @@
             "P3.SEARCH_TRACE",
             "P3.DECISION_TRACE",
             "P3.CLAIM_TRACE",
-            "P3.FAILURE_STATE"
+            "P3.FAILURE_STATE",
+            "P3.STOP_EVIDENCE"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
@@ -403,7 +409,10 @@
             "failed or unreviewed rounds cannot establish saturation",
             "human acceptance cannot override missing closest-work verification",
             "checkpoint inputs replay against an immutable source-state hash",
-            "changed decisions create new snapshots without changing earlier inputs"
+            "changed decisions create new snapshots without changing earlier inputs",
+            "cluster, recent, candidate, failure and marginal-yield evidence appears in the checkpoint report",
+            "later events cannot silently alter earlier checkpoint views",
+            "untrusted summary text is escaped and truncation is disclosed"
           ],
           "human_judgment": "A blinded judge and targeted human audit must assess actual source support, relevance and trace sufficiency at the executable Stage 1 milestone."
         }
@@ -423,7 +432,8 @@
         "plugins/auto-research-agent/tests/test_coverage_rounds.py",
         "plugins/auto-research-agent/tests/test_coverage_evidence.py",
         "plugins/auto-research-agent/tests/test_coverage_gate.py",
-        "plugins/auto-research-agent/tests/test_stage1_handoff.py"
+        "plugins/auto-research-agent/tests/test_stage1_handoff.py",
+        "plugins/auto-research-agent/tests/test_coverage_view.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false

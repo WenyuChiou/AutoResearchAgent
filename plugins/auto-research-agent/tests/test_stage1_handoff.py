@@ -119,6 +119,7 @@ class Stage1HandoffTests(unittest.TestCase):
         )
         manifest = ledger.manifest
         manifest.pop("checkpoint_output_contract")
+        manifest.pop("coverage_view_contract")
         (ledger.root / "run_manifest.json").write_bytes(canonical(manifest))
         ledger.checkpoint()
         rewrite_for_tamper_test(

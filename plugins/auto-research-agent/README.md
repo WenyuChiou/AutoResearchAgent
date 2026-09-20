@@ -17,6 +17,10 @@ works. It preserves human requests and cannot turn missing evidence into verifie
 evidence when a human accepts stopping. A sufficient synthetic stop is not a
 completed live run or evidence of scientific-quality improvement.
 
+At each checkpoint, `coverage_and_stop.md` shows the saved cluster counts,
+reviewed candidates, recent status, round yields, failures and unresolved work.
+Its bounded tables reuse the existing report; they do not make new judgments.
+
 ## Install from this checkout
 
 From the repository root, use the public Codex CLI:

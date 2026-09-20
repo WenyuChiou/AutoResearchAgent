@@ -16,7 +16,8 @@ from .journal import (
     is_state_event,
 )
 from .handoff import validate_outputs
-from .readiness import coverage_text, readiness
+from .readiness import readiness
+from .coverage_view import render
 from .semantics import SUCCESS, claim_check, completion_count, query_fields
 from .verification import comparison
 from stage1_coverage.rounds import CoverageReplay
@@ -383,10 +384,7 @@ def validate_run(root):
             if is_state_event(p):
                 material.append(p)
         counts.update(works=len(works), discoveries=len(seen))
-        checkpoints = [
-            e["payload"] for e in events if e["payload"]["kind"] == "Checkpoint"
-        ]
-        expected_view = coverage_text(checkpoints[-1] if checkpoints else None)
+        expected_view = render(manifest, [e["payload"] for e in events], read_ref)
         require(
             contained(journal.root, "coverage_and_stop.md").read_text(encoding="utf-8")
             == expected_view,
