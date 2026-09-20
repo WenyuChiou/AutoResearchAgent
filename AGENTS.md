@@ -1,3 +1,14 @@
+# AutoResearchAgent fork routing
+
+When work touches `plugins/auto-research-agent/`,
+`.github/scripts/validate_research_pr.py`,
+`.github/scripts/test_validate_research_pr.py`,
+`.github/workflows/stage1-plugin.yml`, or
+`.github/pull_request_template.md`, read and follow
+`plugins/auto-research-agent/AGENTS.md` before planning or editing. That nested
+contract defines the evaluation, evidence, contributor, review, and fork-only
+merge rules for this research harness.
+
 # Rust/codex-rs
 
 In the codex-rs folder where the rust code lives:
