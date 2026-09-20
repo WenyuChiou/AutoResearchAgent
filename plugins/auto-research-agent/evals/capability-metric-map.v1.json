@@ -620,6 +620,7 @@
         }
       ],
       "guardrails": [
+        "Coverage-round presence and operational stopping are not frozen S1_STOP_EVIDENCE scores.",
         "no benchmark answers or evaluator imports in production",
         "no source mutation or implicit recovery on export",
         "no scientific-quality claim or automatic scores",
@@ -628,6 +629,7 @@
         "reported turn tokens do not establish model-call counts or billed cost"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_export_stop_fields.py",
         "plugins/auto-research-agent/tests/test_stage1_export.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_native_capture.py"

@@ -109,3 +109,14 @@ adding cache tokens a second time or treating turns as model calls. Runtime and
 time declarations are not authenticated by this validator. The integrator must
 verify capture provenance and coverage before using it in a formal comparison.
 Keep raw streams private until their task content has been reviewed for sharing.
+
+## Stop fields are not frozen scientific scores
+
+`coverage_rounds_recorded` only says at least one coverage round was recorded.
+`operational_stop_checks_satisfied` says the recorded operational gate has no
+blockers and chose stop-sufficient. Neither field implements or aliases the frozen
+`S1_STOP_EVIDENCE` metric. An evaluator must assess all five frozen components
+from the exported evidence. The ambiguous `stop_inputs_recorded` field has been
+removed; older input bundles must be re-exported, never silently interpreted as
+a frozen-metric result. Failed rounds, unverified closest works and unsaturated
+yield cannot make the operational check true. Frozen metric rules are unchanged.

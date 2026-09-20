@@ -57,11 +57,11 @@
           "recent_window": {"type": ["string", "null"]}, "core_recall": {"$ref": "#/$defs/Ratio"},
           "must_have_recall": {"$ref": "#/$defs/Ratio"}, "scientific_coverage": {"$ref": "#/$defs/Ratio"}
         }},
-        "P3": {"type": "object", "additionalProperties": false, "required": ["works_with_trace", "all_annotated_claims_with_locator", "central_claims_with_locator", "decisions_with_reason", "versions_with_access_date", "checkpoint_event_id", "stop_action", "stop_inputs_recorded"], "properties": {
+        "P3": {"type": "object", "additionalProperties": false, "required": ["works_with_trace", "all_annotated_claims_with_locator", "central_claims_with_locator", "decisions_with_reason", "versions_with_access_date", "checkpoint_event_id", "stop_action", "coverage_rounds_recorded", "operational_stop_checks_satisfied"], "properties": {
           "works_with_trace": {"$ref": "#/$defs/Ratio"}, "all_annotated_claims_with_locator": {"$ref": "#/$defs/Ratio"},
           "central_claims_with_locator": {"$ref": "#/$defs/Ratio"}, "decisions_with_reason": {"$ref": "#/$defs/Ratio"},
           "versions_with_access_date": {"$ref": "#/$defs/Ratio"}, "checkpoint_event_id": {"type": "string", "pattern": "^e[0-9]{6,}$"},
-          "stop_action": {"enum": ["continue", "revise-query", "pause-blocked", "stop-sufficient", "human-review", "none"]}, "stop_inputs_recorded": {"type": "boolean"}
+          "stop_action": {"enum": ["continue", "revise-query", "pause-blocked", "stop-sufficient", "human-review", "none"]}, "coverage_rounds_recorded": {"type": "boolean"}, "operational_stop_checks_satisfied": {"type": "boolean"}
         }},
         "judgment_scores": {"type": "object", "additionalProperties": false, "required": ["P1", "P2", "P3"], "properties": {
           "P1": {"$ref": "#/$defs/Unscored"}, "P2": {"$ref": "#/$defs/Unscored"}, "P3": {"$ref": "#/$defs/Unscored"}

@@ -121,7 +121,13 @@ def derive(manifest, events, report, checkpoint):
             ),
             checkpoint_event_id=checkpoint["event_id"],
             stop_action=checkpoint["stage_result"]["next_allowed_action"],
-            stop_inputs_recorded=bool(coverage and coverage["rounds"]),
+            coverage_rounds_recorded=bool(coverage and coverage["rounds"]),
+            operational_stop_checks_satisfied=bool(
+                coverage
+                and not coverage["blockers"]
+                and checkpoint["stage_result"]["next_allowed_action"]
+                == "stop-sufficient"
+            ),
         ),
         judgment_scores={
             metric: dict(R1=None, R2=None, ADJ=None, status="not_scored")
