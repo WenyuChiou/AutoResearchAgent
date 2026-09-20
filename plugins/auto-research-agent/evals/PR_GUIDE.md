@@ -111,7 +111,11 @@ Invariant 是「無論資料怎麼變，都不能被破壞的安全規則」。P
 | P2 closest work | `unverified-closest-blocks-stop` |
 | P3 failure state | `failure-distinct-from-empty` |
 | P3 stop evidence | `all-stop-inputs-required` |
-| Live CLI/runtime wrapper | `runtime-bytes-bound`, `dependency-sha-bound`, `resume-no-reexecution` |
+| Capability registered with `runtime_integrity_required: true` (live CLI/runtime wrapper) | `runtime-bytes-bound`, `dependency-sha-bound`, `resume-no-reexecution` |
+
+Every registered CLI must set `runtime_integrity_required` explicitly. Use
+`false` for an offline-only ledger or transformation. Use `true` when the
+capability launches or wraps the live research runtime or an external tool.
 | Plugin production evaluator validator 或 gate artifact | `rehash-tamper-rejected` |
 
 每個 invariant evidence 使用可由 CI 查到的實際 test selector：

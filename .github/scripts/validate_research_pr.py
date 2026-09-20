@@ -212,6 +212,9 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
             },
             "owner_path": entry["owner_path"],
             "kind": entry.get("kind", ""),
+            "runtime_integrity_required": entry.get(
+                "runtime_integrity_required", entry.get("kind") == "cli"
+            ),
         }
         for entry in registry["capabilities"]
     }
@@ -338,7 +341,7 @@ def required_invariants(declared_criteria, declared_capabilities, known_capabili
         entry = known_capabilities.get(capability_id, {})
         owner = entry.get("owner_path", "").replace("\\", "/")
         kind = entry.get("kind", "")
-        if kind == "cli" or "/cli/" in f"/{owner}":
+        if entry.get("runtime_integrity_required", kind == "cli"):
             required.update(RUNTIME_INVARIANTS)
         if kind in {"validator", "gate"} or any(
             marker in f"/{owner}" for marker in ("/validators/", "/gates/")

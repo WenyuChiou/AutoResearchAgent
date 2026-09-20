@@ -67,6 +67,8 @@ class CapabilityMetricMapTests(unittest.TestCase):
         for entry in self.registry["capabilities"]:
             with self.subTest(capability=entry["capability_id"]):
                 self.assertIn(entry["kind"], requirements["allowed_kinds"])
+                if entry["kind"] == "cli":
+                    self.assertIsInstance(entry.get("runtime_integrity_required"), bool)
                 self.assertIn(entry["status"], requirements["allowed_statuses"])
                 self.assertIn(
                     entry["metric_role"], requirements["allowed_metric_roles"]

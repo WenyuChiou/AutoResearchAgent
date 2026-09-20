@@ -683,6 +683,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
                 "criteria": {"P2.CLUSTERS"},
                 "owner_path": "plugins/auto-research-agent/cli/stage1_live",
                 "kind": "cli",
+                "runtime_integrity_required": True,
             }
         }
         cli_body = VALID.replace("skill:stage1-literature", "cli:stage1-live")
@@ -694,6 +695,48 @@ class ResearchPullRequestContractTests(unittest.TestCase):
                 and "runtime-bytes-bound" in error
                 for error in errors
             )
+        )
+
+        offline_capabilities = {
+            "cli:stage1-offline": {
+                "metrics": {"P2"},
+                "criteria": {"P2.CLUSTERS"},
+                "owner_path": "plugins/auto-research-agent/cli/stage1_offline",
+                "kind": "cli",
+                "runtime_integrity_required": False,
+            }
+        }
+        offline_body = VALID.replace("skill:stage1-literature", "cli:stage1-offline")
+        offline_errors = validate_pr_body(offline_body, offline_capabilities)
+        self.assertFalse(
+            any(
+                invariant in error
+                for invariant in RUNTIME_INVARIANTS
+                for error in offline_errors
+            ),
+            offline_errors,
+        )
+
+        missing_flag_capabilities = {
+            "cli:stage1-legacy": {
+                "metrics": {"P2"},
+                "criteria": {"P2.CLUSTERS"},
+                "owner_path": "plugins/auto-research-agent/cli/stage1_legacy",
+                "kind": "cli",
+            }
+        }
+        missing_flag_body = VALID.replace(
+            "skill:stage1-literature", "cli:stage1-legacy"
+        )
+        missing_flag_errors = validate_pr_body(
+            missing_flag_body, missing_flag_capabilities
+        )
+        self.assertTrue(
+            any(
+                all(invariant in error for invariant in RUNTIME_INVARIANTS)
+                for error in missing_flag_errors
+            ),
+            missing_flag_errors,
         )
 
         validator_capabilities = {
