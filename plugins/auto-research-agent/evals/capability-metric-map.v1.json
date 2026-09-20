@@ -540,6 +540,7 @@
         }
       ],
       "guardrails": [
+        "Coverage identity and cluster claims must pass ledger work/version source binding.",
         "no frozen benchmark answers in production",
         "planning is not evidence of execution or coverage",
         "compiler does not infer scientific sufficiency"

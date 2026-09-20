@@ -1,6 +1,7 @@
 """Version-bound coverage judgments, kept separate from source authentication."""
 
 from .rounds import require
+from stage1_ledger.bindings import claim_binding
 
 
 IDENTITY_FIELDS = {"title", "authors", "year", "identifier", "version"}
@@ -10,6 +11,7 @@ TEXT_LEVELS = {"abstract", "full_text", "full-text", "primary_data_or_table"}
 class EvidenceReplay:
     def __init__(self):
         self.candidates, self.decisions, self.claims, self.reviews = {}, {}, {}, {}
+        self.source_imports = {}
 
     def observe(self, payload, plan):
         kind = payload["kind"]
@@ -19,6 +21,8 @@ class EvidenceReplay:
             self.decisions[payload["subject_id"]] = payload
         elif kind == "ClaimEvidence":
             self.claims[payload["event_id"]] = payload
+        elif kind == "SourceImportStarted":
+            self.source_imports[payload["event_id"]] = payload
         elif kind == "CoverageWorkReview":
             work = self.candidates.get(payload["work_id"])
             decision = self.decisions.get(payload["work_id"])
@@ -74,6 +78,7 @@ class EvidenceReplay:
             and claim["version_id"] == review["version_id"],
             "coverage-review-claim-version",
         )
+        claim_binding(claim, self.candidates, self.source_imports)
         require(
             claim["locator"]
             and claim["relation"] in {"supports", "partial"}

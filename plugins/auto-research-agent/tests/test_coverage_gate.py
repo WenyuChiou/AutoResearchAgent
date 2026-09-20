@@ -6,6 +6,7 @@ from copy import deepcopy
 import test_coverage_evidence as evidence_tests
 import test_coverage_rounds as round_tests
 from test_stage1_ledger import rewrite_for_tamper_test
+from test_stage1_ledger import SYNTHETIC
 from stage1_ledger.journal import LedgerError, canonical, decode
 from stage1_ledger.readiness import readiness
 from stage1_ledger.validation import validate_run
@@ -201,6 +202,36 @@ class CoverageGateTests(unittest.TestCase):
         report = validate_run(self.ledger.root)
         self.assertFalse(report["valid"])
         self.assertEqual(readiness(report)[1], "human-review")
+
+    def test_foreign_source_cannot_verify_closest_work_or_stop(self):
+        self.observe(self.planned, rows=[dict(SYNTHETIC, doi="10.5555/other")])
+        other = next(
+            w for w in self.ledger.candidates().values() if w["work_id"] != self.work
+        )
+        acquisition = self.ledger.start_source_import(
+            work_id=other["work_id"],
+            version_id=other["version_ids"][0],
+            source_uri="https://example.invalid/other",
+            actor="synthetic",
+            reason="Other work",
+        )
+        raw = self.ledger.save_bytes(
+            b"Synthetic household record", producer=acquisition
+        )
+        claim = dict(self.ledger.event(self.claims["title"]))
+        for key in ("event_id", "created_at", "schema_version"):
+            claim.pop(key)
+        claim["source_ref"] = raw
+        # Bypass the writing API to model a rehashed/malicious journal.
+        forged = self.ledger.append(claim)
+        request = deepcopy(self.request)
+        request["identity_claims"]["title"] = forged["event_id"]
+        with self.assertRaisesRegex(LedgerError, "source-work-version"):
+            self.ledger.review_work(**request)
+        report = validate_run(self.ledger.root)
+        self.assertFalse(report["valid"])
+        self.assertIn("claim-source-work-version-mismatch", report["errors"])
+        self.assertNotEqual(readiness(report)[1], "stop-sufficient")
 
 
 if __name__ == "__main__":

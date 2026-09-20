@@ -88,7 +88,7 @@ def handoff(manifest, state, events, refs, gate, action):
     manual = "\n".join(
         "- "
         + json.dumps(" ".join(p["title"].split()), ensure_ascii=False)
-        + " — "
+        + ", "
         + (p["identifier"] or p["work_id"])
         for p in papers
     )

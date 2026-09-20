@@ -61,7 +61,15 @@ class Stage1HandoffTests(unittest.TestCase):
         second = self.ledger.checkpoint()
         handoff = self.outputs(second)[-1]
         self.assertEqual([p["work_id"] for p in handoff["papers"]], [self.work])
-        self.assertIn("Synthetic household record", handoff["manual_paper_list"])
+        self.assertEqual(
+            handoff["manual_paper_list"],
+            '- "Synthetic household record", doi:10.5555/stage1-synthetic',
+        )
+        self.assertNotIn("\ufffd", handoff["manual_paper_list"])
+        self.assertEqual(
+            handoff["manual_paper_list"].encode("utf-8").decode("utf-8"),
+            handoff["manual_paper_list"],
+        )
         self.assertEqual(handoff["papers"][0]["identity_review"], "not-assessed")
         self.assertIsNone(handoff["papers"][0]["reviewed_version_id"])
         self.assertFalse(handoff["stage2"]["execution_authorized"])

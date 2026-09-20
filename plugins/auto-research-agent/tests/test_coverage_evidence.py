@@ -20,10 +20,16 @@ class CoverageEvidenceTests(unittest.TestCase):
         self.observe(self.planned, rows=[SYNTHETIC])
         candidate = next(iter(self.ledger.candidates().values()))
         self.work, self.version = candidate["work_id"], candidate["version_ids"][0]
-        discovery = candidate["discoveries"][0]
+        source_import = self.ledger.start_source_import(
+            work_id=self.work,
+            version_id=self.version,
+            source_uri="https://example.invalid/synthetic",
+            actor="synthetic-reviewer",
+            reason="Import saved synthetic primary text",
+        )
         self.source = self.ledger.save_bytes(
             b"Synthetic household record. Synthetic Author. 2024. 10.5555/stage1-synthetic. record-v1. Synthetic households differ.",
-            producer=discovery["attempt_id"],
+            producer=source_import,
         )
         self.ledger.decide(
             self.work,
