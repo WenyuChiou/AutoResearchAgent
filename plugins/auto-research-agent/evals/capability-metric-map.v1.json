@@ -328,12 +328,14 @@
         }
       ],
       "guardrails": [
+        "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
         "structural validity and claim annotations do not establish scientific truth",
         "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_provenance_bindings.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_identity_comparison.py"
@@ -390,12 +392,14 @@
         }
       ],
       "guardrails": [
+        "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
         "structural validity and claim annotations do not establish scientific truth",
         "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_provenance_bindings.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_identity_comparison.py"

@@ -10,6 +10,7 @@ import unittest
 
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
+# ruff: noqa: E402 -- load the repository CLI without installing it.
 from stage1_ledger.store import Ledger
 from stage1_ledger.validation import validate_run
 from stage1_ledger.journal import LedgerError, STREAMS, canonical, digest, contained
@@ -467,6 +468,13 @@ class Stage1LedgerTests(unittest.TestCase):
         attempt, _ = add_query(ledger, [SYNTHETIC])
         ledger.extract()
         candidate = next(iter(ledger.candidates().values()))
+        attempt = ledger.start_source_import(
+            work_id=candidate["work_id"],
+            version_id=candidate["version_ids"][0],
+            source_uri="https://example.invalid/abstract",
+            actor="synthetic-reviewer",
+            reason="Import saved synthetic abstract",
+        )
         raw = ledger.save_bytes(
             b"Synthetic abstract: households differ.", producer=attempt
         )
@@ -646,6 +654,13 @@ class Stage1LedgerTests(unittest.TestCase):
         attempt, _ = add_query(ledger, [SYNTHETIC])
         ledger.extract()
         candidate = next(iter(ledger.candidates().values()))
+        attempt = ledger.start_source_import(
+            work_id=candidate["work_id"],
+            version_id=candidate["version_ids"][0],
+            source_uri="https://example.invalid/results",
+            actor="synthetic-reviewer",
+            reason="Import saved synthetic results",
+        )
         raw = ledger.save_bytes(
             b"Synthetic result: some households differ.", producer=attempt
         )

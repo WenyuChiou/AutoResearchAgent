@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from .bindings import claim_binding, completion_binding, import_binding
+
 from .identity import candidate_revision, work_key
 from .journal import (
     Journal,
@@ -97,6 +99,8 @@ class Ledger(Journal):
             if (
                 payload["kind"] == "ArtifactStored"
                 and payload["ref"]["path"] == relative
+                and payload["ref"]["producer"] == producer
+                and payload["ref"]["artifact_type"] == artifact_type
             ):
                 self.read_ref(payload["ref"])
                 return payload["ref"]
@@ -109,7 +113,7 @@ class Ledger(Journal):
         ref = dict(
             kind="ArtifactRef",
             schema_version="1.0.0",
-            artifact_id="artifact-" + sha,
+            artifact_id="artifact-" + sha + "-" + producer,
             artifact_type=artifact_type,
             path=relative,
             sha256=sha,
@@ -121,8 +125,23 @@ class Ledger(Journal):
 
     @mutation
     def save_bytes(self, data, *, producer):
-        self.event(producer, "ActionStarted")
+        if self.event(producer)["kind"] not in {"ActionStarted", "SourceImportStarted"}:
+            raise LedgerError("invalid-raw-producer")
         return self._save(data, producer=producer)
+
+    @mutation
+    def start_source_import(self, *, work_id, version_id, source_uri, actor, reason):
+        value = dict(
+            kind="SourceImportStarted",
+            work_id=work_id,
+            version_id=version_id,
+            source_uri=source_uri,
+            actor=actor,
+            reason=reason,
+            scope="caller-attested-saved-source-import",
+        )
+        import_binding(value, self.candidates())
+        return self.append(value)["event_id"]
 
     @mutation
     def finish(
@@ -151,6 +170,7 @@ class Ledger(Journal):
             stderr=stderr,
             records=records,
         )
+        completion_binding(value)
         value["result_count"] = completion_count(value, self.read_ref)
         return self.append(value)["event_id"]
 
@@ -319,6 +339,12 @@ class Ledger(Journal):
             verifier=verifier,
         )
         claim_check(value, self.read_ref)
+        imports = {
+            p["event_id"]: p
+            for row in self.events()
+            if (p := row["payload"])["kind"] == "SourceImportStarted"
+        }
+        claim_binding(value, self.candidates(), imports)
         return self.append(value)["event_id"]
 
     @mutation

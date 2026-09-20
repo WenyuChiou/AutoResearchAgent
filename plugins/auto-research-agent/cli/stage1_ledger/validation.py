@@ -2,6 +2,8 @@
 
 from datetime import datetime
 
+from .bindings import claim_binding, completion_binding, import_binding
+
 from .contracts import check_manifest, check_payload, check_record
 from .identity import candidate_revision, work_key
 from .journal import Journal, LedgerError, canonical, contained, decode, digest
@@ -36,6 +38,7 @@ def validate_run(root):
     seen, expected_discoveries, material = set(), set(), []
     failed_extractions = set()
     comparisons = {}
+    imports = {}
     errors, pending = [], []
     state_sha256 = None
 
@@ -75,6 +78,9 @@ def validate_run(root):
                         "search-has-backend-parent",
                     )
                 starts[event_id] = p
+            elif kind == "SourceImportStarted":
+                import_binding(p, works)
+                imports[event_id] = p
             elif kind == "ArtifactStored":
                 ref = p["ref"]
                 require(
@@ -90,7 +96,10 @@ def validate_run(root):
                     "artifact-time-order",
                 )
                 if ref["artifact_type"] == "raw-output":
-                    require(ref["producer"] in starts, "missing-artifact-producer")
+                    require(
+                        ref["producer"] in starts or ref["producer"] in imports,
+                        "missing-artifact-producer",
+                    )
                 else:
                     require(
                         ref["producer"] == "stage1-validator",
@@ -101,7 +110,11 @@ def validate_run(root):
                     "artifact-content-address",
                 )
                 require(
-                    ref["artifact_id"] == "artifact-" + ref["sha256"],
+                    ref["artifact_id"]
+                    in {
+                        "artifact-" + ref["sha256"],
+                        "artifact-" + ref["sha256"] + "-" + ref["producer"],
+                    },
                     "artifact-identity",
                 )
                 require(
@@ -121,6 +134,7 @@ def validate_run(root):
                 )
                 for ref in (p["stdout"], p["stderr"]):
                     read_ref(ref)
+                completion_binding(p)
                 require(
                     completion_count(p, read_ref) == p["result_count"],
                     "completion-count-mismatch",
@@ -262,6 +276,7 @@ def validate_run(root):
                     "claim-unknown-version",
                 )
                 claim_check(p, read_ref)
+                claim_binding(p, works, imports)
                 counts["claims"] += 1
             elif kind == "IdentityComparison":
                 expected = comparison(

@@ -29,7 +29,13 @@ def main(argv=None):
     )
     save.add_argument("--source", type=Path, required=True)
     save.add_argument("--producer", required=True)
-    for name in ("finish", "decide", "claim", "compare-identity"):
+    for name in (
+        "finish",
+        "decide",
+        "claim",
+        "compare-identity",
+        "start-source-import",
+    ):
         command = commands.add_parser(name)
         command.add_argument("--request", type=Path, required=True)
     query = commands.add_parser("complete-query")
@@ -51,7 +57,14 @@ def main(argv=None):
                 args.run, run_id=args.run_id, objective=args.objective
             )
             result = ledger.manifest
-        elif args.command in {"start", "finish", "decide", "claim", "compare-identity"}:
+        elif args.command in {
+            "start",
+            "finish",
+            "decide",
+            "claim",
+            "compare-identity",
+            "start-source-import",
+        }:
             request = decode(args.request.read_bytes(), str(args.request))
             if not isinstance(request, dict):
                 raise LedgerError("request-must-be-object")

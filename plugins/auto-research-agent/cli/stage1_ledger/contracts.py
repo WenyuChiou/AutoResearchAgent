@@ -48,6 +48,7 @@ def check_manifest(value):
 def check_payload(value):
     kinds = {
         "ActionStarted",
+        "SourceImportStarted",
         "ArtifactStored",
         "ActionFinished",
         "QueryEvent",

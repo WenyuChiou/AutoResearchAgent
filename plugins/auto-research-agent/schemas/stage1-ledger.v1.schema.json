@@ -3,6 +3,7 @@
   "$id": "urn:auto-research-agent:stage1-ledger:1.0.0",
   "title": "Stage 1 local observation ledger (no network execution)",
   "oneOf": [
+    {"$ref": "#/$defs/SourceImportStarted"},
     {
       "$ref": "#/$defs/Stage1Manifest"
     },
@@ -38,6 +39,60 @@
     }
   ],
   "$defs": {
+    "SourceImportStarted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "event_id",
+        "created_at",
+        "work_id",
+        "version_id",
+        "actor",
+        "reason",
+        "source_uri",
+        "scope"
+      ],
+      "properties": {
+        "kind": {
+          "const": "SourceImportStarted"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^e[0-9]{6,}$"
+        },
+        "created_at": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Timestamp"
+        },
+        "work_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "scope": {
+          "const": "caller-attested-saved-source-import"
+        }
+      }
+    },
     "Record": {
       "type": "object",
       "additionalProperties": false,

@@ -45,6 +45,8 @@ jobs:
       - run: codex --version
       - name: Check plugin and CI Python formatting
         run: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py
+      - name: Check plugin and CI Python lint
+        run: uv run --frozen --project scripts ruff check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py
       - name: Check plugin spelling
         run: uvx --from codespell==2.4.3 codespell plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py
       - name: Plugin loading and stage contracts
