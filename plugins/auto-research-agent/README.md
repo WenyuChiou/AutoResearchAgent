@@ -3,8 +3,8 @@
 The plugin can be discovered and its skill loaded by Codex. It now includes an
 experimental [saved-observation ledger](references/stage1-ledger.md), with local
 extraction, validation, decision history, conservative readiness and checkpoint.
-Live retrieval, authenticated identity verification and metric
-export remain later milestones. Installation does not establish a complete
+Live retrieval and authenticated identity verification remain later milestones.
+Installation does not establish a complete
 Stage 1 research run.
 
 The experimental [coverage compiler](references/stage1-coverage.md) freezes an
@@ -20,6 +20,9 @@ completed live run or evidence of scientific-quality improvement.
 At each checkpoint, `coverage_and_stop.md` shows the saved cluster counts,
 reviewed candidates, recent status, round yields, failures and unresolved work.
 Its bounded tables reuse the existing report; they do not make new judgments.
+The [input exporter](references/stage1-export.md) freezes a validated run and
+recomputable P1-P3 inputs for independent evaluation. It retains unknown audit,
+usage and cost fields explicitly; it does not award scientific scores.
 
 ## Install from this checkout
 
