@@ -93,11 +93,18 @@ checkpoint alone does not. Preserve the user's actual words. A recorded human
 input is an audit assertion, not authenticated proof of who typed it.
 
 `claim --request claim.json` accepts `work_id`, `version_id`, `claim_text`,
-`relation` (`pending`, `supports`, `contradicts`, `context`), `evidence_level`
-(`metadata`, `abstract`, `full-text`), `locator`, `source_ref`, and `verifier`.
+`relation` (`supports`, `partial`, `contradicts`, `unclear`, `unverifiable`),
+`evidence_level` (`metadata`, `abstract`, `full_text`, `primary_data_or_table`,
+`unavailable`), `locator`, `source_ref`, and `verifier`. The early offline labels
+`pending`, `context` and `full-text` remain readable for existing observations;
+prefer the packet's canonical terms for new records.
 The verifier has `actor`, `actor_type` (`agent` or `human`), and `method`.
 A locator has `section` and an exact `quote` present in the saved UTF-8 text.
-Only `pending` permits metadata-only evidence or no locator. Reading an
+Uncertain relations (`pending`, `unclear`, `unverifiable`) permit metadata-only
+evidence or no locator. An `unavailable` level requires a null locator; its
+source reference identifies the saved material inspected, not proof of a claim.
+`partial` means the supplied evidence supports only part of the stated claim;
+it requires a locator just as `supports` and `contradicts` do. Reading an
 abstract permits an abstract-level annotation; it does not upgrade the work's
 identity or the evidence level of the source metadata. The validator cannot
 prove that the supplied text belongs to the named version or supports the

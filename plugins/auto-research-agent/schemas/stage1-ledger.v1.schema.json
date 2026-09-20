@@ -567,7 +567,10 @@
           "enum": [
             "pending",
             "supports",
+            "partial",
             "contradicts",
+            "unclear",
+            "unverifiable",
             "context"
           ]
         },
@@ -575,7 +578,10 @@
           "enum": [
             "metadata",
             "abstract",
-            "full-text"
+            "full-text",
+            "full_text",
+            "primary_data_or_table",
+            "unavailable"
           ]
         },
         "locator": {

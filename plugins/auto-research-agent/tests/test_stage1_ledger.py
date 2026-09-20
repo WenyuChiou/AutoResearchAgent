@@ -641,6 +641,60 @@ class Stage1LedgerTests(unittest.TestCase):
         ]:
             self.assertTrue((root / name).is_file(), name)
 
+    def test_packet_claim_states_preserve_partial_and_unavailable_evidence(self):
+        ledger = self.ledger
+        attempt, _ = add_query(ledger, [SYNTHETIC])
+        ledger.extract()
+        candidate = next(iter(ledger.candidates().values()))
+        raw = ledger.save_bytes(
+            b"Synthetic result: some households differ.", producer=attempt
+        )
+        base = dict(
+            work_id=candidate["work_id"],
+            version_id=candidate["version_ids"][0],
+            claim_text="Synthetic difference",
+            source_ref=raw,
+            verifier={
+                "actor": "synthetic-reviewer",
+                "actor_type": "agent",
+                "method": "read supplied text",
+            },
+        )
+        ledger.claim(
+            **base,
+            relation="partial",
+            evidence_level="full_text",
+            locator={"section": "results", "quote": "some households differ"},
+        )
+        ledger.claim(
+            **base,
+            relation="supports",
+            evidence_level="primary_data_or_table",
+            locator={"section": "results", "quote": "some households differ"},
+        )
+        ledger.claim(
+            **base, relation="unclear", evidence_level="abstract", locator=None
+        )
+        ledger.claim(
+            **base, relation="unverifiable", evidence_level="unavailable", locator=None
+        )
+        with self.assertRaisesRegex(LedgerError, "claim-needs-text"):
+            ledger.claim(
+                **base, relation="supports", evidence_level="unavailable", locator=None
+            )
+        with self.assertRaisesRegex(LedgerError, "unavailable-evidence-has-locator"):
+            ledger.claim(
+                **base,
+                relation="unverifiable",
+                evidence_level="unavailable",
+                locator={"section": "results", "quote": "some households differ"},
+            )
+        self.assertEqual(
+            [r["relation"] for r in ledger.records("claim_evidence.jsonl")],
+            ["partial", "supports", "unclear", "unverifiable"],
+        )
+        self.assertTrue(validate_run(ledger.root)["valid"])
+
 
 if __name__ == "__main__":
     unittest.main()

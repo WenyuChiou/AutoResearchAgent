@@ -53,10 +53,12 @@ def query_fields(query, children, finished):
 def claim_check(payload, read_ref):
     # A locator is an auditable observation, not a proof that a claim is true.
     locator = payload["locator"]
-    if payload["relation"] != "pending" and (
-        locator is None or payload["evidence_level"] == "metadata"
+    if payload["relation"] not in {"pending", "unclear", "unverifiable"} and (
+        locator is None or payload["evidence_level"] in {"metadata", "unavailable"}
     ):
         raise LedgerError("claim-needs-text-evidence-and-locator")
+    if payload["evidence_level"] == "unavailable" and locator is not None:
+        raise LedgerError("unavailable-evidence-has-locator")
     data = read_ref(payload["source_ref"])
     if locator is not None:
         try:
