@@ -1,13 +1,13 @@
 ---
 name: stage1-literature
-description: Plan Stage 1 literature research and record saved observations with an auditable local ledger. Use for literature discovery planning, source-level evidence records, screening history, validation and conservative checkpoints; live retrieval integration and later research stages remain incomplete.
+description: Plan Stage 1 literature research and record saved observations with an auditable local ledger. Use for query planning, versioned evidence reviews, screening history, coverage gates and checkpoints; live retrieval integration and later research stages remain incomplete.
 ---
 
 # Stage 1 literature research
 
 This release supplies plugin discovery, shared contracts and a local ledger
-for saved observations. It does not execute live searches or establish coverage
-sufficiency. Read the [plugin status](../../README.md) and, before executing any
+for saved observations and an operational coverage gate based on source reviews.
+It does not execute live searches or establish scientific truth. Read the [plugin status](../../README.md) and, before executing any
 ledger command, the [Stage 1 CLI contract](../../references/stage1-ledger.md).
 For question decomposition, first read the
 [coverage planning contract](../../references/stage1-coverage.md), write a
@@ -31,13 +31,22 @@ When preparing a literature run:
 6. Require a recent sweep, closest-work verification and a reasoned coverage
    decision. Reaching a paper count or exhausting a budget is insufficient.
 
-For the available local path, initialize an `offline-import` run, register each
-query and backend attempt, and save exact observed outputs before completing
-their receipts. Then run `extract`, add reason-coded screening and claim
-annotations, run `validate`, and save a `checkpoint`. Keep actual CLI outputs.
+For the available local path, initialize an `offline-import` run and bind the
+validated plan before any search. Open a round, register planned queries or
+expansion from naturally discovered seeds, then save each actual backend attempt
+and its exact output. Mark unknown truncation as `null`. Run `extract`, record
+reason-coded decisions and located claims, and use `review-work` to bind each
+cluster judgment to the current included version. For closest works, read source
+text and record separate title, authors, year, identifier and version comparisons;
+record `unverifiable` when evidence is missing. Complete both citation directions.
+Close the round, run `validate` and `gate`, and save a `checkpoint`.
+Keep actual CLI outputs and use the documented coverage commands for human
+requests, preserving verbatim input and the exact reviewed state hash.
 Do not label imported observations as tool execution performed by this CLI.
-Do not use unmerged research-hub APIs. The local gate reports unresolved closest
-work and never emits `stop-sufficient`. If validation fails, preserve the report
+Do not use unmerged research-hub APIs. Only the replayed coverage gate may emit
+`stop-sufficient`: all obligations must pass, including two complete rounds with
+no newly qualified works. Human acceptance cannot fill missing evidence.
+If validation fails, preserve the report
 and evidence, diagnose the cause and verify a targeted fix before retrying.
 Use `recover` to inspect unfinished attempts; it does not repeat searches.
 

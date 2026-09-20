@@ -112,3 +112,21 @@ class CoverageLedger(Ledger):
                 summary=state.summary(),
             )
         )
+
+    @mutation
+    def human_action(
+        self, *, action, actor, user_input, reviewed_state_sha256, cluster_id=None
+    ):
+        from stage1_ledger.validation import validate_run
+
+        require(validate_run(self.root)["valid"], "invalid-reviewed-state")
+        return self._coverage_append(
+            dict(
+                kind="CoverageHumanAction",
+                action=action,
+                actor=actor,
+                user_input=user_input,
+                reviewed_state_sha256=reviewed_state_sha256,
+                cluster_id=cluster_id,
+            )
+        )

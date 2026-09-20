@@ -36,6 +36,16 @@
         "replaces_event_id": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
       }
     },
+    "CoverageHumanAction": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["action", "actor", "user_input", "reviewed_state_sha256", "cluster_id"],
+      "properties": {
+        "kind": {"const": "CoverageHumanAction"}, "action": {"enum": ["request-cluster", "accept-stop"]},
+        "actor": {"$ref": "#/$defs/Text"}, "user_input": {"$ref": "#/$defs/Text"},
+        "reviewed_state_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "cluster_id": {"anyOf": [{"$ref": "#/$defs/Text"}, {"type": "null"}]}
+      }
+    },
     "CoverageWorkReview": {
       "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
       "required": ["work_id", "version_id", "candidate_event_id", "decision_event_id", "cluster_claims", "identity_status", "identity_claims", "closest", "assessor", "rationale", "scope", "replaces_event_id"],
@@ -73,6 +83,6 @@
   "oneOf": [
     {"$ref": "#/$defs/CoveragePlanBound"}, {"$ref": "#/$defs/CoverageRoundOpened"},
     {"$ref": "#/$defs/CoverageReceipt"}, {"$ref": "#/$defs/CoverageRoundClosed"},
-    {"$ref": "#/$defs/CoverageWorkReview"}
+    {"$ref": "#/$defs/CoverageWorkReview"}, {"$ref": "#/$defs/CoverageHumanAction"}
   ]
 }

@@ -34,10 +34,11 @@ def main(argv=None):
         "close-round",
         "expand",
         "review-work",
+        "human-action",
     ):
         command = commands.add_parser(name)
         command.add_argument("--run", type=Path, required=True)
-        if name in {"bind", "receipt", "expand", "review-work"}:
+        if name in {"bind", "receipt", "expand", "review-work", "human-action"}:
             command.add_argument("--request", type=Path, required=True)
         if name == "bind":
             command.add_argument("--plan", type=Path, required=True)
@@ -73,6 +74,8 @@ def main(argv=None):
                 result = {"query_id": ledger.start_expansion(**request)}
             elif args.command == "review-work":
                 result = ledger.review_work(**request)
+            elif args.command == "human-action":
+                result = ledger.human_action(**request)
             else:
                 result = ledger.close_round()
         sys.stdout.buffer.write(canonical(result) + b"\n")

@@ -83,8 +83,9 @@ bounded rerun. Receipt corrections append a replacement link during the open
 round. Closed rounds and failures remain immutable, including after recovery.
 
 The round records newly discovered work IDs, which are not qualified or
-verified works. Completing an empty round or exhausting the three-round budget
-does not establish coverage or permit `stop-sufficient`.
+verified works. The validator separately recomputes qualified-work yield from
+current version-bound reviews. Empty results or budget exhaustion alone do not
+permit `stop-sufficient`.
 
 ## Versioned work reviews and expansion
 
@@ -109,3 +110,30 @@ Use `expand --run RUN --request expansion.json` with `operation` (`references`
 or `cited-by`), `work_id` and `version_id`. The seed must already have been
 discovered in this run. Record backend output and a receipt using the same
 ledger path as search. Expansion failures and truncation remain visible.
+
+## Gate, checkpoint and human actions
+
+Run the ledger's `validate`, `gate` and `checkpoint` commands after closing a
+round. The validator report includes per-cluster work IDs, recent-sweep status,
+verified closest-work attestations, each round's newly qualified work IDs,
+outstanding human requests and explicit blockers. The checkpoint saves that
+report immutably and rebuilds `coverage_and_stop.md`.
+
+`stop-sufficient` requires all planned clusters to meet their declared minimum,
+a complete recent sweep, enough currently reviewed closest works with all five
+identity fields supported, both citation directions complete, no unprocessed or
+unscreened discoveries and two consecutive complete rounds with no new qualified
+works. Failed, truncated, unreviewed or partially extracted rounds reset that
+streak. A subsequent review or screening reversal invalidates the prior coverage
+snapshot. Budget exhaustion returns `human-review` when obligations remain.
+This is an operational stopping rule based on recorded reviews; it does not
+prove source authenticity, scientific truth or exhaustive literature retrieval.
+
+`human-action --run RUN --request action.json` records `action` (`accept-stop`
+or `request-cluster`), named `actor`, verbatim `user_input`, the exact
+`reviewed_state_sha256` from the validator and optional `cluster_id`. Stale state
+hashes fail. Acceptance preserves the choice without changing any verification
+or blocker. A requested cluster requires all its planned queries to start after
+that request and finish completely. Screening reversals use the ledger's
+existing human-authorized `decide` command. These records preserve supplied
+authorization; authentication of the named person remains the caller's duty.

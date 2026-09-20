@@ -3,15 +3,19 @@
 The plugin can be discovered and its skill loaded by Codex. It now includes an
 experimental [saved-observation ledger](references/stage1-ledger.md), with local
 extraction, validation, decision history, conservative readiness and checkpoint.
-Live retrieval, identity verification, scientific coverage policy and metric
+Live retrieval, authenticated identity verification and metric
 export remain later milestones. Installation does not establish a complete
 Stage 1 research run.
 
 The experimental [coverage compiler](references/stage1-coverage.md) freezes an
 authored question decomposition and its unexecuted query families before search.
-Saved execution rounds now bind exact queries to that plan and reject failed,
-missing or truncated results as evidence of search completion. Qualified-work
-coverage and the sufficient-stop policy are still under development.
+Saved execution rounds bind exact queries to that plan and reject failed,
+missing or truncated results as evidence of search completion. The operational
+gate checks reviewed cluster evidence, recent search, verified closest-work
+attestations, citation expansion and two complete rounds with no newly qualified
+works. It preserves human requests and cannot turn missing evidence into verified
+evidence when a human accepts stopping. A sufficient synthetic stop is not a
+completed live run or evidence of scientific-quality improvement.
 
 ## Install from this checkout
 
@@ -48,7 +52,8 @@ The [shared contracts](references/stage-contracts.md) describe all six research
 stages. Their tests exercise valid records, malformed references, missing
 fields, version rejection, human authorization and blocked stop decisions.
 The local ledger validator checks artifact integrity and replay consistency.
-The conservative readiness gate never reports sufficient scientific coverage.
+The readiness gate reports an operational decision from saved source reviews;
+its validator does not judge scientific truth or establish exhaustive coverage.
 
 The [evaluation contract](evals/README.md) freezes the primary P1-P9 scorecard
 and operationalizes Stage 1 P1-P3 without committing benchmark answer keys.

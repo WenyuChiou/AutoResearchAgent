@@ -69,8 +69,10 @@ python plugins/auto-research-agent/cli/stage1_ledger --run ../synthetic-run chec
 `validate` exits 1 with an explicit error on a missing file, hash mismatch,
 invalid schema, broken reference, changed projection or inconsistent derived
 record. Unavailable counts are null. A valid report checks record consistency,
-not scientific truth. `gate` returns `continue` or `human-review`; this release
-cannot return `stop-sufficient`. A failed validation preserves its report but
+not scientific truth. Unbound runs return `continue` or `human-review`.
+Runs with a frozen [coverage plan](stage1-coverage.md) use the reviewed coverage
+and marginal-yield policy, which can report an operational `stop-sufficient`.
+A failed validation preserves its report but
 does not create a successful checkpoint.
 
 The equivalent public entrypoints are `python
@@ -128,7 +130,8 @@ backend and query discovery is retained. Unstated versions stay separate.
 Malformed records produce an append-only ExtractionFailure and an unresolved
 extraction obligation. Re-running `extract` neither repeats that failure nor
 silently removes the obligation. Corrected observations need a new receipt;
-resolving the old obligation is deferred to the coverage/human-action slice.
+an extraction failure currently remains unresolved and prevents sufficient stop.
+Its evidence is retained for review; corrected data never erases the failure.
 
 `recover` can append a missing, complete projection suffix from the journal.
 It refuses conflicting projections and torn journal lines. It reports unfinished

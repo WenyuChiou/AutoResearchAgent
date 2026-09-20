@@ -416,7 +416,11 @@ class Ledger(Journal):
             kind="StageResult",
             schema_version="1.0.0",
             stage_run_id="stage1",
-            status="human-review" if action == "human-review" else "running",
+            status="completed"
+            if action == "stop-sufficient"
+            else "human-review"
+            if action == "human-review"
+            else "running",
             outputs=[],
             validator_report=ref,
             metrics=report["counts"],

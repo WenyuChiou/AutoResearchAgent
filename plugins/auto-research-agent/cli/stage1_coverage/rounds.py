@@ -1,6 +1,6 @@
 """Replay frozen plans, exact query bindings and complete-round receipts."""
 
-from stage1_ledger.journal import LedgerError, decode
+from stage1_ledger.journal import LedgerError, decode, canonical, digest
 from stage1_ledger.semantics import SUCCESS
 from .plan import derive
 
@@ -20,6 +20,7 @@ class CoverageReplay:
         self.works, self.baseline = set(), set()
         self.closed = []
         self.evidence = EvidenceReplay()
+        self.round_yields, self.human_actions, self.material = [], [], []
 
     def expansion_arguments(self, operation, work_id, version_id):
         require(self.active is not None, "coverage-round-not-open")
@@ -171,8 +172,37 @@ class CoverageReplay:
             )
             self.receipts[payload["query_event_id"]] = payload
         elif kind == "CoverageRoundClosed":
+            from .policy import record_round
+
             require(payload["round_number"] == self.active, "round-sequence")
             require(payload["summary"] == self.summary(), "coverage-round-replay")
             self.closed.append(payload)
+            record_round(self, payload)
             self.active = None
+        elif kind == "CoverageHumanAction":
+            require(self.plan is not None, "coverage-plan-required")
+            expected_hash = digest(
+                canonical(dict(manifest=self.manifest, events=self.material))
+            )
+            require(
+                payload["reviewed_state_sha256"] == expected_hash,
+                "stale-human-authorization",
+            )
+            clusters = {c["cluster_id"] for c in self.plan["proposal"]["clusters"]}
+            require(
+                (
+                    payload["action"] == "request-cluster"
+                    and payload["cluster_id"] in clusters
+                )
+                or (
+                    payload["action"] == "accept-stop" and payload["cluster_id"] is None
+                ),
+                "human-action-cluster",
+            )
+            self.human_actions.append(payload)
         self.evidence.observe(payload, self.plan)
+        if kind != "Checkpoint" and not (
+            kind == "ArtifactStored"
+            and payload["ref"]["artifact_type"] == "validator-report"
+        ):
+            self.material.append(payload)

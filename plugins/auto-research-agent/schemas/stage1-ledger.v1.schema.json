@@ -51,6 +51,9 @@
     },
     {
       "$ref": "#/$defs/CoverageWorkReview"
+    },
+    {
+      "$ref": "#/$defs/CoverageHumanAction"
     }
   ],
   "$defs": {
@@ -1007,6 +1010,9 @@
     },
     "CoverageWorkReview": {
       "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageWorkReview"
+    },
+    "CoverageHumanAction": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageHumanAction"
     }
   }
 }

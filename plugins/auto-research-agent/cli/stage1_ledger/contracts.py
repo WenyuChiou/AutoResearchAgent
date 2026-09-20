@@ -72,6 +72,7 @@ def check_payload(value):
         "CoverageReceipt",
         "CoverageRoundClosed",
         "CoverageWorkReview",
+        "CoverageHumanAction",
     }
     if not isinstance(value, dict) or value.get("kind") not in kinds:
         raise LedgerError("unknown-event-kind")

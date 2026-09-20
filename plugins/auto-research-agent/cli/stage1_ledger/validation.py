@@ -11,6 +11,7 @@ from .readiness import coverage_text, readiness
 from .semantics import SUCCESS, claim_check, completion_count, query_fields
 from .verification import comparison
 from stage1_coverage.rounds import CoverageReplay
+from stage1_coverage.policy import evaluate
 
 
 COUNT_NAMES = (
@@ -42,6 +43,7 @@ def validate_run(root):
     imports = {}
     errors, pending = [], []
     state_sha256 = None
+    coverage_report = None
 
     def state_hash():
         return digest(canonical({"manifest": manifest, "events": material}))
@@ -340,6 +342,10 @@ def validate_run(root):
                     and report["scientific_truth"] == "not-evaluated",
                     "checkpoint-report-contract",
                 )
+                require(
+                    report.get("coverage") == evaluate(coverage),
+                    "checkpoint-coverage-mismatch",
+                )
                 gate, action = readiness(report)
                 require(
                     result["gate"] == gate and result["next_allowed_action"] == action,
@@ -347,7 +353,13 @@ def validate_run(root):
                 )
                 require(
                     result["status"]
-                    == ("human-review" if action == "human-review" else "running"),
+                    == (
+                        "completed"
+                        if action == "stop-sufficient"
+                        else "human-review"
+                        if action == "human-review"
+                        else "running"
+                    ),
                     "checkpoint-status-mismatch",
                 )
             coverage.observe(p)
@@ -368,11 +380,12 @@ def validate_run(root):
         )
         pending = [i for i in starts if i not in finishes and i not in queries]
         state_sha256 = state_hash()
+        coverage_report = evaluate(coverage)
     except (LedgerError, OSError, KeyError, TypeError, IndexError, ValueError) as error:
         errors.append(str(error))
         # Partial replay counts are not complete run denominators.
         counts = dict.fromkeys(COUNT_NAMES)
-    return dict(
+    report = dict(
         schema_version="1.0.0",
         valid=not errors,
         errors=errors,
@@ -382,3 +395,6 @@ def validate_run(root):
         state_sha256=state_sha256,
         scientific_truth="not-evaluated",
     )
+    if coverage_report is not None:
+        report["coverage"] = coverage_report
+    return report
