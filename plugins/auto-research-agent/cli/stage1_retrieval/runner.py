@@ -18,6 +18,7 @@ from stage1_ledger.store import Ledger
 from .audit import require
 from .projection import project
 from .receipt import check, check_pin, command
+from .runtime_identity import verify_identity
 
 
 def audit_files(directory, limit):
@@ -81,6 +82,7 @@ def execute(root, query_id, backend):
         ),
         "attempt-already-recorded: resume saved capture or explicitly create a new query",
     )
+    verify_identity(pin, probe=True)
     capture = contained(ledger.root, "captures/" + uuid.uuid4().hex)
     audit = capture / "audit"
     operation = query["arguments"].get("operation", "search")
@@ -152,6 +154,7 @@ def execute(root, query_id, backend):
 def resume(root, attempt_id):
     """Read an existing completed process capture. This function never starts a process."""
     ledger = Ledger(root)
+    verify_identity(ledger.manifest["research_hub_pin"])
     attempt = ledger.event(attempt_id, "ActionStarted")
     require(attempt_id in ledger.pending(), "attempt-not-open")
     args = attempt["arguments"]

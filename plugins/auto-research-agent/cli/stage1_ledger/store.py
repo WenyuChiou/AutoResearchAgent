@@ -17,7 +17,7 @@ from .journal import (
     write_new,
     contained,
 )
-from .semantics import SUCCESS, claim_check, completion_count, query_fields
+from .semantics import claim_check, completion_count, query_fields
 from .readiness import coverage_text
 
 
@@ -58,6 +58,10 @@ class Ledger(Journal):
             coverage_view_contract="stage1-coverage-view-v1",
         )
         check_manifest(manifest)
+        if research_hub_pin is not None:
+            from stage1_retrieval.runtime_identity import verify_identity
+
+            verify_identity(research_hub_pin, probe=True)
         root.mkdir(parents=True, exist_ok=False)
         write_new(root / "run_manifest.json", canonical(manifest) + b"\n")
         for name in ["stage_events.jsonl", *STREAMS.values()]:

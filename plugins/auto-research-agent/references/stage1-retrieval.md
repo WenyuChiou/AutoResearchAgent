@@ -5,7 +5,7 @@ schema. It imports no research-hub Python internals. It requires Python 3.11 and
 the plugin's locked test/runtime dependencies. Install research-hub in a separate
 environment; the adapter does not install, upgrade or merge that dependency.
 
-The bundled `research-hub-audit.v1.schema.json` is copied unchanged from the public
+The bundled `research-hub-audit.v1.schema.json` is copied with LF line endings (JSON content unchanged) from the public
 schema in research-hub revision `35dde2a68d7296a5243c9b8d080df9bec705b352`, under
 that project's MIT license. Its upstream PR is
 [research-hub #137](https://github.com/WenyuChiou/research-hub/pull/137).
@@ -20,12 +20,15 @@ package version, wheel SHA-256, bundled audit schema SHA-256, executable SHA-256
 absolute `argv_prefix`, isolated working directory, dedicated config path/hash
 and timeout (at most 600 seconds). The operator must retain package installation
 and wheel provenance evidence. These recorded hashes do not authenticate a
-package or prove that a remote PR was merged. The runner checks executable and
-config bytes before execution. Never place credentials in argv or this runtime.
+package or prove that a remote PR was merged. The runner checks executable, config and captured code bytes before execution.
+Runtime identity is the code-tree digest together with exact argv; revision and wheel
+labels alone never identify executed code. The labels still require independent
+build/install provenance; this code does not prove their source-to-wheel mapping. Never place credentials in argv or this runtime.
 
 From the plugin `cli` directory:
 
 ```shell
+python -m stage1_retrieval freeze-runtime --runtime DECLARATIONS.json --output RUNTIME.json
 python -m stage1_retrieval init RUN --runtime RUNTIME.json --run-id RUN_ID --topic TOPIC
 python -m stage1_retrieval execute RUN QUERY_EVENT_ID --backend openalex
 python -m stage1_retrieval resume RUN BACKEND_ATTEMPT_ID
@@ -86,3 +89,23 @@ The gate still requires reviewed cluster evidence, recent completion, verified
 closest works and two complete zero-yield rounds. Unknown truncation stays null.
 `development-unmerged` adds an explicit blocker. Neither a valid receipt nor a
 passing validator establishes scientific correctness or an A/B improvement.
+
+## Immutable code identity
+
+Use absolute `argv_prefix` entries: `[PYTHON, "-I", "-B", SCRIPT]` or
+`[PYTHON, "-I", "-B", "-m", PACKAGE]`. The package must be a top-level module.
+`freeze-runtime` records the interpreter import roots, installed package files,
+bytecode, extension libraries, venv configuration, missing import paths, and the
+script code tree. File names and SHA-256 values both contribute to the digest.
+The interpreter probe uses public Python import machinery without importing the
+research CLI. The adapter never imports research-hub implementation modules.
+
+Initialization and launch recheck code and import resolution; saved replay checks
+the recorded trees without starting a process. A changed/deleted/added code file,
+changed venv or missing runtime is an explicit validation failure. Restoring exact
+bytes permits replay; changing labels does not silently bless an existing run.
+Old pins without code identity are rejected and need a new run. Do not mutate an
+environment used by an active run. The installed runtime must be retained for live
+export validation; a copied ledger alone does not authenticate missing executable
+bytes. This is not a container sandbox or proof of OS/dynamic-library isolation.
+Externally loaded code and source-to-build provenance still require operator audit.

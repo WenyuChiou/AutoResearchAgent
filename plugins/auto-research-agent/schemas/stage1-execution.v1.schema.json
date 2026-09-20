@@ -17,7 +17,8 @@
         "argv_prefix",
         "cwd",
         "config",
-        "timeout_seconds"
+        "timeout_seconds",
+        "code_identity"
       ],
       "properties": {
         "schema_version": {
@@ -83,6 +84,69 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 600
+        },
+        "code_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "mode",
+            "argv_prefix",
+            "entry",
+            "roots",
+            "files",
+            "absent_paths",
+            "files_sha256"
+          ],
+          "properties": {
+            "scope": {
+              "const": "isolated-python-import-paths-and-entry-tree"
+            },
+            "mode": {
+              "enum": [
+                "script",
+                "module"
+              ]
+            },
+            "argv_prefix": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 4
+            },
+            "entry": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roots": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            "files": {
+              "type": "object",
+              "minProperties": 2,
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "absent_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "files_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
         }
       }
     },

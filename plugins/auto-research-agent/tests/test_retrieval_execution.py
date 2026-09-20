@@ -1,6 +1,6 @@
 """Exercise the real process boundary with a synthetic CLI, never the network."""
 
-import copy
+import inspect
 from pathlib import Path
 import sys
 import tempfile
@@ -9,13 +9,15 @@ from unittest.mock import patch
 
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
+# ruff: noqa: E402 -- load the repository CLI without installing it.
 from stage1_ledger.journal import LedgerError, canonical, decode, digest
 from stage1_ledger.store import Ledger
 from stage1_ledger.validation import validate_run
 from stage1_retrieval.audit import read_audit
 from stage1_retrieval.projection import project
 from stage1_retrieval.runner import execute, resume
-from stage1_retrieval.receipt import command
+from stage1_retrieval.receipt import command, validate_execution
+from stage1_retrieval.runtime_identity import capture_identity
 from test_retrieval_audit import seal
 from test_stage1_ledger import SYNTHETIC, rewrite_for_tamper_test
 from stage1_export.bundle import export_run, validate_export
@@ -118,11 +120,16 @@ def synthetic_audit(root, backend, mode, argv):
 def runtime(root, mode="rows"):
     script = root / "synthetic_cli.py"
     script.write_text(
-        "import sys\nfrom pathlib import Path\n"
-        + "sys.path.insert(0, "
-        + repr(str(Path(__file__).parent))
-        + ")\n"
-        + "from test_retrieval_execution import synthetic_audit\n"
+        "import sys, json, hashlib\nfrom pathlib import Path\n"
+        + "def canonical(v): return json.dumps(v, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')\n"
+        + "def digest(v): return hashlib.sha256(v).hexdigest()\n"
+        + "SYNTHETIC="
+        + repr(SYNTHETIC)
+        + "\n"
+        + inspect.getsource(seal)
+        + "\n"
+        + inspect.getsource(synthetic_audit)
+        + "\n"
         + "argv=sys.argv[1:]\n"
         + "backend=argv[argv.index('--backend')+1] if '--backend' in argv else 'doi.org' if '--doi' in argv else 'semantic-scholar'\n"
         + "synthetic_audit(Path(argv[argv.index('--audit-output')+1]), backend, "
@@ -132,7 +139,9 @@ def runtime(root, mode="rows"):
     )
     config = root / "config.json"
     config.write_bytes(b"{}")
+    prefix = [sys.executable, "-I", "-B", str(script)]
     return dict(
+        code_identity=capture_identity(prefix),
         schema_version="1.0.0",
         revision="a" * 40,
         status="development-unmerged",
@@ -142,7 +151,7 @@ def runtime(root, mode="rows"):
             (PLUGIN / "schemas/research-hub-audit.v1.schema.json").read_bytes()
         ),
         executable_sha256=digest(Path(sys.executable).read_bytes()),
-        argv_prefix=[sys.executable, str(script)],
+        argv_prefix=prefix,
         config=dict(path=str(config), sha256=digest(b"{}")),
         cwd=str(root),
         timeout_seconds=20,
@@ -352,9 +361,24 @@ class ExecutionTests(unittest.TestCase):
     def test_rehashed_forged_completion_is_rejected(self):
         ledger = self.create("limited")
         query = ledger.start("search", dict(query="synthetic query", limit=3))
-        execute(ledger.root, query, "openalex")
+        completion = ledger.event(
+            execute(ledger.root, query, "openalex"), "ActionFinished"
+        )
         ledger.complete_query(query)
         self.assertTrue(validate_run(ledger.root)["valid"])
+
+        # Rehashing a receipt cannot let its nested audit borrow another producer.
+        attempt = ledger.event(completion["attempt_id"], "ActionStarted")
+        receipt = decode(ledger.read_ref(completion["execution_ref"]), "receipt")
+        next(iter(receipt["audit_files"].values()))["producer"] = query
+        forged = dict(
+            completion,
+            execution_ref=ledger.save_bytes(
+                canonical(receipt), producer=attempt["event_id"]
+            ),
+        )
+        with self.assertRaisesRegex(LedgerError, "audit-artifact-producer-mismatch"):
+            validate_execution(ledger.manifest, attempt, forged, ledger.read_ref)
 
         def mutate(rows):
             next(
@@ -378,7 +402,8 @@ class ExecutionTests(unittest.TestCase):
                     else "print('[]')\n",
                     encoding="utf-8",
                 )
-                pin["timeout_seconds"] = 0.1
+                pin["timeout_seconds"] = 0.1 if mode == "timeout" else 20
+                pin["code_identity"] = capture_identity(pin["argv_prefix"])
                 ledger = Ledger.create(
                     root / "run",
                     run_id="synthetic",

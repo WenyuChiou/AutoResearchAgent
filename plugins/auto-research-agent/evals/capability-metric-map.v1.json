@@ -421,6 +421,7 @@
         }
       ],
       "guardrails": [
+        "Verify invoked script, isolated module paths and installed code bytes before launch and during replay; build labels alone are not a runtime identity.",
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
@@ -428,6 +429,7 @@
         "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_runtime_identity.py",
         "plugins/auto-research-agent/tests/test_provenance_bindings.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
@@ -693,12 +695,14 @@
         }
       ],
       "guardrails": [
+        "Verify invoked script, isolated module paths and installed code bytes before launch and during replay; build labels alone are not a runtime identity.",
         "no undocumented research-hub imports",
         "no model service or implicit agent launch",
         "development-unmerged dependency cannot pass the coverage gate",
         "no scientific improvement claim before frozen paired A/B"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_runtime_identity.py",
         "plugins/auto-research-agent/tests/test_retrieval_audit.py",
         "plugins/auto-research-agent/tests/test_retrieval_execution.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py"

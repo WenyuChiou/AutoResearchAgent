@@ -162,6 +162,9 @@ def validate_execution(manifest, attempt, completion, read_ref):
         )
     files = {}
     for name, ref in receipt["audit_files"].items():
+        require(
+            ref["producer"] == attempt["event_id"], "audit-artifact-producer-mismatch"
+        )
         contained(Path.cwd(), name)  # Path syntax is checked even during saved replay.
         files[name] = read_ref(ref)
     require(

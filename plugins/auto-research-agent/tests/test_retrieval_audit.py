@@ -8,6 +8,7 @@ import unittest
 
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
+# ruff: noqa: E402 -- load the repository CLI without installing it.
 from stage1_ledger.journal import LedgerError, canonical, digest
 from stage1_retrieval.audit import read_audit, result_records
 

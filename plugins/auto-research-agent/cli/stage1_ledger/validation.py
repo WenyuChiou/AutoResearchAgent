@@ -68,6 +68,10 @@ def validate_run(root):
     try:
         manifest = journal.manifest
         check_manifest(manifest)
+        if manifest["mode"] == "research-hub-cli":
+            from stage1_retrieval.runtime_identity import verify_identity
+
+            verify_identity(manifest["research_hub_pin"])
         coverage = CoverageReplay(manifest, read_ref)
         events = journal.reconcile(repair=False)
         contained(journal.root, "coverage_and_stop.md").read_bytes()

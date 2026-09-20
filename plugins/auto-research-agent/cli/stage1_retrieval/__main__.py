@@ -7,11 +7,17 @@ from pathlib import Path
 from stage1_ledger.journal import LedgerError, decode
 from stage1_ledger.store import Ledger
 from .runner import execute, resume
+from .runtime_identity import capture_identity
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
+    freeze = sub.add_parser(
+        "freeze-runtime", help="Bind reviewed runtime labels to actual code files"
+    )
+    freeze.add_argument("--runtime", type=Path, required=True)
+    freeze.add_argument("--output", type=Path, required=True)
     init = sub.add_parser("init")
     init.add_argument("run", type=Path)
     init.add_argument("--runtime", type=Path, required=True)
@@ -26,7 +32,20 @@ def main():
     saved.add_argument("attempt_id")
     args = parser.parse_args()
     try:
-        if args.action == "init":
+        if args.action == "freeze-runtime":
+            from .receipt import check_pin
+
+            pin = decode(args.runtime.read_bytes(), str(args.runtime))
+            pin["code_identity"] = capture_identity(pin["argv_prefix"])
+            check_pin(pin)
+            with args.output.open("x", encoding="utf-8", newline="\n") as stream:
+                json.dump(pin, stream, ensure_ascii=False, indent=2)
+                stream.write("\n")
+            result = {
+                "runtime": str(args.output),
+                "files_sha256": pin["code_identity"]["files_sha256"],
+            }
+        elif args.action == "init":
             pin = decode(args.runtime.read_bytes(), str(args.runtime))
             Ledger.create(
                 args.run, run_id=args.run_id, objective=args.topic, research_hub_pin=pin
