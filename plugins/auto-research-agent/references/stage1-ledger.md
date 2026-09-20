@@ -123,6 +123,25 @@ rows are cumulative revisions; use the latest revision per work for current
 state. `coverage_and_stop.md` is a replaceable view of the last checkpoint;
 immutable validator reports and all saved bytes remain under `raw/`.
 
+New runs declare `checkpoint_output_contract: stage1-handoff-v1`. Every valid
+checkpoint's `StageResult.outputs` contains immutable candidate, claim and
+decision snapshots plus a `Stage1Handoff` artifact. The validator replays their
+contents against the exact source state; simply rehashing invented contents
+cannot pass. Repeating a checkpoint reuses identical bytes. A new observation
+or decision produces new snapshots while retaining the older ones. These
+derived artifacts do not change the reviewed research-state hash.
+
+The handoff selects only currently included works, distinguishes listed from
+reviewed versions and preserves all candidate and decision history in its input
+snapshots. It reuses the documented `literature-triage-matrix` manual-paper-list
+input and default comparison columns at the pinned stable skill revision. It
+does not populate comparison cells from memory or execute Stage 2. Its
+`eligible_for_stage2` is the Stage 1 operational gate result; `stage2.status`
+remains `not-started` and `execution_authorized` remains false. Existing runs
+without this manifest contract and their empty-output checkpoints remain
+readable. Missing immutable output files require exact restoration; `recover`
+rebuilds only projections and the derived coverage view.
+
 Deduplication uses DOI, then arXiv/PMID, then normalized Unicode title, year
 and first author. Different identifier namespaces stay separate. Conflicting
 metadata is retained as `conflict`; agreement remains `unverified`. Every

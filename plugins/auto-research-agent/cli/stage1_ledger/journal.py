@@ -35,6 +35,13 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def is_state_event(payload):
+    return payload["kind"] != "Checkpoint" and not (
+        payload["kind"] == "ArtifactStored"
+        and payload["ref"]["artifact_type"] in {"validator-report", "checkpoint-output"}
+    )
+
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -273,14 +280,8 @@ class Journal:
         material = []
         for row in self.events():
             payload = row["payload"]
-            if payload["kind"] == "Checkpoint":
-                continue
-            if (
-                payload["kind"] == "ArtifactStored"
-                and payload["ref"]["artifact_type"] == "validator-report"
-            ):
-                continue
-            material.append(payload)
+            if is_state_event(payload):
+                material.append(payload)
         return digest(canonical({"manifest": self.manifest, "events": material}))
 
     def pending(self):

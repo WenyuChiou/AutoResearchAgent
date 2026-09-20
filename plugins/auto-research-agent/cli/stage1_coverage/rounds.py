@@ -1,6 +1,6 @@
 """Replay frozen plans, exact query bindings and complete-round receipts."""
 
-from stage1_ledger.journal import LedgerError, decode, canonical, digest
+from stage1_ledger.journal import LedgerError, decode, canonical, digest, is_state_event
 from stage1_ledger.semantics import SUCCESS
 from .plan import derive
 
@@ -201,8 +201,5 @@ class CoverageReplay:
             )
             self.human_actions.append(payload)
         self.evidence.observe(payload, self.plan)
-        if kind != "Checkpoint" and not (
-            kind == "ArtifactStored"
-            and payload["ref"]["artifact_type"] == "validator-report"
-        ):
+        if is_state_event(payload):
             self.material.append(payload)

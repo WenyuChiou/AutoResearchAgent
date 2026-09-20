@@ -22,16 +22,26 @@ def validator(name):
         (directory / "stage1-coverage-run.v1.schema.json").read_bytes(),
         "coverage schema",
     )
+    handoff = decode(
+        (directory / "stage1-handoff.v1.schema.json").read_bytes(), "handoff schema"
+    )
     registry = Registry().with_resources(
         [
             (shared["$id"], Resource.from_contents(shared)),
             (schema["$id"], Resource.from_contents(schema)),
             (coverage["$id"], Resource.from_contents(coverage)),
+            (handoff["$id"], Resource.from_contents(handoff)),
         ]
     )
     return Draft202012Validator(
         {
-            "$ref": (coverage if name in coverage["$defs"] else schema)["$id"]
+            "$ref": (
+                handoff
+                if name in handoff["$defs"]
+                else coverage
+                if name in coverage["$defs"]
+                else schema
+            )["$id"]
             + "#/$defs/"
             + name
         },

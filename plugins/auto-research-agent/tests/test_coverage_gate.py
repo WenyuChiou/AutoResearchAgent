@@ -6,7 +6,7 @@ from copy import deepcopy
 import test_coverage_evidence as evidence_tests
 import test_coverage_rounds as round_tests
 from test_stage1_ledger import rewrite_for_tamper_test
-from stage1_ledger.journal import LedgerError, canonical
+from stage1_ledger.journal import LedgerError, canonical, decode
 from stage1_ledger.readiness import readiness
 from stage1_ledger.validation import validate_run
 
@@ -72,6 +72,11 @@ class CoverageGateTests(unittest.TestCase):
             checkpoint["stage_result"]["next_allowed_action"], "stop-sufficient"
         )
         self.assertEqual(checkpoint["stage_result"]["status"], "completed")
+        handoff_ref = checkpoint["stage_result"]["outputs"][-1]
+        handoff = decode(self.ledger.read_ref(handoff_ref), "handoff")
+        self.assertTrue(handoff["eligible_for_stage2"])
+        self.assertEqual(handoff["papers"][0]["reviewed_version_id"], self.version)
+        self.assertFalse(handoff["stage2"]["execution_authorized"])
         self.assertTrue(validate_run(self.ledger.root)["valid"])
         self.ledger.recover()
         self.assertIn(

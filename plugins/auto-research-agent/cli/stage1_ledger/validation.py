@@ -6,7 +6,16 @@ from .bindings import claim_binding, completion_binding, import_binding
 
 from .contracts import check_manifest, check_payload, check_record
 from .identity import candidate_revision, work_key
-from .journal import Journal, LedgerError, canonical, contained, decode, digest
+from .journal import (
+    Journal,
+    LedgerError,
+    canonical,
+    contained,
+    decode,
+    digest,
+    is_state_event,
+)
+from .handoff import validate_outputs
 from .readiness import coverage_text, readiness
 from .semantics import SUCCESS, claim_check, completion_count, query_fields
 from .verification import comparison
@@ -92,7 +101,12 @@ def validate_run(root):
                 )
                 require(
                     ref["artifact_type"]
-                    in {"raw-output", "validator-report", "coverage-input"},
+                    in {
+                        "raw-output",
+                        "validator-report",
+                        "coverage-input",
+                        "checkpoint-output",
+                    },
                     "unknown-artifact-type",
                 )
                 require(
@@ -111,6 +125,8 @@ def validate_run(root):
                         == (
                             "stage1-plan"
                             if ref["artifact_type"] == "coverage-input"
+                            else "stage1-checkpoint"
+                            if ref["artifact_type"] == "checkpoint-output"
                             else "stage1-validator"
                         ),
                         "unknown-validator-producer",
@@ -308,7 +324,7 @@ def validate_run(root):
             elif kind == "Checkpoint":
                 result = p["stage_result"]
                 require(
-                    result["stage_run_id"] == "stage1" and result["outputs"] == [],
+                    result["stage_run_id"] == "stage1",
                     "checkpoint-stage-or-outputs",
                 )
                 report = decode(
@@ -362,11 +378,9 @@ def validate_run(root):
                     ),
                     "checkpoint-status-mismatch",
                 )
+                validate_outputs(manifest, state_hash(), material, result, read_ref)
             coverage.observe(p)
-            if kind != "Checkpoint" and not (
-                kind == "ArtifactStored"
-                and p["ref"]["artifact_type"] == "validator-report"
-            ):
+            if is_state_event(p):
                 material.append(p)
         counts.update(works=len(works), discoveries=len(seen))
         checkpoints = [

@@ -40,6 +40,9 @@ cluster judgment to the current included version. For closest works, read source
 text and record separate title, authors, year, identifier and version comparisons;
 record `unverifiable` when evidence is missing. Complete both citation directions.
 Close the round, run `validate` and `gate`, and save a `checkpoint`.
+The checkpoint's output refs freeze candidates, claims, decisions and the
+known-paper Stage 2 input. Preserve these refs; do not execute Stage 2 or fill
+its comparison cells as part of Stage 1.
 Keep actual CLI outputs and use the documented coverage commands for human
 requests, preserving verbatim input and the exact reviewed state hash.
 Do not label imported observations as tool execution performed by this CLI.

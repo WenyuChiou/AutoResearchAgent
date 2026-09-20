@@ -219,6 +219,9 @@
         },
         "closest_work_status": {
           "const": "unverified"
+        },
+        "checkpoint_output_contract": {
+          "const": "stage1-handoff-v1"
         }
       }
     },

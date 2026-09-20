@@ -54,6 +54,7 @@ class Ledger(Journal):
             research_hub_pin=None,
             max_artifact_bytes=16 * 1024 * 1024,
             closest_work_status="unverified",
+            checkpoint_output_contract="stage1-handoff-v1",
         )
         check_manifest(manifest)
         root.mkdir(parents=True, exist_ok=False)
@@ -412,6 +413,9 @@ class Ledger(Journal):
         )
         if not report["valid"]:
             raise LedgerError("validator-failed: saved report " + ref["path"])
+        from .handoff import save_outputs
+
+        outputs = save_outputs(self, report, gate, action)
         result = dict(
             kind="StageResult",
             schema_version="1.0.0",
@@ -421,7 +425,7 @@ class Ledger(Journal):
             else "human-review"
             if action == "human-review"
             else "running",
-            outputs=[],
+            outputs=outputs,
             validator_report=ref,
             metrics=report["counts"],
             gate=gate,
