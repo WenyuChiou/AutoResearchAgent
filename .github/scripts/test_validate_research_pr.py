@@ -103,6 +103,17 @@ class ResearchPullRequestContractTests(unittest.TestCase):
                 submetric_ids.issubset(operational_submetrics),
                 (criterion_id, submetric_ids),
             )
+            rubric_metric = next(
+                criteria[criterion_id]
+                for criteria in rubrics.values()
+                if criterion_id in criteria
+            )
+            for submetric_id in submetric_ids:
+                self.assertIn(
+                    rubric_metric,
+                    operational_submetrics[submetric_id],
+                    (criterion_id, submetric_id),
+                )
         invariants = load_invariant_registry()
         derived = set().union(
             *CRITERION_INVARIANTS.values(),
@@ -553,6 +564,10 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             }
         }
         errors = validate_pr_body(body, capabilities)
+        self.assertNotIn(
+            "operational submetric S1_CLAIM_LOCATOR does not measure P1 for P1.LOCATOR",
+            errors,
+        )
         self.assertTrue(
             any(
                 all(
