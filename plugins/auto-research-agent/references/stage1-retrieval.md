@@ -6,11 +6,14 @@ the plugin's locked test/runtime dependencies. Install research-hub in a separat
 environment; the adapter does not install, upgrade or merge that dependency.
 
 The bundled `research-hub-audit.v1.schema.json` is copied with LF line endings (JSON content unchanged) from the public
-schema in research-hub revision `35dde2a68d7296a5243c9b8d080df9bec705b352`, under
+schema in research-hub merge `9877f929587e7e44bc2533db118cbb89336bf94f`, under
 that project's MIT license. Its upstream PR is
-[research-hub #137](https://github.com/WenyuChiou/research-hub/pull/137).
-This is a provisional development surface until the owner merges it. Delivery
-requires the merged revision and a new run; old manifests are immutable.
+[research-hub #138](https://github.com/WenyuChiou/research-hub/pull/138), which
+preserves the contributor commits from #137 and adds initial-write recovery.
+Use that merge SHA with `merged` status for a new run; old manifests are immutable.
+An initial audit-write failure may produce a schema-valid incomplete manifest
+with zero events. The adapter preserves it as `unknown_error`, keeps provider
+and HTTP counts unknown, and never treats it as a successful empty search.
 
 ## Runtime and commands
 

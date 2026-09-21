@@ -647,6 +647,7 @@
     },
     {
       "capability_id": "cli:stage1-retrieval",
+      "runtime_integrity_required": true,
       "kind": "cli",
       "status": "experimental",
       "metric_role": "enabler",
@@ -704,6 +705,7 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_runtime_identity.py",
         "plugins/auto-research-agent/tests/test_retrieval_audit.py",
+        "plugins/auto-research-agent/tests/test_merged_hub_contract.py",
         "plugins/auto-research-agent/tests/test_retrieval_execution.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py"
       ],
