@@ -35,16 +35,19 @@ def claim_binding(payload, works, imports, source_finishes=None):
                 "unclear",
                 "unverifiable",
             }
+            textual = payload["evidence_level"] not in {"metadata", "unavailable"}
             if (
                 not observation
                 or ref not in (observation["raw_ref"], observation["text_ref"])
                 or (
-                    supported
+                    observation["outcome"] != "available"
                     and (
-                        observation["outcome"] != "available"
-                        or observation["text_ref"] != ref
+                        supported
+                        or payload["evidence_level"] != "unavailable"
+                        or payload["locator"] is not None
                     )
                 )
+                or ((supported or textual) and observation["text_ref"] != ref)
             ):
                 raise LedgerError("claim-source-work-version-or-availability")
         return

@@ -46,9 +46,12 @@ errors are `http_error`. A `network_error` has no HTTP status. Do not fabricate
 HTTP codes when a public tool only reports an error string.
 
 Every ref must belong to that exact attempt. Repeated bytes can share a file
-but keep distinct producer receipts. Failure and pending artifacts cannot
-support a claim. Supported claims use the available text ref for the same
-work/version; an unverifiable claim may point to the saved failure. Existing
+but keep distinct producer receipts. Unfinished reads cannot supply any claim.
+A failed read can supply only pending, unclear, or unverifiable claims with
+`evidence_level: unavailable` and `locator: null`; its error receipt is not
+paper metadata or text. Supported claims and all claims labeled abstract,
+full text, or primary data must use the available text ref for the same
+work/version, even when their relation remains unresolved. Existing
 search-record and source-import binding rules still apply. An available page
 does not automatically become full-text evidence, a verified identity, or a
 verified claim. The separate source review must justify those labels.

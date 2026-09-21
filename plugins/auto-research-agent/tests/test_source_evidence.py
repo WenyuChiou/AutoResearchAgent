@@ -163,6 +163,80 @@ class SourceEvidenceTests(unittest.TestCase):
                 latest, work_id=other["work_id"], version_id=other["version_ids"][0]
             )
 
+    def test_failed_read_cannot_label_error_receipt_as_paper_evidence(self):
+        _, raw, _ = self.finish(self.start(), "rate_limited", 429)
+        for relation in ("pending", "unclear", "unverifiable"):
+            for level in (
+                "metadata",
+                "abstract",
+                "full-text",
+                "full_text",
+                "primary_data_or_table",
+            ):
+                with (
+                    self.subTest(relation=relation, level=level),
+                    self.assertRaisesRegex(LedgerError, "claim-source-work-version"),
+                ):
+                    self.claim(raw, relation=relation, evidence_level=level)
+            with self.assertRaisesRegex(
+                LedgerError, "unavailable-evidence-has-locator"
+            ):
+                self.claim(raw, relation=relation, evidence_level="unavailable")
+            self.claim(
+                raw, relation=relation, evidence_level="unavailable", locator=None
+            )
+        self.assertTrue(validate_run(self.ledger.root)["valid"])
+
+    def test_unresolved_text_claim_must_use_extracted_text_not_raw_response(self):
+        attempt = self.start()
+        raw = self.ledger.save_bytes(b"<p>Synthetic paper text</p>", producer=attempt)
+        text = self.ledger.save_bytes(b"Synthetic paper text", producer=attempt)
+        self.ledger.finish_source(
+            attempt_id=attempt,
+            outcome="available",
+            observed_at=self.ledger.clock(),
+            http_status=200,
+            resolved_uri=None,
+            raw_ref=raw,
+            text_ref=text,
+            extraction={"method": "synthetic-html-text", "version": "1"},
+            reason="Synthetic raw response and separately extracted text",
+        )
+        for relation in ("pending", "unclear", "unverifiable"):
+            for level in (
+                "abstract",
+                "full-text",
+                "full_text",
+                "primary_data_or_table",
+            ):
+                with (
+                    self.subTest(relation=relation, level=level),
+                    self.assertRaisesRegex(LedgerError, "claim-source-work-version"),
+                ):
+                    self.claim(raw, relation=relation, evidence_level=level)
+                self.claim(text, relation=relation, evidence_level=level)
+        self.assertTrue(validate_run(self.ledger.root)["valid"])
+
+    def test_rehashed_failed_read_claim_cannot_promote_error_bytes(self):
+        _, raw, _ = self.finish(self.start(), "rate_limited", 429)
+        self.claim(
+            raw, relation="unverifiable", evidence_level="unavailable", locator=None
+        )
+        rewrite_for_tamper_test(
+            self.ledger,
+            lambda rows: next(
+                row["payload"]
+                for row in rows
+                if row["payload"].get("kind") == "ClaimEvidence"
+            ).update(
+                evidence_level="full_text",
+                locator={"section": "Synthetic error", "quote": "Synthetic paper text"},
+            ),
+        )
+        report = validate_run(self.ledger.root)
+        self.assertFalse(report["valid"], report)
+        self.assertIn("claim-source-work-version-or-availability", report["errors"])
+
     def test_no_empty_text_false_http_success_or_future_observation(self):
         action = self.start()
         raw = self.ledger.save_bytes(b"", producer=action)

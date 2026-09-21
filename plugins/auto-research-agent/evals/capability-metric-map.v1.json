@@ -69,7 +69,7 @@
         }
       ],
       "guardrails": [
-        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification. Failed reads supply only unavailable claims without locators; every text-level claim uses the completed available text ref regardless of relation.",
         "no benchmark answer key in production context",
         "no executable-harness claim before retrieval and gates exist",
         "bounded stage context"
@@ -344,7 +344,7 @@
         }
       ],
       "guardrails": [
-        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification. Failed reads supply only unavailable claims without locators; every text-level claim uses the completed available text ref regardless of relation.",
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
@@ -425,7 +425,7 @@
         }
       ],
       "guardrails": [
-        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification. Failed reads supply only unavailable claims without locators; every text-level claim uses the completed available text ref regardless of relation.",
         "Verify invoked script, isolated module paths and installed code bytes before launch and during replay; build labels alone are not a runtime identity.",
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
@@ -492,7 +492,7 @@
         }
       ],
       "guardrails": [
-        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification. Failed reads supply only unavailable claims without locators; every text-level claim uses the completed available text ref regardless of relation.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
         "structural validity and claim annotations do not establish scientific truth"
@@ -555,7 +555,7 @@
         }
       ],
       "guardrails": [
-        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification. Failed reads supply only unavailable claims without locators; every text-level claim uses the completed available text ref regardless of relation.",
         "Coverage identity and cluster claims must pass ledger work/version source binding.",
         "no frozen benchmark answers in production",
         "planning is not evidence of execution or coverage",
