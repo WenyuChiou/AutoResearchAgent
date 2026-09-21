@@ -186,7 +186,17 @@ class Stage1LedgerTests(unittest.TestCase):
             ledger.checkpoint()
             self.assertTrue(validate_run(ledger.root)["valid"])
 
-    def test_missing_file_cli_failure_then_exact_restore(self):
+    def test_unverified_closest_blocks_stop_after_successful_search(self):
+        add_query(self.ledger, [SYNTHETIC])
+        self.ledger.extract()
+        report = validate_run(self.ledger.root)
+        self.assertTrue(report["valid"], report)
+        self.assertEqual(report["counts"]["backend_failures"], 0)
+        result = self.ledger.checkpoint()["stage_result"]
+        self.assertEqual(result["next_allowed_action"], "continue")
+        self.assertIn("closest-work-unverified", result["gate"]["blocking_items"])
+
+    def test_missing_evidence_fails_closed_then_exact_restore(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger, refs, _, _ = fixture(Path(directory) / "run")
             path = ledger.root / refs[0]["path"]
@@ -259,7 +269,7 @@ class Stage1LedgerTests(unittest.TestCase):
             len(next(iter(self.ledger.candidates().values()))["version_ids"]), 2
         )
 
-    def test_backend_failures_are_not_success_empty_and_no_automatic_retry(self):
+    def test_failure_distinct_from_empty_and_no_automatic_retry(self):
         ledger = self.ledger
         query = ledger.start("search", {"query": "synthetic failure family"})
         for outcome, status in [
@@ -520,7 +530,7 @@ class Stage1LedgerTests(unittest.TestCase):
         with self.assertRaisesRegex(LedgerError, "unregistered-or-altered"):
             ledger.read_ref(altered_ref)
 
-    def test_semantic_replay_rejects_rehashed_inventions(self):
+    def test_rehash_tamper_rejected_by_semantic_replay(self):
         for kind, field, value in [
             ("QueryEvent", "result_count", 99),
             ("CandidateRevision", "canonical_key", "invented"),

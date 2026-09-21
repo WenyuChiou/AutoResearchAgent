@@ -279,6 +279,7 @@
     {
       "capability_id": "cli:stage1-ledger",
       "kind": "cli",
+      "runtime_integrity_required": false,
       "status": "experimental",
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
