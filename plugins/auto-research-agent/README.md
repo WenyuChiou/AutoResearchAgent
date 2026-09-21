@@ -7,6 +7,9 @@ The experimental [retrieval adapter](references/stage1-retrieval.md) wraps the
 public research-hub CLI and preserves raw audit evidence, partial failures and
 pre-merge discovery paths. Authenticated identity verification remains a separate
 source review. An unmerged development dependency cannot pass the coverage gate.
+The [source observation interface](references/stage1-source-evidence.md) records
+caller-attested reads, raw/text lineage and explicit failures for a discovered
+work/version. It reuses the ledger; acquisition remains the public reader's job.
 Installation does not establish a complete
 Stage 1 research run.
 

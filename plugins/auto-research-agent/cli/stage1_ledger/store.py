@@ -152,7 +152,11 @@ class Ledger(Journal):
 
     @mutation
     def save_bytes(self, data, *, producer):
-        if self.event(producer)["kind"] not in {"ActionStarted", "SourceImportStarted"}:
+        if self.event(producer)["kind"] not in {
+            "ActionStarted",
+            "SourceImportStarted",
+            "SourceReadStarted",
+        }:
             raise LedgerError("invalid-raw-producer")
         return self._save(data, producer=producer)
 
@@ -169,6 +173,61 @@ class Ledger(Journal):
         )
         import_binding(value, self.candidates())
         return self.append(value)["event_id"]
+
+    @mutation
+    def start_source(
+        self, *, work_id, version_id, source_uri, tool, request, actor, reason
+    ):
+        from .sources import replay
+
+        state = replay(self)
+        payload = dict(
+            kind="SourceReadStarted",
+            work_id=work_id,
+            version_id=version_id,
+            source_uri=source_uri,
+            tool=tool,
+            request=request,
+            actor=actor,
+            reason=reason,
+            previous_attempt_id=state.latest.get((work_id, version_id)),
+            scope="caller-attested-source-acquisition",
+        )
+        state.check_start(payload, self.candidates())
+        return self.append(payload)["event_id"]
+
+    @mutation
+    def finish_source(
+        self,
+        *,
+        attempt_id,
+        outcome,
+        observed_at,
+        http_status,
+        resolved_uri,
+        raw_ref,
+        text_ref,
+        extraction,
+        reason,
+    ):
+        from .sources import replay
+
+        state = replay(self)
+        payload = dict(
+            kind="SourceReadFinished",
+            attempt_id=attempt_id,
+            outcome=outcome,
+            observed_at=observed_at,
+            http_status=http_status,
+            resolved_uri=resolved_uri,
+            raw_ref=raw_ref,
+            text_ref=text_ref,
+            extraction=extraction,
+            reason=reason,
+            scope="caller-attested-source-acquisition",
+        )
+        state.check_finish(dict(payload, created_at=self.clock()), self.read_ref)
+        return self.append(payload)["event_id"]
 
     @mutation
     def finish(
@@ -383,7 +442,12 @@ class Ledger(Journal):
             for row in self.events()
             if (p := row["payload"])["kind"] == "SourceImportStarted"
         }
-        claim_binding(value, self.candidates(), imports)
+        from .sources import replay
+
+        sources = replay(self)
+        claim_binding(
+            value, self.candidates(), imports | sources.starts, sources.finishes
+        )
         return self.append(value)["event_id"]
 
     @mutation

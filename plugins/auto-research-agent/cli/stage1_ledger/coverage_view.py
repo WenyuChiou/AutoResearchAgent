@@ -149,6 +149,37 @@ def render(manifest, events, read_ref):
             for p in failures
         ],
     )
+    if report.get("source_reads"):
+        text += "\n## Source observation history\n\nCaller-attested reads; availability does not authenticate a source or verify a claim.\n\n"
+        source_starts = {
+            p["event_id"]: p for p in events if p["kind"] == "SourceReadStarted"
+        }
+        source_finishes = {
+            p["attempt_id"]: p for p in events if p["kind"] == "SourceReadFinished"
+        }
+        text += table(
+            [
+                "Attempt",
+                "Work",
+                "Version",
+                "Outcome",
+                "HTTP",
+                "Observed at",
+                "Raw evidence",
+            ],
+            [
+                [
+                    key,
+                    p["work_id"],
+                    p["version_id"],
+                    source_finishes.get(key, {}).get("outcome", "pending"),
+                    source_finishes.get(key, {}).get("http_status"),
+                    source_finishes.get(key, {}).get("observed_at"),
+                    source_finishes.get(key, {}).get("raw_ref", {}).get("path"),
+                ]
+                for key, p in source_starts.items()
+            ],
+        )
     text += "\n## Unresolved items\n\n"
     text += table(
         ["Blocking reason"], [[reason] for reason in result["gate"]["blocking_items"]]

@@ -11,7 +11,7 @@ TEXT_LEVELS = {"abstract", "full_text", "full-text", "primary_data_or_table"}
 class EvidenceReplay:
     def __init__(self):
         self.candidates, self.decisions, self.claims, self.reviews = {}, {}, {}, {}
-        self.source_imports = {}
+        self.source_imports, self.source_finishes = {}, {}
 
     def observe(self, payload, plan):
         kind = payload["kind"]
@@ -21,8 +21,10 @@ class EvidenceReplay:
             self.decisions[payload["subject_id"]] = payload
         elif kind == "ClaimEvidence":
             self.claims[payload["event_id"]] = payload
-        elif kind == "SourceImportStarted":
+        elif kind in {"SourceImportStarted", "SourceReadStarted"}:
             self.source_imports[payload["event_id"]] = payload
+        elif kind == "SourceReadFinished":
+            self.source_finishes[payload["attempt_id"]] = payload
         elif kind == "CoverageWorkReview":
             work = self.candidates.get(payload["work_id"])
             decision = self.decisions.get(payload["work_id"])
@@ -78,7 +80,7 @@ class EvidenceReplay:
             and claim["version_id"] == review["version_id"],
             "coverage-review-claim-version",
         )
-        claim_binding(claim, self.candidates, self.source_imports)
+        claim_binding(claim, self.candidates, self.source_imports, self.source_finishes)
         require(
             claim["locator"]
             and claim["relation"] in {"supports", "partial"}

@@ -35,6 +35,8 @@ def main(argv=None):
         "claim",
         "compare-identity",
         "start-source-import",
+        "start-source",
+        "finish-source",
     ):
         command = commands.add_parser(name)
         command.add_argument("--request", type=Path, required=True)
@@ -64,6 +66,8 @@ def main(argv=None):
             "claim",
             "compare-identity",
             "start-source-import",
+            "start-source",
+            "finish-source",
         }:
             request = decode(args.request.read_bytes(), str(args.request))
             if not isinstance(request, dict):

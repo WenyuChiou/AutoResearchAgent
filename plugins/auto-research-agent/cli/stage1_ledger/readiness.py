@@ -18,9 +18,14 @@ def coverage_text(checkpoint=None):
 
 
 def readiness(report):
+    source_failures = (report.get("source_reads") or {}).get(
+        "unresolved_failure_attempt_ids", []
+    )
     if report["valid"] and report.get("coverage") is not None:
         coverage = report["coverage"]
         reasons = list(coverage["blockers"])
+        if source_failures:
+            reasons.append("source-read-failure-requires-review")
         if report["pending_actions"]:
             reasons.append("unfinished-actions")
         if report["missing_discoveries"] and "extraction-incomplete" not in reasons:
@@ -55,11 +60,14 @@ def readiness(report):
         reasons.append("extraction-incomplete")
     if report["counts"].get("backend_failures"):
         reasons.append("recorded-backend-failures-require-review")
+    if source_failures:
+        reasons.append("source-read-failure-requires-review")
     action = (
         "human-review"
         if not report["valid"]
         or report["counts"].get("backend_failures")
         or report["missing_discoveries"]
+        or source_failures
         else "continue"
     )
     return dict(

@@ -16,7 +16,7 @@ def import_binding(payload, works):
         raise LedgerError("source-import-unknown-version")
 
 
-def claim_binding(payload, works, imports):
+def claim_binding(payload, works, imports, source_finishes=None):
     work = works.get(payload["work_id"])
     if not work or payload["version_id"] not in work["version_ids"]:
         raise LedgerError("claim-unknown-version")
@@ -28,6 +28,25 @@ def claim_binding(payload, works, imports):
             payload["version_id"],
         ):
             raise LedgerError("claim-source-work-version-mismatch")
+        if source["kind"] == "SourceReadStarted":
+            observation = (source_finishes or {}).get(ref["producer"])
+            supported = payload["relation"] not in {
+                "pending",
+                "unclear",
+                "unverifiable",
+            }
+            if (
+                not observation
+                or ref not in (observation["raw_ref"], observation["text_ref"])
+                or (
+                    supported
+                    and (
+                        observation["outcome"] != "available"
+                        or observation["text_ref"] != ref
+                    )
+                )
+            ):
+                raise LedgerError("claim-source-work-version-or-availability")
         return
     discoveries = [
         d

@@ -39,6 +39,12 @@ are ordinary exact queries; do not invoke another model implicitly. For recovery
 use `stage1_retrieval resume` only after the process has saved its completion receipt.
 An unfinished capture needs inspection; do not repeat it automatically.
 
+Before reading a discovered paper, read the [source observation contract](../../references/stage1-source-evidence.md).
+Register a source attempt, save the actual response and extracted text under that
+attempt, and record the observed outcome. Inspect a failure before choosing a new
+attempt; preserve the failure and its reason. Existing saved material uses the
+separate source-import interface. Availability does not verify identity or claims.
+
 For importing existing observations, initialize an `offline-import` run and bind the
 validated plan before any search. Open a round, register planned queries or
 expansion from naturally discovered seeds, then save each actual backend attempt

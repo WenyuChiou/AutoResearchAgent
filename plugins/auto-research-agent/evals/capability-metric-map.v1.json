@@ -21,7 +21,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/skills/stage1-literature",
       "problem": "Stock research can produce a plausible literature list without explicit coverage obligations, evidence levels, decision history, or a reasoned stop decision.",
-      "mechanism": "Guide authored decomposition, frozen queries, saved backend receipts, version-bound source reviews, operational coverage and human actions through validation and checkpoint; live retrieval and scientific evaluation remain separate milestones. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
+      "mechanism": "Guide authored decomposition, frozen queries, saved backend receipts, version-bound source reviews, operational coverage and human actions through validation and checkpoint; live retrieval and scientific evaluation remain separate milestones. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. Record caller-attested source-read start/finish events, same-attempt raw/text lineage and work/version-bound available claims; pending and latest failed reads block sufficient stopping without changing search counts or scientific judgments.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -69,11 +69,13 @@
         }
       ],
       "guardrails": [
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
         "no benchmark answer key in production context",
         "no executable-harness claim before retrieval and gates exist",
         "bounded stage context"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_source_evidence.py",
         "plugins/auto-research-agent/tests/test_plugin_loading.py",
         "plugins/auto-research-agent/tests/test_stage_contracts.py",
         "plugins/auto-research-agent/tests/test_stage1_evaluation_contract.py",
@@ -291,7 +293,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
       "problem": "Repeated discoveries and changed screening decisions otherwise overwrite provenance or confuse a backend failure with an empty search.",
-      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
+      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. Record caller-attested source-read start/finish events, same-attempt raw/text lineage and work/version-bound available claims; pending and latest failed reads block sufficient stopping without changing search counts or scientific judgments.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -342,6 +344,7 @@
         }
       ],
       "guardrails": [
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
@@ -349,6 +352,7 @@
         "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_source_evidence.py",
         "plugins/auto-research-agent/tests/test_provenance_bindings.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
@@ -369,7 +373,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/validators/stage1_run.py",
       "problem": "A plausible ledger can refer to missing or changed evidence or disagree with its own source records.",
-      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
+      "mechanism": "Replay event references, candidate derivation and decisions, verify raw bytes and hashes, and recompute checkpoint counts before allowing a valid report. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. Record caller-attested source-read start/finish events, same-attempt raw/text lineage and work/version-bound available claims; pending and latest failed reads block sufficient stopping without changing search counts or scientific judgments.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -421,6 +425,7 @@
         }
       ],
       "guardrails": [
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
         "Verify invoked script, isolated module paths and installed code bytes before launch and during replay; build labels alone are not a runtime identity.",
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
@@ -429,6 +434,7 @@
         "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_source_evidence.py",
         "plugins/auto-research-agent/tests/test_runtime_identity.py",
         "plugins/auto-research-agent/tests/test_provenance_bindings.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
@@ -451,7 +457,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/gates/stage1_readiness.py",
       "problem": "A mechanically valid run can still lack verified closest work and cannot justify stopping research.",
-      "mechanism": "Replay qualified coverage, recent search, located closest-work review attestations, both citation directions and two complete zero-yield rounds; preserve state-bound human requests without overriding missing evidence. Unbound runs retain conservative readiness. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
+      "mechanism": "Replay qualified coverage, recent search, located closest-work review attestations, both citation directions and two complete zero-yield rounds; preserve state-bound human requests without overriding missing evidence. Unbound runs retain conservative readiness. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. Record caller-attested source-read start/finish events, same-attempt raw/text lineage and work/version-bound available claims; pending and latest failed reads block sufficient stopping without changing search counts or scientific judgments.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -486,11 +492,13 @@
         }
       ],
       "guardrails": [
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
         "structural validity and claim annotations do not establish scientific truth"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_source_evidence.py",
         "plugins/auto-research-agent/tests/test_stage1_ledger.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_coverage_gate.py",
@@ -506,7 +514,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_coverage",
       "problem": "Search can begin without a frozen decomposition, complete query families or explicit recent and closest-work obligations.",
-      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay. Bind a validated plan before search; replay exact query and backend obligations, append truncation receipts and complete-round summaries. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
+      "mechanism": "Compile an authored question decomposition into immutable coverage and query plans; preserve cluster/family/variant links and verify every planned query by replay. Bind a validated plan before search; replay exact query and backend obligations, append truncation receipts and complete-round summaries. Preserve version-bound source review attestations and naturally discovered citation seeds; new candidate or decision revisions invalidate current coverage reviews. Recompute coverage and marginal yield at checkpoints and preserve state-bound human coverage actions. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. Record caller-attested source-read start/finish events, same-attempt raw/text lineage and work/version-bound available claims; pending and latest failed reads block sufficient stopping without changing search counts or scientific judgments.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -547,12 +555,14 @@
         }
       ],
       "guardrails": [
+        "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification.",
         "Coverage identity and cluster claims must pass ledger work/version source binding.",
         "no frozen benchmark answers in production",
         "planning is not evidence of execution or coverage",
         "compiler does not infer scientific sufficiency"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_source_evidence.py",
         "plugins/auto-research-agent/tests/test_stage1_coverage.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py",
         "plugins/auto-research-agent/tests/test_coverage_rounds.py",

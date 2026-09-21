@@ -25,18 +25,25 @@ def validator(name):
     handoff = decode(
         (directory / "stage1-handoff.v1.schema.json").read_bytes(), "handoff schema"
     )
+    sources = decode(
+        (directory / "stage1-source-evidence.v1.schema.json").read_bytes(),
+        "source evidence schema",
+    )
     registry = Registry().with_resources(
         [
             (shared["$id"], Resource.from_contents(shared)),
             (schema["$id"], Resource.from_contents(schema)),
             (coverage["$id"], Resource.from_contents(coverage)),
             (handoff["$id"], Resource.from_contents(handoff)),
+            (sources["$id"], Resource.from_contents(sources)),
         ]
     )
     return Draft202012Validator(
         {
             "$ref": (
-                handoff
+                sources
+                if name in sources["$defs"]
+                else handoff
                 if name in handoff["$defs"]
                 else coverage
                 if name in coverage["$defs"]
@@ -89,6 +96,8 @@ def check_payload(value):
         "CoverageRoundClosed",
         "CoverageWorkReview",
         "CoverageHumanAction",
+        "SourceReadStarted",
+        "SourceReadFinished",
     }
     if not isinstance(value, dict) or value.get("kind") not in kinds:
         raise LedgerError("unknown-event-kind")
