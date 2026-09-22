@@ -127,9 +127,17 @@ class SourceCredentialTests(unittest.TestCase):
             "api_secret",
             "csrf_token",
             "oauth",
+            "cookies",
+            "http_auth",
+            "passphrase",
+            "client_assertion",
+            "code_verifier",
+            "session_id",
         ]
         requests = [{"options": [{"headers": {key: SECRET}}]} for key in keys]
         requests += [
+            {"cookies": {"sessionid": SECRET}},
+            {"http_auth": ["synthetic-user", SECRET]},
             {"headers": [["Authorization", "Bearer " + SECRET]]},
             {"headers": [{"name": "Authorization", "value": "Bearer " + SECRET}]},
             {"headers": ["Authorization: Bearer " + SECRET]},
@@ -223,6 +231,10 @@ class SourceCredentialTests(unittest.TestCase):
         self.ledger.checkpoint()
         original = self.snapshot()
         changes = [
+            ("SourceReadStarted", "request", {"cookies": {"sessionid": SECRET}}),
+            ("SourceReadStarted", "request", {"http_auth": ["synthetic-user", SECRET]}),
+            ("SourceReadStarted", "request", {"passphrase": SECRET}),
+            ("SourceReadStarted", "request", {"client_assertion": SECRET}),
             (
                 "SourceReadFinished",
                 "resolved_uri",

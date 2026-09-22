@@ -13,6 +13,8 @@ _NAMES = {
     "authorization",
     "proxyauthorization",
     "cookie",
+    "cookies",
+    "cookiejar",
     "setcookie",
     "key",
     "apikey",
@@ -34,6 +36,11 @@ _NAMES = {
     "oauth",
     "oauth2",
     "jwt",
+    "httpauth",
+    "passphrase",
+    "clientassertion",
+    "codeverifier",
+    "sessionid",
 }
 _SUFFIXES = (
     "apikey",
@@ -57,6 +64,10 @@ _SUFFIXES = (
     "xsrftoken",
     "bearertoken",
     "apisecret",
+    "passphrase",
+    "clientassertion",
+    "codeverifier",
+    "sessionid",
 )
 _ASSIGNMENT = re.compile(r"^\s*(?:--)?([^\s:=]+)\s*[:=]")
 

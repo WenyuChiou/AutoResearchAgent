@@ -24,6 +24,9 @@ Source metadata is a public record. Remove authentication from the recorded
 arguments before calling the ledger; pass it privately to the reader instead.
 The write and replay paths reject named credential fields, including nested
 Authorization, Cookie, API keys, tokens, passwords and signing credentials.
+Private reader authentication containers such as `cookies`/`cookie_jar`,
+`http_auth`, `passphrase`, `client_assertion`, PKCE `code_verifier` and
+`session_id` are also forbidden, regardless of nesting or value shape.
 Header maps, name/value objects, pairs, multiline header strings and named
 credential options in `argv`/`args`/`arguments` lists are checked. Source,
 import and resolved URIs, and URIs inside request arguments, reject userinfo
