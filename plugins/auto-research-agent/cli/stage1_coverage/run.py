@@ -19,7 +19,7 @@ class CoverageLedger(Ledger):
         return self.append(payload)
 
     @mutation
-    def bind_plan(self, directory, *, backends, limit):
+    def bind_plan(self, directory, *, backends, limit, citation_backends=None):
         require(self.coverage_state().plan is None, "plan-already-bound")
         report = validate_bundle(directory)
         require(report["valid"], "invalid-plan-bundle: " + "; ".join(report["errors"]))
@@ -31,9 +31,12 @@ class CoverageLedger(Ledger):
         )
         require(not self.coverage_state().starts, "plan-must-precede-search")
         ref = self._save(raw, producer="stage1-plan", artifact_type="coverage-input")
-        return self.append(
-            dict(kind="CoveragePlanBound", plan_ref=ref, backends=backends, limit=limit)
+        payload = dict(
+            kind="CoveragePlanBound", plan_ref=ref, backends=backends, limit=limit
         )
+        if citation_backends is not None:
+            payload["citation_backends"] = citation_backends
+        return self.append(payload)
 
     @mutation
     def open_round(self):

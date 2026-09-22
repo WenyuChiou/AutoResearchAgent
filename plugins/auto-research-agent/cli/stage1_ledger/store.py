@@ -17,7 +17,7 @@ from .journal import (
     write_new,
     contained,
 )
-from .semantics import SUCCESS, claim_check, completion_count, query_fields
+from .semantics import claim_check, completion_count, query_fields
 from .readiness import coverage_text
 
 
@@ -31,7 +31,7 @@ class Ledger(Journal):
         return super().read_ref(ref)
 
     @classmethod
-    def create(cls, root, *, run_id, objective, clock=utc_now):
+    def create(cls, root, *, run_id, objective, clock=utc_now, research_hub_pin=None):
         from .contracts import check_manifest
 
         root = Path(root)
@@ -50,14 +50,18 @@ class Ledger(Journal):
                 versions={"ledger": "1.0.0"},
                 input_refs=[],
             ),
-            mode="offline-import",
-            research_hub_pin=None,
+            mode="research-hub-cli" if research_hub_pin else "offline-import",
+            research_hub_pin=research_hub_pin,
             max_artifact_bytes=16 * 1024 * 1024,
             closest_work_status="unverified",
             checkpoint_output_contract="stage1-handoff-v1",
             coverage_view_contract="stage1-coverage-view-v1",
         )
         check_manifest(manifest)
+        if research_hub_pin is not None:
+            from stage1_retrieval.runtime_identity import verify_identity
+
+            verify_identity(research_hub_pin, probe=True)
         root.mkdir(parents=True, exist_ok=False)
         write_new(root / "run_manifest.json", canonical(manifest) + b"\n")
         for name in ["stage_events.jsonl", *STREAMS.values()]:
@@ -77,7 +81,12 @@ class Ledger(Journal):
         for row in self.events():
             coverage.observe(row["payload"])
         coverage.check_start(
-            dict(operation=operation, arguments=arguments, backend=backend)
+            dict(
+                operation=operation,
+                arguments=arguments,
+                backend=backend,
+                parent_id=parent_id,
+            )
         )
         if operation == "search" and (parent_id is not None or backend is not None):
             raise LedgerError("search-has-backend-parent")
@@ -87,6 +96,14 @@ class Ledger(Journal):
                 raise LedgerError("invalid-parent: backend requires an open query")
         if (operation == "backend") != (backend is not None and parent_id is not None):
             raise LedgerError("backend-parent-required")
+        if operation == "backend" and self.manifest["mode"] == "research-hub-cli":
+            if any(
+                p["kind"] == "ActionStarted"
+                and p["parent_id"] == parent_id
+                and p["backend"] == backend
+                for p in (r["payload"] for r in self.events())
+            ):
+                raise LedgerError("attempt-already-recorded")
         event = self.append(
             dict(
                 kind="ActionStarted",
@@ -164,6 +181,7 @@ class Ledger(Journal):
         stdout,
         stderr,
         records=None,
+        execution_ref=None,
     ):
         attempt = self.event(attempt_id, "ActionStarted")
         if attempt["operation"] != "backend" or attempt_id not in self.pending():
@@ -182,6 +200,17 @@ class Ledger(Journal):
         )
         completion_binding(value)
         value["result_count"] = completion_count(value, self.read_ref)
+        if execution_ref is not None:
+            value["execution_ref"] = execution_ref
+        if self.manifest["mode"] == "research-hub-cli":
+            from stage1_retrieval.receipt import validate_execution
+
+            validate_execution(self.manifest, attempt, value, self.read_ref)
+            if (
+                attempt["arguments"]["input"]
+                != self.event(attempt["parent_id"], "ActionStarted")["arguments"]
+            ):
+                raise LedgerError("execution-query-mismatch")
         return self.append(value)["event_id"]
 
     @mutation
@@ -227,7 +256,7 @@ class Ledger(Journal):
         for query in self.records("query_events.jsonl"):
             for completion_id in query["completion_ids"]:
                 completion = self.event(completion_id, "ActionFinished")
-                if completion["outcome"] not in SUCCESS:
+                if completion["records"] is None:
                     continue
                 for index, record in enumerate(
                     decode(

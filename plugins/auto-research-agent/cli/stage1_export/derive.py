@@ -3,6 +3,7 @@
 from collections import Counter
 from datetime import datetime
 import re
+from stage1_ledger.journal import decode
 
 
 def ratio(n, total):
@@ -18,7 +19,7 @@ def unavailable(reason, total=None):
     return dict(n=None, N=total, ratio=None, status="unavailable", reason=reason)
 
 
-def derive(manifest, events, report, checkpoint):
+def derive(manifest, events, report, checkpoint, read_ref=None):
     works = {p["work_id"]: p for p in events if p["kind"] == "CandidateRevision"}
     decisions = [p for p in events if p["kind"] == "DecisionEvent"]
     latest = {p["subject_id"]: p for p in decisions}
@@ -174,4 +175,22 @@ def derive(manifest, events, report, checkpoint):
         cost=None,
         scope="recorded ledger activity; complete research time, host calls, retries and usage are unavailable",
     )
+    if manifest["mode"] == "research-hub-cli":
+        receipts = [
+            decode(read_ref(p["execution_ref"]), "execution receipt") for p in finishes
+        ]
+        projections = [r["projection"] for r in receipts]
+        efficiency["retrieval_usage"] = dict(
+            completed_cli_invocations=len(receipts),
+            provider_attempts=sum(p["provider_attempts"] for p in projections)
+            if all(p["provider_attempts"] is not None for p in projections)
+            else None,
+            http_attempts=sum(p["http_attempts"] for p in projections)
+            if all(p["http_attempts"] is not None for p in projections)
+            else None,
+            incomplete_captures=sum(
+                p["provider_attempts"] is None for p in projections
+            ),
+            scope="saved public CLI attempts only; pending invocations and whole-stage model usage are separate",
+        )
     return inputs, efficiency

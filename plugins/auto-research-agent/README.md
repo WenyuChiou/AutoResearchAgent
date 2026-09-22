@@ -3,7 +3,10 @@
 The plugin can be discovered and its skill loaded by Codex. It now includes an
 experimental [saved-observation ledger](references/stage1-ledger.md), with local
 extraction, validation, decision history, conservative readiness and checkpoint.
-Live retrieval and authenticated identity verification remain later milestones.
+The experimental [retrieval adapter](references/stage1-retrieval.md) wraps the
+public research-hub CLI and preserves raw audit evidence, partial failures and
+pre-merge discovery paths. Authenticated identity verification remains a separate
+source review. An unmerged development dependency cannot pass the coverage gate.
 Installation does not establish a complete
 Stage 1 research run.
 

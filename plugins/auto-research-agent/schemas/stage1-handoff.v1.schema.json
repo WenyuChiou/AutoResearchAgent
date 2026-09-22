@@ -27,7 +27,7 @@
       "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
       "required": ["source_mode", "input_refs", "reuse_contract", "input_format", "comparison_dimensions", "papers", "manual_paper_list", "stage1_gate", "eligible_for_stage2", "stage2"],
       "properties": {
-        "kind": {"const": "Stage1Handoff"}, "source_mode": {"const": "offline-import"},
+        "kind": {"const": "Stage1Handoff"}, "source_mode": {"enum": ["offline-import", "research-hub-cli"]},
         "input_refs": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"}},
         "reuse_contract": {"const": "https://github.com/WenyuChiou/research-hub/blob/bb00775822bf856333cba8388631f16be3831ea4/skills/literature-triage-matrix/SKILL.md"},
         "input_format": {"const": "manual-paper-list"},

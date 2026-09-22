@@ -2,20 +2,35 @@
 
 from .journal import LedgerError, decode
 
-SUCCESS = {"success_nonempty", "success_empty"}
+SUCCESS = {"success_nonempty", "success_empty", "success_evidence"}
 
 
 def completion_count(payload, read_ref):
     outcome, status = payload["outcome"], payload["http_status"]
     if (status == 429) != (outcome == "rate_limited"):
         raise LedgerError("rate-limit-outcome-conflict")
-    if (status == 404) != (outcome == "not_found"):
+    if (status in (404, 410)) != (outcome == "not_found"):
         raise LedgerError("not-found-outcome-conflict")
-    if outcome in SUCCESS:
+    if outcome == "success_evidence":
         if (
             payload["exit_code"] != 0
             or status is None
             or not 200 <= status < 300
+            or payload["records"] is not None
+        ):
+            raise LedgerError("evidence-without-successful-response")
+        return 0
+    if outcome in SUCCESS or outcome == "partial_failure":
+        if (
+            (
+                outcome in SUCCESS
+                and (
+                    payload["exit_code"] != 0
+                    or status is None
+                    or not 200 <= status < 300
+                )
+            )
+            or (outcome == "partial_failure" and status is not None)
             or payload["records"] is None
         ):
             raise LedgerError("success-without-parsed-response")
@@ -32,13 +47,19 @@ def completion_count(payload, read_ref):
 
 def query_fields(query, children, finished):
     successes = [p for p in finished if p["outcome"] in SUCCESS]
-    count = sum(p["result_count"] for p in successes)
-    if not successes:
+    count = sum(p["result_count"] for p in finished)
+    if not successes and not count:
         outcome = "failed"
     elif len(successes) != len(finished):
         outcome = "partial_failure"
     else:
-        outcome = "success_nonempty" if count else "success_empty"
+        outcome = (
+            "success_evidence"
+            if all(p["outcome"] == "success_evidence" for p in finished)
+            else "success_nonempty"
+            if count
+            else "success_empty"
+        )
     return dict(
         query_id=query["event_id"],
         arguments=query["arguments"],

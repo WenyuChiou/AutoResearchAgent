@@ -68,6 +68,10 @@ def validate_run(root):
     try:
         manifest = journal.manifest
         check_manifest(manifest)
+        if manifest["mode"] == "research-hub-cli":
+            from stage1_retrieval.runtime_identity import verify_identity
+
+            verify_identity(manifest["research_hub_pin"])
         coverage = CoverageReplay(manifest, read_ref)
         events = journal.reconcile(repair=False)
         contained(journal.root, "coverage_and_stop.md").read_bytes()
@@ -166,6 +170,15 @@ def validate_run(root):
                     completion_count(p, read_ref) == p["result_count"],
                     "completion-count-mismatch",
                 )
+                if manifest["mode"] == "research-hub-cli" or "execution_ref" in p:
+                    from stage1_retrieval.receipt import validate_execution
+
+                    validate_execution(manifest, attempt, p, read_ref)
+                    require(
+                        attempt["arguments"]["input"]
+                        == starts[attempt["parent_id"]]["arguments"],
+                        "execution-query-mismatch",
+                    )
                 finishes[p["attempt_id"]] = p
                 if p["outcome"] not in SUCCESS:
                     counts["backend_failures"] += 1

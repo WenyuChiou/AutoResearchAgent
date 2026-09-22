@@ -1,13 +1,13 @@
 ---
 name: stage1-literature
-description: Plan Stage 1 literature research and record saved observations with an auditable local ledger. Use for query planning, versioned evidence reviews, screening history, coverage gates and checkpoints; live retrieval integration and later research stages remain incomplete.
+description: Run Stage 1 literature retrieval through a pinned public CLI and an auditable ledger. Use for question decomposition, query execution, saved evidence, screening history, coverage gates and checkpoints; later stages and independent scientific evaluation are separate.
 ---
 
 # Stage 1 literature research
 
 This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations and an operational coverage gate based on source reviews.
-It does not execute live searches or establish scientific truth. Read the [plugin status](../../README.md) and, before executing any
+The experimental live adapter executes a pinned public research-hub CLI. It does not establish scientific truth. Read the [plugin status](../../README.md) and, before executing any
 ledger command, the [Stage 1 CLI contract](../../references/stage1-ledger.md).
 For question decomposition, first read the
 [coverage planning contract](../../references/stage1-coverage.md), write a
@@ -31,7 +31,15 @@ When preparing a literature run:
 6. Require a recent sweep, closest-work verification and a reasoned coverage
    decision. Reaching a paper count or exhausting a budget is insufficient.
 
-For the available local path, initialize an `offline-import` run and bind the
+For live execution, first read the [retrieval contract](../../references/stage1-retrieval.md).
+Use an isolated runtime and save its exact revision, wheel, schema, executable
+and config hashes. Initialize `research-hub-cli` mode and bind the validated plan
+before searching. Execute each planned backend once. Authored adversarial variants
+are ordinary exact queries; do not invoke another model implicitly. For recovery,
+use `stage1_retrieval resume` only after the process has saved its completion receipt.
+An unfinished capture needs inspection; do not repeat it automatically.
+
+For importing existing observations, initialize an `offline-import` run and bind the
 validated plan before any search. Open a round, register planned queries or
 expansion from naturally discovered seeds, then save each actual backend attempt
 and its exact output. Mark unknown truncation as `null`. Run `extract`, record
@@ -46,7 +54,11 @@ its comparison cells as part of Stage 1.
 Keep actual CLI outputs and use the documented coverage commands for human
 requests, preserving verbatim input and the exact reviewed state hash.
 Do not label imported observations as tool execution performed by this CLI.
-Do not use unmerged research-hub APIs. Only the replayed coverage gate may emit
+Use merged, pinned research-hub APIs for delivery. An explicitly authorized isolated
+development run may pin an unmerged revision with `development-unmerged` status;
+this status blocks sufficient stopping and must remain visible in its manifest.
+After merge, start a new run at the merge SHA and revalidate; never rewrite an old pin.
+Only the replayed coverage gate may emit
 `stop-sufficient`: all obligations must pass, including two complete rounds with
 no newly qualified works. Human acceptance cannot fill missing evidence.
 If validation fails, preserve the report

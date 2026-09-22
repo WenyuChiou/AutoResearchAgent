@@ -19,7 +19,12 @@
       "properties": {
         "kind": {"const": "CoveragePlanBound"},
         "plan_ref": {"$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"},
-        "backends": {"$ref": "#/$defs/Ids", "minItems": 1}, "limit": {"type": "integer", "minimum": 1}
+        "backends": {"$ref": "#/$defs/Ids", "minItems": 1}, "limit": {"type": "integer", "minimum": 1},
+        "citation_backends": {
+          "const": [
+            "semantic-scholar"
+          ]
+        }
       }
     },
     "CoverageRoundOpened": {

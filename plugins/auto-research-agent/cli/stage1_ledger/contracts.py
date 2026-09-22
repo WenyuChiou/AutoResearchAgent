@@ -62,6 +62,12 @@ def check_manifest(value):
     check(value, "Stage1Manifest")
     if value["research_run"]["current_stage"] != 1:
         raise LedgerError("manifest-stage: expected Stage 1")
+    if value["mode"] == "research-hub-cli":
+        from stage1_retrieval.receipt import check_pin
+
+        check_pin(value["research_hub_pin"])
+    elif value["research_hub_pin"] is not None:
+        raise LedgerError("offline-manifest-has-runtime")
 
 
 def check_payload(value):
