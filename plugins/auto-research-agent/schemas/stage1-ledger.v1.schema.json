@@ -54,6 +54,12 @@
     },
     {
       "$ref": "#/$defs/CoverageHumanAction"
+    },
+    {
+      "$ref": "urn:auto-research-agent:stage1-source-evidence:1.0.0#/$defs/SourceReadStarted"
+    },
+    {
+      "$ref": "urn:auto-research-agent:stage1-source-evidence:1.0.0#/$defs/SourceReadFinished"
     }
   ],
   "$defs": {

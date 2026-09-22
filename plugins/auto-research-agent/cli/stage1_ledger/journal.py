@@ -286,12 +286,17 @@ class Journal:
 
     def pending(self):
         events = [row["payload"] for row in self.events()]
-        ended = {p["attempt_id"] for p in events if p["kind"] == "ActionFinished"}
+        ended = {
+            p["attempt_id"]
+            for p in events
+            if p["kind"] in {"ActionFinished", "SourceReadFinished"}
+        }
         ended.update(p["query_id"] for p in events if p["kind"] == "QueryEvent")
         return [
             p["event_id"]
             for p in events
-            if p["kind"] == "ActionStarted" and p["event_id"] not in ended
+            if p["kind"] in {"ActionStarted", "SourceReadStarted"}
+            and p["event_id"] not in ended
         ]
 
     @mutation

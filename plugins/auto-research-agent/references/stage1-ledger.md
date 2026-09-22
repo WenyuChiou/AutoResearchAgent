@@ -81,6 +81,11 @@ plugins/auto-research-agent/gates/stage1_readiness.py RUN_DIRECTORY`.
 
 ## Decisions and claims
 
+For saved paper text and new source reads, use the
+[source observation interface](stage1-source-evidence.md). It binds artifacts to
+the discovered work/version and keeps pending reads and failures separate from
+searches. Do not attach a publisher page to an earlier search attempt.
+
 `decide --request decision.json` accepts `work_id`, `decision` (`pending`,
 `include`, `exclude`), `reason`, `rationale`, and nonempty `evidence_refs`.
 Use a specific lowercase reason code such as `scope-match`,

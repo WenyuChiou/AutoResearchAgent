@@ -20,6 +20,7 @@ from .readiness import readiness
 from .coverage_view import render
 from .semantics import SUCCESS, claim_check, completion_count, query_fields
 from .verification import comparison
+from .sources import SourceReads
 from stage1_coverage.rounds import CoverageReplay
 from stage1_coverage.policy import evaluate
 
@@ -51,12 +52,18 @@ def validate_run(root):
     failed_extractions = set()
     comparisons = {}
     imports = {}
+    sources = SourceReads()
     errors, pending = [], []
     state_sha256 = None
     coverage_report = None
 
     def state_hash():
         return digest(canonical({"manifest": manifest, "events": material}))
+
+    def pending_ids():
+        values = [i for i in starts if i not in finishes and i not in queries]
+        values += [i for i in sources.starts if i not in sources.finishes]
+        return sorted(values, key=lambda value: int(value[1:]))
 
     def read_ref(ref):
         require(
@@ -121,7 +128,9 @@ def validate_run(root):
                 )
                 if ref["artifact_type"] == "raw-output":
                     require(
-                        ref["producer"] in starts or ref["producer"] in imports,
+                        ref["producer"] in starts
+                        or ref["producer"] in imports
+                        or ref["producer"] in sources.starts,
                         "missing-artifact-producer",
                     )
                 else:
@@ -316,7 +325,7 @@ def validate_run(root):
                     "claim-unknown-version",
                 )
                 claim_check(p, read_ref)
-                claim_binding(p, works, imports)
+                claim_binding(p, works, imports | sources.starts, sources.finishes)
                 counts["claims"] += 1
             elif kind == "IdentityComparison":
                 expected = comparison(
@@ -354,8 +363,7 @@ def validate_run(root):
                     "checkpoint-count-mismatch",
                 )
                 require(
-                    report["pending_actions"]
-                    == [i for i in starts if i not in finishes and i not in queries],
+                    report["pending_actions"] == pending_ids(),
                     "checkpoint-pending-mismatch",
                 )
                 require(
@@ -376,6 +384,10 @@ def validate_run(root):
                     report.get("coverage") == evaluate(coverage),
                     "checkpoint-coverage-mismatch",
                 )
+                require(
+                    report.get("source_reads") == sources.report(),
+                    "checkpoint-source-read-mismatch",
+                )
                 gate, action = readiness(report)
                 require(
                     result["gate"] == gate and result["next_allowed_action"] == action,
@@ -393,6 +405,7 @@ def validate_run(root):
                     "checkpoint-status-mismatch",
                 )
                 validate_outputs(manifest, state_hash(), material, result, read_ref)
+            sources.observe(p, works, read_ref)
             coverage.observe(p)
             if is_state_event(p):
                 material.append(p)
@@ -403,7 +416,7 @@ def validate_run(root):
             == expected_view,
             "coverage-view-mismatch: use recover to rebuild derived view",
         )
-        pending = [i for i in starts if i not in finishes and i not in queries]
+        pending = pending_ids()
         state_sha256 = state_hash()
         coverage_report = evaluate(coverage)
     except (LedgerError, OSError, KeyError, TypeError, IndexError, ValueError) as error:
@@ -422,4 +435,6 @@ def validate_run(root):
     )
     if coverage_report is not None:
         report["coverage"] = coverage_report
+    if sources.starts:
+        report["source_reads"] = sources.report() if not errors else None
     return report
