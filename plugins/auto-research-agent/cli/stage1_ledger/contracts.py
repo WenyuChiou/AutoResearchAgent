@@ -7,6 +7,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 
 from .journal import LedgerError, decode
+from .source_arguments import check_source_arguments
 
 
 @lru_cache(maxsize=None)
@@ -101,6 +102,7 @@ def check_payload(value):
     }
     if not isinstance(value, dict) or value.get("kind") not in kinds:
         raise LedgerError("unknown-event-kind")
+    check_source_arguments(value)
     check(value, value["kind"])
 
 

@@ -20,6 +20,34 @@ exact public tool arguments, excluding credentials. Preserve native tool output
 outside public Git history. Register intent before reading; an interrupted read
 stays pending and `recover` performs zero automatic retries.
 
+Source metadata is a public record. Remove authentication from the recorded
+arguments before calling the ledger; pass it privately to the reader instead.
+The write and replay paths reject named credential fields, including nested
+Authorization, Cookie, API keys, tokens, passwords and signing credentials.
+Header maps, name/value objects, pairs, multiline header strings and named
+credential options in `argv`/`args`/`arguments` lists are checked. Source,
+import and resolved URIs, and URIs inside request arguments, reject userinfo
+and credential query/fragment keys (including percent-encoded keys and nested
+redirect URLs). URI query/fragment `code` is reserved for authorization codes;
+ordinary JSON `params.code`, pagination `page_token` and literature keyword
+lists remain allowed. This conservative URI rule may reject a public URL that
+uses `code` for another purpose; record an equivalent public identifier or URL.
+Public arguments remain equivalent as JSON
+values; the ledger never silently strips credentials or stores a reversible
+copy. A rejected write appends no event and returns only
+`source-credentials-forbidden`, without the submitted key, URI or value.
+Malformed URI parsing returns `source-public-uri-invalid` without its value.
+
+For example, record `{"url":"https://example.invalid/paper","headers":{"Accept":"text/plain"}}`.
+A request containing an `Authorization` header or a URL with an `api_key`
+query parameter is rejected, even after someone recomputes the journal hashes.
+Recovery and export also refuse that altered journal. Existing contaminated
+journals are not silently rewritten: keep them private and reconstruct a new
+public run from reviewed public observations. This guard recognizes defined
+credential fields and URI forms; it is not a general secret detector for
+arbitrary prose or saved response bytes. Callers must inspect those materials
+before saving or publishing them.
+
 Save the actual response or failure bytes through the existing `save` command,
 using the returned source attempt ID as `--producer`. If a reader supplies UTF-8
 text extracted from those bytes, save that text with the same producer. Then
@@ -74,5 +102,7 @@ screening/review decisions. Human acceptance cannot fill missing evidence.
 
 Run `test_source_evidence.py` for synthetic lifecycle, failures, producer and
 version binding, missing bytes, replay, coverage, public CLI and export checks.
+Run `test_source_credentials.py` for unchanged public arguments, rejected
+credentials, value-free CLI errors and rehashed-tamper replay/export checks.
 These tests establish implementation behavior; P1/P3 scientific improvement
 awaits the independent frozen paired evaluation.
