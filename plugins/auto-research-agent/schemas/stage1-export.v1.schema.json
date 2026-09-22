@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage1-export:1.0.0",
+  "title": "Reproducible recorded inputs, not scientific scores",
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "Ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "Count": {"type": "integer", "minimum": 0},
+    "Base": {
+      "type": "object", "required": ["kind", "schema_version", "source_state_sha256"],
+      "properties": {"kind": {"type": "string"}, "schema_version": {"const": "1.0.0"}, "source_state_sha256": {"$ref": "#/$defs/Hash"}}
+    },
+    "Ratio": {
+      "type": "object", "additionalProperties": false, "required": ["n", "N", "ratio", "status"],
+      "properties": {
+        "n": {"type": ["integer", "null"], "minimum": 0}, "N": {"type": ["integer", "null"], "minimum": 0},
+        "ratio": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "status": {"enum": ["recorded", "not-applicable", "unavailable"]}, "reason": {"type": "string", "minLength": 1}
+      },
+      "if": {"properties": {"status": {"const": "unavailable"}}},
+      "then": {"required": ["reason"], "properties": {"n": {"type": "null"}, "ratio": {"type": "null"}}}
+    },
+    "Stage1ExportManifest": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["exporter_version", "source_run_id", "source_mode", "source_checkpoint_event_id", "source_journal_sha256", "evaluation_status", "files"],
+      "properties": {
+        "kind": {"const": "Stage1ExportManifest"}, "exporter_version": {"const": "1.0.0"},
+        "native_capture_contract": {"const": "codex-exec-json-v1"},
+        "source_run_id": {"type": "string", "minLength": 1}, "source_mode": {"const": "offline-import"},
+        "source_checkpoint_event_id": {"type": "string", "pattern": "^e[0-9]{6,}$"},
+        "source_journal_sha256": {"$ref": "#/$defs/Hash"}, "evaluation_status": {"const": "not-scored"},
+        "files": {"type": "array", "minItems": 1, "items": {
+          "type": "object", "additionalProperties": false, "required": ["path", "bytes", "sha256"],
+          "properties": {"path": {"type": "string", "minLength": 1}, "bytes": {"$ref": "#/$defs/Count"}, "sha256": {"$ref": "#/$defs/Hash"}}
+        }}
+      }
+    },
+    "Stage1MetricInputs": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["population", "P1", "P2", "P3", "judgment_scores", "major_error_gate", "required_external_inputs"],
+      "properties": {
+        "kind": {"const": "Stage1MetricInputs"},
+        "population": {"type": "object", "additionalProperties": false, "required": ["included_work_ids", "candidate_work_ids", "basis"], "properties": {
+          "included_work_ids": {"$ref": "#/$defs/Ids"}, "candidate_work_ids": {"$ref": "#/$defs/Ids"}, "basis": {"type": "string", "minLength": 1}
+        }},
+        "P1": {"type": "object", "additionalProperties": false, "required": ["candidate_event_ids", "claim_event_ids", "identity_comparison_event_ids", "coverage_review_event_ids", "central_claim_ids", "audit_status"], "properties": {
+          "candidate_event_ids": {"$ref": "#/$defs/Ids"}, "claim_event_ids": {"$ref": "#/$defs/Ids"},
+          "identity_comparison_event_ids": {"$ref": "#/$defs/Ids"}, "coverage_review_event_ids": {"$ref": "#/$defs/Ids"},
+          "central_claim_ids": {"type": "null"}, "audit_status": {"const": "not-performed"}
+        }},
+        "P2": {"type": "object", "additionalProperties": false, "required": ["operational_coverage", "recorded_years", "recorded_recent", "recorded_latest_year", "recent_window", "core_recall", "must_have_recall", "scientific_coverage"], "properties": {
+          "operational_coverage": {"type": ["object", "null"]},
+          "recorded_years": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["work_id", "recorded_year"], "properties": {
+            "work_id": {"type": "string", "minLength": 1}, "recorded_year": {"type": ["integer", "null"]}
+          }}},
+          "recorded_recent": {"$ref": "#/$defs/Ratio"}, "recorded_latest_year": {"type": ["integer", "null"]},
+          "recent_window": {"type": ["string", "null"]}, "core_recall": {"$ref": "#/$defs/Ratio"},
+          "must_have_recall": {"$ref": "#/$defs/Ratio"}, "scientific_coverage": {"$ref": "#/$defs/Ratio"}
+        }},
+        "P3": {"type": "object", "additionalProperties": false, "required": ["works_with_trace", "all_annotated_claims_with_locator", "central_claims_with_locator", "decisions_with_reason", "versions_with_access_date", "checkpoint_event_id", "stop_action", "coverage_rounds_recorded", "operational_stop_checks_satisfied"], "properties": {
+          "works_with_trace": {"$ref": "#/$defs/Ratio"}, "all_annotated_claims_with_locator": {"$ref": "#/$defs/Ratio"},
+          "central_claims_with_locator": {"$ref": "#/$defs/Ratio"}, "decisions_with_reason": {"$ref": "#/$defs/Ratio"},
+          "versions_with_access_date": {"$ref": "#/$defs/Ratio"}, "checkpoint_event_id": {"type": "string", "pattern": "^e[0-9]{6,}$"},
+          "stop_action": {"enum": ["continue", "revise-query", "pause-blocked", "stop-sufficient", "human-review", "none"]}, "coverage_rounds_recorded": {"type": "boolean"}, "operational_stop_checks_satisfied": {"type": "boolean"}
+        }},
+        "judgment_scores": {"type": "object", "additionalProperties": false, "required": ["P1", "P2", "P3"], "properties": {
+          "P1": {"$ref": "#/$defs/Unscored"}, "P2": {"$ref": "#/$defs/Unscored"}, "P3": {"$ref": "#/$defs/Unscored"}
+        }},
+        "major_error_gate": {"const": {"status": "not-assessed", "issues": null}}, "required_external_inputs": {"$ref": "#/$defs/Ids"}
+      }
+    },
+    "Unscored": {"const": {"R1": null, "R2": null, "ADJ": null, "status": "not_scored"}},
+    "Stage1NativeCaptureSpec": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "schema_version", "format", "scope", "runtime_version", "source_run_id", "source_state_sha256", "source_journal_sha256", "expected_thread_id", "events_sha256", "started_at", "ended_at", "exit_code"],
+      "properties": {
+        "kind": {"const": "Stage1NativeCaptureSpec"}, "schema_version": {"const": "1.0.0"}, "format": {"const": "codex-exec-json-v1"}, "scope": {"const": "captured-invocation"},
+        "runtime_version": {"type": "string", "minLength": 1}, "source_run_id": {"type": "string", "minLength": 1},
+        "source_state_sha256": {"$ref": "#/$defs/Hash"}, "source_journal_sha256": {"$ref": "#/$defs/Hash"}, "events_sha256": {"$ref": "#/$defs/Hash"},
+        "expected_thread_id": {"type": "string", "minLength": 1}, "started_at": {"type": "string"}, "ended_at": {"type": "string"}, "exit_code": {"type": "integer"}
+      }
+    },
+    "Stage1NativeUsage": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["format", "scope", "runtime_version", "thread_id", "capture_status", "elapsed_seconds", "observed_tool_items", "tool_outcomes", "tool_items", "reported_turn_usage", "unknown_event_types", "unknown_item_types", "fatal_error_lines", "terminal_event", "exit_code", "model_calls", "human_interventions", "retries", "cost", "limitation"],
+      "properties": {
+        "kind": {"const": "Stage1NativeUsage"}, "format": {"const": "codex-exec-json-v1"}, "scope": {"const": "captured-invocation"},
+        "runtime_version": {"type": "string", "minLength": 1}, "thread_id": {"type": "string", "minLength": 1}, "capture_status": {"enum": ["complete", "incomplete", "failed"]},
+        "elapsed_seconds": {"type": "number", "minimum": 0}, "observed_tool_items": {"$ref": "#/$defs/Count"},
+        "tool_outcomes": {"type": "object", "propertyNames": {"enum": ["succeeded", "failed", "declined", "unknown", "pending"]}, "additionalProperties": {"$ref": "#/$defs/Count"}},
+        "tool_items": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "type", "first_line", "end_line", "outcome"], "properties": {
+          "id": {"type": "string", "minLength": 1}, "type": {"type": "string", "minLength": 1}, "first_line": {"type": "integer", "minimum": 1}, "end_line": {"type": ["integer", "null"], "minimum": 1}, "outcome": {"enum": ["succeeded", "failed", "declined", "unknown", "pending"]}
+        }}},
+        "reported_turn_usage": {"type": ["object", "null"], "required": ["input_tokens", "cached_input_tokens", "output_tokens"], "additionalProperties": {"$ref": "#/$defs/Count"}},
+        "unknown_event_types": {"$ref": "#/$defs/Ids"}, "unknown_item_types": {"$ref": "#/$defs/Ids"}, "fatal_error_lines": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "terminal_event": {"enum": ["turn.completed", "turn.failed", null]}, "exit_code": {"type": "integer"},
+        "model_calls": {"type": "null"}, "human_interventions": {"type": "null"}, "retries": {"type": "null"}, "cost": {"type": "null"}, "limitation": {"type": "string", "minLength": 1}
+      }
+    },
+    "Stage1EfficiencyInputs": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["source_mode", "recorded_queries", "recorded_backend_attempts", "backend_outcomes", "pending_backend_attempts", "recorded_human_actions", "observed_ledger_span_seconds", "elapsed_seconds", "tool_calls", "failed_tool_calls", "model_calls", "human_interventions", "retries", "tokens", "cost", "scope"],
+      "properties": {
+        "kind": {"const": "Stage1EfficiencyInputs"}, "source_mode": {"const": "offline-import"},
+        "native_capture": {"const": {"path": "native_usage.json", "scope": "captured-invocation"}},
+        "recorded_queries": {"$ref": "#/$defs/Count"}, "recorded_backend_attempts": {"$ref": "#/$defs/Count"},
+        "backend_outcomes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Count"}},
+        "pending_backend_attempts": {"$ref": "#/$defs/Count"}, "recorded_human_actions": {"$ref": "#/$defs/Count"},
+        "observed_ledger_span_seconds": {"type": "number", "minimum": 0},
+        "elapsed_seconds": {"type": "null"}, "tool_calls": {"type": "null"}, "failed_tool_calls": {"type": "null"},
+        "model_calls": {"type": "null"}, "human_interventions": {"type": "null"}, "retries": {"type": "null"},
+        "tokens": {"type": "null"}, "cost": {"type": "null"}, "scope": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

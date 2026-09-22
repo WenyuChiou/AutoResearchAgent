@@ -45,7 +45,7 @@ After:
 - Baseline and treatment:
 - Rubric version: <!-- aging-bidirectional-rubric-v1 -->
 - Rubric criterion ID(s): <!-- Exact IDs such as P3.DECISION_TRACE, separated by commas. -->
-- Operational-definition mapping: <!-- One per criterion: P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE -> derive.stop_inputs_recorded; separate entries with semicolons. -->
+- Operational-definition mapping: <!-- One per criterion: P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE -> policy.evaluate; separate entries with semicolons. -->
 - Required invariant IDs: <!-- Comma-separated IDs derived by the PR validator. -->
 - Invariant test evidence: <!-- INVARIANT -> path.py::Class.test_method -> passed; separate entries with semicolons. -->
 - Evaluation mode: <!-- exactly one: deterministic / ai-judge / hybrid -->

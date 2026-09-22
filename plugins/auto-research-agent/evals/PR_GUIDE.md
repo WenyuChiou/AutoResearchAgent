@@ -96,7 +96,7 @@ blinded scientific scoring.
 `Operational-definition mapping` 告訴 reviewer 每個分數是怎麼從程式資料算出來。例如：
 
 ```text
-P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE -> derive.stop_inputs_recorded
+P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE -> policy.evaluate
 ```
 
 左邊是 rubric 問的問題，中間是 frozen 計量規則，右邊是實際產生資料的 field 或
@@ -235,7 +235,7 @@ with the triggering query and candidate decisions linked from the gate result.
   coverage.closest_work_verified; P3.DECISION_TRACE -> S1_DECISION_REASON ->
   ledger.reason_code; P3.FAILURE_STATE -> S1_SEARCH_TRACE ->
   query_event.status; P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE ->
-  derive.stop_inputs_recorded.
+  policy.evaluate.
 - Required invariant IDs: unverified-closest-blocks-stop,
   failure-distinct-from-empty, all-stop-inputs-required.
 - Invariant test evidence: unverified-closest-blocks-stop ->

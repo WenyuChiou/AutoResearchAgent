@@ -202,7 +202,7 @@ class Journal:
         return events
 
     @contextmanager
-    def writing(self):
+    def writing(self, *, repair=True):
         from .contracts import check_manifest
 
         check_manifest(self.manifest)
@@ -214,7 +214,7 @@ class Journal:
                 "writer-locked: verify the previous writer has stopped before removing .writer-lock"
             ) from error
         try:
-            self.reconcile(repair=True)
+            self.reconcile(repair=repair)
             yield
         finally:
             lock.unlink()
