@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "invariants": {
+    "artifact-producer-bound": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*artifact[A-Za-z0-9_]*producer[A-Za-z0-9_]*bound[A-Za-z0-9_]*"
+    },
+    "evidence-work-version-bound": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*evidence[A-Za-z0-9_]*work[A-Za-z0-9_]*version[A-Za-z0-9_]*bound[A-Za-z0-9_]*"
+    },
+    "missing-evidence-fails-closed": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*missing[A-Za-z0-9_]*evidence[A-Za-z0-9_]*fails[A-Za-z0-9_]*closed[A-Za-z0-9_]*"
+    },
+    "unverified-closest-blocks-stop": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*unverified[A-Za-z0-9_]*closest[A-Za-z0-9_]*(?:block[A-Za-z0-9_]*stop|continue)[A-Za-z0-9_]*"
+    },
+    "failure-distinct-from-empty": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*failure[A-Za-z0-9_]*distinct[A-Za-z0-9_]*empty[A-Za-z0-9_]*"
+    },
+    "all-stop-inputs-required": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*all[A-Za-z0-9_]*stop[A-Za-z0-9_]*inputs[A-Za-z0-9_]*required[A-Za-z0-9_]*"
+    },
+    "runtime-bytes-bound": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*runtime[A-Za-z0-9_]*bytes[A-Za-z0-9_]*bound[A-Za-z0-9_]*"
+    },
+    "dependency-sha-bound": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py", ".github/scripts/test_check_research_pr_dependencies\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*(?:dependency[A-Za-z0-9_]*sha[A-Za-z0-9_]*bound|external[A-Za-z0-9_]*pin[A-Za-z0-9_]*rejects[A-Za-z0-9_]*sha[A-Za-z0-9_]*drift)[A-Za-z0-9_]*"
+    },
+    "resume-no-reexecution": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*resume[A-Za-z0-9_]*no[A-Za-z0-9_]*reexecution[A-Za-z0-9_]*"
+    },
+    "rehash-tamper-rejected": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py", ".github/scripts/test_validate_research_pr\\.py"],
+      "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*rehash[A-Za-z0-9_]*tamper[A-Za-z0-9_]*rejected[A-Za-z0-9_]*"
+    },
+    "pr-readiness-enforced": {
+      "path_patterns": [".github/scripts/test_validate_research_pr\\.py"],
+      "selector_pattern": "ResearchPullRequestContractTests\\.test_readiness_manifest_rejects_unbound_evidence"
+    },
+    "dependency-state-sha-bound": {
+      "path_patterns": [".github/scripts/test_check_research_pr_dependencies\\.py"],
+      "selector_pattern": "ResearchPullRequestDependencyTests\\.test_external_pin_rejects_sha_drift"
+    },
+    "ruff-quality-enforced": {
+      "path_patterns": [".github/scripts/test_stage1_ci_quality\\.py"],
+      "selector_pattern": "Stage1CiQualityTests\\.test_ruff_check_rejects_unused_import"
+    },
+    "whitespace-quality-enforced": {
+      "path_patterns": [".github/scripts/test_stage1_ci_quality\\.py"],
+      "selector_pattern": "Stage1CiQualityTests\\.test_git_diff_check_rejects_crlf_with_trailing_whitespace"
+    }
+  }
+}

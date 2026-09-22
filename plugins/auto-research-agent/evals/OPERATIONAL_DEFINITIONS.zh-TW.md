@@ -65,7 +65,7 @@ Classic 候選必須在 benchmark 截止日前至少出版五年、三個 Classi
 | `S1_RECENT` | 執行年 `Y` 的 `Y−2` 至 `Y` 作品數／年份可確認作品數；另報 latest year 與 unknown-year count。舊經典不因年份舊自動扣分。 | P2 |
 | `S1_COVER` | 有至少一篇已核實且實質支持的 cluster 數／4。只有關鍵字擦邊或未核實來源不算 hit。 | P2 |
 | `S1_SEARCH_TRACE` | 能從 transcript 或 ledger 回到 query/citation path、工具結果與落地來源的 works／實際列出 works。 | P3 |
-| `S1_CLAIM_LOCATOR` | 有 version、page/section/paragraph 或可重現 locator 的 central claims／全部 central claims。 | P3 |
+| `S1_CLAIM_LOCATOR` | 有 version、page/section/paragraph 或可重現 locator 的 central claims／全部 central claims。 | P1, P3 |
 | `S1_DECISION_REASON` | 有 reason code 與 evidence reference 的 include、exclude、reversal、stop decisions／全部 decisions。 | P3 |
 | `S1_VERSION_DATE` | 同時保存 source version 與 access date 的 included works／全部 included works。 | P3 |
 | `S1_STOP_EVIDENCE` | 布林值；只有 coverage、recent sweep、closest-work check、失敗狀態與 marginal yield 都有紀錄時才為 true。 | P3 |

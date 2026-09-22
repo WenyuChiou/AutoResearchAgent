@@ -2,12 +2,12 @@
 
 from datetime import datetime
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 
-from stage1_ledger.journal import LedgerError, canonical, decode, digest, contained
+from stage1_ledger.journal import LedgerError, canonical, decode, digest
 from .audit import require
 from .projection import project
 
@@ -45,6 +45,24 @@ def check_pin(pin):
     )
     require(
         pin["audit_schema_sha256"] == digest(path.read_bytes()), "runtime-schema-pin"
+    )
+
+
+def check_saved_relative_path(relative):
+    """Check receipt names without consulting the replay caller's filesystem."""
+    require(
+        isinstance(relative, str)
+        and relative
+        and not any(ord(character) < 32 for character in relative),
+        "unsafe-audit-path",
+    )
+    pieces = relative.split("/")
+    require(
+        "\\" not in relative
+        and ":" not in relative
+        and not PurePosixPath(relative).is_absolute()
+        and all(piece not in {"", ".", ".."} for piece in pieces),
+        "unsafe-audit-path",
     )
 
 
@@ -165,7 +183,7 @@ def validate_execution(manifest, attempt, completion, read_ref):
         require(
             ref["producer"] == attempt["event_id"], "audit-artifact-producer-mismatch"
         )
-        contained(Path.cwd(), name)  # Path syntax is checked even during saved replay.
+        check_saved_relative_path(name)
         files[name] = read_ref(ref)
     require(
         {name: digest(raw) for name, raw in files.items()} == process["audit_files"],

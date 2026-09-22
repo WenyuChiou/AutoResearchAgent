@@ -76,15 +76,18 @@ def project(saved, *, backend, process, operation="search", argv=None):
                 if e["outcome"] not in {"success", "success_empty"}
             ]
             if event["artifacts"]:
-                for index, value in enumerate(
-                    result_records(
-                        audit, event, single=operation in {"enrich", "verify"}
-                    )
-                ):
-                    if operation == "verify":
-                        if value.get("ok") is not True:
-                            failures.append("unknown")
-                        continue
+                values = result_records(
+                    audit, event, single=operation in {"enrich", "verify"}
+                )
+                if operation == "verify":
+                    if (
+                        event["outcome"] != "success"
+                        or len(values) != 1
+                        or values[0].get("ok") is not True
+                    ):
+                        failures.append("unknown")
+                    continue
+                for index, value in enumerate(values):
                     rows.append(record(value))
                     paths.append(
                         dict(

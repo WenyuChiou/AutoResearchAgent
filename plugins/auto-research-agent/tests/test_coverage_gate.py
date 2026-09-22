@@ -94,6 +94,29 @@ class CoverageGateTests(unittest.TestCase):
             "checkpoint-gate-mismatch", validate_run(self.ledger.root)["errors"]
         )
 
+    def test_all_stop_inputs_required_by_readiness_truth_table(self):
+        self.prepare_review()
+        self.finish_round(first=True)
+        self.finish_round()
+        self.finish_round()
+        sufficient = validate_run(self.ledger.root)
+        self.assertEqual(readiness(sufficient)[1], "stop-sufficient")
+
+        required_blockers = {
+            "coverage": "cluster-incomplete:cluster-1",
+            "recent sweep": "recent-sweep-incomplete",
+            "closest work": "closest-work-unverified",
+            "failure state": "latest-round-incomplete",
+            "marginal yield": "marginal-yield-not-saturated",
+        }
+        for stop_input, blocker in required_blockers.items():
+            with self.subTest(stop_input=stop_input):
+                incomplete = deepcopy(sufficient)
+                incomplete["coverage"]["blockers"] = [blocker]
+                gate, action = readiness(incomplete)
+                self.assertNotEqual(action, "stop-sufficient")
+                self.assertIn(blocker, gate["blocking_items"])
+
     def test_missing_closest_verification_and_human_acceptance_cannot_override(self):
         self.prepare_review(verified=False)
         self.finish_round(first=True)
