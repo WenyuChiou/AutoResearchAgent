@@ -14,7 +14,7 @@ EVAL_ROOT = PLUGIN_ROOT / "evals"
 sys.path.insert(0, str(PLUGIN_ROOT))
 # ruff: noqa: E402 -- load repository validators without installing them.
 
-from validators.stage1_evaluation_result import semantic_errors
+from validators.stage1_evaluation_result import semantic_errors  # noqa: E402
 
 
 def load(relative_path):
