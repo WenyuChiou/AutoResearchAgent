@@ -88,11 +88,15 @@ def synthetic_audit(root, backend, mode, argv):
         event(4, 2, "parse", "finished", "success")
     payload = rows[0] if rows else None
     if argv[0] == "verify":
-        payload = {
-            "ok": mode == "rows",
-            "source": "doi.org",
-            "reason": "synthetic resolver",
-        }
+        payload = (
+            None
+            if mode == "verify-null"
+            else {
+                "ok": mode == "rows",
+                "source": "doi.org",
+                "reason": "synthetic resolver",
+            }
+        )
     event(
         2,
         1,
@@ -244,6 +248,20 @@ class ProjectionTests(unittest.TestCase):
                 )
                 self.assertEqual(value["outcome"], "unknown_error")
 
+    def test_empty_verification_result_cannot_be_success_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "audit"
+            synthetic_audit(root, "doi.org", "verify-null", ["verify"])
+            value = project(
+                read_audit(root)["files"],
+                backend="doi.org",
+                process={"failure": None, "exit_code": 0},
+                operation="verify",
+                argv=["verify"],
+            )
+            self.assertEqual(value["outcome"], "unknown_error")
+            self.assertEqual(value["error"], "unknown")
+
 
 class ExecutionTests(unittest.TestCase):
     def setUp(self):
@@ -321,7 +339,7 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(report["counts"]["works"], 1)
         self.assertEqual(report["counts"]["backend_failures"], 1)
 
-    def test_capture_resume_does_not_execute_again_and_rejects_changed_bytes(self):
+    def test_resume_no_reexecution_and_rejects_changed_bytes(self):
         ledger = self.create()
         query = ledger.start("search", dict(query="synthetic query", limit=3))
         with patch(
@@ -357,6 +375,19 @@ class ExecutionTests(unittest.TestCase):
             resume(ledger.root, attempt["event_id"])
             with self.assertRaisesRegex(LedgerError, "attempt-not-open"):
                 resume(ledger.root, attempt["event_id"])
+
+    def test_saved_replay_does_not_inspect_caller_working_directory(self):
+        ledger = self.create()
+        query = ledger.start("search", dict(query="synthetic query", limit=3))
+        completion = ledger.event(
+            execute(ledger.root, query, "openalex"), "ActionFinished"
+        )
+        attempt = ledger.event(completion["attempt_id"], "ActionStarted")
+        with patch(
+            "stage1_retrieval.receipt.Path.cwd",
+            side_effect=AssertionError("saved replay must not inspect cwd"),
+        ):
+            validate_execution(ledger.manifest, attempt, completion, ledger.read_ref)
 
     def test_rehashed_forged_completion_is_rejected(self):
         ledger = self.create("limited")

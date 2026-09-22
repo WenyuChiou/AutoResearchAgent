@@ -43,7 +43,7 @@ class RuntimeIdentityTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertIn("runtime-code-changed", " ".join(report["errors"]))
 
-    def test_changed_script_is_rejected_before_launch_and_on_replay(self):
+    def test_runtime_bytes_bound_before_launch_and_on_replay(self):
         pin = runtime(self.root)
         ledger = self.ledger(pin)
         Path(pin["argv_prefix"][-1]).write_text(

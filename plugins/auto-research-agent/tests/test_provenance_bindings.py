@@ -32,7 +32,7 @@ class ProvenanceBindingTests(unittest.TestCase):
         self.assertTrue(report["valid"], report)
         self.assertEqual(report["counts"]["discoveries"], 2)
 
-    def test_borrowed_completion_is_rejected_on_write_and_replay(self):
+    def test_artifact_producer_bound_on_write_and_replay(self):
         ledger = self.ledger
         _, a = add_query(ledger, [SYNTHETIC])
         query = ledger.start("search", {"query": "synthetic b"})
@@ -102,7 +102,7 @@ class ProvenanceBindingTests(unittest.TestCase):
             verifier={"actor": "synthetic", "actor_type": "agent", "method": "read"},
         ), works
 
-    def test_cross_work_and_version_imports_fail_on_write_and_replay(self):
+    def test_evidence_work_version_bound_on_write_and_replay(self):
         claim, works = self.prepare_claim()
         wrong = [
             (works[1]["work_id"], works[1]["version_ids"][0]),

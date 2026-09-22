@@ -36,6 +36,7 @@ _NAMES = {
     "oauth",
     "oauth2",
     "jwt",
+    "netrc",
     "httpauth",
     "passphrase",
     "clientassertion",
@@ -71,6 +72,32 @@ _SUFFIXES = (
 )
 _ASSIGNMENT = re.compile(r"^\s*(?:--)?([^\s:=]+)\s*[:=]")
 _HEADER_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+# These fields carry public navigation or status values in the Stage 1
+# contracts. Keep the allowlist narrow: every other compound ending in
+# ``token`` or ``key`` is treated as credential-bearing.
+_PUBLIC_FIELD_NAMES = {
+    "authenticationstatus",
+    "authorizationstatus",
+    "maxtokens",
+    "pagetoken",
+    "publickey",
+    "sortkey",
+    "sortkeys",
+}
+_ARGV_HEADER_FLAGS = {"h", "header", "headers", "proxyheader"}
+_ARGV_PRIVATE_FLAGS = {
+    "b",
+    "c",
+    "cookie",
+    "cookiejar",
+    "n",
+    "netrc",
+    "netrcfile",
+    "oauth2bearer",
+    "proxyuser",
+    "u",
+    "user",
+}
 # These short words are public in compounds such as page_token or sort_key.
 # Known multiword names still match when followed by a carrier suffix.
 _PRIVATE_COMPONENTS = (_NAMES | set(_SUFFIXES)) - {"key", "token", "sig"}
@@ -95,10 +122,25 @@ def _name(name):
     return "".join(c for c in _normalized(name).casefold() if c.isalnum())
 
 
+def _words(name):
+    normalized = _normalized(name)
+    normalized = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", normalized)
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", normalized)
+    return re.findall(r"[^\W_]+", normalized.casefold())
+
+
 def _sensitive(name):
     for segment in _segments(name):
         normalized = _name(segment)
+        if normalized in _PUBLIC_FIELD_NAMES:
+            continue
         if normalized in _NAMES or normalized.endswith(_SUFFIXES):
+            return True
+        words = _words(segment)
+        if any(
+            word in {"key", "keys", "secret", "secrets", "token", "tokens"}
+            for word in words
+        ):
             return True
         parts = [part for part in re.split(r"[_-]+", segment) if part]
         for start in range(len(parts)):
@@ -112,6 +154,15 @@ def _sensitive(name):
     return False
 
 
+def _field_sensitive(name, path):
+    normalized = _name(name)
+    if normalized in _PUBLIC_FIELD_NAMES:
+        return False
+    if normalized in {"key", "keys"} and path and path[-1] == "sort":
+        return False
+    return _sensitive(name)
+
+
 def _label(value):
     # A header/argv item can include a value. Only its label is a field name.
     normalized = _normalized(value)
@@ -122,6 +173,45 @@ def _label(value):
 def _reject():
     # This error also reaches CLI output and validator reports. Never echo input.
     raise LedgerError("source-credentials-forbidden")
+
+
+def _check_argv(items):
+    for index, item in enumerate(items):
+        if not isinstance(item, str):
+            continue
+        normalized = _normalized(item).strip()
+        if not normalized.startswith("-"):
+            continue
+        single_dash = not normalized.startswith("--")
+        option = normalized.lstrip("-")
+        inline = None
+        if (
+            single_dash
+            and len(option) > 1
+            and option[0]
+            in {
+                "H",
+                "U",
+                "b",
+                "c",
+                "n",
+                "u",
+            }
+        ):
+            option, inline = option[0], option[1:]
+        elif "=" in option:
+            option, inline = option.split("=", 1)
+        option_name = _name(option)
+        if _sensitive(option):
+            _reject()
+        if option_name in _ARGV_PRIVATE_FLAGS:
+            _reject()
+        if option_name in _ARGV_HEADER_FLAGS:
+            supplied = inline
+            if supplied is None and index + 1 < len(items):
+                supplied = items[index + 1]
+            if isinstance(supplied, str) and _sensitive(_label(supplied)):
+                _reject()
 
 
 def _text(value):
@@ -182,7 +272,7 @@ def _arguments(value, path=(), fields=None):
         for field, item in _string_fields(value):
             fields.setdefault(field, []).append(item)
     if isinstance(value, dict):
-        if any(_sensitive(key) for key in value):
+        if any(_field_sensitive(key, path) for key in value):
             _reject()
         # Header collections also commonly use {name: ..., value: ...} entries.
         named = {_name(key): item for key, item in value.items()}
@@ -191,6 +281,8 @@ def _arguments(value, path=(), fields=None):
         for key, item in value.items():
             _arguments(item, path + tuple(_name(s) for s in _segments(key)), fields)
     elif isinstance(value, list):
+        if any(p in {"args", "arguments", "argv"} for p in path):
+            _check_argv(value)
         for index, item in enumerate(value):
             _arguments(item, path + (str(index),), fields)
     elif isinstance(value, str):
@@ -201,10 +293,17 @@ def _arguments(value, path=(), fields=None):
             or (path[-1].isdigit() and not _header_pair_value(path, fields))
         )
         argument_label = any(p in {"args", "arguments", "argv"} for p in path) and (
-            _normalized(value).startswith("--")
+            _normalized(value).startswith("-")
         )
-        if (header_label or argument_label) and _sensitive(_label(value)):
+        if header_label and _sensitive(_label(value)):
             _reject()
+        if argument_label:
+            argv = [value]
+            if path[-1].isdigit():
+                following = fields.get(path[:-1] + (str(int(path[-1]) + 1),), [])
+                if len(following) == 1:
+                    argv.extend(following)
+            _check_argv(argv)
         _text(value)
 
 

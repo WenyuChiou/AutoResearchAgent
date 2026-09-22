@@ -1,3 +1,23 @@
 codex-rs/app-server-protocol/schema/** linguist-generated
 codex-rs/hooks/schema/generated/** linguist-generated
 third_party/voice/sources.json text eol=lf
+# Keep the fork-only research harness checks byte-stable across platforms.
+.github/**/*.bazel text eol=lf
+.github/**/*.json text eol=lf
+.github/**/*.md text eol=lf
+.github/**/*.plist text eol=lf
+.github/**/*.ps1 text eol=lf
+.github/**/*.py text eol=lf
+.github/**/*.sh text eol=lf
+.github/**/*.toml text eol=lf
+.github/**/*.txt text eol=lf
+.github/**/*.yaml text eol=lf
+.github/**/*.yml text eol=lf
+AGENTS.md text eol=lf
+plugins/auto-research-agent/**/.gitignore text eol=lf
+plugins/auto-research-agent/**/*.in text eol=lf
+plugins/auto-research-agent/**/*.json text eol=lf
+plugins/auto-research-agent/**/*.jsonl text eol=lf
+plugins/auto-research-agent/**/*.md text eol=lf
+plugins/auto-research-agent/**/*.py text eol=lf
+plugins/auto-research-agent/**/*.txt text eol=lf

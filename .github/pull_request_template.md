@@ -19,6 +19,8 @@ technical terms where they first appear. -->
 - Chosen change:
 - Out of scope:
 - Related external PR(s): <!-- None, or external GitHub PR URLs separated by semicolons. Do not list this AutoResearchAgent PR. -->
+- Internal prerequisite PR(s): <!-- None, or stacked AutoResearchAgent PR URLs separated by semicolons. -->
+- External dependency pin(s): <!-- None, or PR_URL @ 40-character SHA @ open|merged. Use the open head SHA or immutable merge SHA. -->
 
 ## How
 
@@ -39,17 +41,24 @@ After:
 
 ## Evaluation
 
+- Evaluation readiness: <!-- exactly one: implementation-only / stage-executable / improvement-demonstrated -->
 - Baseline and treatment:
 - Rubric version: <!-- aging-bidirectional-rubric-v1 -->
 - Rubric criterion ID(s): <!-- Exact IDs such as P3.DECISION_TRACE, separated by commas. -->
+- Operational-definition mapping: <!-- One per criterion: P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE -> policy.evaluate; separate entries with semicolons. -->
+- Required invariant IDs: <!-- Comma-separated IDs derived by the PR validator. -->
+- Invariant test evidence: <!-- INVARIANT -> path.py::Class.test_method -> passed; separate entries with semicolons. -->
 - Evaluation mode: <!-- exactly one: deterministic / ai-judge / hybrid -->
 - Hard measures:
-- AI-judge evidence: <!-- Use artifact: PATH, deferred: REASON, or not-applicable: REASON. -->
+- AI-judge evidence: <!-- improvement-demonstrated uses artifact: manifest=PATH; sha256=64HEX; lower readiness may defer. -->
 - Major-error guardrail:
 - Per-PR metric evidence:
 - Improvement statement: <!-- Format: STATUS — what changed; evidence: measurement, passed/failed test, artifact, or explicit milestone deferral. STATUS is improved / not improved / not yet demonstrated. -->
+- Live smoke evidence: <!-- stage/improvement uses artifact: manifest=PATH; sha256=64HEX; implementation-only may defer. -->
+- Paired evaluation evidence: <!-- improvement uses the same bound manifest; lower readiness may defer. -->
+- Runtime integrity evidence: <!-- stage/improvement uses the same bound manifest; implementation-only may defer. -->
 - Time, tools, failures, and human-intervention guardrails:
-- Live paired A/B: <!-- required now / deferred to stage milestone, with reason -->
+- Live paired A/B: <!-- improvement uses the same bound manifest; otherwise give a concrete milestone deferral. -->
 
 ## Validation
 

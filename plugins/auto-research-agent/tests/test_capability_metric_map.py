@@ -52,6 +52,7 @@ class CapabilityMetricMapTests(unittest.TestCase):
             for path in (PLUGIN_ROOT / "skills").glob("*/SKILL.md")
         }
         expected.add(".github/scripts/validate_research_pr.py")
+        expected.add(".github/scripts/check_research_pr_dependencies.py")
         for directory in ("tools", "mcp", "cli", "validators", "gates"):
             root = PLUGIN_ROOT / directory
             if root.exists():
@@ -66,6 +67,8 @@ class CapabilityMetricMapTests(unittest.TestCase):
         for entry in self.registry["capabilities"]:
             with self.subTest(capability=entry["capability_id"]):
                 self.assertIn(entry["kind"], requirements["allowed_kinds"])
+                if entry["kind"] == "cli":
+                    self.assertIsInstance(entry.get("runtime_integrity_required"), bool)
                 self.assertIn(entry["status"], requirements["allowed_statuses"])
                 self.assertIn(
                     entry["metric_role"], requirements["allowed_metric_roles"]

@@ -15,6 +15,18 @@ class ScopeTests(unittest.TestCase):
     def test_plugin_changes_and_renames_preserve_engine_boundary(self):
         self.assertTrue(ci_scope.plugin_only(["plugins/auto-research-agent/skill.md"]))
         self.assertTrue(ci_scope.plugin_only([".github/workflows/stage1-plugin.yml"]))
+        self.assertTrue(
+            ci_scope.plugin_only(
+                [
+                    ".github/scripts/check_research_pr_dependencies.py",
+                    ".github/pull_request_template.md",
+                    ".github/scripts/fixtures/pr_bodies/implementation-only.md",
+                    ".github/scripts/fixtures/pr_evidence/live-run.json",
+                    ".github/scripts/invariant-registry.v1.json",
+                    ".github/scripts/criterion-submetric-map.v1.json",
+                ]
+            )
+        )
         for paths in [
             [],
             ["codex-rs/core/src/lib.rs"],

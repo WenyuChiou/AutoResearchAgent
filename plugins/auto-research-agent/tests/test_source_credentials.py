@@ -17,6 +17,7 @@ from stage1_export.bundle import export_run
 
 
 SECRET = "synthetic-credential-value"
+OPAQUE = "opaque-value-123"
 PUBLIC = "https://example.invalid/paper?q=households&year=2026#page=2"
 ERROR = "source-credentials-forbidden"
 FIELD_PATHS = (
@@ -46,6 +47,10 @@ FIELD_PATHS = (
     "request.headers.apiKeyHeader",
     "request%2Eparams%2Eaccess_token_header",
     "request.headers.accessTokenHeader",
+    "github_token",
+    "hf_token",
+    "sas_token",
+    "signing_key",
 )
 FIELD_REQUESTS = [{name: SECRET} for name in FIELD_PATHS] + [
     {"request.headers": [["Authorization", SECRET]]},
@@ -62,6 +67,39 @@ FIELD_REQUESTS = [{name: SECRET} for name in FIELD_PATHS] + [
     {"request": {"argv[0]": "--auth.jwt", "argv[1]": SECRET}},
     {"request%2Eheaders%5B0%5D": "Authorization", "request.headers[1]": SECRET},
     {"request.headers": ["Accept: text/plain", "Authorization: Bearer " + SECRET]},
+    {"reader.argv": ["--header=Authorization: Bearer " + SECRET]},
+    {"reader.argv": ["--user", "alice:" + SECRET]},
+    {"reader.argv": ["-H", "Authorization: Bearer " + SECRET]},
+    {"reader.argv": ["-u", "alice:" + SECRET]},
+    {
+        "reader.argv[0]": "--header",
+        "reader.argv[1]": "Authorization: Bearer " + SECRET,
+    },
+    {"token_value": OPAQUE},
+    {"token_file": OPAQUE},
+    {"github_token_path": OPAQUE},
+    {"reader.argv": ["--token-file", OPAQUE]},
+    {"reader.argv": ["--key-file", OPAQUE]},
+    {"reader.argv": ["--netrc-file", OPAQUE]},
+    {"reader.argv": ["-ualice:" + OPAQUE]},
+    {"reader.argv": ["-Uproxy:" + OPAQUE]},
+    {"reader.argv": ["-bsid=" + OPAQUE]},
+    {"reader.argv": ["-bcookies.txt"]},
+    {"reader.argv": ["-HAuthorization: Bearer " + OPAQUE]},
+    {"tokens": [OPAQUE]},
+    {"api_tokens": [OPAQUE]},
+    {"access_tokens": [OPAQUE]},
+    {"keys": [OPAQUE]},
+    {"secrets": [OPAQUE]},
+    {"reader.argv": ["--tokens-file", OPAQUE]},
+    {"reader.argv": ["--secrets-file", OPAQUE]},
+    {
+        "reader.argv": [
+            "--proxy-header=Proxy-Authorization: Basic " + OPAQUE,
+        ]
+    },
+    {"reader.argv": ["-n"]},
+    {"reader.argv": ["-ccookies.txt"]},
 ]
 
 
@@ -98,7 +136,9 @@ class SourceCredentialTests(unittest.TestCase):
             action()
         self.assertEqual(str(caught.exception), ERROR)
         self.assertEqual(self.snapshot(), before)
-        self.assertNotIn(SECRET.encode(), b"".join(before.values()))
+        snapshot = b"".join(before.values())
+        self.assertNotIn(SECRET.encode(), snapshot)
+        self.assertNotIn(OPAQUE.encode(), snapshot)
 
     def completion(self):
         attempt = self.ledger.start_source(**self.request)
@@ -149,6 +189,16 @@ class SourceCredentialTests(unittest.TestCase):
             "sort_key": "year",
             "request.params.sort_key": "year",
             "sortKey": "year",
+            "sort.keys": ["year", "title"],
+            "sort": {"key": "year", "keys": ["year", "title"]},
+            "authorization_status": "not-required",
+            "request.params.authorization_status": "not-required",
+            "public_key": "public-catalog-identifier",
+            "request.argv": [
+                "--header=User-Agent: token",
+                "--user-agent",
+                "synthetic-reader",
+            ],
             "options": [True, None, 2, {"page": 3}],
         }
         self.request["request"] = deepcopy(public)
@@ -265,6 +315,15 @@ class SourceCredentialTests(unittest.TestCase):
             "https://example.invalid/?" + quote(name, safe="") + "=" + SECRET
             for name in FIELD_PATHS
         ]
+        uris += [
+            "https://example.invalid/?token_value=" + OPAQUE,
+            "https://example.invalid/?token_file=" + OPAQUE,
+            "https://example.invalid/?github_token_path=" + OPAQUE,
+            "https://example.invalid/?tokens=" + OPAQUE,
+            "https://example.invalid/?api_tokens=" + OPAQUE,
+            "https://example.invalid/?keys=" + OPAQUE,
+            "https://example.invalid/?secrets=" + OPAQUE,
+        ]
         for index, uri in enumerate(uris):
             with self.subTest(case=index):
                 self.rejected(
@@ -367,6 +426,16 @@ class SourceCredentialTests(unittest.TestCase):
                 "source_uri",
                 "https://example.invalid/#access_token=" + SECRET,
             ),
+            (
+                "SourceReadFinished",
+                "resolved_uri",
+                "https://example.invalid/?token_value=" + OPAQUE,
+            ),
+            (
+                "SourceReadFinished",
+                "resolved_uri",
+                "https://example.invalid/?tokens=" + OPAQUE,
+            ),
         ]
         changes += [
             ("SourceReadStarted", "request", request) for request in FIELD_REQUESTS
@@ -384,6 +453,7 @@ class SourceCredentialTests(unittest.TestCase):
                 self.assertFalse(report["valid"])
                 self.assertIn(ERROR, " ".join(report["errors"]))
                 self.assertNotIn(SECRET, json.dumps(report))
+                self.assertNotIn(OPAQUE, json.dumps(report))
                 self.assertNotEqual(readiness(report)[1], "stop-sufficient")
                 with self.assertRaisesRegex(LedgerError, ERROR):
                     self.ledger.recover()

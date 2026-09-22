@@ -3,9 +3,23 @@
   "registry_version": "capability-metric-map-v1",
   "requirements": {
     "all_production_capabilities_registered": true,
-    "allowed_kinds": ["skill", "mcp-tool", "cli", "validator", "gate"],
-    "allowed_statuses": ["foundation", "experimental", "active", "deprecated"],
-    "allowed_metric_roles": ["enabler", "direct"],
+    "allowed_kinds": [
+      "skill",
+      "mcp-tool",
+      "cli",
+      "validator",
+      "gate"
+    ],
+    "allowed_statuses": [
+      "foundation",
+      "experimental",
+      "active",
+      "deprecated"
+    ],
+    "allowed_metric_roles": [
+      "enabler",
+      "direct"
+    ],
     "allowed_directions": [
       "improve",
       "non-decrease",
@@ -98,16 +112,21 @@
       "metric_role": "enabler",
       "owner_path": ".github/scripts/validate_research_pr.py",
       "problem": "A contributor can otherwise add a plausible research capability without linking the observed failure, target metric, deterministic evidence, and live A/B decision.",
-      "mechanism": "Reject pull-request descriptions with unknown capability IDs, metric or rubric targets that disagree with the registries, missing evaluation evidence or guardrails, unreported external pull requests, an absent evidence-qualified improvement statement, an incorrect merge owner, or a missing skill test mini-report when a skill changes.",
+      "mechanism": "Reject pull-request descriptions with unknown capabilities, invalid exact criterion-to-submetric mappings, missing production symbols, unrelated or failing invariant selectors, unsupported readiness claims, unverified artifact bytes, incomplete evidence bindings, or missing execution and ownership reports.",
       "metric_effects": [
         {
           "metric_id": "P3",
-          "rubric_criteria": ["P3.DECISION_TRACE"],
+          "rubric_criteria": [
+            "P3.DECISION_TRACE"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "every pull request names a registered capability ID",
             "declared pull-request metrics overlap the capability registry",
             "declared rubric criteria exist and belong to declared metrics",
+            "every criterion uses its frozen allowed submetric and an existing production field or function",
+            "criterion-derived invariant IDs use registered non-skipped selectors that CI executes successfully",
+            "stage and improvement manifests and every listed artifact pass SHA-256 verification",
             "per-pull-request metric evidence and the live A/B decision are recorded",
             "related cross-repository pull requests are linked or explicitly recorded as absent",
             "each pull request states whether improvement is demonstrated and names the current evidence",
@@ -126,6 +145,44 @@
       ],
       "test_refs": [
         ".github/scripts/test_validate_research_pr.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "not-applicable-governance-enabler",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:research-pr-dependency-contract",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": ".github/scripts/check_research_pr_dependencies.py",
+      "problem": "A PR description can claim that a stacked or external dependency is ready even when it is open, has unresolved requested changes before merge, or no longer matches the recorded SHA.",
+      "mechanism": "Resolve every declared prerequisite and external dependency through GitHub, reject cross-repository PRs in the internal field, allow open prerequisites only for Draft PRs, require ready or executable dependencies to be merged, and bind external dependencies to an immutable merge SHA.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.DECISION_TRACE",
+            "P3.VERSION_DATE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "internal prerequisites belong to WenyuChiou/AutoResearchAgent",
+            "ready stacked PR prerequisites are merged; historical review state cannot reopen a merged dependency",
+            "open dependency pins match the current 40-character head SHA",
+            "merged dependency pins match the immutable 40-character merge SHA",
+            "stage-executable and improvement-demonstrated claims use merged dependencies"
+          ],
+          "human_judgment": "The core team decides whether the dependency is scientifically appropriate; CI verifies merge state and immutable identity."
+        }
+      ],
+      "guardrails": [
+        "network or GitHub CLI failure fails closed",
+        "dependency state does not prove scientific validity",
+        "contributors still report every cross-repository PR to the core team"
+      ],
+      "test_refs": [
+        ".github/scripts/test_check_research_pr_dependencies.py",
         "plugins/auto-research-agent/tests/test_capability_metric_map.py"
       ],
       "live_ab_required_at": "not-applicable-governance-enabler",
@@ -199,20 +256,195 @@
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
     },
-    {"capability_id": "validator:rubric-judge-result", "kind": "validator", "status": "active", "metric_role": "enabler", "owner_path": "plugins/auto-research-agent/validators/rubric_judge_result.py",
-          "problem": "A schema-valid judge response can still mix metrics and units, omit frozen criteria, hide major errors, override hard facts, or omit a required human-audit declaration.", "mechanism": "Validate stage completeness, metric-specific units and criteria, hard-fact precedence, stable major errors, P1 aggregation, Stage 2 direction identity, blinding, adjudicator inputs, and single-result audit-trigger declarations.", "metric_effects": [
-            {"metric_id": "P1", "rubric_criteria": ["P1.IDENTITY", "P1.IDENTIFIER", "P1.CLAIM_SUPPORT", "P1.LOCATOR", "P1.EVIDENCE_LEVEL", "P1.CENTRAL_MISMATCH"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P2", "rubric_criteria": ["P2.CLUSTERS", "P2.CORE", "P2.MUST_HAVE", "P2.RECENT", "P2.CLOSEST_WORK", "P2.SUBSTITUTE"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P3", "rubric_criteria": ["P3.SEARCH_TRACE", "P3.DECISION_TRACE", "P3.VERSION_DATE", "P3.CLAIM_TRACE", "P3.FAILURE_STATE", "P3.STOP_EVIDENCE"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P4", "rubric_criteria": ["P4.SHARED_DIMENSIONS", "P4.EVIDENCE_LINKS", "P4.AGREEMENT_CONFLICT", "P4.CONDITION_EFFECT"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P5", "rubric_criteria": ["P5.CLOSEST_WORK", "P5.KNOWN_VS_MISSING", "P5.BOUNDARY", "P5.INCREMENT", "P5.FALSIFIER", "P5.TRACE"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P6", "rubric_criteria": ["P6.SCIENTIFIC_VALUE", "P6.INCREMENT", "P6.DATA", "P6.VALIDATION", "P6.FEASIBILITY", "P6.RISK_FALLBACK", "P6.SELECTION"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P7", "rubric_criteria": ["P7.QUESTION_MODE", "P7.ESTIMAND_OR_EXPLORATION_TARGET", "P7.DEMOGRAPHIC_TO_AGENT", "P7.FEEDBACK_LOOP", "P7.LLM_ROLE", "P7.TEMPORAL_UPDATE", "P7.AGGREGATION", "P7.CLAIM_SCOPE"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P8", "rubric_criteria": ["P8.POPULATION_VALIDATION", "P8.DECISION_VALIDATION", "P8.FEEDBACK_VALIDATION", "P8.OUTCOME_VALIDATION", "P8.CALIBRATION_HOLDOUT", "P8.NON_LLM_BASELINE", "P8.LLM_ABLATION"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."},
-            {"metric_id": "P9", "rubric_criteria": ["P9.DATA_ACCESS", "P9.MVP", "P9.SCHEDULE", "P9.COMPUTE_CALLS_COST", "P9.DECISION_GATES", "P9.RISKS", "P9.FALLBACKS"], "expected_direction": "establish-measurement", "hard_measures": ["schema-valid structured result", "all frozen criteria represented exactly once per evaluation unit", "cross-field score and audit invariants pass"], "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."}
+    {
+      "capability_id": "validator:rubric-judge-result",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/validators/rubric_judge_result.py",
+      "problem": "A schema-valid judge response can still mix metrics and units, omit frozen criteria, hide major errors, override hard facts, or omit a required human-audit declaration.",
+      "mechanism": "Validate stage completeness, metric-specific units and criteria, hard-fact precedence, stable major errors, P1 aggregation, Stage 2 direction identity, blinding, adjudicator inputs, and single-result audit-trigger declarations.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": [
+            "P1.IDENTITY",
+            "P1.IDENTIFIER",
+            "P1.CLAIM_SUPPORT",
+            "P1.LOCATOR",
+            "P1.EVIDENCE_LEVEL",
+            "P1.CENTRAL_MISMATCH"
           ],
-          "guardrails": ["hard facts override semantic scores", "major errors and inaccessible evidence cannot receive score 2", "validator success is not a scientific-quality claim", "private benchmark answers are not read", "subject-artifact existence and hash require deterministic attestation by the calling runner"], "test_refs": ["plugins/auto-research-agent/tests/test_rubric_judge_result.py", "plugins/auto-research-agent/tests/test_capability_metric_map.py"], "live_ab_required_at": "stage-executable-milestone", "quality_improvement_claimed": false
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
         },
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.CLUSTERS",
+            "P2.CORE",
+            "P2.MUST_HAVE",
+            "P2.RECENT",
+            "P2.CLOSEST_WORK",
+            "P2.SUBSTITUTE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.SEARCH_TRACE",
+            "P3.DECISION_TRACE",
+            "P3.VERSION_DATE",
+            "P3.CLAIM_TRACE",
+            "P3.FAILURE_STATE",
+            "P3.STOP_EVIDENCE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        },
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4.SHARED_DIMENSIONS",
+            "P4.EVIDENCE_LINKS",
+            "P4.AGREEMENT_CONFLICT",
+            "P4.CONDITION_EFFECT"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5.CLOSEST_WORK",
+            "P5.KNOWN_VS_MISSING",
+            "P5.BOUNDARY",
+            "P5.INCREMENT",
+            "P5.FALSIFIER",
+            "P5.TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6.SCIENTIFIC_VALUE",
+            "P6.INCREMENT",
+            "P6.DATA",
+            "P6.VALIDATION",
+            "P6.FEASIBILITY",
+            "P6.RISK_FALLBACK",
+            "P6.SELECTION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        },
+        {
+          "metric_id": "P7",
+          "rubric_criteria": [
+            "P7.QUESTION_MODE",
+            "P7.ESTIMAND_OR_EXPLORATION_TARGET",
+            "P7.DEMOGRAPHIC_TO_AGENT",
+            "P7.FEEDBACK_LOOP",
+            "P7.LLM_ROLE",
+            "P7.TEMPORAL_UPDATE",
+            "P7.AGGREGATION",
+            "P7.CLAIM_SCOPE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        },
+        {
+          "metric_id": "P8",
+          "rubric_criteria": [
+            "P8.POPULATION_VALIDATION",
+            "P8.DECISION_VALIDATION",
+            "P8.FEEDBACK_VALIDATION",
+            "P8.OUTCOME_VALIDATION",
+            "P8.CALIBRATION_HOLDOUT",
+            "P8.NON_LLM_BASELINE",
+            "P8.LLM_ABLATION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        },
+        {
+          "metric_id": "P9",
+          "rubric_criteria": [
+            "P9.DATA_ACCESS",
+            "P9.MVP",
+            "P9.SCHEDULE",
+            "P9.COMPUTE_CALLS_COST",
+            "P9.DECISION_GATES",
+            "P9.RISKS",
+            "P9.FALLBACKS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "schema-valid structured result",
+            "all frozen criteria represented exactly once per evaluation unit",
+            "cross-field score and audit invariants pass"
+          ],
+          "human_judgment": "The validator checks result integrity; a blinded judge supplies the semantic outcome and a targeted human audits declared triggers."
+        }
+      ],
+      "guardrails": [
+        "hard facts override semantic scores",
+        "major errors and inaccessible evidence cannot receive score 2",
+        "validator success is not a scientific-quality claim",
+        "private benchmark answers are not read",
+        "subject-artifact existence and hash require deterministic attestation by the calling runner"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_rubric_judge_result.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage-executable-milestone",
+      "quality_improvement_claimed": false
+    },
     {
       "capability_id": "validator:holdout-manifest",
       "kind": "validator",
@@ -222,11 +454,47 @@
       "problem": "A private holdout can become an undocumented title list, be changed after treatment results are seen, or be curated by one agent without independent human decisions.",
       "mechanism": "Validate the six frozen clusters and curation roles, independent ratings, final inclusion decisions, classic and must-have rules, human approval records, normalized private-artifact declarations, and a canonical manifest hash.",
       "metric_effects": [
-        {"metric_id": "P2", "rubric_criteria": ["P2.CLUSTERS", "P2.CORE", "P2.MUST_HAVE", "P2.SUBSTITUTE"], "expected_direction": "establish-measurement", "hard_measures": ["all six clusters and roles are covered", "classic and must-have eligibility rules pass", "the manifest has a canonical SHA-256"], "human_judgment": "Two human raters decide directness and inclusion; a separate human adjudicator resolves disagreement and the core team freezes the bundle."},
-        {"metric_id": "P3", "rubric_criteria": ["P3.DECISION_TRACE", "P3.VERSION_DATE"], "expected_direction": "establish-measurement", "hard_measures": ["every anchor retains two ratings and evidence IDs", "frozen manifests record approvals and time", "answer-key and approval artifacts are declared under normalized private paths"], "human_judgment": "The core team checks that the preserved curation record is sufficient to challenge each anchor decision."}
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.CLUSTERS",
+            "P2.CORE",
+            "P2.MUST_HAVE",
+            "P2.SUBSTITUTE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "all six clusters and roles are covered",
+            "classic and must-have eligibility rules pass",
+            "the manifest has a canonical SHA-256"
+          ],
+          "human_judgment": "Two human raters decide directness and inclusion; a separate human adjudicator resolves disagreement and the core team freezes the bundle."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.DECISION_TRACE",
+            "P3.VERSION_DATE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "every anchor retains two ratings and evidence IDs",
+            "frozen manifests record approvals and time",
+            "answer-key and approval artifacts are declared under normalized private paths"
+          ],
+          "human_judgment": "The core team checks that the preserved curation record is sufficient to challenge each anchor decision."
+        }
       ],
-      "guardrails": ["real holdout contents stay under a separately controlled private path", "this validator does not prove process isolation or artifact bytes; the evaluation runner must attest both", "a passing contract does not prove human identity or scientific correctness", "changing a frozen manifest requires a new ID and hash"],
-      "test_refs": ["plugins/auto-research-agent/tests/test_holdout_manifest.py", "plugins/auto-research-agent/tests/test_capability_metric_map.py"],
+      "guardrails": [
+        "real holdout contents stay under a separately controlled private path",
+        "this validator does not prove process isolation or artifact bytes; the evaluation runner must attest both",
+        "a passing contract does not prove human identity or scientific correctness",
+        "changing a frozen manifest requires a new ID and hash"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_holdout_manifest.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
       "live_ab_required_at": "stage-executable-milestone",
       "quality_improvement_claimed": false
     },
@@ -239,14 +507,36 @@
       "problem": "Baseline and treatment can otherwise use different prompts, runtimes, judges, answer versions, run order, or success rules, making an apparent improvement impossible to interpret.",
       "mechanism": "Freeze and validate the case, stage metrics, rubric and holdout hashes, prompt, builds, runtime, blinded judges, three alternating pairs, audit triggers, and conservative decision rule before execution.",
       "metric_effects": [
-        {"metric_id": "P3", "rubric_criteria": ["P3.DECISION_TRACE", "P3.VERSION_DATE", "P3.FAILURE_STATE"], "expected_direction": "establish-measurement", "hard_measures": ["stage metrics and target metrics are fixed and capability-aligned", "rubric, catalog, capability registry, holdout, prompt, core revision, and extension diff are hash-bound", "subject runtime, three run pairs, judge configs, audit triggers, and per-target decision constants are frozen"], "human_judgment": "The core team chooses the scientific case, target metrics, real holdout, verifies external human identities and approval artifacts, and decides whether a completed audit supports an external claim."}
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.DECISION_TRACE",
+            "P3.VERSION_DATE",
+            "P3.FAILURE_STATE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "stage metrics and target metrics are fixed and capability-aligned",
+            "rubric, catalog, capability registry, holdout, prompt, core revision, and extension diff are hash-bound",
+            "subject runtime, three run pairs, judge configs, audit triggers, and per-target decision constants are frozen"
+          ],
+          "human_judgment": "The core team chooses the scientific case, target metrics, real holdout, verifies external human identities and approval artifacts, and decides whether a completed audit supports an external claim."
+        }
       ],
-      "guardrails": ["a valid plan is not a completed evaluation", "synthetic plans cannot support scientific claims", "the runner must attest prompt and answer bytes, opaque judge packets, approval identities, reviewed diff bytes, and process isolation", "P1-P9 remain separate without a composite total"],
-      "test_refs": ["plugins/auto-research-agent/tests/test_evaluation_plan.py", "plugins/auto-research-agent/tests/test_capability_metric_map.py"],
+      "guardrails": [
+        "a valid plan is not a completed evaluation",
+        "synthetic plans cannot support scientific claims",
+        "the runner must attest prompt and answer bytes, opaque judge packets, approval identities, reviewed diff bytes, and process isolation",
+        "P1-P9 remain separate without a composite total"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_evaluation_plan.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
       "live_ab_required_at": "stage-executable-milestone",
       "quality_improvement_claimed": false
     },
-{
+    {
       "capability_id": "validator:judge-bundle",
       "kind": "validator",
       "status": "active",
@@ -285,10 +575,152 @@
       "live_ab_required_at": "stage-executable-milestone",
       "quality_improvement_claimed": false
     },
-    {"capability_id":"validator:paired-evaluation","kind":"validator","status":"active","metric_role":"enabler","owner_path":"plugins/auto-research-agent/validators/paired_evaluation.py","problem":"Even valid individual judge bundles can be cherry-picked, paired against the wrong run, averaged into a misleading total, or called improved despite regression, added major errors, missing audits, or hidden costs.","mechanism":"Load exactly six frozen bundles, verify hash-bound run condition/build/runtime/process attestations, compare each metric within three planned pairs, conservatively preserve P5 and P6 distributions, enforce close-pair audits and the preregistered rule, bind output to the request hash, and report costs separately.","metric_effects":[{"metric_id":"P1","rubric_criteria":["P1.IDENTITY"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P2","rubric_criteria":["P2.CORE"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P3","rubric_criteria":["P3.DECISION_TRACE"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P4","rubric_criteria":["P4.SHARED_DIMENSIONS"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P5","rubric_criteria":["P5.CLOSEST_WORK"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P6","rubric_criteria":["P6.SELECTION"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P7","rubric_criteria":["P7.FEEDBACK_LOOP"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P8","rubric_criteria":["P8.CALIBRATION_HOLDOUT"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."},{"metric_id":"P9","rubric_criteria":["P9.DECISION_GATES"],"expected_direction":"establish-measurement","hard_measures":["three frozen baseline-treatment pairs are compared without a composite score","close ordinal differences require a verified pair audit","quality and run costs remain separate"],"human_judgment":"A named human audits close comparisons; the core team interprets scientific meaning and any external claim."}],"guardrails":["P1-P9 remain separate","no statistical-significance claim","external_claim_ready is always false","missing or rejected pair audit yields inconclusive","added treatment major errors prevent improvement","output is hash-bound to the exact request and six bundles"],"test_refs":["plugins/auto-research-agent/tests/test_paired_evaluation.py","plugins/auto-research-agent/tests/test_capability_metric_map.py"],"live_ab_required_at":"stage-executable-milestone","quality_improvement_claimed":false},
+    {
+      "capability_id": "validator:paired-evaluation",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/validators/paired_evaluation.py",
+      "problem": "Even valid individual judge bundles can be cherry-picked, paired against the wrong run, averaged into a misleading total, or called improved despite regression, added major errors, missing audits, or hidden costs.",
+      "mechanism": "Load exactly six frozen bundles, verify hash-bound run condition/build/runtime/process attestations, compare each metric within three planned pairs, conservatively preserve P5 and P6 distributions, enforce close-pair audits and the preregistered rule, bind output to the request hash, and report costs separately.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": [
+            "P1.IDENTITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.CORE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.DECISION_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4.SHARED_DIMENSIONS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5.CLOSEST_WORK"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6.SELECTION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P7",
+          "rubric_criteria": [
+            "P7.FEEDBACK_LOOP"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P8",
+          "rubric_criteria": [
+            "P8.CALIBRATION_HOLDOUT"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        },
+        {
+          "metric_id": "P9",
+          "rubric_criteria": [
+            "P9.DECISION_GATES"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "three frozen baseline-treatment pairs are compared without a composite score",
+            "close ordinal differences require a verified pair audit",
+            "quality and run costs remain separate"
+          ],
+          "human_judgment": "A named human audits close comparisons; the core team interprets scientific meaning and any external claim."
+        }
+      ],
+      "guardrails": [
+        "P1-P9 remain separate",
+        "no statistical-significance claim",
+        "external_claim_ready is always false",
+        "missing or rejected pair audit yields inconclusive",
+        "added treatment major errors prevent improvement",
+        "output is hash-bound to the exact request and six bundles"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_paired_evaluation.py",
+        "plugins/auto-research-agent/tests/test_capability_metric_map.py"
+      ],
+      "live_ab_required_at": "stage-executable-milestone",
+      "quality_improvement_claimed": false
+    },
     {
       "capability_id": "cli:stage1-ledger",
       "kind": "cli",
+      "runtime_integrity_required": false,
       "status": "experimental",
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
@@ -575,7 +1007,8 @@
         "plugins/auto-research-agent/tests/test_retrieval_execution.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
-      "quality_improvement_claimed": false
+      "quality_improvement_claimed": false,
+      "runtime_integrity_required": false
     },
     {
       "capability_id": "cli:stage1-export",
@@ -657,7 +1090,8 @@
         "plugins/auto-research-agent/tests/test_retrieval_execution.py"
       ],
       "live_ab_required_at": "stage1-executable-milestone",
-      "quality_improvement_claimed": false
+      "quality_improvement_claimed": false,
+      "runtime_integrity_required": false
     },
     {
       "capability_id": "cli:stage1-retrieval",
