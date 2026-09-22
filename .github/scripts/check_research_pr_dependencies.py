@@ -81,7 +81,7 @@ def validate_dependencies(body, is_draft, resolver, current_repository=None):
         review_decision = (state.get("reviewDecision") or "").upper()
         if not is_draft and not merged:
             errors.append(f"ready PR requires merged internal prerequisite: {url}")
-        if not is_draft and review_decision == "CHANGES_REQUESTED":
+        if not is_draft and not merged and review_decision == "CHANGES_REQUESTED":
             errors.append(f"ready PR prerequisite has changes requested: {url}")
 
     external = _entries(label_value(what, "External dependency pin(s)"))
@@ -122,14 +122,8 @@ def validate_dependencies(body, is_draft, resolver, current_repository=None):
                 f"ready or executable PR requires merged external dependency: {url}"
             )
         if (
-            readiness in {"stage-executable", "improvement-demonstrated"}
-            and (state.get("reviewDecision") or "").upper() != "APPROVED"
-        ):
-            errors.append(
-                f"executable readiness requires an approved external dependency: {url}"
-            )
-        if (
             not is_draft
+            and not merged
             and (state.get("reviewDecision") or "").upper() == "CHANGES_REQUESTED"
         ):
             errors.append(f"ready PR external dependency has changes requested: {url}")

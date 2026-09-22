@@ -153,8 +153,8 @@
       "status": "active",
       "metric_role": "enabler",
       "owner_path": ".github/scripts/check_research_pr_dependencies.py",
-      "problem": "A PR description can claim that a stacked or external dependency is ready even when it is open, has changes requested, or no longer matches the recorded SHA.",
-      "mechanism": "Resolve every declared prerequisite and external dependency through GitHub, reject cross-repository PRs in the internal field, allow open prerequisites only for Draft PRs, and require executable readiness to use an approved immutable merge SHA.",
+      "problem": "A PR description can claim that a stacked or external dependency is ready even when it is open, has unresolved requested changes before merge, or no longer matches the recorded SHA.",
+      "mechanism": "Resolve every declared prerequisite and external dependency through GitHub, reject cross-repository PRs in the internal field, allow open prerequisites only for Draft PRs, require ready or executable dependencies to be merged, and bind external dependencies to an immutable merge SHA.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -165,12 +165,12 @@
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "internal prerequisites belong to WenyuChiou/AutoResearchAgent",
-            "ready stacked PR prerequisites are merged and do not have changes requested",
+            "ready stacked PR prerequisites are merged; historical review state cannot reopen a merged dependency",
             "open dependency pins match the current 40-character head SHA",
             "merged dependency pins match the immutable 40-character merge SHA",
             "stage-executable and improvement-demonstrated claims use merged dependencies"
           ],
-          "human_judgment": "The core team decides whether the dependency is scientifically appropriate; CI verifies its review state and immutable identity."
+          "human_judgment": "The core team decides whether the dependency is scientifically appropriate; CI verifies merge state and immutable identity."
         }
       ],
       "guardrails": [
