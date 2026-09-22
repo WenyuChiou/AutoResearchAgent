@@ -13,7 +13,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 EVAL_ROOT = PLUGIN_ROOT / "evals"
 sys.path.insert(0, str(PLUGIN_ROOT))
 
-from validators.stage1_evaluation_result import semantic_errors
+from validators.stage1_evaluation_result import semantic_errors  # noqa: E402
 
 
 def load(relative_path):

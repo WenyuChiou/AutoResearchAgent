@@ -106,9 +106,26 @@ Confirmatory study 可以評 hypothesis；exploratory study 要評搜尋空間�
 
 ## 開發節奏與責任
 
-每個 PR 跑 deterministic tests，填 capability、rubric criteria、evaluation evidence、
-known limitations 與 improvement statement。工具通過測試時可寫
-not yet demonstrated；只有 stage milestone 的 paired pipeline 通過才可寫 improved。
+每個 PR 跑 deterministic tests，填 capability、rubric criteria、operational mapping、
+required invariants、evaluation evidence、known limitations 與 improvement statement。
+三種 readiness 是三個不同問題，不能互相取代：
+
+| Readiness | 真正回答的問題 | 最低證據 | 可以宣稱什麼 |
+|---|---|---|---|
+| `implementation-only` | 這個工具遇到指定輸入時，行為正確嗎？ | deterministic/synthetic tests、每個 invariant 的真實 test selector | 行為已實作；尚未證明品質改善 |
+| `stage-executable` | production Stage 能否真的跑完並被重建？ | live run、validator report、runtime/dependency hashes、resume evidence | Stage 可執行；尚未證明優於 baseline |
+| `improvement-demonstrated` | treatment 是否真的比 baseline 好？ | frozen plan/holdout、三組 paired runs、R1/R2、必要 ADJ/audit、paired decision | 依 frozen rule 寫 improved 或 not improved |
+
+工具通過測試時可寫 `not yet demonstrated`；只有 stage milestone 的 paired pipeline
+通過才可寫 `improved`。CI 會核對 criterion 是否連到 frozen submetric 與 production
+field/function，並由 criterion 自動推導不能缺少的 invariant。寫在 PR 裡但不存在的 test
+path、test selector、placeholder 結果、open dependency 或錯誤 SHA 都會失敗。CI 依
+`criterion-submetric-map.v1.json` 拒絕看似同指標但答非所問的 mapping，依
+`invariant-registry.v1.json` 執行每個 invariant 的 exact test selector。Stage 以上的
+readiness 使用同一份 hash-bound manifest；CI 會重算 manifest 與其中每個 artifact 的
+SHA-256，`contract-fixture` 不能支撐真實 readiness claim。Level 3 還會重新執行既有
+plan、judge-bundle 與 paired-evaluation validators，從六個 bundles 推導三組比較並
+要求提交的 paired decision 與重算結果完全相同。
 每個 stage milestone 跑三對正式 A/B；對外 generalization 前再跑一個 rubric 凍結後才
 揭露的 blind case。
 
