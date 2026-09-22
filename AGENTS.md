@@ -3,6 +3,13 @@
 When work touches `plugins/auto-research-agent/`,
 `.github/scripts/validate_research_pr.py`,
 `.github/scripts/test_validate_research_pr.py`,
+`.github/scripts/check_research_pr_dependencies.py`,
+`.github/scripts/test_check_research_pr_dependencies.py`,
+`.github/scripts/test_stage1_ci_quality.py`,
+`.github/scripts/criterion-submetric-map.v1.json`,
+`.github/scripts/invariant-registry.v1.json`,
+`.github/scripts/fixtures/pr_bodies/`,
+`.github/scripts/fixtures/pr_evidence/`,
 `.github/workflows/stage1-plugin.yml`, or
 `.github/pull_request_template.md`, read and follow
 `plugins/auto-research-agent/AGENTS.md` before planning or editing. That nested
