@@ -45,9 +45,14 @@ plan goes to a new directory; do not overwrite an accepted plan or silently
 change its as-of date. Later run integration must record which plan hash applies
 to each attempt and require review when the obligations change.
 
-The executable synthetic test compiles four clusters into twelve unexecuted
-queries, checks the recent window, rejects missing concepts and weak stop
-obligations, and detects a changed query plan. Reproduce it with:
+The executable synthetic tests compile both four and six clusters into
+unexecuted queries, check the recent window, reject missing concepts and weak
+stop obligations, and detect a changed query plan. The four-cluster fixture
+tests the generic compiler; it does not prescribe coverage for every research
+case. A run using `aging-bidirectional-rubric-v1` must use the six roles in its
+[Stage 1 rubric](../evals/rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md).
+Older four-cluster baseline results keep their original scoring contract.
+Reproduce the compiler tests with:
 
 ```shell
 python -m unittest discover -s plugins/auto-research-agent/tests -p test_stage1_coverage.py -v

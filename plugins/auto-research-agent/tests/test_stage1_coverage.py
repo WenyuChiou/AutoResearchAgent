@@ -61,6 +61,48 @@ def proposal():
 
 
 class CoveragePlanTests(unittest.TestCase):
+    def test_six_cluster_case_keeps_each_planned_query_family_separate(self):
+        value = proposal()
+        for index in (5, 6):
+            cluster = deepcopy(value["clusters"][0])
+            cluster.update(
+                cluster_id=f"cluster-{index}",
+                label=f"Synthetic cluster {index}",
+                question=f"Synthetic subquestion {index}",
+            )
+            cluster["query_families"][0].update(
+                family_id=f"family-{index}",
+                adversarial_queries=[f"synthetic contrary evidence {index}"],
+            )
+            value["clusters"].append(cluster)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "plan"
+            result = compile_plan(value, root, as_of="2026-09-20", actor="synthetic")
+            queries = [
+                json.loads(line)
+                for line in (root / "query_plan.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            self.assertEqual(
+                result["counts"], {"clusters": 6, "families": 6, "planned_queries": 18}
+            )
+            self.assertEqual(
+                {
+                    cluster: {
+                        query["purpose"]
+                        for query in queries
+                        if query["cluster_id"] == cluster
+                    }
+                    for cluster in {query["cluster_id"] for query in queries}
+                },
+                {
+                    f"cluster-{index}": {"topical", "adversarial", "recent"}
+                    for index in range(1, 7)
+                },
+            )
+            self.assertTrue(validate_bundle(root)["valid"])
+
     def test_compile_four_clusters_recent_and_adversarial_with_full_provenance(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "plan"

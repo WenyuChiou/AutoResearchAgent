@@ -14,6 +14,15 @@ For question decomposition, first read the
 question-specific Proposal and compile it with `stage1_coverage`. Freeze its
 as-of date, clusters, query families, synonyms and screening criteria. Treat all
 compiled queries as planned until actual execution receipts exist.
+If the case uses `aging-bidirectional-rubric-v1`, first read its
+[six-cluster Stage 1 rubric](../../evals/rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md)
+and [criterion catalog](../../evals/rubrics/aging-bidirectional-criteria.v1.jsonl).
+Map every one of its six roles to an explicit
+coverage obligation before compiling the Proposal; a method-only comparator
+does not fill a missing topical or feedback role. Keep the older four-cluster
+Stage 1 v1 baseline under its original rules rather than rescoring it with
+this rubric. Private core and must-have anchors stay outside production plans
+and queries.
 When creating or reviewing records, read the
 [shared stage contracts](../../references/stage-contracts.md).
 
