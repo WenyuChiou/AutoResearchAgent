@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from urllib.parse import quote
 
 from test_stage1_ledger import Ledger, SYNTHETIC, add_query, rewrite_for_tamper_test
 from stage1_ledger.journal import LedgerError, canonical
@@ -18,6 +19,50 @@ from stage1_export.bundle import export_run
 SECRET = "synthetic-credential-value"
 PUBLIC = "https://example.invalid/paper?q=households&year=2026#page=2"
 ERROR = "source-credentials-forbidden"
+FIELD_PATHS = (
+    "headers[Authorization]",
+    "request.headers.Authorization",
+    "cookie_header",
+    "auth.jwt",
+    "X-Auth",
+    "headers%5BAuthorization%5D",
+    "request%2Eheaders%2EAuthorization",
+    "request\uff0eheaders\uff0e\uff21uthorization",
+    "request/headers/Authorization",
+    "request\\headers\\Authorization",
+    "request[headers][0][Authorization]",
+    "cookie-header",
+    "X_Auth",
+    "params[auth][jwt]",
+    "request.headers.%EF%BC%A1uthorization",
+    "request.headers.X-Auth",
+    "request.cookies.session",
+    "cookieHeader",
+    "authJwt",
+    "api_key_header",
+    "access_token_header",
+    "client_secret_header",
+    "private_key_path",
+    "request.headers.apiKeyHeader",
+    "request%2Eparams%2Eaccess_token_header",
+    "request.headers.accessTokenHeader",
+)
+FIELD_REQUESTS = [{name: SECRET} for name in FIELD_PATHS] + [
+    {"request.headers": [["Authorization", SECRET]]},
+    {"request[headers]": ["Authorization", SECRET]},
+    {"request.headers[0]": ["X-Auth", SECRET]},
+    {"reader.argv": ["--headers[Authorization]", SECRET]},
+    {"request.headers[0]": "Authorization", "request.headers[1]": SECRET},
+    {
+        "request.headers[0].name": "Authorization",
+        "request.headers[0].value": SECRET,
+    },
+    {"request.argv[0]": "--api-key", "request.argv[1]": SECRET},
+    {"request": {"headers[0].name": "X-Auth", "headers[0].value": SECRET}},
+    {"request": {"argv[0]": "--auth.jwt", "argv[1]": SECRET}},
+    {"request%2Eheaders%5B0%5D": "Authorization", "request.headers[1]": SECRET},
+    {"request.headers": ["Accept: text/plain", "Authorization: Bearer " + SECRET]},
+]
 
 
 class SourceCredentialTests(unittest.TestCase):
@@ -74,12 +119,36 @@ class SourceCredentialTests(unittest.TestCase):
         public = {
             "url": PUBLIC,
             "headers": {"Accept": "text/plain", "User-Agent": "synthetic-reader"},
-            "params": {"doi": "10.5555/stage1-synthetic", "query": "人口 消費"},
+            "params": {
+                "doi": "10.5555/stage1-synthetic",
+                "query": "人口 消費",
+                "code": "KOR",
+            },
             "max_tokens": 200,
             "keywords": ["token", "household"],
             "terms": ["key", "finding"],
             "country": {"code": "KOR"},
             "page_token": "public-pagination-position",
+            "request.params.page_token": "public-pagination-position",
+            "params[code]": "KOR",
+            "params.code": "KOR",
+            "request.params.max_tokens": 200,
+            "request.headers": ["Accept: text/plain", "User-Agent: token"],
+            "request.args": ["--page-token", "public-pagination-position"],
+            "request%2Eparams%2Epage_token": "public-pagination-position",
+            "params\uff0ecode": "KOR",
+            "pageToken": "public-pagination-position",
+            "reader.headers[0].name": "User-Agent",
+            "reader.headers[0].value": "token",
+            "reader.headers[1]": "User-Agent: token",
+            "reader.argv[0]": "--page-token",
+            "reader.argv[1]": "public-pagination-position",
+            "pairs.headers": [["User-Agent", "token"]],
+            "flat.headers[0]": "User-Agent",
+            "flat.headers[1]": "token",
+            "sort_key": "year",
+            "request.params.sort_key": "year",
+            "sortKey": "year",
             "options": [True, None, 2, {"page": 3}],
         }
         self.request["request"] = deepcopy(public)
@@ -158,6 +227,24 @@ class SourceCredentialTests(unittest.TestCase):
                     )
                 )
 
+    def test_flattened_credential_fields_rejected_by_write_and_direct_append(self):
+        payload = dict(
+            self.request,
+            kind="SourceReadStarted",
+            scope="caller-attested-source-acquisition",
+            previous_attempt_id=None,
+        )
+        for index, request in enumerate(FIELD_REQUESTS):
+            with self.subTest(case=index):
+                self.rejected(
+                    lambda: self.ledger.start_source(
+                        **dict(self.request, request=request)
+                    )
+                )
+                self.rejected(
+                    lambda: self.ledger.append(dict(payload, request=request))
+                )
+
     def test_source_import_start_and_redirect_uris_reject_credentials(self):
         uris = [
             "https://user:" + SECRET + "@example.invalid/",
@@ -173,6 +260,10 @@ class SourceCredentialTests(unittest.TestCase):
             "https://example.invalid/?q=public;api_token=" + SECRET,
             "https://example.invalid/?redirect=https%3A%2F%2Fexample.invalid%2F%3Ftoken%3D"
             + SECRET,
+        ]
+        uris += [
+            "https://example.invalid/?" + quote(name, safe="") + "=" + SECRET
+            for name in FIELD_PATHS
         ]
         for index, uri in enumerate(uris):
             with self.subTest(case=index):
@@ -276,6 +367,9 @@ class SourceCredentialTests(unittest.TestCase):
                 "source_uri",
                 "https://example.invalid/#access_token=" + SECRET,
             ),
+        ]
+        changes += [
+            ("SourceReadStarted", "request", request) for request in FIELD_REQUESTS
         ]
         for index, (kind, key, value) in enumerate(changes):
             with self.subTest(case=index):

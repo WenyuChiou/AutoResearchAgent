@@ -27,6 +27,18 @@ Authorization, Cookie, API keys, tokens, passwords and signing credentials.
 Private reader authentication containers such as `cookies`/`cookie_jar`,
 `http_auth`, `passphrase`, `client_assertion`, PKCE `code_verifier` and
 `session_id` are also forbidden, regardless of nesting or value shape.
+Field matching decodes percent escapes and normalizes Unicode before checking
+path segments and credential components. Flattened `headers[Authorization]`,
+`request.headers.Authorization`, `auth.jwt`, `cookie_header` and `X-Auth` are
+rejected too, including encoded, full-width and camel-case forms. Dotted,
+bracketed and slash-separated containers retain header/argv list checks.
+Indexed scalar slots and flattened header `name` fields keep their parent
+context too; a header's public `value` is not treated as its name.
+Known multiword credentials also match inside compounds such as
+`api_key_header` and `accessTokenHeader`; a generic `token` or `key` component
+alone does not forbid public pagination or sorting arguments.
+Generic words inside public compounds such as `page_token` and `sort_key`
+do not make those names credentials; ordinary `params.code` stays public.
 Header maps, name/value objects, pairs, multiline header strings and named
 credential options in `argv`/`args`/`arguments` lists are checked. Source,
 import and resolved URIs, and URIs inside request arguments, reject userinfo

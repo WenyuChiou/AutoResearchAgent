@@ -344,7 +344,7 @@
         }
       ],
       "guardrails": [
-        "Reject named credentials and credential-bearing source/request/redirect URIs before persistence and independent replay, including rehashed journals. Errors never echo credential values; this is not a general raw-content secret scanner.",
+        "Reject named credentials and credential-bearing source/request/redirect URIs before persistence and independent replay, including rehashed journals. Decode and normalize flattened field paths and credential components while preserving public pagination and research arguments. Errors never echo credential values; this is not a general raw-content secret scanner.",
         "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification. Failed reads supply only unavailable claims without locators; every text-level claim uses the completed available text ref regardless of relation.",
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
@@ -427,7 +427,7 @@
         }
       ],
       "guardrails": [
-        "Reject named credentials and credential-bearing source/request/redirect URIs before persistence and independent replay, including rehashed journals. Errors never echo credential values; this is not a general raw-content secret scanner.",
+        "Reject named credentials and credential-bearing source/request/redirect URIs before persistence and independent replay, including rehashed journals. Decode and normalize flattened field paths and credential components while preserving public pagination and research arguments. Errors never echo credential values; this is not a general raw-content secret scanner.",
         "Source acquisition and extraction are caller attestations; available text is not source authentication or claim verification. Failed reads supply only unavailable claims without locators; every text-level claim uses the completed available text ref regardless of relation.",
         "Verify invoked script, isolated module paths and installed code bytes before launch and during replay; build labels alone are not a runtime identity.",
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",

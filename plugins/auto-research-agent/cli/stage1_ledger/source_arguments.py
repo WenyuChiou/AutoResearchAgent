@@ -70,18 +70,53 @@ _SUFFIXES = (
     "sessionid",
 )
 _ASSIGNMENT = re.compile(r"^\s*(?:--)?([^\s:=]+)\s*[:=]")
+_HEADER_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+# These short words are public in compounds such as page_token or sort_key.
+# Known multiword names still match when followed by a carrier suffix.
+_PRIVATE_COMPONENTS = (_NAMES | set(_SUFFIXES)) - {"key", "token", "sig"}
+_MAX_COMPONENT_NAME = max(map(len, _PRIVATE_COMPONENTS))
+
+
+def _normalized(name):
+    if not isinstance(name, str):
+        return ""
+    # Normalize before decoding too, so full-width percent escapes are visible.
+    return unicodedata.normalize("NFKC", unquote(unicodedata.normalize("NFKC", name)))
+
+
+def _segments(name):
+    normalized = _normalized(name)
+    normalized = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", normalized)
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", normalized)
+    return re.findall(r"[\w-]+", normalized.casefold())
 
 
 def _name(name):
-    if not isinstance(name, str):
-        return ""
-    normalized = unicodedata.normalize("NFKC", unquote(name)).casefold()
-    return "".join(c for c in normalized if c.isalnum())
+    return "".join(c for c in _normalized(name).casefold() if c.isalnum())
 
 
 def _sensitive(name):
-    normalized = _name(name)
-    return normalized in _NAMES or normalized.endswith(_SUFFIXES)
+    for segment in _segments(name):
+        normalized = _name(segment)
+        if normalized in _NAMES or normalized.endswith(_SUFFIXES):
+            return True
+        parts = [part for part in re.split(r"[_-]+", segment) if part]
+        for start in range(len(parts)):
+            candidate = ""
+            for index in range(start, len(parts)):
+                candidate += parts[index]
+                if len(candidate) > _MAX_COMPONENT_NAME:
+                    break
+                if candidate in _PRIVATE_COMPONENTS:
+                    return True
+    return False
+
+
+def _label(value):
+    # A header/argv item can include a value. Only its label is a field name.
+    normalized = _normalized(value)
+    assignment = _ASSIGNMENT.match(normalized)
+    return assignment[1] if assignment else normalized
 
 
 def _reject():
@@ -91,7 +126,7 @@ def _reject():
 
 def _text(value):
     for line in value.splitlines():
-        assignment = _ASSIGNMENT.match(line)
+        assignment = _ASSIGNMENT.match(_normalized(line))
         if assignment and _sensitive(assignment[1]):
             _reject()
     if not any(marker in value for marker in (":", "?", "#")) and not value.startswith(
@@ -118,31 +153,58 @@ def _text(value):
             _text(item)
 
 
-def _arguments(value, field=""):
+def _string_fields(value, path=()):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield from _string_fields(
+                item, path + tuple(_name(s) for s in _segments(key))
+            )
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            yield from _string_fields(item, path + (str(index),))
+    elif isinstance(value, str):
+        yield path, value
+
+
+def _header_pair_value(path, fields):
+    position = path[-1]
+    if not position.isdecimal() or len(position) > 9 or int(position) % 2 != 1:
+        return False
+    labels = fields.get(path[:-1] + (str(int(position) - 1),), [])
+    # Only an unambiguous preceding bare label establishes a name/value pair.
+    # A complete header line is not a bare label; later lines stay checked.
+    return len(labels) == 1 and _HEADER_NAME.fullmatch(labels[0]) is not None
+
+
+def _arguments(value, path=(), fields=None):
+    if fields is None:
+        fields = {}
+        for field, item in _string_fields(value):
+            fields.setdefault(field, []).append(item)
     if isinstance(value, dict):
         if any(_sensitive(key) for key in value):
             _reject()
         # Header collections also commonly use {name: ..., value: ...} entries.
-        fields = {_name(key): item for key, item in value.items()}
-        if "value" in fields and _sensitive(fields.get("name")):
+        named = {_name(key): item for key, item in value.items()}
+        if "value" in named and _sensitive(named.get("name")):
             _reject()
         for key, item in value.items():
-            _arguments(item, _name(key))
+            _arguments(item, path + tuple(_name(s) for s in _segments(key)), fields)
     elif isinstance(value, list):
-        for item in value:
-            if (
-                isinstance(item, str)
-                and (
-                    field in {"headers", "header"}
-                    or (
-                        field in {"args", "arguments", "argv"} and item.startswith("--")
-                    )
-                )
-                and _sensitive(item)
-            ):
-                _reject()
-            _arguments(item, field)
+        for index, item in enumerate(value):
+            _arguments(item, path + (str(index),), fields)
     elif isinstance(value, str):
+        # Flattened scalar slots and name/value headers must keep their parent
+        # context. Named header values are not labels (User-Agent: token is public).
+        header_label = any(p in {"headers", "header"} for p in path) and (
+            path[-1] in {"headers", "header", "name"}
+            or (path[-1].isdigit() and not _header_pair_value(path, fields))
+        )
+        argument_label = any(p in {"args", "arguments", "argv"} for p in path) and (
+            _normalized(value).startswith("--")
+        )
+        if (header_label or argument_label) and _sensitive(_label(value)):
+            _reject()
         _text(value)
 
 
