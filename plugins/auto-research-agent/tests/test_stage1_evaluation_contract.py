@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 EVAL_ROOT = PLUGIN_ROOT / "evals"
 sys.path.insert(0, str(PLUGIN_ROOT))
+# ruff: noqa: E402 -- load repository validators without installing them.
 
 from validators.stage1_evaluation_result import semantic_errors  # noqa: E402
 

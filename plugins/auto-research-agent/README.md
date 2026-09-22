@@ -1,9 +1,11 @@
 # AutoResearchAgent Stage 1 plugin
 
-Version 0.1.0 is the plugin foundation. It can be discovered and its skill can
-be loaded by Codex. Retrieval, evidence validation, coverage decisions and
-metric export arrive in later reviewed milestones. No Stage 1 run is claimed
-by installing this version.
+The plugin can be discovered and its skill loaded by Codex. It now includes an
+experimental [saved-observation ledger](references/stage1-ledger.md), with local
+extraction, validation, decision history, conservative readiness and checkpoint.
+Live retrieval, identity verification, scientific coverage policy and metric
+export remain later milestones. Installation does not establish a complete
+Stage 1 research run.
 
 ## Install from this checkout
 
@@ -39,7 +41,8 @@ that an arbitrary other Codex version can load the plugin.
 The [shared contracts](references/stage-contracts.md) describe all six research
 stages. Their tests exercise valid records, malformed references, missing
 fields, version rejection, human authorization and blocked stop decisions.
-They do not replace the later artifact validator or Stage 1 coverage gate.
+The local ledger validator checks artifact integrity and replay consistency.
+The conservative readiness gate never reports sufficient scientific coverage.
 
 The [evaluation contract](evals/README.md) freezes the primary P1-P9 scorecard
 and operationalizes Stage 1 P1-P3 without committing benchmark answer keys.
