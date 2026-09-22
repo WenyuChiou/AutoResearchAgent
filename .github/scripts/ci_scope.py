@@ -15,12 +15,23 @@ PLUGIN_CI = {
     ".github/workflows/blocking-ci.yml",
     ".github/scripts/ci_scope.py",
     ".github/scripts/test_ci_scope.py",
+    ".github/scripts/validate_research_pr.py",
+    ".github/scripts/test_validate_research_pr.py",
+    ".github/scripts/check_research_pr_dependencies.py",
+    ".github/scripts/test_check_research_pr_dependencies.py",
+    ".github/scripts/test_stage1_ci_quality.py",
+    ".github/scripts/criterion-submetric-map.v1.json",
+    ".github/scripts/invariant-registry.v1.json",
+    ".github/pull_request_template.md",
 }
 
 
 def plugin_only(paths):
     return bool(paths) and all(
-        path.startswith("plugins/auto-research-agent/") or path in PLUGIN_CI
+        path.startswith("plugins/auto-research-agent/")
+        or path.startswith(".github/scripts/fixtures/pr_bodies/")
+        or path.startswith(".github/scripts/fixtures/pr_evidence/")
+        or path in PLUGIN_CI
         for path in paths
     )
 

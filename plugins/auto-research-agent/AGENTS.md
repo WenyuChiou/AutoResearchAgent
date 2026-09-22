@@ -40,6 +40,36 @@ implemented.
 8. Open a PR using every section of the repository template. Report the actual
    result as `improved`, `not improved`, or `not yet demonstrated`.
 
+Every PR declares one evaluation readiness level:
+
+- `implementation-only`: deterministic or synthetic behavior is tested. Live
+  smoke, paired A/B, and AI judging may be deferred. It cannot claim
+  `improved`.
+- `stage-executable`: a live run and validator report can be rebuilt from
+  artifacts. Execution is complete and every external dependency is pinned to
+  an immutable merged SHA. It still cannot claim scientific improvement.
+- `improvement-demonstrated`: three frozen paired runs, blinded judges,
+  required adjudication and human audit, and the paired decision are bound to
+  the frozen plan and private holdout hash.
+
+Each declared rubric criterion maps to one frozen operational submetric and a
+production field or function. The PR validator derives required invariant IDs
+from the criteria and capability type. Every required invariant names an
+allowed, non-skipped test selector, and CI executes that exact selector rather
+than trusting an author-written `passed` token. Criterion-to-submetric choices
+come from `.github/scripts/criterion-submetric-map.v1.json`; the mapped
+production symbol must exist under a declared capability owner. Runtime wrappers bind
+the bytes that executed, dependency merge SHA, and resume behavior. Evaluator
+artifacts must reject rehashed tampering.
+
+`stage-executable` and `improvement-demonstrated` evidence fields bind one
+readiness manifest by path and SHA-256. CI opens it, verifies every listed
+artifact's bytes, and checks completion, validator, and resume decisions.
+Synthetic `contract-fixture` manifests test the contract only and cannot support
+a real readiness claim. An `improvement-demonstrated` manifest binds a formal
+paired request and submitted decision; CI runs the existing plan, judge-bundle,
+and paired-evaluation validators and requires the recomputed decision to match.
+
 Passing a unit, schema, loading, or synthetic test proves implementation
 behavior only. Scientific-quality improvement requires the frozen paired live
 A/B at the capability's declared stage milestone.

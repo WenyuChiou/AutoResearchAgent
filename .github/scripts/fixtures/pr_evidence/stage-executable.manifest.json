@@ -1,0 +1,36 @@
+{
+  "artifacts": [
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/live-run.json",
+      "role": "live-run",
+      "sha256": "c6d3809c30e7c549bceadfb70aa61fc40715301cded84c571aedd1d02b33c53b"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/live-validator.json",
+      "role": "validator-report",
+      "sha256": "9162e54004f7b6733d78d8c7d39fc9107c2b0240268808e0254d1282afe99c15"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/runtime-package.txt",
+      "role": "runtime-bytes",
+      "sha256": "ea0813db924eae81aefe3463710d14e4c60b833d081b9763ba680ccb552471e4"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/dependency-package.txt",
+      "role": "dependency-bytes",
+      "sha256": "47333cfb7c4ac7cd89932c95887d19baf94911bb9d6926a0986b383cadcc8b1d"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/resume-report.json",
+      "role": "resume-report",
+      "sha256": "5226aa8d32384d4218f58d8854e7e0e6bad60840dc07db3649f793c6d50841a9"
+    }
+  ],
+  "evidence_scope": "contract-fixture",
+  "execution_status": "complete",
+  "kind": "ReadinessEvidenceManifest",
+  "readiness": "stage-executable",
+  "resume_status": "passed",
+  "schema_version": "1.0.0",
+  "validator_status": "passed"
+}

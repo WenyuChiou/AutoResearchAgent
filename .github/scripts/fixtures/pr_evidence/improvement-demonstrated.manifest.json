@@ -1,0 +1,73 @@
+{
+  "adjudication_status": "not-required",
+  "artifacts": [
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/judge-r1.json",
+      "role": "auto-r1",
+      "sha256": "83a4d5476e00ebb8078484cc3d741f6cea1c6d516cfc78d0c426800a27f14c5c"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/judge-r2.json",
+      "role": "auto-r2",
+      "sha256": "e1331f7e268fc1db9bc48765295c8e029469a57e8f55c95857db048786835b50"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/dependency-package.txt",
+      "role": "dependency-bytes",
+      "sha256": "47333cfb7c4ac7cd89932c95887d19baf94911bb9d6926a0986b383cadcc8b1d"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/frozen-plan.json",
+      "role": "frozen-plan",
+      "sha256": "e852db297ec25e3fb051084cbece0ea9b4e4a5b9eb375eaa5e44078cef097643"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/human-audit.json",
+      "role": "human-audit",
+      "sha256": "d6238af918644403e7263d1558bbfb9177795ef37585d070579eadc1fe6dc277"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/live-run.json",
+      "role": "live-run",
+      "sha256": "c6d3809c30e7c549bceadfb70aa61fc40715301cded84c571aedd1d02b33c53b"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/paired-decision.json",
+      "role": "paired-decision",
+      "sha256": "deac6185e53ab5a4decb5e6a29dbcfb6cc6fbd0bb1afc2815d16ef5accf5f21b"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/paired-request.json",
+      "role": "paired-request",
+      "sha256": "bf537ed9f4c539e3913c70e3cb40cd63c3d8be2693c074a926fbc06b494d940b"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/resume-report.json",
+      "role": "resume-report",
+      "sha256": "5226aa8d32384d4218f58d8854e7e0e6bad60840dc07db3649f793c6d50841a9"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/runtime-package.txt",
+      "role": "runtime-bytes",
+      "sha256": "ea0813db924eae81aefe3463710d14e4c60b833d081b9763ba680ccb552471e4"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/live-validator.json",
+      "role": "validator-report",
+      "sha256": "9162e54004f7b6733d78d8c7d39fc9107c2b0240268808e0254d1282afe99c15"
+    }
+  ],
+  "decision": "improved",
+  "evidence_scope": "contract-fixture",
+  "execution_status": "complete",
+  "holdout_manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "holdout_visibility": "private",
+  "human_audit_status": "accepted",
+  "judge_status": "passed",
+  "kind": "ReadinessEvidenceManifest",
+  "pair_count": 3,
+  "readiness": "improvement-demonstrated",
+  "resume_status": "passed",
+  "schema_version": "1.0.0",
+  "validator_status": "passed"
+}

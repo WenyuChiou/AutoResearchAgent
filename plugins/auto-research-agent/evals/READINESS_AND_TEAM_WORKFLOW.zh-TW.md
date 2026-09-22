@@ -17,8 +17,22 @@
 | Level 2 Stage-executable | 該 Stage 的 production harness 是否真的能從輸入產生完整 artifacts？ | capability tests、一次 live smoke run、可重建 ledger、stage milestone PR | Stage 1 尚未完成 |
 | Level 3 Improvement-demonstrated | Treatment 是否比 stock Codex 好？ | frozen private holdout、三組 paired A/B、Auto-R1／Auto-R2／Auto-ADJ、必要 human audit | 尚未執行 |
 
+Level 2 與 Level 3 不能靠 PR 文字自我宣告。必要欄位必須指向同一份
+`ReadinessEvidenceManifest`，並提供 manifest SHA-256。CI 會打開 manifest 與每個列出的
+artifact、重算 hashes，並拒絕 `resume_status` 不是 `passed` 的結果。公開的
+`contract-fixture` 只用來證明這道門會工作，不能把 readiness 升到 Level 2 或 Level 3。
+Level 3 還必須綁定正式 paired request 與 submitted decision；CI 會重新執行既有的
+evaluation-plan、judge-bundle 與 paired-evaluation validators。只有重新算出的三組 paired
+decision 與提交內容完全相同，且 decision 符合 PR 的 improvement statement，才可通過。
+
 Level 0 或 Level 1 通過不能取代 Level 2；Level 2 通過也不能直接宣稱 Level 3。PR 的測試全部通過時，若尚未
 完成正式 paired A/B，`Improvement statement` 必須寫 `not yet demonstrated`。
+
+PR template 使用三個可由 CI 判斷的名稱：`implementation-only` 對應 Level 1 的單一
+能力實作證據，`stage-executable` 對應 Level 2，`improvement-demonstrated` 對應 Level 3。
+Level 0 是 repository 本身的 instruction-routing 前置條件，因此不是每個工具 PR 可選的
+readiness。這個對應避免把「測試有過」、「整個 Stage 跑得動」和「真的比 baseline 好」
+混成同一件事。
 
 ## 怎麼驗證 evaluation pipeline
 

@@ -91,7 +91,7 @@ class Stage1ExportTests(unittest.TestCase):
             export_run(self.ledger.root, self.output)
         self.assertTrue(validate_export(self.output)["valid"])
 
-    def test_rehashed_metric_invention_is_rejected_by_recomputation(self):
+    def test_rehash_tamper_rejected_by_metric_recomputation(self):
         export_run(self.ledger.root, self.output)
         value = self.read("metric_inputs.json")
         value["P3"]["works_with_trace"]["n"] = 1
