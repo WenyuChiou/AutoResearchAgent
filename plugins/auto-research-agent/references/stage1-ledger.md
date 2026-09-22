@@ -69,8 +69,10 @@ python plugins/auto-research-agent/cli/stage1_ledger --run ../synthetic-run chec
 `validate` exits 1 with an explicit error on a missing file, hash mismatch,
 invalid schema, broken reference, changed projection or inconsistent derived
 record. Unavailable counts are null. A valid report checks record consistency,
-not scientific truth. `gate` returns `continue` or `human-review`; this release
-cannot return `stop-sufficient`. A failed validation preserves its report but
+not scientific truth. Unbound runs return `continue` or `human-review`.
+Runs with a frozen [coverage plan](stage1-coverage.md) use the reviewed coverage
+and marginal-yield policy, which can report an operational `stop-sufficient`.
+A failed validation preserves its report but
 does not create a successful checkpoint.
 
 The equivalent public entrypoints are `python
@@ -121,6 +123,25 @@ rows are cumulative revisions; use the latest revision per work for current
 state. `coverage_and_stop.md` is a replaceable view of the last checkpoint;
 immutable validator reports and all saved bytes remain under `raw/`.
 
+New runs declare `checkpoint_output_contract: stage1-handoff-v1`. Every valid
+checkpoint's `StageResult.outputs` contains immutable candidate, claim and
+decision snapshots plus a `Stage1Handoff` artifact. The validator replays their
+contents against the exact source state; simply rehashing invented contents
+cannot pass. Repeating a checkpoint reuses identical bytes. A new observation
+or decision produces new snapshots while retaining the older ones. These
+derived artifacts do not change the reviewed research-state hash.
+
+The handoff selects only currently included works, distinguishes listed from
+reviewed versions and preserves all candidate and decision history in its input
+snapshots. It reuses the documented `literature-triage-matrix` manual-paper-list
+input and default comparison columns at the pinned stable skill revision. It
+does not populate comparison cells from memory or execute Stage 2. Its
+`eligible_for_stage2` is the Stage 1 operational gate result; `stage2.status`
+remains `not-started` and `execution_authorized` remains false. Existing runs
+without this manifest contract and their empty-output checkpoints remain
+readable. Missing immutable output files require exact restoration; `recover`
+rebuilds only projections and the derived coverage view.
+
 Deduplication uses DOI, then arXiv/PMID, then normalized Unicode title, year
 and first author. Different identifier namespaces stay separate. Conflicting
 metadata is retained as `conflict`; agreement remains `unverified`. Every
@@ -128,7 +149,8 @@ backend and query discovery is retained. Unstated versions stay separate.
 Malformed records produce an append-only ExtractionFailure and an unresolved
 extraction obligation. Re-running `extract` neither repeats that failure nor
 silently removes the obligation. Corrected observations need a new receipt;
-resolving the old obligation is deferred to the coverage/human-action slice.
+an extraction failure currently remains unresolved and prevents sufficient stop.
+Its evidence is retained for review; corrected data never erases the failure.
 
 `recover` can append a missing, complete projection suffix from the journal.
 It refuses conflicting projections and torn journal lines. It reports unfinished
@@ -174,6 +196,26 @@ a new discovery makes affected older comparisons stale. Rechecking appends a new
 event with `previous_comparison_id`. Validator replay recomputes comparisons and
 rejects changed outcomes, altered source references and incorrect history even
 when someone recomputes the journal hashes.
+
+## Read the coverage and stop report
+
+New runs declare `coverage_view_contract: stage1-coverage-view-v1`. At each
+checkpoint, `coverage_and_stop.md` displays the existing cluster counts, recent
+status, reviewer-selected candidates and versions, marginal yield, historical
+backend failures with raw paths, unresolved work and evidence refs. It reuses
+the saved validator report and current reviews; it does not rank papers or
+compute another gate. Missing coverage remains unavailable.
+
+This view describes its named checkpoint only. Later decisions do not silently
+rewrite that snapshot; save a new checkpoint to update it. `validate` rejects
+altered report text, and `recover` rebuilds the derived Markdown without repeating
+queries or replacing raw evidence. Legacy runs without the view declaration
+retain their original compact report. Unknown view versions are rejected.
+
+Each table displays at most 20 rows and each cell at most 240 characters, with
+explicit shortening notices and paths to the full artifacts. Source text is
+escaped as data. A displayed reviewer attestation is not source authentication
+or a scientific score. Only load the current needed sections into model context.
 
 ## Reproduce the acceptance example
 

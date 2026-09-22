@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage1-handoff:1.0.0",
+  "title": "Immutable Stage 1 snapshots and unexecuted Stage 2 inputs",
+  "$defs": {
+    "Base": {
+      "type": "object", "required": ["kind", "schema_version", "source_run_id", "source_state_sha256"],
+      "properties": {
+        "kind": {"type": "string"}, "schema_version": {"const": "1.0.0"},
+        "source_run_id": {"type": "string", "minLength": 1},
+        "source_state_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "CandidateSnapshot": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false, "required": ["rows"],
+      "properties": {"kind": {"const": "CandidateSnapshot"}, "rows": {"type": "array", "items": {"$ref": "urn:auto-research-agent:stage1-ledger:1.0.0#/$defs/CandidateRevision"}}}
+    },
+    "ClaimSnapshot": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false, "required": ["rows"],
+      "properties": {"kind": {"const": "ClaimSnapshot"}, "rows": {"type": "array", "items": {"$ref": "urn:auto-research-agent:stage1-ledger:1.0.0#/$defs/ClaimEvidence"}}}
+    },
+    "DecisionSnapshot": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false, "required": ["rows"],
+      "properties": {"kind": {"const": "DecisionSnapshot"}, "rows": {"type": "array", "items": {"$ref": "urn:auto-research-agent:stage1-ledger:1.0.0#/$defs/DecisionEvent"}}}
+    },
+    "Stage1Handoff": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["source_mode", "input_refs", "reuse_contract", "input_format", "comparison_dimensions", "papers", "manual_paper_list", "stage1_gate", "eligible_for_stage2", "stage2"],
+      "properties": {
+        "kind": {"const": "Stage1Handoff"}, "source_mode": {"const": "offline-import"},
+        "input_refs": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"}},
+        "reuse_contract": {"const": "https://github.com/WenyuChiou/research-hub/blob/bb00775822bf856333cba8388631f16be3831ea4/skills/literature-triage-matrix/SKILL.md"},
+        "input_format": {"const": "manual-paper-list"},
+        "comparison_dimensions": {"const": ["Citation", "Question", "Method", "Data / study area", "Main claim", "Evidence", "Limitation", "Relevance", "Use as"]},
+        "papers": {"type": "array", "items": {"$ref": "#/$defs/PaperInput"}},
+        "manual_paper_list": {"type": "string"},
+        "stage1_gate": {"$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/GateResult"},
+        "eligible_for_stage2": {"type": "boolean"},
+        "stage2": {"const": {"status": "not-started", "execution_authorized": false}}
+      }
+    },
+    "PaperInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["work_id", "candidate_event_id", "decision_event_id", "title", "identifier", "listed_version_id", "reviewed_version_id", "metadata_identity", "identity_review", "source_ref"],
+      "properties": {
+        "work_id": {"type": "string", "minLength": 1}, "candidate_event_id": {"type": "string", "pattern": "^e[0-9]{6,}$"},
+        "decision_event_id": {"type": "string", "pattern": "^e[0-9]{6,}$"}, "title": {"type": "string", "minLength": 1},
+        "identifier": {"type": ["string", "null"]}, "listed_version_id": {"type": "string", "minLength": 1},
+        "reviewed_version_id": {"type": ["string", "null"]}, "metadata_identity": {"enum": ["unverified", "conflict"]},
+        "identity_review": {"enum": ["verified", "unverifiable", "conflict", "not-assessed"]},
+        "source_ref": {"$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"}
+      }
+    }
+  },
+  "oneOf": [{"$ref": "#/$defs/CandidateSnapshot"}, {"$ref": "#/$defs/ClaimSnapshot"}, {"$ref": "#/$defs/DecisionSnapshot"}, {"$ref": "#/$defs/Stage1Handoff"}]
+}

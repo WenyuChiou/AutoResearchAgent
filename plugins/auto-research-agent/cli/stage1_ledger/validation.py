@@ -6,10 +6,22 @@ from .bindings import claim_binding, completion_binding, import_binding
 
 from .contracts import check_manifest, check_payload, check_record
 from .identity import candidate_revision, work_key
-from .journal import Journal, LedgerError, canonical, contained, decode, digest
-from .readiness import coverage_text, readiness
+from .journal import (
+    Journal,
+    LedgerError,
+    canonical,
+    contained,
+    decode,
+    digest,
+    is_state_event,
+)
+from .handoff import validate_outputs
+from .readiness import readiness
+from .coverage_view import render
 from .semantics import SUCCESS, claim_check, completion_count, query_fields
 from .verification import comparison
+from stage1_coverage.rounds import CoverageReplay
+from stage1_coverage.policy import evaluate
 
 
 COUNT_NAMES = (
@@ -41,6 +53,7 @@ def validate_run(root):
     imports = {}
     errors, pending = [], []
     state_sha256 = None
+    coverage_report = None
 
     def state_hash():
         return digest(canonical({"manifest": manifest, "events": material}))
@@ -55,6 +68,7 @@ def validate_run(root):
     try:
         manifest = journal.manifest
         check_manifest(manifest)
+        coverage = CoverageReplay(manifest, read_ref)
         events = journal.reconcile(repair=False)
         contained(journal.root, "coverage_and_stop.md").read_bytes()
         for row in events:
@@ -87,7 +101,13 @@ def validate_run(root):
                     ref["artifact_id"] not in stored, "duplicate-artifact-registration"
                 )
                 require(
-                    ref["artifact_type"] in {"raw-output", "validator-report"},
+                    ref["artifact_type"]
+                    in {
+                        "raw-output",
+                        "validator-report",
+                        "coverage-input",
+                        "checkpoint-output",
+                    },
                     "unknown-artifact-type",
                 )
                 require(
@@ -102,7 +122,14 @@ def validate_run(root):
                     )
                 else:
                     require(
-                        ref["producer"] == "stage1-validator",
+                        ref["producer"]
+                        == (
+                            "stage1-plan"
+                            if ref["artifact_type"] == "coverage-input"
+                            else "stage1-checkpoint"
+                            if ref["artifact_type"] == "checkpoint-output"
+                            else "stage1-validator"
+                        ),
                         "unknown-validator-producer",
                     )
                 require(
@@ -298,7 +325,7 @@ def validate_run(root):
             elif kind == "Checkpoint":
                 result = p["stage_result"]
                 require(
-                    result["stage_run_id"] == "stage1" and result["outputs"] == [],
+                    result["stage_run_id"] == "stage1",
                     "checkpoint-stage-or-outputs",
                 )
                 report = decode(
@@ -332,6 +359,10 @@ def validate_run(root):
                     and report["scientific_truth"] == "not-evaluated",
                     "checkpoint-report-contract",
                 )
+                require(
+                    report.get("coverage") == evaluate(coverage),
+                    "checkpoint-coverage-mismatch",
+                )
                 gate, action = readiness(report)
                 require(
                     result["gate"] == gate and result["next_allowed_action"] == action,
@@ -339,19 +370,21 @@ def validate_run(root):
                 )
                 require(
                     result["status"]
-                    == ("human-review" if action == "human-review" else "running"),
+                    == (
+                        "completed"
+                        if action == "stop-sufficient"
+                        else "human-review"
+                        if action == "human-review"
+                        else "running"
+                    ),
                     "checkpoint-status-mismatch",
                 )
-            if kind != "Checkpoint" and not (
-                kind == "ArtifactStored"
-                and p["ref"]["artifact_type"] == "validator-report"
-            ):
+                validate_outputs(manifest, state_hash(), material, result, read_ref)
+            coverage.observe(p)
+            if is_state_event(p):
                 material.append(p)
         counts.update(works=len(works), discoveries=len(seen))
-        checkpoints = [
-            e["payload"] for e in events if e["payload"]["kind"] == "Checkpoint"
-        ]
-        expected_view = coverage_text(checkpoints[-1] if checkpoints else None)
+        expected_view = render(manifest, [e["payload"] for e in events], read_ref)
         require(
             contained(journal.root, "coverage_and_stop.md").read_text(encoding="utf-8")
             == expected_view,
@@ -359,11 +392,12 @@ def validate_run(root):
         )
         pending = [i for i in starts if i not in finishes and i not in queries]
         state_sha256 = state_hash()
+        coverage_report = evaluate(coverage)
     except (LedgerError, OSError, KeyError, TypeError, IndexError, ValueError) as error:
         errors.append(str(error))
         # Partial replay counts are not complete run denominators.
         counts = dict.fromkeys(COUNT_NAMES)
-    return dict(
+    report = dict(
         schema_version="1.0.0",
         valid=not errors,
         errors=errors,
@@ -373,3 +407,6 @@ def validate_run(root):
         state_sha256=state_sha256,
         scientific_truth="not-evaluated",
     )
+    if coverage_report is not None:
+        report["coverage"] = coverage_report
+    return report

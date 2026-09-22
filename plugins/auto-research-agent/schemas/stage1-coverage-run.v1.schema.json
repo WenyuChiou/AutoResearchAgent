@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage1-coverage-run:1.0.0",
+  "title": "Coverage execution receipts in the Stage 1 journal",
+  "$defs": {
+    "Text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "Id": {"type": "string", "pattern": "^e[0-9]{6,}$"},
+    "Ids": {"type": "array", "items": {"$ref": "#/$defs/Text"}, "uniqueItems": true},
+    "Base": {
+      "type": "object", "required": ["kind", "schema_version", "event_id", "created_at"],
+      "properties": {
+        "kind": {"type": "string"}, "schema_version": {"const": "1.0.0"},
+        "event_id": {"$ref": "#/$defs/Id"}, "created_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "CoveragePlanBound": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["plan_ref", "backends", "limit"],
+      "properties": {
+        "kind": {"const": "CoveragePlanBound"},
+        "plan_ref": {"$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"},
+        "backends": {"$ref": "#/$defs/Ids", "minItems": 1}, "limit": {"type": "integer", "minimum": 1}
+      }
+    },
+    "CoverageRoundOpened": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["round_number"],
+      "properties": {"kind": {"const": "CoverageRoundOpened"}, "round_number": {"type": "integer", "minimum": 1}}
+    },
+    "CoverageReceipt": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["query_event_id", "truncated", "note", "replaces_event_id"],
+      "properties": {
+        "kind": {"const": "CoverageReceipt"}, "query_event_id": {"$ref": "#/$defs/Id"},
+        "truncated": {"type": ["boolean", "null"]}, "note": {"$ref": "#/$defs/Text"},
+        "replaces_event_id": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
+      }
+    },
+    "CoverageHumanAction": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["action", "actor", "user_input", "reviewed_state_sha256", "cluster_id"],
+      "properties": {
+        "kind": {"const": "CoverageHumanAction"}, "action": {"enum": ["request-cluster", "accept-stop"]},
+        "actor": {"$ref": "#/$defs/Text"}, "user_input": {"$ref": "#/$defs/Text"},
+        "reviewed_state_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "cluster_id": {"anyOf": [{"$ref": "#/$defs/Text"}, {"type": "null"}]}
+      }
+    },
+    "CoverageWorkReview": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["work_id", "version_id", "candidate_event_id", "decision_event_id", "cluster_claims", "identity_status", "identity_claims", "closest", "assessor", "rationale", "scope", "replaces_event_id"],
+      "properties": {
+        "kind": {"const": "CoverageWorkReview"}, "work_id": {"$ref": "#/$defs/Text"}, "version_id": {"$ref": "#/$defs/Text"},
+        "candidate_event_id": {"$ref": "#/$defs/Id"}, "decision_event_id": {"$ref": "#/$defs/Id"},
+        "cluster_claims": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/Id"}},
+        "identity_status": {"enum": ["verified", "unverifiable", "conflict"]},
+        "identity_claims": {
+          "type": "object", "required": ["title", "authors", "year", "identifier", "version"],
+          "propertyNames": {"enum": ["title", "authors", "year", "identifier", "version"]},
+          "additionalProperties": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
+        },
+        "closest": {"type": "boolean"}, "assessor": {"$ref": "#/$defs/Text"}, "rationale": {"$ref": "#/$defs/Text"},
+        "scope": {"const": "reviewer-attestation"}, "replaces_event_id": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
+      }
+    },
+    "CoverageRoundClosed": {
+      "allOf": [{"$ref": "#/$defs/Base"}], "unevaluatedProperties": false,
+      "required": ["round_number", "summary"],
+      "properties": {
+        "kind": {"const": "CoverageRoundClosed"}, "round_number": {"type": "integer", "minimum": 1},
+        "summary": {
+          "type": "object", "additionalProperties": false,
+          "required": ["complete", "query_event_ids", "missing_planned_ids", "failed_query_ids", "truncated_query_ids", "new_discovered_work_ids"],
+          "properties": {
+            "complete": {"type": "boolean"}, "query_event_ids": {"$ref": "#/$defs/Ids"},
+            "missing_planned_ids": {"$ref": "#/$defs/Ids"}, "failed_query_ids": {"$ref": "#/$defs/Ids"},
+            "truncated_query_ids": {"$ref": "#/$defs/Ids"}, "new_discovered_work_ids": {"$ref": "#/$defs/Ids"}
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {"$ref": "#/$defs/CoveragePlanBound"}, {"$ref": "#/$defs/CoverageRoundOpened"},
+    {"$ref": "#/$defs/CoverageReceipt"}, {"$ref": "#/$defs/CoverageRoundClosed"},
+    {"$ref": "#/$defs/CoverageWorkReview"}, {"$ref": "#/$defs/CoverageHumanAction"}
+  ]
+}

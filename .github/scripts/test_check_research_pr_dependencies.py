@@ -66,6 +66,23 @@ class ResearchPullRequestDependencyTests(unittest.TestCase):
         self.assertIn(f"ready PR requires merged internal prerequisite: {url}", errors)
         self.assertIn(f"ready PR prerequisite has changes requested: {url}", errors)
 
+    def test_merged_internal_pr_allows_historical_changes_requested(self):
+        url = "https://github.com/WenyuChiou/AutoResearchAgent/pull/12"
+        body = VALID.replace(
+            "- Internal prerequisite PR(s): None",
+            f"- Internal prerequisite PR(s): {url}",
+        )
+        resolver = FakeResolver(
+            {
+                url: {
+                    "state": "MERGED",
+                    "mergedAt": "2026-09-22T05:38:14Z",
+                    "reviewDecision": "CHANGES_REQUESTED",
+                }
+            }
+        )
+        self.assertEqual(validate_dependencies(body, False, resolver), [])
+
     def test_external_open_pin_checks_head_sha_and_allows_draft(self):
         url = "https://github.com/WenyuChiou/research-hub/pull/137"
         sha = "a" * 40
@@ -138,16 +155,19 @@ class ResearchPullRequestDependencyTests(unittest.TestCase):
             }
         )
         self.assertEqual(validate_dependencies(body, False, resolver), [])
+        resolver.states[url]["mergeCommit"]["oid"] = "d" * 40
+        self.assertIn(
+            f"external dependency SHA mismatch for {url}: expected {sha}, got {'d' * 40}",
+            validate_dependencies(body, False, resolver),
+        )
+        resolver.states[url]["mergeCommit"]["oid"] = sha
         executable = body.replace(
             "- Evaluation readiness: implementation-only",
             "- Evaluation readiness: stage-executable",
         )
         self.assertEqual(validate_dependencies(executable, False, resolver), [])
-        resolver.states[url]["reviewDecision"] = ""
-        self.assertIn(
-            f"executable readiness requires an approved external dependency: {url}",
-            validate_dependencies(executable, False, resolver),
-        )
+        resolver.states[url]["reviewDecision"] = "CHANGES_REQUESTED"
+        self.assertEqual(validate_dependencies(executable, False, resolver), [])
 
 
 if __name__ == "__main__":

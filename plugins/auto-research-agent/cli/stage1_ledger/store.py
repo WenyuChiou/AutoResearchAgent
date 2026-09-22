@@ -54,6 +54,8 @@ class Ledger(Journal):
             research_hub_pin=None,
             max_artifact_bytes=16 * 1024 * 1024,
             closest_work_status="unverified",
+            checkpoint_output_contract="stage1-handoff-v1",
+            coverage_view_contract="stage1-coverage-view-v1",
         )
         check_manifest(manifest)
         root.mkdir(parents=True, exist_ok=False)
@@ -69,6 +71,14 @@ class Ledger(Journal):
 
     @mutation
     def start(self, operation, arguments, *, backend=None, parent_id=None):
+        from stage1_coverage.rounds import CoverageReplay
+
+        coverage = CoverageReplay(self.manifest, self.read_ref)
+        for row in self.events():
+            coverage.observe(row["payload"])
+        coverage.check_start(
+            dict(operation=operation, arguments=arguments, backend=backend)
+        )
         if operation == "search" and (parent_id is not None or backend is not None):
             raise LedgerError("search-has-backend-parent")
         if parent_id is not None:
@@ -394,6 +404,7 @@ class Ledger(Journal):
     def checkpoint(self):
         from .validation import validate_run
         from .readiness import readiness
+        from .coverage_view import render
 
         report = validate_run(self.root)
         gate, action = readiness(report)
@@ -404,12 +415,19 @@ class Ledger(Journal):
         )
         if not report["valid"]:
             raise LedgerError("validator-failed: saved report " + ref["path"])
+        from .handoff import save_outputs
+
+        outputs = save_outputs(self, report, gate, action)
         result = dict(
             kind="StageResult",
             schema_version="1.0.0",
             stage_run_id="stage1",
-            status="human-review" if action == "human-review" else "running",
-            outputs=[],
+            status="completed"
+            if action == "stop-sufficient"
+            else "human-review"
+            if action == "human-review"
+            else "running",
+            outputs=outputs,
             validator_report=ref,
             metrics=report["counts"],
             gate=gate,
@@ -420,6 +438,8 @@ class Ledger(Journal):
         )
         # This is an explicitly derived current view; immutable reports remain in raw/.
         contained(self.root, "coverage_and_stop.md").write_text(
-            coverage_text(event), encoding="utf-8", newline="\n"
+            render(self.manifest, [r["payload"] for r in self.events()], self.read_ref),
+            encoding="utf-8",
+            newline="\n",
         )
         return event

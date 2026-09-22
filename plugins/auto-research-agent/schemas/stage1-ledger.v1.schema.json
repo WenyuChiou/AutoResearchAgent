@@ -36,6 +36,24 @@
     },
     {
       "$ref": "#/$defs/IdentityComparison"
+    },
+    {
+      "$ref": "#/$defs/CoveragePlanBound"
+    },
+    {
+      "$ref": "#/$defs/CoverageRoundOpened"
+    },
+    {
+      "$ref": "#/$defs/CoverageReceipt"
+    },
+    {
+      "$ref": "#/$defs/CoverageRoundClosed"
+    },
+    {
+      "$ref": "#/$defs/CoverageWorkReview"
+    },
+    {
+      "$ref": "#/$defs/CoverageHumanAction"
     }
   ],
   "$defs": {
@@ -201,6 +219,12 @@
         },
         "closest_work_status": {
           "const": "unverified"
+        },
+        "checkpoint_output_contract": {
+          "const": "stage1-handoff-v1"
+        },
+        "coverage_view_contract": {
+          "const": "stage1-coverage-view-v1"
         }
       }
     },
@@ -977,6 +1001,24 @@
           "const": "saved-bibliographic-comparison"
         }
       }
+    },
+    "CoveragePlanBound": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoveragePlanBound"
+    },
+    "CoverageRoundOpened": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageRoundOpened"
+    },
+    "CoverageReceipt": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageReceipt"
+    },
+    "CoverageRoundClosed": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageRoundClosed"
+    },
+    "CoverageWorkReview": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageWorkReview"
+    },
+    "CoverageHumanAction": {
+      "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageHumanAction"
     }
   }
 }

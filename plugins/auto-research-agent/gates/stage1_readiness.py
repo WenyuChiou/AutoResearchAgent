@@ -1,4 +1,4 @@
-"""Conservative local readiness gate; never asserts live coverage sufficiency."""
+"""Operational readiness from saved reviews; scientific truth is not evaluated."""
 
 from pathlib import Path
 import sys
