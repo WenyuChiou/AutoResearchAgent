@@ -31,8 +31,8 @@
 - 硬量測：四個 coverage clusters 是否都有資料；frozen core 與 must-have 找到幾篇；是否執行 recent-work sweep；最新文獻年份。
 - 人工判斷：漏掉的文章是否有同樣直接、同樣重要的替代來源；目前文獻是否足以支持研究決策。
 - 壞例子：找到 15 篇人口老化文章，但沒有任何 LLM consumer agent、人口到 agent 的映射或 validation 研究。
-- 好例子：四類文獻都有證據，另有最近研究與 closest-work search，停止搜尋的原因也說得清楚。
-- baseline 問題：雖然廣義 clusters 為 4/4，frozen core 只有 7/10、must-have 0/2、近期研究 1/15，所以只能算部分充分。
+- 好例子：所用 rubric 要求的每類文獻都有證據，另有最近研究與 closest-work search，停止搜尋的原因也說得清楚。
+- 歷史 v1 development benchmark 的 baseline 問題：雖然當時廣義 clusters 為 4/4，frozen core 只有 7/10、must-have 0/2、近期研究 1/15，所以只能算部分充分。這些是舊四群評分，不能改用目前 [aging-bidirectional 六群 rubric](rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md) 重新計分。
 - 為何重要：漏掉最接近研究時，agent 很容易把已有人做過的事誤稱為新 gap。
 
 ### P3 Auditability｜可稽核性
