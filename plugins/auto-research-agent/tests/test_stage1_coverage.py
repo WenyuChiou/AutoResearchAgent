@@ -60,7 +60,103 @@ def proposal():
     )
 
 
+AGING_RUBRIC = PLUGIN / "evals/rubrics/aging-bidirectional-rubric.v1.json"
+AGING_ROLES = {
+    "aging-consumption": "aging, life cycle, retirement, and household-consumption mechanisms",
+    "population-transitions": "population synthesis, reweighting, and dynamic demographic transitions",
+    "economic-models": "household decision, microsimulation, ABM, and macroeconomic models",
+    "llm-behavior": "LLM consumer or household agents and behavioral fidelity",
+    "bidirectional-feedback": "bidirectional market, environment, social interaction, and multi-period feedback",
+    "independent-validation": "calibration, independent validation, uncertainty, and claim limitations",
+}
+
+
+def aging_case_proposal():
+    value = proposal()
+    value["plan_id"] = "synthetic-aging-bidirectional"
+    value["topic"] = "Synthetic aging and household-agent research question"
+    value["concepts"] = [
+        dict(concept_id=role_id, terms=[role_name])
+        for role_id, role_name in AGING_ROLES.items()
+    ]
+    value["clusters"] = [
+        dict(
+            cluster_id=role_id,
+            label=role_name,
+            question=f"What evidence addresses {role_name}?",
+            min_included_works=1,
+            query_families=[
+                dict(
+                    family_id=f"{role_id}-family",
+                    concept_ids=[role_id],
+                    adversarial_queries=[f"limitations of {role_name}"],
+                )
+            ],
+        )
+        for role_id, role_name in AGING_ROLES.items()
+    ]
+    return value
+
+
 class CoveragePlanTests(unittest.TestCase):
+    def test_aging_rubric_six_named_roles_each_have_one_query_family(self):
+        value = aging_case_proposal()
+        skill = (PLUGIN / "skills/stage1-literature/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("aging-bidirectional-rubric-v1", skill)
+        self.assertIn("Map every one of its six roles", skill)
+        rubric = json.loads(AGING_RUBRIC.read_text(encoding="utf-8"))
+        expected_roles = rubric["coverage_clusters"]
+        self.assertEqual(rubric["rubric_version"], "aging-bidirectional-rubric-v1")
+        self.assertEqual(len(expected_roles), 6)
+        self.assertEqual(list(AGING_ROLES.values()), expected_roles)
+        self.assertEqual(len(set(AGING_ROLES)), 6)
+        self.assertEqual(len(set(AGING_ROLES.values())), 6)
+        self.assertEqual(
+            {cluster["cluster_id"]: cluster["label"] for cluster in value["clusters"]},
+            AGING_ROLES,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "plan"
+            result = compile_plan(value, root, as_of="2026-09-20", actor="synthetic")
+            plan = json.loads((root / "coverage_plan.json").read_text(encoding="utf-8"))
+            queries = [
+                json.loads(line)
+                for line in (root / "query_plan.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            self.assertEqual(
+                result["counts"], {"clusters": 6, "families": 6, "planned_queries": 18}
+            )
+            self.assertEqual(
+                {
+                    cluster["cluster_id"]: cluster["label"]
+                    for cluster in plan["proposal"]["clusters"]
+                },
+                AGING_ROLES,
+            )
+            self.assertEqual(
+                {
+                    cluster: {
+                        query["purpose"]
+                        for query in queries
+                        if query["cluster_id"] == cluster
+                    }
+                    for cluster in {query["cluster_id"] for query in queries}
+                },
+                {
+                    role_id: {"topical", "adversarial", "recent"}
+                    for role_id in AGING_ROLES
+                },
+            )
+            self.assertEqual(
+                {query["cluster_id"]: query["family_id"] for query in queries},
+                {role_id: f"{role_id}-family" for role_id in AGING_ROLES},
+            )
+            self.assertTrue(validate_bundle(root)["valid"])
+
     def test_compile_four_clusters_recent_and_adversarial_with_full_provenance(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "plan"

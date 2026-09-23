@@ -4,7 +4,7 @@
 
 ## 1. 核心文獻從哪裡來
 
-目前的 `10` 篇 frozen core 是 `aging-llm-coupling-tw-v1` development benchmark 的**最小 anchor set**。它放在外部受控 benchmark bundle，production harness 不能讀取。repo 只保存數量、評分規則、版本與 bundle SHA-256，不保存 title hints。
+目前的 `10` 篇 frozen core 是歷史四群 `aging-llm-coupling-tw-v1` development benchmark 的**最小 anchor set**。它放在外部受控 benchmark bundle，production harness 不能讀取。repo 只保存數量、評分規則、版本與 bundle SHA-256，不保存 title hints。這些數字與下文四群定義維持 v1 原義；目前 [aging-bidirectional 六群 rubric](rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md) 是另一個版本，不能拿來重算舊 baseline。
 
 這份 anchor set 依四個 coverage clusters、基礎方法、closest consumer-facing LLM work 與 validation 需求整理，每篇都有 inclusion reason。它受到 exploratory run01 的缺漏分析影響，因此適合在相同案例做固定 paired A/B，但有三個限制：
 
@@ -70,7 +70,7 @@ Classic 候選必須在 benchmark 截止日前至少出版五年、三個 Classi
 | `S1_VERSION_DATE` | 同時保存 source version 與 access date 的 included works／全部 included works。 | P3 |
 | `S1_STOP_EVIDENCE` | 布林值；只有 coverage、recent sweep、closest-work check、失敗狀態與 marginal yield 都有紀錄時才為 true。 | P3 |
 
-四個固定 clusters 為：aging／life cycle／retirement／household consumption；population projection 到 synthetic 或 reweighted agents；consumer/economic ABM 與 LLM decisions；calibration、independent validation、distributional alignment 與 limitations。
+歷史 v1 development benchmark 的四個固定 clusters 為：aging／life cycle／retirement／household consumption；population projection 到 synthetic 或 reweighted agents；consumer/economic ABM 與 LLM decisions；calibration、independent validation、distributional alignment 與 limitations。這裡的 `S1_COVER` 分母 4 和上述 v1 計數不變；目前 aging-bidirectional case 依其 [六群 rubric](rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md) 規劃與評估，不可默默替換這個分母。
 
 ## 4. Stage 2 子指標
 
