@@ -1,0 +1,39 @@
+{
+  "counts": {
+    "backend_attempts": 54,
+    "backend_failures": 4,
+    "candidate_revisions": 594,
+    "claims": 6,
+    "decisions": 499,
+    "discoveries": 594,
+    "queries": 36,
+    "success_empty": 2,
+    "works": 499
+  },
+  "coverage_blockers": [
+    "cluster-incomplete:aging-consumption-mechanisms",
+    "cluster-incomplete:economic-models",
+    "cluster-incomplete:bidirectional-feedback",
+    "recent-sweep-incomplete",
+    "closest-work-unverified",
+    "closest-expansion-incomplete:work-1a7c5260bc62b598e7ef6bb332f0f807f65be47464807cec164aadefd8223f7d:references",
+    "closest-expansion-incomplete:work-1a7c5260bc62b598e7ef6bb332f0f807f65be47464807cec164aadefd8223f7d:cited-by",
+    "screening-or-evidence-review-incomplete",
+    "extraction-incomplete",
+    "latest-round-incomplete",
+    "marginal-yield-not-saturated"
+  ],
+  "gate": "continue",
+  "kind": "Stage1LiveSmokeEvidence",
+  "research_hub_merge_sha": "9877f929587e7e44bc2533db118cbb89336bf94f",
+  "run_bundle_sha256": "cb663400c2acde8efbab700bf709346d191d26739fa46df7c375227461a503a6",
+  "scope": "live development smoke; formal frozen paired A/B not run",
+  "screening": {
+    "include": 6,
+    "pending": 493
+  },
+  "source_repository_head": "c2f9837299a11dc1af0320d17ffaf997b54a3a9a",
+  "state_sha256": "728adc8b2d14c96506c5e4b6b17a22856673c9d7db8fdebf8855af7db05e9e98",
+  "status": "complete",
+  "subject": "South Korea population aging and household consumption using LLM-driven agents"
+}

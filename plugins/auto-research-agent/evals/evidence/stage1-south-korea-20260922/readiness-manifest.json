@@ -1,0 +1,73 @@
+{
+  "artifacts": [
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/live-run.json",
+      "role": "live-run",
+      "sha256": "c722c7c13e90081af06233a8523a132301ed1c18e9d841a421e2e000bbe41306"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/validator-report.json",
+      "role": "validator-report",
+      "sha256": "5afb8b8c1683d7396df4f232d6940d12c78dcba9bfd27e2668ee963be53c93b0"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/runtime-bytes.json",
+      "role": "runtime-bytes",
+      "sha256": "ad32dbd1d8c64ceafaceea0440d6fbafd598415bca2505f96eebaeef0ccc5d6d"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/dependency-bytes.json",
+      "role": "dependency-bytes",
+      "sha256": "9f027dfcfe62b1a805d8806af2ab8b29eef5e1818cba7a1759a0ef7331fb689e"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/resume-report.json",
+      "role": "resume-report",
+      "sha256": "48c85a27f90418a0575cb8846eaa216d2721b7a9e835e31d213b036cbabe5b3d"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/live-run-bundle.zip",
+      "role": "run-bundle",
+      "sha256": "cb663400c2acde8efbab700bf709346d191d26739fa46df7c375227461a503a6"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/validator-detail.json",
+      "role": "validator-detail",
+      "sha256": "a7b7d60443ae1f6f6f12f73a0c7853f659dfc57c3f6272decf56df8aa249a3ce"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/secret-scan.json",
+      "role": "credential-scan",
+      "sha256": "dc94fa0eacd7465ce0f159bc36ac3541bca9024c351b1ba5bfe7e865e0a3cd50"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/pr-bundle-independent-replay.json",
+      "role": "independent-bundle-replay",
+      "sha256": "44eac1f70748314dc7454041053622886089865adbee1e5d84017725edeff226"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/runtime-restore-validation.json",
+      "role": "runtime-restore-validation",
+      "sha256": "bf32255fdf5df3b3aaca07b53d38d2ec266951cf922c63c75bbf22fb6173821d"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/pr-preflight-failures.jsonl",
+      "role": "preflight-failure-history",
+      "sha256": "223865e3c018eb8fb4e865208038f458f43b76ae42ddc16ccaa84655e9923918"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/plugin-tests.stderr.txt",
+      "role": "plugin-test-log",
+      "sha256": "a263fadd99d311de50f014e4cd265c0a51a860c7f60916653e380d88892d6999"
+    }
+  ],
+  "claim_boundary": "Production path executed and replayed; P1-P3 improvement not assessed",
+  "created_at": "2026-09-23T00:20:38.074952+00:00",
+  "evidence_scope": "live-smoke",
+  "execution_status": "complete",
+  "kind": "ReadinessEvidenceManifest",
+  "readiness": "stage-executable",
+  "resume_status": "passed",
+  "schema_version": "1.0.0",
+  "validator_status": "passed"
+}
