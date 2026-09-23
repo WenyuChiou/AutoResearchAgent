@@ -32,8 +32,13 @@ hash、prompt hash、模型、reasoning、mode、tools、baseline/treatment 版�
 
 Holdout 是受控答案包，不能成為 production 搜尋提示。每個 anchor 保存 identity、
 version、DOI/URL、coverage cluster、研究角色、core/must-have、納入理由、原文
-locator、classic/importance 判斷、兩位獨立人類 rater 結果，以及分歧時的 adjudication。
-Frozen manifest 需要兩份有時間與 hash 的人類核准紀錄。
+locator、classic/importance 判斷與兩位獨立人類 rater 結果。v1 的分歧由第三位
+獨立人類 adjudicator 裁定；南韓雙向案例的 v2 採兩人一致納入，分歧候選留在
+`disagreements` 並排除，不冒充第三位裁決者。v2 另要求完整的凍結前候選篩選紀錄；
+歷史 v1 契約沒有此欄位，不能倒稱當時已保存完整篩選紀錄。
+Frozen manifest 需要兩份有時間與 hash 的人類核准紀錄。六群 v2 指標與分母另見
+[Stage 1 v2 操作型定義](stage1/OPERATIONAL_DEFINITIONS_V2.zh-TW.md)，不得沿用舊四群的
+10 篇 core／2 篇 must-have 數字。
 
 「經典」不是只看引用數：至少早於 cutoff 五年，field recognition、foundational role、
 durability 都不能為 0，總分至少 5，並有兩個 authority evidence IDs。「must-have」

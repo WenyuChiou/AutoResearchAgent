@@ -26,9 +26,9 @@
 
 ### P2 Relevant Coverage｜相關文獻覆蓋
 
-**像在問：**「拼圖有很多片，但關鍵的四個角和最新幾片有沒有找到？」
+**像在問：**「拼圖有很多片，但這次研究必需的每一塊和最新幾片有沒有找到？」
 
-- 硬量測：四個 coverage clusters 是否都有資料；frozen core 與 must-have 找到幾篇；是否執行 recent-work sweep；最新文獻年份。
+- 硬量測：依案例凍結的 coverage clusters 是否都有資料（舊 v1 為四群；南韓雙向 v2 為六群）；frozen core 與 must-have 找到幾篇；是否執行 recent-work sweep；最新文獻年份。
 - 人工判斷：漏掉的文章是否有同樣直接、同樣重要的替代來源；目前文獻是否足以支持研究決策。
 - 壞例子：找到 15 篇人口老化文章，但沒有任何 LLM consumer agent、人口到 agent 的映射或 validation 研究。
 - 好例子：所用 rubric 要求的每類文獻都有證據，另有最近研究與 closest-work search，停止搜尋的原因也說得清楚。

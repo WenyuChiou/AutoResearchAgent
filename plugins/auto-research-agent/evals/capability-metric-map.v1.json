@@ -1161,6 +1161,127 @@
       ],
       "live_ab_required_at": "stage1-executable-milestone",
       "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:holdout-manifest-v2",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/validators/holdout_manifest_v2.py",
+      "problem": "A two-person team cannot honestly record an independent third adjudicator when curating the bidirectional South Korea holdout.",
+      "mechanism": "Validate exactly two independent human raters, unanimous inclusion, preserved excluded disagreements, private candidate screening log, classic and must-have rules, and two recorded human approvals.",
+      "metric_effects": [
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.CLUSTERS",
+            "P2.CORE",
+            "P2.MUST_HAVE",
+            "P2.SUBSTITUTE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "all six clusters and roles are covered",
+            "classic and must-have eligibility rules pass",
+            "the manifest has a canonical SHA-256"
+          ],
+          "human_judgment": "Two human raters independently decide directness and inclusion; disputed candidates are excluded and preserved without a third adjudicator."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.DECISION_TRACE",
+            "P3.VERSION_DATE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "every anchor retains two ratings and evidence IDs",
+            "frozen manifests record approvals and time",
+            "answer-key and approval artifacts are declared under normalized private paths",
+            "disagreements are preserved outside the included anchor set"
+          ],
+          "human_judgment": "The core team checks that the preserved curation record is sufficient to challenge each anchor decision."
+        }
+      ],
+      "guardrails": [
+        "real holdout contents stay under a separately controlled private path",
+        "this validator does not prove process isolation or artifact bytes; the evaluation runner must attest both",
+        "a passing contract does not prove human identity or scientific correctness",
+        "changing a frozen manifest requires a new ID and hash"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_ab_contract_v2.py"
+      ],
+      "live_ab_required_at": "stage1-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:stage1-evaluation-result-v2",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/validators/stage1_evaluation_result_v2.py",
+      "problem": "Historical four-cluster and 10/2 denominators would mis-score a six-cluster bidirectional Stage 1 run.",
+      "mechanism": "Validate six coverage clusters and bind core/must-have denominators to the frozen private v2 holdout while preserving factual count invariants.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": [
+            "P1.IDENTITY",
+            "P1.IDENTIFIER",
+            "P1.CLAIM_SUPPORT",
+            "P1.CENTRAL_MISMATCH"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "bibliographic and claim count parts equal their totals",
+            "central source mismatch count is explicit"
+          ],
+          "human_judgment": "A blinded AI judge applies the frozen rubric to whether the verified source supports the central method and finding."
+        },
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2.CLUSTERS",
+            "P2.CORE",
+            "P2.MUST_HAVE",
+            "P2.RECENT"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "coverage numerators do not exceed denominators",
+            "recent work counts and latest-year state are internally consistent",
+            "coverage denominator is six and core/must-have totals match the bound private v2 manifest"
+          ],
+          "human_judgment": "A blinded AI judge applies the frozen rubric to closest-work and substitute-source sufficiency."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3.SEARCH_TRACE",
+            "P3.DECISION_TRACE",
+            "P3.VERSION_DATE",
+            "P3.CLAIM_TRACE",
+            "P3.STOP_EVIDENCE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "trace numerators do not exceed denominators",
+            "work, claim, decision, and version trace counts remain internally consistent"
+          ],
+          "human_judgment": "A blinded AI judge applies the frozen rubric to trace sufficiency."
+        }
+      ],
+      "guardrails": [
+        "semantic validity is not reported as scientific quality improvement",
+        "structural JSON Schema validation runs before semantic validation",
+        "reads the private manifest only for frozen counts; does not read answer-key contents or become a production dependency"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_ab_contract_v2.py"
+      ],
+      "live_ab_required_at": "stage1-formal-milestone",
+      "quality_improvement_claimed": false
     }
   ]
 }

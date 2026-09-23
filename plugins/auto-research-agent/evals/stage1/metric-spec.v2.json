@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0.0",
+  "metric_spec_version": "stage1-primary-metrics-v2",
+  "scorecard_version": "primary-scorecard-v1",
+  "status": "versioned-contract-awaiting-private-freeze",
+  "measurement_model": {
+    "type": "hybrid",
+    "hard_measures": "Counts, ratios, schema validity, artifact presence, timestamps, failures, and efficiency are mechanically reproducible once source adjudication is fixed.",
+    "human_judgments": "Two human curators independently freeze unanimously included anchors. Separate blinded Auto-R1 and Auto-R2 judges score scientific sufficiency; Auto-ADJ resolves judge disagreements and targeted humans audit triggered claims.",
+    "automation_boundary": "A valid result artifact is necessary but cannot by itself establish a passing P1, P2, or P3 scientific judgment."
+  },
+  "primary_metrics": [
+    {
+      "id": "P1",
+      "name": "Evidence Reliability",
+      "measurement_type": "hybrid",
+      "required_counts": [
+        "fact_metrics.bibliographic_identity",
+        "fact_metrics.identifier_or_link",
+        "fact_metrics.claim_support",
+        "fact_metrics.central_source_mismatch"
+      ],
+      "score_2": "Core sources are identifiable, no conclusion-changing fabrication or mismatch is present, central methods and findings are supported, and evidence level is explicit.",
+      "constraint": "P1 cannot receive 2 until the central-claim audit is complete."
+    },
+    {
+      "id": "P2",
+      "name": "Relevant Coverage",
+      "measurement_type": "hybrid",
+      "required_counts": [
+        "fact_metrics.coverage.clusters_hit",
+        "fact_metrics.coverage.core_hit",
+        "fact_metrics.coverage.must_have_hit",
+        "fact_metrics.coverage.recent_works",
+        "fact_metrics.coverage.latest_year"
+      ],
+      "score_2": "All six rubric clusters have verified support; recent and closest-work searches are complete; frozen anchors or adjudicated equally direct substitutes support the decision.",
+      "constraint": "Core and must-have denominators are derived from the frozen private v2 manifest, never from the historical four-cluster benchmark."
+    },
+    {
+      "id": "P3",
+      "name": "Auditability",
+      "measurement_type": "hybrid",
+      "required_counts": [
+        "fact_metrics.auditability.works_with_trace",
+        "fact_metrics.auditability.claims_with_locator",
+        "fact_metrics.auditability.decisions_with_reason",
+        "fact_metrics.auditability.versions_with_access_date",
+        "fact_metrics.auditability.stop_decision_with_evidence"
+      ],
+      "score_2": "Searches, candidates, inclusion and exclusion decisions, source versions, claim evidence, and the stopping decision can be reconstructed from artifacts.",
+      "constraint": "A final DOI list without discovery and inclusion history is capped at 1."
+    }
+  ],
+  "coverage_clusters": [
+    "aging, life cycle, retirement, and household-consumption mechanisms",
+    "population synthesis, reweighting, and dynamic demographic transitions",
+    "household decision, microsimulation, ABM, and macroeconomic models",
+    "LLM consumer or household agents and behavioral fidelity",
+    "bidirectional market, environment, social interaction, and multi-period feedback",
+    "calibration, independent validation, uncertainty, and claim limitations"
+  ],
+  "major_error_gate": [
+    "conclusion-changing fabricated or mismatched source, identifier, method, or finding",
+    "unsupported universal absence claim used as the main novelty",
+    "incomplete Stage 1 output scored as complete"
+  ],
+  "efficiency_guardrails": [
+    "elapsed_seconds",
+    "tool_calls",
+    "failed_tool_calls",
+    "human_interventions",
+    "retries",
+    "tokens",
+    "cost"
+  ],
+  "comparison": {
+    "unit": "stage x repeat x condition",
+    "paired_effect": "treatment - baseline",
+    "minimum_development_repeats": 3,
+    "primary_success_rule": "P2 and P3 improve, P1 does not regress, and no major error is added.",
+    "statistical_claim": "Three pairs describe direction and variability; they do not establish statistical significance."
+  },
+  "evaluation_isolation": {
+    "runtime_readable": false,
+    "answer_keys_committed": false,
+    "production_queries_may_use_benchmark_titles": false,
+    "ci_fixture_type": "synthetic"
+  },
+  "benchmark_anchor_policy": {
+    "set_type": "minimum-development-anchor-set",
+    "case_id": "aging-sk-bidirectional-development-v2",
+    "core_total": "count frozen v2 anchors whose anchor_type is core or core-and-must-have",
+    "must_have_total": "count frozen v2 anchors whose anchor_type is must-have or core-and-must-have",
+    "human_curation": "exactly two independent raters; only unanimously included works enter anchors; disagreements remain excluded and logged",
+    "required_clusters": 6,
+    "required_roles": [
+      "theoretical-mechanism",
+      "quantitative-evidence",
+      "population-to-agent",
+      "simulation-method",
+      "cross-context-case",
+      "validation"
+    ],
+    "classic_rule": "five years old, all three 0-2 dimensions nonzero, total at least five, and two independent authority evidence IDs",
+    "must_have_rule": "two raters each confirm directness 2, decision impact 2, evidence quality at least 1, and no equally direct substitute",
+    "blind_holdout": false,
+    "exhaustive_field_truth": false,
+    "equally_direct_substitute_changes_core_recall": false
+  },
+  "external_benchmark_binding": {
+    "case_id": "aging-sk-bidirectional-development-v2",
+    "manifest_schema_version": "2.0.0",
+    "private_manifest_sha256": "record in frozen evaluation plan before subjects run",
+    "production_runtime_may_read_answer_key": false
+  }
+}

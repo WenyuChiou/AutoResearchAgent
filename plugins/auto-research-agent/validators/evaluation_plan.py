@@ -12,8 +12,10 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 try:
     from .holdout_manifest import canonical_sha256, validate_manifest
+    from .holdout_manifest_v2 import validate_manifest_v2
 except ImportError:  # Direct script execution.
     from holdout_manifest import canonical_sha256, validate_manifest
+    from holdout_manifest_v2 import validate_manifest_v2
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
@@ -147,7 +149,11 @@ def _validate_public_bindings(plan, errors):
                 errors.append(
                     "holdout canonical_sha256 does not match the bound artifact"
                 )
-            if validate_manifest(holdout):
+            holdout_validator = {
+                "1.0.0": validate_manifest,
+                "2.0.0": validate_manifest_v2,
+            }.get(holdout.get("schema_version"))
+            if holdout_validator is None or holdout_validator(holdout):
                 errors.append("bound holdout manifest fails its semantic contract")
             if holdout.get("status") != "frozen":
                 errors.append("an evaluation plan requires a frozen holdout")

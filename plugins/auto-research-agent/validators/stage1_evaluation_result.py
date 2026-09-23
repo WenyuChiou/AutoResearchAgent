@@ -10,8 +10,8 @@ def _sum_matches_total(record, parts):
     return sum(record[name] for name in parts) == record["total"]
 
 
-def semantic_errors(result):
-    """Return cross-field errors that JSON Schema cannot express."""
+def count_semantic_errors(result):
+    """Return count and efficiency errors shared by result schema versions."""
     errors = []
     facts = result["fact_metrics"]
 
@@ -69,6 +69,12 @@ def semantic_errors(result):
     ):
         errors.append("efficiency.failed_tool_calls must not exceed tool_calls")
 
+    return errors
+
+
+def semantic_errors(result):
+    """Return v1 cross-field errors, including its embedded judge scores."""
+    errors = count_semantic_errors(result)
     for metric_id, judgment in result["judgment_scores"].items():
         scores = [judgment["R1"], judgment["R2"], judgment["ADJ"]]
         if judgment["status"] == "adjudicated" and any(
