@@ -1,0 +1,46 @@
+{
+  "bundle_sha256": "cb663400c2acde8efbab700bf709346d191d26739fa46df7c375227461a503a6",
+  "clean_checkout_commit": "b97c63c28931219b999ac8f6333dcbc817214714",
+  "export": {
+    "artifact_valid": true,
+    "errors": [],
+    "evaluation_status": "not-scored",
+    "kind": "Stage1ExportArtifactReplay",
+    "runtime_attestation": "not-rechecked",
+    "schema_version": "1.0.0",
+    "scope": "saved-artifacts-only",
+    "source_state_sha256": "728adc8b2d14c96506c5e4b6b17a22856673c9d7db8fdebf8855af7db05e9e98"
+  },
+  "extracted_files_unchanged": true,
+  "inventory_files_verified": 1241,
+  "kind": "Stage1PortableReplayEvidence",
+  "network_process_and_runtime_probe_guarded": true,
+  "origin_runtime_attestation_role": "runtime-bytes",
+  "review_interpreter_differs_from_saved_runtime": true,
+  "run": {
+    "artifact_valid": true,
+    "counts": {
+      "backend_attempts": 54,
+      "backend_failures": 4,
+      "candidate_revisions": 594,
+      "claims": 6,
+      "decisions": 499,
+      "discoveries": 594,
+      "queries": 36,
+      "success_empty": 2,
+      "works": 499
+    },
+    "errors": [],
+    "kind": "Stage1SavedArtifactReplay",
+    "runtime_attestation": "not-rechecked",
+    "schema_version": "1.0.0",
+    "scientific_truth": "not-evaluated",
+    "scope": "saved-artifacts-only",
+    "state_sha256": "728adc8b2d14c96506c5e4b6b17a22856673c9d7db8fdebf8855af7db05e9e98"
+  },
+  "runtime_attestation": "not-rechecked",
+  "schema_version": "1.0.0",
+  "scope": "saved-artifacts-only",
+  "status": "passed",
+  "zip_members": 1242
+}

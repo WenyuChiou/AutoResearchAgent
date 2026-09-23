@@ -58,7 +58,22 @@
     {
       "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/plugin-tests.stderr.txt",
       "role": "plugin-test-log",
-      "sha256": "a263fadd99d311de50f014e4cd265c0a51a860c7f60916653e380d88892d6999"
+      "sha256": "c7adb546922d6f21ed01f761183337bcbe40a754b03a140c98bb7f536d86d90e"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/portable-replay-report.json",
+      "role": "portable-replay-report",
+      "sha256": "acf7edd3f049a720fcf4e50ae27e444090cad9bd3dfabb4fc76875854fc90451"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/portable-replay-procedure.md",
+      "role": "portable-replay-procedure",
+      "sha256": "6860cfab85917463725b5e709be0946952acfda6bcf83c6920a3b25e14ade9d1"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/review-repair-failures.jsonl",
+      "role": "review-repair-failures",
+      "sha256": "5dc4736287f7fc20f516f4698119023798aebc7c9808fd3f85cf02c579943846"
     }
   ],
   "claim_boundary": "Production path executed and replayed; P1-P3 improvement not assessed",
