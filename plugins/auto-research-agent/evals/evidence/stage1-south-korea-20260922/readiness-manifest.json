@@ -53,7 +53,7 @@
     {
       "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/pr-preflight-failures.jsonl",
       "role": "preflight-failure-history",
-      "sha256": "223865e3c018eb8fb4e865208038f458f43b76ae42ddc16ccaa84655e9923918"
+      "sha256": "bcf3bdf44c2ee10c232d74e52c20d63057042b9dd03dd38e035d9dd7b10d0c73"
     },
     {
       "path": "plugins/auto-research-agent/evals/evidence/stage1-south-korea-20260922/plugin-tests.stderr.txt",
