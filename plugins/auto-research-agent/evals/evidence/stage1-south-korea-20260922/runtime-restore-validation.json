@@ -1,0 +1,16 @@
+{
+  "kind": "Stage1RuntimeRestoreValidation",
+  "status": "passed",
+  "original_run_valid": true,
+  "state_sha256": "728adc8b2d14c96506c5e4b6b17a22856673c9d7db8fdebf8855af7db05e9e98",
+  "bundle_replay_status": "passed",
+  "bundle_files": 1241,
+  "copied_run_files": 814,
+  "automatic_retries": 0,
+  "changed_files": [],
+  "runtime_added": 0,
+  "runtime_missing": 0,
+  "runtime_modified": 0,
+  "pr_body_contract": "passed",
+  "preflight_env": "PYTHONDONTWRITEBYTECODE=1"
+}

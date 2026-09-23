@@ -11,6 +11,22 @@ python plugins/auto-research-agent/cli/stage1_export create --run RUN --output E
 python plugins/auto-research-agent/cli/stage1_export validate EXPORT
 ```
 
+`create` and `validate` strictly re-attest the original pinned runtime for a
+live source run. If a reviewer has only the copied bundle on a different host,
+use the separate no-network, read-only content check:
+
+```shell
+python plugins/auto-research-agent/cli/stage1_export replay-artifacts EXPORT
+```
+
+This checks every export file and hash, replays its saved source ledger, and
+recomputes `metric_inputs.json` and `efficiency.json`. It returns
+`artifact_valid`, `source_state_sha256`, and `runtime_attestation:
+"not-rechecked"`. The original host's strict runtime-byte attestation remains
+a separate evidence artifact. This command cannot authorize a new search,
+resume, checkpoint, gate result, or scientific score. A missing source file or
+rehash-forged metric still fails.
+
 Both commands return JSON and exit nonzero on failure. `EXPORT` must be a new
 directory outside `RUN`. Complete the latest checkpoint first. Export takes the
 writer lock, checks the source without repairing it, and copies only known run

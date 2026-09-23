@@ -2,6 +2,8 @@
 
 import inspect
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -12,7 +14,7 @@ sys.path.insert(0, str(PLUGIN / "cli"))
 # ruff: noqa: E402 -- load the repository CLI without installing it.
 from stage1_ledger.journal import LedgerError, canonical, decode, digest
 from stage1_ledger.store import Ledger
-from stage1_ledger.validation import validate_run
+from stage1_ledger.validation import replay_artifacts, validate_run
 from stage1_retrieval.audit import read_audit
 from stage1_retrieval.projection import project
 from stage1_retrieval.runner import execute, resume
@@ -20,7 +22,11 @@ from stage1_retrieval.receipt import command, validate_execution
 from stage1_retrieval.runtime_identity import capture_identity
 from test_retrieval_audit import seal
 from test_stage1_ledger import SYNTHETIC, rewrite_for_tamper_test
-from stage1_export.bundle import export_run, validate_export
+from stage1_export.bundle import (
+    export_run,
+    replay_export_artifacts,
+    validate_export,
+)
 
 
 def synthetic_audit(root, backend, mode, argv):
@@ -277,6 +283,84 @@ class ExecutionTests(unittest.TestCase):
             objective="Synthetic query",
             research_hub_pin=pin,
         )
+
+    def test_saved_artifact_replay_works_without_original_runtime(self):
+        ledger = self.create()
+        query = ledger.start("search", dict(query="synthetic query", limit=3))
+        execute(ledger.root, query, "openalex")
+        ledger.complete_query(query)
+        ledger.extract()
+        ledger.checkpoint()
+        exported = self.root / "export"
+        self.assertTrue(export_run(ledger.root, exported)["valid"])
+
+        copied_run, copied_export = (
+            self.root / "copied-run",
+            self.root / "copied-export",
+        )
+        shutil.copytree(ledger.root, copied_run)
+        shutil.copytree(exported, copied_export)
+        Path(ledger.manifest["research_hub_pin"]["argv_prefix"][-1]).unlink()
+        self.assertFalse(validate_run(copied_run)["valid"])
+        self.assertFalse(validate_export(copied_export)["valid"])
+
+        cli = Path(__file__).resolve().parents[1] / "cli"
+        for argv in (
+            ["stage1_ledger", "--run", str(copied_run), "validate"],
+            ["stage1_export", "validate", str(copied_export)],
+        ):
+            result = subprocess.run(
+                [sys.executable, "-m", *argv], cwd=cli, capture_output=True
+            )
+            self.assertEqual(result.returncode, 1)
+
+        with (
+            patch(
+                "stage1_retrieval.runtime_identity.verify_identity",
+                side_effect=AssertionError("portable replay must not inspect runtime"),
+            ),
+            patch(
+                "stage1_retrieval.runner.subprocess.Popen",
+                side_effect=AssertionError("portable replay must not launch runtime"),
+            ),
+            patch(
+                "socket.socket",
+                side_effect=AssertionError("portable replay must not open a socket"),
+            ),
+        ):
+            run_report = replay_artifacts(copied_run)
+            export_report = replay_export_artifacts(copied_export)
+        self.assertTrue(run_report["artifact_valid"], run_report)
+        self.assertTrue(export_report["artifact_valid"], export_report)
+        self.assertEqual(run_report["kind"], "Stage1SavedArtifactReplay")
+        self.assertEqual(export_report["kind"], "Stage1ExportArtifactReplay")
+        self.assertEqual(run_report["scope"], "saved-artifacts-only")
+        self.assertEqual(export_report["scope"], "saved-artifacts-only")
+        self.assertEqual(run_report["runtime_attestation"], "not-rechecked")
+        self.assertEqual(export_report["runtime_attestation"], "not-rechecked")
+        self.assertEqual(
+            run_report["state_sha256"], export_report["source_state_sha256"]
+        )
+
+        for argv in (
+            ["stage1_ledger", "--run", str(copied_run), "replay-artifacts"],
+            ["stage1_export", "replay-artifacts", str(copied_export)],
+        ):
+            result = subprocess.run(
+                [sys.executable, "-m", *argv], cwd=cli, capture_output=True
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(decode(result.stdout, "portable CLI")["artifact_valid"])
+
+        artifact = next(
+            row["payload"]["ref"]["path"]
+            for row in ledger.events()
+            if row["payload"]["kind"] == "ArtifactStored"
+        )
+        (copied_run / artifact).unlink()
+        (copied_export / "source" / artifact).unlink()
+        self.assertFalse(replay_artifacts(copied_run)["artifact_valid"])
+        self.assertFalse(replay_export_artifacts(copied_export)["artifact_valid"])
 
     def test_real_process_dedup_provenance_reversal_and_missing_raw(self):
         ledger = self.create()

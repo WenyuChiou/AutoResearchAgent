@@ -17,9 +17,9 @@ from .derive import derive
 from . import native
 
 
-def source_state(root):
+def source_state(root, *, verify_runtime=True):
     ledger = Ledger(root)
-    report = validate_run(root)
+    report = validate_run(root, verify_runtime=verify_runtime)
     if not report["valid"]:
         raise LedgerError("invalid-export-source: " + "; ".join(report["errors"]))
     events = [row["payload"] for row in ledger.events()]
@@ -99,7 +99,7 @@ def export_run(root, output, *, native_capture=None):
     return validate_export(target)
 
 
-def validate_export(root):
+def _validate_export(root, *, verify_runtime):
     root = Path(root).resolve()
     try:
         manifest = decode(
@@ -123,7 +123,9 @@ def validate_export(root):
             if len(raw) != entry["bytes"] or digest(raw) != entry["sha256"]:
                 raise LedgerError("export-file-hash: " + entry["path"])
             data[entry["path"]] = raw
-        ledger, report, events, checkpoint = source_state(root / "source")
+        ledger, report, events, checkpoint = source_state(
+            root / "source", verify_runtime=verify_runtime
+        )
         expected_paths = {"source/" + p for p in source_paths(events)} | {
             "metric_inputs.json",
             "efficiency.json",
@@ -157,3 +159,23 @@ def validate_export(root):
         )
     except (LedgerError, OSError, KeyError, TypeError, ValueError) as error:
         return dict(valid=False, errors=[str(error)], evaluation_status="not-scored")
+
+
+def validate_export(root):
+    """Strict source and export replay, including the original host runtime."""
+    return _validate_export(root, verify_runtime=True)
+
+
+def replay_export_artifacts(root):
+    """Check saved source and metrics on another host without executing a CLI."""
+    report = _validate_export(root, verify_runtime=False)
+    return dict(
+        kind="Stage1ExportArtifactReplay",
+        schema_version="1.0.0",
+        scope="saved-artifacts-only",
+        artifact_valid=report["valid"],
+        errors=report["errors"],
+        source_state_sha256=report.get("source_state_sha256"),
+        runtime_attestation="not-rechecked",
+        evaluation_status="not-scored",
+    )

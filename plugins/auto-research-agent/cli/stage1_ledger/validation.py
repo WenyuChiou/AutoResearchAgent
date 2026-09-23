@@ -44,7 +44,13 @@ def require(condition, reason):
         raise LedgerError(reason)
 
 
-def validate_run(root):
+def validate_run(root, *, verify_runtime=True):
+    """Replay the ledger; only explicit artifact replay omits host runtime checks.
+
+    The default remains the strict validation used by gates, checkpoints,
+    exports, launch, and resume. ``verify_runtime=False`` can inspect saved
+    evidence on a second host but cannot attest the original executable.
+    """
     journal = Journal(root)
     counts = dict.fromkeys(COUNT_NAMES, 0)
     starts, finishes, queries, stored, works, decisions = {}, {}, {}, {}, {}, {}
@@ -75,7 +81,7 @@ def validate_run(root):
     try:
         manifest = journal.manifest
         check_manifest(manifest)
-        if manifest["mode"] == "research-hub-cli":
+        if manifest["mode"] == "research-hub-cli" and verify_runtime:
             from stage1_retrieval.runtime_identity import verify_identity
 
             verify_identity(manifest["research_hub_pin"])
@@ -438,3 +444,19 @@ def validate_run(root):
     if sources.starts:
         report["source_reads"] = sources.report() if not errors else None
     return report
+
+
+def replay_artifacts(root):
+    """Read-only content replay, with no claim about the original host runtime."""
+    report = validate_run(root, verify_runtime=False)
+    return dict(
+        kind="Stage1SavedArtifactReplay",
+        schema_version="1.0.0",
+        scope="saved-artifacts-only",
+        artifact_valid=report["valid"],
+        errors=report["errors"],
+        counts=report["counts"],
+        state_sha256=report["state_sha256"],
+        runtime_attestation="not-rechecked",
+        scientific_truth="not-evaluated",
+    )

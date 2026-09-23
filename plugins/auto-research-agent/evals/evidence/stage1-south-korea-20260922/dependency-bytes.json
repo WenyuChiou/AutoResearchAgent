@@ -1,0 +1,9 @@
+{
+  "adapter_build_sha256": "2499e1975fe93a89ec777f793eaff78cf985896e27b191f194e15e791985fd24",
+  "adapter_files_sha256": "b4dce5d79c87f1c4e80356257a1fd51748372947e8117c45edee444179a7ba96",
+  "adapter_head_sha": "c2f9837299a11dc1af0320d17ffaf997b54a3a9a",
+  "kind": "Stage1DependencyBytes",
+  "research_hub_merge_sha": "9877f929587e7e44bc2533db118cbb89336bf94f",
+  "research_hub_wheel_sha256": "0c47d9d9870c5489bf033200c361a394fdffcead710cf473968394224533e017",
+  "status": "merged"
+}

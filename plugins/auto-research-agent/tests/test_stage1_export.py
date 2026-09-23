@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 from test_stage1_ledger import fixture
-from stage1_export.bundle import export_run, validate_export
+from stage1_export.bundle import export_run, replay_export_artifacts, validate_export
 from stage1_ledger.journal import LedgerError, canonical, digest
 
 
@@ -104,6 +104,9 @@ class Stage1ExportTests(unittest.TestCase):
         report = validate_export(self.output)
         self.assertFalse(report["valid"])
         self.assertIn("metric-input-replay", " ".join(report["errors"]))
+        portable = replay_export_artifacts(self.output)
+        self.assertFalse(portable["artifact_valid"])
+        self.assertIn("metric-input-replay", " ".join(portable["errors"]))
 
     def test_missing_source_fails_closed_and_invalid_run_is_not_exported(self):
         export_run(self.ledger.root, self.output)

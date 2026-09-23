@@ -1,0 +1,8 @@
+{
+  "kind": "Stage1LiveValidatorEvidence",
+  "source_errors": [],
+  "source_report_sha256": "a7b7d60443ae1f6f6f12f73a0c7853f659dfc57c3f6272decf56df8aa249a3ce",
+  "source_state_sha256": "728adc8b2d14c96506c5e4b6b17a22856673c9d7db8fdebf8855af7db05e9e98",
+  "source_valid": true,
+  "status": "passed"
+}

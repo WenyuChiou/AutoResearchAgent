@@ -1,0 +1,13 @@
+{
+  "kind": "Stage1PrBundleIndependentReplay",
+  "status": "passed",
+  "bundle_sha256": "cb663400c2acde8efbab700bf709346d191d26739fa46df7c375227461a503a6",
+  "archive_members": 1242,
+  "inventory_checked": 1241,
+  "run_files": 814,
+  "changed_files": [],
+  "automatic_retries": 0,
+  "validator_valid": true,
+  "gate": "continue",
+  "state_sha256": "728adc8b2d14c96506c5e4b6b17a22856673c9d7db8fdebf8855af7db05e9e98"
+}

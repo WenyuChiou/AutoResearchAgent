@@ -10,7 +10,7 @@ if __package__ in {None, ""}:
 from stage1_ledger.journal import LedgerError, canonical, decode
 from stage1_ledger.readiness import readiness
 from stage1_ledger.store import Ledger
-from stage1_ledger.validation import validate_run
+from stage1_ledger.validation import replay_artifacts, validate_run
 
 
 def main(argv=None):
@@ -45,6 +45,7 @@ def main(argv=None):
     for name in (
         "extract",
         "validate",
+        "replay-artifacts",
         "gate",
         "checkpoint",
         "recover",
@@ -83,14 +84,18 @@ def main(argv=None):
             result = {"event_id": ledger.complete_query(args.query_id)}
         elif args.command == "validate":
             result = validate_run(args.run)
+        elif args.command == "replay-artifacts":
+            result = replay_artifacts(args.run)
         elif args.command == "gate":
             gate, action = readiness(validate_run(args.run))
             result = {"gate": gate, "next_allowed_action": action}
         else:
             result = getattr(ledger, args.command.replace("-", "_"))()
         sys.stdout.buffer.write(canonical(result) + b"\n")
-        failed = (args.command == "validate" and not result["valid"]) or (
-            args.command == "extract" and result["extraction_failures"]
+        failed = (
+            (args.command == "validate" and not result["valid"])
+            or (args.command == "replay-artifacts" and not result["artifact_valid"])
+            or (args.command == "extract" and result["extraction_failures"])
         )
         return 1 if failed else 0
     except (LedgerError, OSError, TypeError, KeyError, ValueError) as error:
