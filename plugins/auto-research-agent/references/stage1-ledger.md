@@ -1,12 +1,12 @@
 # Stage 1 saved-observation ledger
 
-This is the independent part of implementation PR 2: `extract → validate →
-gate → checkpoint`, with action receipts for later `execute` integration.
-It imports observations supplied by the caller. It does not run searches,
-verify bibliographic identity, or establish scientific coverage. Every manifest
-states `mode: offline-import` and `research_hub_pin: null`. The search adapter
-must wait for the documented audit surface in research-hub PR 137 to merge and
-be pinned. Do not substitute private Python imports or an unmerged dependency.
+The ledger covers `extract → validate → gate → checkpoint` and stores action
+receipts from the live search adapter or caller-supplied offline observations.
+It does not itself run searches, authenticate bibliographic identity, or
+establish scientific coverage. Offline manifests use `mode: offline-import` and
+`research_hub_pin: null`; live manifests bind the documented CLI audit surface
+merged in research-hub PR 138. Do not substitute private Python imports or an
+unmerged dependency.
 
 ## Run the CLI
 
@@ -70,6 +70,22 @@ python plugins/auto-research-agent/cli/stage1_ledger --run ../synthetic-run chec
 invalid schema, broken reference, changed projection or inconsistent derived
 record. Unavailable counts are null. A valid report checks record consistency,
 not scientific truth. Unbound runs return `continue` or `human-review`.
+For a run copied to another computer without the original pinned Python runtime,
+use the separate read-only command:
+
+```shell
+python plugins/auto-research-agent/cli/stage1_ledger --run COPIED_RUN replay-artifacts
+```
+
+It replays the saved journal, references, raw bytes, receipt projections,
+decisions, coverage and checkpoint content without a network call or process
+launch. Its JSON says `artifact_valid` and `runtime_attestation:
+"not-rechecked"`; it never emits a new checkpoint or a sufficient stop. A
+missing or changed saved file still exits nonzero. The normal `validate`,
+`gate`, `checkpoint`, `stage1_retrieval execute` and `resume` retain the strict
+original-runtime check. The originating host's runtime-byte attestation must
+be delivered separately; artifact replay cannot prove those executable bytes
+were present on the reviewer's machine or that a scientific claim is true.
 Runs with a frozen [coverage plan](stage1-coverage.md) use the reviewed coverage
 and marginal-yield policy, which can report an operational `stop-sufficient`.
 A failed validation preserves its report but

@@ -725,7 +725,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_ledger",
       "problem": "Repeated discoveries and changed screening decisions otherwise overwrite provenance or confuse a backend failure with an empty search.",
-      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. Record caller-attested source-read start/finish events, same-attempt raw/text lineage and work/version-bound available claims; pending and latest failed reads block sufficient stopping without changing search counts or scientific judgments.",
+      "mechanism": "Record immutable source bytes and hash-linked events; rebuild work revisions and screening history from saved observations without a network dependency. Append and replay revision-bound bibliographic comparisons without authenticating sources or upgrading claims. Freeze candidate, claim and decision snapshots plus the existing triage skill's known-paper input at each checkpoint; Stage 2 remains unexecuted. Render bounded checkpoint coverage tables from saved reports and events; reject altered views and recover the exact text without repeating research. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. Record caller-attested source-read start/finish events, same-attempt raw/text lineage and work/version-bound available claims; pending and latest failed reads block sufficient stopping without changing search counts or scientific judgments. A separate read-only saved-artifact replay permits cross-host content verification without weakening strict runtime validation for execution and checkpoint decisions.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -781,6 +781,7 @@
         "Completion refs bind to their own attempt; claims bind to the same work/version import or exact discovery record.",
         "no frozen answers in production or fixtures",
         "offline import is not reported as a live backend run",
+        "Saved-artifact replay checks ledger content without re-attesting the original host; default validation, launch, resume and stop decisions retain strict runtime checks.",
         "structural validity and claim annotations do not establish scientific truth",
         "bibliographic consistency is distinct from authenticated identity and claim verification"
       ],
@@ -1017,7 +1018,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_export",
       "problem": "Ledger counts can be mistaken for scientific scores, and an evaluator cannot replay an export if source evidence or denominators are missing.",
-      "mechanism": "Freeze only validated known source files and recompute versioned metric and efficiency inputs; preserve unavailable audits and usage separately from recorded counts. Optionally wrap explicitly supplied public Codex exec events and process bounds, bind them to source run/state/journal hashes, and replay separate captured-invocation usage without inferring whole-stage totals. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated.",
+      "mechanism": "Freeze only validated known source files and recompute versioned metric and efficiency inputs; preserve unavailable audits and usage separately from recorded counts. Optionally wrap explicitly supplied public Codex exec events and process bounds, bind them to source run/state/journal hashes, and replay separate captured-invocation usage without inferring whole-stage totals. Support explicit public CLI receipts with replayable failures and a separately declared citation backend; development dependencies remain gated. A separate read-only saved-artifact replay recomputes export inputs on another host and explicitly does not re-attest the original runtime.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -1077,6 +1078,7 @@
         "Coverage-round presence and operational stopping are not frozen S1_STOP_EVIDENCE scores.",
         "no benchmark answers or evaluator imports in production",
         "no source mutation or implicit recovery on export",
+        "Saved-artifact replay recomputes exported inputs without the original host runtime; normal export creation and validation remain strict.",
         "no scientific-quality claim or automatic scores",
         "copied evidence is not public by default",
         "no private session parsing or agent execution",

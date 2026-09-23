@@ -26,6 +26,9 @@ completed live run or evidence of scientific-quality improvement.
 The [input exporter](references/stage1-export.md) freezes a validated run and
 recomputable P1-P3 inputs for independent evaluation. It retains unknown audit,
 usage and cost fields explicitly; it does not award scientific scores.
+Its separate `replay-artifacts` command verifies saved evidence on another host
+without asserting that host has the original pinned runtime. Normal validation,
+execution and resume continue to require the exact runtime attestation.
 An optional saved public execution capture adds replayable tool and token
 observations with an explicit invocation scope.
 
