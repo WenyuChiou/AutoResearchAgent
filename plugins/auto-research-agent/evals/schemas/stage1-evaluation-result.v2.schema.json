@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/auto-research-agent/stage1-evaluation-result.v2.schema.json",
+  "title": "Stage1EvaluationResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "run_id",
+    "condition",
+    "benchmark_version",
+    "evaluation_plan_sha256",
+    "holdout_sha256",
+    "metric_spec_version",
+    "prompt_sha256",
+    "fact_metrics",
+    "major_issues",
+    "efficiency",
+    "artifacts"
+  ],
+  "properties": {
+    "kind": {
+      "const": "Stage1EvaluationResult"
+    },
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "condition": {
+      "enum": [
+        "baseline",
+        "treatment"
+      ]
+    },
+    "benchmark_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evaluation_plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "holdout_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "metric_spec_version": {
+      "const": "stage1-primary-metrics-v2"
+    },
+    "prompt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fact_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bibliographic_identity",
+        "identifier_or_link",
+        "claim_support",
+        "central_source_mismatch",
+        "coverage",
+        "auditability"
+      ],
+      "properties": {
+        "bibliographic_identity": {
+          "$ref": "#/$defs/correctnessCounts"
+        },
+        "identifier_or_link": {
+          "$ref": "#/$defs/correctnessCounts"
+        },
+        "claim_support": {
+          "$ref": "#/$defs/claimCounts"
+        },
+        "central_source_mismatch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverageCounts"
+        },
+        "auditability": {
+          "$ref": "#/$defs/auditCounts"
+        }
+      }
+    },
+    "major_issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "evidence_refs"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "fabricated_or_mismatched_evidence",
+              "unsupported_absence_claim",
+              "incomplete_output"
+            ]
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "efficiency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "elapsed_seconds",
+        "tool_calls",
+        "failed_tool_calls",
+        "human_interventions",
+        "retries",
+        "tokens",
+        "cost"
+      ],
+      "properties": {
+        "elapsed_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "failed_tool_calls": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "human_interventions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "cost": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "correctnessCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correct",
+        "incorrect",
+        "unverifiable",
+        "total"
+      ],
+      "properties": {
+        "correct": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "incorrect": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unverifiable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "claimCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supported",
+        "partial",
+        "contradicted",
+        "unverifiable",
+        "total"
+      ],
+      "properties": {
+        "supported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "partial": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contradicted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unverifiable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "coverageCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clusters_hit",
+        "clusters_total",
+        "core_hit",
+        "core_total",
+        "must_have_hit",
+        "must_have_total",
+        "recent_works",
+        "year_confirmed_works",
+        "latest_year"
+      ],
+      "properties": {
+        "clusters_hit": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "clusters_total": {
+          "const": 6
+        },
+        "core_hit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "core_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "must_have_hit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "must_have_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recent_works": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "year_confirmed_works": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latest_year": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1900
+        }
+      }
+    },
+    "auditCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "works_with_trace",
+        "works_total",
+        "claims_with_locator",
+        "claims_total",
+        "decisions_with_reason",
+        "decisions_total",
+        "versions_with_access_date",
+        "included_works_total",
+        "stop_decision_with_evidence"
+      ],
+      "properties": {
+        "works_with_trace": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "works_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claims_with_locator": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claims_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decisions_with_reason": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decisions_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "versions_with_access_date": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "included_works_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stop_decision_with_evidence": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

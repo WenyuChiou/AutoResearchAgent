@@ -14,7 +14,7 @@
 |---|---|---|---|
 | Level 0 Instruction-ready | AI 是否先看到正確規範？ | root router、plugin `AGENTS.md`、連結檢查、fresh-session transcript | 已可用；[Codex 0.153.3 smoke](evidence/instruction-routing-smoke-2026-09-20.md) 通過 |
 | Level 1 Evaluation-ready | 評估機器是否能拒絕不完整或不公平的資料？ | schemas、validators、synthetic fixtures、negative tests、三平台 CI | 已可用 |
-| Level 2 Stage-executable | 該 Stage 的 production harness 是否真的能從輸入產生完整 artifacts？ | capability tests、一次 live smoke run、可重建 ledger、stage milestone PR | Stage 1 尚未完成 |
+| Level 2 Stage-executable | 該 Stage 的 production harness 是否真的能從輸入產生完整 artifacts？ | capability tests、一次 live smoke run、可重建 ledger、stage milestone PR | Stage 1 已由 PR #20 的南韓 live smoke 與跨主機重播證明可執行；coverage gate 仍為 `continue`，不是科學品質改善 |
 | Level 3 Improvement-demonstrated | Treatment 是否比 stock Codex 好？ | frozen private holdout、三組 paired A/B、Auto-R1／Auto-R2／Auto-ADJ、必要 human audit | 尚未執行 |
 
 Level 2 與 Level 3 不能靠 PR 文字自我宣告。必要欄位必須指向同一份
@@ -98,8 +98,8 @@ target 至少兩組改善且零退步，non-target 零退步，treatment 不得�
 
 ## 目前可做與不可宣稱的事
 
-目前可以使用 frozen rubric、schemas、validators、judge bundle 與 paired runner來開發並
-檢查新的 Stage capability。Stage 1 skill 仍是 foundation；retrieval、append-only ledger、
-full-text claim validation 與 coverage/stop gate 尚未形成完整 executable vertical slice。
-因此下一個開發里程碑是 Level 2 Stage 1，而不是重新設計評估規則。完成 Level 2 與正式 Level 3 前，
-不得宣稱 AutoResearchAgent 已經比 stock Codex 更會做科學研究。
+目前可以使用 frozen rubric、schemas、validators、judge bundle 與 paired runner 來開發並
+檢查新的 Stage capability。Stage 1 的可執行路徑已由 PR #20 的現場執行與重播驗證；
+Stage 1 尚未完成六群科學覆蓋，也尚未證明優於 stock Codex。下一個里程碑是凍結南韓雙向
+案例的 private holdout，執行三組正式 paired A/B、盲評與必要人工 audit。Level 3
+完成前不得宣稱科學研究品質已有改善。

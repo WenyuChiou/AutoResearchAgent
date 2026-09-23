@@ -2,6 +2,10 @@
 
 這份文件定義「實際要數什麼、誰來判斷、分母是什麼」。白話概念請先看 [P1–P9 指標白話說明](METRICS_EXPLAINED.zh-TW.md)。
 
+以下 Stage 1 四群與 10／2 文獻分母只屬於歷史 v1。南韓雙向耦合正式 A/B 使用
+[六群 v2 操作型定義](stage1/OPERATIONAL_DEFINITIONS_V2.zh-TW.md) 及兩人一致納入
+holdout 契約；不能混用兩個版本的分母或舊 run01 分數。
+
 ## 1. 核心文獻從哪裡來
 
 目前的 `10` 篇 frozen core 是歷史四群 `aging-llm-coupling-tw-v1` development benchmark 的**最小 anchor set**。它放在外部受控 benchmark bundle，production harness 不能讀取。repo 只保存數量、評分規則、版本與 bundle SHA-256，不保存 title hints。這些數字與下文四群定義維持 v1 原義；目前 [aging-bidirectional 六群 rubric](rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md) 是另一個版本，不能拿來重算舊 baseline。

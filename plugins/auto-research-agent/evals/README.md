@@ -40,6 +40,19 @@ answers outside the production agent.
   runner must also attest the reviewed treatment diff and opaque judge packets.
 - `stage1/metric-spec.v1.json` defines the required Stage 1 counts, 0-2
   anchors, major-error gate and paired comparison rule.
+- `stage1/metric-spec.v2.json` and
+  `stage1/OPERATIONAL_DEFINITIONS_V2.zh-TW.md` define the separate six-cluster
+  South Korea development case. Its core and must-have denominators come from
+  the frozen private v2 manifest; v1 counts are not reused.
+- `schemas/holdout-manifest.v2.schema.json` and
+  `../validators/holdout_manifest_v2.py` require two independent human ratings,
+  unanimous inclusion, preserved disagreements and two human approvals. They
+  do not manufacture a third adjudicator or prove that a listed actor is human.
+- `schemas/stage1-evaluation-result.v2.schema.json` and
+  `../validators/stage1_evaluation_result_v2.py` bind six-cluster counts to
+  the frozen plan and exact private v2 holdout bytes. Judge results remain in
+  the separate bundle; the formal execution PR must connect this factual
+  result to paired scoring before it can act as a quality gate.
 - `schemas/stage1-evaluation-result.v1.schema.json` defines one scored run.
 - `../validators/stage1_evaluation_result.py` rejects cross-field count and
   adjudication states that JSON Schema cannot express.
@@ -98,9 +111,11 @@ improve, P1 does not regress, and the treatment adds no major error. Runtime,
 tool calls and human interventions are reported as costs, not mixed into the
 quality score.
 
-The external development benchmark is bound by SHA-256 in
-`stage1/metric-spec.v1.json`. Changing a prompt, fixture, rubric or scoring
-definition requires a new version; never overwrite v1.
+The historical four-cluster development benchmark is bound by SHA-256 in
+`stage1/metric-spec.v1.json`. The six-cluster South Korea case has a separate
+`stage1/metric-spec.v2.json` contract and awaits its private manifest freeze.
+Changing a prompt, fixture, rubric or scoring definition requires a new version;
+never overwrite either frozen contract.
 
 Research-harness pull requests follow [PR_GUIDE.md](PR_GUIDE.md) and the
 repository pull-request template. The PR contract connects every change to an
