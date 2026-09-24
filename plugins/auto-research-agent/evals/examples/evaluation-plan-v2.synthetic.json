@@ -68,7 +68,7 @@
     },
     "capability_registry": {
       "path": "capability-metric-map.v1.json",
-      "canonical_sha256": "27708da76f42c2e51a11f8deef291589f6a0e89f884187340bf4b2e0e4297804"
+      "canonical_sha256": "e917fe00dea0f8ce81001077ab04aa06238073cabc3d5b71682f6ebd526c2ac0"
     }
   },
   "subject_runtime": {
