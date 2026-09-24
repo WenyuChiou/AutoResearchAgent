@@ -28,19 +28,24 @@ SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
    each profile's login, CLI version, GPT-5.6 Sol/High availability, native web
    search capability and plugin discovery. The treatment probe also asks the
    pinned model to read and hash the installed skill from inside its subject
-   sandbox; discovery alone is insufficient. Confirm the same native tool
+   sandbox; the raw command event must contain that digest. Discovery alone is
+   insufficient. A failed probe retains JSONL and stderr beside the report.
+   Confirm the same native tool
    configuration in both profiles. Run `host-preflight CODEX PUBLIC_LOCK
    B_PROFILE T_PROFILE B_WORKSPACE T_WORKSPACE PRIVATE_ROOT MERGED_HUB_CHECKOUT
    REPORT` and keep
    `REPORT` with the pilot bundle. Never put the private evaluator directory
    on this host. A readable decoy private file, changed plugin tree, or
    unverified profile blocks launch.
-4. Run `capture CODEX PUBLIC_LOCK CONDITION REPEAT PROFILE WORKSPACE PROMPT
+4. The preflight creates `REPORT.sequence.json`, bound to the lock and report
+   bytes. Keep it outside the subject workspaces. Run `capture CODEX PUBLIC_LOCK CONDITION REPEAT PROFILE WORKSPACE PROMPT
    OUTPUT PRIVATE_ROOT REPORT` in frozen B→T, T→B, B→T order. `capture` stores raw
    JSONL, stderr, final answer, every generated file, timings, usage and hashes.
    `verify OUTPUT` rechecks bytes. A failed or interrupted attempt can use
    `capture ... --resume`; it retains the same run ID and rejects a completed
-   run, changed workspace or repeated completed search. A compromised pair is
+   run, changed workspace or repeated completed search. The registry requires
+   every earlier subject to remain complete and byte verified; it rejects
+   T-first, skipped pairs and selective reruns. A compromised pair is
    incomplete. Never rerun only a weak side.
 5. After all subjects end, move blinded copies and needed source bytes to the
    evaluator. A human source checker creates a private annotation JSON per
@@ -50,7 +55,10 @@ SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
    ordinary files or Codex native logs; no treatment ledger is required for B.
 6. After checking source excerpts, run `blind-packet FACT_RESULT PLAN
    EVIDENCE_PACKET OUTPUT` under `evals/private/`. It binds the v2 hard facts
-   and source-excerpt bytes while omitting the condition label. `judge CODEX
+   and source-excerpt bytes while assigning condition-independent random
+   run/subject IDs to model input. The real ID mapping stays evaluator-side.
+   Judge raw outputs keep the aliases; normalized evaluator outputs restore
+   the real run ID for the existing bundle validator. `judge CODEX
    PLAN PACKET RUBRIC R12_PROMPT
    ADJ_PROMPT R1_PROFILE R2_PROFILE ADJ_PROFILE PRIVATE_OUTPUT` runs R1 and R2
    in separate authenticated profiles. It runs ADJ only on a score or
@@ -103,3 +111,9 @@ not paired evidence. The subject host must be configured and re-probed before
 retrying it. Raw pilot bundles and preflight reports remain private. Three
 formal pairs would describe case-specific direction and variation, not
 statistical significance.
+
+A fresh 2026-09-24 profile probe confirmed that a direct command inside the
+Codex sandbox can hash the installed skill, while the subject model's own
+file-tool calls are rejected by the host command policy. Its preflight fails,
+so no second pilot capture was launched. A valid pilot needs a model-visible
+tool-read event and fresh B/T capture under the same pinned configuration.

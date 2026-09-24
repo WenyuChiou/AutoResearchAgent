@@ -23,6 +23,7 @@ sys.path.insert(0, str(PLUGIN_ROOT))
 
 from validators.evaluation_plan import validate_plan  # noqa: E402
 from validators.holdout_manifest import canonical_sha256  # noqa: E402
+from . import sequence  # noqa: E402
 
 PROMPT_SHA256 = "9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd"
 RESEARCH_HUB_SHA = "9877f929587e7e44bc2533db118cbb89336bf94f"
@@ -217,6 +218,7 @@ def probe_profile(
     private_root,
     prohibited_ids=(),
     allow_existing_workspace=False,
+    probe_evidence_dir=None,
 ):
     """Read-only probe; a missing login or uncertain plugin discovery blocks launch."""
     _assert_host_isolation(
@@ -377,9 +379,6 @@ def probe_profile(
                 "installed treatment plugin bytes differ from source"
             )
         skill_path = cache / "skills" / "stage1-literature" / "SKILL.md"
-        skill_sha = _functional_skill_smoke(codex, env, skill_path)
-    else:
-        skill_sha = None
     if models is None or capabilities is None:
         raise ExecutionBlocked(
             "model or native tool capabilities could not be verified"
@@ -400,6 +399,29 @@ def probe_profile(
         r"web_search\s*=\s*(?:false|\"disabled\")", config_text
     ):
         raise ExecutionBlocked("native web search is unavailable or disabled")
+    if expected_plugin:
+        if probe_evidence_dir is not None:
+            Path(probe_evidence_dir).mkdir(parents=True, exist_ok=False)
+            (Path(probe_evidence_dir) / "capability-probe.json").write_text(
+                json.dumps(
+                    {
+                        "codex_version": version.stdout.strip(),
+                        "model": model.get("model"),
+                        "reasoning": "high",
+                        "native_capabilities": capabilities,
+                        "plugin_names": names,
+                        "installed_plugin_sha256": installed_sha,
+                        "config_sha256": sha(config_text.encode()),
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        skill_sha = _functional_skill_smoke(codex, env, skill_path, probe_evidence_dir)
+    else:
+        skill_sha = None
     return {
         "codex_version": version.stdout.strip(),
         "login_status": "authenticated",
@@ -417,7 +439,7 @@ def probe_profile(
     }
 
 
-def _functional_skill_smoke(codex, env, skill_path):
+def _functional_skill_smoke(codex, env, skill_path, evidence_dir=None):
     """Ask the pinned subject model to read the installed skill in its real sandbox."""
     expected = sha(skill_path.read_bytes())
     with tempfile.TemporaryDirectory(prefix="stage1-ab-skill-probe-") as directory:
@@ -449,6 +471,14 @@ def _functional_skill_smoke(codex, env, skill_path):
             )
         except subprocess.TimeoutExpired as exc:
             raise ExecutionBlocked("treatment skill functional read timed out") from exc
+    if evidence_dir is not None:
+        evidence_dir = Path(evidence_dir)
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "skill-read.jsonl").write_bytes(result.stdout)
+        (evidence_dir / "skill-read.stderr").write_bytes(result.stderr)
+        (evidence_dir / "expected-skill-sha256.txt").write_text(
+            expected + "\n", encoding="utf-8"
+        )
     if result.returncode:
         raise ExecutionBlocked("treatment skill functional read failed")
     try:
@@ -459,11 +489,21 @@ def _functional_skill_smoke(codex, env, skill_path):
             if event.get("type") == "item.completed"
             and event.get("item", {}).get("type") == "agent_message"
         ]
+        tool_outputs = [
+            json.dumps(event.get("item", {}), sort_keys=True).lower()
+            for event in events
+            if event.get("type") == "item.completed"
+            and event.get("item", {}).get("type") == "command_execution"
+        ]
     except (ValueError, KeyError, UnicodeDecodeError) as exc:
         raise ExecutionBlocked(
             "treatment skill read probe produced invalid events"
         ) from exc
-    if not messages or messages[-1] != expected:
+    if (
+        not messages
+        or messages[-1] != expected
+        or not any(expected in output for output in tool_outputs)
+    ):
         raise ExecutionBlocked(
             "treatment skill is discovered but unreadable in the subject sandbox"
         )
@@ -488,8 +528,27 @@ def host_preflight(
         raise ExecutionBlocked("B and T profiles must be separate")
     if Path(baseline_workspace).resolve() == Path(treatment_workspace).resolve():
         raise ExecutionBlocked("B and T workspaces must be separate")
+    if any(
+        Path(output).resolve().is_relative_to(Path(root).resolve())
+        for root in (
+            baseline_profile,
+            treatment_profile,
+            baseline_workspace,
+            treatment_workspace,
+        )
+    ):
+        raise ExecutionBlocked(
+            "preflight and sequence registry must be outside subject environments"
+        )
     b = probe_profile(codex, baseline_profile, baseline_workspace, False, private_root)
-    t = probe_profile(codex, treatment_profile, treatment_workspace, True, private_root)
+    t = probe_profile(
+        codex,
+        treatment_profile,
+        treatment_workspace,
+        True,
+        private_root,
+        probe_evidence_dir=Path(output).with_suffix(".probe"),
+    )
     for key in (
         "codex_version",
         "model",
@@ -540,7 +599,9 @@ def host_preflight(
         "research_hub_sha": dependency.stdout.strip(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    sequence.expected_runs(lock)
     write_json(output, report)
+    sequence.create(lock, lock_path, output, sha)
     return report
 
 
@@ -600,6 +661,82 @@ def capture(
     prohibited_ids=(),
     resume=False,
 ):
+    """Advance exactly one frozen subject, with a durable reservation."""
+    lock = read_json(lock_path)
+    path = sequence.registry_path(host_preflight_path)
+    with sequence.exclusive(path):
+        try:
+            registry = sequence.verify(
+                path, lock, lock_path, host_preflight_path, sha, verify_capture
+            )
+        except (OSError, KeyError, ValueError) as exc:
+            raise ExecutionBlocked(f"sequence verification failed: {exc}") from exc
+        index = registry["next_index"]
+        if index == len(registry["runs"]):
+            raise ExecutionBlocked("all frozen subjects already completed")
+        wanted = registry["runs"][index]
+        if (repeat, condition) != (wanted["repeat"], wanted["condition"]):
+            raise ExecutionBlocked("subject is not next in frozen B/T sequence")
+        active = registry["active"]
+        if resume:
+            if active != {
+                "run_id": wanted["run_id"],
+                "output": str(Path(output).resolve()),
+            }:
+                raise ExecutionBlocked(
+                    "resume must target the active subject and original output"
+                )
+        elif active is not None:
+            raise ExecutionBlocked("active subject requires inspected resume")
+        if not resume and Path(output).exists():
+            raise ExecutionBlocked("run output already exists")
+        result = _capture_subject(
+            codex,
+            lock_path,
+            condition,
+            repeat,
+            profile,
+            workspace,
+            prompt_path,
+            output,
+            private_root,
+            host_preflight_path,
+            prohibited_ids,
+            resume,
+            registry=registry,
+            registry_path=path,
+        )
+        if result["status"] == "complete":
+            verify_capture(output)
+            registry["completed"].append(
+                {
+                    "run_id": wanted["run_id"],
+                    "output": str(Path(output).resolve()),
+                    "run_sha256": sha((Path(output) / "run.json").read_bytes()),
+                }
+            )
+            registry["active"] = None
+            registry["next_index"] += 1
+            sequence.save(path, registry)
+        return result
+
+
+def _capture_subject(
+    codex,
+    lock_path,
+    condition,
+    repeat,
+    profile,
+    workspace,
+    prompt_path,
+    output,
+    private_root,
+    host_preflight_path,
+    prohibited_ids=(),
+    resume=False,
+    registry=None,
+    registry_path=None,
+):
     """One attempt only. Recovery appends to the same run and never repeats a completed turn."""
     lock = read_json(lock_path)
     if lock.get("kind") != "Stage1ABPublicLock":
@@ -629,8 +766,13 @@ def capture(
         raise ExecutionBlocked("run order differs from frozen plan")
     run = row[condition]
     output = Path(output)
-    if output.resolve().is_relative_to(Path(workspace).resolve()):
-        raise ExecutionBlocked("capture output must be outside the subject workspace")
+    if any(
+        output.resolve().is_relative_to(Path(root).resolve())
+        for root in (*preflight["profiles"].values(), *preflight["workspaces"].values())
+    ):
+        raise ExecutionBlocked(
+            "capture output must be outside both subject environments"
+        )
     record_path = output / "run.json"
     if resume:
         record = read_json(record_path)
@@ -677,6 +819,14 @@ def capture(
         private_root,
         prohibited_ids,
         resume,
+        probe_evidence_dir=(
+            (
+                Path(host_preflight_path).parent
+                / f"capture-probe-{repeat}-{condition}-{len(record['attempts']) + 1}"
+            )
+            if condition == "treatment"
+            else None
+        ),
     )
     if probe["codex_version"] != lock["runtime"]["app_version"]:
         raise ExecutionBlocked("Codex version differs from frozen runtime")
@@ -711,6 +861,9 @@ def capture(
             "-",
         ]
     attempt_no = len(record["attempts"]) + 1
+    if not resume:
+        registry["active"] = {"run_id": run["run_id"], "output": str(output.resolve())}
+        sequence.save(registry_path, registry)
     output.mkdir(parents=True, exist_ok=resume)
     final_path = output / f"attempt-{attempt_no:02d}.final.txt"
     command[-1:-1] = ["-o", str(final_path)]

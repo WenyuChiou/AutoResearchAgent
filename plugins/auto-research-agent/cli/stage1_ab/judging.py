@@ -3,11 +3,12 @@
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
+import tempfile
+import shutil
 from datetime import datetime, timezone
 
-from .packet import verify_packet
+from .packet import _reject_leak, verify_packet
 from .runner import ExecutionBlocked, PLUGIN_ROOT, read_json, sha, write_json
 from validators.holdout_manifest import canonical_sha256
 
@@ -38,15 +39,14 @@ def run_judges(
     packet = read_json(packet_path)
     model_input = verify_packet(packet, plan)
     packet_bytes = json.dumps(model_input, sort_keys=True).encode()
+    real_id = packet["evaluator_mapping"]["run_id"]
+    real_subject = packet["evaluator_mapping"]["subject_id"]
     known = {
         run["run_id"]: run["subject_id"]
         for pair in plan["paired_repeats"]
         for run in (pair["baseline"], pair["treatment"])
     }
-    if (
-        model_input.get("run_id") not in known
-        or model_input.get("subject_id") != known[model_input["run_id"]]
-    ):
+    if real_id not in known or real_subject != known[real_id]:
         raise ExecutionBlocked("blinded packet does not bind a frozen subject")
     configs = {x["role"]: x for x in plan["judge_configs"]}
     if (
@@ -68,15 +68,20 @@ def run_judges(
     if output.exists():
         raise ExecutionBlocked("judge output already exists")
     output.mkdir(parents=True)
-    subject_path = output / "blinded-subject.json"
+    subject_path = (
+        eval_root / "private" / "blind-subjects" / (model_input["subject_id"] + ".json")
+    )
+    subject_path.parent.mkdir(parents=True, exist_ok=True)
+    if subject_path.exists():
+        raise ExecutionBlocked("blinded subject artifact already exists")
     subject_path.write_bytes(packet_bytes)
     subject_binding = {
         "path": subject_path.relative_to(eval_root.resolve()).as_posix(),
         "sha256": sha(packet_bytes),
     }
-    results = {}
+    raw_results = {}
     for role in ("auto-r1", "auto-r2"):
-        results[role] = _invoke(
+        raw_results[role] = _invoke(
             codex,
             role,
             configs[role],
@@ -87,23 +92,20 @@ def run_judges(
             output,
             subject_binding,
         )
-    if any(
-        re.search(r"\b(baseline|treatment)\b", json.dumps(value), re.IGNORECASE)
-        for value in results.values()
-    ):
-        raise ExecutionBlocked("judge result leaked a condition label")
-    disagreement = _result_signature(results["auto-r1"]) != _result_signature(
-        results["auto-r2"]
+    for value in raw_results.values():
+        _reject_leak(value, plan)
+    disagreement = _result_signature(raw_results["auto-r1"]) != _result_signature(
+        raw_results["auto-r2"]
     )
     if disagreement:
         adjudication_input = (
             packet_bytes
             + b"\nR1 and R2 independent decisions:\n"
             + json.dumps(
-                [results["auto-r1"], results["auto-r2"]], sort_keys=True
+                [raw_results["auto-r1"], raw_results["auto-r2"]], sort_keys=True
             ).encode()
         )
-        results["auto-adj"] = _invoke(
+        raw_results["auto-adj"] = _invoke(
             codex,
             "auto-adj",
             configs["auto-adj"],
@@ -114,29 +116,41 @@ def run_judges(
             output,
             subject_binding,
         )
-    for role, result in results.items():
+        _reject_leak(raw_results["auto-adj"], plan)
+    results = {}
+    for role, result in raw_results.items():
+        if (
+            result.get("run_id") != model_input["run_id"]
+            or result.get("subject_artifact") != subject_binding
+        ):
+            raise ExecutionBlocked(f"{role} changed its blinded subject binding")
         errors = validate_result(result)
         if errors:
             raise ExecutionBlocked(f"{role} output invalid: {'; '.join(errors)}")
+        normalized = dict(result, run_id=real_id)
+        write_json(output / f"{role}.json", normalized)
+        results[role] = normalized
     requires_audit = any(x["requires_human_audit"] for x in results.values())
     selected = results.get("auto-adj", results["auto-r1"])
     bundle = {
         "kind": "JudgeBundle",
         "schema_version": "1.0.0",
-        "bundle_id": "bundle-" + model_input["run_id"],
+        "bundle_id": "bundle-" + real_id,
         "plan": {
             "plan_id": plan["plan_id"],
             "artifact": _bound_json(eval_root, plan_path),
         },
-        "run_id": model_input["run_id"],
-        "subject_id": model_input["subject_id"],
+        "run_id": real_id,
+        "subject_id": real_subject,
         "subject_artifact": subject_binding,
         "artifacts": {
             "auto_r1": _bound_json(eval_root, output / "auto-r1.json"),
             "auto_r2": _bound_json(eval_root, output / "auto-r2.json"),
-            "auto_adj": _bound_json(eval_root, output / "auto-adj.json")
-            if disagreement
-            else None,
+            "auto_adj": (
+                _bound_json(eval_root, output / "auto-adj.json")
+                if disagreement
+                else None
+            ),
             "human_audit": None,
         },
         "status": "audit-required" if requires_audit else "agreed",
@@ -175,7 +189,7 @@ def _invoke(
     )
     if login.returncode or "Logged in" not in (login.stdout + login.stderr):
         raise ExecutionBlocked(f"{role} profile not authenticated")
-    result_path = output / f"{role}.json"
+    result_path = output / f"{role}.raw.json"
     schema = PLUGIN_ROOT / "evals" / "schemas" / "rubric-judge-result.v1.schema.json"
     command = [
         str(codex),
@@ -203,9 +217,14 @@ def _invoke(
         + b"\nBlinded evidence packet:\n"
         + packet
     )
-    result = subprocess.run(
-        command, input=prompt, env=env, cwd=output, capture_output=True
-    )
+    with tempfile.TemporaryDirectory(prefix="stage1-blind-judge-") as scratch:
+        scratch_result = Path(scratch) / "answer.json"
+        command[command.index("-o") + 1] = str(scratch_result)
+        result = subprocess.run(
+            command, input=prompt, env=env, cwd=scratch, capture_output=True
+        )
+        if scratch_result.is_file():
+            shutil.copyfile(scratch_result, result_path)
     (output / f"{role}.jsonl").write_bytes(result.stdout)
     (output / f"{role}.stderr").write_bytes(result.stderr)
     if result.returncode or not result_path.is_file():

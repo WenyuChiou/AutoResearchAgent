@@ -3,8 +3,23 @@
 import json
 from pathlib import Path
 import re
+import secrets
 
 from .runner import ExecutionBlocked, PLUGIN_ROOT, read_json, sha, write_json
+
+
+def _reject_leak(model_input, plan):
+    rendered = json.dumps(model_input, sort_keys=True).casefold()
+    if re.search(r"\b(baseline|treatment)\b", rendered):
+        raise ExecutionBlocked("judge input contains a condition label")
+    for pair in plan["paired_repeats"]:
+        for condition in ("baseline", "treatment"):
+            run = pair[condition]
+            for key in ("run_id", "subject_id"):
+                if run[key].casefold() in rendered:
+                    raise ExecutionBlocked(
+                        "judge input contains a frozen subject identifier"
+                    )
 
 
 def make_packet(result_path, plan_path, evidence_path, output):
@@ -39,21 +54,21 @@ def make_packet(result_path, plan_path, evidence_path, output):
         evidence.get("evidence_ids"), list
     ):
         raise ExecutionBlocked("judge evidence packet requires evidence IDs")
+    real_subject_id = next(
+        run["subject_id"]
+        for pair in plan["paired_repeats"]
+        for run in (pair["baseline"], pair["treatment"])
+        if run["run_id"] == result["run_id"]
+    )
     model_input = {
-        "run_id": result["run_id"],
-        "subject_id": next(
-            run["subject_id"]
-            for pair in plan["paired_repeats"]
-            for run in (pair["baseline"], pair["treatment"])
-            if run["run_id"] == result["run_id"]
-        ),
+        "run_id": "blind-run-" + secrets.token_hex(16),
+        "subject_id": "blind-subject-" + secrets.token_hex(16),
         "hard_facts": result["fact_metrics"],
         "major_issues": result["major_issues"],
         "evidence_ids": evidence["evidence_ids"],
         "source_excerpts": evidence.get("source_excerpts", []),
     }
-    if re.search(r"\b(baseline|treatment)\b", json.dumps(model_input), re.IGNORECASE):
-        raise ExecutionBlocked("judge input contains a condition label")
+    _reject_leak(model_input, plan)
     packet = {
         "kind": "Stage1BlindJudgePacket",
         "schema_version": "1.0.0",
@@ -64,6 +79,10 @@ def make_packet(result_path, plan_path, evidence_path, output):
         "evidence_artifact": {
             "path": evidence_path.relative_to(eval_root).as_posix(),
             "sha256": sha(evidence_path.read_bytes()),
+        },
+        "evaluator_mapping": {
+            "run_id": result["run_id"],
+            "subject_id": real_subject_id,
         },
         "model_input": model_input,
     }
@@ -108,12 +127,20 @@ def verify_packet(packet, plan):
         "source_excerpts"
     ] != evidence.get("source_excerpts", []):
         raise ExecutionBlocked("judge evidence differs from bound source excerpts")
+    expected_subject = next(
+        run["subject_id"]
+        for pair in plan["paired_repeats"]
+        for run in (pair["baseline"], pair["treatment"])
+        if run["run_id"] == result["run_id"]
+    )
     if (
-        model_input["run_id"] != result["run_id"]
+        packet.get("evaluator_mapping")
+        != {"run_id": result["run_id"], "subject_id": expected_subject}
+        or not re.fullmatch(r"blind-run-[0-9a-f]{32}", model_input["run_id"])
+        or not re.fullmatch(r"blind-subject-[0-9a-f]{32}", model_input["subject_id"])
         or model_input["hard_facts"] != result["fact_metrics"]
         or model_input["major_issues"] != result["major_issues"]
     ):
         raise ExecutionBlocked("judge packet hard facts differ from v2 result")
-    if re.search(r"\b(baseline|treatment)\b", json.dumps(model_input), re.IGNORECASE):
-        raise ExecutionBlocked("judge input contains a condition label")
+    _reject_leak(model_input, plan)
     return model_input

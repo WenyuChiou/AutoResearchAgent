@@ -7,11 +7,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
-from stage1_ab import runner  # noqa: E402
-from stage1_ab import facts, packet  # noqa: E402
+from stage1_ab import runner, sequence  # noqa: E402
+from stage1_ab import facts, judging, packet  # noqa: E402
 from validators.evaluation_plan import validate_plan  # noqa: E402
 
 
@@ -133,6 +132,9 @@ class Stage1ABExecutionTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        sequence.create(
+            runner.read_json(self.lock), self.lock, self.preflight, runner.sha
+        )
 
     def test_runtime_bytes_bound_before_launch(self):
         self.prompt.write_bytes(b"changed")
@@ -162,7 +164,9 @@ class Stage1ABExecutionTests(unittest.TestCase):
                 "probe_profile",
                 return_value={"codex_version": "codex-cli 0.153.0"},
             ),
-            self.assertRaisesRegex(runner.ExecutionBlocked, "plugin bytes"),
+            self.assertRaisesRegex(
+                runner.ExecutionBlocked, "sequence verification failed"
+            ),
         ):
             runner.capture(
                 "codex",
@@ -228,6 +232,13 @@ class Stage1ABExecutionTests(unittest.TestCase):
             json.dumps(
                 {
                     "type": "item.completed",
+                    "item": {"type": "command_execution", "aggregated_output": digest},
+                }
+            ).encode()
+            + b"\n"
+            + json.dumps(
+                {
+                    "type": "item.completed",
                     "item": {"type": "agent_message", "text": digest},
                 }
             ).encode()
@@ -244,6 +255,20 @@ class Stage1ABExecutionTests(unittest.TestCase):
         )
         with patch.object(runner.subprocess, "run", return_value=success):
             self.assertEqual(runner._functional_skill_smoke("codex", {}, skill), digest)
+        guessed = Result(
+            json.dumps(
+                {
+                    "type": "item.completed",
+                    "item": {"type": "agent_message", "text": digest},
+                }
+            ).encode()
+            + b"\n"
+        )
+        with (
+            patch.object(runner.subprocess, "run", return_value=guessed),
+            self.assertRaisesRegex(runner.ExecutionBlocked, "unreadable"),
+        ):
+            runner._functional_skill_smoke("codex", {}, skill)
         with (
             patch.object(runner.subprocess, "run", return_value=denied),
             self.assertRaisesRegex(runner.ExecutionBlocked, "unreadable"),
@@ -305,7 +330,7 @@ class Stage1ABExecutionTests(unittest.TestCase):
         with self.assertRaisesRegex(runner.ExecutionBlocked, "byte hash differs"):
             runner.verify_capture(self.output)
         generated.write_text("1", encoding="utf-8")
-        with self.assertRaisesRegex(runner.ExecutionBlocked, "completed run"):
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "not next in frozen"):
             runner.capture(
                 "codex",
                 self.lock,
@@ -323,6 +348,132 @@ class Stage1ABExecutionTests(unittest.TestCase):
         path.write_bytes(path.read_bytes() + b"{}\n")
         with self.assertRaisesRegex(runner.ExecutionBlocked, "byte hash differs"):
             runner.verify_capture(self.output)
+
+    def test_sequence_rejects_t_first_skipped_pair_and_selective_rerun(self):
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "not next in frozen"):
+            runner.capture(
+                "codex",
+                self.lock,
+                "treatment",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.output,
+                self.root / "private",
+                self.preflight,
+            )
+        lock = runner.read_json(self.lock)
+        lock["paired_repeats"] += [
+            {
+                "repeat": 2,
+                "order": ["treatment", "baseline"],
+                "baseline": {
+                    "run_id": "run-c",
+                    "subject_id": "subject-cccccccccccccccc",
+                },
+                "treatment": {
+                    "run_id": "run-d",
+                    "subject_id": "subject-dddddddddddddddd",
+                },
+            },
+            {
+                "repeat": 3,
+                "order": ["baseline", "treatment"],
+                "baseline": {
+                    "run_id": "run-e",
+                    "subject_id": "subject-eeeeeeeeeeeeeeee",
+                },
+                "treatment": {
+                    "run_id": "run-f",
+                    "subject_id": "subject-ffffffffffffffff",
+                },
+            },
+        ]
+        self.lock.write_text(json.dumps(lock), encoding="utf-8")
+        preflight = runner.read_json(self.preflight)
+        preflight["lock_sha256"] = runner.sha(self.lock.read_bytes())
+        self.preflight.write_text(json.dumps(preflight), encoding="utf-8")
+        sequence.create(lock, self.lock, self.preflight, runner.sha)
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "not next in frozen"):
+            runner.capture(
+                "codex",
+                self.lock,
+                "treatment",
+                2,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.root / "run-d",
+                self.root / "private",
+                self.preflight,
+            )
+        with (
+            patch.object(
+                runner,
+                "probe_profile",
+                return_value={"codex_version": "codex-cli 0.153.0"},
+            ),
+            patch.object(
+                runner.subprocess,
+                "run",
+                side_effect=self.fake_exec([Result(event_bytes())]),
+            ),
+        ):
+            runner.capture(
+                "codex",
+                self.lock,
+                "baseline",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.output,
+                self.root / "private",
+                self.preflight,
+            )
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "not next in frozen"):
+            runner.capture(
+                "codex",
+                self.lock,
+                "baseline",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.root / "rerun",
+                self.root / "private",
+                self.preflight,
+            )
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "not next in frozen"):
+            runner.capture(
+                "codex",
+                self.lock,
+                "treatment",
+                2,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.root / "run-d",
+                self.root / "private",
+                self.preflight,
+            )
+        (self.output / "attempt-01.jsonl").write_bytes(b"tampered")
+        with self.assertRaisesRegex(
+            runner.ExecutionBlocked, "sequence verification failed"
+        ):
+            runner.capture(
+                "codex",
+                self.lock,
+                "treatment",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.root / "run-b",
+                self.root / "private",
+                self.preflight,
+            )
 
     def test_resume_no_reexecution_marks_recovery_incomplete(self):
         responses = [
@@ -502,6 +653,10 @@ class Stage1ABExecutionTests(unittest.TestCase):
             )
             plan_path = eval_root / "examples/evaluation-plan-v2.synthetic.json"
             made = packet.make_packet(result, plan_path, evidence, root / "packet.json")
+            self.assertNotIn("run01-b", json.dumps(made["model_input"]))
+            self.assertNotIn(
+                "subject-0000000000000002", json.dumps(made["model_input"])
+            )
             self.assertEqual(
                 packet.verify_packet(made, runner.read_json(plan_path))["hard_facts"][
                     "coverage"
@@ -522,6 +677,100 @@ class Stage1ABExecutionTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(runner.ExecutionBlocked, "condition label"):
                 packet.make_packet(result, plan_path, evidence, root / "unblinded.json")
+            evidence.write_text(
+                json.dumps(
+                    {"evidence_ids": ["ev-run01-b"], "source_excerpts": ["clean"]}
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "frozen subject identifier"
+            ):
+                packet.make_packet(result, plan_path, evidence, root / "encoded.json")
+
+    def test_judges_see_alias_and_evaluator_restores_real_run_id(self):
+        eval_root = PLUGIN / "evals"
+        (eval_root / "private").mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=eval_root / "private") as directory:
+            root = Path(directory)
+            plan = runner.read_json(
+                eval_root / "examples/evaluation-plan-v2.synthetic.json"
+            )
+            prompts = [root / "r12.txt", root / "adj.txt"]
+            for path in prompts:
+                path.write_text("synthetic judge prompt", encoding="utf-8")
+            for config in plan["judge_configs"]:
+                config["prompt_sha256"] = runner.sha(
+                    prompts[0 if config["role"] != "auto-adj" else 1].read_bytes()
+                )
+            rubric = eval_root / "rubrics/aging-bidirectional-rubric.v1.json"
+            from validators.holdout_manifest import canonical_sha256
+
+            plan["bindings"]["rubric"]["canonical_sha256"] = canonical_sha256(
+                runner.read_json(rubric)
+            )
+            plan_path = root / "plan.json"
+            plan_path.write_text(json.dumps(plan), encoding="utf-8")
+            mapping = {"run_id": "run01-b", "subject_id": "subject-0000000000000002"}
+            model_input = {
+                "run_id": "blind-run-" + "a" * 32,
+                "subject_id": "blind-subject-" + "b" * 32,
+            }
+            blind_artifact = (
+                eval_root
+                / "private"
+                / "blind-subjects"
+                / (model_input["subject_id"] + ".json")
+            )
+            self.addCleanup(blind_artifact.unlink, missing_ok=True)
+            packet_path = root / "packet.json"
+            packet_path.write_text(
+                json.dumps({"evaluator_mapping": mapping}), encoding="utf-8"
+            )
+            profiles = {
+                role: root / role for role in ("auto-r1", "auto-r2", "auto-adj")
+            }
+            for path in profiles.values():
+                path.mkdir()
+            seen = []
+
+            def fake_invoke(*args):
+                seen.append(args[6])
+                return {
+                    "run_id": model_input["run_id"],
+                    "subject_artifact": args[8],
+                    "evaluation_id": "eval-" + args[1],
+                    "metric_results": [],
+                    "requires_human_audit": False,
+                }
+
+            with (
+                patch.object(judging, "verify_packet", return_value=model_input),
+                patch.object(judging, "_invoke", side_effect=fake_invoke),
+                patch("validators.evaluation_plan.validate_plan", return_value=[]),
+                patch(
+                    "validators.rubric_judge_result.validate_result", return_value=[]
+                ),
+                patch("validators.judge_bundle.validate_bundle", return_value=[]),
+            ):
+                bundle = judging.run_judges(
+                    "codex",
+                    plan_path,
+                    packet_path,
+                    rubric,
+                    prompts[0],
+                    prompts[1],
+                    profiles,
+                    root / "judged",
+                )
+            self.assertEqual(bundle["run_id"], mapping["run_id"])
+            self.assertEqual(
+                runner.read_json(root / "judged/auto-r1.json")["run_id"],
+                mapping["run_id"],
+            )
+            self.assertTrue(
+                all(mapping["run_id"].encode() not in value for value in seen)
+            )
 
     def test_dependency_sha_bound_on_host_preflight(self):
         lock = runner.read_json(self.lock)
