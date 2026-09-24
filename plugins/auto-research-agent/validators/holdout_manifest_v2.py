@@ -1,4 +1,4 @@
-"""Validate a two-rater, unanimous-inclusion private Stage 1 holdout."""
+"""Validate versioned two-rater or Eric-led private Stage 1 holdouts."""
 
 import argparse
 from datetime import date, datetime
@@ -13,7 +13,6 @@ try:
         EVAL_ROOT,
         REQUIRED_ROLES,
         RUBRIC,
-        _must_have_confirmation_passes,
         _validate_anchor_type,
         _validate_classic,
         _validate_private_artifact,
@@ -24,7 +23,6 @@ except ImportError:  # Direct script execution.
         EVAL_ROOT,
         REQUIRED_ROLES,
         RUBRIC,
-        _must_have_confirmation_passes,
         _validate_anchor_type,
         _validate_classic,
         _validate_private_artifact,
@@ -55,16 +53,22 @@ def validate_manifest_v2(manifest):
     if set(manifest["required_roles"]) != REQUIRED_ROLES:
         errors.append("required_roles must contain the six frozen curation roles")
 
+    single_human = manifest["schema_version"] == "2.1.0"
     actors = manifest["curation"]["actors"]
     rater_ids = {actor["actor_id"] for actor in actors}
-    if len(rater_ids) != 2:
-        errors.append("curation requires exactly two distinct human raters")
+    expected_raters = 1 if single_human else 2
+    if len(actors) != expected_raters or len(rater_ids) != expected_raters:
+        errors.append(
+            f"curation requires exactly {expected_raters} distinct human raters"
+        )
+    if manifest["curation"]["independent_rating"] == single_human:
+        errors.append("independent_rating must match the holdout protocol version")
     approvals = manifest["curation"]["human_approvals"]
     approval_ids = [approval["actor_id"] for approval in approvals]
     if len(approval_ids) != len(set(approval_ids)):
         errors.append("human approval actor IDs must be unique")
     if not set(approval_ids).issubset(rater_ids):
-        errors.append("human approvals must name the two declared raters")
+        errors.append("human approvals must name declared raters")
     _validate_private_artifact(manifest["answer_key"], "answer_key", errors)
     _validate_private_artifact(
         manifest["candidate_screening_log"], "candidate_screening_log", errors
@@ -101,21 +105,26 @@ def validate_manifest_v2(manifest):
         if not anchor_roles.issubset(REQUIRED_ROLES):
             errors.append(f"{prefix} names an undeclared curation role")
         ratings = anchor["independent_ratings"]
-        if {rating["rater_id"] for rating in ratings} != rater_ids:
-            errors.append(f"{prefix} requires one independent rating from each rater")
+        if (
+            len(ratings) != expected_raters
+            or {rating["rater_id"] for rating in ratings} != rater_ids
+        ):
+            errors.append(f"{prefix} requires one rating from each declared rater")
         if any(rating["decision"] != "include" for rating in ratings):
             errors.append(f"{prefix} requires unanimous inclusion")
         _validate_classic(anchor, cutoff.year, errors)
-        _validate_anchor_type(anchor, errors)
-        if anchor["anchor_type"] in {"must-have", "core-and-must-have"}:
-            if sum(map(_must_have_confirmation_passes, ratings)) != 2:
-                errors.append(f"{prefix} needs two passing must-have confirmations")
+        _validate_anchor_type(anchor, errors, min_confirmations=expected_raters)
 
+    if single_human and disagreements:
+        errors.append("single-human curation cannot declare inter-rater disagreements")
     for item in disagreements:
         prefix = item["candidate_id"]
         ratings = item["independent_ratings"]
-        if {rating["rater_id"] for rating in ratings} != rater_ids:
-            errors.append(f"{prefix} requires one independent rating from each rater")
+        if (
+            len(ratings) != expected_raters
+            or {rating["rater_id"] for rating in ratings} != rater_ids
+        ):
+            errors.append(f"{prefix} requires one rating from each declared rater")
         if {rating["decision"] for rating in ratings} != {"include", "exclude"}:
             errors.append(f"{prefix} must preserve an actual rater disagreement")
 
@@ -137,7 +146,11 @@ def validate_manifest_v2(manifest):
         if manifest["frozen_at"] is None:
             errors.append("a frozen manifest requires frozen_at")
         if set(approval_ids) != rater_ids:
-            errors.append("a frozen manifest requires approval from both raters")
+            errors.append(
+                "a frozen manifest requires approval from the sole rater"
+                if single_human
+                else "a frozen manifest requires approval from both raters"
+            )
         if manifest["frozen_at"] is not None:
             created_at = datetime.fromisoformat(manifest["created_at"])
             frozen_at = datetime.fromisoformat(manifest["frozen_at"])
@@ -167,7 +180,7 @@ def main(argv=None):
         for error in errors:
             print(error, file=sys.stderr)
         return 1
-    print("Two-rater holdout manifest is valid.")
+    print("Stage 1 holdout manifest is valid.")
     if args.print_sha256:
         print(canonical_sha256(manifest))
     return 0

@@ -1,4 +1,4 @@
-"""Check six-cluster Stage 1 counts against a frozen two-rater holdout."""
+"""Check six-cluster Stage 1 counts against a frozen versioned holdout."""
 
 import argparse
 import json
@@ -37,6 +37,13 @@ def validate_result_v2(result, holdout, plan):
     holdout_errors = validate_manifest_v2(holdout)
     if holdout_errors:
         return [f"holdout:{error}" for error in holdout_errors]
+    expected_spec = (
+        "stage1-primary-metrics-v2.1"
+        if holdout["schema_version"] == "2.1.0"
+        else "stage1-primary-metrics-v2"
+    )
+    if result["metric_spec_version"] != expected_spec:
+        errors.append("metric_spec_version does not match the holdout protocol")
     plan_errors = validate_plan(plan)
     if plan_errors:
         return [f"plan:{error}" for error in plan_errors]
