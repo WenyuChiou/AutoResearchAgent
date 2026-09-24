@@ -30,6 +30,8 @@ hash、prompt hash、模型、reasoning、mode、tools、baseline/treatment 版�
 
 ## Private holdout contract
 
+下述兩人流程對應 v2.0。Stage 1 若由 Eric 單獨評估，須明示使用 [v2.1 單人策展修訂](stage1/SINGLE_HUMAN_CURATION_V2_1.zh-TW.md)，只保留一位真人簽名並公開其缺少獨立人類交叉檢查的限制；Auto-R1/R2 的匿名雙評及必要 human audit 仍執行。
+
 Holdout 是受控答案包，不能成為 production 搜尋提示。每個 anchor 保存 identity、
 version、DOI/URL、coverage cluster、研究角色、core/must-have、納入理由、原文
 locator、classic/importance 判斷與兩位獨立人類 rater 結果。v1 的分歧由第三位

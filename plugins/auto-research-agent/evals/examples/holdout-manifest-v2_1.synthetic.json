@@ -1,0 +1,127 @@
+{
+  "kind": "HoldoutManifest",
+  "schema_version": "2.1.0",
+  "manifest_id": "holdout-synthetic-v2-1-single-human",
+  "case_id": "aging-sk-bidirectional-development-v2",
+  "rubric_version": "aging-bidirectional-rubric-v1",
+  "use_class": "synthetic",
+  "status": "frozen",
+  "cutoff_date": "2026-09-17",
+  "coverage_clusters": [
+    "aging, life cycle, retirement, and household-consumption mechanisms",
+    "population synthesis, reweighting, and dynamic demographic transitions",
+    "household decision, microsimulation, ABM, and macroeconomic models",
+    "LLM consumer or household agents and behavioral fidelity",
+    "bidirectional market, environment, social interaction, and multi-period feedback",
+    "calibration, independent validation, uncertainty, and claim limitations"
+  ],
+  "required_roles": [
+    "theoretical-mechanism",
+    "quantitative-evidence",
+    "population-to-agent",
+    "simulation-method",
+    "cross-context-case",
+    "validation"
+  ],
+  "curation": {
+    "actors": [
+      {
+        "actor_id": "human-rater-a",
+        "actor_type": "human",
+        "role": "rater",
+        "attestation_ref": "course-roster:rater-a"
+      }
+    ],
+    "independent_rating": false,
+    "human_approvals": [
+      {
+        "actor_id": "human-rater-a",
+        "approved_at": "2026-09-17T12:50:00-04:00",
+        "approval_artifact": {
+          "path": "private/approvals/rater-a.json",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    ]
+  },
+  "anchors": [
+    {
+      "anchor_id": "synthetic-anchor-001",
+      "identity": {
+        "title": "Synthetic Integrated Aging Simulation Study",
+        "authors": [
+          "Example Author"
+        ],
+        "year": 2018,
+        "venue_or_version": "Synthetic fixture v1",
+        "doi_or_url": "https://example.invalid/synthetic-anchor-001"
+      },
+      "anchor_type": "core-and-must-have",
+      "coverage_clusters": [
+        "aging, life cycle, retirement, and household-consumption mechanisms",
+        "population synthesis, reweighting, and dynamic demographic transitions",
+        "household decision, microsimulation, ABM, and macroeconomic models",
+        "LLM consumer or household agents and behavioral fidelity",
+        "bidirectional market, environment, social interaction, and multi-period feedback",
+        "calibration, independent validation, uncertainty, and claim limitations"
+      ],
+      "roles": [
+        "theoretical-mechanism",
+        "quantitative-evidence",
+        "population-to-agent",
+        "simulation-method",
+        "cross-context-case",
+        "validation"
+      ],
+      "classic_assessment": {
+        "status": "qualifies",
+        "field_recognition": 2,
+        "foundational_role": 2,
+        "durability": 1,
+        "authority_evidence_ids": [
+          "authority-review-a",
+          "authority-review-b"
+        ]
+      },
+      "importance": {
+        "directness": 2,
+        "decision_impact": 2,
+        "evidence_quality": 2,
+        "equally_direct_substitute": false
+      },
+      "inclusion_reason": "Synthetic fixture exercises every required holdout role without exposing a real answer key.",
+      "evidence_locators": [
+        "synthetic-full-text:section-1",
+        "synthetic-full-text:section-2"
+      ],
+      "independent_ratings": [
+        {
+          "rater_id": "human-rater-a",
+          "decision": "include",
+          "reason": "Synthetic include decision A.",
+          "evidence_ids": [
+            "synthetic-evidence-a"
+          ],
+          "must_have_assessment": {
+            "directness": 2,
+            "decision_impact": 2,
+            "evidence_quality": 2,
+            "no_equally_direct_substitute": true
+          }
+        }
+      ]
+    }
+  ],
+  "answer_key": {
+    "path": "private/synthetic-answer-key.json",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "production_runtime_may_read": false,
+  "created_at": "2026-09-17T12:00:00-04:00",
+  "frozen_at": "2026-09-17T13:00:00-04:00",
+  "disagreements": [],
+  "candidate_screening_log": {
+    "path": "private/synthetic-screening-log.jsonl",
+    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

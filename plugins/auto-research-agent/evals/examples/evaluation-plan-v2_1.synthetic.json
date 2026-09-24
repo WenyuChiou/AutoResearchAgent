@@ -1,7 +1,7 @@
 {
   "kind": "EvaluationPlan",
   "schema_version": "1.0.0",
-  "plan_id": "aging-sk-stage1-synthetic-plan-v2",
+  "plan_id": "aging-stage1-synthetic-plan-v2-1-single-human",
   "case_id": "aging-sk-bidirectional-development-v2",
   "stage": 1,
   "execution_class": "synthetic",
@@ -28,9 +28,9 @@
       "record_count": 86
     },
     "holdout": {
-      "manifest_id": "holdout-synthetic-v2",
-      "path": "examples/holdout-manifest-v2.synthetic.json",
-      "canonical_sha256": "137e7ae51b8651e3c92fe4b655cd38714e8fbface841d39d7fb2fda9d2693c07",
+      "manifest_id": "holdout-synthetic-v2-1-single-human",
+      "path": "examples/holdout-manifest-v2_1.synthetic.json",
+      "canonical_sha256": "b53df4ade3da38c06744af98528166d3490ac70443c61322cb607db37704ba1e",
       "use_class": "synthetic"
     },
     "prompt": {
@@ -190,23 +190,12 @@
   },
   "human_approvals": [
     {
-      "actor_id": "human-organizer-a",
-      "attestation_ref": "course-roster:organizer-a",
+      "actor_id": "human-rater-a",
+      "attestation_ref": "course-roster:rater-a",
       "approved_at": "2026-09-17T14:50:00-04:00",
       "artifact": {
         "path": "private/approvals/plan-a.json",
         "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-      },
-      "actor_type": "human",
-      "role": "approver"
-    },
-    {
-      "actor_id": "human-organizer-b",
-      "attestation_ref": "course-roster:organizer-b",
-      "approved_at": "2026-09-17T14:55:00-04:00",
-      "artifact": {
-        "path": "private/approvals/plan-b.json",
-        "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
       },
       "actor_type": "human",
       "role": "approver"
