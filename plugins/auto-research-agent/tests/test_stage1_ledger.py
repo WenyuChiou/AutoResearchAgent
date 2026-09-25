@@ -402,6 +402,28 @@ class Stage1LedgerTests(unittest.TestCase):
         ledger.start("search", {"query": "synthetic fractional time"})
         self.assertTrue(validate_run(ledger.root)["valid"])
 
+    def test_artifact_clock_regression_is_rejected_before_append_and_can_retry(self):
+        ledger = self.ledger
+        producer = ledger.start("search", {"query": "synthetic"})
+        before = (ledger.root / "stage_events.jsonl").read_bytes()
+        times = iter(
+            [
+                "2026-01-01T00:00:00.050Z",  # writer lock
+                "2026-01-01T00:00:00.100Z",  # artifact reference
+                "2026-01-01T00:00:00.090Z",  # journal event: clock moved back
+                "2026-01-01T00:00:00.150Z",  # retry writer lock
+                "2026-01-01T00:00:00.200Z",  # retry reference
+                "2026-01-01T00:00:00.210Z",  # retry event
+            ]
+        )
+        ledger.clock = lambda: next(times)
+        with self.assertRaisesRegex(LedgerError, "artifact-time-order"):
+            ledger.save_bytes(b"synthetic", producer=producer)
+        self.assertEqual((ledger.root / "stage_events.jsonl").read_bytes(), before)
+        ref = ledger.save_bytes(b"synthetic", producer=producer)
+        self.assertEqual(ledger.read_ref(ref), b"synthetic")
+        self.assertTrue(validate_run(ledger.root)["valid"])
+
     def test_first_event_cannot_precede_manifest(self):
         ledger = self.ledger
         ledger.clock = lambda: "2025-12-31T23:59:59Z"

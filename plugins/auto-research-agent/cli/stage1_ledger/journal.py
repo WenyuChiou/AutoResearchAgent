@@ -231,14 +231,21 @@ class Journal:
             "created_at": self.clock(),
         }
         check_payload(payload)
+        event_time = datetime.fromisoformat(
+            payload["created_at"].replace("Z", "+00:00")
+        )
+        if payload["kind"] == "ArtifactStored" and event_time < datetime.fromisoformat(
+            payload["ref"]["created_at"].replace("Z", "+00:00")
+        ):
+            raise LedgerError("artifact-time-order: event not appended")
         previous_timestamp = (
             events[-1]["payload"]["created_at"]
             if events
             else self.manifest["research_run"]["created_at"]
         )
-        if datetime.fromisoformat(
-            payload["created_at"].replace("Z", "+00:00")
-        ) < datetime.fromisoformat(previous_timestamp.replace("Z", "+00:00")):
+        if event_time < datetime.fromisoformat(
+            previous_timestamp.replace("Z", "+00:00")
+        ):
             raise LedgerError("clock-regression: event not appended")
         row = dict(
             schema_version="1.0.0",
