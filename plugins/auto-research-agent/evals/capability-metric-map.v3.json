@@ -111,6 +111,18 @@
           "human_judgment": "Independent v3 judges assess whether the cited work actually changes the research decision."
         }
       ]
+    },
+    {
+      "capability_id": "validator:research-pr-contract",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": ["P3V3.DECISION_TRACE"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": ["v3 PRs bind declared capabilities, criterion mappings, invariant selectors, and evaluation readiness"],
+          "human_judgment": "The core team reviews whether the declared change and reported evidence support the claim."
+        }
+      ]
     }
   ]
 }

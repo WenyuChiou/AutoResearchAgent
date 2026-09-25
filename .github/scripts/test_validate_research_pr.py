@@ -99,6 +99,10 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         self.assertIn(
             "P2V3.CORE_SELECTION", capabilities["skill:stage1-literature"]["criteria"]
         )
+        self.assertIn(
+            "P3V3.DECISION_TRACE",
+            capabilities["validator:research-pr-contract"]["criteria"],
+        )
 
     def test_general_v3_rubric_and_submetrics_are_registered_separately(self):
         rubrics = load_rubrics()
