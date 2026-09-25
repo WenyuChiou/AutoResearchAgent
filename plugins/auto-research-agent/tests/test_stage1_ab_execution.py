@@ -94,18 +94,20 @@ class Stage1ABExecutionTests(unittest.TestCase):
             runner._research_hub_workspace_env(self.workspace, resume=True)
 
     def test_relative_workspace_cannot_redirect_research_hub_config(self):
-        absolute = self.root / "relative-workspace"
-        absolute.mkdir()
-        relative = Path(os.path.relpath(absolute, Path.cwd()))
-        env = runner._research_hub_workspace_env(relative, resume=False)
-        self.assertEqual(
-            Path(env["RESEARCH_HUB_CONFIG"]),
-            absolute.resolve() / ".research-hub-runtime" / "config.json",
-        )
-        self.assertEqual(
-            Path(env["RESEARCH_HUB_ROOT"]),
-            absolute.resolve() / ".research-hub-runtime" / "data",
-        )
+        # CI may place its temporary directory and checkout on different drives.
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as temp:
+            absolute = Path(temp) / "relative-workspace"
+            absolute.mkdir()
+            relative = Path(os.path.relpath(absolute, Path.cwd()))
+            env = runner._research_hub_workspace_env(relative, resume=False)
+            self.assertEqual(
+                Path(env["RESEARCH_HUB_CONFIG"]),
+                absolute.resolve() / ".research-hub-runtime" / "config.json",
+            )
+            self.assertEqual(
+                Path(env["RESEARCH_HUB_ROOT"]),
+                absolute.resolve() / ".research-hub-runtime" / "data",
+            )
 
     @staticmethod
     def fake_exec(responses):
