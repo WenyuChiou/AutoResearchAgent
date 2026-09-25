@@ -77,6 +77,11 @@ class Stage1ABExecutionTests(unittest.TestCase):
     @staticmethod
     def fake_exec(responses):
         def call(command, **_kwargs):
+            if (
+                command.count("--sandbox") != 1
+                or command[command.index("--sandbox") + 1] != "workspace-write"
+            ):
+                raise AssertionError("both subject conditions must allow ledger writes")
             Path(command[command.index("-o") + 1]).write_text(
                 "synthetic final answer", encoding="utf-8"
             )

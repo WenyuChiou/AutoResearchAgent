@@ -875,7 +875,9 @@ def _capture_subject(
     if condition == "treatment" and tree_sha(PLUGIN_ROOT) != lock["plugin_tree_sha256"]:
         raise ExecutionBlocked("treatment plugin bytes differ from frozen lock")
     env = dict(os.environ, CODEX_HOME=str(Path(profile).resolve()))
-    command = [str(codex), "exec"]
+    # The same writable, isolated workspace is required in both conditions so
+    # the treatment can persist its append-only Stage 1 ledger.
+    command = [str(codex), "exec", "--sandbox", "workspace-write"]
     if resume:
         command += [
             "resume",
