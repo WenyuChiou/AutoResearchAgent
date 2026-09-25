@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -73,6 +74,38 @@ class Stage1ABExecutionTests(unittest.TestCase):
                 runner.tree_sha(root),
                 hashlib.sha256(b"\n".join(expected_rows)).hexdigest(),
             )
+
+    def test_research_hub_config_stays_in_subject_workspace_and_binds_resume(self):
+        env = runner._research_hub_workspace_env(self.workspace, resume=False)
+        config = Path(env["RESEARCH_HUB_CONFIG"])
+        data = Path(env["RESEARCH_HUB_ROOT"])
+        self.assertTrue(config.is_relative_to(self.workspace))
+        self.assertTrue(data.is_relative_to(self.workspace))
+        self.assertTrue(data.is_dir())
+        self.assertEqual(env["RESEARCH_HUB_NO_ZOTERO"], "1")
+        self.assertEqual(
+            json.loads(config.read_text())["knowledge_base"]["root"], str(data)
+        )
+        self.assertEqual(
+            runner._research_hub_workspace_env(self.workspace, resume=True), env
+        )
+        config.write_text("{}\n", encoding="utf-8")
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "config changed"):
+            runner._research_hub_workspace_env(self.workspace, resume=True)
+
+    def test_relative_workspace_cannot_redirect_research_hub_config(self):
+        absolute = self.root / "relative-workspace"
+        absolute.mkdir()
+        relative = Path(os.path.relpath(absolute, Path.cwd()))
+        env = runner._research_hub_workspace_env(relative, resume=False)
+        self.assertEqual(
+            Path(env["RESEARCH_HUB_CONFIG"]),
+            absolute / ".research-hub-runtime" / "config.json",
+        )
+        self.assertEqual(
+            Path(env["RESEARCH_HUB_ROOT"]),
+            absolute / ".research-hub-runtime" / "data",
+        )
 
     @staticmethod
     def fake_exec(responses):

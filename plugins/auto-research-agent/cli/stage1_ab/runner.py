@@ -875,6 +875,8 @@ def _capture_subject(
     if condition == "treatment" and tree_sha(PLUGIN_ROOT) != lock["plugin_tree_sha256"]:
         raise ExecutionBlocked("treatment plugin bytes differ from frozen lock")
     env = dict(os.environ, CODEX_HOME=str(Path(profile).resolve()))
+    if condition == "treatment":
+        env.update(_research_hub_workspace_env(Path(workspace), resume))
     # The same writable, isolated workspace is required in both conditions so
     # the treatment can persist its append-only Stage 1 ledger.
     command = [str(codex), "exec", "--sandbox", "workspace-write"]
@@ -974,6 +976,45 @@ def _capture_subject(
         json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return record
+
+
+def _research_hub_workspace_env(workspace, resume):
+    """Keep the pinned public CLI's data and config inside the subject workspace."""
+    workspace = Path(workspace).resolve()
+    local = workspace / ".research-hub-runtime"
+    data = local / "data"
+    config = local / "config.json"
+    paths = {
+        "root": str(data),
+        "raw": str(data / "raw"),
+        "hub": str(data / "hub"),
+        "projects": str(data / "projects"),
+        "logs": str(data / "logs"),
+        "obsidian_graph": str(data / ".obsidian" / "graph.json"),
+    }
+    config_bytes = (
+        json.dumps({"knowledge_base": paths, "no_zotero": True}, sort_keys=True) + "\n"
+    ).encode()
+    if resume:
+        if (
+            not config.is_file()
+            or config.read_bytes() != config_bytes
+            or not data.is_dir()
+        ):
+            raise ExecutionBlocked(
+                "research-hub workspace config changed before recovery"
+            )
+    else:
+        if local.exists():
+            raise ExecutionBlocked("research-hub workspace config already exists")
+        data.mkdir(parents=True)
+        config.write_bytes(config_bytes)
+    return {
+        "RESEARCH_HUB_CONFIG": str(config),
+        "RESEARCH_HUB_ROOT": str(data),
+        "RESEARCH_HUB_ALLOW_EXTERNAL_ROOT": "1",
+        "RESEARCH_HUB_NO_ZOTERO": "1",
+    }
 
 
 def verify_capture(output):
