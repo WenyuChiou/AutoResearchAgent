@@ -351,6 +351,7 @@ def parser():
     prep.add_argument("task")
     prep.add_argument("as_of")
     prep.add_argument("output")
+    prep.add_argument("--backend", choices=["openalex", "crossref"], default="openalex")
     recover = sub.add_parser("finalize-saved-spec")
     recover.add_argument("task")
     recover.add_argument("as_of")
@@ -405,7 +406,11 @@ def main(argv=None):
     try:
         if args.command == "prepare-spec":
             result = prepare_spec(
-                args.task, args.as_of, args.output, _model_options(args)
+                args.task,
+                args.as_of,
+                args.output,
+                _model_options(args),
+                backend=args.backend,
             )
         elif args.command == "finalize-saved-spec":
             result = finalize_saved_spec(

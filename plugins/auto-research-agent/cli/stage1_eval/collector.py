@@ -66,7 +66,10 @@ def _run_hub(args, output_dir, label, hub_command, timeout=90):
         receipt["status"] = "invalid-response"
         return [], receipt
     if not works:
-        receipt["status"] = "zero-results"
+        # The pinned research-hub search backends also return [] after HTTP,
+        # network, or parse failures. Its CLI strips the underlying status, so
+        # this observation cannot prove that the query truly found no works.
+        receipt["status"] = "ambiguous-empty"
     return works, receipt
 
 
@@ -194,8 +197,18 @@ def rebuild_subject_sources(extraction, spec, receipts, raw_dir):
         raise EvaluationError("subject source receipt count changed")
     sources = []
     for work, receipt in zip(works, receipts):
-        query = work["identifier"] or work["title"]
-        expected_args = ["enrich", query, "--backend", "openalex", "--json"]
+        backend = spec["draft"]["search_policy"]["backend"]
+        expected_args = (
+            ["search", work["title"], "--limit", "5", "--backend", "crossref", "--json"]
+            if backend == "crossref"
+            else [
+                "enrich",
+                work["identifier"] or work["title"],
+                "--backend",
+                "openalex",
+                "--json",
+            ]
+        )
         if (
             receipt.get("work_id") != work["work_id"]
             or receipt.get("command", [])[-len(expected_args) :] != expected_args
@@ -268,8 +281,18 @@ def collect_subject_sources(extraction, spec, output_dir, hub_command):
     output_dir = Path(output_dir)
     receipts = []
     for work in extraction["works"]:
-        query = work["identifier"] or work["title"]
-        args = ["enrich", query, "--backend", "openalex", "--json"]
+        backend = spec["draft"]["search_policy"]["backend"]
+        args = (
+            ["search", work["title"], "--limit", "5", "--backend", "crossref", "--json"]
+            if backend == "crossref"
+            else [
+                "enrich",
+                work["identifier"] or work["title"],
+                "--backend",
+                "openalex",
+                "--json",
+            ]
+        )
         _, receipt = _run_hub(args, output_dir / "raw", work["work_id"], hub_command)
         receipt["work_id"] = work["work_id"]
         receipts.append(receipt)

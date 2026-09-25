@@ -17,6 +17,7 @@ from stage1_eval.adapter import adapt_subject, validate_extraction
 from stage1_eval.collector import (
     _matches_subject_work,
     _run_hub,
+    collect_subject_sources,
     rebuild_background_sources,
     rebuild_subject_sources,
 )
@@ -245,6 +246,59 @@ class GeneralEvaluationTests(unittest.TestCase):
                 rebuild_subject_sources({"works": [work]}, spec(), [receipt], raw),
                 [],
             )
+
+    def test_crossref_title_search_preserves_strict_cited_identity(self):
+        work = {
+            "work_id": "work-01",
+            "title": "Population aging and household consumption",
+            "identifier": "https://doi.org/10.1234/right",
+        }
+        crossref_spec = spec()
+        crossref_spec["draft"]["search_policy"]["backend"] = "crossref"
+        args = [
+            "search",
+            work["title"],
+            "--limit",
+            "5",
+            "--backend",
+            "crossref",
+            "--json",
+        ]
+        with tempfile.TemporaryDirectory() as scratch:
+            raw = Path(scratch) / "raw"
+            raw.mkdir()
+            (raw / "work-01.stdout.json").write_bytes(
+                canonical(
+                    [
+                        {"title": work["title"], "doi": "10.1234/wrong", "year": 2020},
+                        {"title": work["title"], "doi": "10.1234/right", "year": 2020},
+                    ]
+                )
+            )
+            receipt = {
+                "work_id": "work-01",
+                "command": ["hub", *args],
+                "status": "results",
+                "stdout_path": "work-01.stdout.json",
+            }
+            sources = rebuild_subject_sources(
+                {"works": [work]}, crossref_spec, [receipt], raw
+            )
+            self.assertEqual(len(sources), 1)
+            self.assertEqual(sources[0]["doi"], "10.1234/right")
+            with patch(
+                "stage1_eval.collector._run_hub", return_value=([], receipt)
+            ) as run:
+                with patch(
+                    "stage1_eval.collector.rebuild_subject_sources", return_value=[]
+                ):
+                    collect_subject_sources(
+                        {"works": [work]},
+                        crossref_spec,
+                        Path(scratch) / "capture",
+                        ["hub"],
+                    )
+                self.assertEqual(run.call_args.args[0], args)
 
     def test_cited_work_cannot_be_counted_as_omission(self):
         value = packet(mode="evidence-audited")
@@ -675,7 +729,7 @@ class GeneralEvaluationTests(unittest.TestCase):
             with self.assertRaisesRegex(EvaluationError, "corrupt"):
                 adapt_subject(root / "answer.txt", root / "trace.jsonl")
 
-    def test_backend_failure_is_distinct_from_zero_results(self):
+    def test_backend_failure_is_distinct_from_ambiguous_empty(self):
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch)
             _, failed = _run_hub(
@@ -688,8 +742,24 @@ class GeneralEvaluationTests(unittest.TestCase):
                 [], root, "empty", [python_sys.executable, "-c", "print('[]')"]
             )
             self.assertEqual(failed["status"], "backend-failure")
-            self.assertEqual(empty["status"], "zero-results")
+            self.assertEqual(empty["status"], "ambiguous-empty")
             self.assertNotEqual(failed["stderr_sha256"], "")
+
+    def test_swallowed_429_empty_response_does_not_claim_zero_results(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            # The pinned hub backend can swallow an HTTP 429 and emit [] with
+            # exit 0. The evaluator must keep that observation unresolved.
+            completed = SimpleNamespace(returncode=0, stdout=b"[]\n", stderr=b"")
+            with patch("stage1_eval.collector.subprocess.run", return_value=completed):
+                rows, receipt = _run_hub(
+                    ["search", "aging", "--backend", "crossref", "--json"],
+                    Path(scratch),
+                    "swallowed-429",
+                    [python_sys.executable],
+                )
+            self.assertEqual(rows, [])
+            self.assertEqual(receipt["status"], "ambiguous-empty")
+            self.assertEqual(receipt["stdout_sha256"], sha(b"[]\n"))
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@
       "required": ["recent_years", "backend", "max_results_per_query", "challenge_queries"],
       "properties": {
         "recent_years": {"type": "integer", "minimum": 1, "maximum": 15},
-        "backend": {"type": "string", "const": "openalex"},
+        "backend": {"type": "string", "enum": ["openalex", "crossref"]},
         "max_results_per_query": {"type": "integer", "minimum": 1, "maximum": 10},
         "challenge_queries": {"type": "array", "minItems": 2, "maxItems": 8,
           "items": {"type": "object", "additionalProperties": false,

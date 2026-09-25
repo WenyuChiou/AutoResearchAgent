@@ -80,7 +80,7 @@ P1 身分／中央敘述／證據界線、P2 題目需求／最近似工作、P3
 
 正式配對前，規格、執行位元組與版本必須在 subject 開始前凍結，並與原生 capture 綁定。`stage1_ab freeze-v3` 先建立不含論文答案的公開鎖；`host-preflight` 核對六個隔離 profile、原生工具、plugin 和依賴版本；`capture` 依固定順序保存六次原生執行；`stage1_eval evaluate --execution-class formal --lock ... --capture ...` 只接受鎖定的回答與 transcript；最後 `stage1_ab paired-v3 LOCK BACKGROUND OUTPUT --results ... --capture-dirs ...` 以凍結的背景來源、原始搜尋收據、subject 記錄及模型 JSONL 重建六份 evidence packet 與逐項分數。改寫評分 JSON、擷取結果或 packet，即使同步改其內部 hash，也不能代替原始模型回覆或來源；任一環節缺資料或 hash 不符便拒絕。這條執行路徑仍需完成 live 預演與 PR 審查；程式可執行不等於已得到 A/B 結果。因本地 schema 修正而重用已完成模型輸出的 `finalize-saved-spec` 和 `--resume-pilot` 僅供**探索預演**；缺原始 prompt 位元組時明示 `prompt_sha256=null`，不得拿來冒充正式配對紀錄。
 
-來源查核目前主要依 research-hub 可取得的 metadata 和摘要；全文、同年出版日期及付費來源可能仍不可核實。未知須維持未知。Judge agreement 是一致性，不證明專家正確；可靠的改善聲明仍需 frozen topic、配置、同一 evaluator 版本、配對 A/B 與另外的審查。
+來源查核目前主要依 research-hub 可取得的 metadata 和摘要；全文、同年出版日期及付費來源可能仍不可核實。開始正式受測前，要先在相同隔離環境確認搜尋 backend 真的回傳作品。當 OpenAlex 配額已滿時，`prepare-spec --backend crossref` 可預先選 Crossref；這項選擇會進入原始模型 prompt、題目規格及實際查詢回執。Crossref 的標題搜尋結果仍要嚴格核對 title 和 DOI，metadata 不能冒充全文。固定版 research-hub 的搜尋後端可能在 HTTP 或解析失敗時也回傳空清單，所以 evaluator 把 CLI 的 `[]` 記為 `ambiguous-empty`（未知），不把它冒充「零結果」。若任何一條獨立挑戰搜尋只得到不可確認的空清單，或整體沒有可用來源，v3 不允許凍結正式鎖。Crossref 此版本只檢索 journal article 且沒有摘要欄位；conference、preprint 與中央 claim 的缺失通常只能標未知，不能據此判沒有相關文獻或宣稱 P1 已充分驗證。Judge agreement 是一致性，不證明專家正確；可靠的改善聲明仍需 frozen topic、配置、同一 evaluator 版本、配對 A/B 與另外的審查。
 
 目前 PR validator 對 v3 只接受 `implementation-only`。現有 Level 2 readiness manifest 綁的是舊版南韓 Stage 1 live smoke，不能拿來替 v3 宣告 `stage-executable`。未來須另以 v3 專用 manifest 綁住 topic spec、rubric hash、evaluation result 和實際執行 artifacts，經驗證後才提升層級。
 

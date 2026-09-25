@@ -383,6 +383,14 @@ def freeze_v3(
     background_raw = Path(background_path).read_bytes()
     background = json.loads(background_raw)
     _verify_background(background, background_path, spec)
+    if (
+        not background.get("sources")
+        or not background.get("receipts")
+        or any(receipt.get("status") != "results" for receipt in background["receipts"])
+    ):
+        raise runner.ExecutionBlocked(
+            "formal v3 cannot freeze an unavailable or ambiguous challenge search"
+        )
     probe = read_json(runtime_probe_path)
     expected_capability_sha = runner.sha(
         json.dumps(probe["native_capabilities"], sort_keys=True).encode()

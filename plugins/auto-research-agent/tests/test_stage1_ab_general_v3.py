@@ -76,8 +76,10 @@ class GeneralABV3Tests(unittest.TestCase):
                         "command": [sys.executable, "-m", "research_hub", "search"],
                         "executable_sha256": sha(Path(sys.executable).read_bytes()),
                         "research_hub_package_sha256": "f" * 64,
+                        "status": "results",
                     }
                 ],
+                "sources": [{"source_id": "src-verified"}],
             },
         )
         probe = self.write(
@@ -116,6 +118,48 @@ class GeneralABV3Tests(unittest.TestCase):
                 return_value=SimpleNamespace(stdout=runner.RESEARCH_HUB_SHA),
             ),
         ):
+            unavailable = self.write(
+                "unavailable-background.json",
+                {"receipts": [{"status": "backend-failure"}], "sources": []},
+            )
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "unavailable or ambiguous challenge search"
+            ):
+                general.freeze_v3(
+                    codex,
+                    task,
+                    spec_path,
+                    unavailable,
+                    task,
+                    probe,
+                    self.root,
+                    pins,
+                    self.root / "unavailable-lock.json",
+                )
+            partly_ambiguous = self.write(
+                "partly-ambiguous-background.json",
+                {
+                    "receipts": [
+                        {"status": "results"},
+                        {"status": "ambiguous-empty"},
+                    ],
+                    "sources": [{"source_id": "src-verified"}],
+                },
+            )
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "unavailable or ambiguous challenge search"
+            ):
+                general.freeze_v3(
+                    codex,
+                    task,
+                    spec_path,
+                    partly_ambiguous,
+                    task,
+                    probe,
+                    self.root,
+                    pins,
+                    self.root / "partly-ambiguous-lock.json",
+                )
             lock = general.freeze_v3(
                 codex, task, spec_path, background, task, probe, self.root, pins, output
             )
