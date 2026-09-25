@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StageEvaluationResultV3",
+  "type": "object", "additionalProperties": false,
+  "required": ["kind", "schema_version", "stage_id", "evaluation_mode", "rubric_id", "rubric_sha256", "topic_id", "spec_sha256", "packet_sha256", "subject_sha256", "evidence_mode", "subject_status", "extraction_status", "evaluator_status", "scientific_readiness_status", "claimed_scope", "dimensions", "core_assessments", "omission_assessments", "major_issues", "adjudicated_phases", "evaluator_identity", "costs", "authorization", "created_at"],
+  "properties": {
+    "kind": {"const": "StageEvaluationResult"},
+    "schema_version": {"const": "3.0.0"}, "stage_id": {"const": "stage1"},
+    "evaluation_mode": {"const": "rubric-evidence"},
+    "rubric_id": {"const": "stage1-general-v3"},
+    "rubric_sha256": {"$ref": "#/$defs/sha"},
+    "topic_id": {"type": "string", "minLength": 1},
+    "spec_sha256": {"$ref": "#/$defs/sha"},
+    "packet_sha256": {"$ref": "#/$defs/sha"},
+    "subject_sha256": {"$ref": "#/$defs/sha"},
+    "evidence_mode": {"enum": ["packet-only", "evidence-audited"]},
+    "subject_status": {"enum": ["complete", "partial", "failed"]},
+    "extraction_status": {"enum": ["complete", "partial"]},
+    "evaluator_status": {"enum": ["complete", "partial", "inconclusive"]},
+    "scientific_readiness_status": {"enum": ["evidence-assessed", "inconclusive", "fail-confirmed-major-issue"]},
+    "claimed_scope": {"type": "string", "minLength": 1},
+    "dimensions": {"type": "object", "required": ["P1", "P2", "P3"], "additionalProperties": false,
+      "properties": {"P1": {"$ref": "#/$defs/dimension"}, "P2": {"$ref": "#/$defs/dimension"}, "P3": {"$ref": "#/$defs/dimension"}}},
+    "core_assessments": {"type": "array"}, "omission_assessments": {"type": "array"},
+    "major_issues": {"type": "array"}, "adjudicated_phases": {"type": "array", "uniqueItems": true, "items": {"enum": ["content", "process"]}},
+    "evaluator_identity": {"type": "object", "required": ["model", "reasoning", "evaluator_code_sha256"], "additionalProperties": false,
+      "properties": {"model": {"type": "string", "minLength": 1}, "reasoning": {"type": "string", "minLength": 1}, "evaluator_code_sha256": {"$ref": "#/$defs/sha"}, "evaluator_bundle_sha256": {"$ref": "#/$defs/sha"}, "codex_executable_sha256": {"$ref": "#/$defs/sha"}, "research_hub_package_sha256": {"$ref": "#/$defs/sha"}, "research_hub_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}},
+    "costs": {"type": "object", "required": ["evaluator_model_completed_turns", "evaluator_tokens", "source_acquisition_calls", "source_acquisition_failures", "evaluator_elapsed_seconds_this_attempt", "subject_tokens", "currency_cost"], "additionalProperties": false,
+      "properties": {
+        "evaluator_model_completed_turns": {"type": ["integer", "null"], "minimum": 0},
+        "evaluator_tokens": {"type": "object", "required": ["input_tokens", "cached_input_tokens", "output_tokens", "reasoning_output_tokens"], "additionalProperties": false,
+          "properties": {"input_tokens": {"type": ["integer", "null"], "minimum": 0}, "cached_input_tokens": {"type": ["integer", "null"], "minimum": 0}, "output_tokens": {"type": ["integer", "null"], "minimum": 0}, "reasoning_output_tokens": {"type": ["integer", "null"], "minimum": 0}}},
+        "source_acquisition_calls": {"type": ["integer", "null"], "minimum": 0},
+        "source_acquisition_failures": {"type": ["integer", "null"], "minimum": 0},
+        "evaluator_elapsed_seconds_this_attempt": {"type": ["number", "null"], "minimum": 0},
+        "subject_tokens": {"type": "null"}, "currency_cost": {"type": "null"}
+      }},
+    "authorization": {"type": "object", "required": ["publication_approved", "external_improvement_claim_approved"], "additionalProperties": false,
+      "properties": {"publication_approved": {"const": false}, "external_improvement_claim_approved": {"const": false}}},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "dimension": {"type": "object", "additionalProperties": false,
+      "required": ["name", "criteria", "applicable_count", "scored_count", "unknown_count", "not_applicable_count", "assessed_fraction", "observed_score_100", "lower_bound_100", "upper_bound_100", "confirmed_major_issue_ids", "unresolved_major_issue_ids"],
+      "properties": {
+        "name": {"type": "string"}, "criteria": {"type": "array"},
+        "applicable_count": {"type": "integer", "minimum": 0},
+        "scored_count": {"type": "integer", "minimum": 0},
+        "unknown_count": {"type": "integer", "minimum": 0},
+        "not_applicable_count": {"type": "integer", "minimum": 0},
+        "assessed_fraction": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "observed_score_100": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "lower_bound_100": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "upper_bound_100": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "confirmed_major_issue_ids": {"type": "array", "items": {"type": "string"}},
+        "unresolved_major_issue_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

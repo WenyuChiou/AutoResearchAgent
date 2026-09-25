@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "stages": [
+    {"stage_id": "stage1", "status": "experimental", "rubric_path": "rubrics/stage1-general.v3.json", "evaluation_mode": "rubric-evidence"},
+    {"stage_id": "stage2", "status": "not-implemented", "rubric_path": null, "evaluation_mode": null},
+    {"stage_id": "stage3", "status": "not-implemented", "rubric_path": null, "evaluation_mode": null},
+    {"stage_id": "stage4", "status": "not-implemented", "rubric_path": null, "evaluation_mode": null},
+    {"stage_id": "stage5", "status": "not-implemented", "rubric_path": null, "evaluation_mode": null},
+    {"stage_id": "stage6", "status": "not-implemented", "rubric_path": null, "evaluation_mode": null}
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:core-assessment:1.0.0",
+  "title": "Stage1CoreAssessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "topic_id", "requirements", "sources", "evidence", "works"],
+  "properties": {
+    "kind": {"const": "Stage1CoreAssessment"},
+    "schema_version": {"const": "1.0.0"},
+    "topic_id": {"$ref": "#/$defs/id"},
+    "requirements": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "works": {"type": "array", "items": {"$ref": "#/$defs/work"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "work_id", "version_id", "path", "sha256", "source_type"],
+      "properties": {
+        "source_id": {"$ref": "#/$defs/id"}, "work_id": {"$ref": "#/$defs/id"},
+        "version_id": {"$ref": "#/$defs/id"},
+        "path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha"},
+        "source_type": {"enum": ["full-text", "abstract", "metadata", "recognition", "other"]}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidence_id", "source_id", "locator", "quote"],
+      "properties": {
+        "evidence_id": {"$ref": "#/$defs/id"}, "source_id": {"$ref": "#/$defs/id"},
+        "locator": {"type": "string", "minLength": 1}, "quote": {"type": "string", "minLength": 1}
+      }
+    },
+    "work": {
+      "type": "object", "additionalProperties": false,
+      "required": ["work_id", "version_id", "requirement_ids", "roles", "selection_tier", "historical_status", "closest_status", "contribution", "decision_relevance", "omission_consequence", "alternatives_considered", "evidence_ids", "recognition_evidence_ids", "similarity_dimensions", "limitations"],
+      "properties": {
+        "work_id": {"$ref": "#/$defs/id"}, "version_id": {"$ref": "#/$defs/id"},
+        "requirement_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
+        "roles": {"type": "array", "uniqueItems": true, "items": {"enum": ["foundation", "established-result", "method-or-resource", "closest-work", "frontier", "boundary-or-challenge", "bridge", "context-anchor", "synthesis"]}},
+        "selection_tier": {"enum": ["topic-core", "important-anchor", "supporting", "uncertain"]},
+        "historical_status": {"enum": ["classic-supported", "classic-candidate", "not-assessed"]},
+        "closest_status": {"enum": ["closest-supported", "closest-candidate", "not-assessed"]},
+        "contribution": {"type": "string"}, "decision_relevance": {"type": "string"},
+        "omission_consequence": {"type": "string"}, "alternatives_considered": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
+        "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
+        "recognition_evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
+        "similarity_dimensions": {"type": "object", "additionalProperties": {"type": "string"}},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

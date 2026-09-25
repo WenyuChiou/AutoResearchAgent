@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage1SubjectExtraction",
+  "type": "object", "additionalProperties": false,
+  "required": ["works", "central_claims", "extraction_complete", "unextracted_reason"],
+  "properties": {
+    "works": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["work_id", "exact_reference", "title", "identifier", "nominated_core"],
+      "properties": {
+        "work_id": {"type": "string", "pattern": "^work-[a-z0-9-]+$"},
+        "exact_reference": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "identifier": {"type": "string"},
+        "nominated_core": {"type": "boolean"}
+      }
+    }},
+    "central_claims": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["claim_id", "exact_text", "cited_work_ids"],
+      "properties": {
+        "claim_id": {"type": "string", "pattern": "^claim-[a-z0-9-]+$"},
+        "exact_text": {"type": "string", "minLength": 1},
+        "cited_work_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    }},
+    "extraction_complete": {"type": "boolean"},
+    "unextracted_reason": {"type": ["string", "null"]}
+  }
+}

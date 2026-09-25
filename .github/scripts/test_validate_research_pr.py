@@ -1,12 +1,12 @@
 """Regression tests for the research pull-request contract."""
 
-from pathlib import Path
 import hashlib
 import json
 import re
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
 from validate_research_pr import (
     CRITERION_INVARIANTS,
@@ -14,6 +14,7 @@ from validate_research_pr import (
     RUNTIME_INVARIANTS,
     changed_files,
     load_bound_readiness_manifest,
+    load_capability_metrics,
     load_criterion_submetrics,
     load_invariant_registry,
     load_operational_submetrics,
@@ -21,7 +22,6 @@ from validate_research_pr import (
     validate_pr_body,
     validate_readiness_manifest,
 )
-
 
 VALID = """## Why
 - Plain-language summary: Keep a searchable record so another person can see why each paper was kept or removed.
@@ -89,6 +89,50 @@ FIXTURE_ROOT = Path(__file__).parent / "fixtures/pr_bodies"
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
+    def test_v3_capabilities_load_without_changing_frozen_v1_registry(self):
+        capabilities = load_capability_metrics()
+        self.assertIn("cli:stage1-core", capabilities)
+        self.assertIn("cli:stage1-eval", capabilities)
+        self.assertIn(
+            "P2V3.CORE_SELECTION", capabilities["cli:stage1-core"]["criteria"]
+        )
+        self.assertIn(
+            "P2V3.CORE_SELECTION", capabilities["skill:stage1-literature"]["criteria"]
+        )
+        self.assertIn(
+            "P3V3.DECISION_TRACE",
+            capabilities["validator:research-pr-contract"]["criteria"],
+        )
+
+    def test_general_v3_rubric_and_submetrics_are_registered_separately(self):
+        rubrics = load_rubrics()
+        self.assertEqual(rubrics["stage1-general-v3"]["P2V3.CORE_SELECTION"], "P2")
+        self.assertIn("S1V3_CORE", load_operational_submetrics())
+        self.assertEqual(
+            load_criterion_submetrics()["P2V3.CORE_SELECTION"],
+            {"S1V3_CORE"},
+        )
+
+    def test_experimental_v3_cannot_reuse_legacy_smoke_as_readiness_evidence(self):
+        for readiness in ("stage-executable", "improvement-demonstrated"):
+            with self.subTest(readiness=readiness):
+                body = VALID.replace(
+                    "- Evaluation readiness: implementation-only",
+                    f"- Evaluation readiness: {readiness}",
+                ).replace(
+                    "- Rubric version: aging-bidirectional-rubric-v1",
+                    "- Rubric version: stage1-general-v3",
+                )
+                errors = validate_pr_body(body, CAPABILITIES)
+                self.assertTrue(
+                    any(
+                        "experimental v3 rubric currently permits only implementation-only"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+
     def test_frozen_criteria_and_derived_invariants_are_fully_registered(self):
         rubrics = load_rubrics()
         criterion_submetrics = load_criterion_submetrics()

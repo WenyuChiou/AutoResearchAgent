@@ -6,11 +6,10 @@ import hashlib
 import importlib.util
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
-
+from pathlib import Path
 
 REQUIRED_SECTIONS = ("Why", "What", "How", "Example", "Evaluation", "Validation")
 HEADING = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
@@ -37,7 +36,8 @@ DEPENDENCY_PIN = re.compile(
     r"([0-9a-fA-F]{40})\s*@\s*(open|merged)$"
 )
 OPERATIONAL_MAPPING = re.compile(
-    r"^(P[1-9]\.[A-Z0-9_]+)\s*->\s*(S[1-3]_[A-Z0-9_]+)\s*->\s*"
+    r"^(P[1-9](?:V[0-9]+)?\.[A-Z0-9_]+)\s*->\s*"
+    r"(S[1-3](?:V[0-9]+)?_[A-Z0-9_]+)\s*->\s*"
     r"([A-Za-z0-9_.:/-]+)$"
 )
 BOUND_MANIFEST = re.compile(r"^manifest=([^;\s]+)\s*;\s*sha256=([0-9a-fA-F]{64})$")
@@ -105,6 +105,16 @@ REQUIRED_LABELS = {
 }
 
 CRITERION_INVARIANTS = {
+    "P1V3.IDENTITY": {"v3-rubric-hash-bound", "v3-source-bytes-bound"},
+    "P1V3.CLAIM_SUPPORT": {"v3-source-bytes-bound", "v3-major-grounded"},
+    "P1V3.EVIDENCE_LIMITS": {"v3-unknown-distinct"},
+    "P2V3.SCOPE": {"v3-no-gold-dependency", "v3-omission-independent"},
+    "P2V3.CORE_SELECTION": {"v3-no-gold-dependency", "v3-source-bytes-bound"},
+    "P2V3.CLOSEST_FRONTIER": {"v3-omission-independent", "v3-source-bytes-bound"},
+    "P2V3.BOUNDARIES": {"v3-major-grounded"},
+    "P3V3.SEARCH_TRACE": {"v3-content-process-separated"},
+    "P3V3.DECISION_TRACE": {"v3-content-process-separated"},
+    "P3V3.STOP_JUSTIFICATION": {"v3-unknown-distinct", "v3-major-grounded"},
     "P1.IDENTITY": {
         "artifact-producer-bound",
         "evidence-work-version-bound",
@@ -134,6 +144,7 @@ DEFAULT_REGISTRY = (
     Path(__file__).resolve().parents[2]
     / "plugins/auto-research-agent/evals/capability-metric-map.v1.json"
 )
+DEFAULT_V3_REGISTRY = DEFAULT_REGISTRY.with_name("capability-metric-map.v3.json")
 DEFAULT_RUBRIC_DIR = (
     Path(__file__).resolve().parents[2] / "plugins/auto-research-agent/evals/rubrics"
 )
@@ -202,7 +213,18 @@ def text_is_concrete(value):
 
 def load_capability_metrics(path=DEFAULT_REGISTRY):
     registry = json.loads(path.read_text(encoding="utf-8"))
-    return {
+    entries = list(registry["capabilities"])
+    extensions = []
+    if path == DEFAULT_REGISTRY:
+        extension = json.loads(DEFAULT_V3_REGISTRY.read_text(encoding="utf-8"))
+        if extension.get("extends") != "capability-metric-map-v1":
+            raise ValueError("v3 capability map must extend v1")
+        entries.extend(extension["capabilities"])
+        extensions = extension.get("capability_extensions", [])
+    ids = [entry["capability_id"] for entry in entries]
+    if len(ids) != len(set(ids)):
+        raise ValueError("duplicate capability ID across registries")
+    capabilities = {
         entry["capability_id"]: {
             "metrics": {effect["metric_id"] for effect in entry["metric_effects"]},
             "criteria": {
@@ -216,8 +238,16 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
                 "runtime_integrity_required", entry.get("kind") == "cli"
             ),
         }
-        for entry in registry["capabilities"]
+        for entry in entries
     }
+    for patch in extensions:
+        capability_id = patch["capability_id"]
+        if capability_id not in capabilities:
+            raise ValueError(f"v3 extension names unknown capability {capability_id}")
+        for effect in patch["metric_effects"]:
+            capabilities[capability_id]["metrics"].add(effect["metric_id"])
+            capabilities[capability_id]["criteria"].update(effect["rubric_criteria"])
+    return capabilities
 
 
 def capability_ids(value):
@@ -318,6 +348,7 @@ def execute_selector(path, selector, repo_root):
             text=True,
             timeout=60,
             env=environment,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         outcome = (False, str(error))
@@ -325,7 +356,9 @@ def execute_selector(path, selector, repo_root):
         output = "\n".join(
             part.strip() for part in (result.stdout, result.stderr) if part.strip()
         )
-        runtime_skipped = bool(re.search(r"\bskipped(?:\s*=|\b)", output, re.I))
+        runtime_skipped = bool(
+            re.search(r"\bskipped(?:\s*=|\b)", output, re.IGNORECASE)
+        )
         outcome = (result.returncode == 0 and not runtime_skipped, output[-1000:])
     _SELECTOR_RESULTS[key] = outcome
     return outcome
@@ -354,26 +387,40 @@ def load_rubrics(directory=DEFAULT_RUBRIC_DIR):
     rubrics = {}
     for path in sorted(directory.glob("*.json")):
         rubric = json.loads(path.read_text(encoding="utf-8"))
-        if rubric.get("status") != "frozen":
+        if (
+            rubric.get("status") not in {"frozen", "experimental"}
+            and rubric.get("rubric_id") != "stage1-general-v3"
+        ):
             continue
-        version = rubric["rubric_version"]
+        version = rubric.get("rubric_version", rubric.get("rubric_id"))
         if version in rubrics:
             raise ValueError(f"duplicate rubric version: {version}")
         criteria = {}
-        for metric in rubric["metrics"]:
-            for criterion_id in metric["criterion_ids"]:
-                if criterion_id in criteria:
-                    raise ValueError(
-                        f"duplicate criterion ID in {version}: {criterion_id}"
-                    )
-                criteria[criterion_id] = metric["id"]
+        entries = (
+            (
+                (criterion_id, metric["id"])
+                for metric in rubric.get("metrics", [])
+                for criterion_id in metric["criterion_ids"]
+            )
+            if "metrics" in rubric
+            else (
+                (criterion["id"], criterion["dimension"])
+                for criterion in rubric["criteria"]
+            )
+        )
+        for criterion_id, metric_id in entries:
+            if criterion_id in criteria:
+                raise ValueError(f"duplicate criterion ID in {version}: {criterion_id}")
+            criteria[criterion_id] = metric_id
         rubrics[version] = criteria
     return rubrics
 
 
 def load_operational_submetrics(path=DEFAULT_OPERATIONAL_DEFINITIONS):
     submetrics = {}
-    row = re.compile(r"^\|\s*`(S[1-3]_[A-Z0-9_]+)`\s*\|.*\|\s*([^|]+?)\s*\|\s*$")
+    row = re.compile(
+        r"^\|\s*`(S[1-3](?:V[0-9]+)?_[A-Z0-9_]+)`\s*\|.*\|\s*([^|]+?)\s*\|\s*$"
+    )
     for line in path.read_text(encoding="utf-8").splitlines():
         match = row.match(line)
         if match:
@@ -908,6 +955,10 @@ def validate_pr_body(
     rubrics = known_rubrics if known_rubrics is not None else load_rubrics()
     rubric_version = label_value(parsed.get("Evaluation", ""), "Rubric version")
     rubric_criteria = rubrics.get(rubric_version, {})
+    if rubric_version == "stage1-general-v3" and readiness != "implementation-only":
+        errors.append(
+            "experimental v3 rubric currently permits only implementation-only readiness"
+        )
     if rubric_version and rubric_version not in rubrics:
         errors.append("Rubric version must name a registered rubric version")
     declared_criteria = capability_ids(
@@ -1087,15 +1138,17 @@ def validate_pr_body(
             )
             continue
         registration = invariant_registry.get(invariant_id)
-        if registration:
-            if not any(
+        if registration and (
+            not any(
                 re.fullmatch(pattern, path) for pattern in registration["path_patterns"]
-            ) or not re.fullmatch(registration["selector_pattern"], selector):
-                errors.append(
-                    f"invariant '{invariant_id}' evidence selector is not allowed by "
-                    "invariant-registry.v1.json"
-                )
-                continue
+            )
+            or not re.fullmatch(registration["selector_pattern"], selector)
+        ):
+            errors.append(
+                f"invariant '{invariant_id}' evidence selector is not allowed by "
+                "invariant-registry.v1.json"
+            )
+            continue
         if selector_is_skipped(path, selector, repo_root):
             errors.append(f"invariant '{invariant_id}' test selector is skipped")
             continue
