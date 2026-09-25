@@ -130,7 +130,9 @@ def run_judges(
         normalized = dict(result, run_id=real_id)
         write_json(output / f"{role}.json", normalized)
         results[role] = normalized
-    requires_audit = any(x["requires_human_audit"] for x in results.values())
+    requires_audit = disagreement or any(
+        x["requires_human_audit"] for x in results.values()
+    )
     selected = results.get("auto-adj", results["auto-r1"])
     bundle = {
         "kind": "JudgeBundle",
@@ -195,6 +197,29 @@ def _invoke(
         str(codex),
         "exec",
         "--json",
+        "--ignore-user-config",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "unified_exec",
+        "--disable",
+        "code_mode_host",
+        "--disable",
+        "computer_use",
+        "--disable",
+        "browser_use",
+        "--disable",
+        "apps",
+        "--disable",
+        "plugins",
+        "--disable",
+        "view_image",
+        "--disable",
+        "multi_agent",
+        "--disable",
+        "skill_search",
+        "--disable",
+        "hooks",
         "--sandbox",
         "read-only",
         "--skip-git-repo-check",
@@ -227,6 +252,31 @@ def _invoke(
             shutil.copyfile(scratch_result, result_path)
     (output / f"{role}.jsonl").write_bytes(result.stdout)
     (output / f"{role}.stderr").write_bytes(result.stderr)
+    _require_tool_free_judge_events(result.stdout)
     if result.returncode or not result_path.is_file():
         raise ExecutionBlocked(f"{role} failed; raw logs retained")
     return read_json(result_path)
+
+
+def _require_tool_free_judge_events(raw):
+    try:
+        events = [json.loads(line) for line in raw.splitlines()]
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ExecutionBlocked("judge transcript is unreadable") from exc
+    if not any(event.get("type") == "turn.completed" for event in events):
+        raise ExecutionBlocked("judge transcript lacks a completed turn")
+    benign_warnings = (
+        "Code Mode is unavailable because code-mode host is disabled.",
+        "Skill descriptions were shortened to fit the skills context budget.",
+    )
+    for event in events:
+        if not event.get("type", "").startswith("item."):
+            continue
+        item = event.get("item", {})
+        if item.get("type") in {"agent_message", "reasoning"}:
+            continue
+        if item.get("type") == "error" and any(
+            item.get("message", "").startswith(prefix) for prefix in benign_warnings
+        ):
+            continue
+        raise ExecutionBlocked("judge transcript contains a tool or error event")

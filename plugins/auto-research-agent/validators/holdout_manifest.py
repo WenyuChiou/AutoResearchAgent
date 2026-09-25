@@ -212,7 +212,7 @@ def _must_have_confirmation_passes(rating):
     )
 
 
-def _validate_anchor_type(anchor, errors):
+def _validate_anchor_type(anchor, errors, min_confirmations=2):
     prefix = anchor["anchor_id"]
     anchor_type = anchor["anchor_type"]
     classic = anchor["classic_assessment"]["status"] == "qualifies"
@@ -231,8 +231,11 @@ def _validate_anchor_type(anchor, errors):
             _must_have_confirmation_passes(rating)
             for rating in anchor["independent_ratings"]
         )
-        if confirmations < 2:
-            errors.append(f"{prefix} needs two passing must-have rater confirmations")
+        if confirmations < min_confirmations:
+            quantity = "two" if min_confirmations == 2 else "one"
+            errors.append(
+                f"{prefix} needs {quantity} passing must-have rater confirmations"
+            )
 
 
 def _validate_timestamps(manifest, approvals, errors):

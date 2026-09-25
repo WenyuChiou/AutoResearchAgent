@@ -63,6 +63,7 @@ def make_packet(result_path, plan_path, evidence_path, output):
     model_input = {
         "run_id": "blind-run-" + secrets.token_hex(16),
         "subject_id": "blind-subject-" + secrets.token_hex(16),
+        "factual_result_sha256": canonical_sha256(result),
         "hard_facts": result["fact_metrics"],
         "major_issues": result["major_issues"],
         "evidence_ids": evidence["evidence_ids"],
@@ -114,6 +115,8 @@ def verify_packet(packet, plan):
             "judge factual-result contract fails: " + "; ".join(errors)
         )
     model_input = packet["model_input"]
+    if model_input.get("factual_result_sha256") != canonical_sha256(result):
+        raise ExecutionBlocked("judge packet factual result hash differs")
     evidence_binding = packet["evidence_artifact"]
     evidence_path = (eval_root / evidence_binding["path"]).resolve()
     if (

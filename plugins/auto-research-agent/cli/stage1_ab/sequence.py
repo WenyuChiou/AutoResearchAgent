@@ -1,13 +1,28 @@
 """Persistent, fail-closed ordering for Stage 1 subject captures."""
 
+import hashlib
 import json
 import os
 from pathlib import Path
 from contextlib import contextmanager
 
 
-def registry_path(preflight_path):
-    return Path(preflight_path).with_suffix(".sequence.json")
+REGISTRY_HOME = (
+    (
+        Path(os.environ["LOCALAPPDATA"])
+        if os.name == "nt" and "LOCALAPPDATA" in os.environ
+        else Path.home() / ".local" / "share"
+    )
+    / "AutoResearchAgent"
+    / "stage1-ab"
+    / "series"
+)
+
+
+def registry_path(lock_path):
+    """One host-side series per frozen lock bytes, even after a filename copy."""
+    digest = hashlib.sha256(Path(lock_path).read_bytes()).hexdigest()
+    return REGISTRY_HOME / f"{digest}.series.json"
 
 
 def expected_runs(lock):
@@ -39,22 +54,22 @@ def expected_runs(lock):
 
 
 def create(lock, lock_path, preflight_path, sha):
-    path = registry_path(preflight_path)
+    path = registry_path(lock_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_sha256 = sha(Path(lock_path).read_bytes())
+    preflight_sha256 = sha(Path(preflight_path).read_bytes())
     value = {
         "kind": "Stage1ABSequenceRegistry",
-        "lock_sha256": sha(Path(lock_path).read_bytes()),
-        "preflight_sha256": sha(Path(preflight_path).read_bytes()),
+        "series_id": sha((lock_sha256 + preflight_sha256).encode()),
+        "lock_sha256": lock_sha256,
+        "preflight_sha256": preflight_sha256,
         "runs": expected_runs(lock),
         "next_index": 0,
         "active": None,
         "completed": [],
     }
-    path.write_text(
-        json.dumps(value, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-        errors="strict",
-        newline="\n",
-    )
+    with path.open("x", encoding="utf-8", errors="strict", newline="\n") as stream:
+        stream.write(json.dumps(value, indent=2, sort_keys=True) + "\n")
     return path
 
 
@@ -86,6 +101,8 @@ def verify(path, lock, lock_path, preflight_path, sha, verify_capture):
         value.get("kind") != "Stage1ABSequenceRegistry"
         or value.get("lock_sha256") != sha(Path(lock_path).read_bytes())
         or value.get("preflight_sha256") != sha(Path(preflight_path).read_bytes())
+        or value.get("series_id")
+        != sha((value["lock_sha256"] + value["preflight_sha256"]).encode())
         or value.get("runs") != runs
     ):
         raise ValueError("sequence registry differs from frozen plan or preflight")
@@ -106,6 +123,7 @@ def verify(path, lock, lock_path, preflight_path, sha, verify_capture):
         if (
             record.get("status") != "complete"
             or record.get("run_id") != item["run_id"]
+            or record.get("series_id") != value["series_id"]
             or sha((output / "run.json").read_bytes()) != item["run_sha256"]
         ):
             raise ValueError("prior subject is incomplete or changed")

@@ -129,8 +129,31 @@ def freeze(plan_path, prompt_path, dependency_repo, output):
     if canonical_sha256(holdout) != plan["bindings"]["holdout"]["canonical_sha256"]:
         raise ExecutionBlocked("holdout canonical hash differs")
     verify_private_bytes(plan, holdout, eval_root)
-    if len({a["actor_id"] for a in plan["human_approvals"]}) < 2:
-        raise ExecutionBlocked("two distinct final human approvals required")
+    approval_ids = [approval["actor_id"] for approval in plan["human_approvals"]]
+    single_human = holdout["schema_version"] == "2.1.0"
+    curator_attestations = {
+        actor["actor_id"]: actor["attestation_ref"]
+        for actor in holdout["curation"]["actors"]
+    }
+    if (
+        len(approval_ids) != len(set(approval_ids))
+        or (single_human and len(approval_ids) != 1)
+        or (not single_human and len(approval_ids) < 2)
+        or (
+            single_human
+            and (
+                set(approval_ids) != set(curator_attestations)
+                or any(
+                    approval["attestation_ref"]
+                    != curator_attestations.get(approval["actor_id"])
+                    for approval in plan["human_approvals"]
+                )
+            )
+        )
+    ):
+        raise ExecutionBlocked(
+            "final human approvals must match the frozen holdout curators"
+        )
     dep = subprocess.run(
         ["git", "-C", str(dependency_repo), "rev-parse", "HEAD"],
         capture_output=True,
@@ -524,6 +547,8 @@ def host_preflight(
     lock = read_json(lock_path)
     if lock.get("kind") != "Stage1ABPublicLock":
         raise ExecutionBlocked("host preflight needs a frozen public lock")
+    if sequence.registry_path(lock_path).exists():
+        raise ExecutionBlocked("this public lock already has a host execution series")
     if Path(baseline_profile).resolve() == Path(treatment_profile).resolve():
         raise ExecutionBlocked("B and T profiles must be separate")
     if Path(baseline_workspace).resolve() == Path(treatment_workspace).resolve():
@@ -601,7 +626,12 @@ def host_preflight(
     }
     sequence.expected_runs(lock)
     write_json(output, report)
-    sequence.create(lock, lock_path, output, sha)
+    try:
+        sequence.create(lock, lock_path, output, sha)
+    except FileExistsError as exc:
+        raise ExecutionBlocked(
+            "this public lock already has a host execution series"
+        ) from exc
     return report
 
 
@@ -663,7 +693,11 @@ def capture(
 ):
     """Advance exactly one frozen subject, with a durable reservation."""
     lock = read_json(lock_path)
-    path = sequence.registry_path(host_preflight_path)
+    path = sequence.registry_path(lock_path)
+    if not path.is_file():
+        raise ExecutionBlocked(
+            "sequence verification failed: frozen lock has no registry"
+        )
     with sequence.exclusive(path):
         try:
             registry = sequence.verify(
@@ -779,6 +813,7 @@ def _capture_subject(
         if (
             record["run_id"] != run["run_id"]
             or record["condition"] != condition
+            or record.get("series_id") != registry["series_id"]
             or record["status"] == "complete"
         ):
             raise ExecutionBlocked("untrusted recovery or completed run")
@@ -806,6 +841,7 @@ def _capture_subject(
             "subject_id": run["subject_id"],
             "condition": condition,
             "repeat": repeat,
+            "series_id": registry["series_id"],
             "status": "incomplete",
             "attempts": [],
         }

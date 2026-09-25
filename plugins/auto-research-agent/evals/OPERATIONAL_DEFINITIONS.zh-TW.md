@@ -3,8 +3,9 @@
 這份文件定義「實際要數什麼、誰來判斷、分母是什麼」。白話概念請先看 [P1–P9 指標白話說明](METRICS_EXPLAINED.zh-TW.md)。
 
 以下 Stage 1 四群與 10／2 文獻分母只屬於歷史 v1。南韓雙向耦合正式 A/B 使用
-[六群 v2 操作型定義](stage1/OPERATIONAL_DEFINITIONS_V2.zh-TW.md) 及兩人一致納入
-holdout 契約；不能混用兩個版本的分母或舊 run01 分數。
+[六群 v2 操作型定義](stage1/OPERATIONAL_DEFINITIONS_V2.zh-TW.md)。v2.0 使用兩人一致納入；
+[v2.1 單人策展修訂](stage1/SINGLE_HUMAN_CURATION_V2_1.zh-TW.md)由 Eric 獨立核准。
+不能混用兩個版本的分母或舊 run01 分數。
 
 ## 1. 核心文獻從哪裡來
 

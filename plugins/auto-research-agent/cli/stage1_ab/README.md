@@ -12,10 +12,11 @@ SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
 
 ## Separation and sequence
 
-1. On the **private evaluator machine**, two named humans curate and approve
-   the v2 answer package and frozen plan. Verify their identities against the
-   trusted roster outside this CLI. The validator checks distinct actor
-   records and artifact bytes, but cannot authenticate a human identity.
+1. On the **private evaluator machine**, use the frozen holdout protocol:
+   v2.1 requires Eric as the sole named human curator and plan approver; legacy
+   v2.0 requires two independent human curators and approvals. Verify identity
+   outside this CLI. The validator checks actor records and artifact bytes, but
+   cannot authenticate a human identity.
    Keep the private package under `evals/private/` only on that machine.
 2. Run `freeze PLAN PROMPT MERGED_RESEARCH_HUB_CHECKOUT PUBLIC_LOCK` on the
    evaluator. It reuses `evaluation_plan.validate_plan`, verifies the prompt,
@@ -37,8 +38,11 @@ SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
    `REPORT` with the pilot bundle. Never put the private evaluator directory
    on this host. A readable decoy private file, changed plugin tree, or
    unverified profile blocks launch.
-4. The preflight creates `REPORT.sequence.json`, bound to the lock and report
-   bytes. Keep it outside the subject workspaces. Run `capture CODEX PUBLIC_LOCK CONDITION REPEAT PROFILE WORKSPACE PROMPT
+4. The preflight creates one host registry keyed by the SHA-256 of the public
+   lock bytes under the user's local application-data directory. A copied lock
+   or a different report path cannot start a second series on that host. Keep
+   the subject workspaces separate from this host registry.
+   Run `capture CODEX PUBLIC_LOCK CONDITION REPEAT PROFILE WORKSPACE PROMPT
    OUTPUT PRIVATE_ROOT REPORT` in frozen B→T, T→B, B→T order. `capture` stores raw
    JSONL, stderr, final answer, every generated file, timings, usage and hashes.
    `verify OUTPUT` rechecks bytes. A failed or interrupted attempt can use
@@ -64,11 +68,16 @@ SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
    in separate authenticated profiles. It runs ADJ only on a score or
    major-error disagreement. The output bundle is validated by
    `judge_bundle`; triggered named human audits leave it unusable until a
-   completed accepted audit is attached and revalidated.
+   completed accepted audit is attached and revalidated. Judge CLI invocations
+   disable file, shell, browser, app, plugin, and delegation tools; any tool or
+   error event in their raw JSONL blocks the bundle.
 7. Create the canonical paired request with exactly six usable bundles and
-   run `paired REQUEST DECISION`. The command delegates to
-   `paired_evaluation.evaluate_request`. `report DECISION PLAN HOLDOUT
-   RESULT1 ... RESULT6 --output REPORT` lists separate P1, P2 and P3 pair
+   run `paired REQUEST DECISION --results RESULT1 ... RESULT6 --capture-dirs
+   CAPTURE1 ... CAPTURE6`. The command checks one execution series and delegates to
+   `paired_evaluation.evaluate_request`. `report REQUEST DECISION PLAN HOLDOUT
+   RESULT1 ... RESULT6 CAPTURE1 ... CAPTURE6 --output REPORT` recomputes the
+   decision, rechecks all six raw capture directories, requires one execution
+   series ID, and binds each judge packet to its factual result before listing separate P1, P2 and P3 pair
    deltas, median and range, hard counts, failures and costs. There is no
    composite score or automatic external claim.
 
@@ -102,7 +111,8 @@ derivation from these reviewer labels, not an autonomous truth judgment.
 ## Stop conditions
 
 The current checkout contains no formal private holdout or roster-verifiable
-approvals. Do not execute the six South Korea subjects from this PR. The
+approvals. Do not execute the six South Korea subjects before Eric freezes and
+signs the real private package and plan. The
 non-South-Korea B/T pilot is unscored and may start only after both clean
 profiles pass login, model, native search and functional plugin preflight. An
 initial Canada pilot on 2026-09-23 exposed a treatment skill read denial even

@@ -1170,8 +1170,8 @@
       "status": "active",
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/validators/holdout_manifest_v2.py",
-      "problem": "A two-person team cannot honestly record an independent third adjudicator when curating the bidirectional South Korea holdout.",
-      "mechanism": "Validate exactly two independent human raters, unanimous inclusion, preserved excluded disagreements, private candidate screening log, classic and must-have rules, and two recorded human approvals.",
+      "problem": "The original two-rater contract cannot represent a project decision that Eric alone curates the bidirectional South Korea holdout.",
+      "mechanism": "Preserve v2.0 two-rater curation and validate an explicit v2.1 single-human protocol with one identified curator, one rating and approval per anchor, a private screening log, and the same classic and must-have evidence rules.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -1187,7 +1187,7 @@
             "classic and must-have eligibility rules pass",
             "the manifest has a canonical SHA-256"
           ],
-          "human_judgment": "Two human raters independently decide directness and inclusion; disputed candidates are excluded and preserved without a third adjudicator."
+          "human_judgment": "v2.0 uses two independent human raters; v2.1 uses one named human curator and reports the lack of independent human curation."
         },
         {
           "metric_id": "P3",
@@ -1197,10 +1197,10 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "every anchor retains two ratings and evidence IDs",
+            "every anchor retains the protocol-required one or two ratings and evidence IDs",
             "frozen manifests record approvals and time",
             "answer-key and approval artifacts are declared under normalized private paths",
-            "disagreements are preserved outside the included anchor set"
+            "v2.0 disagreements remain outside anchors; v2.1 forbids invented inter-rater disagreements"
           ],
           "human_judgment": "The core team checks that the preserved curation record is sufficient to challenge each anchor decision."
         }
@@ -1212,7 +1212,8 @@
         "changing a frozen manifest requires a new ID and hash"
       ],
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_stage1_ab_contract_v2.py"
+        "plugins/auto-research-agent/tests/test_stage1_ab_contract_v2.py",
+        "plugins/auto-research-agent/tests/test_stage1_single_human_contract.py"
       ],
       "live_ab_required_at": "stage1-formal-milestone",
       "quality_improvement_claimed": false
@@ -1224,7 +1225,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/validators/stage1_evaluation_result_v2.py",
       "problem": "Historical four-cluster and 10/2 denominators would mis-score a six-cluster bidirectional Stage 1 run.",
-      "mechanism": "Validate six coverage clusters and bind core/must-have denominators to the frozen private v2 holdout while preserving factual count invariants.",
+      "mechanism": "Validate six coverage clusters and bind core/must-have denominators to the frozen private v2.0 or v2.1 holdout while preserving factual count invariants.",
       "metric_effects": [
         {
           "metric_id": "P1",

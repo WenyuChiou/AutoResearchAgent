@@ -104,16 +104,59 @@ def parser_for_commands():
     p = subs.add_parser("paired")
     p.add_argument("request", type=Path)
     p.add_argument("output", type=Path)
+    p.add_argument("--results", nargs=6, type=Path, required=True)
+    p.add_argument("--capture-dirs", nargs=6, type=Path, required=True)
     p = subs.add_parser("report")
+    p.add_argument("request", type=Path)
     p.add_argument("decision", type=Path)
     p.add_argument("plan", type=Path)
     p.add_argument("holdout", type=Path)
     p.add_argument("results", nargs=6, type=Path)
+    p.add_argument("capture_dirs", nargs=6, type=Path)
     p.add_argument("--output", required=True, type=Path)
     return parser
 
 
-def report(decision, plan, holdout, result_paths):
+def _bind_one_series(results, capture_dirs, expected):
+    if len(capture_dirs) != 6:
+        raise runner.ExecutionBlocked("six subject capture directories required")
+    captures = [runner.verify_capture(path) for path in capture_dirs]
+    capture_by_run = {
+        capture["run_id"]: (capture, path)
+        for capture, path in zip(captures, capture_dirs)
+    }
+    if len(capture_by_run) != 6 or set(capture_by_run) != expected:
+        raise runner.ExecutionBlocked("six distinct frozen subject captures required")
+    series_ids = {capture.get("series_id") for capture in captures}
+    if len(series_ids) != 1 or not next(iter(series_ids)):
+        raise runner.ExecutionBlocked("subject captures span multiple execution series")
+    for value in results:
+        capture, capture_dir = capture_by_run[value["run_id"]]
+        if (
+            capture.get("status") != "complete"
+            or capture.get("condition") != value["condition"]
+            or value.get("capture_provenance")
+            != {
+                "series_id": capture["series_id"],
+                "run_sha256": runner.sha((Path(capture_dir) / "run.json").read_bytes()),
+            }
+        ):
+            raise runner.ExecutionBlocked(
+                "factual result does not bind its subject capture"
+            )
+    return next(iter(series_ids))
+
+
+def report(request, decision, plan, holdout, result_paths, capture_dirs):
+    from validators.holdout_manifest import canonical_sha256
+
+    recomputed, errors = evaluate_request(request)
+    if errors:
+        raise runner.ExecutionBlocked("paired request invalid: " + "; ".join(errors))
+    if decision != recomputed:
+        raise runner.ExecutionBlocked("paired decision differs from recomputed request")
+    if request["plan"]["canonical_sha256"] != canonical_sha256(plan):
+        raise runner.ExecutionBlocked("paired request binds a different plan")
     if decision["plan_id"] != plan["plan_id"]:
         raise runner.ExecutionBlocked("paired decision binds a different plan")
     if decision["decision"] == "improved" and not all(
@@ -130,12 +173,26 @@ def report(decision, plan, holdout, result_paths):
     }
     if len(by_run) != 6 or set(by_run) != expected:
         raise runner.ExecutionBlocked("six distinct frozen run results required")
+    series_id = _bind_one_series(results, capture_dirs, expected)
     for value in results:
         errors = validate_result_v2(value, holdout, plan)
         if errors:
             raise runner.ExecutionBlocked("v2 result invalid: " + "; ".join(errors))
         for artifact in value["artifacts"]:
             runner.verify_bound_file(runner.PLUGIN_ROOT / "evals", artifact)
+    eval_root = runner.PLUGIN_ROOT / "evals"
+    for binding in request["bundles"]:
+        bundle_path = eval_root / binding["path"]
+        bundle = runner.read_json(bundle_path)
+        subject_path = runner.verify_bound_file(eval_root, bundle["subject_artifact"])
+        subject = json.loads(subject_path.read_text(encoding="utf-8"))
+        run_id = bundle["run_id"]
+        if run_id not in by_run or subject.get(
+            "factual_result_sha256"
+        ) != canonical_sha256(by_run[run_id]):
+            raise runner.ExecutionBlocked(
+                "paired judge packet does not bind its factual result"
+            )
     summaries = []
     for metric in ("P1", "P2", "P3"):
         rows = [row for row in decision["pair_results"] if row["metric_id"] == metric]
@@ -158,6 +215,7 @@ def report(decision, plan, holdout, result_paths):
         "hard_counts": hard_counts,
         "run_costs": decision["run_costs"],
         "added_major_errors": decision["added_major_errors"],
+        "execution_series_id": series_id,
         "no_composite_total": True,
         "external_claim_ready": False,
     }
@@ -257,18 +315,25 @@ def main(argv=None):
                 ],
             }
         elif args.command == "paired":
-            value, errors = evaluate_request(runner.read_json(args.request))
+            request = runner.read_json(args.request)
+            value, errors = evaluate_request(request)
             if errors:
                 raise runner.ExecutionBlocked(
                     "paired request invalid: " + "; ".join(errors)
                 )
+            eval_root = runner.PLUGIN_ROOT / "evals"
+            plan = runner.read_json(eval_root / request["plan"]["path"])
+            holdout = runner.read_json(eval_root / plan["bindings"]["holdout"]["path"])
+            report(request, value, plan, holdout, args.results, args.capture_dirs)
             runner.write_json(args.output, value)
         else:
             value = report(
+                runner.read_json(args.request),
                 runner.read_json(args.decision),
                 runner.read_json(args.plan),
                 runner.read_json(args.holdout),
                 args.results,
+                args.capture_dirs,
             )
             runner.write_json(args.output, value)
     except (

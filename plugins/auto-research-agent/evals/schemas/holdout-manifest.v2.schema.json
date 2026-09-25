@@ -29,7 +29,7 @@
       "const": "HoldoutManifest"
     },
     "schema_version": {
-      "const": "2.0.0"
+      "enum": ["2.0.0", "2.1.0"]
     },
     "manifest_id": {
       "$ref": "#/$defs/id"
@@ -121,6 +121,27 @@
       "$ref": "#/$defs/artifact"
     }
   },
+  "allOf": [
+    {
+      "if": {"properties": {"schema_version": {"const": "2.0.0"}}},
+      "then": {
+        "properties": {
+          "curation": {"properties": {"actors": {"minItems": 2, "maxItems": 2}, "independent_rating": {"const": true}}},
+          "anchors": {"items": {"properties": {"independent_ratings": {"minItems": 2, "maxItems": 2}}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"schema_version": {"const": "2.1.0"}}},
+      "then": {
+        "properties": {
+          "curation": {"properties": {"actors": {"minItems": 1, "maxItems": 1}, "independent_rating": {"const": false}}},
+          "anchors": {"items": {"properties": {"independent_ratings": {"minItems": 1, "maxItems": 1}}}},
+          "disagreements": {"maxItems": 0}
+        }
+      }
+    }
+  ],
   "$defs": {
     "id": {
       "type": "string",
@@ -161,14 +182,14 @@
       "properties": {
         "actors": {
           "type": "array",
-          "minItems": 2,
+          "minItems": 1,
           "items": {
             "$ref": "#/$defs/actor"
           },
           "maxItems": 2
         },
         "independent_rating": {
-          "const": true
+          "type": "boolean"
         },
         "human_approvals": {
           "type": "array",
@@ -529,7 +550,7 @@
         },
         "independent_ratings": {
           "type": "array",
-          "minItems": 2,
+          "minItems": 1,
           "items": {
             "$ref": "#/$defs/rating"
           },

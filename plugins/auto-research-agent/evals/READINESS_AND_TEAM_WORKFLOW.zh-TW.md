@@ -80,7 +80,7 @@ target 至少兩組改善且零退步，non-target 零退步，treatment 不得�
 | Capability 實作與 deterministic tests | 負責 | 設定範圍與驗收條件 |
 | Synthetic evidence、PR 說明、CI 修正 | 負責 | 檢查證據是否支持聲明 |
 | 外部 repository PR | 開 Draft PR 並立即回報連結 | Review；核准前不合併 |
-| Rubric、private holdout、正式 plan freeze | 不得自行改答案或門檻 | 兩位人類核准 |
+| Rubric、private holdout、正式 plan freeze | 不得自行改答案或門檻 | 核對版本與人類簽核：v2.0 由兩位真人核准；南韓案例 v2.1 由 Eric 一人核准並揭露單人策展限制 |
 | Auto-R1／Auto-R2／Auto-ADJ | 依 frozen config 自動執行 | 檢查 provenance 與例外 |
 | Targeted human audit | 準備完整 evidence bundle | 具名人類執行並簽署 |
 | AutoResearchAgent PR | 開 PR、回覆意見、修正 | Review 並 merge 到 fork |

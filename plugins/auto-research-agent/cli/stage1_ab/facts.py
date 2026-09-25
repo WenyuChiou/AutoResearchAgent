@@ -114,7 +114,19 @@ def derive_facts(annotations, holdout, plan, capture_dir, eval_root):
         raise ExecutionBlocked("recent and closest-work search evidence required")
     if annotations.get("stop_evidence_id"):
         _evidence(annotations, eval_root, annotations["stop_evidence_id"])
-    year_known = [work["year"] for work in works if isinstance(work.get("year"), int)]
+    cutoff_year = int(plan["subject_runtime"]["data_cutoff"][:4])
+    year_verified_works = [
+        work
+        for work in works
+        if work["identity_status"] == "correct"
+        and work["link_status"] == "correct"
+        and work.get("identity_evidence_id")
+        and work.get("link_evidence_id")
+        and isinstance(work.get("year"), int)
+        and not isinstance(work["year"], bool)
+        and work["year"] <= cutoff_year
+    ]
+    year_known = [work["year"] for work in year_verified_works]
     core = {
         key
         for key, anchor in anchor_ids.items()
@@ -177,7 +189,8 @@ def derive_facts(annotations, holdout, plan, capture_dir, eval_root):
             "must_have_hit": len(hits & must),
             "must_have_total": len(must),
             "recent_works": sum(
-                bool(w.get("recent")) and isinstance(w.get("year"), int) for w in works
+                cutoff_year - 2 <= work["year"] <= cutoff_year
+                for work in year_verified_works
             ),
             "year_confirmed_works": len(year_known),
             "latest_year": max(year_known, default=None),
@@ -261,8 +274,16 @@ def make_result(annotations_path, holdout_path, plan_path, capture_dir, eval_roo
         "run_id": record["run_id"],
         "condition": record["condition"],
         "benchmark_version": holdout["manifest_id"],
-        "metric_spec_version": "stage1-primary-metrics-v2",
+        "metric_spec_version": (
+            "stage1-primary-metrics-v2.1"
+            if holdout["schema_version"] == "2.1.0"
+            else "stage1-primary-metrics-v2"
+        ),
         "prompt_sha256": plan["bindings"]["prompt"]["artifact"]["sha256"],
+        "capture_provenance": {
+            "series_id": record["series_id"],
+            "run_sha256": sha((Path(capture_dir) / "run.json").read_bytes()),
+        },
         "fact_metrics": facts,
         "major_issues": annotations["major_issues"],
         "efficiency": efficiency,

@@ -152,6 +152,7 @@ def _validate_public_bindings(plan, errors):
             holdout_validator = {
                 "1.0.0": validate_manifest,
                 "2.0.0": validate_manifest_v2,
+                "2.1.0": validate_manifest_v2,
             }.get(holdout.get("schema_version"))
             if holdout_validator is None or holdout_validator(holdout):
                 errors.append("bound holdout manifest fails its semantic contract")
@@ -353,7 +354,27 @@ def _validate_frozen_plan(plan, errors):
         return
     approvals = plan["human_approvals"]
     approval_ids = [approval["actor_id"] for approval in approvals]
-    if len(set(approval_ids)) < 2:
+    holdout_path = EVAL_ROOT / plan["bindings"]["holdout"]["path"]
+    single_human_actors = None
+    if (
+        _safe_relative_path(plan["bindings"]["holdout"]["path"])
+        and holdout_path.is_file()
+    ):
+        holdout = json.loads(holdout_path.read_text(encoding="utf-8"))
+        if holdout.get("schema_version") == "2.1.0":
+            single_human_actors = {
+                actor["actor_id"]: actor["attestation_ref"]
+                for actor in holdout["curation"]["actors"]
+            }
+    if single_human_actors is not None:
+        if len(approval_ids) != 1 or set(approval_ids) != set(single_human_actors):
+            errors.append("a single-human plan requires its curator's one approval")
+        elif (
+            approvals[0]["attestation_ref"]
+            != single_human_actors[approvals[0]["actor_id"]]
+        ):
+            errors.append("a single-human plan approval must match curator attestation")
+    elif len(set(approval_ids)) < 2:
         errors.append("a frozen evaluation plan requires two human approvals")
     created = datetime.fromisoformat(plan["created_at"])
     frozen = datetime.fromisoformat(frozen_at)

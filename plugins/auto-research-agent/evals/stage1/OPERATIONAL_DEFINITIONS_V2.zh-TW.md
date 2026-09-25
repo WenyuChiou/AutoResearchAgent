@@ -1,5 +1,7 @@
 # Stage 1 雙向耦合案例：六群指標 v2
 
+本文件的「兩位人類」策展規則對應 `holdout-manifest` 2.0.0。若依最新專案決定由 Eric 單獨策展，使用 [v2.1 單人修訂](SINGLE_HUMAN_CURATION_V2_1.zh-TW.md)與 `schema_version: 2.1.0`；P1–P3 計數及配對門檻不變。
+
 本文件只適用於 `aging-sk-bidirectional-development-v2`。舊四群 benchmark、
 `metric-spec.v1.json` 與 run01 保持原義，不回頭改分。正式判斷仍以凍結的
 `aging-bidirectional-rubric-v1`、criterion catalog 和 private holdout 為準。
