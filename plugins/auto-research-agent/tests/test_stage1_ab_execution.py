@@ -79,8 +79,8 @@ class Stage1ABExecutionTests(unittest.TestCase):
         env = runner._research_hub_workspace_env(self.workspace, resume=False)
         config = Path(env["RESEARCH_HUB_CONFIG"])
         data = Path(env["RESEARCH_HUB_ROOT"])
-        self.assertTrue(config.is_relative_to(self.workspace))
-        self.assertTrue(data.is_relative_to(self.workspace))
+        self.assertTrue(config.is_relative_to(self.workspace.resolve()))
+        self.assertTrue(data.is_relative_to(self.workspace.resolve()))
         self.assertTrue(data.is_dir())
         self.assertEqual(env["RESEARCH_HUB_NO_ZOTERO"], "1")
         self.assertEqual(
@@ -100,11 +100,11 @@ class Stage1ABExecutionTests(unittest.TestCase):
         env = runner._research_hub_workspace_env(relative, resume=False)
         self.assertEqual(
             Path(env["RESEARCH_HUB_CONFIG"]),
-            absolute / ".research-hub-runtime" / "config.json",
+            absolute.resolve() / ".research-hub-runtime" / "config.json",
         )
         self.assertEqual(
             Path(env["RESEARCH_HUB_ROOT"]),
-            absolute / ".research-hub-runtime" / "data",
+            absolute.resolve() / ".research-hub-runtime" / "data",
         )
 
     @staticmethod
