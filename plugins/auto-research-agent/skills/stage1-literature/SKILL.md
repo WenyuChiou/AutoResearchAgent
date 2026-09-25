@@ -5,6 +5,21 @@ description: Run Stage 1 literature retrieval through a pinned public CLI and an
 
 # Stage 1 literature research
 
+## Completion rule for live runs
+
+A compiled query plan and a prose search log are not an executed Stage 1 run.
+Before relying on native web search for a live literature investigation, check
+whether `STAGE1_RUNTIME_PIN` names an operator-reviewed, readable public CLI
+runtime pin. If it does, use that exact pin to initialize a `research-hub-cli`
+ledger, bind the compiled plan, and execute planned queries with
+`stage1_retrieval`. Record each backend receipt, complete each query, extract
+candidates, screen with reasons, validate, gate and checkpoint before calling
+the run complete. Use native web search only for supplemental source reading;
+its results do not become ledger search receipts merely because a query was
+written down. If the runtime pin or CLI execution is unavailable, preserve the
+failed attempt and report Stage 1 as incomplete with a `continue` or
+`human-review` gate. Never describe planned queries as executed queries.
+
 This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations and an operational coverage gate based on source reviews.
 The experimental live adapter executes a pinned public research-hub CLI. It does not establish scientific truth. Read the [plugin status](../../README.md) and, before executing any

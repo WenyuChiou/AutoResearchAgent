@@ -61,6 +61,34 @@ class Result:
 
 
 class Stage1ABExecutionTests(unittest.TestCase):
+    def test_native_config_digest_ignores_only_plugin_metadata(self):
+        plain = 'approval_policy = "on-request"\n'
+        with_plugin = (
+            plain
+            + '[marketplaces.local]\nsource_type = "local"\nsource = "/repo"\n'
+            + '[plugins."stage1@local"]\nenabled = true\n'
+        )
+        self.assertEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha(with_plugin),
+        )
+        self.assertNotEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha('approval_policy = "never"\n'),
+        )
+        probe = Path(tempfile.gettempdir()).resolve() / "stage1-probe"
+        generated = (
+            plain + f'[projects.{json.dumps(str(probe))}]\ntrust_level = "trusted"\n'
+        )
+        self.assertEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha(generated, probe),
+        )
+        self.assertNotEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha(generated),
+        )
+
     def test_plugin_tree_hash_uses_platform_independent_path_order(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -109,14 +137,36 @@ class Stage1ABExecutionTests(unittest.TestCase):
                 absolute.resolve() / ".research-hub-runtime" / "data",
             )
 
+    def test_clean_profile_rejects_exec_rules_before_and_after_preflight(self):
+        rules = self.profile / "rules"
+        rules.mkdir()
+        (rules / "default.rules").write_text(
+            'prefix_rule(pattern=["python"], decision="allow")\n', encoding="utf-8"
+        )
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "Codex exec rules"):
+            runner._assert_host_isolation(
+                self.profile, self.workspace, self.root / "private", ()
+            )
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "Codex exec rules"):
+            runner._assert_host_isolation(
+                self.profile,
+                self.workspace,
+                self.root / "private",
+                (),
+                allow_existing_workspace=True,
+            )
+
     @staticmethod
     def fake_exec(responses):
         def call(command, **_kwargs):
             if (
                 command.count("--sandbox") != 1
                 or command[command.index("--sandbox") + 1] != "workspace-write"
+                or command.count("sandbox_workspace_write.network_access=true") != 1
             ):
-                raise AssertionError("both subject conditions must allow ledger writes")
+                raise AssertionError(
+                    "both subject conditions need the reviewed write/network policy"
+                )
             Path(command[command.index("-o") + 1]).write_text(
                 "synthetic final answer", encoding="utf-8"
             )
@@ -140,6 +190,11 @@ class Stage1ABExecutionTests(unittest.TestCase):
         self.workspace.mkdir()
         self.prompt = self.root / "prompt.txt"
         self.prompt.write_bytes(b"synthetic prompt\n")
+        self.pin = self.root / "runtime-pin.json"
+        self.pin.write_text(
+            json.dumps({"revision": runner.RESEARCH_HUB_SHA, "status": "merged"}),
+            encoding="utf-8",
+        )
         self.output = self.root / "run"
         self.lock = self.root / "lock.json"
         self.lock.write_text(
@@ -165,8 +220,10 @@ class Stage1ABExecutionTests(unittest.TestCase):
                         "app_version": "codex-cli 0.153.0",
                         "search_enabled": True,
                     },
+                    "execution_policy": runner.SUBJECT_EXECUTION_POLICY,
                     "plugin_tree_sha256": runner.tree_sha(PLUGIN),
                     "research_hub_sha": runner.RESEARCH_HUB_SHA,
+                    "treatment_runtime_pin_sha256": runner.sha(self.pin.read_bytes()),
                 }
             ),
             encoding="utf-8",
@@ -187,6 +244,15 @@ class Stage1ABExecutionTests(unittest.TestCase):
                         "treatment": str(self.workspace.resolve()),
                     },
                     "research_hub_sha": runner.RESEARCH_HUB_SHA,
+                    "treatment_runtime_pin": {
+                        "path": str(self.pin.resolve()),
+                        "sha256": runner.sha(self.pin.read_bytes()),
+                    },
+                    "probes": {
+                        "baseline": {"codex_version": "codex-cli 0.153.0"},
+                        "treatment": {"codex_version": "codex-cli 0.153.0"},
+                    },
+                    "execution_policy": runner.SUBJECT_EXECUTION_POLICY,
                 }
             ),
             encoding="utf-8",
@@ -226,6 +292,326 @@ class Stage1ABExecutionTests(unittest.TestCase):
                 self.root,
                 self.root / "other-preflight.json",
             )
+
+    def test_completed_native_search_without_ledger_is_incomplete_treatment(self):
+        responses = [
+            Result(event_bytes(search="native baseline search")),
+            Result(event_bytes(search="native search only")),
+        ]
+        with (
+            patch.object(
+                runner,
+                "probe_profile",
+                return_value={"codex_version": "codex-cli 0.153.0"},
+            ),
+            patch.object(
+                runner,
+                "_runtime_pin",
+                return_value=({}, runner.sha(self.pin.read_bytes())),
+            ),
+            patch.object(runner, "_assert_host_isolation"),
+            patch.object(
+                runner.subprocess, "run", side_effect=self.fake_exec(responses)
+            ),
+        ):
+            baseline = runner.capture(
+                "codex",
+                self.lock,
+                "baseline",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.output,
+                self.root / "private",
+                self.preflight,
+            )
+            self.assertEqual(baseline["status"], "complete")
+            treatment_output = self.root / "treatment-run"
+            treatment = runner.capture(
+                "codex",
+                self.lock,
+                "treatment",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                treatment_output,
+                self.root / "private",
+                self.preflight,
+            )
+        self.assertEqual(treatment["status"], "incomplete")
+        self.assertIn("Stage 1 ledger", treatment["stage1_receipt_error"])
+        self.assertEqual(
+            runner.verify_capture(treatment_output)["status"], "incomplete"
+        )
+
+    def test_runtime_pin_hash_and_host_code_are_checked(self):
+        config = self.root / "runtime-config.json"
+        data = self.workspace / ".research-hub-runtime" / "data"
+        config.write_text(
+            json.dumps({"knowledge_base": {"root": str(data)}}),
+            encoding="utf-8",
+        )
+        pin = {
+            "revision": runner.RESEARCH_HUB_SHA,
+            "status": "merged",
+            "config": {"path": str(config), "sha256": runner.sha(config.read_bytes())},
+        }
+        self.pin.write_text(json.dumps(pin), encoding="utf-8")
+        with (
+            patch.object(runner, "check_pin"),
+            patch.object(runner, "verify_identity") as verify_identity,
+        ):
+            checked, digest = runner._runtime_pin(
+                self.pin,
+                runner.sha(self.pin.read_bytes()),
+                verify_host=True,
+                workspace=self.workspace,
+            )
+            self.assertEqual(checked, pin)
+            self.assertEqual(digest, runner.sha(self.pin.read_bytes()))
+            verify_identity.assert_called_once_with(pin, probe=True)
+            with self.assertRaisesRegex(runner.ExecutionBlocked, "pin bytes differ"):
+                runner._runtime_pin(self.pin, "0" * 64)
+            config.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "config bytes changed"
+            ):
+                runner._runtime_pin(
+                    self.pin, digest, verify_host=True, workspace=self.workspace
+                )
+
+    def test_treatment_receipt_binds_validated_ledger_and_pin(self):
+        snapshot = self.root / "snapshot"
+        ledger_root = snapshot / "stage1" / "run"
+        ledger_root.mkdir(parents=True)
+        (ledger_root / "run_manifest.json").write_text("{}", encoding="utf-8")
+        pin = {"revision": runner.RESEARCH_HUB_SHA, "status": "merged"}
+        binding = {"path": str(self.pin), "sha256": runner.sha(self.pin.read_bytes())}
+        ledger = type(
+            "Ledger",
+            (),
+            {"manifest": {"mode": "research-hub-cli", "research_hub_pin": pin}},
+        )()
+        report = {
+            "state_sha256": "a" * 64,
+            "counts": {"queries": 2, "backend_attempts": 3},
+        }
+        checkpoint = {"event_id": "e000012"}
+        with (
+            patch.object(
+                runner, "source_state", return_value=(ledger, report, [], checkpoint)
+            ),
+            patch.object(runner, "check_pin"),
+            patch.object(runner, "_runtime_pin", return_value=(pin, binding["sha256"])),
+        ):
+            receipt = runner._treatment_receipt(
+                snapshot, binding, pin_bytes=self.pin.read_bytes()
+            )
+            self.assertEqual(receipt["workspace_path"], "stage1/run")
+            self.assertEqual(receipt["checkpoint_event_id"], "e000012")
+            report["counts"]["backend_attempts"] = 0
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "no completed backend"
+            ):
+                runner._treatment_receipt(
+                    snapshot, binding, pin_bytes=self.pin.read_bytes()
+                )
+            report["counts"]["backend_attempts"] = 3
+            ledger.manifest["research_hub_pin"] = {"revision": "wrong"}
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "different CLI runtime"
+            ):
+                runner._treatment_receipt(
+                    snapshot, binding, pin_bytes=self.pin.read_bytes()
+                )
+
+    def test_three_pairs_use_six_isolated_environments_and_portable_replay(self):
+        lock = runner.read_json(self.lock)
+        lock["runtime"].update(
+            model_id="gpt-5.6-sol",
+            reasoning="high",
+            tool_profile_sha256="synthetic-profile",
+        )
+        lock["paired_repeats"] = [
+            {
+                "repeat": index,
+                "order": ["baseline", "treatment"]
+                if index != 2
+                else ["treatment", "baseline"],
+                "baseline": {
+                    "run_id": f"repeat-{index}-b",
+                    "subject_id": f"subject-{index}-baseline",
+                },
+                "treatment": {
+                    "run_id": f"repeat-{index}-t",
+                    "subject_id": f"subject-{index}-treatment",
+                },
+            }
+            for index in range(1, 4)
+        ]
+        pin = {"revision": runner.RESEARCH_HUB_SHA, "status": "merged"}
+        pins = []
+        for index in range(1, 4):
+            path = self.root / f"formal-pin-{index}.json"
+            path.write_text(json.dumps(pin), encoding="utf-8")
+            pins.append(path)
+        lock["treatment_runtime_pin_sha256_by_repeat"] = {
+            str(index): runner.sha(path.read_bytes())
+            for index, path in enumerate(pins, 1)
+        }
+        self.lock = self.root / "formal-lock.json"
+        self.lock.write_text(json.dumps(lock), encoding="utf-8")
+        roots = {
+            "baseline_profile": self.root / "formal-b-profiles",
+            "treatment_profile": self.root / "formal-t-profiles",
+            "baseline_workspace": self.root / "formal-b-workspaces",
+            "treatment_workspace": self.root / "formal-t-workspaces",
+        }
+        for root in roots.values():
+            for index in range(1, 4):
+                (root / f"repeat-{index:02d}").mkdir(parents=True)
+        proof = {
+            "codex_version": "codex-cli 0.153.0",
+            "model": "gpt-5.6-sol",
+            "reasoning": "high",
+            "native_web_search": True,
+            "native_capabilities": {"webSearch": True},
+            "native_capabilities_sha256": "synthetic-profile",
+            "native_config_sha256": "same-native-config",
+        }
+        ledger = type(
+            "Ledger",
+            (),
+            {"manifest": {"mode": "research-hub-cli", "research_hub_pin": pin}},
+        )()
+        report = {
+            "state_sha256": "a" * 64,
+            "counts": {"queries": 1, "backend_attempts": 1},
+        }
+        checkpoint = {"event_id": "e000001"}
+
+        def fake_run(command, **kwargs):
+            if command[0] == "git":
+                return Result(runner.RESEARCH_HUB_SHA + "\n", "", 0)
+            workspace = Path(kwargs["cwd"])
+            Path(command[command.index("-o") + 1]).write_text(
+                "answer", encoding="utf-8"
+            )
+            (workspace / "generated.txt").write_text(workspace.name, encoding="utf-8")
+            if "formal-t-workspaces" in str(workspace):
+                ledger_dir = workspace / "stage1"
+                ledger_dir.mkdir()
+                (ledger_dir / "run_manifest.json").write_text("{}", encoding="utf-8")
+            return Result(event_bytes(search="synthetic public search"))
+
+        self.preflight = self.root / "formal-preflight.json"
+        with (
+            patch.object(runner, "probe_profile", return_value=proof),
+            patch.object(runner, "check_pin"),
+            patch.object(runner, "verify_identity"),
+            patch.object(
+                runner,
+                "_runtime_pin",
+                side_effect=lambda path, *_args, **_kwargs: (
+                    pin,
+                    runner.sha(Path(path).read_bytes()),
+                ),
+            ),
+            patch.object(
+                runner, "source_state", return_value=(ledger, report, [], checkpoint)
+            ),
+            patch.object(runner.subprocess, "run", side_effect=fake_run),
+        ):
+            preflight = runner.host_preflight(
+                "codex",
+                self.lock,
+                roots["baseline_profile"],
+                roots["treatment_profile"],
+                roots["baseline_workspace"],
+                roots["treatment_workspace"],
+                self.root / "private",
+                self.root,
+                self.preflight,
+                treatment_runtime_pin=pins,
+            )
+            self.assertEqual(len(preflight["repeat_bindings"]), 3)
+            with (
+                patch.object(
+                    runner,
+                    "probe_profile",
+                    return_value={**proof, "config_sha256": "changed-permissions"},
+                ),
+                self.assertRaisesRegex(
+                    runner.ExecutionBlocked, "subject profile changed after preflight"
+                ),
+            ):
+                runner.capture(
+                    "codex",
+                    self.lock,
+                    "baseline",
+                    1,
+                    roots["baseline_profile"] / "repeat-01",
+                    roots["baseline_workspace"] / "repeat-01",
+                    self.prompt,
+                    self.root / "drift-output",
+                    self.root / "private",
+                    self.preflight,
+                )
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "differs from host preflight"
+            ):
+                runner.capture(
+                    "codex",
+                    self.lock,
+                    "baseline",
+                    1,
+                    roots["baseline_profile"] / "repeat-02",
+                    roots["baseline_workspace"] / "repeat-02",
+                    self.prompt,
+                    self.root / "wrong-output",
+                    self.root / "private",
+                    self.preflight,
+                )
+            outputs = []
+            for row in lock["paired_repeats"]:
+                repeat = row["repeat"]
+                for condition in row["order"]:
+                    profile = roots[f"{condition}_profile"] / f"repeat-{repeat:02d}"
+                    workspace = roots[f"{condition}_workspace"] / f"repeat-{repeat:02d}"
+                    output = self.root / f"capture-{repeat}-{condition}"
+                    result = runner.capture(
+                        "codex",
+                        self.lock,
+                        condition,
+                        repeat,
+                        profile,
+                        workspace,
+                        self.prompt,
+                        output,
+                        self.root / "private",
+                        self.preflight,
+                    )
+                    self.assertEqual(result["status"], "complete")
+                    outputs.append(output)
+            self.assertEqual(len(outputs), 6)
+            treatment = outputs[-1]
+            self.assertEqual(
+                runner.verify_capture(treatment, verify_runtime=False)["status"],
+                "complete",
+            )
+            pins[-1].unlink()
+            self.assertEqual(
+                runner.verify_capture(treatment, verify_runtime=False)["status"],
+                "complete",
+            )
+            with self.assertRaises(OSError):
+                runner.verify_capture(treatment)
+            saved = treatment / "attempt-01.runtime-pin.json"
+            saved.write_bytes(saved.read_bytes() + b" ")
+            with self.assertRaisesRegex(runner.ExecutionBlocked, "byte hash differs"):
+                runner.verify_capture(treatment, verify_runtime=False)
 
     def test_report_rejects_a_decision_not_computed_from_its_request(self):
         with (
@@ -271,7 +657,9 @@ class Stage1ABExecutionTests(unittest.TestCase):
         with patch.object(
             ab_cli.runner,
             "verify_capture",
-            side_effect=lambda path: runner.read_json(Path(path) / "run.json"),
+            side_effect=lambda path, **_kwargs: runner.read_json(
+                Path(path) / "run.json"
+            ),
         ):
             self.assertEqual(
                 ab_cli._bind_one_series(results, captures, expected), "a" * 64
@@ -497,6 +885,14 @@ class Stage1ABExecutionTests(unittest.TestCase):
         self.assertEqual(len(second["attempts"]), 2)
         self.assertEqual(second["status"], "complete")
         self.assertEqual(runner.verify_capture(self.output)["status"], "complete")
+        record_path = self.output / "run.json"
+        original_record = record_path.read_bytes()
+        altered_record = json.loads(original_record)
+        altered_record["execution_policy"]["network_access"] = False
+        record_path.write_text(json.dumps(altered_record), encoding="utf-8")
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "sandbox/network policy"):
+            runner.verify_capture(self.output)
+        record_path.write_bytes(original_record)
         final = self.output / "attempt-02.final.txt"
         final.write_text("tampered final", encoding="utf-8")
         with self.assertRaisesRegex(runner.ExecutionBlocked, "byte hash differs"):
@@ -569,9 +965,21 @@ class Stage1ABExecutionTests(unittest.TestCase):
         ]
         self.lock = self.root / "three-pair-lock.json"
         self.preflight = self.root / "three-pair-preflight.json"
+        lock["treatment_runtime_pin_sha256_by_repeat"] = {
+            str(index): runner.sha(self.pin.read_bytes()) for index in range(1, 4)
+        }
         self.lock.write_text(json.dumps(lock), encoding="utf-8")
         preflight = runner.read_json(self.root / "preflight.json")
         preflight["lock_sha256"] = runner.sha(self.lock.read_bytes())
+        preflight["repeat_bindings"] = {
+            str(index): {
+                "profiles": preflight["profiles"],
+                "workspaces": preflight["workspaces"],
+                "treatment_runtime_pin": preflight["treatment_runtime_pin"],
+                "probes": preflight["probes"],
+            }
+            for index in range(1, 4)
+        }
         self.preflight.write_text(json.dumps(preflight), encoding="utf-8")
         sequence.create(lock, self.lock, self.preflight, runner.sha)
         with self.assertRaisesRegex(runner.ExecutionBlocked, "not next in frozen"):
@@ -731,6 +1139,11 @@ class Stage1ABExecutionTests(unittest.TestCase):
         prompt_hash = runner.sha(self.prompt.read_bytes())
         for version, suffix in (("2.0.0", "v2"), ("2.1.0", "v2_1")):
             with self.subTest(version=version):
+                pins = []
+                for index in range(1, 4):
+                    path = self.root / f"freeze-pin-{suffix}-{index}.json"
+                    path.write_bytes(self.pin.read_bytes())
+                    pins.append(path)
                 holdout_name = f"holdout-manifest-{suffix}.synthetic.json"
                 source = PLUGIN / "evals" / "examples" / holdout_name
                 (examples / holdout_name).write_bytes(source.read_bytes())
@@ -756,6 +1169,11 @@ class Stage1ABExecutionTests(unittest.TestCase):
                     patch.object(runner, "verify_private_bytes"),
                     patch.object(runner, "tree_sha", return_value="b" * 64),
                     patch.object(
+                        runner,
+                        "_runtime_pin",
+                        return_value=({}, runner.sha(self.pin.read_bytes())),
+                    ),
+                    patch.object(
                         runner.subprocess,
                         "run",
                         return_value=type(
@@ -763,7 +1181,13 @@ class Stage1ABExecutionTests(unittest.TestCase):
                         )(),
                     ),
                 ):
-                    lock = runner.freeze(plan_path, self.prompt, self.root, output)
+                    lock = runner.freeze(
+                        plan_path,
+                        self.prompt,
+                        self.root,
+                        output,
+                        treatment_runtime_pin=pins,
+                    )
                     self.assertEqual(lock["kind"], "Stage1ABPublicLock")
                     if version == "2.1.0":
                         plan["human_approvals"][0]["attestation_ref"] = "wrong-roster"
@@ -776,6 +1200,7 @@ class Stage1ABExecutionTests(unittest.TestCase):
                                 self.prompt,
                                 self.root,
                                 self.root / "wrong-attestation.json",
+                                treatment_runtime_pin=pins,
                             )
                         plan["human_approvals"][0]["attestation_ref"] = (
                             "course-roster:rater-a"
@@ -799,6 +1224,7 @@ class Stage1ABExecutionTests(unittest.TestCase):
                             self.prompt,
                             self.root,
                             self.root / f"rejected-{suffix}.json",
+                            treatment_runtime_pin=pins,
                         )
 
     def test_facts_selects_metric_spec_from_holdout_protocol(self):
@@ -919,10 +1345,11 @@ class Stage1ABExecutionTests(unittest.TestCase):
         (self.output / "attempt-01.jsonl").write_bytes(events)
         stamp = "2026-09-17T15:01:00+00:00"
         record = {
-            "run_id": "run01-b",
-            "subject_id": "subject-0000000000000002",
-            "condition": "treatment",
+            "run_id": "run01-a",
+            "subject_id": "subject-0000000000000001",
+            "condition": "baseline",
             "series_id": "a" * 64,
+            "execution_policy": runner.SUBJECT_EXECUTION_POLICY,
             "status": "complete",
             "attempts": [
                 {
@@ -1130,11 +1557,17 @@ class Stage1ABExecutionTests(unittest.TestCase):
             "native_web_search": True,
             "native_capabilities": {"webSearch": True},
             "native_capabilities_sha256": "synthetic-profile",
+            "native_config_sha256": "same-native-config",
         }
         lock["runtime"]["tool_profile_sha256"] = "synthetic-profile"
         self.lock.write_text(json.dumps(lock), encoding="utf-8")
         with (
             patch.object(runner, "probe_profile", return_value=proof),
+            patch.object(
+                runner,
+                "_runtime_pin",
+                return_value=({}, runner.sha(self.pin.read_bytes())),
+            ),
             patch.object(
                 runner.subprocess, "run", return_value=Result("wrong-sha\n", "", 0)
             ),
@@ -1150,6 +1583,25 @@ class Stage1ABExecutionTests(unittest.TestCase):
                 self.root / "private",
                 self.root,
                 self.root / "report.json",
+                treatment_runtime_pin=self.pin,
+            )
+
+    def test_host_preflight_rejects_missing_network_policy(self):
+        lock = runner.read_json(self.lock)
+        lock.pop("execution_policy")
+        altered = self.root / "unreviewed-network-lock.json"
+        altered.write_text(json.dumps(lock), encoding="utf-8")
+        with self.assertRaisesRegex(runner.ExecutionBlocked, "sandbox/network policy"):
+            runner.host_preflight(
+                "codex",
+                altered,
+                self.profile,
+                self.profile,
+                self.workspace,
+                self.workspace,
+                self.root / "private",
+                self.root,
+                self.root / "unreviewed-network-report.json",
             )
 
     def test_experimental_formal_plan_requires_readiness_evidence(self):

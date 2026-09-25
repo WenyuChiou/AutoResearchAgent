@@ -20,7 +20,7 @@ def _evidence(annotations, eval_root, evidence_id):
 
 
 def derive_facts(annotations, holdout, plan, capture_dir, eval_root):
-    record = verify_capture(capture_dir)
+    record = verify_capture(capture_dir, verify_runtime=False)
     if record["status"] != "complete":
         raise ExecutionBlocked("an incomplete subject cannot receive factual scores")
     runs = {
@@ -259,7 +259,7 @@ def make_result(annotations_path, holdout_path, plan_path, capture_dir, eval_roo
         raise ExecutionBlocked(
             "central source mismatch must record the major-error gate"
         )
-    record = verify_capture(capture_dir)
+    record = verify_capture(capture_dir, verify_runtime=False)
     rel = (
         Path(annotations_path)
         .resolve()

@@ -15,6 +15,8 @@ import subprocess
 import sys
 import tempfile
 import threading
+import tomllib
+from contextlib import nullcontext
 from datetime import datetime, timezone
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
@@ -23,11 +25,21 @@ sys.path.insert(0, str(PLUGIN_ROOT))
 
 from validators.evaluation_plan import validate_plan  # noqa: E402
 from validators.holdout_manifest import canonical_sha256  # noqa: E402
+from stage1_retrieval.receipt import check_pin  # noqa: E402
+from stage1_retrieval.runtime_identity import verify_identity  # noqa: E402
+from stage1_export.bundle import source_state  # noqa: E402
 from . import sequence  # noqa: E402
 
 PROMPT_SHA256 = "9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd"
 RESEARCH_HUB_SHA = "9877f929587e7e44bc2533db118cbb89336bf94f"
 FORMAL_CASE = "aging-sk-bidirectional-development-v2"
+SUBJECT_EXECUTION_POLICY = {"sandbox": "workspace-write", "network_access": True}
+SUBJECT_SANDBOX_ARGS = [
+    "--sandbox",
+    "workspace-write",
+    "-c",
+    "sandbox_workspace_write.network_access=true",
+]
 
 
 class ExecutionBlocked(ValueError):
@@ -96,7 +108,93 @@ def tree_sha(root):
     return sha(b"\n".join(rows))
 
 
-def freeze(plan_path, prompt_path, dependency_repo, output):
+def _runtime_pin(path, expected_sha=None, *, verify_host=False, workspace=None):
+    """Read the reviewed public CLI pin; host checks bind executable bytes."""
+    if path is None:
+        raise ExecutionBlocked("treatment runtime pin is required")
+    path = Path(path).resolve()
+    raw = path.read_bytes()
+    if expected_sha is not None and sha(raw) != expected_sha:
+        raise ExecutionBlocked("treatment runtime pin bytes differ from frozen lock")
+    pin = json.loads(raw)
+    check_pin(pin)
+    if pin.get("revision") != RESEARCH_HUB_SHA or pin.get("status") != "merged":
+        raise ExecutionBlocked("treatment runtime pin differs from merged research-hub")
+    if verify_host:
+        config_path = Path(pin["config"]["path"]).resolve()
+        if sha(config_path.read_bytes()) != pin["config"]["sha256"]:
+            raise ExecutionBlocked("treatment runtime config bytes changed")
+        if workspace is not None:
+            data_paths = json.loads(config_path.read_text(encoding="utf-8"))[
+                "knowledge_base"
+            ]
+            if not all(
+                Path(value).resolve().is_relative_to(Path(workspace).resolve())
+                for value in data_paths.values()
+            ):
+                raise ExecutionBlocked(
+                    "treatment runtime data escapes subject workspace"
+                )
+        verify_identity(pin, probe=True)
+    return pin, sha(raw)
+
+
+def _pin_paths(value, repeats):
+    paths = value if isinstance(value, (list, tuple)) else [value]
+    if len(paths) != repeats or any(path is None for path in paths):
+        raise ExecutionBlocked(
+            f"one treatment runtime pin per repeat required ({repeats})"
+        )
+    resolved = [Path(path).resolve() for path in paths]
+    if len(set(resolved)) != repeats:
+        raise ExecutionBlocked("each repeat needs a distinct treatment runtime pin")
+    return resolved
+
+
+def _repeat_pin_sha(lock, repeat):
+    by_repeat = lock.get("treatment_runtime_pin_sha256_by_repeat")
+    if by_repeat is not None:
+        return by_repeat.get(str(repeat))
+    if len(lock.get("paired_repeats", [])) == 1 and repeat == 1:
+        return lock.get("treatment_runtime_pin_sha256")
+    return None
+
+
+def _repeat_subject_path(root, repeat, repeats):
+    root = Path(root).resolve()
+    return root if repeats == 1 else root / f"repeat-{repeat:02d}"
+
+
+def _preflight_binding(preflight, repeat):
+    bindings = preflight.get("repeat_bindings")
+    if bindings is not None:
+        return bindings[str(repeat)]
+    if repeat == 1:
+        return preflight
+    raise ExecutionBlocked("host preflight lacks per-repeat isolation")
+
+
+def _native_config_sha(config_text, probe_workspace=None):
+    try:
+        settings = tomllib.loads(config_text)
+    except tomllib.TOMLDecodeError as exc:
+        raise ExecutionBlocked("subject profile config is invalid TOML") from exc
+    settings.pop("marketplaces", None)
+    settings.pop("plugins", None)
+    if probe_workspace is not None:
+        projects = settings.get("projects", {})
+        projects.pop(str(Path(probe_workspace).resolve()), None)
+        if not projects:
+            settings.pop("projects", None)
+    return sha(json.dumps(settings, sort_keys=True).encode())
+
+
+def _skill_probe_directory(profile):
+    profile = Path(profile).resolve()
+    return profile.parent / f"{profile.name}-stage1-skill-probe"
+
+
+def freeze(plan_path, prompt_path, dependency_repo, output, treatment_runtime_pin=None):
     """Run on the evaluator, with its private evals tree. Emits no answer data."""
     plan = read_json(plan_path)
     errors = validate_plan(plan)
@@ -171,6 +269,13 @@ def freeze(plan_path, prompt_path, dependency_repo, output):
         != RESEARCH_HUB_SHA
     ):
         raise ExecutionBlocked("frozen plan lacks research-hub pin")
+    repeats = (
+        len(sequence.expected_runs({"paired_repeats": plan["paired_repeats"]})) // 2
+    )
+    pin_paths = _pin_paths(treatment_runtime_pin, repeats)
+    pin_shas = {
+        str(index): _runtime_pin(path)[1] for index, path in enumerate(pin_paths, 1)
+    }
     lock = {
         "kind": "Stage1ABPublicLock",
         "schema_version": "1.0.0",
@@ -179,9 +284,11 @@ def freeze(plan_path, prompt_path, dependency_repo, output):
         "prompt_sha256": PROMPT_SHA256,
         "readiness_sha256": plan["bindings"]["stage1_readiness"]["sha256"],
         "research_hub_sha": RESEARCH_HUB_SHA,
+        "treatment_runtime_pin_sha256_by_repeat": pin_shas,
         "plugin_tree_sha256": tree_sha(PLUGIN_ROOT),
         "case_id": FORMAL_CASE,
         "runtime": runtime,
+        "execution_policy": SUBJECT_EXECUTION_POLICY,
         "builds": {
             condition: plan["bindings"][condition + "_build"]
             for condition in ("baseline", "treatment")
@@ -209,6 +316,11 @@ def _assert_host_isolation(
         or (not allow_existing_workspace and any(workspace.iterdir()))
     ):
         raise ExecutionBlocked("profile missing or subject workspace is not empty")
+    rules_dir = profile / "rules"
+    if rules_dir.exists() or rules_dir.is_symlink():
+        raise ExecutionBlocked(
+            "clean subject profile must not contain Codex exec rules"
+        )
     if Path(private_root).exists():
         raise ExecutionBlocked("private answer tree is present on subject host")
     for root in (profile, workspace):
@@ -429,26 +541,41 @@ def probe_profile(
     if expected_plugin:
         if probe_evidence_dir is not None:
             Path(probe_evidence_dir).mkdir(parents=True, exist_ok=False)
-            (Path(probe_evidence_dir) / "capability-probe.json").write_text(
-                json.dumps(
-                    {
-                        "codex_version": version.stdout.strip(),
-                        "model": model.get("model"),
-                        "reasoning": "high",
-                        "native_capabilities": capabilities,
-                        "plugin_names": names,
-                        "installed_plugin_sha256": installed_sha,
-                        "config_sha256": sha(config_text.encode()),
-                    },
-                    indent=2,
-                    sort_keys=True,
-                )
-                + "\n",
-                encoding="utf-8",
-            )
         skill_sha = _functional_skill_smoke(codex, env, skill_path, probe_evidence_dir)
     else:
         skill_sha = None
+    config_text = config.read_text(encoding="utf-8") if config.exists() else ""
+    if re.search(r"\[mcp_servers\.|model_provider", config_text) or (
+        not expected_plugin and re.search(r"\[plugins\.|marketplace", config_text)
+    ):
+        raise ExecutionBlocked(
+            "condition profile config changed to unreviewed extension"
+        )
+    if capabilities.get("webSearch") is not True or re.search(
+        r"web_search\s*=\s*(?:false|\"disabled\")", config_text
+    ):
+        raise ExecutionBlocked("native web search changed during profile probe")
+    if expected_plugin and probe_evidence_dir is not None:
+        (Path(probe_evidence_dir) / "capability-probe.json").write_text(
+            json.dumps(
+                {
+                    "codex_version": version.stdout.strip(),
+                    "model": model.get("model"),
+                    "reasoning": "high",
+                    "native_capabilities": capabilities,
+                    "plugin_names": names,
+                    "installed_plugin_sha256": installed_sha,
+                    "config_sha256": sha(config_text.encode()),
+                    "native_config_sha256": _native_config_sha(
+                        config_text, _skill_probe_directory(profile)
+                    ),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     return {
         "codex_version": version.stdout.strip(),
         "login_status": "authenticated",
@@ -463,18 +590,32 @@ def probe_profile(
             json.dumps(capabilities, sort_keys=True).encode()
         ),
         "config_sha256": sha(config_text.encode()),
+        "native_config_sha256": _native_config_sha(
+            config_text, _skill_probe_directory(profile)
+        ),
     }
 
 
 def _functional_skill_smoke(codex, env, skill_path, evidence_dir=None):
     """Ask the pinned subject model to read the installed skill in its real sandbox."""
     expected = sha(skill_path.read_bytes())
-    with tempfile.TemporaryDirectory(prefix="stage1-ab-skill-probe-") as directory:
+    if "CODEX_HOME" in env:
+        directory = _skill_probe_directory(env["CODEX_HOME"])
+        if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
+            raise ExecutionBlocked("skill probe workspace is not a normal directory")
+        directory.mkdir(exist_ok=True)
+        if any(directory.iterdir()):
+            raise ExecutionBlocked("skill probe workspace is not empty")
+        context = nullcontext(str(directory))
+    else:
+        context = tempfile.TemporaryDirectory(prefix="stage1-ab-skill-probe-")
+    with context as directory:
         try:
             result = subprocess.run(
                 [
                     str(codex),
                     "exec",
+                    *SUBJECT_SANDBOX_ARGS,
                     "--json",
                     "--ephemeral",
                     "-m",
@@ -547,10 +688,19 @@ def host_preflight(
     private_root,
     dependency_repo,
     output,
+    treatment_runtime_pin=None,
 ):
     lock = read_json(lock_path)
     if lock.get("kind") != "Stage1ABPublicLock":
         raise ExecutionBlocked("host preflight needs a frozen public lock")
+    if lock.get("execution_policy") != SUBJECT_EXECUTION_POLICY:
+        raise ExecutionBlocked(
+            "subject sandbox/network policy differs from reviewed policy"
+        )
+    repeats = len(lock.get("paired_repeats", []))
+    sequence.expected_runs(lock)
+    if any(not _repeat_pin_sha(lock, repeat) for repeat in range(1, repeats + 1)):
+        raise ExecutionBlocked("frozen lock lacks treatment runtime pin")
     if sequence.registry_path(lock_path).exists():
         raise ExecutionBlocked("this public lock already has a host execution series")
     if Path(baseline_profile).resolve() == Path(treatment_profile).resolve():
@@ -569,32 +719,85 @@ def host_preflight(
         raise ExecutionBlocked(
             "preflight and sequence registry must be outside subject environments"
         )
-    b = probe_profile(codex, baseline_profile, baseline_workspace, False, private_root)
-    t = probe_profile(
-        codex,
-        treatment_profile,
-        treatment_workspace,
-        True,
-        private_root,
-        probe_evidence_dir=Path(output).with_suffix(".probe"),
-    )
-    for key in (
-        "codex_version",
-        "model",
-        "reasoning",
-        "native_web_search",
-        "native_capabilities",
-    ):
-        if b[key] != t[key]:
-            raise ExecutionBlocked(f"B/T runtime differs: {key}")
-    if (
-        b["codex_version"] != lock["runtime"]["app_version"]
-        or t["model"] != lock["runtime"]["model_id"]
-        or t["reasoning"] != lock["runtime"]["reasoning"]
-    ):
-        raise ExecutionBlocked("clean profiles do not match frozen runtime")
-    if b["native_capabilities_sha256"] != lock["runtime"]["tool_profile_sha256"]:
-        raise ExecutionBlocked("native tool profile differs from frozen plan")
+    pin_paths = _pin_paths(treatment_runtime_pin, repeats)
+    repeat_bindings = {}
+    all_paths = []
+    reference_probe = None
+    for repeat, pin_path in enumerate(pin_paths, 1):
+        profiles = {
+            condition: str(_repeat_subject_path(root, repeat, repeats))
+            for condition, root in (
+                ("baseline", baseline_profile),
+                ("treatment", treatment_profile),
+            )
+        }
+        workspaces = {
+            condition: str(_repeat_subject_path(root, repeat, repeats))
+            for condition, root in (
+                ("baseline", baseline_workspace),
+                ("treatment", treatment_workspace),
+            )
+        }
+        paths = [
+            Path(value).resolve()
+            for value in (*profiles.values(), *workspaces.values())
+        ]
+        if any(
+            left == right or left.is_relative_to(right) or right.is_relative_to(left)
+            for left in paths
+            for right in all_paths
+        ) or any(
+            left == right or left.is_relative_to(right) or right.is_relative_to(left)
+            for index, left in enumerate(paths)
+            for right in paths[index + 1 :]
+        ):
+            raise ExecutionBlocked(
+                "all six subject profiles/workspaces must be separate"
+            )
+        all_paths.extend(paths)
+        b = probe_profile(
+            codex, profiles["baseline"], workspaces["baseline"], False, private_root
+        )
+        t = probe_profile(
+            codex,
+            profiles["treatment"],
+            workspaces["treatment"],
+            True,
+            private_root,
+            probe_evidence_dir=Path(output).with_suffix(f".repeat-{repeat:02d}.probe"),
+        )
+        for key in (
+            "codex_version",
+            "model",
+            "reasoning",
+            "native_web_search",
+            "native_capabilities",
+            "native_config_sha256",
+        ):
+            if b[key] != t[key] or (
+                reference_probe is not None and b[key] != reference_probe[key]
+            ):
+                raise ExecutionBlocked(f"B/T or repeat runtime differs: {key}")
+        if (
+            b["codex_version"] != lock["runtime"]["app_version"]
+            or t["model"] != lock["runtime"]["model_id"]
+            or t["reasoning"] != lock["runtime"]["reasoning"]
+            or b["native_capabilities_sha256"] != lock["runtime"]["tool_profile_sha256"]
+        ):
+            raise ExecutionBlocked("clean profiles do not match frozen runtime")
+        reference_probe = b
+        _, pin_sha = _runtime_pin(
+            pin_path,
+            _repeat_pin_sha(lock, repeat),
+            verify_host=True,
+            workspace=workspaces["treatment"],
+        )
+        repeat_bindings[str(repeat)] = {
+            "profiles": profiles,
+            "workspaces": workspaces,
+            "probes": {"baseline": b, "treatment": t},
+            "treatment_runtime_pin": {"path": str(pin_path), "sha256": pin_sha},
+        }
     if tree_sha(PLUGIN_ROOT) != lock["plugin_tree_sha256"]:
         raise ExecutionBlocked("treatment plugin bytes differ from frozen lock")
     dependency = subprocess.run(
@@ -615,19 +818,14 @@ def host_preflight(
         "kind": "Stage1ABHostPreflight",
         "valid": True,
         "lock_sha256": sha(Path(lock_path).read_bytes()),
-        "profiles": {
-            "baseline": str(Path(baseline_profile).resolve()),
-            "treatment": str(Path(treatment_profile).resolve()),
-        },
-        "workspaces": {
-            "baseline": str(Path(baseline_workspace).resolve()),
-            "treatment": str(Path(treatment_workspace).resolve()),
-        },
-        "probes": {"baseline": b, "treatment": t},
+        "repeat_bindings": repeat_bindings,
         "plugin_tree_sha256": tree_sha(PLUGIN_ROOT),
         "research_hub_sha": dependency.stdout.strip(),
+        "execution_policy": SUBJECT_EXECUTION_POLICY,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if repeats == 1:
+        report.update(repeat_bindings["1"])
     sequence.expected_runs(lock)
     write_json(output, report)
     try:
@@ -784,9 +982,12 @@ def _capture_subject(
         preflight.get("kind") != "Stage1ABHostPreflight"
         or preflight.get("valid") is not True
         or preflight.get("lock_sha256") != sha(Path(lock_path).read_bytes())
+        or preflight.get("execution_policy") != SUBJECT_EXECUTION_POLICY
+        or lock.get("execution_policy") != SUBJECT_EXECUTION_POLICY
     ):
         raise ExecutionBlocked("missing or stale two-condition host preflight")
-    if preflight["profiles"][condition] != str(Path(profile).resolve()) or preflight[
+    binding = _preflight_binding(preflight, repeat)
+    if binding["profiles"][condition] != str(Path(profile).resolve()) or binding[
         "workspaces"
     ][condition] != str(Path(workspace).resolve()):
         raise ExecutionBlocked(
@@ -797,6 +998,9 @@ def _capture_subject(
         or lock.get("research_hub_sha") != RESEARCH_HUB_SHA
     ):
         raise ExecutionBlocked("host preflight dependency SHA differs from frozen lock")
+    pin_binding = binding.get("treatment_runtime_pin", {})
+    if pin_binding.get("sha256") != _repeat_pin_sha(lock, repeat):
+        raise ExecutionBlocked("host preflight runtime pin differs from frozen lock")
     if lock["prompt_sha256"] != sha(Path(prompt_path).read_bytes()):
         raise ExecutionBlocked("subject prompt changed")
     row = lock["paired_repeats"][repeat - 1]
@@ -804,9 +1008,11 @@ def _capture_subject(
         raise ExecutionBlocked("run order differs from frozen plan")
     run = row[condition]
     output = Path(output)
+    all_bindings = preflight.get("repeat_bindings", {"1": preflight}).values()
     if any(
         output.resolve().is_relative_to(Path(root).resolve())
-        for root in (*preflight["profiles"].values(), *preflight["workspaces"].values())
+        for item in all_bindings
+        for root in (*item["profiles"].values(), *item["workspaces"].values())
     ):
         raise ExecutionBlocked(
             "capture output must be outside both subject environments"
@@ -846,6 +1052,7 @@ def _capture_subject(
             "condition": condition,
             "repeat": repeat,
             "series_id": registry["series_id"],
+            "execution_policy": SUBJECT_EXECUTION_POLICY,
             "status": "incomplete",
             "attempts": [],
         }
@@ -868,6 +1075,21 @@ def _capture_subject(
             else None
         ),
     )
+    frozen_probe = binding["probes"][condition]
+    for key in (
+        "codex_version",
+        "config_sha256",
+        "native_config_sha256",
+        "native_capabilities_sha256",
+        "model",
+        "reasoning",
+        "native_web_search",
+        "plugin_names",
+        "installed_plugin_sha256",
+        "functional_skill_sha256",
+    ):
+        if probe.get(key) != frozen_probe.get(key):
+            raise ExecutionBlocked(f"subject profile changed after preflight: {key}")
     if probe["codex_version"] != lock["runtime"]["app_version"]:
         raise ExecutionBlocked("Codex version differs from frozen runtime")
     if lock["runtime"]["search_enabled"] is not True:
@@ -875,11 +1097,20 @@ def _capture_subject(
     if condition == "treatment" and tree_sha(PLUGIN_ROOT) != lock["plugin_tree_sha256"]:
         raise ExecutionBlocked("treatment plugin bytes differ from frozen lock")
     env = dict(os.environ, CODEX_HOME=str(Path(profile).resolve()))
+    env.pop("STAGE1_RUNTIME_PIN", None)
     if condition == "treatment":
+        _runtime_pin(
+            pin_binding.get("path"),
+            pin_binding["sha256"],
+            verify_host=True,
+            workspace=workspace,
+        )
+        env["STAGE1_RUNTIME_PIN"] = pin_binding["path"]
+        record["treatment_runtime_pin_path"] = pin_binding["path"]
         env.update(_research_hub_workspace_env(Path(workspace), resume))
     # The same writable, isolated workspace is required in both conditions so
     # the treatment can persist its append-only Stage 1 ledger.
-    command = [str(codex), "exec", "--sandbox", "workspace-write"]
+    command = [str(codex), "exec", *SUBJECT_SANDBOX_ARGS]
     if resume:
         command += [
             "resume",
@@ -931,6 +1162,13 @@ def _capture_subject(
         files[name] = sha(data)
     if final_path.is_file():
         files[final_path.name] = sha(final_path.read_bytes())
+    if condition == "treatment":
+        pin_name = prefix + ".runtime-pin.json"
+        pin_bytes = Path(pin_binding["path"]).read_bytes()
+        if sha(pin_bytes) != pin_binding["sha256"]:
+            raise ExecutionBlocked("treatment runtime pin changed during capture")
+        (output / pin_name).write_bytes(pin_bytes)
+        files[pin_name] = sha(pin_bytes)
     summary = _event_summary(result.stdout)
     if thread_id and summary["thread_id"] != thread_id:
         summary["status"] = "incomplete"
@@ -972,10 +1210,55 @@ def _capture_subject(
         for token in prohibited_ids
     ):
         record["status"] = "incomplete"
+    if condition == "treatment" and record["status"] == "complete":
+        try:
+            record["stage1_receipt"] = _treatment_receipt(
+                output / "workspace" / f"{attempt_no:02d}",
+                pin_binding,
+                pin_bytes=(output / pin_name).read_bytes(),
+            )
+        except (ExecutionBlocked, OSError, ValueError) as error:
+            record["status"] = "incomplete"
+            record["stage1_receipt_error"] = str(error)
     record_path.write_text(
         json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return record
+
+
+def _treatment_receipt(snapshot, pin_binding, *, pin_bytes, verify_runtime=True):
+    """Require a current, strictly validated CLI ledger after the Codex turn."""
+    manifests = list(Path(snapshot).rglob("run_manifest.json"))
+    if len(manifests) != 1:
+        raise ExecutionBlocked("treatment needs exactly one Stage 1 ledger")
+    ledger_root = manifests[0].parent
+    ledger, report, _events, checkpoint = source_state(
+        ledger_root, verify_runtime=verify_runtime
+    )
+    if sha(pin_bytes) != pin_binding["sha256"]:
+        raise ExecutionBlocked("saved runtime pin bytes differ from capture")
+    pin = json.loads(pin_bytes)
+    check_pin(pin)
+    if pin.get("revision") != RESEARCH_HUB_SHA or pin.get("status") != "merged":
+        raise ExecutionBlocked("saved runtime pin differs from merged research-hub")
+    if verify_runtime:
+        host_pin, _ = _runtime_pin(pin_binding["path"], pin_binding["sha256"])
+        if host_pin != pin:
+            raise ExecutionBlocked("saved runtime pin differs from host runtime")
+    if (
+        ledger.manifest.get("mode") != "research-hub-cli"
+        or ledger.manifest.get("research_hub_pin") != pin
+    ):
+        raise ExecutionBlocked("Stage 1 ledger used a different CLI runtime pin")
+    if report["counts"]["queries"] < 1 or report["counts"]["backend_attempts"] < 1:
+        raise ExecutionBlocked("Stage 1 ledger has no completed backend retrieval")
+    return {
+        "workspace_path": ledger_root.relative_to(snapshot).as_posix(),
+        "state_sha256": report["state_sha256"],
+        "checkpoint_event_id": checkpoint["event_id"],
+        "counts": report["counts"],
+        "runtime_pin_sha256": pin_binding["sha256"],
+    }
 
 
 def _research_hub_workspace_env(workspace, resume):
@@ -1017,9 +1300,11 @@ def _research_hub_workspace_env(workspace, resume):
     }
 
 
-def verify_capture(output):
+def verify_capture(output, *, verify_runtime=True):
     output = Path(output)
     record = read_json(output / "run.json")
+    if record.get("execution_policy") != SUBJECT_EXECUTION_POLICY:
+        raise ExecutionBlocked("captured subject sandbox/network policy differs")
     for attempt in record["attempts"]:
         for name, digest in attempt["files"].items():
             path = output / name
@@ -1030,4 +1315,26 @@ def verify_capture(output):
         ).read_bytes()
         if _event_summary(raw) != attempt["summary"]:
             raise ExecutionBlocked("captured events differ from recorded summary")
+    if record["condition"] == "treatment" and record["status"] == "complete":
+        receipt = record.get("stage1_receipt")
+        if not receipt:
+            raise ExecutionBlocked("completed treatment lacks Stage 1 ledger receipt")
+        pin_binding = {
+            "path": record["treatment_runtime_pin_path"],
+            "sha256": receipt["runtime_pin_sha256"],
+        }
+        pin_name = f"attempt-{len(record['attempts']):02d}.runtime-pin.json"
+        if pin_name not in record["attempts"][-1]["files"]:
+            raise ExecutionBlocked("completed treatment lacks saved runtime pin")
+        snapshot = output / "workspace" / f"{len(record['attempts']):02d}"
+        if (
+            _treatment_receipt(
+                snapshot,
+                pin_binding,
+                pin_bytes=(output / pin_name).read_bytes(),
+                verify_runtime=verify_runtime,
+            )
+            != receipt
+        ):
+            raise ExecutionBlocked("captured Stage 1 receipt differs from replay")
     return record

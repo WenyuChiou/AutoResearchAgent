@@ -25,6 +25,7 @@ def parser_for_commands():
     p = subs.add_parser("freeze")
     for name in ("plan", "prompt", "dependency_repo", "output"):
         p.add_argument(name, type=Path)
+    p.add_argument("--treatment-runtime-pin", type=Path, action="append", required=True)
     p = subs.add_parser("probe")
     for name in ("codex", "profile", "workspace", "private_root"):
         p.add_argument(name, type=Path)
@@ -42,6 +43,7 @@ def parser_for_commands():
         "output",
     ):
         p.add_argument(name, type=Path)
+    p.add_argument("--treatment-runtime-pin", type=Path, action="append", required=True)
     p = subs.add_parser("capture")
     for name in (
         "codex",
@@ -66,6 +68,7 @@ def parser_for_commands():
     p.add_argument("--resume", action="store_true")
     p = subs.add_parser("verify")
     p.add_argument("output", type=Path)
+    p.add_argument("--portable", action="store_true")
     p = subs.add_parser("export-ledger")
     p.add_argument("run", type=Path)
     p.add_argument("output", type=Path)
@@ -120,7 +123,9 @@ def parser_for_commands():
 def _bind_one_series(results, capture_dirs, expected):
     if len(capture_dirs) != 6:
         raise runner.ExecutionBlocked("six subject capture directories required")
-    captures = [runner.verify_capture(path) for path in capture_dirs]
+    captures = [
+        runner.verify_capture(path, verify_runtime=False) for path in capture_dirs
+    ]
     capture_by_run = {
         capture["run_id"]: (capture, path)
         for capture, path in zip(captures, capture_dirs)
@@ -226,7 +231,11 @@ def main(argv=None):
     try:
         if args.command == "freeze":
             value = runner.freeze(
-                args.plan, args.prompt, args.dependency_repo, args.output
+                args.plan,
+                args.prompt,
+                args.dependency_repo,
+                args.output,
+                treatment_runtime_pin=args.treatment_runtime_pin,
             )
         elif args.command == "probe":
             value = runner.probe_profile(
@@ -247,6 +256,7 @@ def main(argv=None):
                 args.private_root,
                 args.dependency_repo,
                 args.output,
+                treatment_runtime_pin=args.treatment_runtime_pin,
             )
         elif args.command == "capture":
             value = runner.capture(
@@ -263,7 +273,7 @@ def main(argv=None):
                 resume=args.resume,
             )
         elif args.command == "verify":
-            value = runner.verify_capture(args.output)
+            value = runner.verify_capture(args.output, verify_runtime=not args.portable)
         elif args.command == "export-ledger":
             value = export_run(
                 args.run, args.output, native_capture=args.native_capture

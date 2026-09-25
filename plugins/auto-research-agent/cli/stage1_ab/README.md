@@ -18,14 +18,26 @@ SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
    outside this CLI. The validator checks actor records and artifact bytes, but
    cannot authenticate a human identity.
    Keep the private package under `evals/private/` only on that machine.
-2. Run `freeze PLAN PROMPT MERGED_RESEARCH_HUB_CHECKOUT PUBLIC_LOCK` on the
+2. On the subject host, create one public `stage1_retrieval freeze-runtime` pin
+   per repeat for the installed research-hub executable and its actual code
+   bytes. Each pin's config must route all research-hub data paths into that
+   repeat's treatment workspace. Send all three pin bytes to the evaluator for
+   review; the pins contain executable
+   paths and hashes, never private answer material. Run `freeze PLAN PROMPT
+   MERGED_RESEARCH_HUB_CHECKOUT PUBLIC_LOCK --treatment-runtime-pin PIN1
+   --treatment-runtime-pin PIN2 --treatment-runtime-pin PIN3` on the
    evaluator. It reuses `evaluation_plan.validate_plan`, verifies the prompt,
    private answer/approval bytes, PR #20 readiness evidence and the merged
-   research-hub commit `9877f929587e7e44bc2533db118cbb89336bf94f`.
+   research-hub commit `9877f929587e7e44bc2533db118cbb89336bf94f`, and
+   freezes each reviewed pin's SHA-256. A one-pair diagnostic pilot accepts one
+   pin.
    Transfer only `PUBLIC_LOCK` and the public prompt to the subject host.
-3. On the **subject host**, make two independent `CODEX_HOME` profiles and six
-   initially empty workspaces. The baseline profile has no custom extensions;
-   the treatment profile discovers only `auto-research-agent`. `probe` checks
+3. On the **subject host**, make six independent `CODEX_HOME` profiles and six
+   initially empty workspaces under four roots: `B_PROFILE_ROOT/repeat-01` to
+   `repeat-03`, `T_PROFILE_ROOT/repeat-01` to `repeat-03`, and matching
+   `B_WORKSPACE_ROOT` and `T_WORKSPACE_ROOT` children. Every baseline profile has
+   no custom extensions; every treatment profile discovers only
+   `auto-research-agent`. `probe` checks
    each profile's login, CLI version, GPT-5.6 Sol/High availability, native web
    search capability and plugin discovery. The treatment probe also asks the
    pinned model to read and hash the installed skill from inside its subject
@@ -33,26 +45,53 @@ SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
    insufficient. A failed probe retains JSONL and stderr beside the report.
    Confirm the same native tool
    configuration in both profiles. Run `host-preflight CODEX PUBLIC_LOCK
-   B_PROFILE T_PROFILE B_WORKSPACE T_WORKSPACE PRIVATE_ROOT MERGED_HUB_CHECKOUT
-   REPORT` and keep
+   B_PROFILE_ROOT T_PROFILE_ROOT B_WORKSPACE_ROOT T_WORKSPACE_ROOT PRIVATE_ROOT
+   MERGED_HUB_CHECKOUT REPORT --treatment-runtime-pin PIN1
+   --treatment-runtime-pin PIN2 --treatment-runtime-pin PIN3` and keep
    `REPORT` with the pilot bundle. Never put the private evaluator directory
    on this host. A readable decoy private file, changed plugin tree, or
-   unverified profile blocks launch.
+   unverified profile blocks launch. Preflight checks all six environments and
+   each pin, its executable and imported code bytes, config hash and matching
+   treatment-workspace data paths. The non-plugin Codex settings must match
+   across B/T and all repeats; capture rechecks each profile's exact config,
+   native tools and installed skill against its preflight probe. For a one-pair
+   pilot, pass the two profiles,
+   two workspaces and one pin directly instead of repeat roots.
+   Keep `CODEX_HOME/rules` absent in every profile: custom exec rules change
+   command permissions and therefore block both preflight and capture.
+   Both subjects use the same reviewed `workspace-write` sandbox with
+   `sandbox_workspace_write.network_access=true`. This permits the treatment's
+   pinned research-hub CLI to reach public literature backends while retaining
+   workspace file-write limits. The public lock, host preflight and each capture
+   bind this policy; changing or omitting it makes the run ineligible. Keep
+   private answer material off this network-enabled subject host.
 4. The preflight creates one host registry keyed by the SHA-256 of the public
    lock bytes under the user's local application-data directory. A copied lock
    or a different report path cannot start a second series on that host. Keep
    the subject workspaces separate from this host registry.
    Run `capture CODEX PUBLIC_LOCK CONDITION REPEAT PROFILE WORKSPACE PROMPT
-   OUTPUT PRIVATE_ROOT REPORT` in frozen B→T, T→B, B→T order. `capture` stores raw
+   OUTPUT PRIVATE_ROOT REPORT` in frozen B→T, T→B, B→T order, selecting the
+   matching `repeat-NN` profile and workspace for each call. `capture` stores raw
    JSONL, stderr, final answer, every generated file, timings, usage and hashes.
-   `verify OUTPUT` rechecks bytes. A failed or interrupted attempt can use
+   `verify OUTPUT` rechecks bytes. The baseline cannot inherit the treatment
+   pin from the operator environment. The treatment receives only the reviewed
+   pin path and saves the exact public pin bytes in the capture; a completed
+   Codex turn remains `incomplete` unless its saved
+   workspace contains one current, strictly validated Stage 1 CLI ledger with
+   completed backend receipts and a checkpoint. The receipt is replayed during
+   capture verification. `verify OUTPUT` re-attests the original host runtime;
+   `verify OUTPUT --portable` replays the saved ledger and pin on an evaluator
+   machine without access to original executable paths. Portable replay proves
+   content integrity against the sealed capture, not that the original host
+   runtime still exists. A failed or interrupted attempt can use
    `capture ... --resume`; it retains the same run ID and rejects a completed
    run, changed workspace or repeated completed search. The registry requires
    every earlier subject to remain complete and byte verified; it rejects
    T-first, skipped pairs and selective reruns. A compromised pair is
    incomplete. Never rerun only a weak side.
 5. After all subjects end, move blinded copies and needed source bytes to the
-   evaluator. A human source checker creates a private annotation JSON per
+   evaluator. Run `verify OUTPUT --portable` for each moved capture. A human
+   source checker creates a private annotation JSON per
    subject (see below). `facts ANNOTATIONS HOLDOUT PLAN CAPTURE_DIR EVAL_ROOT
    RESULT` derives v2 P1–P3 counts, checks every evidence byte and invokes
    `stage1_evaluation_result_v2.validate_result_v2`. Baseline evidence may be
@@ -122,8 +161,8 @@ retrying it. Raw pilot bundles and preflight reports remain private. Three
 formal pairs would describe case-specific direction and variation, not
 statistical significance.
 
-A fresh 2026-09-24 profile probe confirmed that a direct command inside the
-Codex sandbox can hash the installed skill, while the subject model's own
-file-tool calls are rejected by the host command policy. Its preflight fails,
-so no second pilot capture was launched. A valid pilot needs a model-visible
-tool-read event and fresh B/T capture under the same pinned configuration.
+A 2026-09-25 Canada pilot demonstrated live OpenAlex attempts, 120 candidate
+revisions, a validated checkpoint and an explicit `continue` gate. The eight
+study final answer was not fully reflected in ledger decisions or claim links;
+it is diagnostic, not a scored comparison or evidence of Stage 1 quality
+improvement. The final pilot must use this revised runtime-pin and ledger gate.
