@@ -70,11 +70,13 @@ P1 身分／中央敘述／證據界線、P2 題目需求／最近似工作、P3
 1. **先定題目與截止日。** `stage1_eval prepare-spec` 只看原始題目，產生 needs、適用的 literature roles、近期時窗與至少兩條不同的 foundation／closest 搜尋路徑。此時不能看 A 或 B 的回答。規格中禁止 gold titles、expected DOI 或 holdout 命中欄位。規格、rubric 和原始題目都有 SHA-256。
 2. **再執行受測 agent。** A 是 stock Codex；B 是同設定加 AutoResearchAgent Stage 1。兩方用同一 prompt、日期、模型與原生工具。B 額外 plugin／research-hub 的影響屬整個 treatment package。subject 的原生 transcript、最後回答及實際交付檔案分別保存。
 3. **中立擷取與來源查核。** Adapter 不要求 A 擁有 B 的 ledger。獨立 extraction 擷取每個被引用作品及中央 claim，原句必須在實際交付內容中。Evaluator 用 research-hub 查核被引作品，保存命令、原始 stdout／stderr、時間、狀態與 hash；metadata／abstract 不冒稱全文。
-4. **可選的有限挑戰搜尋。** `packet-only` 只能判眼前內容，不可給完整 coverage／closest 滿分，也不可聲稱找不到遺漏。`evidence-audited` 在 frozen spec 下做有限搜尋，找到的作品是 potential omission，需要再判來源、直接性、決策影響與替代性。搜尋失敗不是零結果；固定 top-K 不是全領域 recall。
-5. **盲化與分開判讀。** 同一封閉 evidence packet 交給禁用工具的 Auto-R1／Auto-R2。P1/P2 只見內容和外部來源，沒有 B 的格式獎勵；P3 看實際 native trace 與交付物，不替 A 補造紀錄。每個 criterion／core／omission 的實質 verdict 不同才叫 Auto-ADJ。引文必須逐字存在於已綁定 evidence。
+4. **可選的有限挑戰搜尋。** `packet-only` 只能判眼前內容，不可給完整 coverage／closest 滿分，也不可聲稱找不到遺漏。`evidence-audited` 在 frozen spec 下做有限搜尋，找到的作品是 potential omission，需要再判來源、直接性、決策影響與替代性。挑戰搜尋若找到受測者已引用的作品，只能拿來核實內容，不能列為遺漏。搜尋失敗不是零結果；固定 top-K 不是全領域 recall。
+5. **盲化與分開判讀。** 同一封閉 evidence packet 交給禁用工具的 Auto-R1／Auto-R2。P1/P2 只見內容和外部來源，沒有 B 的格式獎勵；P3 看實際 native trace 與交付物，不替 A 補造紀錄。每個 criterion／core／omission 的實質 verdict 不同才叫 Auto-ADJ。引文必須逐字存在於已綁定 evidence；P3 原生工具事件若把回覆作為 JSON 字串封裝，也可引用**同一事件**解碼後 `item.aggregated_output` 中逐字連續的片段，不能跨事件拼接或改寫。
 6. **程式計分。** `StageEvaluationResult v3` 保存 criterion vector、assessed fraction、unknown、P1/P2/P3 分數與界線、重大錯誤及 evaluator／subject／source failure。評估器本身失敗產生 `EvaluationFailure`，不能當受測模型零分；科學證據不足則可正常輸出 `inconclusive`。
 
 ## 執行與來源限制
+
+預演與正式評分都以相同的 2 MB 原生日誌上限做無損擷取；超出時是評估失敗，不截斷日誌或替受測者扣零分。
 
 `python -m stage1_eval --help` 列出 `prepare-spec`、`collect-background` 與 `evaluate`；詳見各子命令 `--help`。安裝測試依賴後需指定實際可用的 Codex CLI、登入的 evaluator CODEX_HOME，以及 research-hub 命令。Windows 上若安裝的 `research-hub.exe` 是失效啟動器，可用 `--hub-command-json '["@python","-m","research_hub"]'` 並在**同一隔離 Python 環境**安裝固定 commit 的 research-hub；`@python` 會換成目前 Python 路徑。每次 backend failure 的原始 stderr 都要保留。
 

@@ -199,7 +199,7 @@ def evaluate(args):
             args.transcript,
             args.artifact,
             status=args.subject_status,
-            max_trace_bytes=2_000_000 if formal_binding else 200_000,
+            max_trace_bytes=2_000_000,
         )
         if formal_binding:
             attach_workspace(subject, formal_binding)

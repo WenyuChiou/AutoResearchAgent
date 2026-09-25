@@ -127,10 +127,28 @@ def _quote_check(rows, evidence, label):
                 if len(matches) == 1:
                     passage["evidence_id"] = matches[0]
                     item = evidence[matches[0]]
-            if item is None or passage["exact_quote"] not in item["text"]:
+            if item is None or not _quote_in_evidence(passage["exact_quote"], item):
                 raise EvaluationError(
                     f"{label} cites missing or invented exact passage"
                 )
+
+
+def _quote_in_evidence(quote, item):
+    if quote in item["text"]:
+        return True
+    if item["origin"] != "subject-native-trace":
+        return False
+    try:
+        event = json.loads(item["text"])
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(event, dict):
+        return False
+    native_item = event.get("item")
+    if not isinstance(native_item, dict):
+        return False
+    output = native_item.get("aggregated_output")
+    return isinstance(output, str) and quote in output
 
 
 def _is_cited_candidate(candidate, packet):
@@ -501,6 +519,8 @@ def phase_prompt(packet, phase, rubric, rubric_sha):
         "Zero means an observed failure, one an observed partial result, and unverifiable means evidence unavailable. "
         "Do not award P1/P2 content quality for ledger format. Evaluator searches cannot count as subject P3 actions. "
         "A topic-core verdict needs own-work evidence, decision effect, omission consequence and substitute reasoning. "
+        "A closest=supported verdict needs the closest-work role and a passage whose evidence_id maps to a source "
+        "with subject_work_id equal to that assessment's work_id; otherwise use candidate or unverifiable. "
         "Classic needs two independent recognition sources; recent closest work can be core without being classic. "
         "Never infer exhaustive recall from a bounded challenge. A missing section, narrow search, or honest admission "
         "of incompleteness lowers a criterion; it is NOT a confirmed major issue. Confirm a major issue only for an "
@@ -513,17 +533,25 @@ def phase_prompt(packet, phase, rubric, rubric_sha):
     if phase == "process":
         prompt_base += (
             "\nPROCESS PHASE ONLY: core_assessments=[] and omission_assessments=[] "
-            "exactly. Judge only the three P3 trace criteria; do not assess paper roles."
+            "exactly. Judge only the three P3 trace criteria; do not assess paper roles. "
+            "A trace passage may quote either the literal evidence text or exact contiguous "
+            "characters in that same trace event's decoded item.aggregated_output. "
+            "Do not paraphrase or quote from a different event."
         )
     else:
+        work_ids = [work["work_id"] for work in packet["extraction"]["works"]]
         challenge_ids = sorted(
             source_id
             for source_id, origins in packet["source_origins"].items()
             if "evaluator-challenge" in origins
+            and not _is_cited_candidate(packet["sources"][source_id], packet)
         )
         prompt_base += (
+            f"\nReturn exactly {len(work_ids)} core_assessments, one for each extracted work_id "
+            f"in this order: {json.dumps(work_ids)}. Never omit an assessment during correction; "
+            "use candidate or unverifiable with empty passages when own-work evidence is unavailable. "
             "\nCONTENT PHASE: omission_assessments may cite only these "
-            f"independent challenge source IDs: {json.dumps(challenge_ids)}. "
+            f"independent uncited challenge source IDs: {json.dumps(challenge_ids)}. "
             "A gap identified from the subject's own cited source affects a criterion, "
             "but is not an independent omission observation."
         )

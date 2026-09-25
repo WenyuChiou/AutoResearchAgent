@@ -1,6 +1,7 @@
 """Contract and metamorphic checks for the general evidence evaluator."""
 
 import copy
+import json
 import sys
 import sys as python_sys
 import tempfile
@@ -36,6 +37,7 @@ from stage1_eval.judging import (
     _is_cited_candidate,
     judge_packet,
     make_packet,
+    phase_prompt,
     validate_judgment,
 )
 from stage1_eval.model import _api_schema, require_tool_free_events
@@ -196,6 +198,20 @@ def judgment(phase, *, score=1, status="scored", passage=None):
 
 
 class GeneralEvaluationTests(unittest.TestCase):
+    def test_content_prompt_names_every_work_for_independent_assessment(self):
+        evidence = packet()
+        evidence["extraction"]["works"] = [
+            {"work_id": "work-01"},
+            {"work_id": "work-02"},
+        ]
+        rubric = json.loads(RUBRIC_PATH.read_text(encoding="utf-8"))
+        prompt = phase_prompt(
+            evidence, "content", rubric, sha(RUBRIC_PATH.read_bytes())
+        )
+        self.assertIn("exactly 2 core_assessments", prompt)
+        self.assertIn('["work-01", "work-02"]', prompt)
+        self.assertIn("subject_work_id equal to that assessment's work_id", prompt)
+
     def test_formal_v3_fails_closed_without_pre_subject_attestation(self):
         with self.assertRaisesRegex(
             EvaluationError, "formal v3 requires pre-subject lock"
@@ -338,6 +354,27 @@ class GeneralEvaluationTests(unittest.TestCase):
                 },
                 value,
             )
+        )
+        value["sources"] = {
+            "src-cited": {
+                "title": "Aging and household consumption",
+                "doi": "10.1234/right",
+                "work_key": "doi:10.1234/right",
+            },
+            "src-uncited": {
+                "title": "Other study",
+                "doi": "10.1234/other",
+                "work_key": "doi:10.1234/other",
+            },
+        }
+        value["source_origins"] = {
+            "src-cited": ["evaluator-challenge"],
+            "src-uncited": ["evaluator-challenge"],
+        }
+        rubric = json.loads(RUBRIC_PATH.read_text(encoding="utf-8"))
+        prompt = phase_prompt(value, "content", rubric, sha(RUBRIC_PATH.read_bytes()))
+        self.assertIn(
+            'independent uncited challenge source IDs: ["src-uncited"]', prompt
         )
 
     def test_recent_window_binds_frontier_query_and_full_score(self):
@@ -597,6 +634,27 @@ class GeneralEvaluationTests(unittest.TestCase):
         value["criteria"][0]["score"] = 1
         with self.assertRaisesRegex(EvaluationError, "null score"):
             validate_judgment(value, packet(), "content")
+
+    def test_process_quote_may_use_same_event_decoded_tool_output_only(self):
+        evidence = packet(trace=True)
+        native_output = '{"counts":{"queries":18,"backend_failures":3}}'
+        event = {"item": {"aggregated_output": native_output}}
+        evidence["process_evidence"]["trace-1"]["text"] = json.dumps(event)
+        value = judgment(
+            "process",
+            passage={
+                "evidence_id": "trace-1",
+                "exact_quote": '"backend_failures":3',
+            },
+        )
+        validate_judgment(value, evidence, "process")
+        value["criteria"][0]["passages"][0]["exact_quote"] = '"backend_failures":4'
+        with self.assertRaisesRegex(EvaluationError, "invented exact passage"):
+            validate_judgment(value, evidence, "process")
+        evidence["process_evidence"]["trace-1"]["origin"] = "subject-answer"
+        value["criteria"][0]["passages"][0]["exact_quote"] = '"backend_failures":3'
+        with self.assertRaisesRegex(EvaluationError, "invented exact passage"):
+            validate_judgment(value, evidence, "process")
 
     def test_packet_only_cannot_award_full_coverage(self):
         value = judgment("content", score=1)
