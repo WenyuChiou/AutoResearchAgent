@@ -6,7 +6,7 @@
     "plan_id": "aging-stage1-synthetic-plan-v1",
     "artifact": {
       "path": "examples/evaluation-plan.synthetic.json",
-      "canonical_sha256": "628bfe3de4eb59d8cc78c438fd138bf49b3e8ef87ca3b1605c917540cfdfdcb7"
+      "canonical_sha256": "fa48ab44288a3a41eec534a9fc1a4f44dd7a09d7e680963cb18326b228a76c4f"
     }
   },
   "run_id": "run01-a",

@@ -1,0 +1,168 @@
+# Stage 1 A/B execution (experimental)
+
+This CLI records a controlled six-subject comparison. It is an execution aid,
+not an answer key or a second scoring rule. `judge_bundle.py` and
+`paired_evaluation.py` remain authoritative for scores and the paired decision.
+The v2 factual validator remains authoritative for hard counts.
+
+Run `python -m stage1_ab --help` with `plugins/auto-research-agent/cli` on
+`PYTHONPATH`. All output directories must be outside Git. Copy the exact
+`evals/stage1/STAGE1_AB_SUBJECT_PROMPT_v1.txt` bytes to each condition; its
+SHA-256 is `9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd`.
+
+## Separation and sequence
+
+1. On the **private evaluator machine**, use the frozen holdout protocol:
+   v2.1 requires Eric as the sole named human curator and plan approver; legacy
+   v2.0 requires two independent human curators and approvals. Verify identity
+   outside this CLI. The validator checks actor records and artifact bytes, but
+   cannot authenticate a human identity.
+   Keep the private package under `evals/private/` only on that machine.
+2. On the subject host, create one public `stage1_retrieval freeze-runtime` pin
+   per repeat for the installed research-hub executable and its actual code
+   bytes. Each pin's config must route all research-hub data paths into that
+   repeat's treatment workspace. Send all three pin bytes to the evaluator for
+   review; the pins contain executable
+   paths and hashes, never private answer material. Run `freeze PLAN PROMPT
+   MERGED_RESEARCH_HUB_CHECKOUT PUBLIC_LOCK --treatment-runtime-pin PIN1
+   --treatment-runtime-pin PIN2 --treatment-runtime-pin PIN3` on the
+   evaluator. It reuses `evaluation_plan.validate_plan`, verifies the prompt,
+   private answer/approval bytes, PR #20 readiness evidence and the merged
+   research-hub commit `9877f929587e7e44bc2533db118cbb89336bf94f`, and
+   freezes each reviewed pin's SHA-256. A one-pair diagnostic pilot accepts one
+   pin.
+   Transfer only `PUBLIC_LOCK` and the public prompt to the subject host.
+3. On the **subject host**, make six independent `CODEX_HOME` profiles and six
+   initially empty workspaces under four roots: `B_PROFILE_ROOT/repeat-01` to
+   `repeat-03`, `T_PROFILE_ROOT/repeat-01` to `repeat-03`, and matching
+   `B_WORKSPACE_ROOT` and `T_WORKSPACE_ROOT` children. Every baseline profile has
+   no custom extensions; every treatment profile discovers only
+   `auto-research-agent`. `probe` checks
+   each profile's login, CLI version, GPT-5.6 Sol/High availability, native web
+   search capability and plugin discovery. The treatment probe also asks the
+   pinned model to read and hash the installed skill from inside its subject
+   sandbox; the raw command event must contain that digest. Discovery alone is
+   insufficient. A failed probe retains JSONL and stderr beside the report.
+   Confirm the same native tool
+   configuration in both profiles. Run `host-preflight CODEX PUBLIC_LOCK
+   B_PROFILE_ROOT T_PROFILE_ROOT B_WORKSPACE_ROOT T_WORKSPACE_ROOT PRIVATE_ROOT
+   MERGED_HUB_CHECKOUT REPORT --treatment-runtime-pin PIN1
+   --treatment-runtime-pin PIN2 --treatment-runtime-pin PIN3` and keep
+   `REPORT` with the pilot bundle. Never put the private evaluator directory
+   on this host. A readable decoy private file, changed plugin tree, or
+   unverified profile blocks launch. Preflight checks all six environments and
+   each pin, its executable and imported code bytes, config hash and matching
+   treatment-workspace data paths. The non-plugin Codex settings must match
+   across B/T and all repeats; capture rechecks each profile's exact config,
+   native tools and installed skill against its preflight probe. For a one-pair
+   pilot, pass the two profiles,
+   two workspaces and one pin directly instead of repeat roots.
+   Keep `CODEX_HOME/rules` absent in every profile: custom exec rules change
+   command permissions and therefore block both preflight and capture.
+   Both subjects use the same reviewed `workspace-write` sandbox with
+   `sandbox_workspace_write.network_access=true`. This permits the treatment's
+   pinned research-hub CLI to reach public literature backends while retaining
+   workspace file-write limits. The public lock, host preflight and each capture
+   bind this policy; changing or omitting it makes the run ineligible. Keep
+   private answer material off this network-enabled subject host.
+4. The preflight creates one host registry keyed by the SHA-256 of the public
+   lock bytes under the user's local application-data directory. A copied lock
+   or a different report path cannot start a second series on that host. Keep
+   the subject workspaces separate from this host registry.
+   Run `capture CODEX PUBLIC_LOCK CONDITION REPEAT PROFILE WORKSPACE PROMPT
+   OUTPUT PRIVATE_ROOT REPORT` in frozen B→T, T→B, B→T order, selecting the
+   matching `repeat-NN` profile and workspace for each call. `capture` stores raw
+   JSONL, stderr, final answer, every generated file, timings, usage and hashes.
+   `verify OUTPUT` rechecks bytes. The baseline cannot inherit the treatment
+   pin from the operator environment. The treatment receives only the reviewed
+   pin path and saves the exact public pin bytes in the capture; a completed
+   Codex turn remains `incomplete` unless its saved
+   workspace contains one current, strictly validated Stage 1 CLI ledger with
+   completed backend receipts and a checkpoint. The receipt is replayed during
+   capture verification. `verify OUTPUT` re-attests the original host runtime;
+   `verify OUTPUT --portable` replays the saved ledger and pin on an evaluator
+   machine without access to original executable paths. Portable replay proves
+   content integrity against the sealed capture, not that the original host
+   runtime still exists. A failed or interrupted attempt can use
+   `capture ... --resume`; it retains the same run ID and rejects a completed
+   run, changed workspace or repeated completed search. The registry requires
+   every earlier subject to remain complete and byte verified; it rejects
+   T-first, skipped pairs and selective reruns. A compromised pair is
+   incomplete. Never rerun only a weak side.
+5. After all subjects end, move blinded copies and needed source bytes to the
+   evaluator. Run `verify OUTPUT --portable` for each moved capture. A human
+   source checker creates a private annotation JSON per
+   subject (see below). `facts ANNOTATIONS HOLDOUT PLAN CAPTURE_DIR EVAL_ROOT
+   RESULT` derives v2 P1–P3 counts, checks every evidence byte and invokes
+   `stage1_evaluation_result_v2.validate_result_v2`. Baseline evidence may be
+   ordinary files or Codex native logs; no treatment ledger is required for B.
+6. After checking source excerpts, run `blind-packet FACT_RESULT PLAN
+   EVIDENCE_PACKET OUTPUT` under `evals/private/`. It binds the v2 hard facts
+   and source-excerpt bytes while assigning condition-independent random
+   run/subject IDs to model input. The real ID mapping stays evaluator-side.
+   Judge raw outputs keep the aliases; normalized evaluator outputs restore
+   the real run ID for the existing bundle validator. `judge CODEX
+   PLAN PACKET RUBRIC R12_PROMPT
+   ADJ_PROMPT R1_PROFILE R2_PROFILE ADJ_PROFILE PRIVATE_OUTPUT` runs R1 and R2
+   in separate authenticated profiles. It runs ADJ only on a score or
+   major-error disagreement. The output bundle is validated by
+   `judge_bundle`; triggered named human audits leave it unusable until a
+   completed accepted audit is attached and revalidated. Judge CLI invocations
+   disable file, shell, browser, app, plugin, and delegation tools; any tool or
+   error event in their raw JSONL blocks the bundle.
+7. Create the canonical paired request with exactly six usable bundles and
+   run `paired REQUEST DECISION --results RESULT1 ... RESULT6 --capture-dirs
+   CAPTURE1 ... CAPTURE6`. The command checks one execution series and delegates to
+   `paired_evaluation.evaluate_request`. `report REQUEST DECISION PLAN HOLDOUT
+   RESULT1 ... RESULT6 CAPTURE1 ... CAPTURE6 --output REPORT` recomputes the
+   decision, rechecks all six raw capture directories, requires one execution
+   series ID, and binds each judge packet to its factual result before listing separate P1, P2 and P3 pair
+   deltas, median and range, hard counts, failures and costs. There is no
+   composite score or automatic external claim.
+
+`export-ledger RUN EXPORT --native-capture CAPTURE` and
+`validate-ledger-export EXPORT` delegate to the existing `stage1_export`
+implementation when a Stage 1 ledger run exists. Preserve its manifest
+alongside the raw subject bundle; it does not replace the six Codex subject
+captures.
+
+## Annotation input
+
+`facts` expects `evidence` as an ID-to-`{path, sha256, locator}` mapping.
+Paths must be below the evaluator's `evals/private/` and each byte hash is
+verified. `works` has `work_id`, `identity_status`, `link_status`, optional
+`identity_evidence_id`, `link_evidence_id`, `discovery_evidence_id`,
+`anchor_evidence_id`, `cluster_evidence_id`, `matched_anchor_ids`,
+`verified_clusters`, `year`, `recent`, `included`, `source_version` and
+`access_date`. `claims` has `work_id`, `status`, `locator_evidence_id` and
+`central_source_mismatch`. `decisions` has `reason_evidence_id`. `searches`
+has `kind` (`recent`, `closest-work` or another path), `state` (results,
+zero-results, backend-failure, credential-failure or rate-limited), and
+`evidence_id`. Also provide `stop_evidence_id`, `major_issues`,
+`human_interventions` and `actual_cost` (null if unavailable).
+
+Every positive identity, link, anchor, cluster or claim finding requires a
+source check. `unverifiable` remains distinct from `incorrect`. A DOI response
+alone is insufficient to mark a central claim supported. The annotation JSON
+and source bytes stay private. The saved count result is a mechanical
+derivation from these reviewer labels, not an autonomous truth judgment.
+
+## Stop conditions
+
+The current checkout contains no formal private holdout or roster-verifiable
+approvals. Do not execute the six South Korea subjects before Eric freezes and
+signs the real private package and plan. The
+non-South-Korea B/T pilot is unscored and may start only after both clean
+profiles pass login, model, native search and functional plugin preflight. An
+initial Canada pilot on 2026-09-23 exposed a treatment skill read denial even
+though plugin discovery passed; its captures are retained as a failed pilot,
+not paired evidence. The subject host must be configured and re-probed before
+retrying it. Raw pilot bundles and preflight reports remain private. Three
+formal pairs would describe case-specific direction and variation, not
+statistical significance.
+
+A 2026-09-25 Canada pilot demonstrated live OpenAlex attempts, 120 candidate
+revisions, a validated checkpoint and an explicit `continue` gate. The eight
+study final answer was not fully reflected in ledger decisions or claim links;
+it is diagnostic, not a scored comparison or evidence of Stage 1 quality
+improvement. The final pilot must use this revised runtime-pin and ledger gate.

@@ -55,6 +55,21 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
+    "capture_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["series_id", "run_sha256"],
+      "properties": {
+        "series_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "run_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
     "fact_metrics": {
       "type": "object",
       "additionalProperties": false,

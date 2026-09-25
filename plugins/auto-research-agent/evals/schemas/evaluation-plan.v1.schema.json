@@ -46,7 +46,16 @@
         "prompt": {"type": "object", "additionalProperties": false, "required": ["version", "artifact"], "properties": {"version": {"$ref": "#/$defs/id"}, "artifact": {"$ref": "#/$defs/artifact"}}},
         "condition_map": {"$ref": "#/$defs/artifact"},
         "baseline_build": {"$ref": "#/$defs/build"},
-        "treatment_build": {"$ref": "#/$defs/build"}
+        "treatment_build": {"$ref": "#/$defs/build"},
+        "stage1_readiness": {
+          "type": "object", "additionalProperties": false,
+          "required": ["path", "sha256", "research_hub_sha"],
+          "properties": {
+            "path": {"const": "evidence/stage1-south-korea-20260922/readiness-manifest.json"},
+            "sha256": {"$ref": "#/$defs/hash"},
+            "research_hub_sha": {"const": "9877f929587e7e44bc2533db118cbb89336bf94f"}
+          }
+        }
       }
     },
     "build": {

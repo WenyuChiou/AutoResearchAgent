@@ -239,7 +239,9 @@ def validate_bundle(bundle):
             errors.append("formal subject and judge artifacts must stay under private/")
 
     automatic_results = list(loaded.values())
-    audit_required = any(result["requires_human_audit"] for result in automatic_results)
+    audit_required = disagreement or any(
+        result["requires_human_audit"] for result in automatic_results
+    )
     selected = adjudication or r1
     audit = bundle["artifacts"]["human_audit"]
     if audit_required and audit is None:

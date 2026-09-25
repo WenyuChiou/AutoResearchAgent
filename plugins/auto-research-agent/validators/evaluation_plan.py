@@ -228,10 +228,52 @@ def _validate_builds(plan, errors):
     inactive = {
         capability_id
         for capability_id in treatment["capability_ids"]
-        if registry[capability_id]["status"] != "active"
+        if registry[capability_id]["status"] not in {"active", "experimental"}
     }
     if inactive:
-        errors.append("treatment capabilities must be active")
+        errors.append(
+            "treatment capabilities must be active or reviewed Stage 1 experimental"
+        )
+    experimental = {
+        capability_id
+        for capability_id in treatment["capability_ids"]
+        if registry[capability_id]["status"] == "experimental"
+    }
+    if experimental:
+        readiness = bindings.get("stage1_readiness")
+        if (
+            plan["stage"] != 1
+            or plan["execution_class"] != "formal"
+            or readiness is None
+        ):
+            errors.append(
+                "experimental treatment requires a formal Stage 1 readiness binding"
+            )
+        else:
+            path = EVAL_ROOT / readiness["path"]
+            if (
+                not path.is_file()
+                or hashlib.sha256(path.read_bytes()).hexdigest() != readiness["sha256"]
+            ):
+                errors.append("Stage 1 readiness manifest byte hash does not match")
+            else:
+                evidence = json.loads(path.read_text(encoding="utf-8"))
+                if (
+                    evidence.get("readiness"),
+                    evidence.get("validator_status"),
+                    evidence.get("resume_status"),
+                ) != ("stage-executable", "passed", "passed"):
+                    errors.append("Stage 1 readiness evidence is not passing")
+                for artifact in evidence.get("artifacts", []):
+                    artifact_path = PLUGIN_ROOT.parents[1] / artifact["path"]
+                    if (
+                        not artifact_path.is_file()
+                        or hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+                        != artifact["sha256"]
+                    ):
+                        errors.append(
+                            f"Stage 1 readiness artifact byte hash does not match: {artifact['role']}"
+                        )
     expected_paths = {
         registry[capability_id]["owner_path"]
         for capability_id in treatment["capability_ids"]

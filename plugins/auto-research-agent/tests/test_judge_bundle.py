@@ -136,6 +136,23 @@ class JudgeBundleTests(unittest.TestCase):
         bundle["usable_for_pairing"] = False
         self.assertEqual(validate_bundle(bundle), [])
 
+        unflagged_adj = deepcopy(adj)
+        unflagged_adj["audit_trigger_ids"] = []
+        unflagged_adj["requires_human_audit"] = False
+        unflagged = deepcopy(bundle)
+        unflagged["artifacts"]["auto_adj"] = self.write_artifact(
+            "adj-unflagged.json", unflagged_adj
+        )
+        unflagged["status"] = "agreed"
+        unflagged["selected_evaluation_id"] = adj["evaluation_id"]
+        unflagged["usable_for_pairing"] = True
+        self.assertTrue(
+            any(
+                "auto-adj requires the judge-disagreement audit trigger" in error
+                for error in validate_bundle(unflagged)
+            )
+        )
+
         bundle["artifacts"]["human_audit"] = {
             "audit_id": "audit-run01-a",
             "actor_id": "human-organizer-a",
