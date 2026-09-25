@@ -77,6 +77,25 @@ Classic 候選必須在 benchmark 截止日前至少出版五年、三個 Classi
 
 歷史 v1 development benchmark 的四個固定 clusters 為：aging／life cycle／retirement／household consumption；population projection 到 synthetic 或 reweighted agents；consumer/economic ABM 與 LLM decisions；calibration、independent validation、distributional alignment 與 limitations。這裡的 `S1_COVER` 分母 4 和上述 v1 計數不變；目前 aging-bidirectional case 依其 [六群 rubric](rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md) 規劃與評估，不可默默替換這個分母。
 
+## Stage 1 v3：通用、無答案表的另一套定義
+
+下表只適用 [v3 experimental 協議](stage1/GOLD_SET_FREE_V3.zh-TW.md)。它不修改上方歷史四群或南韓六群的任何分母；也不把新 `CORE_SELECTION` 解作舊 `CORE_RECALL`。
+
+| ID | 操作型定義 | 對應主要指標 |
+|---|---|---|
+| `S1V3_IDENTITY` | 被引用的作品、版本、作者、年份與識別資訊逐項對照已保存 metadata；衝突與無法查核分開。 | P1 |
+| `S1V3_CLAIM` | 從最終回答獨立擷取中央原子 claim，與同作品／版本的可取得 passage 對照；報支持、部分、矛盾、不可查。 | P1 |
+| `S1V3_LIMITS` | 對每個使用來源標明 metadata／摘要／全文層級、實際定位、日期與未能取得內容。 | P1 |
+| `S1V3_SCOPE` | 原始題目先產生並凍結適用 knowledge needs；依實質來源支持判每項是否處理，不以論文名單命中率計算。 | P2 |
+| `S1V3_CORE` | 每個 topic-core nomination 核對來源貢獻、need、決策作用、漏掉的後果與替代來源；經典地位另判。 | P2 |
+| `S1V3_CLOSEST` | 最接近工作按問題、對象／系統、機制、結果及驗證設定比較，並在適用時窗做有限更新搜尋。 | P2 |
+| `S1V3_BOUNDARIES` | 判已見限制或反例是否影響本題；未找到不虛構，也不等於證明不存在。 | P2 |
+| `S1V3_SEARCH` | 從 B 或 T **實際**原生紀錄／交付物追到 query、工具、時間、結果及來源；不要求特定 ledger 檔名。 | P3 |
+| `S1V3_DECISION` | 實際 include／exclude／反轉、版本、core／claim 決策能否重建理由和來源鏈；僅宣稱做過不算紀錄。 | P3 |
+| `S1V3_STOP` | 依不同搜尋路徑、失敗、已知未解 needs、有限搜尋的邊際新增量和交付狀態判 stop／continue 是否誠實。 | P3 |
+
+v3 每個 criterion 由 Auto-R1／Auto-R2 依來源評 0–2；程式核對 evidence ID、逐字 passage、狀態和分母後，分面向彙整。評估器技術故障不記為受測 agent 的 0 分。正式 B/T 必須共用同一份**在兩方執行前**凍結的題目規格、rubric、來源政策與 evaluator 版本。
+
 ## 4. Stage 2 子指標
 
 Stage 2 的固定評分單位是「整份回答」或「每個 research direction」，依下表標示。得到 2 分表示足以支持下一個研究選擇。

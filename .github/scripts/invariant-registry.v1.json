@@ -49,6 +49,34 @@
       "path_patterns": [".github/scripts/test_check_research_pr_dependencies\\.py"],
       "selector_pattern": "ResearchPullRequestDependencyTests\\.test_external_pin_rejects_sha_drift"
     },
+    "v3-rubric-hash-bound": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage1_general_eval\\.py"],
+      "selector_pattern": "GeneralEvaluationTests\\.test_v3_rubric_hash_bound"
+    },
+    "v3-no-gold-dependency": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage1_general_eval\\.py"],
+      "selector_pattern": "GeneralEvaluationTests\\.test_gold_or_duplicate_search_path_rejected"
+    },
+    "v3-content-process-separated": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage1_general_eval\\.py"],
+      "selector_pattern": "GeneralEvaluationTests\\.test_content_packet_is_identical_when_only_native_trace_changes"
+    },
+    "v3-omission-independent": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage1_general_eval\\.py"],
+      "selector_pattern": "GeneralEvaluationTests\\.test_v3_omission_must_be_independent"
+    },
+    "v3-unknown-distinct": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage1_general_eval\\.py"],
+      "selector_pattern": "GeneralEvaluationTests\\.test_unknown_bounds_and_major_issue_are_separate"
+    },
+    "v3-major-grounded": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage1_general_eval\\.py"],
+      "selector_pattern": "GeneralEvaluationTests\\.test_honest_incompleteness_is_not_a_confirmed_major_error"
+    },
+    "v3-source-bytes-bound": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage1_general_eval\\.py"],
+      "selector_pattern": "GeneralEvaluationTests\\.test_rehash_tamper_rejected"
+    },
     "ruff-quality-enforced": {
       "path_patterns": [".github/scripts/test_stage1_ci_quality\\.py"],
       "selector_pattern": "Stage1CiQualityTests\\.test_ruff_check_rejects_unused_import"

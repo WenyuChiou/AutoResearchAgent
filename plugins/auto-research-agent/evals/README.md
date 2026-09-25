@@ -1,5 +1,12 @@
 # AutoResearchAgent evaluation contract
 
+The new, experimental [Stage 1 general rubric-evidence path](stage1/GOLD_SET_FREE_V3.zh-TW.md)
+scores source-grounded P1/P2/P3 adequacy without paper answer keys or routine
+human source annotation. It is a separate version and has not established an
+A/B improvement. Historical v1, v2 and v2.1 contracts below are unchanged.
+New v3 capability entries live in `capability-metric-map.v3.json`; the v1
+registry remains byte-identical so existing frozen plan hashes still validate.
+
 Stage 1 的單一真人策展選項見 [v2.1 修訂](stage1/SINGLE_HUMAN_CURATION_V2_1.zh-TW.md)。既有兩人 v2.0 答案包仍照原規則驗證；使用 v2.1 必須明示版本，不能用同一人或 AI 假冒第二位真人。
 
 This directory makes harness improvement measurable while keeping evaluation

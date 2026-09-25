@@ -5,6 +5,17 @@ description: Run Stage 1 literature retrieval through a pinned public CLI and an
 
 # Stage 1 literature research
 
+For every topic, first read the public
+[topic-core literature standard](../../references/core-literature-standard.v1.md).
+Keep topic-core, historical classic status and closest-work status separate.
+When nominating a core work, use the source-bound
+[`schemas/core-assessment.v1.schema.json`](../../schemas/core-assessment.v1.schema.json)
+record and validate its work/version,
+quoted contribution, decision role, omission consequence and alternatives with
+`python -m stage1_core ASSESSMENT.json SOURCE_ROOT` with the plugin's `cli/` on
+`PYTHONPATH`. A valid binding is not a
+scientific endorsement; the independent evaluator makes its own verdict.
+
 ## Completion rule for live runs
 
 A compiled query plan and a prose search log are not an executed Stage 1 run.
@@ -29,7 +40,7 @@ For question decomposition, first read the
 question-specific Proposal and compile it with `stage1_coverage`. Freeze its
 as-of date, clusters, query families, synonyms and screening criteria. Treat all
 compiled queries as planned until actual execution receipts exist.
-If the case uses `aging-bidirectional-rubric-v1`, first read its
+Only if the case explicitly uses the legacy `aging-bidirectional-rubric-v1`, read its
 [six-cluster Stage 1 rubric](../../evals/rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md)
 and [criterion catalog](../../evals/rubrics/aging-bidirectional-criteria.v1.jsonl).
 Map every one of its six roles to an explicit

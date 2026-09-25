@@ -46,6 +46,16 @@ paste frozen core-source titles or adjudication keys into production prompts.
 
 ### Evaluation
 
+For the experimental, gold-set-free Stage 1 path, choose rubric
+`stage1-general-v3` and its `P1V3`/`P2V3`/`P3V3` criteria. Map these to
+the matching `S1V3_*` definitions; never map `P2V3.CORE_SELECTION` to the
+historical `S1_CORE_RECALL`. This experimental rubric currently permits only
+`implementation-only`. A later PR must bind the topic spec, v3 rubric hash,
+and v3 evaluation result to a new readiness manifest before it can claim
+`stage-executable`; `improvement-demonstrated` additionally needs a frozen
+paired protocol and reviewed evidence. Routine automatic v3 scoring needs
+no human paper answer list; publication and PR merge remain core-team decisions.
+
 State the baseline, treatment, registered rubric version, exact criterion IDs,
 evaluation mode, hard measures, AI-judge evidence, major-error guardrail and
 cost measures. Include the actual per-PR metric evidence and the live A/B

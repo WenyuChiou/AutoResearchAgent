@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TopicSpecDraft",
+  "type": "object", "additionalProperties": false,
+  "required": ["question", "research_mode", "needs", "roles", "search_policy"],
+  "properties": {
+    "question": {"type": "string", "minLength": 12},
+    "research_mode": {"type": "string", "enum": ["exploratory", "confirmatory", "method-development", "theory", "interpretive"]},
+    "needs": {"type": "array", "minItems": 2, "maxItems": 10, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["need_id", "question", "why_needed", "critical"],
+      "properties": {
+        "need_id": {"type": "string", "pattern": "^need-[a-z0-9-]+$"},
+        "question": {"type": "string", "minLength": 8},
+        "why_needed": {"type": "string", "minLength": 8},
+        "critical": {"type": "boolean"}
+      }
+    }},
+    "roles": {"type": "array", "minItems": 4, "maxItems": 9, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "applicability", "reason"],
+      "properties": {
+        "role": {"type": "string", "enum": ["foundation", "established-result", "method-or-resource", "closest-work", "frontier", "boundary-or-challenge", "bridge", "context-anchor", "synthesis"]},
+        "applicability": {"type": "string", "enum": ["applicable", "not-applicable", "unresolved"]},
+        "reason": {"type": "string", "minLength": 8}
+      }
+    }},
+    "search_policy": {"type": "object", "additionalProperties": false,
+      "required": ["recent_years", "backend", "max_results_per_query", "challenge_queries"],
+      "properties": {
+        "recent_years": {"type": "integer", "minimum": 1, "maximum": 15},
+        "backend": {"type": "string", "const": "openalex"},
+        "max_results_per_query": {"type": "integer", "minimum": 1, "maximum": 10},
+        "challenge_queries": {"type": "array", "minItems": 2, "maxItems": 8,
+          "items": {"type": "object", "additionalProperties": false,
+            "required": ["query_id", "query", "purpose", "need_ids"],
+            "properties": {
+              "query_id": {"type": "string", "pattern": "^query-[a-z0-9-]+$"},
+              "query": {"type": "string", "minLength": 8},
+              "purpose": {"type": "string", "enum": ["foundation", "closest", "frontier", "challenge", "bridge"]},
+              "need_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    }
+  }
+}

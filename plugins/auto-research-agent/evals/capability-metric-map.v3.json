@@ -1,0 +1,116 @@
+{
+  "registry_version": "capability-metric-map-v3",
+  "extends": "capability-metric-map-v1",
+  "capabilities": [
+    {
+      "capability_id": "cli:stage1-core",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": false,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage1_core",
+      "problem": "A topic-core nomination may have only a plausible label without a version-bound source, exact passage, decision impact, and substitute reasoning.",
+      "mechanism": "Validate a production core nomination against actual source bytes and keep topic-core, classic, and closest-work judgments distinct.",
+      "metric_effects": [
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2V3.CORE_SELECTION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "every accepted core nomination binds a source version and exact passage"
+          ],
+          "human_judgment": "Independent rubric-evidence judges decide whether the contribution and decision effect actually justify core status."
+        }
+      ],
+      "guardrails": [
+        "schema validity is not scientific endorsement",
+        "no popularity or publication-age shortcut",
+        "no private answer list"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_core_assessment.py"
+      ],
+      "live_ab_required_at": "stage1-general-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:stage1-eval",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": true,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage1_eval",
+      "problem": "A per-topic gold paper list and manual source annotations block routine cross-topic Stage 1 assessment.",
+      "mechanism": "Freeze topic needs before subject outputs, acquire bounded source evidence, assess exact passages with independent tool-free judges, and aggregate atomic criteria without a paper answer key.",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": [
+            "P1V3.IDENTITY",
+            "P1V3.CLAIM_SUPPORT",
+            "P1V3.EVIDENCE_LIMITS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "subject claims, source levels, exact passages, unknowns, and raw acquisition receipts are separate"
+          ],
+          "human_judgment": "Independent rubric-evidence judges assess source support; automated agreement alone is not expert truth."
+        },
+        {
+          "metric_id": "P2",
+          "rubric_criteria": [
+            "P2V3.SCOPE",
+            "P2V3.CORE_SELECTION",
+            "P2V3.CLOSEST_FRONTIER",
+            "P2V3.BOUNDARIES"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "topic requirements are frozen independently; bounded challenge failures remain visible"
+          ],
+          "human_judgment": "Judges assess role, core and closest-work adequacy without expected titles or recall denominators."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.SEARCH_TRACE",
+            "P3V3.DECISION_TRACE",
+            "P3V3.STOP_JUSTIFICATION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "actual subject traces remain distinct from evaluator searches and backend failures from empty results"
+          ],
+          "human_judgment": "Judges assess whether the subject's actual process can be reconstructed regardless of ledger format."
+        }
+      ],
+      "guardrails": [
+        "no gold or human annotation is required for routine scoring",
+        "packet-only cannot prove coverage",
+        "evaluator errors are not subject zero",
+        "v3 cannot claim improvement before a paired experiment"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_general_eval.py"
+      ],
+      "live_ab_required_at": "stage1-general-formal-milestone",
+      "quality_improvement_claimed": false
+    }
+  ],
+  "capability_extensions": [
+    {
+      "capability_id": "skill:stage1-literature",
+      "metric_effects": [
+        {
+          "metric_id": "P2",
+          "rubric_criteria": ["P2V3.CORE_SELECTION"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": ["the Stage 1 skill invokes a source-version-bound topic-core assessment"],
+          "human_judgment": "Independent v3 judges assess whether the cited work actually changes the research decision."
+        }
+      ]
+    }
+  ]
+}

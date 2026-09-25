@@ -1,16 +1,17 @@
 """Ensure every plugin capability declares measurable evaluation effects."""
 
 import json
-from pathlib import Path
 import re
 import unittest
-
+from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
 REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.v1.json"
+V3_REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.v3.json"
 SCORECARD = PLUGIN_ROOT / "evals/primary-scorecard.v1.json"
 RUBRIC = PLUGIN_ROOT / "evals/rubrics/aging-bidirectional-rubric.v1.json"
+GENERAL_RUBRIC = PLUGIN_ROOT / "evals/rubrics/stage1-general.v3.json"
 CAPABILITY_ID = re.compile(
     r"^(?:skill|mcp-tool|cli|validator|gate):[a-z0-9]+(?:-[a-z0-9]+)*$"
 )
@@ -20,6 +21,19 @@ class CapabilityMetricMapTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        extension = json.loads(V3_REGISTRY.read_text(encoding="utf-8"))
+        if extension["extends"] != cls.registry["registry_version"]:
+            raise AssertionError("v3 capability map must extend the frozen v1 map")
+        cls.registry["capabilities"].extend(extension["capabilities"])
+        by_id = {
+            entry["capability_id"]: entry for entry in cls.registry["capabilities"]
+        }
+        for patch in extension.get("capability_extensions", []):
+            if patch["capability_id"] not in by_id:
+                raise AssertionError("v3 patch names an unknown capability")
+            by_id[patch["capability_id"]]["metric_effects"].extend(
+                patch["metric_effects"]
+            )
         scorecard = json.loads(SCORECARD.read_text(encoding="utf-8"))
         cls.metric_ids = {
             metric["id"] for stage in scorecard["stages"] for metric in stage["metrics"]
@@ -30,6 +44,13 @@ class CapabilityMetricMapTests(unittest.TestCase):
             for metric in rubric["metrics"]
             for criterion_id in metric["criterion_ids"]
         }
+        general = json.loads(GENERAL_RUBRIC.read_text(encoding="utf-8"))
+        cls.rubric_criteria.update(
+            {
+                criterion["id"]: criterion["dimension"]
+                for criterion in general["criteria"]
+            }
+        )
 
     def test_capability_ids_and_owner_paths_are_unique(self):
         entries = self.registry["capabilities"]
