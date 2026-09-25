@@ -1,5 +1,6 @@
 """Synthetic fail-closed execution, capture integrity, and isolation tests."""
 
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -59,6 +60,20 @@ class Result:
 
 
 class Stage1ABExecutionTests(unittest.TestCase):
+    def test_plugin_tree_hash_uses_platform_independent_path_order(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "a.txt").write_bytes(b"lower")
+            (root / "B.txt").write_bytes(b"upper")
+            expected_rows = [
+                name.encode() + b"\0" + hashlib.sha256(contents).digest()
+                for name, contents in (("B.txt", b"upper"), ("a.txt", b"lower"))
+            ]
+            self.assertEqual(
+                runner.tree_sha(root),
+                hashlib.sha256(b"\n".join(expected_rows)).hexdigest(),
+            )
+
     @staticmethod
     def fake_exec(responses):
         def call(command, **_kwargs):

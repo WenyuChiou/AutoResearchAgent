@@ -79,7 +79,11 @@ def tree_sha(root):
     if not root.is_dir():
         raise ExecutionBlocked(f"plugin tree missing: {root}")
     rows = []
-    for p in sorted(root.rglob("*")):
+    # Path ordering follows the host filesystem (case-insensitive on Windows).
+    # Freeze a byte-identical plugin tree to the same digest on every host.
+    for p in sorted(
+        root.rglob("*"), key=lambda path: path.relative_to(root).as_posix()
+    ):
         if p.is_file() and not any(
             x in {"__pycache__", ".pytest_cache", "private"}
             for x in p.relative_to(root).parts
