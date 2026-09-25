@@ -28,6 +28,7 @@ from validators.holdout_manifest import canonical_sha256  # noqa: E402
 from stage1_retrieval.receipt import check_pin  # noqa: E402
 from stage1_retrieval.runtime_identity import verify_identity  # noqa: E402
 from stage1_export.bundle import source_state  # noqa: E402
+from stage1_ledger.journal import LedgerError  # noqa: E402
 from . import sequence  # noqa: E402
 
 PROMPT_SHA256 = "9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd"
@@ -1227,14 +1228,10 @@ def _capture_subject(
 
 
 def _treatment_receipt(snapshot, pin_binding, *, pin_bytes, verify_runtime=True):
-    """Require a current, strictly validated CLI ledger after the Codex turn."""
-    manifests = list(Path(snapshot).rglob("run_manifest.json"))
-    if len(manifests) != 1:
-        raise ExecutionBlocked("treatment needs exactly one Stage 1 ledger")
-    ledger_root = manifests[0].parent
-    ledger, report, _events, checkpoint = source_state(
-        ledger_root, verify_runtime=verify_runtime
-    )
+    """Use the latest valid ledger and retain every earlier attempt."""
+    manifests = sorted(Path(snapshot).rglob("run_manifest.json"))
+    if not manifests:
+        raise ExecutionBlocked("treatment needs exactly one current Stage 1 ledger")
     if sha(pin_bytes) != pin_binding["sha256"]:
         raise ExecutionBlocked("saved runtime pin bytes differ from capture")
     pin = json.loads(pin_bytes)
@@ -1245,6 +1242,63 @@ def _treatment_receipt(snapshot, pin_binding, *, pin_bytes, verify_runtime=True)
         host_pin, _ = _runtime_pin(pin_binding["path"], pin_binding["sha256"])
         if host_pin != pin:
             raise ExecutionBlocked("saved runtime pin differs from host runtime")
+    attempts = []
+    run_ids = set()
+    for manifest_path in manifests:
+        ledger_root = manifest_path.parent
+        manifest = read_json(manifest_path)
+        research_run = (
+            manifest.get("research_run") if isinstance(manifest, dict) else None
+        )
+        if (
+            not isinstance(research_run, dict)
+            or not isinstance(research_run.get("run_id"), str)
+            or not isinstance(research_run.get("created_at"), str)
+        ):
+            raise ExecutionBlocked("invalid Stage 1 ledger manifest research_run")
+        if (
+            manifest.get("mode") != "research-hub-cli"
+            or manifest.get("research_hub_pin") != pin
+        ):
+            raise ExecutionBlocked("Stage 1 ledger used a different CLI runtime pin")
+        run_id = research_run["run_id"]
+        if run_id in run_ids:
+            raise ExecutionBlocked("duplicate Stage 1 ledger run ID")
+        run_ids.add(run_id)
+        try:
+            created_at = datetime.fromisoformat(
+                research_run["created_at"].replace("Z", "+00:00")
+            )
+            if created_at.tzinfo is None:
+                raise ValueError("missing timezone")
+        except ValueError as error:
+            raise ExecutionBlocked("invalid Stage 1 ledger creation time") from error
+        relative = ledger_root.relative_to(snapshot).as_posix()
+        try:
+            state = source_state(ledger_root, verify_runtime=verify_runtime)
+        except LedgerError as error:
+            if str(error) != "current-checkpoint-required":
+                raise
+            state = None
+        attempt = {
+            "workspace_path": relative,
+            "run_id": run_id,
+            "created_at": research_run["created_at"],
+            "manifest_sha256": sha(manifest_path.read_bytes()),
+            "journal_sha256": sha((ledger_root / "stage_events.jsonl").read_bytes()),
+            "status": "current-checkpoint"
+            if state is not None
+            else "no-current-checkpoint",
+        }
+        attempts.append((created_at, attempt, state))
+    attempts.sort(key=lambda item: item[0])
+    if any(left[0] == right[0] for left, right in zip(attempts, attempts[1:])):
+        raise ExecutionBlocked("Stage 1 ledger creation times are ambiguous")
+    _, selected, selected_state = attempts[-1]
+    if selected_state is None:
+        raise ExecutionBlocked("latest Stage 1 ledger has no current checkpoint")
+    ledger_root = Path(snapshot) / selected["workspace_path"]
+    ledger, report, _events, checkpoint = selected_state
     if (
         ledger.manifest.get("mode") != "research-hub-cli"
         or ledger.manifest.get("research_hub_pin") != pin
@@ -1258,6 +1312,7 @@ def _treatment_receipt(snapshot, pin_binding, *, pin_bytes, verify_runtime=True)
         "checkpoint_event_id": checkpoint["event_id"],
         "counts": report["counts"],
         "runtime_pin_sha256": pin_binding["sha256"],
+        "prior_ledgers": [attempt for _, attempt, _ in attempts[:-1]],
     }
 
 

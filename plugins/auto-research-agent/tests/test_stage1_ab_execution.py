@@ -346,6 +346,84 @@ class Stage1ABExecutionTests(unittest.TestCase):
             runner.verify_capture(treatment_output)["status"], "incomplete"
         )
 
+    def test_malformed_treatment_manifest_still_writes_capture_record(self):
+        responses = [
+            Result(event_bytes(search="baseline search")),
+            Result(event_bytes(search="treatment search")),
+        ]
+        fake_exec = self.fake_exec(responses)
+
+        def exec_with_bad_manifest(command, **kwargs):
+            result = fake_exec(command, **kwargs)
+            if not responses:
+                ledger_root = Path(kwargs["cwd"]) / "stage1"
+                ledger_root.mkdir()
+                (ledger_root / "run_manifest.json").write_text(
+                    json.dumps(
+                        {
+                            "mode": "research-hub-cli",
+                            "research_hub_pin": {
+                                "revision": runner.RESEARCH_HUB_SHA,
+                                "status": "merged",
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            return result
+
+        with (
+            patch.object(
+                runner,
+                "probe_profile",
+                return_value={"codex_version": "codex-cli 0.153.0"},
+            ),
+            patch.object(
+                runner,
+                "_runtime_pin",
+                return_value=(
+                    runner.read_json(self.pin),
+                    runner.sha(self.pin.read_bytes()),
+                ),
+            ),
+            patch.object(runner, "check_pin"),
+            patch.object(runner, "_assert_host_isolation"),
+            patch.object(runner.subprocess, "run", side_effect=exec_with_bad_manifest),
+        ):
+            runner.capture(
+                "codex",
+                self.lock,
+                "baseline",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                self.output,
+                self.root / "private",
+                self.preflight,
+            )
+            treatment_output = self.root / "bad-manifest-run"
+            treatment = runner.capture(
+                "codex",
+                self.lock,
+                "treatment",
+                1,
+                self.profile,
+                self.workspace,
+                self.prompt,
+                treatment_output,
+                self.root / "private",
+                self.preflight,
+            )
+        self.assertEqual(treatment["status"], "incomplete")
+        self.assertIn(
+            "invalid Stage 1 ledger manifest", treatment["stage1_receipt_error"]
+        )
+        self.assertEqual(
+            runner.verify_capture(treatment_output)["status"], "incomplete"
+        )
+        self.assertTrue((treatment_output / "run.json").is_file())
+
     def test_runtime_pin_hash_and_host_code_are_checked(self):
         config = self.root / "runtime-config.json"
         data = self.workspace / ".research-hub-runtime" / "data"
@@ -386,8 +464,21 @@ class Stage1ABExecutionTests(unittest.TestCase):
         snapshot = self.root / "snapshot"
         ledger_root = snapshot / "stage1" / "run"
         ledger_root.mkdir(parents=True)
-        (ledger_root / "run_manifest.json").write_text("{}", encoding="utf-8")
         pin = {"revision": runner.RESEARCH_HUB_SHA, "status": "merged"}
+        (ledger_root / "run_manifest.json").write_text(
+            json.dumps(
+                {
+                    "mode": "research-hub-cli",
+                    "research_hub_pin": pin,
+                    "research_run": {
+                        "run_id": "synthetic-run",
+                        "created_at": "2026-09-25T00:00:00Z",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        (ledger_root / "stage_events.jsonl").write_bytes(b"")
         binding = {"path": str(self.pin), "sha256": runner.sha(self.pin.read_bytes())}
         ledger = type(
             "Ledger",
@@ -411,6 +502,7 @@ class Stage1ABExecutionTests(unittest.TestCase):
             )
             self.assertEqual(receipt["workspace_path"], "stage1/run")
             self.assertEqual(receipt["checkpoint_event_id"], "e000012")
+            self.assertEqual(receipt["prior_ledgers"], [])
             report["counts"]["backend_attempts"] = 0
             with self.assertRaisesRegex(
                 runner.ExecutionBlocked, "no completed backend"
@@ -423,6 +515,154 @@ class Stage1ABExecutionTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 runner.ExecutionBlocked, "different CLI runtime"
             ):
+                runner._treatment_receipt(
+                    snapshot, binding, pin_bytes=self.pin.read_bytes()
+                )
+
+    def test_treatment_receipt_preserves_failed_plan_ledgers_without_selective_scoring(
+        self,
+    ):
+        snapshot = self.root / "snapshot"
+        pin = {"revision": runner.RESEARCH_HUB_SHA, "status": "merged"}
+        roots = [snapshot / name for name in ("first", "amended", "current")]
+        for index, (name, root) in enumerate(
+            zip(("first", "amended", "current"), roots)
+        ):
+            root.mkdir(parents=True)
+            (root / "run_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "mode": "research-hub-cli",
+                        "research_hub_pin": pin,
+                        "research_run": {
+                            "run_id": name,
+                            "created_at": f"2026-09-25T00:00:0{index}Z",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "stage_events.jsonl").write_bytes(b"")
+        binding = {"path": str(self.pin), "sha256": runner.sha(self.pin.read_bytes())}
+        ledger = type(
+            "Ledger",
+            (),
+            {"manifest": {"mode": "research-hub-cli", "research_hub_pin": pin}},
+        )()
+        state = (
+            ledger,
+            {
+                "state_sha256": "a" * 64,
+                "counts": {"queries": 1, "backend_attempts": 1},
+            },
+            [],
+            {"event_id": "e000042"},
+        )
+
+        def saved_state(root, *, verify_runtime):
+            if Path(root).name == "current":
+                return state
+            raise runner.LedgerError("current-checkpoint-required")
+
+        with (
+            patch.object(runner, "source_state", side_effect=saved_state) as source,
+            patch.object(runner, "check_pin"),
+            patch.object(runner, "_runtime_pin", return_value=(pin, binding["sha256"])),
+        ):
+            receipt = runner._treatment_receipt(
+                snapshot, binding, pin_bytes=self.pin.read_bytes()
+            )
+            self.assertEqual(receipt["workspace_path"], "current")
+            self.assertEqual(
+                [x["workspace_path"] for x in receipt["prior_ledgers"]],
+                ["first", "amended"],
+            )
+            self.assertTrue(all(x["journal_sha256"] for x in receipt["prior_ledgers"]))
+            source.side_effect = lambda *_args, **_kwargs: state
+            receipt = runner._treatment_receipt(
+                snapshot, binding, pin_bytes=self.pin.read_bytes()
+            )
+            self.assertEqual(receipt["workspace_path"], "current")
+            self.assertEqual(
+                [x["status"] for x in receipt["prior_ledgers"]],
+                ["current-checkpoint", "current-checkpoint"],
+            )
+
+            def latest_unfinished(root, *, verify_runtime):
+                if Path(root).name == "current":
+                    raise runner.LedgerError("current-checkpoint-required")
+                return state
+
+            source.side_effect = latest_unfinished
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "latest Stage 1 ledger"
+            ):
+                runner._treatment_receipt(
+                    snapshot, binding, pin_bytes=self.pin.read_bytes()
+                )
+
+            def tampered_state(root, *, verify_runtime):
+                if Path(root).name == "first":
+                    raise runner.LedgerError("invalid-export-source: tampered")
+                return saved_state(root, verify_runtime=verify_runtime)
+
+            source.side_effect = tampered_state
+            with self.assertRaisesRegex(runner.LedgerError, "invalid-export-source"):
+                runner._treatment_receipt(
+                    snapshot, binding, pin_bytes=self.pin.read_bytes()
+                )
+            source.side_effect = saved_state
+            (roots[0] / "run_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "mode": "research-hub-cli",
+                        "research_hub_pin": {"revision": "wrong"},
+                        "research_run": {
+                            "run_id": "first",
+                            "created_at": "2026-09-25T00:00:00Z",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                runner.ExecutionBlocked, "different CLI runtime pin"
+            ):
+                runner._treatment_receipt(
+                    snapshot, binding, pin_bytes=self.pin.read_bytes()
+                )
+            (roots[0] / "run_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "mode": "research-hub-cli",
+                        "research_hub_pin": pin,
+                        "research_run": {
+                            "run_id": "amended",
+                            "created_at": "2026-09-25T00:00:00Z",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(runner.ExecutionBlocked, "duplicate"):
+                runner._treatment_receipt(
+                    snapshot, binding, pin_bytes=self.pin.read_bytes()
+                )
+
+            (roots[0] / "run_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "mode": "research-hub-cli",
+                        "research_hub_pin": pin,
+                        "research_run": {
+                            "run_id": "first",
+                            "created_at": "2026-09-25T00:00:02Z",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(runner.ExecutionBlocked, "ambiguous"):
                 runner._treatment_receipt(
                     snapshot, binding, pin_bytes=self.pin.read_bytes()
                 )
@@ -503,7 +743,20 @@ class Stage1ABExecutionTests(unittest.TestCase):
             if "formal-t-workspaces" in str(workspace):
                 ledger_dir = workspace / "stage1"
                 ledger_dir.mkdir()
-                (ledger_dir / "run_manifest.json").write_text("{}", encoding="utf-8")
+                (ledger_dir / "run_manifest.json").write_text(
+                    json.dumps(
+                        {
+                            "mode": "research-hub-cli",
+                            "research_hub_pin": pin,
+                            "research_run": {
+                                "run_id": "synthetic-run",
+                                "created_at": "2026-09-25T00:00:00Z",
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                (ledger_dir / "stage_events.jsonl").write_bytes(b"")
             return Result(event_bytes(search="synthetic public search"))
 
         self.preflight = self.root / "formal-preflight.json"
