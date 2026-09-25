@@ -195,9 +195,9 @@ def judgment(phase, *, score=1, status="scored", passage=None):
 
 
 class GeneralEvaluationTests(unittest.TestCase):
-    def test_formal_v3_fails_closed_until_pre_subject_attestation_exists(self):
+    def test_formal_v3_fails_closed_without_pre_subject_attestation(self):
         with self.assertRaisesRegex(
-            EvaluationError, "formal v3 evaluation is disabled"
+            EvaluationError, "formal v3 requires pre-subject lock"
         ):
             evaluate(SimpleNamespace(output="unused", execution_class="formal"))
 
@@ -334,10 +334,16 @@ class GeneralEvaluationTests(unittest.TestCase):
     def test_v3_no_legacy_holdout_import(self):
         root = CLI / "stage1_eval"
         source = "\n".join(
-            path.read_text(encoding="utf-8") for path in root.glob("*.py")
+            path.read_text(encoding="utf-8")
+            for path in root.glob("*.py")
+            if path.name != "formal.py"
         )
         self.assertNotIn("stage1_ab", source)
         self.assertNotIn("from validators.holdout_manifest", source)
+        self.assertNotIn(
+            "from validators.holdout_manifest",
+            (root / "formal.py").read_text(encoding="utf-8"),
+        )
 
     def test_tool_free_judge_rejects_tool_event(self):
         raw = b'{"type":"item.completed","item":{"type":"command_execution"}}\n{"type":"turn.completed"}\n'

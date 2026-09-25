@@ -19,7 +19,10 @@ exists.
 ## Capability-to-metric registration
 
 Every production skill, MCP tool, CLI, validator or gate must have one entry in
-`evals/capability-metric-map.v1.json`. The entry records:
+the applicable versioned capability map. Historical capabilities live in
+`evals/capability-metric-map.v1.json`; v3-only Stage 1 capabilities live in
+`evals/capability-metric-map.v3.json`. Keep v1 bytes fixed so old evaluation
+plans retain their hash. The entry records:
 
 - owner path and capability status;
 - target primary metrics and expected direction;

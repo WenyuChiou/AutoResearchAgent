@@ -22,6 +22,8 @@ def _prompt(task, as_of, rubric_id):
         "Derive only information needs and applicable literature roles from it, BEFORE seeing either subject answer. "
         "Keep unknown method/population unspecified; do not invent a country, dataset, result, paper title, DOI, "
         "author or expected answer. Include distinct foundation and closest challenge queries, with a bounded recent window. "
+        "Keep the draft within the local contract: at most 10 needs, 9 roles, and 8 challenge queries; "
+        "combine overlapping needs rather than dropping a decision-critical strand. "
         "Use need-... IDs and query-... IDs. A query is a search path, never a gold/silver answer list. "
         "Return exactly the JSON schema.\n"
         f"As-of: {as_of}\nRubric: {rubric_id}\n<untrusted_task>\n{task}\n</untrusted_task>"

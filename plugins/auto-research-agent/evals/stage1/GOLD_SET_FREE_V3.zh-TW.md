@@ -78,7 +78,7 @@ P1 身分／中央敘述／證據界線、P2 題目需求／最近似工作、P3
 
 `python -m stage1_eval --help` 列出 `prepare-spec`、`collect-background` 與 `evaluate`；詳見各子命令 `--help`。安裝測試依賴後需指定實際可用的 Codex CLI、登入的 evaluator CODEX_HOME，以及 research-hub 命令。Windows 上若安裝的 `research-hub.exe` 是失效啟動器，可用 `--hub-command-json '["@python","-m","research_hub"]'` 並在**同一隔離 Python 環境**安裝固定 commit 的 research-hub；`@python` 會換成目前 Python 路徑。每次 backend failure 的原始 stderr 都要保留。
 
-正式配對前，規格、執行位元組與版本必須在 subject 開始前凍結，並與原生 capture 綁定。現有 v3 CLI 的 `formal` 模式**明確拒絕執行**，直到前述 pre-subject lock 和 native capture 驗證完成；不能用評估時才輸入的 hash 或開始時間代替。因本地 schema 修正而重用已完成模型輸出的 `finalize-saved-spec` 和 `--resume-pilot` 僅供**探索預演**；缺原始 prompt 位元組時明示 `prompt_sha256=null`，不得拿來冒充正式配對紀錄。
+正式配對前，規格、執行位元組與版本必須在 subject 開始前凍結，並與原生 capture 綁定。`stage1_ab freeze-v3` 先建立不含論文答案的公開鎖；`host-preflight` 核對六個隔離 profile、原生工具、plugin 和依賴版本；`capture` 依固定順序保存六次原生執行；`stage1_eval evaluate --execution-class formal --lock ... --capture ...` 只接受鎖定的回答與 transcript；最後 `stage1_ab paired-v3 LOCK BACKGROUND OUTPUT --results ... --capture-dirs ...` 以凍結的背景來源、原始搜尋收據、subject 記錄及模型 JSONL 重建六份 evidence packet 與逐項分數。改寫評分 JSON、擷取結果或 packet，即使同步改其內部 hash，也不能代替原始模型回覆或來源；任一環節缺資料或 hash 不符便拒絕。這條執行路徑仍需完成 live 預演與 PR 審查；程式可執行不等於已得到 A/B 結果。因本地 schema 修正而重用已完成模型輸出的 `finalize-saved-spec` 和 `--resume-pilot` 僅供**探索預演**；缺原始 prompt 位元組時明示 `prompt_sha256=null`，不得拿來冒充正式配對紀錄。
 
 來源查核目前主要依 research-hub 可取得的 metadata 和摘要；全文、同年出版日期及付費來源可能仍不可核實。未知須維持未知。Judge agreement 是一致性，不證明專家正確；可靠的改善聲明仍需 frozen topic、配置、同一 evaluator 版本、配對 A/B 與另外的審查。
 

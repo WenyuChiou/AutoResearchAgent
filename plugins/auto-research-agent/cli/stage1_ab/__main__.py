@@ -9,9 +9,9 @@ import sys
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from stage1_ab import facts, judging, packet, runner
+    from stage1_ab import facts, general, judging, packet, runner
 else:
-    from . import facts, judging, packet, runner
+    from . import facts, general, judging, packet, runner
 
 from validators.judge_bundle import validate_bundle
 from validators.paired_evaluation import evaluate_request
@@ -26,6 +26,20 @@ def parser_for_commands():
     for name in ("plan", "prompt", "dependency_repo", "output"):
         p.add_argument(name, type=Path)
     p.add_argument("--treatment-runtime-pin", type=Path, action="append", required=True)
+    p = subs.add_parser("freeze-v3")
+    for name in (
+        "codex",
+        "task",
+        "spec",
+        "background",
+        "prompt",
+        "runtime_probe",
+        "dependency_repo",
+        "output",
+    ):
+        p.add_argument(name, type=Path)
+    p.add_argument("--treatment-runtime-pin", type=Path, action="append", required=True)
+    p.add_argument("--repeats", type=int, choices=(1, 3), default=3)
     p = subs.add_parser("probe")
     for name in ("codex", "profile", "workspace", "private_root"):
         p.add_argument(name, type=Path)
@@ -69,6 +83,12 @@ def parser_for_commands():
     p = subs.add_parser("verify")
     p.add_argument("output", type=Path)
     p.add_argument("--portable", action="store_true")
+    p = subs.add_parser("paired-v3")
+    p.add_argument("lock", type=Path)
+    p.add_argument("background", type=Path)
+    p.add_argument("output", type=Path)
+    p.add_argument("--results", nargs=6, type=Path, required=True)
+    p.add_argument("--capture-dirs", nargs=6, type=Path, required=True)
     p = subs.add_parser("export-ledger")
     p.add_argument("run", type=Path)
     p.add_argument("output", type=Path)
@@ -237,6 +257,19 @@ def main(argv=None):
                 args.output,
                 treatment_runtime_pin=args.treatment_runtime_pin,
             )
+        elif args.command == "freeze-v3":
+            value = general.freeze_v3(
+                args.codex,
+                args.task,
+                args.spec,
+                args.background,
+                args.prompt,
+                args.runtime_probe,
+                args.dependency_repo,
+                args.treatment_runtime_pin,
+                args.output,
+                repeats=args.repeats,
+            )
         elif args.command == "probe":
             value = runner.probe_profile(
                 args.codex,
@@ -274,6 +307,10 @@ def main(argv=None):
             )
         elif args.command == "verify":
             value = runner.verify_capture(args.output, verify_runtime=not args.portable)
+        elif args.command == "paired-v3":
+            value = general.paired_v3(
+                args.lock, args.background, args.results, args.capture_dirs, args.output
+            )
         elif args.command == "export-ledger":
             value = export_run(
                 args.run, args.output, native_capture=args.native_capture
