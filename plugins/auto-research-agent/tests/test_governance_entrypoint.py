@@ -47,6 +47,7 @@ class GovernanceEntrypointTests(unittest.TestCase):
             "evals/rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md",
             "evals/PR_GUIDE.md",
             "evals/capability-metric-map.v1.json",
+            "evals/capability-metric-map.v3.json",
             "evals/READINESS_AND_TEAM_WORKFLOW.zh-TW.md",
             "skills/stage1-literature/SKILL.md",
             "README.md",
@@ -77,7 +78,7 @@ class GovernanceEntrypointTests(unittest.TestCase):
 
     def test_readiness_keeps_evaluation_and_improvement_claims_separate(self):
         text = READINESS.read_text(encoding="utf-8")
-        positions = [text.index(f"Level {level} ") for level in range(4)]
+        positions = [text.index(f"| Level {level} ") for level in range(4)]
         self.assertEqual(positions, sorted(positions))
         for required in (
             "Instruction-ready",

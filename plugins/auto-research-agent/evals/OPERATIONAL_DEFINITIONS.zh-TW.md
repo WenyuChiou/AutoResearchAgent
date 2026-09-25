@@ -2,10 +2,12 @@
 
 這份文件定義「實際要數什麼、誰來判斷、分母是什麼」。白話概念請先看 [P1–P9 指標白話說明](METRICS_EXPLAINED.zh-TW.md)。
 
-以下 Stage 1 四群與 10／2 文獻分母只屬於歷史 v1。南韓雙向耦合正式 A/B 使用
-[六群 v2 操作型定義](stage1/OPERATIONAL_DEFINITIONS_V2.zh-TW.md)。v2.0 使用兩人一致納入；
-[v2.1 單人策展修訂](stage1/SINGLE_HUMAN_CURATION_V2_1.zh-TW.md)由 Eric 獨立核准。
-不能混用兩個版本的分母或舊 run01 分數。
+以下 Stage 1 四群與 10／2 文獻分母只屬於歷史 v1。南韓雙向耦合的**舊 v2
+設計**使用[六群 v2 操作型定義](stage1/OPERATIONAL_DEFINITIONS_V2.zh-TW.md)：v2.0
+要求兩人一致納入，[v2.1](stage1/SINGLE_HUMAN_CURATION_V2_1.zh-TW.md)允許 Eric
+單獨策展。現在要做的通用 Stage 1 v3 A/B 使用
+[無論文答案表的獨立定義](stage1/GOLD_SET_FREE_V3.zh-TW.md)，不沿用四群、六群或
+10／2 篇召回率。不能混用版本的分母或舊 run01 分數。
 
 ## 1. 核心文獻從哪裡來
 
@@ -90,11 +92,11 @@ Classic 候選必須在 benchmark 截止日前至少出版五年、三個 Classi
 | `S1V3_CORE` | 每個 topic-core nomination 核對來源貢獻、need、決策作用、漏掉的後果與替代來源；經典地位另判。 | P2 |
 | `S1V3_CLOSEST` | 最接近工作按問題、對象／系統、機制、結果及驗證設定比較，並在適用時窗做有限更新搜尋。 | P2 |
 | `S1V3_BOUNDARIES` | 判已見限制或反例是否影響本題；未找到不虛構，也不等於證明不存在。 | P2 |
-| `S1V3_SEARCH` | 從 B 或 T **實際**原生紀錄／交付物追到 query、工具、時間、結果及來源；不要求特定 ledger 檔名。 | P3 |
+| `S1V3_SEARCH` | 從 A 或 B **實際**原生紀錄／交付物追到 query、工具、時間、結果及來源；不要求特定 ledger 檔名。 | P3 |
 | `S1V3_DECISION` | 實際 include／exclude／反轉、版本、core／claim 決策能否重建理由和來源鏈；僅宣稱做過不算紀錄。 | P3 |
 | `S1V3_STOP` | 依不同搜尋路徑、失敗、已知未解 needs、有限搜尋的邊際新增量和交付狀態判 stop／continue 是否誠實。 | P3 |
 
-v3 每個 criterion 由 Auto-R1／Auto-R2 依來源評 0–2；程式核對 evidence ID、逐字 passage、狀態和分母後，分面向彙整。評估器技術故障不記為受測 agent 的 0 分。正式 B/T 必須共用同一份**在兩方執行前**凍結的題目規格、rubric、來源政策與 evaluator 版本。
+v3 每個 criterion 由 Auto-R1／Auto-R2 依來源評 0–2；程式核對 evidence ID、逐字 passage、狀態和分母後，分面向彙整。評估器技術故障不記為受測 agent 的 0 分。正式 A/B 必須共用同一份**在兩方執行前**凍結的題目規格、rubric、來源政策與 evaluator 版本。各項 0／1／2 anchors、未知處理與三對比較規則見上述 v3 中文說明。
 
 ## 4. Stage 2 子指標
 

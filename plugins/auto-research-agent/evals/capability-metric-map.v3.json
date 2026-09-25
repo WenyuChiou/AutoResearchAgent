@@ -101,6 +101,32 @@
   ],
   "capability_extensions": [
     {
+      "capability_id": "cli:stage1-ab",
+      "metric_effects": [
+        {
+          "metric_id": "P1",
+          "rubric_criteria": ["P1V3.IDENTITY", "P1V3.CLAIM_SUPPORT", "P1V3.EVIDENCE_LIMITS"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": ["six native A/B captures, source-bound v3 results, and atomic scores are verified before P1 non-regression is decided"],
+          "human_judgment": "The core team reviews a scientific improvement claim after the blinded rubric-evidence judgments."
+        },
+        {
+          "metric_id": "P2",
+          "rubric_criteria": ["P2V3.SCOPE", "P2V3.CORE_SELECTION", "P2V3.CLOSEST_FRONTIER", "P2V3.BOUNDARIES"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": ["three paired P2 deltas are recomputed from the ten frozen atomic criteria without a paper answer list"],
+          "human_judgment": "The core team reviews whether bounded source evidence supports any external coverage claim."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": ["P3V3.SEARCH_TRACE", "P3V3.DECISION_TRACE", "P3V3.STOP_JUSTIFICATION"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": ["clean profiles and immutable capture bytes distinguish actual subject process evidence from evaluator-generated evidence"],
+          "human_judgment": "The core team reviews reconstruction and added major-error gates before publication."
+        }
+      ]
+    },
+    {
       "capability_id": "skill:stage1-literature",
       "metric_effects": [
         {

@@ -5,6 +5,11 @@
 [operational definitions](OPERATIONAL_DEFINITIONS.zh-TW.md) 與 frozen rubric 為準；
 本文件不建立另一套分數。
 
+以下既有 Level 2／Level 3 證據欄位屬歷史 v1／v2 readiness contract。
+[通用 Stage 1 v3](stage1/GOLD_SET_FREE_V3.zh-TW.md) 已有無論文答案表的判分器，
+但目前 PR validator 只接受 v3 `implementation-only`；新的 formal native-capture 與
+readiness manifest 驗證完成前，不能沿用 PR #20 或舊 private holdout 宣稱 v3 Level 2／3。
+
 ## 四層 readiness
 
 以下 Level 0–3 只表示系統準備程度，不是 judge 名稱。Judge 一律寫成
@@ -15,7 +20,7 @@
 | Level 0 Instruction-ready | AI 是否先看到正確規範？ | root router、plugin `AGENTS.md`、連結檢查、fresh-session transcript | 已可用；[Codex 0.153.3 smoke](evidence/instruction-routing-smoke-2026-09-20.md) 通過 |
 | Level 1 Evaluation-ready | 評估機器是否能拒絕不完整或不公平的資料？ | schemas、validators、synthetic fixtures、negative tests、三平台 CI | 已可用 |
 | Level 2 Stage-executable | 該 Stage 的 production harness 是否真的能從輸入產生完整 artifacts？ | capability tests、一次 live smoke run、可重建 ledger、stage milestone PR | Stage 1 已由 PR #20 的南韓 live smoke 與跨主機重播證明可執行；coverage gate 仍為 `continue`，不是科學品質改善 |
-| Level 3 Improvement-demonstrated | Treatment 是否比 stock Codex 好？ | frozen private holdout、三組 paired A/B、Auto-R1／Auto-R2／Auto-ADJ、必要 human audit | 尚未執行 |
+| Level 3 Improvement-demonstrated | Treatment 是否比 stock Codex 好？ | 舊 v1／v2：frozen private holdout；v3：pre-subject no-gold lock；兩者都需三組 paired A/B、Auto-R1／Auto-R2／必要 Auto-ADJ 和 audit | 尚未執行 |
 
 Level 2 與 Level 3 不能靠 PR 文字自我宣告。必要欄位必須指向同一份
 `ReadinessEvidenceManifest`，並提供 manifest SHA-256。CI 會打開 manifest 與每個列出的
@@ -67,8 +72,9 @@ sweep、closest-work expansion、stop decision、failures 與成本。另一個�
 
 ### 4. Frozen paired A/B
 
-Core team 先凍結 case、rubric、private holdout、prompt、runtime、builds、judge configs 與
-decision rule。依 B→T、T→B、B→T 跑三組。程式先檢查硬事實；Auto-R1 與 Auto-R2
+Core team 先凍結 case、rubric、prompt、runtime、builds、judge configs 與
+decision rule。舊 v1／v2 另凍結 private holdout；v3 凍結題目需求與有界獨立搜尋，
+不需要人類預列論文。依 A→B、B→A、A→B 跑三組（舊程式欄位 baseline／treatment）。程式先檢查硬事實；Auto-R1 與 Auto-R2
 盲評；有分歧才交 Auto-ADJ；有 trigger 再交 targeted human audit。每個 P1-P9 分開判斷：
 target 至少兩組改善且零退步，non-target 零退步，treatment 不得新增 major error。
 
@@ -80,7 +86,7 @@ target 至少兩組改善且零退步，non-target 零退步，treatment 不得�
 | Capability 實作與 deterministic tests | 負責 | 設定範圍與驗收條件 |
 | Synthetic evidence、PR 說明、CI 修正 | 負責 | 檢查證據是否支持聲明 |
 | 外部 repository PR | 開 Draft PR 並立即回報連結 | Review；核准前不合併 |
-| Rubric、private holdout、正式 plan freeze | 不得自行改答案或門檻 | 核對版本與人類簽核：v2.0 由兩位真人核准；南韓案例 v2.1 由 Eric 一人核准並揭露單人策展限制 |
+| Rubric、正式 plan freeze，以及舊版才有的 private holdout | 不得自行改答案或門檻 | 核對版本；舊 v2.0 由兩位真人核准，v2.1 由 Eric 一人核准；v3 由 Eric 凍結 rubric，不需逐篇策展 |
 | Auto-R1／Auto-R2／Auto-ADJ | 依 frozen config 自動執行 | 檢查 provenance 與例外 |
 | Targeted human audit | 準備完整 evidence bundle | 具名人類執行並簽署 |
 | AutoResearchAgent PR | 開 PR、回覆意見、修正 | Review 並 merge 到 fork |

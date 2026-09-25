@@ -34,6 +34,7 @@ from . import sequence  # noqa: E402
 PROMPT_SHA256 = "9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd"
 RESEARCH_HUB_SHA = "9877f929587e7e44bc2533db118cbb89336bf94f"
 FORMAL_CASE = "aging-sk-bidirectional-development-v2"
+PUBLIC_LOCK_KINDS = {"Stage1ABPublicLock", "Stage1ABPublicLockV3"}
 SUBJECT_EXECUTION_POLICY = {"sandbox": "workspace-write", "network_access": True}
 SUBJECT_SANDBOX_ARGS = [
     "--sandbox",
@@ -107,6 +108,22 @@ def tree_sha(root):
                 + hashlib.sha256(p.read_bytes()).digest()
             )
     return sha(b"\n".join(rows))
+
+
+def codex_runtime_sha(codex):
+    """Bind the launcher and its installed npm package, or a standalone binary."""
+    launcher = Path(codex).resolve()
+    if not launcher.is_file():
+        raise ExecutionBlocked("Codex launcher is missing")
+    if launcher.suffix.lower() == ".ps1":
+        raise ExecutionBlocked("use a directly executable Codex launcher, not .ps1")
+    package = launcher.parent / "node_modules" / "@openai" / "codex"
+    parts = [launcher.read_bytes()]
+    if launcher.suffix.lower() in {".cmd", ".bat"} and not package.is_dir():
+        raise ExecutionBlocked("Codex script launcher lacks installed runtime package")
+    if package.is_dir():
+        parts.append(tree_sha(package).encode("ascii"))
+    return sha(b"\0".join(parts))
 
 
 def _runtime_pin(path, expected_sha=None, *, verify_host=False, workspace=None):
@@ -692,8 +709,12 @@ def host_preflight(
     treatment_runtime_pin=None,
 ):
     lock = read_json(lock_path)
-    if lock.get("kind") != "Stage1ABPublicLock":
+    if lock.get("kind") not in PUBLIC_LOCK_KINDS:
         raise ExecutionBlocked("host preflight needs a frozen public lock")
+    if lock["kind"] == "Stage1ABPublicLockV3" and codex_runtime_sha(codex) != lock.get(
+        "codex_runtime_sha256"
+    ):
+        raise ExecutionBlocked("v3 Codex runtime bytes differ from frozen lock")
     if lock.get("execution_policy") != SUBJECT_EXECUTION_POLICY:
         raise ExecutionBlocked(
             "subject sandbox/network policy differs from reviewed policy"
@@ -976,8 +997,12 @@ def _capture_subject(
 ):
     """One attempt only. Recovery appends to the same run and never repeats a completed turn."""
     lock = read_json(lock_path)
-    if lock.get("kind") != "Stage1ABPublicLock":
+    if lock.get("kind") not in PUBLIC_LOCK_KINDS:
         raise ExecutionBlocked("missing public lock")
+    if lock["kind"] == "Stage1ABPublicLockV3" and codex_runtime_sha(codex) != lock.get(
+        "codex_runtime_sha256"
+    ):
+        raise ExecutionBlocked("v3 Codex runtime bytes changed before capture")
     preflight = read_json(host_preflight_path)
     if (
         preflight.get("kind") != "Stage1ABHostPreflight"
@@ -1004,6 +1029,10 @@ def _capture_subject(
         raise ExecutionBlocked("host preflight runtime pin differs from frozen lock")
     if lock["prompt_sha256"] != sha(Path(prompt_path).read_bytes()):
         raise ExecutionBlocked("subject prompt changed")
+    if lock["kind"] == "Stage1ABPublicLockV3" and datetime.fromisoformat(
+        lock["created_at"]
+    ) > datetime.now(timezone.utc):
+        raise ExecutionBlocked("v3 lock was created after subject capture began")
     row = lock["paired_repeats"][repeat - 1]
     if row["repeat"] != repeat or condition not in row["order"]:
         raise ExecutionBlocked("run order differs from frozen plan")
@@ -1057,6 +1086,10 @@ def _capture_subject(
             "status": "incomplete",
             "attempts": [],
         }
+        if lock["kind"] == "Stage1ABPublicLockV3":
+            record["lock_kind"] = lock["kind"]
+            record["lock_sha256"] = sha(Path(lock_path).read_bytes())
+            record["preflight_sha256"] = sha(Path(host_preflight_path).read_bytes())
         thread_id = None
     _assert_host_isolation(profile, workspace, private_root, prohibited_ids, resume)
     probe = probe_profile(
@@ -1161,6 +1194,14 @@ def _capture_subject(
         path = output / name
         path.write_bytes(data)
         files[name] = sha(data)
+    if lock["kind"] == "Stage1ABPublicLockV3":
+        for name, path in (
+            (prefix + ".lock.json", lock_path),
+            (prefix + ".preflight.json", host_preflight_path),
+        ):
+            data = Path(path).read_bytes()
+            (output / name).write_bytes(data)
+            files[name] = sha(data)
     if final_path.is_file():
         files[final_path.name] = sha(final_path.read_bytes())
     if condition == "treatment":
@@ -1198,6 +1239,10 @@ def _capture_subject(
         if earlier.intersection(_completed_searches(result.stdout)):
             record["status"] = "incomplete"
     for p in Path(workspace).rglob("*"):
+        if p.is_symlink():
+            record["status"] = "incomplete"
+            record["workspace_snapshot_error"] = "subject workspace contains a symlink"
+            continue
         if p.is_file():
             rel = p.relative_to(workspace).as_posix()
             snapshot = output / "workspace" / f"{attempt_no:02d}" / rel
@@ -1219,7 +1264,8 @@ def _capture_subject(
                 pin_bytes=(output / pin_name).read_bytes(),
             )
         except (ExecutionBlocked, OSError, ValueError) as error:
-            record["status"] = "incomplete"
+            if lock["kind"] == "Stage1ABPublicLock":
+                record["status"] = "incomplete"
             record["stage1_receipt_error"] = str(error)
     record_path.write_text(
         json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -1370,10 +1416,56 @@ def verify_capture(output, *, verify_runtime=True):
         ).read_bytes()
         if _event_summary(raw) != attempt["summary"]:
             raise ExecutionBlocked("captured events differ from recorded summary")
+    if record.get("lock_kind") == "Stage1ABPublicLockV3":
+        last = len(record["attempts"])
+        lock_name = f"attempt-{last:02d}.lock.json"
+        preflight_name = f"attempt-{last:02d}.preflight.json"
+        if any(
+            name not in record["attempts"][-1]["files"]
+            for name in (lock_name, preflight_name)
+        ):
+            raise ExecutionBlocked("v3 capture lacks frozen lock or preflight bytes")
+        lock_raw = (output / lock_name).read_bytes()
+        preflight_raw = (output / preflight_name).read_bytes()
+        lock = json.loads(lock_raw)
+        preflight = json.loads(preflight_raw)
+        if (
+            sha(lock_raw) != record.get("lock_sha256")
+            or sha(preflight_raw) != record.get("preflight_sha256")
+            or lock.get("kind") != "Stage1ABPublicLockV3"
+            or preflight.get("lock_sha256") != record["lock_sha256"]
+            or preflight.get("valid") is not True
+            or preflight.get("plugin_tree_sha256") != lock.get("plugin_tree_sha256")
+            or record.get("run_id")
+            not in {item["run_id"] for item in sequence.expected_runs(lock)}
+        ):
+            raise ExecutionBlocked("v3 capture differs from frozen lock or preflight")
+        binding = _preflight_binding(preflight, record["repeat"])
+        if record.get("profile_probe") != binding["probes"][record["condition"]]:
+            raise ExecutionBlocked("v3 capture profile differs from frozen preflight")
+        if record["condition"] == "treatment":
+            pin_name = f"attempt-{last:02d}.runtime-pin.json"
+            frozen_pin_sha = _repeat_pin_sha(lock, record["repeat"])
+            if (
+                pin_name not in record["attempts"][-1]["files"]
+                or sha((output / pin_name).read_bytes()) != frozen_pin_sha
+                or binding["treatment_runtime_pin"]["sha256"] != frozen_pin_sha
+                or record["profile_probe"].get("installed_plugin_sha256")
+                != lock["plugin_tree_sha256"]
+            ):
+                raise ExecutionBlocked("v3 treatment runtime or plugin bytes differ")
+        elif record["profile_probe"].get("plugin_names"):
+            raise ExecutionBlocked("v3 baseline unexpectedly loaded a plugin")
     if record["condition"] == "treatment" and record["status"] == "complete":
         receipt = record.get("stage1_receipt")
-        if not receipt:
+        if not receipt and record.get("lock_kind") != "Stage1ABPublicLockV3":
             raise ExecutionBlocked("completed treatment lacks Stage 1 ledger receipt")
+        if not receipt:
+            if not record.get("stage1_receipt_error"):
+                raise ExecutionBlocked(
+                    "v3 treatment has neither receipt nor failure record"
+                )
+            return record
         pin_binding = {
             "path": record["treatment_runtime_pin_path"],
             "sha256": receipt["runtime_pin_sha256"],

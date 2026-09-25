@@ -13,6 +13,18 @@
     "spec_sha256": {"$ref": "#/$defs/sha"},
     "packet_sha256": {"$ref": "#/$defs/sha"},
     "subject_sha256": {"$ref": "#/$defs/sha"},
+    "formal_capture": {"type": "object", "additionalProperties": false,
+      "required": ["run_id", "condition", "repeat", "series_id", "lock_sha256", "capture_run_sha256", "answer_sha256", "transcript_sha256"],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "condition": {"enum": ["baseline", "treatment"]},
+        "repeat": {"type": "integer", "minimum": 1, "maximum": 3},
+        "series_id": {"type": "string", "minLength": 1},
+        "lock_sha256": {"$ref": "#/$defs/sha"},
+        "capture_run_sha256": {"$ref": "#/$defs/sha"},
+        "answer_sha256": {"$ref": "#/$defs/sha"},
+        "transcript_sha256": {"$ref": "#/$defs/sha"}
+      }},
     "evidence_mode": {"enum": ["packet-only", "evidence-audited"]},
     "subject_status": {"enum": ["complete", "partial", "failed"]},
     "extraction_status": {"enum": ["complete", "partial"]},
@@ -24,7 +36,7 @@
     "core_assessments": {"type": "array"}, "omission_assessments": {"type": "array"},
     "major_issues": {"type": "array"}, "adjudicated_phases": {"type": "array", "uniqueItems": true, "items": {"enum": ["content", "process"]}},
     "evaluator_identity": {"type": "object", "required": ["model", "reasoning", "evaluator_code_sha256"], "additionalProperties": false,
-      "properties": {"model": {"type": "string", "minLength": 1}, "reasoning": {"type": "string", "minLength": 1}, "evaluator_code_sha256": {"$ref": "#/$defs/sha"}, "evaluator_bundle_sha256": {"$ref": "#/$defs/sha"}, "codex_executable_sha256": {"$ref": "#/$defs/sha"}, "research_hub_package_sha256": {"$ref": "#/$defs/sha"}, "research_hub_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}},
+      "properties": {"model": {"type": "string", "minLength": 1}, "reasoning": {"type": "string", "minLength": 1}, "evaluator_code_sha256": {"$ref": "#/$defs/sha"}, "evaluator_bundle_sha256": {"$ref": "#/$defs/sha"}, "codex_executable_sha256": {"$ref": "#/$defs/sha"}, "codex_runtime_sha256": {"$ref": "#/$defs/sha"}, "research_hub_package_sha256": {"$ref": "#/$defs/sha"}, "research_hub_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}},
     "costs": {"type": "object", "required": ["evaluator_model_completed_turns", "evaluator_tokens", "source_acquisition_calls", "source_acquisition_failures", "evaluator_elapsed_seconds_this_attempt", "subject_tokens", "currency_cost"], "additionalProperties": false,
       "properties": {
         "evaluator_model_completed_turns": {"type": ["integer", "null"], "minimum": 0},

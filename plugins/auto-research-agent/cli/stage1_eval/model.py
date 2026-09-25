@@ -49,6 +49,24 @@ def require_tool_free_events(raw):
         raise EvaluationError("evaluator transcript contains a tool or error event")
 
 
+def completed_agent_json(raw):
+    """Return the single completed model message recorded by Codex JSONL."""
+    require_tool_free_events(raw)
+    events = [json.loads(line) for line in raw.splitlines()]
+    messages = [
+        event.get("item", {}).get("text")
+        for event in events
+        if event.get("type") == "item.completed"
+        and event.get("item", {}).get("type") == "agent_message"
+    ]
+    if len(messages) != 1 or not isinstance(messages[0], str):
+        raise EvaluationError("evaluator transcript lacks a unique final JSON message")
+    try:
+        return json.loads(messages[0])
+    except ValueError as exc:
+        raise EvaluationError("evaluator final message is not JSON") from exc
+
+
 def _api_schema(value):
     """Keep a strict generation shape; enforce richer local constraints afterward."""
     unsupported = {

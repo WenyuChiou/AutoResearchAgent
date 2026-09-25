@@ -1,10 +1,18 @@
 # Stage 1–3 evaluation workflow
 
-這份流程用固定規則比較原生 Codex（baseline）與加入研究 harness 的 Codex
-（treatment）。人類定義 rubric 與 private holdout；程式檢查硬事實；blinded AI judges
-處理需判斷的內容；重大或不確定結果由人類 audit。P1–P9 永遠分開報告。
+這份流程比較原生 Codex（A／舊欄位 baseline）與同一 Codex 加上研究 harness
+（B／舊欄位 treatment）。P1–P9 永遠分開報告。
+
+**本頁下方的 private holdout、core recall 與單／雙人策展規定屬歷史 v1／v2／v2.1。**
+目前 Stage 1 通用 v3 改用[無論文答案表的中文版判分與 A/B 規則](stage1/GOLD_SET_FREE_V3.zh-TW.md)：
+人類預先決定 rubric、題目與是否對外宣稱改善；AI 從原始題目凍結需求、獨立查證來源並
+以兩個盲化 judges 評分，有分歧才用 Auto-ADJ。Eric 不必先製作核心論文答案表，
+但必要來源仍要自動查核。v3 的 `formal` runner 尚未完成時，不得把探索預演稱為正式 A/B。
 
 ## 一張圖看懂
+
+以下圖為**歷史 holdout 流程**；v3 以題目需求 spec、有限獨立搜尋和 evidence packet
+取代 holdout，A／B 與盲化評分原則仍相同。
 
     Freeze case + rubric + holdout + prompt + runtime
                              │

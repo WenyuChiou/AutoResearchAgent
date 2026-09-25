@@ -16,7 +16,8 @@ Read these files in order. Do not rely on a summary from an earlier task.
 5. [Operational definitions](evals/OPERATIONAL_DEFINITIONS.zh-TW.md)
 6. [Aging bidirectional rubric](evals/rubrics/AGING_BIDIRECTIONAL_RUBRIC_V1.zh-TW.md)
 7. [PR guide](evals/PR_GUIDE.md)
-8. [Capability-to-metric registry](evals/capability-metric-map.v1.json)
+8. [Capability-to-metric registries](evals/capability-metric-map.v1.json) and
+   [v3 extension](evals/capability-metric-map.v3.json)
 9. [Readiness and team workflow](evals/READINESS_AND_TEAM_WORKFLOW.zh-TW.md)
 
 For Stage 1 work, also read the current
@@ -34,8 +35,10 @@ implemented.
 4. Record one decision: `reuse`, `wrap`, `extend`, or `build-new`.
 5. Implement one coherent capability with deterministic tests and explicit
    failure states.
-6. Update `evals/capability-metric-map.v1.json` when a production capability or
-   its measurable effects change.
+6. Update the applicable versioned capability registry when a production
+   capability or its measurable effects change. Keep the frozen v1 registry
+   byte-identical for historical plans; register v3-only capabilities in
+   `evals/capability-metric-map.v3.json`.
 7. Run the capability's registered tests and the full plugin contract suite.
 8. Open a PR using every section of the repository template. Report the actual
    result as `improved`, `not improved`, or `not yet demonstrated`.
@@ -49,8 +52,12 @@ Every PR declares one evaluation readiness level:
   artifacts. Execution is complete and every external dependency is pinned to
   an immutable merged SHA. It still cannot claim scientific improvement.
 - `improvement-demonstrated`: three frozen paired runs, blinded judges,
-  required adjudication and human audit, and the paired decision are bound to
-  the frozen plan and private holdout hash.
+  required adjudication and audit, and the paired decision are bound to the
+  applicable versioned plan. Historical v1/v2 use a private holdout hash;
+  general Stage 1 v3 uses a pre-subject topic spec, rubric, evaluator and
+  native-capture lock **without** a paper answer key. The current PR validator
+  still blocks v3 above `implementation-only` until its separate readiness
+  contract is implemented and tested.
 
 Each declared rubric criterion maps to one frozen operational submetric and a
 production field or function. The PR validator derives required invariant IDs
@@ -80,8 +87,10 @@ A/B at the capability's declared stage milestone.
 - Hard facts override an AI judge. Missing evidence remains `unverifiable`.
 - Keep the private holdout, benchmark titles, answer keys, and condition map out
   of production prompts, queries, fixtures, tools, and stopping logic.
-- Freeze the case, rubric, criterion catalog, holdout, prompt, runtime, builds,
-  judges, pair order, and decision rule before a formal run.
+- Freeze the case, rubric, criterion catalog, prompt, runtime, builds, judges,
+  pair order, and decision rule before a formal run. Historical v1/v2 also
+  freeze a private holdout; v3 instead freezes topic needs and bounded search
+  policy, without gold titles or recall denominators.
 - Preserve failures, retries, human interventions, runtime, tool calls, model
   calls, and cost as separate evidence.
 - Auto-R1 and Auto-R2 remain blinded and independent. Disagreement requires

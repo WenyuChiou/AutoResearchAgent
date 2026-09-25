@@ -18,6 +18,7 @@ from .collector import (
     rebuild_background_sources,
     rebuild_subject_sources,
 )
+from .formal import attach_workspace, bind_capture, verify_hub_receipts
 from .common import (
     EVAL_ROOT,
     EvaluationError,
@@ -165,10 +166,10 @@ def _verify_source_receipts(source_result, output, extraction, spec):
 def evaluate(args):
     started = datetime.now().astimezone()
     output = Path(args.output).resolve()
-    if args.execution_class == "formal":
-        raise EvaluationError(
-            "formal v3 evaluation is disabled until a pre-subject lock and native capture binding are implemented"
-        )
+    if args.execution_class == "formal" and (
+        not getattr(args, "lock", None) or not getattr(args, "capture", None)
+    ):
+        raise EvaluationError("formal v3 requires pre-subject lock and native capture")
     if args.resume_pilot and args.execution_class != "exploratory-pilot":
         raise EvaluationError(
             "saved-call resume is permitted only for exploratory pilots"
@@ -177,6 +178,11 @@ def evaluate(args):
         raise EvaluationError("evaluation output already exists")
     if args.resume_pilot and not output.is_dir():
         raise EvaluationError("pilot resume directory does not exist")
+    formal_binding = None
+    if args.execution_class == "formal":
+        spec_for_binding = read_json(args.spec)
+        check_spec(spec_for_binding)
+        formal_binding = bind_capture(args, spec_for_binding, _evaluator_bundle_sha())
     output.mkdir(parents=True, exist_ok=True)
     try:
         spec = read_json(args.spec)
@@ -189,8 +195,14 @@ def evaluate(args):
         if Path(args.answer).resolve().is_relative_to(output):
             raise EvaluationError("subject answer cannot be an evaluator-produced file")
         subject = adapt_subject(
-            args.answer, args.transcript, args.artifact, status=args.subject_status
+            args.answer,
+            args.transcript,
+            args.artifact,
+            status=args.subject_status,
+            max_trace_bytes=2_000_000 if formal_binding else 200_000,
         )
+        if formal_binding:
+            attach_workspace(subject, formal_binding)
         if args.resume_pilot:
             if canonical(read_json(output / "subject-observation.json")) != canonical(
                 subject
@@ -223,6 +235,8 @@ def evaluate(args):
                 raise EvaluationError("background bytes changed")
             background = read_json(args.background)
             _verify_background(background, args.background, spec)
+            if formal_binding:
+                verify_hub_receipts(background["receipts"], formal_binding)
         if args.resume_pilot:
             source_result = read_json(output / "subject-sources.json")
         else:
@@ -231,6 +245,8 @@ def evaluate(args):
             )
             write_json(output / "subject-sources.json", source_result)
         _verify_source_receipts(source_result, output, extraction, spec)
+        if formal_binding:
+            verify_hub_receipts(source_result["receipts"], formal_binding)
         packet = make_packet(
             task_path.read_text(encoding="utf-8"),
             spec,
@@ -268,6 +284,26 @@ def evaluate(args):
             },
             costs=_costs(output, background, source_result, started),
         )
+        if formal_binding:
+            result["formal_capture"] = {
+                key: value
+                for key, value in formal_binding.items()
+                if key
+                not in {
+                    "snapshot_path",
+                    "research_hub_commit",
+                    "codex_runtime_sha256",
+                    "hub_command_prefix",
+                    "hub_executable_sha256",
+                    "research_hub_package_sha256",
+                }
+            }
+            result["evaluator_identity"]["research_hub_commit"] = formal_binding[
+                "research_hub_commit"
+            ]
+            result["evaluator_identity"]["codex_runtime_sha256"] = formal_binding[
+                "codex_runtime_sha256"
+            ]
         validate_schema(result, "stage-evaluation-result.v3.schema.json")
         write_json(output / "result.json", result)
         lines = [
@@ -315,6 +351,7 @@ def parser():
     prep.add_argument("task")
     prep.add_argument("as_of")
     prep.add_argument("output")
+    prep.add_argument("--backend", choices=["openalex", "crossref"], default="openalex")
     recover = sub.add_parser("finalize-saved-spec")
     recover.add_argument("task")
     recover.add_argument("as_of")
@@ -329,6 +366,8 @@ def parser():
     for flag in ("task", "spec", "answer", "output"):
         run.add_argument(flag)
     run.add_argument("--transcript")
+    run.add_argument("--lock")
+    run.add_argument("--capture")
     run.add_argument("--saved-extraction")
     run.add_argument("--resume-pilot", action="store_true")
     run.add_argument("--artifact", action="append", default=[])
@@ -367,7 +406,11 @@ def main(argv=None):
     try:
         if args.command == "prepare-spec":
             result = prepare_spec(
-                args.task, args.as_of, args.output, _model_options(args)
+                args.task,
+                args.as_of,
+                args.output,
+                _model_options(args),
+                backend=args.backend,
             )
         elif args.command == "finalize-saved-spec":
             result = finalize_saved_spec(

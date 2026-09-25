@@ -18,7 +18,12 @@ MAX_TRACE_BYTES = 200_000
 
 
 def adapt_subject(
-    answer_path, transcript_path=None, artifact_paths=(), *, status="complete"
+    answer_path,
+    transcript_path=None,
+    artifact_paths=(),
+    *,
+    status="complete",
+    max_trace_bytes=MAX_TRACE_BYTES,
 ):
     if status not in {"complete", "partial", "failed"}:
         raise EvaluationError("unknown subject status")
@@ -35,7 +40,7 @@ def adapt_subject(
     }
     if transcript_path:
         transcript = Path(transcript_path).read_bytes()
-        if len(transcript) > MAX_TRACE_BYTES:
+        if len(transcript) > max_trace_bytes:
             raise EvaluationError("subject trace exceeds lossless evaluator limit")
         for index, line in enumerate(transcript.splitlines(), 1):
             try:
@@ -65,7 +70,7 @@ def adapt_subject(
     return {"status": status, "answer_sha256": sha(raw), "evidence": evidence}
 
 
-def extract_subject(subject, output_dir, model_options):
+def extraction_prompt(subject):
     output = "\n".join(
         f"<subject_file id={key}>\n{row['text']}\n</subject_file>"
         for key, row in subject["evidence"].items()
@@ -79,6 +84,11 @@ def extract_subject(subject, output_dir, model_options):
         "A title is an extraction label, not a verification. Return only the JSON schema.\n"
         f"<untrusted_subject>\n{output}\n</untrusted_subject>"
     )
+    return prompt
+
+
+def extract_subject(subject, output_dir, model_options):
+    prompt = extraction_prompt(subject)
     result, provenance = call_model(
         prompt,
         EVAL_ROOT / "schemas/subject-extraction.v3.schema.json",

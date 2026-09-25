@@ -99,9 +99,11 @@ blinded scientific scoring.
 2. `stage-executable` 表示「整台機器真的跑過一次，而且別人拿紀錄可以重播」。PR 要附
    live run、validator report、實際 runtime bytes 的 hash、dependency merge SHA 與 resume
    結果。這仍然沒有證明它比原本 Codex 好。
-3. `improvement-demonstrated` 表示「用同一份考卷比過舊機器和新機器」。PR 要附 frozen
-   plan、private holdout hash、三組 paired runs、Auto-R1、Auto-R2、必要 Auto-ADJ、必要
-   human audit 與 paired decision。少一項就不能說 `improved`。
+3. `improvement-demonstrated` 表示「用相同且事先固定的判準比過舊機器和新機器」。PR
+   要附三組 paired runs、Auto-R1、Auto-R2、必要 Auto-ADJ／audit 與 paired decision。
+   舊 v1／v2 另需 private holdout hash；通用 Stage 1 v3 則需執行前凍結的題目規格、
+   rubric、評估器與原生擷取鎖，**不需論文答案表**。目前 CI 仍只允許 v3
+   `implementation-only`，新版 readiness validator 通過前不可宣稱正式改善。
 
 `Operational-definition mapping` 告訴 reviewer 每個分數是怎麼從程式資料算出來。例如：
 
@@ -153,10 +155,14 @@ artifact: manifest=path/to/readiness-manifest.json; sha256=<64 hex characters>
 每個必要欄位必須指向同一份 manifest bytes。CI 會打開 manifest、重算它的
 SHA-256，再打開清單內每個 artifact 並重算各自的 SHA-256；也會檢查 execution
 complete、validator passed、resume passed。`improvement-demonstrated` 另外要求
-三組 paired runs、private holdout hash、R1、R2、必要的 ADJ 狀態、accepted human
+三組 paired runs、R1、R2、必要的 ADJ 狀態、accepted human
 audit 與 paired decision。標成 `contract-fixture` 的檔案只能測 validator，本身
 不能支撐真實 PR 的 readiness claim。白話說，不能只寫「證據在箱子裡」；要把
 封條、裝箱單和每一件物品都交給 CI 對過。
+
+其中歷史 v1／v2 再綁 private holdout hash；v3 改綁執行前的題目規格、rubric、
+評估器與原生 capture lock，沒有論文答案表。v3 的 Level 2／3 CI 契約尚未完成，
+目前仍只能提交 `implementation-only`。
 
 Manifest 的共通欄位是 `kind=ReadinessEvidenceManifest`、
 `schema_version=1.0.0`、與 PR 相同的 `readiness`、`evidence_scope`、
