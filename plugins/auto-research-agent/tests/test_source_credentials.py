@@ -109,7 +109,10 @@ class SourceCredentialTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.ledger = Ledger.create(
-            self.root / "run", run_id="synthetic", objective="Synthetic scope"
+            self.root / "run",
+            run_id="synthetic",
+            objective="Synthetic scope",
+            clock=lambda: "2026-09-20T00:00:00Z",
         )
         add_query(self.ledger, [SYNTHETIC])
         self.ledger.extract()

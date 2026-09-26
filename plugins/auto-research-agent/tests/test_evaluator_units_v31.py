@@ -11,6 +11,8 @@ PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
 
 from stage1_eval.common import EvaluationError, read_json  # noqa: E402
+from stage1_eval.model import _api_schema  # noqa: E402
+from stage1_eval.model_calls import replay_native_model_call_archive  # noqa: E402
 from stage1_eval.units import run_unit  # noqa: E402
 
 
@@ -123,6 +125,88 @@ class EvaluatorUnitTests(unittest.TestCase):
         self.assertTrue((self.output / "semantic-unit.model-call").is_dir())
         self.assertTrue((self.output / "semantic-unit-correction.model-call").is_dir())
         self.assertFalse((self.output / "semantic-unit.unit.json").exists())
+
+    def test_schema_bound_failure_gets_one_correction_and_strict_replay_stays_closed(
+        self,
+    ):
+        schema = {**SCHEMA, "properties": {"value": {"type": "integer", "maximum": 10}}}
+        self.schema.write_text(json.dumps(schema), encoding="utf-8")
+        with mock.patch(
+            "stage1_eval.model_calls.subprocess.run",
+            side_effect=self.responder([{"value": 25}, {"value": 3}]),
+        ) as run:
+            value, provenance = self.invoke()
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(value, {"value": 3})
+        self.assertIn(
+            "local schema validation at value", provenance["correction_reason"]
+        )
+        correction_prompt = run.call_args_list[1].kwargs["input"].decode()
+        self.assertIn("25 is greater than the maximum of 10", correction_prompt)
+        archive = self.output / "semantic-unit.model-call"
+        record = read_json(archive / "attempt-01.record.json")
+        self.assertEqual(record["generation_status"], "completed")
+        self.assertEqual(record["semantic_status"], "rejected")
+        self.assertEqual(record["status"], "native-completed")
+        request = read_json(archive / "request.json")
+        with self.assertRaisesRegex(EvaluationError, "local schema validation"):
+            replay_native_model_call_archive(
+                archive,
+                expected_prompt="unit prompt",
+                expected_schema=self.schema,
+                expected_config=request["config"],
+                expected_policy=POLICY,
+            )
+        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+            self.assertEqual(self.invoke(replay_only=True), (value, provenance))
+        replay.assert_not_called()
+        # The correction route still validates raw bytes against archived hashes.
+        (archive / "attempt-01.output.json").write_text(
+            '{"value": 2}', encoding="utf-8"
+        )
+        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+            with self.assertRaisesRegex(EvaluationError, "bytes changed"):
+                self.invoke(replay_only=True)
+        replay.assert_not_called()
+
+    def test_second_schema_failure_cannot_complete_a_unit(self):
+        schema = {**SCHEMA, "properties": {"value": {"type": "integer", "maximum": 10}}}
+        self.schema.write_text(json.dumps(schema), encoding="utf-8")
+        with mock.patch(
+            "stage1_eval.model_calls.subprocess.run",
+            side_effect=self.responder([{"value": 25}, {"value": 20}]),
+        ) as run:
+            with self.assertRaisesRegex(EvaluationError, "local schema validation"):
+                self.invoke()
+        self.assertEqual(run.call_count, 2)
+        self.assertFalse((self.output / "semantic-unit.unit.json").exists())
+
+    def test_generation_descriptions_preserve_limits_without_corrupting_field_names(
+        self,
+    ):
+        schema = {
+            "type": "object",
+            "properties": {
+                "maximum": {
+                    "type": "array",
+                    "maxItems": 4,
+                    "description": "Original instruction.",
+                    "items": {"type": "integer", "maximum": 10},
+                }
+            },
+        }
+        original = json.loads(json.dumps(schema))
+        legacy = _api_schema(schema)
+        enriched = _api_schema(schema, preserve_constraints=True)
+        self.assertEqual(schema, original)
+        array = enriched["properties"]["maximum"]
+        self.assertNotIn("maxItems", array)
+        self.assertIn('"maxItems": 4', array["description"])
+        self.assertTrue(array["description"].startswith("Original instruction."))
+        self.assertIn('"maximum": 10', array["items"]["description"])
+        self.assertEqual(
+            legacy["properties"]["maximum"]["description"], "Original instruction."
+        )
 
     def test_timeout_does_not_start_semantic_correction(self):
         timeout = subprocess.TimeoutExpired(

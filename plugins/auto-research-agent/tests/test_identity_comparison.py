@@ -46,6 +46,7 @@ class IdentityComparisonTests(unittest.TestCase):
             Path(self.directory.name) / "run",
             run_id="synthetic",
             objective="Synthetic comparison",
+            clock=lambda: "2026-09-20T00:00:00Z",
         )
         self.target, self.raw, self.attempt = observe(
             self.ledger, SYNTHETIC, "synthetic-search"
