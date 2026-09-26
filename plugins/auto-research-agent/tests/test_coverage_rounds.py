@@ -26,7 +26,13 @@ class CoverageRoundTests(unittest.TestCase):
         value["clusters"] = value["clusters"][:1]
         compile_plan(value, self.bundle, as_of="2026-09-20", actor="synthetic")
         self.ledger = CoverageLedger.create(
-            root / "run", run_id="synthetic", objective=value["topic"]
+            root / "run",
+            run_id="synthetic",
+            objective=value["topic"],
+            # Coverage assertions do not test wall time. Keep this shared
+            # fixture independent of clock adjustments on virtualized hosts.
+            # Dedicated ledger tests exercise actual clock-regression rejection.
+            clock=lambda: "2026-09-20T00:00:00Z",
         )
         self.ledger.bind_plan(self.bundle, backends=["synthetic"], limit=10)
 

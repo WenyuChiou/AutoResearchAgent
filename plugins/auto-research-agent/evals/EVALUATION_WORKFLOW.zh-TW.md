@@ -1,5 +1,10 @@
 # Stage 1–3 evaluation workflow
 
+**目前執行版本：**[evaluator v3.1 中文流程](stage1/EVALUATOR_V3_1.zh-TW.md)。
+先確認使用者研究範圍，再凍結同一題目、原生工具與 v3 十項 rubric；保存全部 attempts，
+擷取作品與中央敘述、取得來源、以原文片段索引交給 R1／R2，分歧才交 ADJ，最後重播配對判定。
+A／B 都可使用 Codex 原生能力；B 不必為了 ledger 重做搜尋。只有完整正式證據才能宣稱改善。
+
 這份流程比較原生 Codex（A／舊欄位 baseline）與同一 Codex 加上研究 harness
 （B／舊欄位 treatment）。P1–P9 永遠分開報告。
 

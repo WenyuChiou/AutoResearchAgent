@@ -1,5 +1,9 @@
 # Stage 1 通用、無論文答案表的評估（v3，experimental）
 
+**執行器更新：**[v3.1 中文指南](EVALUATOR_V3_1.zh-TW.md)說明公開原文取得、
+分塊擷取、片段索引、完整 native attempts 與可驗證恢復。以下十項 rubric 與配對規則維持 v3。
+目前使用者已選美國；舊南韓輸出只用來診斷評估器修復，不能充當新的美國正式 A/B。
+
 這是 Stage 1 新增的獨立評估路徑；歷史 v1、南韓雙向耦合 v2／v2.1 的 frozen 分數、分母與人工策展規則不變。v3 目前可做開發預演，**尚未證明**加入 harness 比 stock Codex 好，也不能把不同題目的 80 分直接視為同等難度。
 
 ## 正式比較的 A 與 B
@@ -10,7 +14,7 @@
 | B | 同一原生 Codex，額外載入固定版本的 AutoResearchAgent Stage 1 plugin 及其固定版本依賴 | 與 A 相同；plugin 與依賴是唯一有意改變的 treatment package |
 
 舊執行器的欄位名稱 `baseline`／`treatment` 分別對應這裡的 A／B，不代表更換底層 Codex。
-正式南韓案例是**雙向耦合、探索性**研究方向；Stage 1 只評文獻調查，不要求提出事前假設、研究缺口或模擬結果。
+目前美國案例是**雙向耦合、探索性**研究方向；Stage 1 只評文獻調查，不要求提出事前假設、研究缺口或模擬結果。
 
 ## 評估的是什麼
 
@@ -82,13 +86,13 @@ P1 身分／中央敘述／證據界線、P2 題目需求／最近似工作、P3
 
 正式配對前，規格、執行位元組與版本必須在 subject 開始前凍結，並與原生 capture 綁定。`stage1_ab freeze-v3` 先建立不含論文答案的公開鎖；`host-preflight` 核對六個隔離 profile、原生工具、plugin 和依賴版本；`capture` 依固定順序保存六次原生執行；`stage1_eval evaluate --execution-class formal --lock ... --capture ...` 只接受鎖定的回答與 transcript；最後 `stage1_ab paired-v3 LOCK BACKGROUND OUTPUT --results ... --capture-dirs ...` 以凍結的背景來源、原始搜尋收據、subject 記錄及模型 JSONL 重建六份 evidence packet 與逐項分數。改寫評分 JSON、擷取結果或 packet，即使同步改其內部 hash，也不能代替原始模型回覆或來源；任一環節缺資料或 hash 不符便拒絕。這條執行路徑仍需完成 live 預演與 PR 審查；程式可執行不等於已得到 A/B 結果。因本地 schema 修正而重用已完成模型輸出的 `finalize-saved-spec` 和 `--resume-pilot` 僅供**探索預演**；缺原始 prompt 位元組時明示 `prompt_sha256=null`，不得拿來冒充正式配對紀錄。
 
-來源查核目前主要依 research-hub 可取得的 metadata 和摘要；全文、同年出版日期及付費來源可能仍不可核實。開始正式受測前，要先在相同隔離環境確認搜尋 backend 真的回傳作品。當 OpenAlex 配額已滿時，`prepare-spec --backend crossref` 可預先選 Crossref；這項選擇會進入原始模型 prompt、題目規格及實際查詢回執。Crossref 的標題搜尋結果仍要嚴格核對 title 和 DOI，metadata 不能冒充全文。固定版 research-hub 的搜尋後端可能在 HTTP 或解析失敗時也回傳空清單，所以 evaluator 把 CLI 的 `[]` 記為 `ambiguous-empty`（未知），不把它冒充「零結果」。若任何一條獨立挑戰搜尋只得到不可確認的空清單，或整體沒有可用來源，v3 不允許凍結正式鎖。Crossref 此版本只檢索 journal article 且沒有摘要欄位；conference、preprint 與中央 claim 的缺失通常只能標未知，不能據此判沒有相關文獻或宣稱 P1 已充分驗證。Judge agreement 是一致性，不證明專家正確；可靠的改善聲明仍需 frozen topic、配置、同一 evaluator 版本、配對 A/B 與另外的審查。
+以下限制描述最初 v3 執行器；v3.1 新增公開原文接口，仍不保證全文可取得。最初版本的來源查核主要依 research-hub 可取得的 metadata 和摘要；全文、同年出版日期及付費來源可能仍不可核實。開始正式受測前，要先在相同隔離環境確認搜尋 backend 真的回傳作品。當 OpenAlex 配額已滿時，`prepare-spec --backend crossref` 可預先選 Crossref；這項選擇會進入原始模型 prompt、題目規格及實際查詢回執。Crossref 的標題搜尋結果仍要嚴格核對 title 和 DOI，metadata 不能冒充全文。固定版 research-hub 的搜尋後端可能在 HTTP 或解析失敗時也回傳空清單，所以 evaluator 把 CLI 的 `[]` 記為 `ambiguous-empty`（未知），不把它冒充「零結果」。若任何一條獨立挑戰搜尋只得到不可確認的空清單，或整體沒有可用來源，v3 不允許凍結正式鎖。Crossref 此版本只檢索 journal article 且沒有摘要欄位；conference、preprint 與中央 claim 的缺失通常只能標未知，不能據此判沒有相關文獻或宣稱 P1 已充分驗證。Judge agreement 是一致性，不證明專家正確；可靠的改善聲明仍需 frozen topic、配置、同一 evaluator 版本、配對 A/B 與另外的審查。
 
 目前 PR validator 對 v3 只接受 `implementation-only`。現有 Level 2 readiness manifest 綁的是舊版南韓 Stage 1 live smoke，不能拿來替 v3 宣告 `stage-executable`。未來須另以 v3 專用 manifest 綁住 topic spec、rubric hash、evaluation result 和實際執行 artifacts，經驗證後才提升層級。
 
 ## 已做的探索預演與邊界
 
-- 舊 v2 執行器曾以加拿大人口老化與家戶消費做**不計分預演**。舊紀錄的 `B`／`T` 欄位分別指 baseline／treatment；`pilot19` 記錄為 baseline 完成、treatment 未完成，`scored: false`。這不是第二個正式研究案例，也不能納入南韓的三對 A/B 或改善主張。南韓仍是既定開發案例。
+- 舊 v2 執行器曾以加拿大人口老化與家戶消費做**不計分預演**。舊紀錄的 `B`／`T` 欄位分別指 baseline／treatment；`pilot19` 記錄為 baseline 完成、treatment 未完成，`scored: false`。這不是第二個正式研究案例，也不能納入南韓的三對 A/B 或改善主張。南韓是當時的開發案例；本輪已由 Eric 改選美國。
 - 本地操作員曾用兩個簡短的人工撰寫 smoke 輸出試跑早期 v3 路徑：一個理論題與一個人口老化題。其 P1／P2／P3 已評項目各為 100／37.5／33.33。這些是**operator-reported** 的探索紀錄，raw bundle 保留在工作機器、沒有放入 Git，無法單憑此 PR 獨立重播；後續證據完整性修正後須重新預演。它們**不是** stock Codex 與 harness 的比較，也不代表文獻綜述品質。理論題缺原始 prompt hash，只能用於診斷。
 - 上述人口老化 smoke 的本地紀錄顯示評估器完成 7 個模型回合、使用 270,509 個輸入 tokens（其中 72,192 為 cached）和 11,445 個輸出 tokens，來源查核 9 次，約 250 秒。這顯示評估成本需要納入正式實驗設計；有限搜尋的 top-K 結果相關性仍不足，不能據此宣稱未找到重要文獻。受測模型的 token 與貨幣成本未知，不填零。
 - v3 的新增能力另列於 `capability-metric-map.v3.json`；`capability-metric-map.v1.json` 保持原位元組不變，避免破壞舊版南韓計畫的 registry hash 與可重播性。

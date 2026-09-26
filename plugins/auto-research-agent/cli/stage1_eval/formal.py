@@ -10,6 +10,100 @@ from .common import EvaluationError, canonical, sha
 from .runtime import verify_installed_from_commit
 
 
+def capture_module_binding():
+    from stage1_ab import capture_v31
+
+    path = Path(capture_v31.__file__)
+    return {"path": "capture-adapter-v31", "sha256": sha(path.read_bytes())}
+
+
+def observe_capture_v31(capture, *, portable=False):
+    from stage1_ab.capture_v31 import capture_subject
+
+    return capture_subject(capture, verify_runtime=not portable)
+
+
+def verify_binding_v31(args, spec, record, policy):
+    """Keep subject dependency pins distinct from evaluator source tooling."""
+    if args.execution_class == "repair-diagnostic":
+        return {
+            "diagnostic": True,
+            "original_subject_lock_sha256": record["lock_sha256"],
+            "evaluator_research_hub_sha": None,
+        }
+    if getattr(args, "portable_diagnostic", False):
+        raise EvaluationError("portable capture replay cannot attest new execution")
+    if not args.lock or not args.background:
+        raise EvaluationError(
+            "v3.1 live evaluation requires its pre-subject lock/background"
+        )
+    raw = Path(args.lock).read_bytes()
+    lock = json.loads(raw)
+    expected_class = "formal" if args.execution_class == "formal" else "pilot"
+    if (
+        lock.get("schema_version") != "3.1.0"
+        or lock.get("kind") != "Stage1ABPublicLockV3"
+        or lock.get("execution_class") != expected_class
+        or lock.get("evaluator_execution_policy") != policy
+        or lock.get("evaluator_bundle_sha256") != policy["evaluator_bundle_sha256"]
+        or lock.get("spec_sha256") != sha(canonical(spec))
+        or lock.get("task_sha256") != spec["task_sha256"]
+        or lock.get("prompt_sha256") != sha(Path(args.task).read_bytes())
+        or lock.get("rubric_sha256") != spec["rubric_sha256"]
+        or lock.get("background_sha256") != sha(Path(args.background).read_bytes())
+        or record.get("lock_sha256") != sha(raw)
+        or record.get("lock_kind") != "Stage1ABPublicLockV3"
+        or record.get("status") != "complete"
+        or lock.get("evaluator_runtime")
+        != {"model": args.model, "reasoning": args.reasoning}
+        or runner.codex_runtime_sha(args.codex) != lock.get("codex_runtime_sha256")
+    ):
+        raise EvaluationError("v3.1 frozen evaluation binding changed")
+    runs = {r["run_id"]: r for r in sequence.expected_runs(lock)}
+    row = runs.get(record["run_id"])
+    if not row or any(record.get(k) != row[k] for k in ("condition", "repeat")):
+        raise EvaluationError("subject is outside v3.1 frozen run order")
+    from stage1_brief.brief import validate_brief
+
+    brief = lock.get("research_brief")
+    validate_brief(brief, require_confirmed=True)
+    if sha(canonical(brief)) != lock.get("research_brief_sha256"):
+        raise EvaluationError("frozen ResearchBrief changed")
+    dependency = verify_installed_from_commit(
+        lock["evaluator_research_hub_repo_path"], lock["evaluator_research_hub_sha"]
+    )
+    if (
+        dependency["python_source_sha256"] != lock.get("research_hub_package_sha256")
+        or lock.get("hub_command_prefix") != [sys.executable, "-m", "research_hub"]
+        or lock.get("hub_executable_sha256") != sha(Path(sys.executable).read_bytes())
+        or lock.get("codex_executable_sha256") != sha(Path(args.codex).read_bytes())
+        or lock.get("plugin_tree_sha256") != runner.tree_sha(runner.PLUGIN_ROOT)
+        or args.mode != "evidence-audited"
+    ):
+        raise EvaluationError("evaluator research-hub package differs from its pin")
+    verify_hub_receipts(
+        json.loads(Path(args.background).read_bytes())["receipts"], lock
+    )
+    last = len(record["attempts"])
+    root = Path(args.capture)
+    return {
+        "run_id": record["run_id"],
+        "condition": record["condition"],
+        "repeat": record["repeat"],
+        "series_id": record["series_id"],
+        "lock_sha256": sha(raw),
+        "capture_run_sha256": sha((root / "run.json").read_bytes()),
+        "answer_sha256": sha((root / f"attempt-{last:02d}.final.txt").read_bytes()),
+        "transcript_sha256": sha((root / f"attempt-{last:02d}.jsonl").read_bytes()),
+        "subject_research_hub_sha": lock["research_hub_sha"],
+        "evaluator_research_hub_sha": lock["evaluator_research_hub_sha"],
+        "hub_command_prefix": lock["hub_command_prefix"],
+        "hub_executable_sha256": lock["hub_executable_sha256"],
+        "research_hub_package_sha256": dependency["python_source_sha256"],
+        "codex_runtime_sha256": lock["codex_runtime_sha256"],
+    }
+
+
 def verify_hub_receipts(receipts, binding):
     """All source calls must use the frozen installed research-hub runtime."""
     prefix = binding["hub_command_prefix"]

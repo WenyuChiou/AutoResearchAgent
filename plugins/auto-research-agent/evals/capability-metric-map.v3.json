@@ -43,7 +43,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_eval",
       "problem": "A per-topic gold paper list and manual source annotations block routine cross-topic Stage 1 assessment.",
-      "mechanism": "Freeze topic needs before subject outputs, acquire bounded source evidence, assess exact passages with independent tool-free judges, and aggregate atomic criteria without a paper answer key.",
+      "mechanism": "Freeze topic needs and rubric v3, collect bounded public-source evidence, extract all answer chunks separately for works and central claims, select source-bound spans with independent tool-free judges, and replay only validated v3.1 units with identical inputs and runtime.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -90,10 +90,25 @@
         "no gold or human annotation is required for routine scoring",
         "packet-only cannot prove coverage",
         "evaluator errors are not subject zero",
-        "v3 cannot claim improvement before a paired experiment"
+        "v3 cannot claim improvement before a paired experiment",
+        "subject and evaluator dependencies are separately bound",
+        "native evidence is admissible without treatment-specific ledger format",
+        "truncated judge views are disclosed and do not automatically lower subject scores",
+        "one semantic correction and at most one same-setting transient transport retry; failed attempts are retained"
       ],
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_stage1_general_eval.py"
+        "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
+        "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
+        "plugins/auto-research-agent/tests/test_evaluator_units_v31.py",
+        "plugins/auto-research-agent/tests/test_evidence_spans.py",
+        "plugins/auto-research-agent/tests/test_extraction_v31.py",
+        "plugins/auto-research-agent/tests/test_judging_v31.py",
+        "plugins/auto-research-agent/tests/test_sources_v31.py",
+        "plugins/auto-research-agent/tests/test_pipeline_v31.py",
+        "plugins/auto-research-agent/tests/test_stage1_ab_v31.py",
+        "plugins/auto-research-agent/tests/test_native_search_runner_v31.py",
+        "plugins/auto-research-agent/tests/test_native_search_capture.py",
+        "plugins/auto-research-agent/tests/test_capture_v31.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -194,6 +209,19 @@
             "confirmed scope and family-to-need mappings are required before new searches; intake metrics remain separate from P1-P3 scores"
           ],
           "human_judgment": "Independent v3 judges assess whether the cited work actually changes the research decision."
+        },
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.SEARCH_TRACE",
+            "P3V3.DECISION_TRACE",
+            "P3V3.STOP_JUSTIFICATION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "native action IDs and queries are captured without forcing duplicate research-hub searches; missing source content and backend state stay unknown"
+          ],
+          "human_judgment": "Judge the actual evidence and stopping rationale under the same rubric, not a preferred record format."
         }
       ]
     },

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage1SubjectClaimsV31",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["central_claims", "extraction_complete", "unextracted_reason"],
+  "properties": {
+    "central_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["span_ids", "cited_work_ids"],
+        "properties": {
+          "span_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^span-[0-9a-f]{64}$"}
+          },
+          "cited_work_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^work-[0-9a-f]{16}$"}
+          }
+        }
+      }
+    },
+    "extraction_complete": {"type": "boolean"},
+    "unextracted_reason": {"type": ["string", "null"]}
+  }
+}

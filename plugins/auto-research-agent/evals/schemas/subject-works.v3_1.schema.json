@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage1SubjectWorksV31",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "works",
+    "mentions",
+    "extraction_complete",
+    "unextracted_reason"
+  ],
+  "properties": {
+    "works": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "span_ids",
+          "title",
+          "identifier",
+          "nominated_core"
+        ],
+        "properties": {
+          "span_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^span-[0-9a-f]{64}$"
+            }
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "identifier": {
+            "type": "string",
+            "description": "Literal DOI, source URL, arXiv ID, or explicit unique paper ID from selected spans. Empty when absent; never an author or study title."
+          },
+          "nominated_core": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "extraction_complete": {
+      "type": "boolean"
+    },
+    "unextracted_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mentions": {
+      "type": "array",
+      "description": "Shorthand, author-only, or group mentions; preserve evidence without counting them as new bibliographic works.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "span_ids",
+          "reason"
+        ],
+        "properties": {
+          "span_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^span-[0-9a-f]{64}$"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "shorthand",
+              "author-only",
+              "group-reference"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
