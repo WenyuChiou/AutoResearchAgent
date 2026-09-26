@@ -412,6 +412,39 @@ class ModelCallTests(unittest.TestCase):
         self.assertEqual(result, {"ok": True})
         self.assertEqual(replay["execution_status"], "reused")
 
+    def test_archive_path_alias_is_canonical_before_execution_and_replay(self):
+        self.output = self.root / "alias" / ".." / "output"
+        with mock.patch(
+            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+        ):
+            _, provenance = self.invoke()
+        archive = Path(provenance["call_archive"])
+        self.assertEqual(archive, self.output.resolve() / "judge.model-call")
+        request = json.loads((archive / "request.json").read_text())
+        record_path = archive / "attempt-01.record.json"
+        record = json.loads(record_path.read_text())
+        self.assertEqual(
+            record["command"][record["command"].index("-o") + 1],
+            str(archive / "attempt-01.output.json"),
+        )
+        args = dict(
+            expected_prompt="raw prompt",
+            expected_schema=self.schema,
+            expected_config=request["config"],
+            expected_policy=POLICY,
+            semantic_validator=lambda value: value["ok"],
+        )
+        with mock.patch("stage1_eval.model_calls.subprocess.run") as execute:
+            value, _ = verify_model_call_archive(archive, **args)
+        execute.assert_not_called()
+        self.assertEqual(value, {"ok": True})
+        record["command"][record["command"].index("-o") + 1] = str(
+            archive.parent / "foreign.output.json"
+        )
+        record_path.write_text(json.dumps(record), encoding="utf-8")
+        with self.assertRaisesRegex(EvaluationError, "command changed"):
+            verify_model_call_archive(archive, **args)
+
     def test_replay_rejects_renamed_attempt_record(self):
         with mock.patch(
             "stage1_eval.model_calls.subprocess.run", side_effect=self.success

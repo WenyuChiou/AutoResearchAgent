@@ -279,7 +279,7 @@ def replay_native_model_call_archive(
     expected_policy,
 ):
     """Replay a native-complete generation, including semantic rejections."""
-    archive = Path(archive)
+    archive = Path(archive).resolve()
     request_path = archive / "request.json"
     if not request_path.is_file():
         raise EvaluationError("model-call archive lacks request binding")
@@ -443,7 +443,9 @@ def call_model_v31(
     semantic_validator,
     api_schema,
 ):
-    output_dir = Path(output_dir)
+    # Public provenance returns a resolved path. Use that same identity for
+    # execution and replay (macOS temp paths commonly traverse /var symlinks).
+    output_dir = Path(output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     archive = output_dir / f"{label}.model-call"
     policy = _normalize_policy(execution_policy, timeout)
