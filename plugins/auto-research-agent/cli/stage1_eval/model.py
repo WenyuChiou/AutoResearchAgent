@@ -75,7 +75,7 @@ def completed_agent_json(raw):
         raise EvaluationError("evaluator final message is not JSON") from exc
 
 
-def _api_schema(value):
+def _api_schema(value, *, preserve_constraints=False):
     """Keep a strict generation shape; enforce richer local constraints afterward."""
     unsupported = {
         "$schema",
@@ -92,7 +92,10 @@ def _api_schema(value):
         "format",
     }
     if isinstance(value, list):
-        return [_api_schema(item) for item in value]
+        return [
+            _api_schema(item, preserve_constraints=preserve_constraints)
+            for item in value
+        ]
     if not isinstance(value, dict):
         return value
     cleaned = {}
@@ -102,9 +105,24 @@ def _api_schema(value):
         if key in {"properties", "$defs", "definitions"} and isinstance(item, dict):
             # Keys here are user-defined field/definition names, not schema
             # keywords; `title` is a valid property in a citation record.
-            cleaned[key] = {name: _api_schema(child) for name, child in item.items()}
+            cleaned[key] = {
+                name: _api_schema(child, preserve_constraints=preserve_constraints)
+                for name, child in item.items()
+            }
         else:
-            cleaned[key] = _api_schema(item)
+            cleaned[key] = _api_schema(item, preserve_constraints=preserve_constraints)
+    if preserve_constraints:
+        limits = {
+            key: value[key]
+            for key in sorted(unsupported - {"$schema", "$id", "title"})
+            if key in value
+        }
+        if limits:
+            cleaned["description"] = (
+                cleaned.get("description", "")
+                + "\nAdditional locally enforced constraints: "
+                + json.dumps(limits, sort_keys=True)
+            ).strip()
     if "const" in cleaned:
         cleaned["enum"] = [cleaned.pop("const")]
     return cleaned
@@ -141,7 +159,7 @@ def call_model(
             execution_policy=execution_policy,
             resume_verified=resume_verified,
             semantic_validator=semantic_validator,
-            api_schema=_api_schema,
+            api_schema=lambda value: _api_schema(value, preserve_constraints=True),
         )
     if resume_verified:
         raise EvaluationError("verified resume requires a v3.1 execution policy")

@@ -277,6 +277,7 @@ def replay_native_model_call_archive(
     expected_schema,
     expected_config,
     expected_policy,
+    for_correction=False,
 ):
     """Replay a native-complete generation, including semantic rejections."""
     archive = Path(archive).resolve()
@@ -293,7 +294,9 @@ def replay_native_model_call_archive(
     policy = _normalize_policy(expected_policy, None)
     from .model import _api_schema
 
-    generation_raw = canonical(_api_schema(json.loads(schema_raw)))
+    generation_raw = canonical(
+        _api_schema(json.loads(schema_raw), preserve_constraints=True)
+    )
     expected = _request_record(
         expected_prompt,
         schema_raw,
@@ -378,7 +381,21 @@ def replay_native_model_call_archive(
         raise EvaluationError("saved model output is not JSON") from exc
     if canonical(native) != canonical(output):
         raise EvaluationError("saved output differs from native completed agent JSON")
-    _validate_local_schema(output, json.loads(schema_raw))
+    try:
+        _validate_local_schema(output, json.loads(schema_raw))
+    except EvaluationError:
+        # Rejected native bytes may feed the single correction, never an accepted
+        # result. Ordinary replay remains strict; run_unit validates again before
+        # normalization and before saving any completed unit.
+        if not (
+            for_correction
+            and record.get("failure_class") == "schema-mismatch"
+            and record.get("status") == "native-completed"
+            and record.get("semantic_status") == "rejected"
+            and record.get("returncode") == 0
+            and record.get("timed_out") is False
+        ):
+            raise
     return output, {
         "execution_status": "native-replayed",
         "reused_completed_generation": False,
@@ -557,6 +574,9 @@ def call_model_v31(
                     generation_status = "completed"
                 elif "local schema validation" in str(exc):
                     error = "schema-mismatch"
+                    status = "native-completed"
+                    generation_status = "completed"
+                    semantic_status = "rejected"
                 failure_detail = str(exc)
         record = {
             "archive_version": MODEL_CALL_ARCHIVE_VERSION,

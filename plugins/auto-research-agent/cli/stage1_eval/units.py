@@ -5,7 +5,11 @@ from pathlib import Path
 
 from .common import EvaluationError, canonical, read_json, write_json
 from .model import call_model
-from .model_calls import _request_config, replay_native_model_call_archive
+from .model_calls import (
+    _request_config,
+    _validate_local_schema,
+    replay_native_model_call_archive,
+)
 
 
 def run_unit(
@@ -26,6 +30,11 @@ def run_unit(
             for k in ("codex", "evaluator_home", "model", "reasoning")
         }
     )
+    schema = read_json(schema_path)
+
+    def validate(value):
+        _validate_local_schema(value, schema)
+        return normalize(value)
 
     def obtain(text, name):
         archive = output_dir / f"{name}.model-call"
@@ -39,7 +48,7 @@ def run_unit(
                     output_dir,
                     name,
                     **model_options,
-                    semantic_validator=normalize,
+                    semantic_validator=validate,
                 )
             except EvaluationError:
                 # Only a native-complete generation can be semantically corrected.
@@ -52,11 +61,12 @@ def run_unit(
             expected_schema=schema_path,
             expected_config=config,
             expected_policy=policy,
+            for_correction=True,
         )
 
     raw, initial = obtain(prompt, label)
     try:
-        value = normalize(raw)
+        value = validate(raw)
         meta = {"initial": initial, "correction": None}
     except EvaluationError as error:
         correction_prompt = (
@@ -69,7 +79,7 @@ def run_unit(
             )
         )
         corrected, correction = obtain(correction_prompt, label + "-correction")
-        value = normalize(corrected)
+        value = validate(corrected)
         meta = {
             "initial": initial,
             "correction": correction,
