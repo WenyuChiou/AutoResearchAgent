@@ -40,6 +40,9 @@ def parser_for_commands():
         p.add_argument(name, type=Path)
     p.add_argument("--treatment-runtime-pin", type=Path, action="append", required=True)
     p.add_argument("--repeats", type=int, choices=(1, 3), default=3)
+    p.add_argument("--evaluator-dependency-repo", type=Path)
+    p.add_argument("--evaluator-dependency-sha")
+    p.add_argument("--research-brief", type=Path)
     p = subs.add_parser("probe")
     for name in ("codex", "profile", "workspace", "private_root"):
         p.add_argument(name, type=Path)
@@ -269,6 +272,9 @@ def main(argv=None):
                 args.treatment_runtime_pin,
                 args.output,
                 repeats=args.repeats,
+                evaluator_dependency_repo=args.evaluator_dependency_repo,
+                evaluator_dependency_sha=args.evaluator_dependency_sha,
+                research_brief_path=args.research_brief,
             )
         elif args.command == "probe":
             value = runner.probe_profile(

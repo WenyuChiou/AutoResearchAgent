@@ -1,5 +1,13 @@
 # AutoResearchAgent Stage 1 plugin
 
+Native Codex search, browsing, reasoning and tool choice remain available.
+The research-hub adapter is optional; a native search need not be repeated to
+produce a CLI ledger. Saved native actions can establish execution while unseen
+results remain unknown. Scientific quality is judged by the same rubric for both
+conditions. The [v3.1 evaluator guide](evals/stage1/EVALUATOR_V3_1.zh-TW.md)
+explains source acquisition, span-bound judging and verified recovery; these
+implementation changes do not yet demonstrate A/B improvement.
+
 The plugin can be discovered and its skill loaded by Codex. It now includes an
 experimental [saved-observation ledger](references/stage1-ledger.md), with local
 extraction, validation, decision history, conservative readiness and checkpoint.

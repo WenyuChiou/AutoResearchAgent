@@ -18,7 +18,6 @@ from .collector import (
     rebuild_background_sources,
     rebuild_subject_sources,
 )
-from .formal import attach_workspace, bind_capture, verify_hub_receipts
 from .common import (
     EVAL_ROOT,
     EvaluationError,
@@ -29,6 +28,7 @@ from .common import (
     validate_schema,
     write_json,
 )
+from .formal import attach_workspace, bind_capture, verify_hub_receipts
 from .judging import judge_packet, make_packet
 from .requirements import finalize_saved_spec, prepare_spec
 from .runtime import (
@@ -164,6 +164,18 @@ def _verify_source_receipts(source_result, output, extraction, spec):
 
 
 def evaluate(args):
+    if getattr(args, "evaluator_version", "3") == "3.1":
+        from .pipeline_v31 import evaluate_v31
+
+        return evaluate_v31(args, replay_only=getattr(args, "replay_only", False))
+    if (
+        any(
+            getattr(args, key, False)
+            for key in ("resume_verified", "replay_only", "portable_diagnostic")
+        )
+        or args.execution_class == "repair-diagnostic"
+    ):
+        raise EvaluationError("v3.1-only options require --evaluator-version 3.1")
     started = datetime.now().astimezone()
     output = Path(args.output).resolve()
     if args.execution_class == "formal" and (
@@ -352,6 +364,7 @@ def parser():
     prep.add_argument("as_of")
     prep.add_argument("output")
     prep.add_argument("--backend", choices=["openalex", "crossref"], default="openalex")
+    prep.add_argument("--evaluator-version", choices=("3", "3.1"), default="3")
     recover = sub.add_parser("finalize-saved-spec")
     recover.add_argument("task")
     recover.add_argument("as_of")
@@ -370,6 +383,10 @@ def parser():
     run.add_argument("--capture")
     run.add_argument("--saved-extraction")
     run.add_argument("--resume-pilot", action="store_true")
+    run.add_argument("--evaluator-version", choices=("3", "3.1"), default="3")
+    run.add_argument("--resume-verified", action="store_true")
+    run.add_argument("--replay-only", action="store_true")
+    run.add_argument("--portable-diagnostic", action="store_true")
     run.add_argument("--artifact", action="append", default=[])
     run.add_argument(
         "--subject-status",
@@ -378,7 +395,7 @@ def parser():
     )
     run.add_argument(
         "--execution-class",
-        choices=["exploratory-pilot", "formal"],
+        choices=["exploratory-pilot", "formal", "repair-diagnostic"],
         default="exploratory-pilot",
     )
     run.add_argument(
@@ -405,11 +422,16 @@ def main(argv=None):
     args = parser().parse_args(argv)
     try:
         if args.command == "prepare-spec":
+            options = _model_options(args)
+            if args.evaluator_version == "3.1":
+                from .pipeline_v31 import execution_policy
+
+                options["execution_policy"] = execution_policy()
             result = prepare_spec(
                 args.task,
                 args.as_of,
                 args.output,
-                _model_options(args),
+                options,
                 backend=args.backend,
             )
         elif args.command == "finalize-saved-spec":

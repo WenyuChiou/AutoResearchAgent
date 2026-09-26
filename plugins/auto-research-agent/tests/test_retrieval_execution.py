@@ -1,6 +1,7 @@
 """Exercise the real process boundary with a synthetic CLI, never the network."""
 
 import inspect
+from datetime import datetime
 from pathlib import Path
 import shutil
 import subprocess
@@ -269,11 +270,22 @@ class ProjectionTests(unittest.TestCase):
             self.assertEqual(value["error"], "unknown")
 
 
+class _FixedLedgerClock(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 9, 20, tzinfo=tz)
+
+
 class ExecutionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        # execute/resume reopen the ledger. Keep all of their journal clocks
+        # deterministic; subprocess timeout tests retain the real process clock.
+        clock = patch("stage1_ledger.journal.datetime", _FixedLedgerClock)
+        clock.start()
+        self.addCleanup(clock.stop)
 
     def create(self, mode="rows"):
         pin = runtime(self.root, mode)

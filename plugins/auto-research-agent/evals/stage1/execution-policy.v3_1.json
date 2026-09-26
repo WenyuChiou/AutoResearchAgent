@@ -1,0 +1,12 @@
+{
+  "kind": "EvaluatorModelExecutionPolicy",
+  "schema_version": "3.1.0",
+  "rubric_id": "stage1-general-v3",
+  "timeout_seconds": 600,
+  "max_transient_transport_retries": 1,
+  "max_semantic_corrections_per_unit": 1,
+  "retry_timeouts": false,
+  "extraction_chunk_characters": 12000,
+  "source_policy": "public-only",
+  "unknown_is_zero": false
+}

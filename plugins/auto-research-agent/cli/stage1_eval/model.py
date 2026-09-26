@@ -7,6 +7,14 @@ import tempfile
 from pathlib import Path
 
 from .common import EvaluationError, read_json, sha
+
+# Public replay entry point for formal paired validators. Imported here for the
+# same stable module surface as ``call_model``; model_calls imports DISABLED only
+# while constructing a command, after this module is initialized.
+from .model_calls import (
+    replay_native_model_call_archive as replay_native_model_call_archive,
+    verify_model_call_archive as verify_model_call_archive,
+)
 from .runtime import executable_sha256
 
 DISABLED = (
@@ -112,8 +120,35 @@ def call_model(
     evaluator_home,
     model,
     reasoning,
-    timeout=300,
+    timeout=None,
+    execution_policy=None,
+    resume_verified=False,
+    semantic_validator=None,
 ):
+    if execution_policy is not None:
+        from .model_calls import call_model_v31
+
+        return call_model_v31(
+            prompt,
+            schema_path,
+            output_dir,
+            label,
+            codex=codex,
+            evaluator_home=evaluator_home,
+            model=model,
+            reasoning=reasoning,
+            timeout=timeout,
+            execution_policy=execution_policy,
+            resume_verified=resume_verified,
+            semantic_validator=semantic_validator,
+            api_schema=_api_schema,
+        )
+    if resume_verified:
+        raise EvaluationError("verified resume requires a v3.1 execution policy")
+    if semantic_validator is not None:
+        raise EvaluationError("semantic validator requires a v3.1 execution policy")
+    if timeout is None:
+        timeout = 300
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     result_path = output_dir / f"{label}.json"

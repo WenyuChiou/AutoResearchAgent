@@ -30,6 +30,7 @@ from stage1_retrieval.runtime_identity import verify_identity  # noqa: E402
 from stage1_export.bundle import source_state  # noqa: E402
 from stage1_ledger.journal import LedgerError  # noqa: E402
 from . import sequence  # noqa: E402
+from .native_search import native_search_receipt  # noqa: E402
 
 PROMPT_SHA256 = "9a73fa53b1e660d5a800aa433db617858f24c7c031fe52b302a404fddb769dfd"
 RESEARCH_HUB_SHA = "9877f929587e7e44bc2533db118cbb89336bf94f"
@@ -1238,6 +1239,7 @@ def _capture_subject(
         }
         if earlier.intersection(_completed_searches(result.stdout)):
             record["status"] = "incomplete"
+    (output / "workspace" / f"{attempt_no:02d}").mkdir(parents=True, exist_ok=True)
     for p in Path(workspace).rglob("*"):
         if p.is_symlink():
             record["status"] = "incomplete"
@@ -1258,11 +1260,15 @@ def _capture_subject(
         record["status"] = "incomplete"
     if condition == "treatment" and record["status"] == "complete":
         try:
-            record["stage1_receipt"] = _treatment_receipt(
+            record["stage1_receipt"] = _treatment_execution_receipt(
+                output,
                 output / "workspace" / f"{attempt_no:02d}",
+                record,
+                lock,
                 pin_binding,
                 pin_bytes=(output / pin_name).read_bytes(),
             )
+            record.pop("stage1_receipt_error", None)
         except (ExecutionBlocked, OSError, ValueError) as error:
             if lock["kind"] == "Stage1ABPublicLock":
                 record["status"] = "incomplete"
@@ -1271,6 +1277,58 @@ def _capture_subject(
         json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return record
+
+
+def _native_or_cli_search(lock):
+    return (
+        lock.get("kind") == "Stage1ABPublicLockV3"
+        and lock.get("schema_version") == "3.1.0"
+        and lock.get("search_observation_policy") == "native-or-cli"
+    )
+
+
+def _native_receipt_from_capture(output, attempts):
+    """Replay transcripts without trying to hash the receipt's containing run.json."""
+    output = Path(output)
+    with tempfile.TemporaryDirectory(prefix="stage1-native-search-") as temporary:
+        root = Path(temporary)
+        for number, attempt in enumerate(attempts, 1):
+            name = f"attempt-{number:02d}.jsonl"
+            if name not in attempt.get("files", {}):
+                raise ExecutionBlocked(f"native search capture lacks {name}")
+            shutil.copyfile(output / name, root / name)
+        return native_search_receipt(root, attempts)
+
+
+def _treatment_execution_receipt(
+    output,
+    snapshot,
+    record,
+    lock,
+    pin_binding,
+    *,
+    pin_bytes,
+    verify_runtime=True,
+):
+    """Prefer a present CLI ledger; otherwise allow frozen v3.1 native evidence."""
+    if list(Path(snapshot).rglob("run_manifest.json")) or not _native_or_cli_search(
+        lock
+    ):
+        return _treatment_receipt(
+            snapshot,
+            pin_binding,
+            pin_bytes=pin_bytes,
+            verify_runtime=verify_runtime,
+        )
+    receipt = _native_receipt_from_capture(output, record["attempts"])
+    if (
+        receipt.get("observation_state") != "native-search-observed"
+        or receipt.get("counts", {}).get("completed_search_actions", 0) < 1
+    ):
+        raise ExecutionBlocked(
+            "v3.1 native treatment has no completed native search observation"
+        )
+    return receipt
 
 
 def _treatment_receipt(snapshot, pin_binding, *, pin_bytes, verify_runtime=True):
@@ -1404,6 +1462,7 @@ def _research_hub_workspace_env(workspace, resume):
 def verify_capture(output, *, verify_runtime=True):
     output = Path(output)
     record = read_json(output / "run.json")
+    lock = None
     if record.get("execution_policy") != SUBJECT_EXECUTION_POLICY:
         raise ExecutionBlocked("captured subject sandbox/network policy differs")
     for attempt in record["attempts"]:
@@ -1466,17 +1525,34 @@ def verify_capture(output, *, verify_runtime=True):
                     "v3 treatment has neither receipt nor failure record"
                 )
             return record
-        pin_binding = {
-            "path": record["treatment_runtime_pin_path"],
-            "sha256": receipt["runtime_pin_sha256"],
-        }
         pin_name = f"attempt-{len(record['attempts']):02d}.runtime-pin.json"
         if pin_name not in record["attempts"][-1]["files"]:
             raise ExecutionBlocked("completed treatment lacks saved runtime pin")
         snapshot = output / "workspace" / f"{len(record['attempts']):02d}"
+        native = receipt.get("kind") == "NativeSearchReceipt"
+        if native and not _native_or_cli_search(lock or {}):
+            raise ExecutionBlocked(
+                "native search receipt is not enabled by the frozen lock"
+            )
+        if native and list(snapshot.rglob("run_manifest.json")):
+            raise ExecutionBlocked(
+                "native search receipt cannot replace a present CLI ledger"
+            )
+        pin_sha = (
+            _repeat_pin_sha(lock, record["repeat"])
+            if native
+            else receipt["runtime_pin_sha256"]
+        )
+        pin_binding = {
+            "path": record["treatment_runtime_pin_path"],
+            "sha256": pin_sha,
+        }
         if (
-            _treatment_receipt(
+            _treatment_execution_receipt(
+                output,
                 snapshot,
+                record,
+                lock or {},
                 pin_binding,
                 pin_bytes=(output / pin_name).read_bytes(),
                 verify_runtime=verify_runtime,

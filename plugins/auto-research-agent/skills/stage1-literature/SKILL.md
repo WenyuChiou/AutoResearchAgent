@@ -1,6 +1,6 @@
 ---
 name: stage1-literature
-description: Run Stage 1 literature retrieval through a pinned public CLI and an auditable ledger. Use for question decomposition, query execution, saved evidence, screening history, coverage gates and checkpoints; later stages and independent scientific evaluation are separate.
+description: Organize Stage 1 literature research using Codex native search and reading, with optional pinned research tools. Use for confirmed scope, evidence records, screening reasons, coverage checks and resumable progress; later stages and independent scientific evaluation are separate.
 ---
 
 # Stage 1 literature research
@@ -33,20 +33,29 @@ quoted contribution, decision role, omission consequence and alternatives with
 `PYTHONPATH`. A valid binding is not a
 scientific endorsement; the independent evaluator makes its own verdict.
 
-## Completion rule for live runs
+## Native capability and completion
 
-A compiled query plan and a prose search log are not an executed Stage 1 run.
-Before relying on native web search for a live literature investigation, check
-whether `STAGE1_RUNTIME_PIN` names an operator-reviewed, readable public CLI
-runtime pin. If it does, use that exact pin to initialize a `research-hub-cli`
-ledger, bind the compiled plan, and execute planned queries with
-`stage1_retrieval`. Record each backend receipt, complete each query, extract
-candidates, screen with reasons, validate, gate and checkpoint before calling
-the run complete. Use native web search only for supplemental source reading;
-its results do not become ledger search receipts merely because a query was
-written down. If the runtime pin or CLI execution is unavailable, preserve the
-failed attempt and report Stage 1 as incomplete with a `continue` or
-`human-review` gate. Never describe planned queries as executed queries.
+Keep Codex's available native search, source reading, reasoning and tool choice.
+Use the tool that best answers the current research need. A research-hub runtime
+pin makes an additional tool available; it does not make that tool mandatory or
+restrict native search to supplemental reading. Do not repeat a native search
+through the CLI just to fill a ledger. Read CLI-specific references only when
+that capability is needed.
+
+For native searches, preserve the actual native action IDs, queries, accessible
+source links or saved text, selection reasons, evidence limits and remaining
+coverage questions. Native JSONL can establish that an action occurred even if
+it does not expose its result payload. Missing result counts, source content or
+backend status remain unknown. A completed search action does not prove that a
+paper was read, its identity checked, or its claims verified. Never turn a prose
+search summary into a tool receipt.
+
+Research findings and a source record may be delivered using native tools. A
+captured native run is evidence of execution, not scientific adequacy or a
+`stop-sufficient` gate. Explain whether further searching is needed. If an
+optional tool fails, preserve the failure, use another available tool when
+useful, and report any evidence that remains inaccessible. Do not suppress an
+invalid CLI ledger or describe planned queries as executed.
 
 This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations and an operational coverage gate based on source reviews.
@@ -84,7 +93,7 @@ When preparing a literature run:
 6. Require a recent sweep, closest-work verification and a reasoned coverage
    decision. Reaching a paper count or exhausting a budget is insufficient.
 
-For live execution, first read the [retrieval contract](../../references/stage1-retrieval.md).
+If using the optional live CLI adapter, first read the [retrieval contract](../../references/stage1-retrieval.md).
 Use an isolated runtime and save its exact revision, wheel, schema, executable
 and config hashes. Initialize `research-hub-cli` mode and bind the validated plan
 before searching. Execute each planned backend once. Authored adversarial variants
@@ -92,7 +101,7 @@ are ordinary exact queries; do not invoke another model implicitly. For recovery
 use `stage1_retrieval resume` only after the process has saved its completion receipt.
 An unfinished capture needs inspection; do not repeat it automatically.
 
-Before reading a discovered paper, read the [source observation contract](../../references/stage1-source-evidence.md).
+If recording a source through the CLI ledger, read the [source observation contract](../../references/stage1-source-evidence.md).
 Register a source attempt, save the actual response and extracted text under that
 attempt, and record the observed outcome. Inspect a failure before choosing a new
 attempt; preserve the failure and its reason. Existing saved material uses the
@@ -117,7 +126,7 @@ Use merged, pinned research-hub APIs for delivery. An explicitly authorized isol
 development run may pin an unmerged revision with `development-unmerged` status;
 this status blocks sufficient stopping and must remain visible in its manifest.
 After merge, start a new run at the merge SHA and revalidate; never rewrite an old pin.
-Only the replayed coverage gate may emit
+For a CLI ledger, only its replayed coverage gate may emit
 `stop-sufficient`: all obligations must pass, including two complete rounds with
 no newly qualified works. Human acceptance cannot fill missing evidence.
 If validation fails, preserve the report

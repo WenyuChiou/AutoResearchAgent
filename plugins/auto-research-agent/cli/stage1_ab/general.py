@@ -358,6 +358,9 @@ def freeze_v3(
     output,
     *,
     repeats=3,
+    evaluator_dependency_repo=None,
+    evaluator_dependency_sha=None,
+    research_brief_path=None,
 ):
     """Create an immutable public lock with topic needs, not expected papers."""
     if repeats not in (1, 3):
@@ -415,7 +418,15 @@ def freeze_v3(
         raise runner.ExecutionBlocked(
             "formal v3 research-hub checkout differs from merged SHA"
         )
-    installed = verify_installed_from_commit(dependency_repo, dependency)
+    v31 = evaluator_dependency_repo is not None
+    if bool(research_brief_path) != v31 or bool(evaluator_dependency_sha) != v31:
+        raise runner.ExecutionBlocked(
+            "v3.1 needs a confirmed brief and separate evaluator dependency pin"
+        )
+    installed = verify_installed_from_commit(
+        evaluator_dependency_repo if v31 else dependency_repo,
+        evaluator_dependency_sha if v31 else dependency,
+    )
     hub_command = [sys.executable, "-m", "research_hub"]
     hub_executable_sha = runner.sha(Path(sys.executable).read_bytes())
     if not background.get("receipts") or any(
@@ -489,6 +500,25 @@ def freeze_v3(
         "paired_repeats": series,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if v31:
+        from stage1_brief.brief import validate_brief
+        from stage1_eval.pipeline_v31 import bundle_sha_v31, execution_policy
+
+        brief = read_json(research_brief_path)
+        validate_brief(brief, require_confirmed=True)
+        lock.update(
+            schema_version="3.1.0",
+            evaluator_bundle_sha256=bundle_sha_v31(),
+            evaluator_code_sha256=bundle_sha_v31(),
+            evaluator_execution_policy=execution_policy(),
+            evaluator_research_hub_repo_path=str(
+                Path(evaluator_dependency_repo).resolve()
+            ),
+            evaluator_research_hub_sha=evaluator_dependency_sha,
+            research_brief=brief,
+            research_brief_sha256=runner.sha(canonical(brief)),
+            search_observation_policy="native-or-cli",
+        )
     if any("holdout" in key or "answer_key" in key for key in lock):
         raise runner.ExecutionBlocked("v3 public lock contains an answer-key field")
     runner.write_json(output, lock)
@@ -499,6 +529,12 @@ def paired_v3(lock_path, background_path, result_paths, capture_dirs, output):
     """Apply the frozen three-pair rule without a paper-answer denominator."""
     lock_raw = Path(lock_path).read_bytes()
     lock = json.loads(lock_raw)
+    if lock.get("schema_version") == "3.1.0":
+        from .general_v31 import paired_v31
+
+        return paired_v31(
+            lock_path, background_path, result_paths, capture_dirs, output
+        )
     if (
         lock.get("kind") != "Stage1ABPublicLockV3"
         or lock.get("execution_class") != "formal"
@@ -595,6 +631,11 @@ def paired_v3(lock_path, background_path, result_paths, capture_dirs, output):
         raise runner.ExecutionBlocked("paired v3 results differ from frozen run IDs")
     if len({entry["capture"]["series_id"] for entry in by_run.values()}) != 1:
         raise runner.ExecutionBlocked("paired v3 mixes execution series")
+    return _paired_decision(lock, by_run, runner.sha(lock_raw), output)
+
+
+def _paired_decision(lock, by_run, lock_sha256, output):
+    """One unchanged scientific decision rule shared by evaluator versions."""
     pairs = []
     has_unknown = False
     has_added_major = False
@@ -674,7 +715,7 @@ def paired_v3(lock_path, background_path, result_paths, capture_dirs, output):
     value = {
         "kind": "Stage1ABGeneralDecisionV3",
         "schema_version": "3.0.0",
-        "lock_sha256": runner.sha(lock_raw),
+        "lock_sha256": lock_sha256,
         "decision": decision,
         "rule": "P2/P3 each >=2 positive and 0 negative; P1 0 negative; B 0 confirmed major; unknown inconclusive",
         "pairs": pairs,

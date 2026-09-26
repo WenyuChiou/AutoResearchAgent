@@ -1,6 +1,7 @@
 """Build and freeze question-specific obligations before looking at subjects."""
 
 from datetime import date, datetime, timezone
+from copy import deepcopy
 from pathlib import Path
 
 from .common import (
@@ -97,6 +98,39 @@ def prepare_spec(task_path, as_of, output, model_options, *, backend="openalex")
         raise EvaluationError("unsupported preflight search backend")
     task = Path(task_path).read_text(encoding="utf-8")
     rubric, _ = load_rubric()
+    if model_options.get("execution_policy"):
+        from .units import run_unit
+
+        prompt = _prompt(task, as_of, rubric["rubric_id"], backend)
+        schema = EVAL_ROOT / "schemas/topic-spec-draft.v3.schema.json"
+
+        def normalize(draft):
+            validate_schema(draft, schema.name)
+            if draft["search_policy"]["backend"] != backend:
+                raise EvaluationError(
+                    "model search backend differs from preflight choice"
+                )
+            return _normalize_ids(deepcopy(draft))
+
+        draft, provenance = run_unit(
+            prompt,
+            schema,
+            Path(output).parent / (Path(output).stem + "-model-logs"),
+            "topic-spec",
+            model_options,
+            normalize,
+        )
+        return _freeze(
+            task_path,
+            as_of,
+            output,
+            draft,
+            {
+                "prompt_sha256": sha(prompt.encode("utf-8")),
+                "unit": provenance,
+                "execution_policy": model_options["execution_policy"],
+            },
+        )
     draft, provenance = call_model(
         _prompt(task, as_of, rubric["rubric_id"], backend),
         EVAL_ROOT / "schemas/topic-spec-draft.v3.schema.json",

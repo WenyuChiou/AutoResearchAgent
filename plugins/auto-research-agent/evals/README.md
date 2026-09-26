@@ -1,5 +1,11 @@
 # AutoResearchAgent evaluation contract
 
+The [v3.1 execution guide](stage1/EVALUATOR_V3_1.zh-TW.md) adds confirmed
+scope, optional public-source acquisition, complete native-attempt capture and
+verified model-unit replay. Rubric v3 and its ten criteria remain unchanged.
+Subject and evaluator dependencies are pinned separately; native capabilities
+remain available to both A and B. Synthetic tests do not establish improvement.
+
 The new, experimental [Stage 1 general rubric-evidence path](stage1/GOLD_SET_FREE_V3.zh-TW.md)
 scores source-grounded P1/P2/P3 adequacy without paper answer keys or routine
 human source annotation. It is a separate version and has not established an
