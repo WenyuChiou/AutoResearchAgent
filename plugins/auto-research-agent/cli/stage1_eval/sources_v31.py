@@ -372,9 +372,10 @@ def attach_public_sources(packet, source_result):
             text_path.relative_to(output_dir)
         except ValueError as exc:
             raise EvaluationError("public extracted text escapes fetch output") from exc
-        text = text_path.read_text(encoding="utf-8")
-        if sha(text.encode()) != result["extracted_text_sha256"]:
-            raise EvaluationError("public extracted text changed")
+        text_bytes = text_path.read_bytes()
+        if sha(text_bytes) != result["extracted_text_sha256"]:
+            raise EvaluationError(f"public extracted text changed: {work_id}")
+        text = text_bytes.decode("utf-8")
         if result["source_version"] != "sha256:" + result["raw_sha256"]:
             raise EvaluationError("public source version is not bound to raw bytes")
         locators = result.get("locators")
