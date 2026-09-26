@@ -28,7 +28,10 @@ def main(argv=None):
     verify.add_argument("brief", type=Path)
     args = parser.parse_args(argv)
     try:
-        load = lambda p: json.loads(p.read_text(encoding="utf-8"))
+
+        def load(path):
+            return json.loads(path.read_text(encoding="utf-8"))
+
         if args.command == "record":
             result = create_brief(load(args.request), args.output, args.previous)
         elif args.command == "validate":
