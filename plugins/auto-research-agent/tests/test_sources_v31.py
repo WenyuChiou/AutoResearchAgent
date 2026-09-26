@@ -463,6 +463,46 @@ class PublicSourceAdapterTests(unittest.TestCase):
             self.assertEqual(packet["sources"], {})
             self.assertEqual(packet["content_evidence"], {})
 
+    def test_attachment_preserves_original_newlines_hashes_and_character_offsets(self):
+        for newline in ("\n", "\r\n", "\r"):
+            with self.subTest(newline=repr(newline)):
+                result = self.public_result()
+                text = f"A Study{newline}結果 café{newline}Evidence passage"
+                raw = text.encode("utf-8")
+                path = Path(result["extracted_text_path"])
+                path.write_bytes(raw)
+                result["extracted_text_sha256"] = sha(raw)
+                start = text.index("結果")
+                result["locators"] = [
+                    {"kind": "html-section", "start": start, "end": len(text)}
+                ]
+                collected = {
+                    "sources": [metadata_source(self.work)],
+                    "receipts": [],
+                    "public_fetches": [
+                        {
+                            "work_id": self.work["work_id"],
+                            "receipt": {},
+                            "result": result,
+                        }
+                    ],
+                }
+                packet = attach_public_sources(self.packet(), collected)
+                evidence = next(iter(packet["content_evidence"].values()))
+                self.assertEqual(evidence["text"], text)
+                self.assertEqual(evidence["sha256"], sha(raw))
+                self.assertEqual(evidence["locator"], result["locators"])
+                self.assertEqual(
+                    evidence["text"][start:], f"結果 café{newline}Evidence passage"
+                )
+                self.assertEqual(path.read_bytes(), raw)
+                path.write_bytes(raw + b"!")
+                with self.assertRaisesRegex(
+                    EvaluationError,
+                    "public extracted text changed: " + self.work["work_id"],
+                ):
+                    attach_public_sources(self.packet(), collected)
+
     def test_work_id_must_be_nonempty_and_match_deterministic_identity(self):
         for invalid in ("work-", "work-" + "0" * 16):
             changed = {**self.work, "work_id": invalid}
