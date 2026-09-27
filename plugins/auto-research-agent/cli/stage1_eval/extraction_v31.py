@@ -8,7 +8,7 @@ from pathlib import Path
 from .common import EVAL_ROOT, EvaluationError, canonical, sha
 from .spans import CHUNK_CHARS, SPAN_CHARS, extraction_chunks, select
 
-WORK_SCHEMA = EVAL_ROOT / "schemas" / "subject-works.v3_1.schema.json"
+WORK_SCHEMA = EVAL_ROOT / "schemas" / "subject-works.v3_2.schema.json"
 CLAIM_SCHEMA = EVAL_ROOT / "schemas" / "subject-claims.v3_1.schema.json"
 
 
@@ -173,31 +173,52 @@ def _work_identity(row):
     return {"identifier": row["identifier"], "title": row["title"]}
 
 
+def _title_key(title):
+    return " ".join(title.casefold().split()).rstrip(".")
+
+
 def work_id_for(row):
     """Use the same canonical work identity at extraction and source admission."""
     return "work-" + sha(canonical(_work_identity(row)))[:16]
 
 
 def _aggregate_works(results):
+    # Resolve an exact title-only repetition only when the complete inventory
+    # has a single explicit identity for that title. Never guess from a prefix,
+    # acronym, or conflicting identifiers. The selected representative retains
+    # its own identifier-bound quotation; each occurrence remains in provenance.
+    identified = {}
+    for result in results:
+        for row in result["works"]:
+            if row["identifier"]:
+                identified.setdefault(_title_key(row["title"]), {})[
+                    canonical(_work_identity(row))
+                ] = row
     by_identity = {}
     source_map = {}
     for chunk_number, result in enumerate(results, 1):
         for row in result["works"]:
-            identity = _work_identity(row)
+            representative = row
+            matches = identified.get(_title_key(row["title"]), {})
+            if not row["identifier"] and len(matches) == 1:
+                representative = next(iter(matches.values()))
+            identity = _work_identity(representative)
             key = canonical(identity)
-            work_id = work_id_for(row)
+            work_id = work_id_for(representative)
             source = {
                 "chunk": chunk_number,
                 "evidence_id": row["evidence_id"],
                 "span_ids": row["span_ids"],
+                "observed_title": row["title"],
+                "observed_identifier": row["identifier"],
             }
             source_map.setdefault(work_id, []).append(source)
             if key not in by_identity:
                 by_identity[key] = {
                     "work_id": work_id,
-                    "exact_reference": row["exact_reference"],
-                    "title": row["title"],
-                    "identifier": row["identifier"],
+                    "exact_reference": representative["exact_reference"],
+                    "title": representative["title"],
+                    "identifier": representative["identifier"],
                     "nominated_core": row["nominated_core"],
                 }
             else:
@@ -260,6 +281,13 @@ def _works_prompt(index, view, number, total):
         "Put summary shorthand, author-only references, acronyms repeated in discussion, and group labels "
         "in mentions, not works; these are preserved but must not inflate the paper count or trigger title lookup. "
         "For example, 'the validation review', 'Smith et al.', and 'recent preprints' are mentions. "
+        "A search query is an attempted lookup, NOT a bibliographic assertion, even if it contains a real title, "
+        "authors, year or DOI. Preserve query-only text as search-query mentions. Preserve candidates discussed "
+        "only as screened out, not retained, or not securely identified as excluded-candidate mentions. "
+        "A work belongs in works only where the subject actually supplies a bibliographic entry, reviews it, "
+        "or substantively cites it as evidence. A separate substantive citation may qualify even when another "
+        "occurrence was excluded; classify each occurrence by its context, not the filename. "
+        "Never promote text from a query column into a paper title or infer a title from remembered keywords. "
         "Select only span_ids shown below. The program restores exact_reference; never write a quotation. "
         "title and identifier must be literal substrings of the selected raw spans, including any Markdown. "
         "identifier means an explicit DOI, URL, arXiv ID, or other unique paper ID; never use an author or title as an ID. "
@@ -384,7 +412,7 @@ def extract_subject_v31(subject, output_dir, model_options, *, replay_only=False
         "extraction_complete": not incomplete,
         "unextracted_reason": "; ".join(incomplete) if incomplete else None,
     }, {
-        "schema_version": "3.1.0",
+        "schema_version": "3.2.0",
         "span_index_sha256": sha(canonical(index)),
         "chunk_count": len(views),
         "chunks": records,

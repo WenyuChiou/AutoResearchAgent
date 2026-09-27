@@ -388,6 +388,80 @@ class ExtractionV31Tests(unittest.TestCase):
         self.assertEqual(len(works), 2)
         self.assertEqual(sorted(len(v) for v in sources.values()), [1, 2])
 
+    def test_title_only_repeat_uses_unique_identity_and_keeps_each_original(self):
+        rows = [
+            {
+                "title": "Visible Study",
+                "identifier": "",
+                "nominated_core": True,
+                "span_ids": ["repeat"],
+                "evidence_id": "answer",
+                "exact_reference": "Visible Study",
+            },
+            {
+                "title": "VISIBLE STUDY.",
+                "identifier": "10.1234/study",
+                "nominated_core": False,
+                "span_ids": ["citation"],
+                "evidence_id": "bibliography",
+                "exact_reference": "VISIBLE STUDY. Author, 2020. 10.1234/study",
+            },
+        ]
+        works, sources = _aggregate_works([complete_works(rows)])
+        self.assertEqual(len(works), 1)
+        self.assertTrue(works[0]["nominated_core"])
+        self.assertEqual(works[0]["exact_reference"], rows[1]["exact_reference"])
+        self.assertEqual(
+            [s["observed_identifier"] for s in sources[works[0]["work_id"]]],
+            ["", "10.1234/study"],
+        )
+        # A title with two identifiers remains ambiguous; a prefix is not a title match.
+        rows.append(dict(rows[1], identifier="10.1234/other"))
+        rows.append(dict(rows[0], title="Visible"))
+        works, _ = _aggregate_works([complete_works(rows)])
+        self.assertEqual(len(works), 4)
+
+    def test_queries_and_screened_out_candidates_preserve_mentions_and_claim_pass(self):
+        value = subject(
+            "| Query | Outcome |\n| `Alpha Study DOI` | screened out |\n"
+            "Beta Study was not retained.\nGamma Study. 10.1234/gamma\n"
+        )
+        ids = list(extraction_chunks(value)[0])
+
+        def responder(label, prompt):
+            if "works" in label:
+                self.assertIn(
+                    "A search query is an attempted lookup, NOT a bibliographic assertion",
+                    prompt,
+                )
+                result = complete_works(
+                    [
+                        {
+                            "title": "Gamma Study",
+                            "identifier": "10.1234/gamma",
+                            "nominated_core": False,
+                            "span_ids": ids,
+                        }
+                    ]
+                )
+                result["mentions"] = [
+                    {"span_ids": ids, "reason": reason}
+                    for reason in ("search-query", "excluded-candidate")
+                ]
+                Draft202012Validator(
+                    json.loads(WORK_SCHEMA.read_text(encoding="utf-8"))
+                ).validate(result)
+                return result
+            return complete_claims([{"span_ids": ids, "cited_work_ids": []}])
+
+        result, provenance, _ = self.run_with(value, responder)
+        self.assertEqual([w["title"] for w in result["works"]], ["Gamma Study"])
+        self.assertEqual(
+            {r["reason"] for r in provenance["mention_sources"]},
+            {"search-query", "excluded-candidate"},
+        )
+        self.assertEqual(len(result["central_claims"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

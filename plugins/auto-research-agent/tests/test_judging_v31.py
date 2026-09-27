@@ -283,6 +283,45 @@ class JudgeFlowTests(unittest.TestCase):
                         normalize(dict(raw, core_assessments=invalid))
             else:
                 phase = "process" if label.startswith("process") else "content"
+                if phase == "content":
+                    self.assertEqual(data["supported_closest_work_ids"], [])
+                    self.assertIn("An empty supported list cannot earn 2", prompt)
+                    # A candidate-only inventory must not be promoted by the
+                    # criterion unit, including after adjudication.
+                    from copy import deepcopy
+
+                    invalid = deepcopy(raw)
+                    invalid["criteria"] = [
+                        {
+                            "criterion_id": criterion,
+                            "status": "unverifiable",
+                            "score": None,
+                            "passages": [],
+                            "reason": "Missing text",
+                            "missing_evidence": ["Source"],
+                        }
+                        for criterion in sorted(CONTENT_IDS)
+                    ]
+                    closest = next(
+                        r
+                        for r in invalid["criteria"]
+                        if r["criterion_id"] == "P2V3.CLOSEST_FRONTIER"
+                    )
+                    closest.update(
+                        status="scored",
+                        score=2,
+                        passages=[{"span_id": span_id}],
+                        missing_evidence=[],
+                    )
+                    packet["mode"] = "evidence-audited"
+                    packet["challenge_receipts"] = [
+                        {"purpose": "frontier", "status": "results"}
+                    ]
+                    with self.assertRaisesRegex(
+                        EvaluationError,
+                        "full closest score needs supported closest work",
+                    ):
+                        normalize(invalid)
                 ids = sorted(PROCESS_IDS if phase == "process" else CONTENT_IDS)
                 raw["criteria"] = [
                     {
