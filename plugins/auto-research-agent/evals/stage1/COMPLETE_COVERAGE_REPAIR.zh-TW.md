@@ -2,7 +2,8 @@
 
 目前交付的是 **T2 的離線分派與重建檢查**。它把每段已保存證據安排到有界單元，
 不修改 frozen rubric v3，不執行受測研究，也不產生新分數。T1 逐篇／claim 查核、
-T2 實際模型判讀及其彙合仍待後續切片。Readiness 是 `implementation-only`。
+T2 P3 的实际模型判读及汇合现由 [criterion execution](CRITERION_EXECUTION.zh-TW.md)
+提供；P1/P2 与完整 evaluator 入口整合仍待后续。Readiness 是 `implementation-only`。
 
 舊 evaluator v3.1 的單一視窗最多使用 60,000 個文字字元、每作品 12,000 個字元。
 有完整索引不表示每個片段都進入模型。例如保存的診斷指出一份 83 個片段的文件，

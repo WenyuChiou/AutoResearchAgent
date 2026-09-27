@@ -29,6 +29,24 @@ def assignments(plan):
 
 
 class CriterionCoverageTests(unittest.TestCase):
+    def test_sized_plan_is_versioned_while_default_v1_shape_stays_unchanged(self):
+        subject = packet("研究🚀" * 900)
+        _, original = build_coverage_plan(subject, "process")
+        self.assertEqual(original["kind"], "Stage1CriterionCoveragePlan.v1")
+        self.assertNotIn("span_characters", original)
+        index, sized = build_coverage_plan(
+            subject, "process", max_unit_bytes=4500, span_characters=300
+        )
+        self.assertEqual(verify_coverage_plan(subject, sized), index)
+        self.assertEqual(len(assignments(sized)), len(index))
+        altered = deepcopy(sized)
+        altered["span_characters"] = 900
+        with self.assertRaises(EvaluationError):
+            verify_coverage_plan(subject, altered)
+        for invalid in (True, None, 99, 901):
+            with self.assertRaises(EvaluationError):
+                build_coverage_plan(subject, "process", span_characters=invalid)
+
     def test_all_83_spans_including_middle_and_end_are_assigned(self):
         text = "".join(f"{number:02d}:" + "x" * 895 + "\n" for number in range(83))
         subject = packet(text)

@@ -21,7 +21,12 @@ def run_unit(
     normalize,
     *,
     replay_only=False,
+    max_prompt_bytes=None,
 ):
+    if max_prompt_bytes is not None and (
+        type(max_prompt_bytes) is not int or max_prompt_bytes < 1
+    ):
+        raise EvaluationError("invalid unit prompt byte limit")
     output_dir = Path(output_dir)
     policy = model_options["execution_policy"]
     config = _request_config(
@@ -37,6 +42,11 @@ def run_unit(
         return normalize(value)
 
     def obtain(text, name):
+        if (
+            max_prompt_bytes is not None
+            and len(text.encode("utf-8")) > max_prompt_bytes
+        ):
+            raise EvaluationError("unit prompt exceeds byte limit")
         archive = output_dir / f"{name}.model-call"
         if not archive.exists():
             if replay_only:

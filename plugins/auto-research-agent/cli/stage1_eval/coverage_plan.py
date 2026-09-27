@@ -9,6 +9,7 @@ from .judging import CONTENT_IDS, PROCESS_IDS
 from .spans import index_evidence
 
 KIND = "Stage1CriterionCoveragePlan.v1"
+SIZED_KIND = "Stage1CriterionCoveragePlan.v2"
 MAX_UNIT_BYTES = 60_000
 CONTEXT_SPANS = 1
 
@@ -57,7 +58,9 @@ def _partition(index, budget):
     return units
 
 
-def build_coverage_plan(packet, phase, *, max_unit_bytes=MAX_UNIT_BYTES):
+def build_coverage_plan(
+    packet, phase, *, max_unit_bytes=MAX_UNIT_BYTES, span_characters=900
+):
     """Every phase span has exactly one primary unit, including raw envelopes.
 
     No condition label or path heuristic decides relevance. Decoded output is an
@@ -67,7 +70,9 @@ def build_coverage_plan(packet, phase, *, max_unit_bytes=MAX_UNIT_BYTES):
         raise EvaluationError("coverage: invalid phase")
     if type(max_unit_bytes) is not int or not 4_000 <= max_unit_bytes <= MAX_UNIT_BYTES:
         raise EvaluationError("coverage: invalid serialized-evidence budget")
-    index = index_evidence(packet[phase + "_evidence"])
+    if type(span_characters) is not int or not 100 <= span_characters <= 900:
+        raise EvaluationError("coverage: invalid span character limit")
+    index = index_evidence(packet[phase + "_evidence"], span_characters=span_characters)
     criteria = sorted(CONTENT_IDS if phase == "content" else PROCESS_IDS)
     _, rubric_sha = load_rubric()
     units = []
@@ -97,15 +102,22 @@ def build_coverage_plan(packet, phase, *, max_unit_bytes=MAX_UNIT_BYTES):
         "excluded_spans": [],
         "scope": "Routing only; no model submissions, semantic judgments or scores.",
     }
+    if span_characters != 900:
+        plan.update(
+            kind=SIZED_KIND, schema_version="2.0.0", span_characters=span_characters
+        )
     return index, plan
 
 
 def verify_coverage_plan(packet, plan):
     """Reconstruct from authoritative packet bytes, not author-written totals."""
-    if not isinstance(plan, dict) or plan.get("kind") != KIND:
+    if not isinstance(plan, dict) or plan.get("kind") not in {KIND, SIZED_KIND}:
         raise EvaluationError("coverage: unsupported plan contract")
     index, expected = build_coverage_plan(
-        packet, plan.get("phase"), max_unit_bytes=plan.get("max_unit_bytes")
+        packet,
+        plan.get("phase"),
+        max_unit_bytes=plan.get("max_unit_bytes"),
+        span_characters=plan.get("span_characters", 900),
     )
     if canonical(plan) != canonical(expected):
         raise EvaluationError(

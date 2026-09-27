@@ -43,7 +43,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_eval",
       "problem": "A per-topic gold paper list and manual source annotations block routine cross-topic Stage 1 assessment.",
-      "mechanism": "Freeze topic needs and rubric v3, collect bounded public-source evidence, extract all answer chunks separately for works and central claims, select source-bound spans with independent tool-free judges, and replay only validated v3.1 units with identical inputs and runtime. A separate offline coverage planner losslessly assigns all phase spans to byte-bounded units with neighbour context and reconstructed obligations; planned units remain pending until a future reviewed execution path submits and validates them.",
+      "mechanism": "Freeze topic needs and rubric v3, collect bounded public-source evidence, extract all answer chunks separately for works and central claims, select source-bound spans with independent tool-free judges, and replay only validated v3.1 units with identical inputs and runtime. Complete routing assigns every phase span. The separate P3 execution path submits all units independently for R1/R2, retains per-span dispositions and original locations, and aggregates bounded pairs with preserved child bindings and contrary evidence; semantic disagreement triggers ADJ. Full evaluator integration remains pending.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -99,7 +99,8 @@
         "criterion judges receive score prerequisites from their assigned work assessments; no automatic score repair",
         "a real PDF text probe and bound parser versions/bytes gate evaluation before model calls; missing parser is an evaluator error",
         "judge passage choices use per-unit schema-enumerated aliases with immutable canonical span bindings; no fuzzy ID or quote repair",
-        "coverage routing is a pending prerequisite, not proof of completed semantic reading; preserve raw native arguments and status alongside decoded output; historical judging remains unchanged"
+        "coverage routing is a pending prerequisite, not proof of completed semantic reading; preserve raw native arguments and status alongside decoded output; historical judging remains unchanged",
+        "P3 complete execution requires every planned native unit and aggregation edge; output and initial/correction prompts are byte bounded; missing units or inherited contrary evidence fail closed; independent requests are not shared judge generations; major-error and formal gates remain separate"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
@@ -115,7 +116,8 @@
         "plugins/auto-research-agent/tests/test_native_search_runner_v31.py",
         "plugins/auto-research-agent/tests/test_native_search_capture.py",
         "plugins/auto-research-agent/tests/test_capture_v31.py",
-        "plugins/auto-research-agent/tests/test_criterion_coverage.py"
+        "plugins/auto-research-agent/tests/test_criterion_coverage.py",
+        "plugins/auto-research-agent/tests/test_criterion_execution.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
