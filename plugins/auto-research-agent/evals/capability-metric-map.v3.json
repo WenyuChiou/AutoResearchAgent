@@ -102,7 +102,7 @@
         "offline source validation observations preserve exact stdout, stderr, exit and input hashes; failed or incomplete replay is not automatically repeated and source validation is not semantic claim endorsement",
         "complete source representation is not completed model reading or semantic auditing; rehashed representations must reconstruct exactly from the original packet and full source catalogue",
         "original citation values are restored from provenance-bound subject spans before source audits; conflicting occurrences remain separate, missing publication versions are not filled from external metadata, and original claims are unchanged",
-        "callable source audit units retain every work field and central claim, use all eligible located source windows with capped initial/correction prompts, preserve contrary leaves and missing originals, and never award rubric scores; formal pipeline integration and semantic aggregation remain pending",
+        "v3.1 pipeline extracts original citation fields before source collection and independently audits all eligible work/claim windows for R1/R2; each content judge sees only its own audit and source conclusion disagreements trigger ADJ; full source materialization preserves abstract tails and identity metadata; audit observations are not scores or subject actions; complete criterion semantic aggregation remains pending",
         "coverage routing is a pending prerequisite, not proof of completed semantic reading; preserve raw native arguments and status alongside decoded output; historical judging remains unchanged",
         "P3 complete execution requires every planned native unit and aggregation edge; output and initial/correction prompts are byte bounded; a frozen whole-run unit/generation/attempt budget rejects before the first model call rather than truncating evidence; stable conclusion and missing-evidence codes participate in disagreement detection; missing units or inherited contrary evidence fail closed; independent requests are not shared judge generations; major-error and formal gates remain separate"
       ],
@@ -116,6 +116,7 @@
         "plugins/auto-research-agent/tests/test_sources_v31.py",
         "plugins/auto-research-agent/tests/test_source_replay.py",
         "plugins/auto-research-agent/tests/test_source_audit_units.py",
+        "plugins/auto-research-agent/tests/test_source_pipeline.py",
         "plugins/auto-research-agent/tests/test_original_fields.py",
         "plugins/auto-research-agent/tests/test_audit_source_evidence.py",
         "plugins/auto-research-agent/tests/test_source_runtime.py",

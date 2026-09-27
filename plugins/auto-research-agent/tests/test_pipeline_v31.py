@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 from stage1_eval import pipeline_v31 as pipeline  # noqa: E402
 from stage1_eval.common import EvaluationError, canonical, read_json, sha  # noqa: E402
 from stage1_eval.__main__ import evaluate  # noqa: E402
+from stage1_eval.spans import extraction_chunks  # noqa: E402
 from test_stage1_general_eval import judgment, spec  # noqa: E402
 
 
@@ -95,7 +96,16 @@ class PipelineV31Tests(unittest.TestCase):
             patch.object(
                 pipeline,
                 "extract_subject_v31",
-                return_value=(self.extraction, {"replay_only": False}),
+                return_value=(
+                    self.extraction,
+                    {
+                        "replay_only": False,
+                        "span_index_sha256": sha(
+                            canonical(extraction_chunks(self.subject)[0])
+                        ),
+                        "work_source_map": {},
+                    },
+                ),
             )
         )
         self.stack.enter_context(
@@ -126,6 +136,13 @@ class PipelineV31Tests(unittest.TestCase):
         self.assertEqual(result["schema_version"], "3.1.0")
         self.assertNotIn("formal_capture", result)
         root = Path(self.args.output)
+        self.assertTrue((root / "original-fields/result.json").is_file())
+        self.assertTrue((root / "source-materialization.json").is_file())
+        for role in ("r1", "r2"):
+            self.assertTrue((root / "source-audits" / role / "result.json").is_file())
+        self.assertEqual(
+            set(self.judge.call_args.kwargs["source_audits"]), {"r1", "r2"}
+        )
         before = {str(p): p.read_bytes() for p in root.rglob("*") if p.is_file()}
         self.args.resume_verified = True
         self.assertEqual(pipeline.evaluate_v31(self.args, replay_only=True), result)

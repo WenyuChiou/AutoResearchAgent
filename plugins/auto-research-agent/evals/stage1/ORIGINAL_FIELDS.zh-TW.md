@@ -25,6 +25,12 @@
 `Stage1OriginalAndSourceAudit.v1` 綁定提取和來源審計兩份結果。失敗紀錄及
 一次修正均保留，恢復要重播核對原生單元與結果，不能靠重算外層 hash 通過。
 
-這已接通「原值提取 → 逐欄位／claim 來源審計」的可呼叫路徑。尚未接入
-正式 evaluator 主入口、criterion 語意彙整與 R1/R2/ADJ 調度，不給品質分數。
-合成測試的成功不等於原始六次診斷或正式 A/B 已完成。
+v3.1 主入口現在保留原 extraction，另存 `subject-original-extraction.json`，
+並在來源取得／重播之後分別執行 R1、R2 的逐欄位與 claim 審計。每位 content
+裁判只收到自己的審計觀察；來源結論或未知原因不同，即使最終分數相同也進入
+ADJ。ADJ 看同一批來源及兩份既有觀察，不另取新證據。完整摘要與獨立 metadata
+投影進入 evidence packet，尾端反證不再於建包時裁短。
+
+來源審計尚不直接給 rubric 分數。此變更仍使用既有有界 content judge，完整
+criterion 語意彙整、P3 主入口接線與重大錯誤完整覆核仍需後續整合。這些界線、
+原始六次診斷及非美國 pilot 完成前不能宣告 FREEZE_READY。合成測試不代表科學驗證。
