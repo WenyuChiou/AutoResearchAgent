@@ -1,6 +1,6 @@
 ---
 name: stage2-directions
-description: This skill applies when the user asks to check proposed research directions, compare candidate gaps, revise an infeasible idea, or prepare a Stage 2 selection package from literature evidence. It supports fixed-candidate checking and preliminary feasibility; full autonomous direction generation and Stage 3 design remain separate.
+description: This skill applies when the user asks to improve an existing research method, discuss a new concept, challenge an assumption, check proposed directions, revise an infeasible idea, or prepare a Stage 2 selection package from literature evidence. It guides open proposal development and fixed-candidate checking; full autonomous generation and Stage 3 design remain separate.
 ---
 
 # Stage 2 direction checking
@@ -18,6 +18,23 @@ Keep native Codex search, reading, reasoning and code tools available. Reuse
 `literature-triage-matrix` and `gap-to-topic` when installed and applicable;
 their presence is not required to use the local checker.
 
+Allow open proposal development before converging on candidate checks. Consider
+assumption challenges, method combinations, transferred ideas, new mechanisms
+and revisited failures as well as literature gaps; keep these examples open.
+Do not require a paper to name a gap before considering a new method. Explore
+in prose, sketches or short derivations without a forced nested schema, idea
+quota or fixed reasoning path. Retain promising unfinished ideas for bounded
+follow-up rather than treating admission to discussion as final recommendation.
+Read the interface's open-proposal guidance when assessing a new method.
+
+Keep two equally valid entry routes: improve an existing method or design, and
+propose a new concept, mechanism or design. For improvements, identify the
+original limitation and the useful change relative to the original and closest
+alternatives. For new concepts, explain the premises, difference from prior work
+and a way to test the idea. Routes may combine or change during revision; do not
+require both in each run or reward a novelty label over a valuable improvement.
+Both routes use the same evidence checks, five axes and user selection gate.
+
 1. Read the actual evidence and compare studies on meaningful shared dimensions.
    Distinguish source findings from inferences and missing evidence. Check the
    closest work, the remaining opportunity and evidence that could weaken it.
@@ -25,9 +42,16 @@ their presence is not required to use the local checker.
    value, answerability, materials and execution. Keep unknown separate from a
    demonstrated failure. Judge value by the useful knowledge or decision it can
    support, not complexity or promises of a breakthrough.
+   Separate sourced facts, inferences and proposed mechanisms. Ask what changes,
+   why it might help, which closest alternatives or ablations could test it, and
+   when it could fail. Treat unmeasured effectiveness as the research question,
+   not as established evidence or automatic infeasibility. Keep unknown enabling
+   prerequisites subject to the existing recommendation gate.
 3. Use a separate, tool-free extraction step to record the completed assessment.
    Bind each quote to the saved source, work, version and location. Never invent
    tool receipts, checks or human decisions to satisfy a schema.
+   Preserve the original proposal if extraction fails; do not lose it or turn
+   a conjecture into a verified finding to complete the record.
 4. Apply the recorded assessment through `stage2_check`. Recommend, revise, park
    or reject with evidence and reasons. Supply a concrete next check for unknowns.
    A hard blocker cannot be offset by high scores on other axes.
