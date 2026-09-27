@@ -4,6 +4,22 @@
 v3.1 修的是如何取得、傳遞、核對及重播證據。它不是較寬鬆的評分標準。
 本次改動屬 implementation-only；正式美國 A/B 尚未完成，不宣稱改善。
 
+### 共用被動觀察器與完整已存歷史
+
+新建 v3.1 lock 綁定 `passive_observer` 的政策和實作 hash。A、B 都在原生程序
+啟動前、收到每個 `item.completed` 後及程序退出後觀察工作區，保存原始 stdout、
+stderr、檔案 bytes 和觀察事件。觀察器不向 subject 發指令，也不替它搜尋或查證。
+`observed_at` 是觀察時刻；原生未提供的 backend、result count、HTTP status、
+duration 仍為 null。讀取檔案有成本，也可能遇到並行寫入；遇到偵測到的競爭或
+I/O 失敗就保留錯誤並拒絕完整擷取，不替 subject 扣分。此採樣不能保證每次檔案
+寫入都被捕捉，兩次觀察之間已消失的版本仍不可重建。
+
+`evaluate --evaluator-version 3.1` 現在透過 `capture_history` 讀取所有已存 attempts
+與新 observer snapshots，匯出 `workspace-history.json` 和
+`native-field-availability.json`。早期或未交付版本只進 process evidence，不能
+冒充最後交付內容。歷史擷取不补造 observer 紀錄，診斷仍標為修復後診斷。
+完整 content/source/major-error 語意整合與非計分 pilot 尚待完成。
+
 ### 評估器啟動與片段選擇修正
 
 已觀察到評估環境只裝了 `pdfminer.six`、漏裝 `pdfplumber`，使已取得的公開 PDF

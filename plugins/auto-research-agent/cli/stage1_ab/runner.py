@@ -1000,6 +1000,11 @@ def _capture_subject(
     lock = read_json(lock_path)
     if lock.get("kind") not in PUBLIC_LOCK_KINDS:
         raise ExecutionBlocked("missing public lock")
+    if "passive_observer" in lock:
+        from .observer import binding as observer_binding
+
+        if lock["passive_observer"] != observer_binding():
+            raise ExecutionBlocked("passive observer differs from frozen bytes")
     if lock["kind"] == "Stage1ABPublicLockV3" and codex_runtime_sha(codex) != lock.get(
         "codex_runtime_sha256"
     ):
@@ -1178,16 +1183,33 @@ def _capture_subject(
     final_path = output / f"attempt-{attempt_no:02d}.final.txt"
     command[-1:-1] = ["-o", str(final_path)]
     started = datetime.now(timezone.utc)
-    result = subprocess.run(
-        command,
-        input=Path(prompt_path).read_bytes(),
-        env=env,
-        cwd=workspace,
-        capture_output=True,
-    )
+    prefix = f"attempt-{attempt_no:02d}"
+    observer_dir = output / (prefix + ".observer")
+    if "passive_observer" in lock:
+        from .observer import run_observed
+
+        result = run_observed(
+            command,
+            input=Path(prompt_path).read_bytes(),
+            env=env,
+            cwd=workspace,
+            output=observer_dir,
+        )
+    else:
+        result = subprocess.run(
+            command,
+            input=Path(prompt_path).read_bytes(),
+            env=env,
+            cwd=workspace,
+            capture_output=True,
+        )
     ended = datetime.now(timezone.utc)
     prefix = f"attempt-{attempt_no:02d}"
     files = {}
+    if observer_dir.exists():
+        for path in sorted(observer_dir.rglob("*")):
+            if path.is_file():
+                files[path.relative_to(output).as_posix()] = sha(path.read_bytes())
     for name, data in (
         (prefix + ".jsonl", result.stdout),
         (prefix + ".stderr", result.stderr),
@@ -1217,6 +1239,15 @@ def _capture_subject(
         summary["status"] = "incomplete"
     record["thread_id"] = summary["thread_id"]
     record["status"] = summary["status"] if result.returncode == 0 else "failed"
+    if "passive_observer" in lock:
+        from .observer import verify_observation
+        from stage1_eval.common import EvaluationError
+
+        try:
+            verify_observation(observer_dir, result.stdout, lock["passive_observer"])
+        except (EvaluationError, OSError, ValueError, KeyError) as error:
+            record["status"] = "incomplete"
+            record["observer_error"] = str(error)
     if not final_path.is_file() and record["status"] == "complete":
         record["status"] = "incomplete"
     record["profile_probe"] = probe
@@ -1488,6 +1519,29 @@ def verify_capture(output, *, verify_runtime=True):
         preflight_raw = (output / preflight_name).read_bytes()
         lock = json.loads(lock_raw)
         preflight = json.loads(preflight_raw)
+        if "passive_observer" in lock:
+            from .observer import binding, verify_observation
+
+            if verify_runtime and lock["passive_observer"] != binding():
+                raise ExecutionBlocked("observer runtime differs from frozen bytes")
+            for number, attempt in enumerate(record["attempts"], 1):
+                prefix = f"attempt-{number:02d}"
+                observer_dir = output / (prefix + ".observer")
+                actual = {
+                    p.relative_to(output).as_posix()
+                    for p in observer_dir.rglob("*")
+                    if p.is_file()
+                }
+                expected = {
+                    k for k in attempt["files"] if k.startswith(prefix + ".observer/")
+                }
+                if not expected or actual != expected:
+                    raise ExecutionBlocked("observer archive inventory differs")
+                verify_observation(
+                    observer_dir,
+                    (output / (prefix + ".jsonl")).read_bytes(),
+                    lock["passive_observer"],
+                )
         if (
             sha(lock_raw) != record.get("lock_sha256")
             or sha(preflight_raw) != record.get("preflight_sha256")

@@ -63,6 +63,8 @@ def _availability(subject):
         "native_timestamp": ("timestamp",),
         "backend": ("item", "backend"),
         "result_count": ("item", "result_count"),
+        "http_status": ("item", "http_status"),
+        "native_duration_ms": ("item", "duration_ms"),
     }
     rows = []
     for key, row in subject["evidence"].items():
@@ -84,6 +86,7 @@ def _availability(subject):
             {
                 "evidence_id": key,
                 "artifact_sha256": row["sha256"],
+                "observed_at": row.get("observer_received_at"),
                 "values": observed,
                 "field_paths": paths,
             }
@@ -123,7 +126,7 @@ def capture_saved_history(capture_dir, *, verify_runtime=True):
     if attempts[-1]["files"].get(final_name) != sha(final_path.read_bytes()):
         raise EvaluationError("final answer binding changed")
     subject = adapt_subject(final_path)
-    history, previous = [], {}
+    history, previous, observed_history = [], {}, []
     for number, attempt in enumerate(attempts, 1):
         name = f"attempt-{number:02d}.jsonl"
         transcript = root / name
@@ -199,10 +202,49 @@ def capture_saved_history(capture_dir, *, verify_runtime=True):
             }
         )
         previous = current
+        observer_name = f"attempt-{number:02d}.observer"
+        if observer_name + "/manifest.json" in attempt["files"]:
+            from .observer import verify_observation
+
+            lock = read_json(root / f"attempt-{number:02d}.lock.json")
+            observed = verify_observation(
+                root / observer_name, raw, lock["passive_observer"]
+            )
+            observed_history.append({"attempt": number, **observed})
+            seen = set()
+            for event_number, event in enumerate(observed["observations"], 1):
+                if event["line"] is not None:
+                    key = f"attempt-{number:02d}-trace-{event['line']}"
+                    subject["evidence"][key]["observer_received_at"] = event[
+                        "observed_at"
+                    ]
+                for relative, file in event["files"].items():
+                    version = (relative, file["sha256"])
+                    if version in seen:
+                        continue
+                    seen.add(version)
+                    blob = root / observer_name / "blobs" / file["sha256"]
+                    try:
+                        text = blob.read_bytes().decode("utf-8")
+                    except UnicodeError:
+                        continue
+                    key = f"attempt-{number:02d}-observed-{len(seen)}"
+                    subject["evidence"][key] = {
+                        "text": text,
+                        "sha256": file["sha256"],
+                        "origin": "subject-captured-process-artifact",
+                        "artifact_path": blob.relative_to(root).as_posix(),
+                        "source_version": "sha256:" + file["sha256"],
+                        "locator": {
+                            "observation": event_number,
+                            "workspace_path": relative,
+                        },
+                    }
     manifest = {
         "kind": KIND,
         "schema_version": "1.0.0",
         "snapshots": history,
+        "passive_observations": observed_history,
         "run_sha256": sha((root / "run.json").read_bytes()),
         "between_snapshot_history": "unavailable; no unsaved versions reconstructed",
     }

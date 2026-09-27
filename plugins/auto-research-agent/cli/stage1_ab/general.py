@@ -501,6 +501,7 @@ def freeze_v3(
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     if v31:
+        from .observer import binding as observer_binding
         from stage1_brief.brief import validate_brief
         from stage1_eval.pipeline_v31 import bundle_sha_v31, execution_policy
         from stage1_eval.source_runtime import source_runtime_preflight
@@ -520,6 +521,7 @@ def freeze_v3(
             research_brief=brief,
             research_brief_sha256=runner.sha(canonical(brief)),
             search_observation_policy="native-or-cli",
+            passive_observer=observer_binding(),
         )
     if any("holdout" in key or "answer_key" in key for key in lock):
         raise runner.ExecutionBlocked("v3 public lock contains an answer-key field")

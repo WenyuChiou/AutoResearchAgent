@@ -30,4 +30,7 @@ completed、pending、error，不發出成功結果、不盲目重試。重播�
 結果保留全部 leaf，包括反證。支持與反證並存時只作保守的 unverifiable
 暫定彙整，等待語意彙整；從不給 rubric 分數。R1、R2 應在獨立目錄分別
 執行，不把別人的判斷塞入提示。自動 R1/R2/ADJ 調度與正式模型實驗尚未整合。
-後續真實调用遵照使用者選擇 gpt-6-astra/high；測試用 test-model 合成原生回覆。
+工程協調代理可使用 GPT-6 Astra／High。受測模型與 evaluator 不繼承協調代理設定：
+本次正式 subject 固定 GPT-5.6 Sol／High／Task（Default）；evaluator 的 R1、R2、
+ADJ 沿用版本化 lock 內的 GPT-5.6 Sol／High。更換 evaluator 須另外版本化 PR、
+測試及核心組審查，不可默默替換。測試用 test-model 合成原生回覆。
