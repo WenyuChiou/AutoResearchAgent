@@ -201,6 +201,12 @@ def evaluate_v31(args, *, replay_only=False):
     }
     try:
         persist(output / "subject-observation.json", subject, replay_only=replay_only)
+        for key, name in (
+            ("capture_history", "workspace-history.json"),
+            ("field_availability", "native-field-availability.json"),
+        ):
+            if key in subject:
+                persist(output / name, subject[key], replay_only=replay_only)
         options = {
             "codex": args.codex,
             "evaluator_home": args.evaluator_home,

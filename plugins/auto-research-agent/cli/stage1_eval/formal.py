@@ -11,16 +11,33 @@ from .runtime import verify_installed_from_commit
 
 
 def capture_module_binding():
-    from stage1_ab import capture_v31
+    from stage1_ab import capture_history, observer
 
-    path = Path(capture_v31.__file__)
-    return {"path": "capture-adapter-v31", "sha256": sha(path.read_bytes())}
+    return {
+        "path": "capture-history-and-observer-v1",
+        "sha256": sha(
+            canonical(
+                [
+                    {
+                        "module": module.__name__,
+                        "sha256": sha(Path(module.__file__).read_bytes()),
+                    }
+                    for module in (capture_history, observer)
+                ]
+            )
+        ),
+    }
 
 
 def observe_capture_v31(capture, *, portable=False):
-    from stage1_ab.capture_v31 import capture_subject
+    from stage1_ab.capture_history import capture_saved_history
 
-    return capture_subject(capture, verify_runtime=not portable)
+    subject, history, availability = capture_saved_history(
+        capture, verify_runtime=not portable
+    )
+    subject["capture_history"] = history
+    subject["field_availability"] = availability
+    return subject, json.loads((Path(capture) / "run.json").read_bytes())
 
 
 def verify_binding_v31(args, spec, record, policy, *, source_runtime=None):
