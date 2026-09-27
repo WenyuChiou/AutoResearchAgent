@@ -43,7 +43,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_eval",
       "problem": "A per-topic gold paper list and manual source annotations block routine cross-topic Stage 1 assessment.",
-      "mechanism": "Freeze topic needs and rubric v3, collect bounded public-source evidence, extract all answer chunks separately for works and central claims, select source-bound spans with independent tool-free judges, and replay only validated v3.1 units with identical inputs and runtime. Recheck public-source bytes through the bound, documented source validate CLI and append raw validation observations instead of importing private research-hub Python helpers.",
+      "mechanism": "Freeze topic needs and rubric v3, collect bounded public-source evidence, extract all answer chunks separately for works and central claims, select source-bound spans with independent tool-free judges, and replay only validated v3.1 units with identical inputs and runtime. Recheck public-source bytes through the bound, documented source validate CLI and append raw validation observations instead of importing private research-hub Python helpers. Reconstruct a separate complete source audit view from replay-validated catalogue records, preserving full abstracts, distinct identity metadata, versions, raw-source hashes and explicit cutoff exclusions without changing historical packets.",
       "metric_effects": [
         {
           "metric_id": "P1",
@@ -99,7 +99,8 @@
         "criterion judges receive score prerequisites from their assigned work assessments; no automatic score repair",
         "a real PDF text probe and bound parser versions/bytes gate evaluation before model calls; missing parser is an evaluator error",
         "judge passage choices use per-unit schema-enumerated aliases with immutable canonical span bindings; no fuzzy ID or quote repair",
-        "offline source validation observations preserve exact stdout, stderr, exit and input hashes; failed or incomplete replay is not automatically repeated and source validation is not semantic claim endorsement"
+        "offline source validation observations preserve exact stdout, stderr, exit and input hashes; failed or incomplete replay is not automatically repeated and source validation is not semantic claim endorsement",
+        "complete source representation is not completed model reading or semantic auditing; rehashed representations must reconstruct exactly from the original packet and full source catalogue"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
@@ -110,6 +111,7 @@
         "plugins/auto-research-agent/tests/test_judging_v31.py",
         "plugins/auto-research-agent/tests/test_sources_v31.py",
         "plugins/auto-research-agent/tests/test_source_replay.py",
+        "plugins/auto-research-agent/tests/test_audit_source_evidence.py",
         "plugins/auto-research-agent/tests/test_source_runtime.py",
         "plugins/auto-research-agent/tests/test_pipeline_v31.py",
         "plugins/auto-research-agent/tests/test_stage1_ab_v31.py",
