@@ -20,7 +20,7 @@ from .judging import (
     validate_judgment,
 )
 from .judge_views_v31 import bounded_judge_view, judge_span_index
-from .spans import restore_passages
+from .spans import model_span_aliases, restore_passages
 from .units import run_unit
 
 
@@ -78,13 +78,15 @@ def unknown_criteria(phase):
     ]
 
 
-def unit_schema(kind):
+def unit_schema(kind, span_ids):
     schema = read_json(EVAL_ROOT / "schemas/stage1-general-judge.v3.schema.json")
     schema["$defs"]["passage"] = {
         "type": "object",
         "additionalProperties": False,
         "required": ["span_id"],
-        "properties": {"span_id": {"type": "string", "minLength": 1}},
+        "properties": {
+            "span_id": {"type": "string", "enum": list(span_ids) or ["no-visible-span"]}
+        },
     }
     criteria = schema["properties"]["criteria"]
     criteria["minItems"] = criteria["maxItems"] = (
@@ -137,6 +139,10 @@ def _prompt(packet, phase, index, view_manifest, kind, assigned_core, prior):
                 "apply the rubric's 0/1 anchors to observed deficiencies. Do not guess a lower score merely "
                 "to satisfy validation. P1 identity/claim score 2 requires bound passages covering every "
                 "relevant work and complete extraction. Missing evidence cannot earn 2. "
+                "Extracted records can include unresolved aliases or publication versions; their count is not "
+                "a verified count of distinct studies. Do not treat a count mismatch or unresolved alias as "
+                "a proven bibliographic error. Identity deficiencies need contrary source-bound attributes; "
+                "unresolved identity remains unknown. "
             )
     if prior:
         rules += "Independent R1/R2 disagreed. Adjudicate from the SAME evidence; do not select the higher score or import new evidence. "
@@ -202,6 +208,7 @@ def judge_packet_v31(packet, output_dir, model_options, *, replay_only=False):
                     subset, view_manifest = bounded_judge_view(
                         subpacket, phase, index, work_ids=ids
                     )
+                    subset, aliases = model_span_aliases(subset)
 
                     def normalize_core(
                         raw,
@@ -235,8 +242,14 @@ def judge_packet_v31(packet, output_dir, model_options, *, replay_only=False):
                         )["core_assessments"]
 
                     label = f"content-{role}-core-{start // 4 + 1:02d}"
-                    schema = root / "core.schema.json"
-                    _schema_file(schema, unit_schema("core"), replay_only)
+                    schema = root / f"{label}.schema.json"
+                    _bound_file(
+                        root / f"{label}.aliases.json",
+                        aliases,
+                        replay_only,
+                        "span aliases",
+                    )
+                    _schema_file(schema, unit_schema("core", subset), replay_only)
                     value, meta = run_unit(
                         _prompt(
                             subpacket,
@@ -257,8 +270,13 @@ def judge_packet_v31(packet, output_dir, model_options, *, replay_only=False):
                     core.extend(value)
                     records[label] = {"model": meta, "judge_view": view_manifest}
             criteria_index, criteria_view = bounded_judge_view(packet, phase, index)
-            schema = root / f"{phase}.schema.json"
-            _schema_file(schema, unit_schema(phase), replay_only)
+            criteria_index, aliases = model_span_aliases(criteria_index)
+            label = f"{phase}-{role}-criteria"
+            schema = root / f"{label}.schema.json"
+            _bound_file(
+                root / f"{label}.aliases.json", aliases, replay_only, "span aliases"
+            )
+            _schema_file(schema, unit_schema(phase, criteria_index), replay_only)
 
             def normalize_scores(
                 raw,
@@ -275,7 +293,6 @@ def judge_packet_v31(packet, output_dir, model_options, *, replay_only=False):
                 restored["core_assessments"] = deepcopy(core)
                 return check_grounding(restored, packet, phase, view_manifest)
 
-            label = f"{phase}-{role}-criteria"
             value, meta = run_unit(
                 _prompt(
                     packet,

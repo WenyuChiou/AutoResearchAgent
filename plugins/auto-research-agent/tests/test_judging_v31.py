@@ -19,8 +19,8 @@ from stage1_eval.judge_views_v31 import (  # noqa: E402
     judge_span_index,
 )
 from stage1_eval.judging import CONTENT_IDS, PROCESS_IDS  # noqa: E402
-from stage1_eval.judging_v31 import check_grounding, judge_packet_v31  # noqa: E402
-from stage1_eval.spans import index_evidence, restore_passages  # noqa: E402
+from stage1_eval.judging_v31 import check_grounding, judge_packet_v31, unit_schema  # noqa: E402
+from stage1_eval.spans import index_evidence, model_span_aliases, restore_passages  # noqa: E402
 
 
 def _evidence(text, *, origin="subject-answer", work_id=None, level=None):
@@ -72,6 +72,29 @@ def _core(work_id, verdict="supported", evidence_id="source"):
 
 
 class GroundingTests(unittest.TestCase):
+    def test_short_choices_restore_exact_source_and_reject_invented_ids(self):
+        from jsonschema import Draft202012Validator, ValidationError
+
+        from stage1_eval.model import _api_schema
+
+        index = index_evidence({"source": _evidence("unaltered quotation")})
+        aliases, binding = model_span_aliases(index)
+        self.assertEqual(binding, {"s1": next(iter(index))})
+        schema = unit_schema("content", aliases)["$defs"]["passage"]
+        generation = _api_schema(schema, preserve_constraints=True)
+        self.assertEqual(generation["properties"]["span_id"]["enum"], ["s1"])
+        validator = Draft202012Validator(generation)
+        for invalid in ("s2", next(iter(index)), "span-" + "d" * 64):
+            with self.subTest(invalid=invalid), self.assertRaises(ValidationError):
+                validator.validate({"span_id": invalid})
+        restored = restore_passages(
+            {"criteria": [{"passages": [{"span_id": "s1"}]}]}, aliases
+        )
+        self.assertEqual(
+            restored["criteria"][0]["passages"],
+            [{"evidence_id": "source", "exact_quote": "unaltered quotation"}],
+        )
+
     def test_truncation_does_not_automatically_penalize_long_native_records(self):
         value = {
             "core_assessments": [],
@@ -396,6 +419,12 @@ class JudgeFlowTests(unittest.TestCase):
             judge_packet_v31(packet, directory, {}, replay_only=False)
             calls.clear()
             result = judge_packet_v31(packet, directory, {}, replay_only=True)
+            alias_file = Path(directory) / "content-r1-criteria.aliases.json"
+            aliases = json.loads(alias_file.read_bytes())
+            aliases["s1"] = "span-" + "0" * 64
+            alias_file.write_text(json.dumps(aliases), encoding="utf-8")
+            with self.assertRaisesRegex(EvaluationError, "span aliases changed"):
+                judge_packet_v31(packet, directory, {}, replay_only=True)
         labels = [label for label, _ in calls]
         self.assertEqual(labels.count("content-adj-criteria"), 1)
         self.assertNotIn("process-adj-criteria", labels)

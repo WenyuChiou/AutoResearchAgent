@@ -94,6 +94,12 @@ def restore_passages(result, index):
     return restored
 
 
+def model_span_aliases(index):
+    """Short model choices with a separately replayable canonical binding."""
+    bindings = {f"s{number}": span_id for number, span_id in enumerate(index, 1)}
+    return {alias: index[span_id] for alias, span_id in bindings.items()}, bindings
+
+
 def extraction_chunks(subject, *, max_characters=CHUNK_CHARS):
     """Lossless fixed partitions; all delivered files, including their tail, count."""
     evidence = {

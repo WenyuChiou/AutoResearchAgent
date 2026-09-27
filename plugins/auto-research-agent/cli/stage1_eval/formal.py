@@ -23,7 +23,7 @@ def observe_capture_v31(capture, *, portable=False):
     return capture_subject(capture, verify_runtime=not portable)
 
 
-def verify_binding_v31(args, spec, record, policy):
+def verify_binding_v31(args, spec, record, policy, *, source_runtime=None):
     """Keep subject dependency pins distinct from evaluator source tooling."""
     if args.execution_class == "repair-diagnostic":
         return {
@@ -33,6 +33,10 @@ def verify_binding_v31(args, spec, record, policy):
         }
     if getattr(args, "portable_diagnostic", False):
         raise EvaluationError("portable capture replay cannot attest new execution")
+    if source_runtime is None:
+        from .source_runtime import source_runtime_preflight
+
+        source_runtime = source_runtime_preflight()
     if not args.lock or not args.background:
         raise EvaluationError(
             "v3.1 live evaluation requires its pre-subject lock/background"
@@ -45,6 +49,7 @@ def verify_binding_v31(args, spec, record, policy):
         or lock.get("kind") != "Stage1ABPublicLockV3"
         or lock.get("execution_class") != expected_class
         or lock.get("evaluator_execution_policy") != policy
+        or lock.get("evaluator_source_runtime") != source_runtime
         or lock.get("evaluator_bundle_sha256") != policy["evaluator_bundle_sha256"]
         or lock.get("spec_sha256") != sha(canonical(spec))
         or lock.get("task_sha256") != spec["task_sha256"]

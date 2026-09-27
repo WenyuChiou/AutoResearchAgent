@@ -174,6 +174,18 @@ class PipelineV31Tests(unittest.TestCase):
             pipeline.evaluate_v31(self.args)
         self.extract.assert_not_called()
 
+    def test_missing_pdf_runtime_stops_before_extraction_and_judging(self):
+        with patch.object(
+            pipeline,
+            "source_runtime_preflight",
+            side_effect=EvaluationError("PDF source-runtime preflight failed"),
+        ):
+            with self.assertRaisesRegex(EvaluationError, "source-runtime preflight"):
+                pipeline.evaluate_v31(self.args)
+        self.extract.assert_not_called()
+        self.judge.assert_not_called()
+        self.assertFalse((Path(self.args.output) / "result.json").exists())
+
     def test_legacy_cli_rejects_new_replay_flags(self):
         for flag in ("resume_verified", "replay_only", "portable_diagnostic"):
             with (

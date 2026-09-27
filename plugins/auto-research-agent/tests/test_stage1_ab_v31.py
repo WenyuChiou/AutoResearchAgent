@@ -14,6 +14,7 @@ from stage1_ab.capture_v31 import capture_subject  # noqa: E402
 from stage1_eval.common import EvaluationError, canonical, sha  # noqa: E402
 from stage1_eval.formal import verify_binding_v31  # noqa: E402
 from stage1_eval.pipeline_v31 import execution_policy  # noqa: E402
+from stage1_eval.source_runtime import source_runtime_preflight  # noqa: E402
 from test_research_brief import brief  # noqa: E402
 from test_stage1_ab_general_v3 import runs  # noqa: E402
 from test_stage1_general_eval import spec  # noqa: E402
@@ -53,6 +54,7 @@ class GeneralABV31Tests(unittest.TestCase):
             "schema_version": "3.1.0",
             "execution_class": "formal",
             "evaluator_execution_policy": self.policy,
+            "evaluator_source_runtime": source_runtime_preflight(),
             "evaluator_bundle_sha256": self.policy["evaluator_bundle_sha256"],
             "spec_sha256": sha(canonical(self.spec)),
             "task_sha256": self.spec["task_sha256"],
@@ -122,6 +124,13 @@ class GeneralABV31Tests(unittest.TestCase):
         self.assertEqual(binding["subject_research_hub_sha"], runner.RESEARCH_HUB_SHA)
         self.assertEqual(binding["evaluator_research_hub_sha"], "1" * 40)
         self.assertEqual(binding["answer_sha256"], sha(b"capture"))
+
+    def test_parser_runtime_drift_blocks_frozen_evaluation(self):
+        self.lock["evaluator_source_runtime"]["probe_text_sha256"] = "0" * 64
+        self.lock_path = self.write("lock.json", self.lock)
+        self.record["lock_sha256"] = sha(self.lock_path.read_bytes())
+        with self.assertRaisesRegex(EvaluationError, "frozen evaluation binding"):
+            self.binding()
 
     def real_capture(self, *, kind="Stage1ABPublicLockV3", bind_final=True):
         events = [
