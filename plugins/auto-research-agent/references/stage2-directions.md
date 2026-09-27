@@ -74,6 +74,30 @@ contract with links to original assessment events. It records system observation
 not human approvals. `stage_result.json` reuses the shared `StageResult` and
 `GateResult`, always requiring human review before Stage 3.
 
+## Transparent proposal report
+
+`selection.md` presents the supplied research brief, comparison, current
+directions and five-axis assessments, followed by retained versions, actions
+and exact source excerpts. Candidate and axis evidence IDs link to the excerpt
+appendix; source links open the run's copied snapshots, with work, version,
+locator, evidence level and SHA-256 shown. Keep the report alongside its JSON,
+events and `sources/` directory when sharing it.
+
+Read the candidate descriptions as proposals and the assessments as supplied
+judgments. The exporter checks bindings before rendering; it does not establish
+novelty, importance or effectiveness. A quoted precedent can motivate a method
+without proving the proposed method works. State each source's particular role
+in the comparison or rationale, including contrary evidence and what remains
+untested. No hidden reasoning transcript is needed; give a concise explanation
+that another researcher can check.
+
+The v1 packet does not have structured title, author, DOI or evidence-role
+fields. Supply verified citation details with source IDs in the comparison when
+available; the report labels the missing structured metadata and never invents
+a bibliography or guesses a source's role. Automated bibliography enrichment
+and live proposal generation remain future work. Re-exporting old runs enriches
+the readable view without rewriting their input, events or evaluation contract.
+
 ## Open proposal development
 
 Use two equally valid entry routes: improve an existing method or design, or

@@ -59,10 +59,18 @@ Both routes use the same evidence checks, five axes and user selection gate.
    its parent's approval. Preserve useful options when a different candidate fails.
    For missing evidence, identify a bounded lookup or a scope decision instead
    of claiming the missing fact is verified.
-6. Export the choice package before human selection. Explain tradeoffs, unresolved
-   questions, costs and next steps. Zero recommendations can be honest, but needs
-   an explanation; multiple recommendations are allowed. Ask the researcher to
-   choose before authorizing Stage 3.
+6. Export the choice package before human selection. Read its `selection.md` as
+   a proposal report: inspect the opportunity, value, proposed approach, five
+   checks, linked excerpts and revision history. Explain each source's actual
+   role in the comparison or rationale (premise, precedent, counterevidence,
+   limitation or inspiration); keep these examples open. Give verified citation
+   details with source IDs in the comparison when available, and flag missing
+   details. The v1 packet has no structured bibliography or evidence-role field;
+   export cannot infer these or establish that an excerpt supports a whole idea.
+   Explain tradeoffs, unresolved questions, costs and next steps. Zero
+   recommendations can be honest, but needs an explanation; multiple
+   recommendations are allowed. Ask the researcher to choose before authorizing
+   Stage 3.
 
 Check only preliminary feasibility here. A data download or a few LLM calls do
 not establish behavioral validity. The offline CLI records supplied scientific

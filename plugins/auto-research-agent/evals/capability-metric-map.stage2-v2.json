@@ -102,7 +102,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_check",
       "problem": "Research directions can be recommended despite missing evidence or infeasible materials; revision history and useful alternatives can be lost.",
-      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates, retained revisions and a prehuman choice package.",
+      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates, retained revisions and a prehuman proposal report with linked excerpts, source snapshots and explicit missing metadata.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -138,6 +138,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_checker.py",
+        "plugins/auto-research-agent/tests/test_stage2_report.py",
         "plugins/auto-research-agent/tests/test_plugin_loading.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
