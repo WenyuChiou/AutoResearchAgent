@@ -11,6 +11,7 @@ from .collector import _doi, _title, collect_subject_sources, rebuild_subject_so
 from .common import EvaluationError, canonical, read_json, sha, write_json
 from .extraction_v31 import work_id_for
 from .runtime import executable_sha256, installed_package_sha256
+from .source_replay import replay_source_bytes as _replay_source_bytes
 
 
 FETCH_RECEIPT_VERSION = "Stage1PublicSourceFetchReceipt.v1"
@@ -22,17 +23,6 @@ SOURCE_STATUSES = {
     "parse-error",
     "identity-mismatch",
 }
-
-
-def _replay_source_bytes(result_path):
-    # Pure offline replay is mandatory even if every saved checksum was updated.
-    # It does not repeat acquisition or invoke another model.
-    from research_hub.source_fetch import validate_source_fetch
-
-    report = validate_source_fetch(result_path)
-    if not isinstance(report, dict) or report.get("valid") is not True:
-        raise EvaluationError("public source bytes fail offline extraction replay")
-    return report
 
 
 def _persist(path, value):
@@ -173,7 +163,9 @@ def _validate_fetch(prefix, directory, result_path, replay_only):
     _persist(saved_result, report)
     if canonical(read_json(saved_result)) != canonical(report):
         raise EvaluationError("saved source validation differs from captured stdout")
-    replay = _replay_source_bytes(result_path)
+    replay = _replay_source_bytes(
+        result_path, prefix, validation_dir / "replay-events.jsonl"
+    )
     if canonical({k: v for k, v in replay.items() if k != "checked_at"}) != canonical(
         {k: v for k, v in report.items() if k != "checked_at"}
     ):
