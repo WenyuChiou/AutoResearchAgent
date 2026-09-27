@@ -31,7 +31,8 @@ Core-team review and fork-only merge ownership remain unchanged.
 
 For Stage 1 work, also read the current
 [stage1-literature skill](skills/stage1-literature/SKILL.md) and
-[plugin status](README.md). The skill remains a foundation until its README and
+[researcher-deliverable contract](references/stage1-research-deliverable.md),
+then the [plugin status](README.md). The skill remains a foundation until its README and
 tests demonstrate an executable retrieval, ledger, evidence-validation, and
 coverage-gate path. Do not describe a planned or declarative capability as
 implemented.
@@ -89,6 +90,14 @@ and paired-evaluation validators and requires the recomputed decision to match.
 Passing a unit, schema, loading, or synthetic test proves implementation
 behavior only. Scientific-quality improvement requires the frozen paired live
 A/B at the capability's declared stage milestone.
+
+Every PR completes the `Research Deliverable` template section. Stage 1 report
+or source-package implementations must declare it `required` and bind evidence
+for lawfully public PDF/HTML/text acquisition, editable reports, work/version
+source provenance, explicit access failures, lawful-access guardrails and the
+unscored Japan pilot. Evaluator-only, Stage 2
+or governance-only PRs may declare `not-applicable` only with a concrete reason.
+Downloaded papers and copyrighted full text remain private and never enter Git.
 
 ## Evaluation and isolation rules
 

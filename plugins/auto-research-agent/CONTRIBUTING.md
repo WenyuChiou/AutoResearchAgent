@@ -70,16 +70,38 @@ is evidence that the capability behaves as specified, not evidence that P1-P9
 improved. Scientific improvement still requires the paired live A/B and
 rubric-based AI judging at the declared stage milestone.
 
+### Stage 1 researcher deliverable
+
+Read the [researcher-deliverable contract](references/stage1-research-deliverable.md)
+before changing the Stage 1 report or source package. Its PR must use
+the registered `cli:stage1-deliverable` capability,
+`Research Deliverable Applicability: required` and provide actual evidence for:
+
+First show that the run saved lawfully public PDF, HTML or text full sources and
+preserved unavailable outcomes. Then provide:
+
+1. Excel, Markdown, BibTeX, metadata, claims, screening and coverage reports.
+2. Work/version, URL/URI, access-time and SHA-256 bindings for every full source.
+3. Separate paywall, not-found, parse-error and login-page outcomes.
+4. Lawful public access, no access-control bypass, no abstract-as-full-text
+   label and no downloaded papers in Git.
+5. A complete, validated package from the unscored Japan pilot.
+
+Other PRs still complete the section and use `not-applicable` with a concrete
+reason. The validator rejects `not-applicable` on the Stage 1 deliverable
+implementation path. A package test proves delivery behavior, not P1-P3
+scientific improvement.
+
 ## Pull requests
 
-Use the repository template and complete all six sections: Why, What, How,
-Example, Evaluation and Validation. Name every affected capability ID. CI
+Use the repository template and complete all seven sections: Why, What, How,
+Example, Evaluation, Research Deliverable and Validation. Name every affected capability ID. CI
 rejects unknown IDs, metric targets that disagree with the registry, missing
 P1-P9 targets, a capability decision other than the exact values `reuse`,
 `wrap`, `extend`, or `build-new`, changed capability paths omitted from the PR,
 or blank metric evidence fields.
 
-Write all six sections in plain language that a new teammate can understand on
+Write all seven sections in plain language that a new teammate can understand on
 the first read. Prefer short sentences, concrete inputs and outputs, and one
 specific example. Define a necessary technical term where it first appears.
 The required `Plain-language summary` says in one sentence what is wrong, what

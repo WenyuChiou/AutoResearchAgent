@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/stage1-deliverable/inventory.json",
+      "role": "deliverable-inventory",
+      "sha256": "2be290f1a0eb981122cae4d8ee624b0aa9f909efbad8b55e991f3674b2ced0f0"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/stage1-deliverable/validator-report.json",
+      "role": "deliverable-validator-report",
+      "sha256": "2237d35c1031e47da0d0845f4cedaf1f5a90bf869abdf823cb5285d461cb3102"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/stage1-deliverable/runtime-bytes.txt",
+      "role": "exporter-runtime-bytes",
+      "sha256": "52efda02fefad7b87ab9af1884f40c23357ee69a6dee3620be99621228b9ab8b"
+    },
+    {
+      "path": ".github/scripts/fixtures/pr_evidence/stage1-deliverable/repository-guardrail.json",
+      "role": "repository-guardrail-report",
+      "sha256": "d33d3507a89c1f66028bc9b5de6844982a01bdd541d4bf8043cdbb4896ada7d9"
+    }
+  ],
+  "evidence_scope": "contract-fixture",
+  "execution_status": "complete",
+  "kind": "ReadinessEvidenceManifest",
+  "pilot_geography": "Japan",
+  "schema_version": "1.0.0",
+  "validator_status": "passed"
+}

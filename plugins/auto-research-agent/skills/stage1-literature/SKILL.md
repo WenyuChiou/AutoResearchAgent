@@ -24,6 +24,11 @@ declared scope bindings; also inspect the actual query text for hidden narrowing
 
 For every topic, first read the public
 [topic-core literature standard](../../references/core-literature-standard.v1.md).
+Also read the [Stage 1 researcher-deliverable contract](../../references/stage1-research-deliverable.md)
+before promising a completed Stage 1 result. A final literature stage must
+produce its editable reports, bibliography, classified metadata, provenance and
+lawfully accessible source package. The evaluation-input exporter alone is not
+the researcher deliverable.
 Keep topic-core, historical classic status and closest-work status separate.
 When nominating a core work, use the source-bound
 [`schemas/core-assessment.v1.schema.json`](../../schemas/core-assessment.v1.schema.json)
@@ -92,6 +97,11 @@ When preparing a literature run:
    references. A cold-start screening suggestion remains unverified.
 6. Require a recent sweep, closest-work verification and a reasoned coverage
    decision. Reaching a paper count or exhausting a budget is insufficient.
+7. Generate the researcher deliverable from the validated records. Download
+   public PDF, HTML or text full sources when lawfully accessible; bind every
+   saved file to work/version, URL/URI, access time and SHA-256. Keep paywall,
+   not-found, parse-error and login-page outcomes explicit. Never bypass access
+   controls, label an abstract as full text or commit paper files to Git.
 
 If using the optional live CLI adapter, first read the [retrieval contract](../../references/stage1-retrieval.md).
 Use an isolated runtime and save its exact revision, wheel, schema, executable

@@ -163,6 +163,41 @@
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:stage1-deliverable",
+      "kind": "cli",
+      "status": "foundation",
+      "runtime_integrity_required": true,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage1_deliverable",
+      "problem": "A literature run can finish with evaluator artifacts but no editable report, bibliography, classified metadata or lawful source package for the researcher.",
+      "mechanism": "Reserve a versioned Stage 1 exporter boundary that will derive researcher-facing views and a private source package from validated records, while publishing only hash-bound safe evidence.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.DECISION_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "source, decision and version links remain reconstructable; package-conformance counts are reported separately and never change P1-P3 scores"
+          ],
+          "human_judgment": "Judges assess the underlying research record, not the presence or polish of exported files."
+        }
+      ],
+      "guardrails": [
+        "foundation status does not claim that the exporter exists",
+        "lawful public sources only and no access-control bypass",
+        "abstracts and metadata never become full text",
+        "downloaded papers stay outside Git",
+        "Japan pilot package conformance is not scientific-quality improvement"
+      ],
+      "test_refs": [
+        ".github/scripts/test_validate_research_pr.py"
+      ],
+      "live_ab_required_at": "stage1-general-formal-milestone",
+      "quality_improvement_claimed": false
     }
   ],
   "capability_extensions": [
@@ -258,7 +293,8 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "v3 PRs bind declared capabilities, criterion mappings, invariant selectors, and evaluation readiness"
+            "v3 PRs bind declared capabilities, criterion mappings, invariant selectors, and evaluation readiness",
+            "every PR declares Stage 1 researcher-deliverable applicability; implementation paths bind report, source, access-state, guardrail, and Japan pilot evidence"
           ],
           "human_judgment": "The core team reviews whether the declared change and reported evidence support the claim."
         }

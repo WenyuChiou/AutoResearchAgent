@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -62,6 +63,16 @@ After: incomplete cluster continues.
 - Live paired A/B: deferred to Stage 1 executable milestone
 Compare paired P2 counts and blinded judgments.
 
+## Research Deliverable
+- Applicability: not-applicable
+- Applicability reason: This fixture validates the general PR contract and does not implement a research deliverable.
+- Public source acquisition evidence: not-applicable
+- Editable report evidence: not-applicable
+- Source binding evidence: not-applicable
+- Access-state evidence: not-applicable
+- Access and repository guardrail evidence: not-applicable
+- Japan pilot evidence: not-applicable
+
 ## Validation
 Synthetic regression tests passed.
 - Execution status: complete
@@ -86,9 +97,42 @@ CAPABILITIES = {
     }
 }
 FIXTURE_ROOT = Path(__file__).parent / "fixtures/pr_bodies"
+PILOT_MANIFEST = (
+    Path(__file__).parent / "fixtures/pr_evidence/stage1-deliverable.manifest.json"
+)
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
+    def required_deliverable_body(self):
+        old = """## Research Deliverable
+- Applicability: not-applicable
+- Applicability reason: This fixture validates the general PR contract and does not implement a research deliverable.
+- Public source acquisition evidence: not-applicable
+- Editable report evidence: not-applicable
+- Source binding evidence: not-applicable
+- Access-state evidence: not-applicable
+- Access and repository guardrail evidence: not-applicable
+- Japan pilot evidence: not-applicable"""
+        digest = hashlib.sha256(PILOT_MANIFEST.read_bytes()).hexdigest()
+        new = f"""## Research Deliverable
+- Applicability: required
+- Applicability reason: This PR implements the researcher-facing Stage 1 literature and source package.
+- Public source acquisition evidence: 3/7 lawfully public sources saved as PDF, HTML, or text; 4 unavailable outcomes preserved
+- Editable report evidence: 7 outputs passed: literature_catalog.xlsx Excel; literature_review.md Markdown; references.bib BibTeX; papers.jsonl metadata; claims_and_evidence.csv claims; search_and_screening.csv screening; coverage_and_stop.md coverage
+- Source binding evidence: paper_manifest.jsonl test passed for 3/3 work and version records with URL, accessed_at access time, and SHA-256
+- Access-state evidence: 4 fixture states passed: paywall, not found, parse error, login page, and available public PDF
+- Access and repository guardrail evidence: tests passed for lawfully public sources, no paywall bypass, abstract is not full text, and paper files excluded from Git
+- Japan pilot evidence: artifact: manifest=.github/scripts/fixtures/pr_evidence/stage1-deliverable.manifest.json; sha256={digest}"""
+        return VALID.replace(old, new)
+
+    def validate_required(self, body=None, **kwargs):
+        return validate_pr_body(
+            body or self.required_deliverable_body(),
+            CAPABILITIES,
+            allow_contract_fixtures=True,
+            **kwargs,
+        )
+
     def stage2_body(self):
         body = VALID.replace("P2.CLUSTERS", "P5V2.OPPORTUNITY")
         body = body.replace(
@@ -158,6 +202,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         capabilities = load_capability_metrics()
         self.assertIn("cli:stage1-core", capabilities)
         self.assertIn("cli:stage1-eval", capabilities)
+        self.assertIn("cli:stage1-deliverable", capabilities)
         self.assertIn(
             "P2V3.CORE_SELECTION", capabilities["cli:stage1-core"]["criteria"]
         )
@@ -257,6 +302,400 @@ class ResearchPullRequestContractTests(unittest.TestCase):
 
     def test_complete_body_passes(self):
         self.assertEqual(validate_pr_body(VALID, CAPABILITIES), [])
+
+    def test_required_stage1_research_deliverable_evidence_passes(self):
+        self.assertEqual(self.validate_required(), [])
+
+    def test_contract_fixture_cannot_support_a_real_deliverable_pr(self):
+        errors = validate_pr_body(self.required_deliverable_body(), CAPABILITIES)
+        self.assertTrue(
+            any(
+                "contract-fixture evidence cannot support a real PR" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_required_stage1_research_deliverable_checks_each_user_requirement(self):
+        replacements = {
+            "PDF, HTML, or text": "documents",
+            "literature_catalog.xlsx Excel": "literature catalog table",
+            "work and version records with URL, accessed_at access time, and SHA-256": "paper records",
+            "paywall, not found, parse error, login page": "source failures",
+            "lawfully public sources, no paywall bypass, abstract is not full text, and paper files excluded from Git": "source policy passed",
+        }
+        expected = (
+            "Public source acquisition evidence must cover",
+            "Editable report evidence must cover",
+            "Source binding evidence must cover",
+            "Access-state evidence must distinguish",
+            "Access and repository guardrail evidence must cover",
+        )
+        body = self.required_deliverable_body()
+        for (old, new), message in zip(replacements.items(), expected):
+            with self.subTest(message=message):
+                errors = self.validate_required(body.replace(old, new))
+                self.assertTrue(any(message in error for error in errors), errors)
+
+    def test_japan_pilot_requires_hash_bound_manifest(self):
+        body = self.required_deliverable_body().replace(
+            re.search(
+                r"artifact: manifest=[^;]+; sha256=[0-9a-f]{64}",
+                self.required_deliverable_body(),
+            ).group(0),
+            "Japan pilot passed",
+        )
+        self.assertIn(
+            "Japan pilot evidence must bind an artifact as 'artifact: manifest=PATH; sha256=64HEX'",
+            self.validate_required(body),
+        )
+
+    def test_deliverable_implementation_path_cannot_claim_not_applicable(self):
+        errors = validate_pr_body(
+            VALID,
+            load_capability_metrics(),
+            ["plugins/auto-research-agent/cli/stage1_deliverable/export.py"],
+        )
+        self.assertIn(
+            "Stage 1 deliverable implementation paths require Research Deliverable Applicability: required",
+            errors,
+        )
+
+    def test_not_applicable_requires_exact_evidence_labels(self):
+        body = VALID.replace(
+            "- Editable report evidence: not-applicable",
+            "- Editable report evidence: deferred",
+        )
+        self.assertIn(
+            "Research Deliverable 'Editable report evidence:' must be exactly not-applicable when Applicability is not-applicable",
+            validate_pr_body(body, CAPABILITIES),
+        )
+
+    def test_guardrail_claims_cannot_pass_with_unsafe_positive_language(self):
+        body = self.required_deliverable_body().replace(
+            "lawfully public sources, no paywall bypass, abstract is not full text, and paper files excluded from Git",
+            "lawfully public sources, paywall bypass used, abstract supplied as full text, and paper files committed to Git",
+        )
+        errors = self.validate_required(body)
+        self.assertTrue(
+            any(
+                "Access and repository guardrail evidence must cover" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_downloaded_paper_files_are_rejected_from_git(self):
+        errors = self.validate_required(
+            changed_paths=[
+                "private/papers/work-1.pdf",
+                "evidence/full_text/work-2.html",
+                "artifacts/sources/work-3.pdf",
+                "artifacts/downloads/work-4.txt",
+                "reports/literature_review.md",
+            ],
+        )
+        self.assertIn(
+            "Downloaded paper files must stay out of Git: artifacts/downloads/work-4.txt, artifacts/sources/work-3.pdf, evidence/full_text/work-2.html, private/papers/work-1.pdf",
+            errors,
+        )
+
+    def test_synthetic_fixture_is_exempt_from_paper_file_guard(self):
+        errors = validate_pr_body(
+            VALID,
+            CAPABILITIES,
+            [".github/scripts/fixtures/full_text/synthetic.txt"],
+        )
+        self.assertFalse(
+            any(
+                "Downloaded paper files must stay out of Git" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_documentation_name_does_not_trigger_deliverable_applicability(self):
+        errors = validate_pr_body(
+            VALID,
+            load_capability_metrics(),
+            ["docs/stage1_report_design.md"],
+        )
+        self.assertFalse(
+            any("Deliverable Applicability: required" in error for error in errors),
+            errors,
+        )
+
+    def test_zero_deliverable_counts_are_rejected(self):
+        replacements = {
+            "3/7 lawfully": "0/7 lawfully",
+            "7 outputs passed": "0 outputs passed",
+            "3/3 work": "0/3 work",
+            "4 fixture states passed": "0 fixture states passed",
+        }
+        for old, new in replacements.items():
+            with self.subTest(field=old):
+                errors = self.validate_required(
+                    self.required_deliverable_body().replace(old, new)
+                )
+                self.assertTrue(
+                    any("positive" in error for error in errors),
+                    errors,
+                )
+
+    def test_pr_deliverable_counts_must_match_bound_pilot_inventory(self):
+        replacements = {
+            "3/7 lawfully": (
+                "2/7 lawfully",
+                "Public source acquisition claim does not match",
+            ),
+            "7 outputs passed": (
+                "8 outputs passed",
+                "Editable output claim does not match",
+            ),
+            "3/3 work": (
+                "2/3 work",
+                "Source binding claim does not match",
+            ),
+            "4 fixture states passed": (
+                "3 fixture states passed",
+                "Access-state claim does not match",
+            ),
+        }
+        for old, (new, expected) in replacements.items():
+            with self.subTest(field=old):
+                errors = self.validate_required(
+                    self.required_deliverable_body().replace(old, new)
+                )
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_japan_pilot_manifest_must_exist_and_match_hash(self):
+        body = self.required_deliverable_body()
+        evidence = re.search(r"artifact: manifest=([^;]+); sha256=([0-9a-f]{64})", body)
+        missing = body.replace(
+            evidence.group(0),
+            f"artifact: manifest=missing-pilot.json; sha256={evidence.group(2)}",
+        )
+        errors = self.validate_required(missing)
+        self.assertTrue(any("does not exist" in error for error in errors), errors)
+        wrong_hash = body.replace(evidence.group(2), "0" * 64)
+        errors = self.validate_required(wrong_hash)
+        self.assertTrue(
+            any("sha256 does not match" in error for error in errors), errors
+        )
+
+    def test_japan_pilot_artifact_tamper_and_rehashed_failure_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_root = PILOT_MANIFEST.parent
+            target_root = root / ".github/scripts/fixtures/pr_evidence"
+            target_root.mkdir(parents=True)
+            shutil.copytree(
+                source_root / "stage1-deliverable",
+                target_root / "stage1-deliverable",
+            )
+            manifest_path = target_root / PILOT_MANIFEST.name
+            shutil.copy2(PILOT_MANIFEST, manifest_path)
+            manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+            body = self.required_deliverable_body().replace(
+                hashlib.sha256(PILOT_MANIFEST.read_bytes()).hexdigest(), manifest_hash
+            )
+
+            inventory_path = target_root / "stage1-deliverable/inventory.json"
+            inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+            inventory["outputs"]["excel"] = 0
+            inventory_path.write_text(
+                json.dumps(inventory, indent=2) + "\n", encoding="utf-8"
+            )
+            errors = validate_pr_body(
+                body,
+                CAPABILITIES,
+                repo_root=root,
+                allow_contract_fixtures=True,
+            )
+            self.assertTrue(
+                any(
+                    "artifact 'deliverable-inventory' sha256" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for artifact in manifest["artifacts"]:
+                if artifact["role"] == "deliverable-inventory":
+                    artifact["sha256"] = hashlib.sha256(
+                        inventory_path.read_bytes()
+                    ).hexdigest()
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+            )
+            body = re.sub(
+                r"sha256=[0-9a-f]{64}",
+                "sha256=" + hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                body,
+                count=1,
+            )
+            errors = validate_pr_body(
+                body,
+                CAPABILITIES,
+                repo_root=root,
+                allow_contract_fixtures=True,
+            )
+            self.assertTrue(
+                any("at least one Excel" in error for error in errors),
+                errors,
+            )
+
+            manifest["execution_status"] = "failed"
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+            )
+            body = re.sub(
+                r"sha256=[0-9a-f]{64}",
+                "sha256=" + hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                body,
+                count=1,
+            )
+            errors = validate_pr_body(
+                body,
+                CAPABILITIES,
+                repo_root=root,
+                allow_contract_fixtures=True,
+            )
+            self.assertTrue(
+                any("execution_status must be complete" in error for error in errors),
+                errors,
+            )
+
+            manifest["execution_status"] = "complete"
+            inventory["outputs"]["excel"] = 1
+            inventory["access_state_counts"]["login-page"] = 0
+            inventory_path.write_text(
+                json.dumps(inventory, indent=2) + "\n", encoding="utf-8"
+            )
+            for artifact in manifest["artifacts"]:
+                if artifact["role"] == "deliverable-inventory":
+                    artifact["sha256"] = hashlib.sha256(
+                        inventory_path.read_bytes()
+                    ).hexdigest()
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+            )
+            body = re.sub(
+                r"sha256=[0-9a-f]{64}",
+                "sha256=" + hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                body,
+                count=1,
+            )
+            errors = validate_pr_body(
+                body,
+                CAPABILITIES,
+                repo_root=root,
+                allow_contract_fixtures=True,
+            )
+            self.assertTrue(
+                any("exercise paywall" in error for error in errors),
+                errors,
+            )
+
+            inventory["outputs"] = {
+                name: True
+                for name in (
+                    "excel",
+                    "markdown",
+                    "bibtex",
+                    "metadata",
+                    "claims",
+                    "screening",
+                    "coverage",
+                )
+            }
+            inventory["source_bindings"] = {"complete": True, "total": True}
+            inventory["acquired_full_text"] = {
+                "pdf": True,
+                "html": True,
+                "text": True,
+            }
+            inventory["access_state_counts"] = {
+                "paywalled": True,
+                "not-found": True,
+                "parse-error": True,
+                "login-page": True,
+            }
+            inventory_path.write_text(
+                json.dumps(inventory, indent=2) + "\n", encoding="utf-8"
+            )
+            for artifact in manifest["artifacts"]:
+                if artifact["role"] == "deliverable-inventory":
+                    artifact["sha256"] = hashlib.sha256(
+                        inventory_path.read_bytes()
+                    ).hexdigest()
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+            )
+            body = re.sub(
+                r"sha256=[0-9a-f]{64}",
+                "sha256=" + hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                body,
+                count=1,
+            )
+            errors = validate_pr_body(
+                body,
+                CAPABILITIES,
+                repo_root=root,
+                allow_contract_fixtures=True,
+            )
+            for expected in (
+                "at least one Excel",
+                "bind every full source",
+                "non-negative PDF",
+                "exercise paywall",
+            ):
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+            inventory = json.loads(
+                (source_root / "stage1-deliverable/inventory.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            inventory["acquired_full_text"]["future-format"] = "unknown"
+            inventory["access_state_counts"]["future-state"] = "unknown"
+            inventory_path.write_text(
+                json.dumps(inventory, indent=2) + "\n", encoding="utf-8"
+            )
+            for artifact in manifest["artifacts"]:
+                if artifact["role"] == "deliverable-inventory":
+                    artifact["sha256"] = hashlib.sha256(
+                        inventory_path.read_bytes()
+                    ).hexdigest()
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+            )
+            body = re.sub(
+                r"sha256=[0-9a-f]{64}",
+                "sha256=" + hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                body,
+                count=1,
+            )
+            body = (
+                body.replace("3/7 lawfully", "99/99 lawfully")
+                .replace("7 outputs passed", "99 outputs passed")
+                .replace("3/3 work", "99/99 work")
+                .replace("4 fixture states passed", "99 fixture states passed")
+            )
+            errors = validate_pr_body(
+                body,
+                CAPABILITIES,
+                repo_root=root,
+                allow_contract_fixtures=True,
+            )
+            for expected in (
+                "Public source acquisition claim does not match",
+                "Editable output claim does not match",
+                "Source binding claim does not match",
+                "Access-state claim does not match",
+            ):
+                self.assertTrue(any(expected in error for error in errors), errors)
 
     def test_readiness_manifest_rejects_unbound_evidence(self):
         body = VALID.replace(
