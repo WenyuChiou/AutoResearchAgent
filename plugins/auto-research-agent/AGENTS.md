@@ -20,6 +20,15 @@ Read these files in order. Do not rely on a summary from an earlier task.
    [v3 extension](evals/capability-metric-map.v3.json)
 9. [Readiness and team workflow](evals/READINESS_AND_TEAM_WORKFLOW.zh-TW.md)
 
+For Stage 2 work, also read the [scientific contract](evals/stage2/SCIENTIFIC_CONTRACT.zh-TW.md),
+[checker rubric](evals/stage2/DIRECTION_CHECKER_RUBRIC.zh-TW.md) and
+[independent evaluation protocol](evals/stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md).
+Register new Stage 2 capabilities in `evals/capability-metric-map.stage2-v2.json`.
+The general Stage 2 v2 path is implementation-only: fixed-candidate checks and
+offline evaluation mechanics do not establish live execution or improvement.
+Keep candidate properties, assessment correctness and portfolio utility separate.
+Core-team review and fork-only merge ownership remain unchanged.
+
 For Stage 1 work, also read the current
 [stage1-literature skill](skills/stage1-literature/SKILL.md) and
 [plugin status](README.md). The skill remains a foundation until its README and

@@ -1,0 +1,214 @@
+{
+  "registry_version": "capability-metric-map-stage2-v2",
+  "extends": "capability-metric-map-v1",
+  "capabilities": [
+    {
+      "capability_id": "cli:stage2-common",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": false,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage2_common",
+      "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results.",
+      "metric_effects": [
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V2.OPPORTUNITY",
+            "P5V2.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "source/view bindings, complete assessment units, explicit unknown/error states"
+          ],
+          "human_judgment": "Independent judges must verify scientific support. Deterministic validity is not evidence of improvement."
+        }
+      ],
+      "guardrails": [
+        "No paper answer list or topic-specific production rules",
+        "No live or formal improvement claim from offline mechanics",
+        "Candidate properties never replace independent judgment"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_evaluation.py"
+      ],
+      "live_ab_required_at": "stage2-general-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:stage2-eval",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": false,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage2_eval",
+      "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results.",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V2.COMPARISON"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "source/view bindings, complete assessment units, explicit unknown/error states"
+          ],
+          "human_judgment": "Independent judges must verify scientific support. Deterministic validity is not evidence of improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V2.OPPORTUNITY",
+            "P5V2.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "source/view bindings, complete assessment units, explicit unknown/error states"
+          ],
+          "human_judgment": "Independent judges must verify scientific support. Deterministic validity is not evidence of improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V2.VALUE",
+            "P6V2.FEASIBILITY",
+            "P6V2.DISPOSITION",
+            "P6V2.PORTFOLIO"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "source/view bindings, complete assessment units, explicit unknown/error states"
+          ],
+          "human_judgment": "Independent judges must verify scientific support. Deterministic validity is not evidence of improvement."
+        }
+      ],
+      "guardrails": [
+        "No paper answer list or topic-specific production rules",
+        "No live or formal improvement claim from offline mechanics",
+        "Candidate properties never replace independent judgment"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_evaluation.py"
+      ],
+      "live_ab_required_at": "stage2-general-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:stage2-check",
+      "kind": "cli",
+      "status": "experimental",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage2_check",
+      "problem": "Research directions can be recommended despite missing evidence or infeasible materials; revision history and useful alternatives can be lost.",
+      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates, retained revisions and a prehuman choice package.",
+      "metric_effects": [
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V2.OPPORTUNITY",
+            "P5V2.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Version-bound assessments and retained substantive revisions"
+          ],
+          "human_judgment": "Independent evaluation judges opportunity validity and the adequacy of revisions."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V2.FEASIBILITY",
+            "P6V2.DISPOSITION",
+            "P6V2.PORTFOLIO"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Eligible recommendations, blocked unknowns, traceable dispositions and shared event projections"
+          ],
+          "human_judgment": "An internal recommendation does not establish scientific value or improved external scores."
+        }
+      ],
+      "guardrails": [
+        "No autonomous Stage3 authorization",
+        "Unknown is not zero or verified",
+        "A failed alternative does not erase an eligible recommendation",
+        "Keep native tools and independent evaluation separate"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_checker.py",
+        "plugins/auto-research-agent/tests/test_plugin_loading.py"
+      ],
+      "live_ab_required_at": "stage2-general-formal-milestone",
+      "quality_improvement_claimed": false,
+      "runtime_integrity_required": false
+    },
+    {
+      "capability_id": "skill:stage2-directions",
+      "kind": "skill",
+      "status": "experimental",
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/skills/stage2-directions",
+      "problem": "Research directions can be recommended despite missing evidence or infeasible materials; revision history and useful alternatives can be lost.",
+      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates, retained revisions and a prehuman choice package.",
+      "metric_effects": [
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V2.OPPORTUNITY",
+            "P5V2.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Version-bound assessments and retained substantive revisions"
+          ],
+          "human_judgment": "Independent evaluation judges opportunity validity and the adequacy of revisions."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V2.FEASIBILITY",
+            "P6V2.DISPOSITION",
+            "P6V2.PORTFOLIO"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Eligible recommendations, blocked unknowns, traceable dispositions and shared event projections"
+          ],
+          "human_judgment": "An internal recommendation does not establish scientific value or improved external scores."
+        }
+      ],
+      "guardrails": [
+        "No autonomous Stage3 authorization",
+        "Unknown is not zero or verified",
+        "A failed alternative does not erase an eligible recommendation",
+        "Keep native tools and independent evaluation separate"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_checker.py",
+        "plugins/auto-research-agent/tests/test_plugin_loading.py"
+      ],
+      "live_ab_required_at": "stage2-general-formal-milestone",
+      "quality_improvement_claimed": false
+    }
+  ],
+  "capability_extensions": [
+    {
+      "capability_id": "validator:research-pr-contract",
+      "metric_effects": [
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V2.DISPOSITION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Stage2 implementation-only PR readiness and exact invariant evidence"
+          ],
+          "human_judgment": "Core team checks scope, evidence and improvement claims."
+        }
+      ]
+    }
+  ]
+}

@@ -105,6 +105,22 @@ v3 每個 criterion 由 Auto-R1／Auto-R2 依來源評 0–2；程式核對 evid
 
 ## 4. Stage 2 子指標
 
+新 Stage 2 general v2 使用下列獨立命名；舊表與舊結果不改寫。
+每項單位為完整 prehuman 選擇包；按來源與行為給 0/1/2，不用候選本身的可行性分數替代。
+詳細 anchors、未知與分母見 [v2 protocol](stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md)。
+
+| ID | 操作型定義 | 對應主要指標 |
+|---|---|---|
+| `S2V2_COMPARISON` | 有來源的共同維度、異同／條件與研究機會推導；固定一項。 | P4 |
+| `S2V2_OPPORTUNITY` | 前例、增量、未知、邊界與反證的判斷品質；固定一項。 | P5 |
+| `S2V2_REVISION` | 對新證據的實質修正或有據維持，保留歷史；固定一項。 | P5 |
+| `S2V2_VALUE` | 以一致尺度說明貢獻用途，不以複雜度給分；固定一項。 | P6 |
+| `S2V2_FEASIBILITY` | 判斷材料、可回答性、驗證與資源是否有據；固定一項。 | P6 |
+| `S2V2_DISPOSITION` | 推薦／修正／暫存／淘汰是否符合證據與阻塞；固定一項。 | P6 |
+| `S2V2_PORTFOLIO` | 最後選項或有據零推薦、取捨及下一步是否有用；固定一項。 | P6 |
+
+以下是歷史 Stage 2 v1 子指標：
+
 Stage 2 的固定評分單位是「整份回答」或「每個 research direction」，依下表標示。得到 2 分表示足以支持下一個研究選擇。
 
 | ID | 單位與 2 分條件 | 對應主要指標 |

@@ -89,6 +89,71 @@ FIXTURE_ROOT = Path(__file__).parent / "fixtures/pr_bodies"
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
+    def stage2_body(self):
+        body = VALID.replace("P2.CLUSTERS", "P5V2.OPPORTUNITY")
+        body = body.replace(
+            "Target primary metric(s): P2", "Target primary metric(s): P5"
+        )
+        body = body.replace("skill:stage1-literature", "cli:stage2-common")
+        body = body.replace("aging-bidirectional-rubric-v1", "stage2-general-v2")
+        body = body.replace(
+            "S1_COVER -> SKILL.coverage_obligations",
+            "S2V2_OPPORTUNITY -> contract.validate_packet",
+        )
+        body = re.sub(
+            r"^- Required invariant IDs:.*$",
+            "- Required invariant IDs: stage2-source-binding, rehash-tamper-rejected",
+            body,
+            flags=re.MULTILINE,
+        )
+        evidence = (
+            "stage2-source-binding -> plugins/auto-research-agent/tests/test_stage2_evaluation.py::Stage2EvaluationTests.test_stage2_source_binding -> passed; "
+            "rehash-tamper-rejected -> plugins/auto-research-agent/tests/test_stage2_evaluation.py::Stage2EvaluationTests.test_rehash_tamper_rejected -> passed"
+        )
+        return re.sub(
+            r"^- Invariant test evidence:.*$",
+            "- Invariant test evidence: " + evidence,
+            body,
+            flags=re.MULTILINE,
+        )
+
+    def test_stage2_implementation_body_and_registry(self):
+        body = self.stage2_body()
+        self.assertEqual(validate_pr_body(body, load_capability_metrics()), [])
+        self.assertEqual(load_rubrics()["stage2-general-v2"]["P6V2.DISPOSITION"], "P6")
+        self.assertEqual(
+            load_criterion_submetrics()["P5V2.OPPORTUNITY"], {"S2V2_OPPORTUNITY"}
+        )
+
+    def test_stage2_live_readiness_is_rejected(self):
+        for readiness in ("stage-executable", "improvement-demonstrated"):
+            body = self.stage2_body().replace(
+                "Evaluation readiness: implementation-only",
+                f"Evaluation readiness: {readiness}",
+            )
+            errors = validate_pr_body(body, load_capability_metrics())
+            self.assertTrue(
+                any("experimental Stage2" in error for error in errors), errors
+            )
+
+    def test_stage2_cannot_map_to_legacy_minimum_scoring(self):
+        body = self.stage2_body().replace("S2V2_OPPORTUNITY", "S2_GAP")
+        errors = validate_pr_body(body, load_capability_metrics())
+        self.assertTrue(
+            any("must map to frozen submetric" in error for error in errors),
+            errors,
+        )
+
+    def test_stage2_requires_source_invariant(self):
+        body = self.stage2_body().replace(
+            "Required invariant IDs: stage2-source-binding, rehash-tamper-rejected",
+            "Required invariant IDs: rehash-tamper-rejected",
+        )
+        errors = validate_pr_body(body, load_capability_metrics())
+        self.assertTrue(
+            any("stage2-source-binding" in error for error in errors), errors
+        )
+
     def test_v3_capabilities_load_without_changing_frozen_v1_registry(self):
         capabilities = load_capability_metrics()
         self.assertIn("cli:stage1-core", capabilities)

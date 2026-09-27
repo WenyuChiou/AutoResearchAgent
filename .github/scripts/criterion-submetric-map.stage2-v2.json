@@ -1,0 +1,26 @@
+{
+  "schema_version": "2.0.0",
+  "criterion_submetrics": {
+    "P4V2.COMPARISON": [
+      "S2V2_COMPARISON"
+    ],
+    "P5V2.OPPORTUNITY": [
+      "S2V2_OPPORTUNITY"
+    ],
+    "P5V2.REVISION": [
+      "S2V2_REVISION"
+    ],
+    "P6V2.VALUE": [
+      "S2V2_VALUE"
+    ],
+    "P6V2.FEASIBILITY": [
+      "S2V2_FEASIBILITY"
+    ],
+    "P6V2.DISPOSITION": [
+      "S2V2_DISPOSITION"
+    ],
+    "P6V2.PORTFOLIO": [
+      "S2V2_PORTFOLIO"
+    ]
+  }
+}
