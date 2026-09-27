@@ -125,6 +125,19 @@ def _prompt(packet, phase, index, view_manifest, kind, assigned_core, prior):
         rules += "Return exactly one core_assessment for each assigned_work_id, no other work IDs, and empty criteria/omissions/issues. Sources and substitute mentions do not add assigned works. Use candidate or unverifiable if own-work text is missing. "
     else:
         rules += "Return every criterion for this phase, empty core_assessments (already assigned separately), and supported omission/major-issue observations if any. "
+        if phase == "content":
+            data["supported_closest_work_ids"] = [
+                row["work_id"] for row in assigned_core if row["closest"] == "supported"
+            ]
+            rules += (
+                "Assigned core assessments are fixed inputs for this unit; do not upgrade a candidate to supported. "
+                "P2V3.CLOSEST_FRONTIER score 2 requires at least one supported_closest_work_id, "
+                "a completed frontier challenge, and no failed challenge receipts. An empty supported list "
+                "cannot earn 2. If source availability prevents a verdict, use unverifiable/null; otherwise "
+                "apply the rubric's 0/1 anchors to observed deficiencies. Do not guess a lower score merely "
+                "to satisfy validation. P1 identity/claim score 2 requires bound passages covering every "
+                "relevant work and complete extraction. Missing evidence cannot earn 2. "
+            )
     if prior:
         rules += "Independent R1/R2 disagreed. Adjudicate from the SAME evidence; do not select the higher score or import new evidence. "
         # Prior phase results cover the entire bibliography. A four-work unit

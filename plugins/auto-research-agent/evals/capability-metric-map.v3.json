@@ -94,7 +94,9 @@
         "subject and evaluator dependencies are separately bound",
         "native evidence is admissible without treatment-specific ledger format",
         "truncated judge views are disclosed and do not automatically lower subject scores",
-        "one semantic correction and at most one same-setting transient transport retry; failed attempts are retained"
+        "one semantic correction and at most one same-setting transient transport retry; failed attempts are retained",
+        "search-only and excluded-candidate mentions do not become bibliography entries; exact title-only repetitions resolve only to a unique explicit identity",
+        "criterion judges receive score prerequisites from their assigned work assessments; no automatic score repair"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
