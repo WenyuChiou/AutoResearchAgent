@@ -1,5 +1,9 @@
 # Contributing to the research harness
 
+Stage 2 general v2 uses `evals/capability-metric-map.stage2-v2.json` and the
+[Stage 2 protocol](evals/stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md).
+It permits implementation-only PRs; synthetic judge outputs are not live evidence.
+
 This plugin treats evaluation as part of implementation. The rules apply to
 every contributor, including AI-authored changes.
 

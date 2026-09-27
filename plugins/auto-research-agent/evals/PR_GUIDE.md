@@ -46,6 +46,12 @@ paste frozen core-source titles or adjudication keys into production prompts.
 
 ### Evaluation
 
+Stage 2 first-slice PRs use `stage2-general-v2`, its `P4V2`/`P5V2`/`P6V2`
+criteria and `S2V2_*` submetrics. CI admits only `implementation-only` until a
+separate formal runtime/evidence contract is implemented. A correct rejection
+of an infeasible candidate is not a low-quality judgment. Declare synthetic
+tests honestly; keep scientific improvement `not yet demonstrated`.
+
 For the experimental, gold-set-free Stage 1 path, choose rubric
 `stage1-general-v3` and its `P1V3`/`P2V3`/`P3V3` criteria. Map these to
 the matching `S1V3_*` definitions; never map `P2V3.CORE_SELECTION` to the

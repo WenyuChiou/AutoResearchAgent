@@ -1,5 +1,10 @@
 # Stage 1–3 evaluation workflow
 
+**Stage 2 新版：**[通用 v2 獨立評估流程](stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md)。
+它分開候選性質、判斷與選擇包，允許有據淘汰與零推薦；P5/P6 目標改善、P4 不退步。
+本輪只有離線 diagnostic 機制，沒有正式 A/B。下方最低方向分與 private holdout
+敘述保持歷史版本語意，不適用新 Stage 2 v2。
+
 **目前執行版本：**[evaluator v3.1 中文流程](stage1/EVALUATOR_V3_1.zh-TW.md)。
 先確認使用者研究範圍，再凍結同一題目、原生工具與 v3 十項 rubric；保存全部 attempts，
 擷取作品與中央敘述、取得來源、以原文片段索引交給 R1／R2，分歧才交 ADJ，最後重播配對判定。
