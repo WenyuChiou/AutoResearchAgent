@@ -1,4 +1,13 @@
-# AutoResearchAgent Stage 1 plugin
+# AutoResearchAgent research plugin
+
+Stage 2 now has an experimental [fixed-candidate checker](references/stage2-directions.md)
+and the `stage2-directions` skill. Given a confirmed brief, sources and candidates,
+it validates supplied assessments, preserves revisions and exports a prehuman
+choice package. It does not generate directions autonomously or establish scientific
+validity. The separate [P4-P6 evaluator](references/stage2-evaluation.md) remains
+offline and implementation-only. Research-quality improvement is not yet demonstrated.
+The historical `evals/stage-registry.v1.json` predates this separate v2 slice;
+current Stage 2 capability status is recorded in `evals/capability-metric-map.stage2-v2.json`.
 
 Native Codex search, browsing, reasoning and tool choice remain available.
 The research-hub adapter is optional; a native search need not be repeated to
