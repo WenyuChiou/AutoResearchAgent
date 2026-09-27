@@ -1,5 +1,9 @@
 # Evaluation readiness 與團隊分工
 
+Stage 2 現在有獨立 [general v2 開發切片](stage2/SCIENTIFIC_CONTRACT.zh-TW.md)。
+只允許 implementation-only；完整生成、live judge 與正式 A/B 尚未建立。
+核心組定義與審查，組員實作／測試／回覆 review，最後仍由核心組 merge。
+
 這份文件回答兩個問題：目前哪一部分真的可用，以及組員交付什麼，核心組才能安全地
 決定下一步。判分規則以 [evaluation workflow](EVALUATION_WORKFLOW.zh-TW.md)、
 [operational definitions](OPERATIONAL_DEFINITIONS.zh-TW.md) 與 frozen rubric 為準；

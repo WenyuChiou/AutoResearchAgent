@@ -1,0 +1,108 @@
+{
+  "rubric_id": "stage2-general-v2",
+  "rubric_version": "stage2-general-v2",
+  "schema_version": "2.0.0",
+  "status": "experimental",
+  "stage": 2,
+  "readiness": "implementation-only",
+  "unit": "complete prehuman Stage 2 choice package",
+  "criteria": [
+    {
+      "id": "P4V2.COMPARISON",
+      "dimension": "P4",
+      "question": "Are studies compared on shared, evidence-supported dimensions that inform opportunities?",
+      "anchors": {
+        "0": "No shared comparison or a central comparison is false.",
+        "1": "Shared dimensions exist, but conditions or implications remain incomplete.",
+        "2": "Source-grounded agreements, conflicts and conditions explain which opportunities follow."
+      }
+    },
+    {
+      "id": "P5V2.OPPORTUNITY",
+      "dimension": "P5",
+      "question": "Are precedents, unknowns, increments and boundaries characterized accurately?",
+      "anchors": {
+        "0": "Central novelty relies on search omission, misrepresented prior work or a disproven increment.",
+        "1": "A plausible opportunity has incomplete closest-work, boundary or counterevidence analysis.",
+        "2": "Closest work, known/unknown distinction, contribution, scope and weakening evidence are supported."
+      }
+    },
+    {
+      "id": "P5V2.REVISION",
+      "dimension": "P5",
+      "question": "Do retained or revised judgments respond appropriately to evidence?",
+      "anchors": {
+        "0": "Counterevidence is ignored or cosmetic edits retain the underlying error.",
+        "1": "An issue is recognized but repair or consequences remain incomplete.",
+        "2": "Substantive corrections retain history; unchanged claims are supported when no correction is warranted."
+      }
+    },
+    {
+      "id": "P6V2.VALUE",
+      "dimension": "P6",
+      "question": "Is the potential contribution useful under consistent criteria?",
+      "anchors": {
+        "0": "Value rests on hype, complexity or unsupported impact.",
+        "1": "Beneficiaries or benefits are plausible but the contribution path is incomplete.",
+        "2": "Specific understanding, measurement, validation or decision benefits and tradeoffs are supported."
+      }
+    },
+    {
+      "id": "P6V2.FEASIBILITY",
+      "dimension": "P6",
+      "question": "Are answerability, materials and resource judgments supported, including justified infeasibility?",
+      "anchors": {
+        "0": "Access or suitability is fabricated, critical constraints ignored, or download success treated as answerability.",
+        "1": "Some checks exist but critical material, validation or resource judgments are incomplete.",
+        "2": "Answerability, material suitability, access and resources are assessed honestly with unknowns and alternatives; infeasibility can be correctly established."
+      }
+    },
+    {
+      "id": "P6V2.DISPOSITION",
+      "dimension": "P6",
+      "question": "Do recommendations, revisions, parking and rejection follow evidence?",
+      "anchors": {
+        "0": "An unresolved hard blocker is recommended as feasible or a candidate is rejected without support.",
+        "1": "Disposition is plausible but supporting evidence, alternatives or next steps are incomplete.",
+        "2": "Disposition follows evidence and uncertainty; unresolved hard blockers do not pass to design."
+      }
+    },
+    {
+      "id": "P6V2.PORTFOLIO",
+      "dimension": "P6",
+      "question": "Is the prehuman choice package useful under bounded evidence?",
+      "anchors": {
+        "0": "No supported option or useful next step is supplied, or known viable alternatives are ignored.",
+        "1": "The package is partly usable but tradeoffs or outstanding questions are unclear.",
+        "2": "Supported options or a justified zero-recommendation outcome include useful next steps, tradeoffs and limitations; count alone earns no points."
+      }
+    }
+  ],
+  "unknown": {
+    "score": null,
+    "rule": "Independent evidence unavailable or evaluator failure is not subject zero. Correct handling of uncertainty may be assessed separately."
+  },
+  "aggregation": "Fixed run-level criteria per dimension; any unknown required criterion makes that dimension null. Candidate properties and disposition evidence are diagnostic, never minimum-score caps.",
+  "major_error_ids": [
+    "fabricated-evidence",
+    "false-verification",
+    "unsupported-central-novelty",
+    "hidden-hard-blocker",
+    "unauthorized-scope-change",
+    "exploratory-as-confirmatory"
+  ],
+  "decision_rule": {
+    "target_metrics": [
+      "P5",
+      "P6"
+    ],
+    "non_regression_metrics": [
+      "P4"
+    ],
+    "required_pairs": 3,
+    "minimum_improved_pairs": 2,
+    "maximum_regressed_pairs": 0,
+    "allow_new_treatment_major_errors": false
+  },
+  "formal_execution_enabled": false
+}

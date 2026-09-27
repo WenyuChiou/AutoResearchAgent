@@ -13,7 +13,7 @@ technical terms where they first appear. -->
 
 <!-- Compare plausible methods. Use reuse, wrap, extend, or build-new. -->
 
-- Affected capability ID(s): <!-- IDs from capability-metric-map.v1.json or its v3 extension -->
+- Affected capability ID(s): <!-- IDs from capability-metric-map.v1.json, v3 extension, or stage2-v2 extension -->
 - Options considered:
 - Capability decision: <!-- exactly one: reuse / wrap / extend / build-new -->
 - Chosen change:
@@ -43,7 +43,7 @@ After:
 
 - Evaluation readiness: <!-- exactly one: implementation-only / stage-executable / improvement-demonstrated -->
 - Baseline and treatment:
-- Rubric version: <!-- aging-bidirectional-rubric-v1 (legacy case) or stage1-general-v3 (experimental gold-set-free path) -->
+- Rubric version: <!-- aging-bidirectional-rubric-v1 (legacy), stage1-general-v3, or stage2-general-v2 (implementation-only) -->
 - Rubric criterion ID(s): <!-- Exact IDs such as P3.DECISION_TRACE, separated by commas. -->
 - Operational-definition mapping: <!-- One per criterion: P3.STOP_EVIDENCE -> S1_STOP_EVIDENCE -> policy.evaluate; separate entries with semicolons. -->
 - Required invariant IDs: <!-- Comma-separated IDs derived by the PR validator. -->

@@ -1,6 +1,22 @@
 {
   "schema_version": "1.0.0",
   "invariants": {
+    "stage2-source-binding": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage2_evaluation\\.py"],
+      "selector_pattern": "Stage2EvaluationTests\\.test_stage2_source_binding"
+    },
+    "stage2-content-before-action": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage2_evaluation\\.py"],
+      "selector_pattern": "Stage2EvaluationTests\\.test_stage2_content_before_action"
+    },
+    "stage2-unknown-distinct": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage2_evaluation\\.py"],
+      "selector_pattern": "Stage2EvaluationTests\\.test_stage2_unknown_distinct"
+    },
+    "stage2-disposition-independent": {
+      "path_patterns": ["plugins/auto-research-agent/tests/test_stage2_evaluation\\.py"],
+      "selector_pattern": "Stage2EvaluationTests\\.test_stage2_disposition_independent"
+    },
     "artifact-producer-bound": {
       "path_patterns": ["plugins/auto-research-agent/tests/test_[A-Za-z0-9_]+\\.py"],
       "selector_pattern": "[A-Za-z_][A-Za-z0-9_]*\\.test_[A-Za-z0-9_]*artifact[A-Za-z0-9_]*producer[A-Za-z0-9_]*bound[A-Za-z0-9_]*"
