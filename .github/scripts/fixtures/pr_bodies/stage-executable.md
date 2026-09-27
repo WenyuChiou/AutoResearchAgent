@@ -37,6 +37,16 @@ After: incomplete cluster continues.
 - Live paired A/B: deferred to Stage 1 executable milestone
 Compare paired P2 counts and blinded judgments.
 
+## Research Deliverable
+- Applicability: not-applicable
+- Applicability reason: This historical fixture tests stage readiness and does not implement a research deliverable.
+- Public source acquisition evidence: not-applicable
+- Editable report evidence: not-applicable
+- Source binding evidence: not-applicable
+- Access-state evidence: not-applicable
+- Access and repository guardrail evidence: not-applicable
+- Japan pilot evidence: not-applicable
+
 ## Validation
 Synthetic regression tests passed.
 - Execution status: complete

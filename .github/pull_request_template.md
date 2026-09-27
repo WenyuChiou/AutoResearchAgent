@@ -60,6 +60,22 @@ After:
 - Time, tools, failures, and human-intervention guardrails:
 - Live paired A/B: <!-- improvement uses the same bound manifest; otherwise give a concrete milestone deferral. -->
 
+## Research Deliverable
+
+<!-- Every PR must declare whether it changes the Stage 1 researcher-facing
+deliverable. Use required for the Stage 1 report/source-package implementation.
+Use not-applicable only with a concrete reason, and write exactly not-applicable
+in every evidence field. -->
+
+- Applicability: <!-- exactly one: required / not-applicable -->
+- Applicability reason:
+- Public source acquisition evidence: <!-- lawfully public PDF, HTML or text full sources, plus unavailable outcomes. -->
+- Editable report evidence: <!-- Excel, Markdown, BibTeX, metadata, claims, screening and coverage outputs. -->
+- Source binding evidence: <!-- work, version, URL/URI, access time and SHA-256. -->
+- Access-state evidence: <!-- paywall, not found, parse error, login page and other explicit states. -->
+- Access and repository guardrail evidence: <!-- lawfully public sources; no paywall bypass; abstract is not full text; paper files stay out of Git. -->
+- Japan pilot evidence: <!-- required format: artifact: manifest=PATH; sha256=64HEX -->
+
 ## Validation
 
 - [ ] Targeted regression tests pass.

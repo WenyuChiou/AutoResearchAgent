@@ -203,6 +203,30 @@ Open dependency 使用當下 head SHA；merged dependency 使用 immutable merge
 `improvement-demonstrated` 另外要求 external dependency 已核准。跨 repository
 PR 不能填進 internal 欄位來繞過 immutable SHA pin。
 
+## Stage 1 research deliverable, in plain language
+
+A finished literature search should give the researcher the papers and an
+organized notebook, not only say "I found them." Every PR therefore answers
+whether it changes this package.
+
+- `not-applicable` means the PR does not build or change the Stage 1 report and
+  source package. Explain why and write `not-applicable` in all six evidence
+  fields.
+- `required` means the PR builds that package. Show the Excel, Markdown,
+  BibTeX, metadata, claims, screening and coverage outputs; show that every
+  paper file points to its exact work/version, URL, access time and hash; show
+  the different access failures; show the lawful-access and Git guardrails; and
+  bind the Japan pilot manifest by SHA-256.
+
+The validator opens that manifest and its safe artifacts. A made-up hash, a
+missing file, failed validation, zero outputs, incomplete source bindings or a
+rehash after tampering does not pass. The implementation path is owned by the
+registered `cli:stage1-deliverable` capability, so an unrelated documentation
+filename does not accidentally trigger the requirement.
+
+The paper files stay private. The PR carries schemas, tests and a safe manifest,
+so a reviewer can verify the behavior without publishing copyrighted PDFs.
+
 ## Filled example
 
 ### Why
@@ -285,6 +309,17 @@ with the triggering query and candidate decisions linked from the gate result.
 - Live paired A/B: deferred to the Stage 1 executable milestone.
 - Success: paired P2 and P3 improve, P1 does not regress, and no major error is
   added.
+
+### Research Deliverable
+
+- Applicability: not-applicable
+- Applicability reason: This example changes the coverage gate and does not implement the Stage 1 report or source package.
+- Public source acquisition evidence: not-applicable
+- Editable report evidence: not-applicable
+- Source binding evidence: not-applicable
+- Access-state evidence: not-applicable
+- Access and repository guardrail evidence: not-applicable
+- Japan pilot evidence: not-applicable
 
 ### Validation
 

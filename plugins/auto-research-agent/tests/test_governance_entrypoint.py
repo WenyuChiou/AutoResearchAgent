@@ -54,6 +54,7 @@ class GovernanceEntrypointTests(unittest.TestCase):
             "evals/stage2/DIRECTION_CHECKER_RUBRIC.zh-TW.md",
             "evals/stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md",
             "skills/stage1-literature/SKILL.md",
+            "references/stage1-research-deliverable.md",
             "README.md",
         ]
         self.assertEqual(links, expected_links)
@@ -77,6 +78,7 @@ class GovernanceEntrypointTests(unittest.TestCase):
             "Scientific-quality improvement requires the frozen paired live A/B",
             "Contributors and their AI do not approve or merge their own harness PRs.",
             "do not send this harness to OpenAI upstream.",
+            "Every PR completes the `Research Deliverable` template section.",
         ):
             self.assertIn(boundary, normalized)
 

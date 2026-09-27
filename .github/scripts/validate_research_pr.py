@@ -11,7 +11,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-REQUIRED_SECTIONS = ("Why", "What", "How", "Example", "Evaluation", "Validation")
+REQUIRED_SECTIONS = (
+    "Why",
+    "What",
+    "How",
+    "Example",
+    "Evaluation",
+    "Research Deliverable",
+    "Validation",
+)
 HEADING = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 METRIC = re.compile(r"\bP[1-9]\b")
@@ -65,6 +73,26 @@ SKILL_TEST_LABELS = (
     "Skill test actual",
     "Skill test limitations",
 )
+RESEARCH_DELIVERABLE_APPLICABILITY = {"required", "not-applicable"}
+RESEARCH_DELIVERABLE_EVIDENCE_LABELS = (
+    "Public source acquisition evidence",
+    "Editable report evidence",
+    "Source binding evidence",
+    "Access-state evidence",
+    "Access and repository guardrail evidence",
+    "Japan pilot evidence",
+)
+RESEARCH_DELIVERABLE_CAPABILITY = "cli:stage1-deliverable"
+RESEARCH_PAPER_TEXT_ROOT = re.compile(
+    r"(?:^|/)(?:papers?|full[-_]?texts?|sources?|downloads?|artifacts?|"
+    r"evidence|outputs?|runs?|deliverables?|stage1[-_]?research[-_]?deliverable|"
+    r"japan[-_]?pilot)(?:/|$)",
+    re.IGNORECASE,
+)
+SYNTHETIC_FIXTURE_PATH = re.compile(
+    r"(?:^|/)(?:\.github/scripts/fixtures|plugins/auto-research-agent/tests/fixtures)/",
+    re.IGNORECASE,
+)
 PLACEHOLDER_VALUE = re.compile(
     r"^(?:tbd|todo|n/?a|none|pending|unknown|not[ -]tested|not[ -]run|"
     r"placeholder|fill[ -](?:this|me))(?:\s+(?:later|yet|here|please|soon))?$",
@@ -96,6 +124,11 @@ REQUIRED_LABELS = {
         "Paired evaluation evidence",
         "Runtime integrity evidence",
         "Live paired A/B",
+    ),
+    "Research Deliverable": (
+        "Applicability",
+        "Applicability reason",
+        *RESEARCH_DELIVERABLE_EVIDENCE_LABELS,
     ),
     "Validation": (
         "Execution status",
@@ -601,6 +634,236 @@ def load_bound_readiness_manifest(detail, repo_root, allow_contract_fixtures=Fal
     return manifest, errors
 
 
+def _read_json_artifact(manifest, role):
+    binding = manifest.get("_verified_artifacts", {}).get(role)
+    if not binding:
+        return None, [f"Japan pilot manifest missing verified artifact role '{role}'"]
+    try:
+        value = json.loads(binding["_resolved_path"].read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        return None, [f"Japan pilot artifact '{role}' is not valid JSON: {error}"]
+    if not isinstance(value, dict):
+        return None, [f"Japan pilot artifact '{role}' must be a JSON object"]
+    return value, []
+
+
+def validate_stage1_deliverable_pilot_manifest(manifest):
+    """Validate public-safe evidence for the private, unscored Japan pilot."""
+
+    errors = []
+    if manifest.get("evidence_scope") not in {
+        "stage1-research-deliverable-pilot",
+        "contract-fixture",
+    }:
+        errors.append(
+            "Japan pilot manifest evidence_scope must be "
+            "'stage1-research-deliverable-pilot'"
+        )
+    if str(manifest.get("pilot_geography", "")).casefold() != "japan":
+        errors.append("Japan pilot manifest pilot_geography must be Japan")
+    if manifest.get("execution_status") != "complete":
+        errors.append("Japan pilot manifest execution_status must be complete")
+    if manifest.get("validator_status") != "passed":
+        errors.append("Japan pilot manifest validator_status must be passed")
+
+    required_roles = {
+        "deliverable-inventory",
+        "deliverable-validator-report",
+        "exporter-runtime-bytes",
+        "repository-guardrail-report",
+    }
+    missing_roles = required_roles.difference(manifest.get("_verified_roles", set()))
+    if missing_roles:
+        errors.append(
+            "Japan pilot manifest missing verified artifact role(s): "
+            + ", ".join(sorted(missing_roles))
+        )
+
+    inventory, inventory_errors = _read_json_artifact(manifest, "deliverable-inventory")
+    validator_report, validator_errors = _read_json_artifact(
+        manifest, "deliverable-validator-report"
+    )
+    guardrail_report, guardrail_errors = _read_json_artifact(
+        manifest, "repository-guardrail-report"
+    )
+    errors.extend(inventory_errors + validator_errors + guardrail_errors)
+
+    if inventory is not None:
+        if inventory.get("status") != "complete":
+            errors.append("Japan pilot deliverable inventory status must be complete")
+        outputs = inventory.get("outputs")
+        required_outputs = {
+            "excel",
+            "markdown",
+            "bibtex",
+            "metadata",
+            "claims",
+            "screening",
+            "coverage",
+        }
+        if not isinstance(outputs, dict) or any(
+            type(outputs.get(name)) is not int or outputs[name] < 1
+            for name in required_outputs
+        ):
+            errors.append(
+                "Japan pilot inventory must record at least one Excel, Markdown, "
+                "BibTeX, metadata, claims, screening and coverage output"
+            )
+        bindings = inventory.get("source_bindings")
+        if (
+            not isinstance(bindings, dict)
+            or type(bindings.get("total")) is not int
+            or type(bindings.get("complete")) is not int
+            or bindings.get("total", 0) < 1
+            or bindings.get("complete") != bindings.get("total")
+        ):
+            errors.append(
+                "Japan pilot inventory must bind every full source and report a "
+                "positive complete/total count"
+            )
+        acquired = inventory.get("acquired_full_text")
+        if not isinstance(acquired, dict) or any(
+            type(acquired.get(name)) is not int or acquired[name] < 0
+            for name in ("pdf", "html", "text")
+        ):
+            errors.append(
+                "Japan pilot inventory must record non-negative PDF, HTML and text counts"
+            )
+        elif sum(acquired[name] for name in ("pdf", "html", "text")) < 1:
+            errors.append(
+                "Japan pilot must acquire at least one lawful public full text"
+            )
+        access_states = inventory.get("access_state_counts")
+        if not isinstance(access_states, dict) or any(
+            type(access_states.get(name)) is not int or access_states[name] < 1
+            for name in ("paywalled", "not-found", "parse-error", "login-page")
+        ):
+            errors.append(
+                "Japan pilot inventory must exercise paywall, not-found, parse-error "
+                "and login-page outcomes with positive distinct counts"
+            )
+
+    if validator_report is not None and (
+        validator_report.get("status") != "passed"
+        or validator_report.get("cross_format_reconciled") is not True
+        or validator_report.get("tamper_test_rejected") is not True
+    ):
+        errors.append(
+            "Japan pilot validator report must pass cross-format reconciliation "
+            "and tamper rejection"
+        )
+
+    if guardrail_report is not None and (
+        guardrail_report.get("status") != "passed"
+        or guardrail_report.get("paywall_bypass") is not False
+        or guardrail_report.get("abstract_as_full_text") is not False
+        or guardrail_report.get("committed_paper_files") != 0
+    ):
+        errors.append(
+            "Japan pilot repository guardrail must pass with no paywall bypass, "
+            "abstract-as-full-text labels or committed paper files"
+        )
+    return errors
+
+
+def validate_stage1_deliverable_claims(deliverable_evidence, manifest):
+    """Reconcile human-readable PR counts with the bound pilot inventory."""
+
+    inventory, errors = _read_json_artifact(manifest, "deliverable-inventory")
+    if inventory is None:
+        return errors
+    outputs = inventory.get("outputs", {})
+    bindings = inventory.get("source_bindings", {})
+    acquired = inventory.get("acquired_full_text", {})
+    access_states = inventory.get("access_state_counts", {})
+    required_counts = (
+        (
+            outputs,
+            (
+                "excel",
+                "markdown",
+                "bibtex",
+                "metadata",
+                "claims",
+                "screening",
+                "coverage",
+            ),
+        ),
+        (bindings, ("complete", "total")),
+        (acquired, ("pdf", "html", "text")),
+        (
+            access_states,
+            ("paywalled", "not-found", "parse-error", "login-page"),
+        ),
+    )
+    if any(
+        not isinstance(values, dict)
+        or any(type(values.get(name)) is not int for name in names)
+        for values, names in required_counts
+    ):
+        return errors
+
+    expected_acquired = sum(acquired.get(name, 0) for name in ("pdf", "html", "text"))
+    expected_total = expected_acquired + sum(
+        access_states.get(name, 0)
+        for name in ("paywalled", "not-found", "parse-error", "login-page")
+    )
+    acquisition_match = re.search(
+        r"\b(\d+)\s*/\s*(\d+)\b",
+        deliverable_evidence["Public source acquisition evidence"],
+    )
+    if not acquisition_match or tuple(map(int, acquisition_match.groups())) != (
+        expected_acquired,
+        expected_total,
+    ):
+        errors.append(
+            "Public source acquisition claim does not match the Japan pilot inventory"
+        )
+
+    output_match = re.search(
+        r"\b(\d+)\s+outputs?\s+passed\b",
+        deliverable_evidence["Editable report evidence"],
+        re.IGNORECASE,
+    )
+    expected_outputs = sum(
+        outputs.get(name, 0)
+        for name in (
+            "excel",
+            "markdown",
+            "bibtex",
+            "metadata",
+            "claims",
+            "screening",
+            "coverage",
+        )
+    )
+    if not output_match or int(output_match.group(1)) != expected_outputs:
+        errors.append("Editable output claim does not match the Japan pilot inventory")
+
+    binding_match = re.search(
+        r"\b(\d+)\s*/\s*(\d+)\b",
+        deliverable_evidence["Source binding evidence"],
+    )
+    if not binding_match or tuple(map(int, binding_match.groups())) != (
+        bindings.get("complete"),
+        bindings.get("total"),
+    ):
+        errors.append("Source binding claim does not match the Japan pilot inventory")
+
+    states_match = re.search(
+        r"\b(\d+)\s+(?:fixture\s+)?states?\s+passed\b",
+        deliverable_evidence["Access-state evidence"],
+        re.IGNORECASE,
+    )
+    expected_state_types = sum(
+        access_states.get(name, 0) > 0
+        for name in ("paywalled", "not-found", "parse-error", "login-page")
+    )
+    if not states_match or int(states_match.group(1)) != expected_state_types:
+        errors.append("Access-state claim does not match the Japan pilot inventory")
+    return errors
+
+
 def _evaluate_formal_paired_artifacts(manifest, repo_root, expected_decision):
     """Run the existing formal paired evaluator and compare its exact decision."""
 
@@ -766,8 +1029,24 @@ def path_is_capability_entry(path):
     if matched_root is None:
         return False
     root_relative = normalized.removeprefix(matched_root)
-    return root_relative not in {"README.md", "__init__.py"} and not any(
-        part == "__pycache__" for part in normalized.split("/")
+    return (
+        root_relative != "__init__.py"
+        and Path(root_relative).name != "README.md"
+        and not any(part == "__pycache__" for part in normalized.split("/"))
+    )
+
+
+def is_committed_paper_file(path):
+    """Identify downloaded paper payloads while allowing declared synthetic fixtures."""
+
+    normalized = path.replace("\\", "/")
+    if SYNTHETIC_FIXTURE_PATH.search(normalized):
+        return False
+    suffix = Path(normalized).suffix.casefold()
+    if suffix == ".pdf":
+        return True
+    return suffix in {".html", ".htm", ".txt"} and bool(
+        RESEARCH_PAPER_TEXT_ROOT.search(normalized)
     )
 
 
@@ -849,6 +1128,182 @@ def validate_pr_body(
         errors.append(
             "Capability decision must be exactly reuse, wrap, extend, or build-new"
         )
+    deliverable_section = parsed.get("Research Deliverable", "")
+    deliverable_applicability = label_value(
+        deliverable_section, "Applicability"
+    ).casefold()
+    if deliverable_applicability not in RESEARCH_DELIVERABLE_APPLICABILITY:
+        errors.append(
+            "Research Deliverable Applicability must be exactly required or not-applicable"
+        )
+    deliverable_reason = label_value(deliverable_section, "Applicability reason")
+    if deliverable_reason and (
+        not text_is_concrete(deliverable_reason) or len(deliverable_reason) < 25
+    ):
+        errors.append(
+            "Research Deliverable Applicability reason must concretely explain why it applies"
+        )
+    deliverable_evidence = {
+        label: label_value(deliverable_section, label)
+        for label in RESEARCH_DELIVERABLE_EVIDENCE_LABELS
+    }
+    if deliverable_applicability == "not-applicable":
+        for label, value in deliverable_evidence.items():
+            if value.casefold() != "not-applicable":
+                errors.append(
+                    f"Research Deliverable '{label}:' must be exactly not-applicable "
+                    "when Applicability is not-applicable"
+                )
+    elif deliverable_applicability == "required":
+        acquisition = deliverable_evidence[
+            "Public source acquisition evidence"
+        ].casefold()
+        acquisition_requirements = {
+            "PDF": ("pdf",),
+            "HTML": ("html",),
+            "text": ("text",),
+            "lawfully public": ("lawful", "public"),
+        }
+        missing_acquisition = [
+            name
+            for name, aliases in acquisition_requirements.items()
+            if not all(alias in acquisition for alias in aliases)
+        ]
+        if missing_acquisition:
+            errors.append(
+                "Public source acquisition evidence must cover: "
+                + ", ".join(missing_acquisition)
+            )
+        acquisition_counts = [
+            (int(found), int(total))
+            for found, total in re.findall(r"\b(\d+)\s*/\s*(\d+)\b", acquisition)
+        ]
+        if not any(0 < found <= total for found, total in acquisition_counts):
+            errors.append(
+                "Public source acquisition evidence must report a positive acquired/total count"
+            )
+        editable = deliverable_evidence["Editable report evidence"].casefold()
+        required_formats = {
+            "Excel": ("excel", ".xlsx"),
+            "Markdown": ("markdown", ".md"),
+            "BibTeX": ("bibtex", ".bib"),
+            "metadata": ("metadata",),
+            "claims": ("claim",),
+            "screening": ("screening",),
+            "coverage": ("coverage",),
+        }
+        missing_formats = [
+            name
+            for name, aliases in required_formats.items()
+            if not any(alias in editable for alias in aliases)
+        ]
+        if missing_formats:
+            errors.append(
+                "Editable report evidence must cover: " + ", ".join(missing_formats)
+            )
+        if not re.search(r"\b[1-9]\d*\s+outputs?\s+passed\b", editable):
+            errors.append(
+                "Editable report evidence must report a positive number of outputs passed"
+            )
+        binding = deliverable_evidence["Source binding evidence"].casefold()
+        binding_requirements = {
+            "work": ("work",),
+            "version": ("version",),
+            "URL/URI": ("url", "uri"),
+            "access time": ("access time", "accessed at", "accessed_at"),
+            "SHA-256": ("sha-256", "sha256"),
+        }
+        missing_bindings = [
+            name
+            for name, aliases in binding_requirements.items()
+            if not any(alias in binding for alias in aliases)
+        ]
+        if missing_bindings:
+            errors.append(
+                "Source binding evidence must cover: " + ", ".join(missing_bindings)
+            )
+        binding_counts = [
+            (int(complete), int(total))
+            for complete, total in re.findall(r"\b(\d+)\s*/\s*(\d+)\b", binding)
+        ]
+        if not any(
+            complete > 0 and complete == total for complete, total in binding_counts
+        ):
+            errors.append(
+                "Source binding evidence must report a positive complete/total count"
+            )
+        access_states = deliverable_evidence["Access-state evidence"].casefold()
+        state_requirements = {
+            "paywall": ("paywall", "paywalled"),
+            "not found": ("not found", "not-found", "not_found"),
+            "parse error": ("parse error", "parse-error", "parse_error"),
+            "login page": ("login page", "login-page", "login_page"),
+        }
+        missing_states = [
+            name
+            for name, aliases in state_requirements.items()
+            if not any(alias in access_states for alias in aliases)
+        ]
+        if missing_states:
+            errors.append(
+                "Access-state evidence must distinguish: " + ", ".join(missing_states)
+            )
+        if not re.search(
+            r"\b[1-9]\d*\s+(?:fixture\s+)?states?\s+passed\b", access_states
+        ):
+            errors.append(
+                "Access-state evidence must report a positive number of states passed"
+            )
+        guardrail = deliverable_evidence[
+            "Access and repository guardrail evidence"
+        ].casefold()
+        guardrail_requirements = {
+            "lawfully public source": ("lawful", "public"),
+            "no paywall bypass": ("no paywall bypass",),
+            "abstract is not full text": ("abstract is not full text",),
+            "paper files excluded from Git": ("paper files excluded from git",),
+        }
+        missing_guardrails = [
+            name
+            for name, aliases in guardrail_requirements.items()
+            if not all(alias in guardrail for alias in aliases)
+        ]
+        if missing_guardrails:
+            errors.append(
+                "Access and repository guardrail evidence must cover: "
+                + ", ".join(missing_guardrails)
+            )
+        pilot_evidence = deliverable_evidence["Japan pilot evidence"]
+        pilot_match = AI_JUDGE_EVIDENCE.fullmatch(pilot_evidence)
+        if (
+            not pilot_match
+            or pilot_match.group(1).casefold() != "artifact"
+            or not BOUND_MANIFEST.fullmatch(pilot_match.group(2).strip())
+        ):
+            errors.append(
+                "Japan pilot evidence must bind an artifact as "
+                "'artifact: manifest=PATH; sha256=64HEX'"
+            )
+        else:
+            pilot_manifest, pilot_errors = load_bound_readiness_manifest(
+                pilot_match.group(2).strip(),
+                repo_root,
+                allow_contract_fixtures=allow_contract_fixtures,
+            )
+            errors.extend(f"Japan pilot: {error}" for error in pilot_errors)
+            if pilot_manifest is not None:
+                errors.extend(
+                    f"Japan pilot: {error}"
+                    for error in validate_stage1_deliverable_pilot_manifest(
+                        pilot_manifest
+                    )
+                )
+                errors.extend(
+                    f"Japan pilot: {error}"
+                    for error in validate_stage1_deliverable_claims(
+                        deliverable_evidence, pilot_manifest
+                    )
+                )
     plain_summary = label_value(parsed.get("Why", ""), "Plain-language summary")
     if plain_summary and (
         not text_is_concrete(plain_summary) or len(plain_summary) < 25
@@ -1030,6 +1485,13 @@ def validate_pr_body(
     declared_capabilities = capability_ids(
         label_value(parsed.get("What", ""), "Affected capability ID(s)")
     )
+    if (
+        RESEARCH_DELIVERABLE_CAPABILITY in declared_capabilities
+        and deliverable_applicability != "required"
+    ):
+        errors.append(
+            "cli:stage1-deliverable changes require the Stage 1 research deliverable"
+        )
     mapped_criteria = set()
     for entry in mapping_entries:
         match = OPERATIONAL_MAPPING.fullmatch(entry)
@@ -1354,6 +1816,27 @@ def validate_pr_body(
                 errors.append(
                     "changed capabilities missing from 'Affected capability ID(s):': "
                     + ", ".join(sorted(missing))
+                )
+            required_capabilities, _ = capabilities_for_changed_paths(
+                changed_paths, known_capabilities
+            )
+            if (
+                RESEARCH_DELIVERABLE_CAPABILITY in required_capabilities
+                and deliverable_applicability != "required"
+            ):
+                errors.append(
+                    "Stage 1 deliverable implementation paths require Research "
+                    "Deliverable Applicability: required"
+                )
+            committed_papers = [
+                path.replace("\\", "/")
+                for path in changed_paths
+                if is_committed_paper_file(path)
+            ]
+            if committed_papers:
+                errors.append(
+                    "Downloaded paper files must stay out of Git: "
+                    + ", ".join(sorted(committed_papers))
                 )
     example = visible_text(parsed.get("Example", ""))
     for label in ("Before", "After"):

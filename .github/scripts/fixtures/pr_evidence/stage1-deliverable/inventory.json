@@ -1,0 +1,27 @@
+{
+  "access_state_counts": {
+    "login-page": 1,
+    "not-found": 1,
+    "parse-error": 1,
+    "paywalled": 1
+  },
+  "acquired_full_text": {
+    "html": 1,
+    "pdf": 1,
+    "text": 1
+  },
+  "outputs": {
+    "bibtex": 1,
+    "claims": 1,
+    "coverage": 1,
+    "excel": 1,
+    "markdown": 1,
+    "metadata": 1,
+    "screening": 1
+  },
+  "source_bindings": {
+    "complete": 3,
+    "total": 3
+  },
+  "status": "complete"
+}

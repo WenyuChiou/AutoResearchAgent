@@ -37,6 +37,16 @@ After: incomplete cluster continues.
 - Live paired A/B: artifact: manifest=.github/scripts/fixtures/pr_evidence/improvement-demonstrated.manifest.json; sha256=a4f7c8ad503b1f074312403fbafc84625945923f5320482a55693b67f2a9aa2f
 Compare paired P2 counts and blinded judgments.
 
+## Research Deliverable
+- Applicability: not-applicable
+- Applicability reason: This historical fixture tests paired readiness and does not implement a research deliverable.
+- Public source acquisition evidence: not-applicable
+- Editable report evidence: not-applicable
+- Source binding evidence: not-applicable
+- Access-state evidence: not-applicable
+- Access and repository guardrail evidence: not-applicable
+- Japan pilot evidence: not-applicable
+
 ## Validation
 Synthetic regression tests passed.
 - Execution status: complete
