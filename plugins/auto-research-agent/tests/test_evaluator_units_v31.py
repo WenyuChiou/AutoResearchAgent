@@ -220,6 +220,35 @@ class EvaluatorUnitTests(unittest.TestCase):
         self.assertEqual(run.call_count, 1)
         self.assertFalse((self.output / "semantic-unit-correction.model-call").exists())
 
+    def test_prompt_byte_limit_covers_unicode_and_correction_without_new_calls(self):
+        def invoke(prompt, limit):
+            return run_unit(
+                prompt,
+                self.schema,
+                self.output,
+                "bounded",
+                self.options,
+                self.normalize,
+                max_prompt_bytes=limit,
+            )
+
+        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+            for limit in (0, True, "100"):
+                with self.assertRaisesRegex(EvaluationError, "invalid unit"):
+                    invoke("unit", limit)
+            with self.assertRaisesRegex(EvaluationError, "exceeds byte limit"):
+                invoke("测" * 20, 59)
+        run.assert_not_called()
+        with mock.patch(
+            "stage1_eval.model_calls.subprocess.run",
+            side_effect=self.responder([{"value": 0}]),
+        ) as run:
+            with self.assertRaisesRegex(EvaluationError, "exceeds byte limit"):
+                invoke("unit", 100)
+        self.assertEqual(run.call_count, 1)
+        self.assertTrue((self.output / "bounded.model-call").exists())
+        self.assertFalse((self.output / "bounded-correction.model-call").exists())
+
     def test_saved_unit_value_tamper_is_rejected(self):
         with mock.patch(
             "stage1_eval.model_calls.subprocess.run",
