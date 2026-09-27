@@ -74,6 +74,31 @@ contract with links to original assessment events. It records system observation
 not human approvals. `stage_result.json` reuses the shared `StageResult` and
 `GateResult`, always requiring human review before Stage 3.
 
+## Open proposal development
+
+Allow evidence-motivated new methods and assumptions to enter discussion even
+when the sources do not explicitly name a gap. Keep proposed benefits separate
+from established findings. Describe the proposed mechanism, supporting premises,
+closest alternatives, a minimum informative comparison and failure conditions.
+Compare added complexity and cost against a simpler alternative; adding another
+module is not evidence of novelty or value.
+
+Use the existing candidate `opportunity`, `approach`, `requirements` and
+`limitations` fields after open reasoning. Preserve the original prose and
+attribute sources to the premises they actually support. Do not manufacture an
+evidence quote for a new proposal or silently promote an analogy to a finding.
+
+An unmeasured research outcome does not by itself make an axis `unknown`:
+score the adequacy of the motivation, answerability and preliminary feasibility.
+Put the untested outcome in the question and limitations. Mark an axis `unknown`
+when evidence needed to judge that axis is missing, such as uncertain access to
+indispensable data; those unknowns still block recommendation. A sufficient
+assessment permits detailed design, not a claim that the new method works.
+
+Keep both exploratory and conventional options when justified, without a quota
+for either. The first slice accepts supplied candidates and assessments; the
+open reasoning guidance does not implement a generator or establish creativity.
+
 ## Reproducible offline check
 
 ```text
