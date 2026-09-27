@@ -1187,6 +1187,7 @@ def _capture_subject(
     observer_dir = output / (prefix + ".observer")
     if "passive_observer" in lock:
         from .observer import run_observed
+
         result = run_observed(
             command,
             input=Path(prompt_path).read_bytes(),
