@@ -151,7 +151,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/skills/stage2-directions",
       "problem": "Gap-only framing can suppress evidence-motivated method ideas; unsupported claims, infeasible prerequisites and lost revisions still need checks.",
-      "mechanism": "Guide open proposal development before source-bound five-axis assessment; retain revisions and distinguish untested outcomes from missing enabling evidence.",
+      "mechanism": "Support improvements to existing methods and new concepts before the same source-bound five-axis assessment; retain revisions and distinguish untested outcomes from missing enabling evidence.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -185,6 +185,7 @@
         "A failed alternative does not erase an eligible recommendation",
         "Keep native tools and independent evaluation separate",
         "Allow method invention without requiring an explicit literature gap",
+        "Use the same checks for improvements and new concepts; do not reward route labels or impose quotas",
         "Keep facts, inferences and proposed benefits distinct; preserve original prose before extraction",
         "Do not equate unmeasured outcomes with missing feasibility evidence"
       ],

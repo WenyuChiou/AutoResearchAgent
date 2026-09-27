@@ -76,6 +76,15 @@ not human approvals. `stage_result.json` reuses the shared `StageResult` and
 
 ## Open proposal development
 
+Use two equally valid entry routes: improve an existing method or design, or
+propose a new concept, mechanism or design. An improvement explains the original
+limitation, proposed change and value against the original and closest work.
+A new concept explains its motivation, premises, difference from prior work and
+testable implications. Both routes check precedents and counterevidence, then
+use the same five axes and disposition rules before researcher selection.
+They may overlap or change during revision; neither route is a scoring bonus,
+a fixed schema enum, or a quota that every run must fill.
+
 Allow evidence-motivated new methods and assumptions to enter discussion even
 when the sources do not explicitly name a gap. Keep proposed benefits separate
 from established findings. Describe the proposed mechanism, supporting premises,

@@ -1,6 +1,6 @@
 ---
 name: stage2-directions
-description: This skill applies when the user asks to discuss a new research method, challenge an existing assumption, check proposed research directions, revise an infeasible idea, or prepare a Stage 2 selection package from literature evidence. It guides open proposal development and fixed-candidate checking; full autonomous generation and Stage 3 design remain separate.
+description: This skill applies when the user asks to improve an existing research method, discuss a new concept, challenge an assumption, check proposed directions, revise an infeasible idea, or prepare a Stage 2 selection package from literature evidence. It guides open proposal development and fixed-candidate checking; full autonomous generation and Stage 3 design remain separate.
 ---
 
 # Stage 2 direction checking
@@ -26,6 +26,14 @@ in prose, sketches or short derivations without a forced nested schema, idea
 quota or fixed reasoning path. Retain promising unfinished ideas for bounded
 follow-up rather than treating admission to discussion as final recommendation.
 Read the interface's open-proposal guidance when assessing a new method.
+
+Keep two equally valid entry routes: improve an existing method or design, and
+propose a new concept, mechanism or design. For improvements, identify the
+original limitation and the useful change relative to the original and closest
+alternatives. For new concepts, explain the premises, difference from prior work
+and a way to test the idea. Routes may combine or change during revision; do not
+require both in each run or reward a novelty label over a valuable improvement.
+Both routes use the same evidence checks, five axes and user selection gate.
 
 1. Read the actual evidence and compare studies on meaningful shared dimensions.
    Distinguish source findings from inferences and missing evidence. Check the
