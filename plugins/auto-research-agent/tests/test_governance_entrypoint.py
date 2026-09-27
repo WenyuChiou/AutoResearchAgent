@@ -29,6 +29,7 @@ class GovernanceEntrypointTests(unittest.TestCase):
             "plugins/auto-research-agent/",
             ".github/scripts/validate_research_pr.py",
             ".github/scripts/test_validate_research_pr.py",
+            ".github/scripts/criterion-submetric-map.stage2-v2.json",
             ".github/workflows/stage1-plugin.yml",
             ".github/pull_request_template.md",
         ):
@@ -49,6 +50,9 @@ class GovernanceEntrypointTests(unittest.TestCase):
             "evals/capability-metric-map.v1.json",
             "evals/capability-metric-map.v3.json",
             "evals/READINESS_AND_TEAM_WORKFLOW.zh-TW.md",
+            "evals/stage2/SCIENTIFIC_CONTRACT.zh-TW.md",
+            "evals/stage2/DIRECTION_CHECKER_RUBRIC.zh-TW.md",
+            "evals/stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md",
             "skills/stage1-literature/SKILL.md",
             "README.md",
         ]

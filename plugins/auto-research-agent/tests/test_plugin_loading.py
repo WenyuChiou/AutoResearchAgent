@@ -111,8 +111,11 @@ class PluginLoadingTests(unittest.TestCase):
                     )["plugin"]
                     self.assertEqual(detail["summary"]["name"], PLUGIN.name)
                     self.assertEqual(
-                        [s["name"] for s in detail["skills"]],
-                        ["auto-research-agent:stage1-literature"],
+                        sorted(s["name"] for s in detail["skills"]),
+                        [
+                            "auto-research-agent:stage1-literature",
+                            "auto-research-agent:stage2-directions",
+                        ],
                     )
                     self.assertEqual(detail["mcpServers"], [])
                     self.assertTrue(detail["skills"][0]["description"])

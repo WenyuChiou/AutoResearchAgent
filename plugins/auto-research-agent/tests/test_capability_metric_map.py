@@ -9,6 +9,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
 REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.v1.json"
 V3_REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.v3.json"
+STAGE2_REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.stage2-v2.json"
 SCORECARD = PLUGIN_ROOT / "evals/primary-scorecard.v1.json"
 RUBRIC = PLUGIN_ROOT / "evals/rubrics/aging-bidirectional-rubric.v1.json"
 GENERAL_RUBRIC = PLUGIN_ROOT / "evals/rubrics/stage1-general.v3.json"
@@ -21,14 +22,22 @@ class CapabilityMetricMapTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-        extension = json.loads(V3_REGISTRY.read_text(encoding="utf-8"))
-        if extension["extends"] != cls.registry["registry_version"]:
-            raise AssertionError("v3 capability map must extend the frozen v1 map")
-        cls.registry["capabilities"].extend(extension["capabilities"])
+        extensions = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in (V3_REGISTRY, STAGE2_REGISTRY)
+        ]
+        for extension in extensions:
+            if extension["extends"] != cls.registry["registry_version"]:
+                raise AssertionError("extension must extend the frozen v1 map")
+            cls.registry["capabilities"].extend(extension["capabilities"])
         by_id = {
             entry["capability_id"]: entry for entry in cls.registry["capabilities"]
         }
-        for patch in extension.get("capability_extensions", []):
+        for patch in [
+            patch
+            for extension in extensions
+            for patch in extension.get("capability_extensions", [])
+        ]:
             if patch["capability_id"] not in by_id:
                 raise AssertionError("v3 patch names an unknown capability")
             by_id[patch["capability_id"]]["metric_effects"].extend(
@@ -50,6 +59,14 @@ class CapabilityMetricMapTests(unittest.TestCase):
                 criterion["id"]: criterion["dimension"]
                 for criterion in general["criteria"]
             }
+        )
+        stage2 = json.loads(
+            (PLUGIN_ROOT / "evals/rubrics/stage2-general.v2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        cls.rubric_criteria.update(
+            {item["id"]: item["dimension"] for item in stage2["criteria"]}
         )
 
     def test_capability_ids_and_owner_paths_are_unique(self):

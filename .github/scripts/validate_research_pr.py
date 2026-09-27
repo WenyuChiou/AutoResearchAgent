@@ -105,6 +105,13 @@ REQUIRED_LABELS = {
 }
 
 CRITERION_INVARIANTS = {
+    "P4V2.COMPARISON": {"stage2-content-before-action"},
+    "P5V2.OPPORTUNITY": {"stage2-source-binding", "rehash-tamper-rejected"},
+    "P5V2.REVISION": {"stage2-source-binding", "rehash-tamper-rejected"},
+    "P6V2.VALUE": {"stage2-content-before-action"},
+    "P6V2.FEASIBILITY": {"stage2-unknown-distinct"},
+    "P6V2.DISPOSITION": {"stage2-disposition-independent"},
+    "P6V2.PORTFOLIO": {"stage2-disposition-independent"},
     "P1V3.IDENTITY": {"v3-rubric-hash-bound", "v3-source-bytes-bound"},
     "P1V3.CLAIM_SUPPORT": {"v3-source-bytes-bound", "v3-major-grounded"},
     "P1V3.EVIDENCE_LIMITS": {"v3-unknown-distinct"},
@@ -145,6 +152,9 @@ DEFAULT_REGISTRY = (
     / "plugins/auto-research-agent/evals/capability-metric-map.v1.json"
 )
 DEFAULT_V3_REGISTRY = DEFAULT_REGISTRY.with_name("capability-metric-map.v3.json")
+DEFAULT_STAGE2_REGISTRY = DEFAULT_REGISTRY.with_name(
+    "capability-metric-map.stage2-v2.json"
+)
 DEFAULT_RUBRIC_DIR = (
     Path(__file__).resolve().parents[2] / "plugins/auto-research-agent/evals/rubrics"
 )
@@ -216,11 +226,12 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
     entries = list(registry["capabilities"])
     extensions = []
     if path == DEFAULT_REGISTRY:
-        extension = json.loads(DEFAULT_V3_REGISTRY.read_text(encoding="utf-8"))
-        if extension.get("extends") != "capability-metric-map-v1":
-            raise ValueError("v3 capability map must extend v1")
-        entries.extend(extension["capabilities"])
-        extensions = extension.get("capability_extensions", [])
+        for extension_path in (DEFAULT_V3_REGISTRY, DEFAULT_STAGE2_REGISTRY):
+            extension = json.loads(extension_path.read_text(encoding="utf-8"))
+            if extension.get("extends") != "capability-metric-map-v1":
+                raise ValueError("capability extension must extend v1")
+            entries.extend(extension["capabilities"])
+            extensions.extend(extension.get("capability_extensions", []))
     ids = [entry["capability_id"] for entry in entries]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate capability ID across registries")
@@ -430,6 +441,15 @@ def load_operational_submetrics(path=DEFAULT_OPERATIONAL_DEFINITIONS):
 
 def load_criterion_submetrics(path=DEFAULT_CRITERION_SUBMETRICS):
     value = json.loads(path.read_text(encoding="utf-8"))
+    if path == DEFAULT_CRITERION_SUBMETRICS:
+        extension = json.loads(
+            path.with_name("criterion-submetric-map.stage2-v2.json").read_text(
+                encoding="utf-8"
+            )
+        )["criterion_submetrics"]
+        if set(value["criterion_submetrics"]) & set(extension):
+            raise ValueError("duplicate criterion across submetric registries")
+        value["criterion_submetrics"].update(extension)
     return {
         criterion_id: set(submetric_ids)
         for criterion_id, submetric_ids in value["criterion_submetrics"].items()
@@ -958,6 +978,10 @@ def validate_pr_body(
     if rubric_version == "stage1-general-v3" and readiness != "implementation-only":
         errors.append(
             "experimental v3 rubric currently permits only implementation-only readiness"
+        )
+    if rubric_version == "stage2-general-v2" and readiness != "implementation-only":
+        errors.append(
+            "experimental Stage2 rubric currently permits only implementation-only readiness"
         )
     if rubric_version and rubric_version not in rubrics:
         errors.append("Rubric version must name a registered rubric version")

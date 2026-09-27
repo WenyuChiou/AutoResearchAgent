@@ -12,6 +12,31 @@ from .units import run_unit
 
 KINDS = ("supporting", "contrary", "uncertain", "irrelevant")
 PROMPT_BYTES = 9000
+CONCLUSION_CODES = (
+    "meets-anchor",
+    "partially-meets-anchor",
+    "does-not-meet-anchor",
+    "unverifiable",
+)
+MISSING_EVIDENCE_CODES = (
+    "search-actions-absent",
+    "source-records-absent",
+    "decision-records-absent",
+    "failure-state-absent",
+    "stop-rationale-absent",
+    "platform-unexposed",
+    "other-specified",
+)
+
+# These frozen limits bound one complete P3 invocation before its first model call.
+# A logical generation may make one initial attempt, one transient retry, one
+# semantic correction and one correction retry under the frozen execution policy.
+MAX_PLAN_UNITS_PER_CRITERION = 42
+MAX_TOTAL_CRITERION_UNITS = 126
+MAX_TOTAL_LOGICAL_GENERATIONS = 756
+MAX_NATIVE_ATTEMPTS_PER_GENERATION = 4
+MAX_TOTAL_NATIVE_ATTEMPTS = 3024
+MAX_JUDGE_ROLES = 3
 
 
 def _object(fields):
@@ -59,11 +84,21 @@ def _schema(assigned, children, final):
             {
                 "status": {"type": "string", "enum": ["scored", "unverifiable"]},
                 "score": {"enum": [None, 0, 1, 2]},
+                "conclusion_code": {
+                    "type": "string",
+                    "enum": list(CONCLUSION_CODES),
+                },
                 "reason": _text(500),
                 "missing_evidence": {
                     "type": "array",
                     "items": _text(200),
                     "maxItems": 5,
+                },
+                "missing_evidence_codes": {
+                    "type": "array",
+                    "items": {"type": "string", "enum": list(MISSING_EVIDENCE_CODES)},
+                    "maxItems": 5,
+                    "uniqueItems": True,
                 },
             }
         )
@@ -91,6 +126,16 @@ def _normalize(raw, assigned, aliases, children, final):
         verdict = raw["verdict"]
         if not verdict["reason"].strip():
             raise EvaluationError("criterion verdict needs rationale")
+        expected_conclusion = {
+            None: "unverifiable",
+            0: "does-not-meet-anchor",
+            1: "partially-meets-anchor",
+            2: "meets-anchor",
+        }[verdict["score"]]
+        if verdict["conclusion_code"] != expected_conclusion:
+            raise EvaluationError("criterion conclusion code contradicts score")
+        if bool(verdict["missing_evidence"]) != bool(verdict["missing_evidence_codes"]):
+            raise EvaluationError("criterion missing evidence needs stable codes")
         if verdict["status"] == "unverifiable":
             if verdict["score"] is not None or not verdict["missing_evidence"]:
                 raise EvaluationError(
@@ -173,7 +218,9 @@ def _execute(packet, criterion, index, plan, directory, options, replay_only, pr
             "For aggregation explain handling of every child and retain contrary and uncertain "
             "summaries even if ultimately resolved. No keyword top-k. Score quality, never file format. "
             "Evaluator actions are not subject actions. Platform-unexposed fields are uncertainty, "
-            "not invented values. Only a final unit returns the 0/1/2 or null criterion verdict; "
+            "not invented values. Use the schema's stable conclusion and missing-evidence codes; "
+            "free-text missingness explains but does not replace those codes. Only a final unit "
+            "returns the 0/1/2 or null criterion verdict; "
             "apply the original anchors, never average chunk scores. Prior judgments, when provided, "
             "are disagreements to adjudicate from the same evidence, not votes or extra evidence.\n"
             + canonical(data).decode()
@@ -267,6 +314,8 @@ def _signature(result):
     return (
         verdict["status"],
         verdict["score"],
+        verdict["conclusion_code"],
+        tuple(sorted(verdict["missing_evidence_codes"])),
         sorted(
             (node["aliases"][row["span"]], row["disposition"])
             for node in result["nodes"].values()
@@ -275,8 +324,60 @@ def _signature(result):
     )
 
 
+def _prepare_plan(packet):
+    try:
+        index, plan = build_coverage_plan(packet, "process", max_unit_bytes=4500)
+    except EvaluationError as error:
+        if str(error) != "coverage: a span plus context exceeds unit budget":
+            raise
+        index, plan = build_coverage_plan(
+            packet, "process", max_unit_bytes=4500, span_characters=300
+        )
+    verify_coverage_plan(packet, plan)
+    return index, plan
+
+
+def _preflight_execution_budget(plan, criterion_count):
+    unit_count = len(plan["units"])
+    logical_per_role = max(1, 2 * unit_count)
+    total_units = unit_count * criterion_count
+    logical_generations = logical_per_role * MAX_JUDGE_ROLES * criterion_count
+    native_attempts = logical_generations * MAX_NATIVE_ATTEMPTS_PER_GENERATION
+    budget = {
+        "plan_units_per_criterion": unit_count,
+        "criterion_count": criterion_count,
+        "total_criterion_units": total_units,
+        "max_judge_roles": MAX_JUDGE_ROLES,
+        "max_logical_generations": logical_generations,
+        "max_native_attempts": native_attempts,
+        "limits": {
+            "plan_units_per_criterion": MAX_PLAN_UNITS_PER_CRITERION,
+            "total_criterion_units": MAX_TOTAL_CRITERION_UNITS,
+            "logical_generations": MAX_TOTAL_LOGICAL_GENERATIONS,
+            "native_attempts": MAX_TOTAL_NATIVE_ATTEMPTS,
+        },
+    }
+    if (
+        unit_count > MAX_PLAN_UNITS_PER_CRITERION
+        or total_units > MAX_TOTAL_CRITERION_UNITS
+        or logical_generations > MAX_TOTAL_LOGICAL_GENERATIONS
+        or native_attempts > MAX_TOTAL_NATIVE_ATTEMPTS
+    ):
+        raise EvaluationError(
+            "criterion execution budget exceeded before model calls: "
+            + canonical(budget).decode()
+        )
+    return budget
+
+
 def judge_process_criterion(
-    packet, criterion_id, directory, model_options, *, replay_only=False
+    packet,
+    criterion_id,
+    directory,
+    model_options,
+    *,
+    replay_only=False,
+    _prepared=None,
 ):
     """Independent submissions, complete coverage and disagreement-only adjudication.
 
@@ -290,15 +391,8 @@ def judge_process_criterion(
     directory = Path(directory)
     rubric, _ = load_rubric()
     criterion = next(row for row in rubric["criteria"] if row["id"] == criterion_id)
-    try:
-        index, plan = build_coverage_plan(packet, "process", max_unit_bytes=4500)
-    except EvaluationError as error:
-        if str(error) != "coverage: a span plus context exceeds unit budget":
-            raise
-        index, plan = build_coverage_plan(
-            packet, "process", max_unit_bytes=4500, span_characters=300
-        )
-    verify_coverage_plan(packet, plan)
+    index, plan = _prepared or _prepare_plan(packet)
+    budget = _preflight_execution_budget(plan, 1)
     persist(
         directory / "plan.json",
         {
@@ -333,6 +427,7 @@ def judge_process_criterion(
         "plan_sha256": sha(canonical(plan)),
         "roles": roles,
         "selected_role": "adj" if "adj" in roles else "r1",
+        "execution_budget": budget,
         "major_error_review_required": True,
         "formal_eligible": False,
     }
@@ -342,9 +437,16 @@ def judge_process_criterion(
 
 def judge_process_complete(packet, directory, model_options, *, replay_only=False):
     """Execute all three P3 criteria; content and major-error judgments stay separate."""
+    prepared = _prepare_plan(packet)
+    _preflight_execution_budget(prepared[1], len(PROCESS_IDS))
     results = {
         key: judge_process_criterion(
-            packet, key, Path(directory) / key, model_options, replay_only=replay_only
+            packet,
+            key,
+            Path(directory) / key,
+            model_options,
+            replay_only=replay_only,
+            _prepared=prepared,
         )
         for key in sorted(PROCESS_IDS)
     }

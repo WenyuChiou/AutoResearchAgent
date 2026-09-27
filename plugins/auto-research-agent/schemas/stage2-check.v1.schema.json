@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage2-check:1.0.0",
+  "title": "Stage 2 fixed-candidate assessment",
+  "$ref": "#/$defs/Stage2Check",
+  "$defs": {
+    "Text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "EvidenceIds": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/Text"},
+      "uniqueItems": true
+    },
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "score", "rationale", "evidence_ids", "blocking", "next_check"],
+      "properties": {
+        "status": {"enum": ["assessed", "unknown", "not-applicable"]},
+        "score": {"type": ["integer", "null"], "minimum": 0, "maximum": 2},
+        "rationale": {"$ref": "#/$defs/Text"},
+        "evidence_ids": {"$ref": "#/$defs/EvidenceIds"},
+        "blocking": {"type": "boolean"},
+        "next_check": {"anyOf": [{"$ref": "#/$defs/Text"}, {"type": "null"}]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "assessed"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "score": {"type": "integer", "minimum": 0, "maximum": 2},
+              "evidence_ids": {"minItems": 1}
+            }
+          },
+          "else": {"properties": {"score": {"type": "null"}}}
+        }
+      ]
+    },
+    "Candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "version", "parent_version", "question", "research_mode", "opportunity", "value", "approach", "requirements", "limitations", "evidence_ids"],
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/Text"},
+        "version": {"type": "integer", "minimum": 1},
+        "parent_version": {"type": ["integer", "null"], "minimum": 1},
+        "question": {"$ref": "#/$defs/Text"},
+        "research_mode": {"enum": ["exploratory", "confirmatory", "method-development", "theory", "replication", "validation"]},
+        "opportunity": {"$ref": "#/$defs/Text"},
+        "value": {"$ref": "#/$defs/Text"},
+        "approach": {"$ref": "#/$defs/Text"},
+        "requirements": {"type": "array", "items": {"$ref": "#/$defs/Text"}},
+        "limitations": {"type": "array", "items": {"$ref": "#/$defs/Text"}},
+        "evidence_ids": {"$ref": "#/$defs/EvidenceIds"}
+      }
+    },
+    "Checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opportunity", "value", "answerability", "materials", "execution"],
+      "properties": {
+        "opportunity": {"$ref": "#/$defs/Finding"},
+        "value": {"$ref": "#/$defs/Finding"},
+        "answerability": {"$ref": "#/$defs/Finding"},
+        "materials": {"$ref": "#/$defs/Finding"},
+        "execution": {"$ref": "#/$defs/Finding"}
+      }
+    },
+    "Stage2Check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schema_version", "event_id", "candidate_id", "candidate_version", "packet_sha256", "checks", "disposition", "reason", "next_step", "scope_change_requested"],
+      "properties": {
+        "kind": {"const": "Stage2Check"},
+        "schema_version": {"const": "1.0.0"},
+        "event_id": {"$ref": "#/$defs/Text"},
+        "candidate_id": {"$ref": "#/$defs/Text"},
+        "candidate_version": {"type": "integer", "minimum": 1},
+        "packet_sha256": {"$ref": "#/$defs/Hash"},
+        "checks": {"$ref": "#/$defs/Checks"},
+        "disposition": {"enum": ["recommend", "revise", "park", "reject"]},
+        "reason": {"$ref": "#/$defs/Text"},
+        "next_step": {"anyOf": [{"$ref": "#/$defs/Text"}, {"type": "null"}]},
+        "scope_change_requested": {"type": "boolean"},
+        "revised_candidate": {"$ref": "#/$defs/Candidate"}
+      },
+      "allOf": [
+        {
+          "if": {"required": ["revised_candidate"]},
+          "then": {"properties": {"disposition": {"const": "revise"}}}
+        },
+        {
+          "if": {"properties": {"disposition": {"enum": ["revise", "park"]}}, "required": ["disposition"]},
+          "then": {"properties": {"next_step": {"$ref": "#/$defs/Text"}}}
+        }
+      ]
+    }
+  }
+}

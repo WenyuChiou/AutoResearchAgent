@@ -1,5 +1,13 @@
 # AutoResearchAgent evaluation contract
 
+Stage 2 has a separate experimental [general v2 contract](stage2/SCIENTIFIC_CONTRACT.zh-TW.md),
+[direction checker](stage2/DIRECTION_CHECKER_RUBRIC.zh-TW.md) and
+[independent P4-P6 protocol](stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md).
+Its offline first slice is implementation-only; historical v1 stays unchanged.
+Read the [CLI interface](../references/stage2-evaluation.md),
+[controlled scenarios](stage2/CONTROLLED_SCENARIOS.zh-TW.md) and
+[team handoff](stage2/TEAM_HANDOFF.zh-TW.md) before continuing implementation.
+
 The [v3.1 execution guide](stage1/EVALUATOR_V3_1.zh-TW.md) adds confirmed
 scope, optional public-source acquisition, complete native-attempt capture and
 verified model-unit replay. Rubric v3 and its ten criteria remain unchanged.

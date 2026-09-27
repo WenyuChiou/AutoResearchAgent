@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage2-packet.v1.schema.json",
+  "title": "Stage 2 scientific packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "packet_id", "brief", "resources", "comparison", "evidence", "sources", "candidates", "unresolved"],
+  "properties": {
+    "kind": {"const": "Stage2Packet"},
+    "schema_version": {"const": "1.0.0"},
+    "packet_id": {"$ref": "#/$defs/text"},
+    "brief": {"type": "object"},
+    "resources": {"$ref": "#/$defs/text"},
+    "comparison": {"$ref": "#/$defs/text"},
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+    "unresolved": {"type": "array", "items": {"$ref": "#/$defs/text"}}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "work_id", "version_id", "path", "sha256", "evidence_level"],
+      "properties": {
+        "source_id": {"$ref": "#/$defs/id"}, "work_id": {"$ref": "#/$defs/id"},
+        "version_id": {"$ref": "#/$defs/id"}, "path": {"$ref": "#/$defs/text"},
+        "sha256": {"$ref": "#/$defs/sha"},
+        "evidence_level": {"enum": ["metadata", "abstract", "full-text"]}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidence_id", "source_id", "work_id", "version_id", "locator", "quote"],
+      "properties": {
+        "evidence_id": {"$ref": "#/$defs/id"}, "source_id": {"$ref": "#/$defs/id"},
+        "work_id": {"$ref": "#/$defs/id"}, "version_id": {"$ref": "#/$defs/id"},
+        "locator": {"$ref": "#/$defs/text"}, "quote": {"$ref": "#/$defs/text"}
+      }
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidate_id", "version", "parent_version", "question", "research_mode", "opportunity", "value", "approach", "requirements", "limitations", "evidence_ids"],
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/id"}, "version": {"type": "integer", "minimum": 1},
+        "parent_version": {"type": ["integer", "null"], "minimum": 1},
+        "question": {"$ref": "#/$defs/text"},
+        "research_mode": {"enum": ["exploratory", "confirmatory", "method-development", "theory", "replication", "validation"]},
+        "opportunity": {"$ref": "#/$defs/text"}, "value": {"$ref": "#/$defs/text"},
+        "approach": {"$ref": "#/$defs/text"},
+        "requirements": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "limitations": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}}
+      }
+    }
+  }
+}

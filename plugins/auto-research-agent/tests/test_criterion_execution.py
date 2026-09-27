@@ -10,6 +10,7 @@ from unittest import mock
 import test_evaluator_units_v31 as fixtures
 from stage1_eval.common import EvaluationError, canonical, read_json, sha
 from stage1_eval.criterion_execution import (
+    MAX_PLAN_UNITS_PER_CRITERION,
     PROMPT_BYTES,
     judge_process_complete,
     judge_process_criterion,
@@ -76,8 +77,20 @@ class CriterionExecutionTests(unittest.TestCase):
             value["verdict"] = {
                 "status": "unverifiable" if missing else "scored",
                 "score": None if missing else (1 if counts["contrary"] else 2),
+                "conclusion_code": (
+                    "unverifiable"
+                    if missing
+                    else (
+                        "partially-meets-anchor"
+                        if counts["contrary"]
+                        else "meets-anchor"
+                    )
+                ),
                 "reason": "Synthetic anchor assessment, not a scientific result.",
                 "missing_evidence": ["No evidence captured"] if missing else [],
+                "missing_evidence_codes": (
+                    ["decision-records-absent"] if missing else []
+                ),
             }
         return self.fixture.completed(command, value)
 
@@ -151,6 +164,31 @@ class CriterionExecutionTests(unittest.TestCase):
         for data in self.prompts:
             self.assertNotIn("r1", data)
             self.assertNotIn("r2", data)
+
+    def test_missing_evidence_code_disagreement_triggers_adjudication(self):
+        def disagree(command, **kwargs):
+            self.respond(command, **kwargs)
+            output = Path(command[command.index("-o") + 1])
+            value = read_json(output)
+            if "r2" in output.parts and "verdict" in value:
+                value["verdict"]["missing_evidence"] = [
+                    "The stopping rationale is absent."
+                ]
+                value["verdict"]["missing_evidence_codes"] = ["stop-rationale-absent"]
+            return self.fixture.completed(command, value)
+
+        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=disagree):
+            result = self.invoke(packet(""), name="missing-disagreement")
+        self.assertEqual(set(result["roles"]), {"r1", "r2", "adj"})
+        self.assertEqual(result["selected_role"], "adj")
+        self.assertEqual(
+            result["roles"]["r1"]["verdict"]["conclusion_code"],
+            result["roles"]["r2"]["verdict"]["conclusion_code"],
+        )
+        self.assertNotEqual(
+            result["roles"]["r1"]["verdict"]["missing_evidence_codes"],
+            result["roles"]["r2"]["verdict"]["missing_evidence_codes"],
+        )
 
     def test_missing_duplicate_and_rehashed_coverage_or_result_cannot_replay(self):
         subject = packet("positive evidence " * 500)
@@ -257,6 +295,22 @@ class CriterionExecutionTests(unittest.TestCase):
         calls = list((self.root / "run/r1").glob("*.model-call"))
         self.assertEqual(len(calls), 1)
         self.assertNotIn("correction", calls[0].name)
+
+    def test_global_execution_budget_rejects_before_first_model_call(self):
+        text = "".join(
+            f"{n:03d}:positive" + "x" * 888 + "\n"
+            for n in range(2 * MAX_PLAN_UNITS_PER_CRITERION + 8)
+        )
+        subject = packet(text)
+        _, plan = build_coverage_plan(subject, "process", max_unit_bytes=4500)
+        self.assertGreater(len(plan["units"]), MAX_PLAN_UNITS_PER_CRITERION)
+        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+            with self.assertRaisesRegex(
+                EvaluationError, "execution budget exceeded before model calls"
+            ):
+                judge_process_complete(subject, self.root / "over-budget", self.options)
+        run.assert_not_called()
+        self.assertEqual(list((self.root / "over-budget").rglob("*.model-call")), [])
 
     def test_all_three_process_criteria_and_empty_input_unknown(self):
         with mock.patch(
