@@ -23,16 +23,22 @@ def audit_targets(extraction):
     known = {row["work_id"] for row in extraction["works"]}
     for work in extraction["works"]:
         for field in ("title", "authors", "year", "identifier", "version"):
-            targets.append(
-                {
+            observations = work.get("original_fields", {}).get(field, [])
+            if "original_fields" not in work:
+                observations = [{"raw_value": work.get(field)}]
+            for observation in observations or [{"raw_value": None}]:
+                target = {
                     "id": work["work_id"] + ":" + field,
                     "kind": "identity",
                     "field": field,
-                    "original_value": work.get(field),
+                    "original_value": observation["raw_value"],
                     "original_reference": work["exact_reference"],
                     "work_ids": [work["work_id"]],
                 }
-            )
+                if "passages" in observation:
+                    target["id"] += ":" + sha(canonical(observation["passages"]))[:16]
+                    target["original_field_passages"] = observation["passages"]
+                targets.append(target)
     for claim in extraction["central_claims"]:
         if set(claim["cited_work_ids"]) - known:
             raise EvaluationError("source audit claim cites an unknown work")
@@ -70,7 +76,9 @@ def _prompt(target, rows):
         + canonical(
             {
                 "target": {
-                    k: v for k, v in target.items() if k not in {"id", "work_ids"}
+                    k: v
+                    for k, v in target.items()
+                    if k not in {"id", "work_ids", "original_field_passages"}
                 },
                 "sources": visible,
             }

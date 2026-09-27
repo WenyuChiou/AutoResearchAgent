@@ -7,7 +7,9 @@ model_options, replay_only=False)` 是可呼叫的執行介面。呼叫者先用
 
 每個作品保留 title、authors、year、identifier、version 五個原始欄位，
 並保留原始引用文字。舊抽取器沒有提供的欄位保持 missing-original-field，
-不從外部資料補成「受測答案已寫對」。每個中央主張保持原 ID 和原文；
+不從外部資料補成「受測答案已寫對」。新的 `original_fields.audit_subject_sources`
+可先從有 provenance 的受測原文提取這些值，再呼叫本介面；詳見
+[原值提取](ORIGINAL_FIELDS.zh-TW.md)。每個中央主張保持原 ID 和原文；
 未引用作品的主張保持 unlinked-claim。未取得來源、只有 metadata、證據
 不足和相互衝突分別記錄原因。完整欄位抽取與最終判準彙整仍待整合。
 
