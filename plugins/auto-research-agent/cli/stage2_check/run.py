@@ -12,6 +12,7 @@ import shutil
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 
 from .contracts import decode_json, latest_candidates, validate_assessment
+from .report import render_proposal
 
 
 VERSION = "1.0.0"
@@ -586,55 +587,6 @@ def _action_record(
     }
 
 
-def _markdown(selection):
-    lines = [
-        "# Stage 2 selection (prehuman)",
-        "",
-        "This export records source-bound external assessments. It does not validate scientific truth or authorize Stage 3.",
-        "",
-        f"Packet: `{selection['packet_sha256']}`",
-        f"Recommendations: {len(selection['recommendations'])}",
-        "",
-    ]
-    for item in selection["current_options"]:
-        candidate = item["candidate"]
-        assessment = item["assessment"]
-        disposition = assessment["disposition"] if assessment else "pending-recheck"
-        lines.extend(
-            [
-                f"## {candidate['candidate_id']} v{candidate['version']}: {disposition}",
-                "",
-                candidate["question"],
-                "",
-                f"Value: {candidate['value']}",
-                "",
-                f"Approach: {candidate['approach']}",
-                "",
-                "Requirements:",
-                *[f"- {item}" for item in candidate["requirements"]],
-                "",
-                "Limitations:",
-                *[f"- {item}" for item in candidate["limitations"]],
-                "",
-            ]
-        )
-        if assessment:
-            lines.extend([assessment["reason"], ""])
-            for axis, finding in assessment["checks"].items():
-                score = "N/A" if finding["score"] is None else str(finding["score"])
-                lines.append(
-                    f"- {axis}: {finding['status']} ({score}); {finding['rationale']}"
-                )
-            lines.append("")
-            lines.extend([f"Next step: {_action_next_step(assessment)}", ""])
-    if selection["pending_scope_questions"]:
-        lines.extend(["## Pending scope questions", ""])
-        lines.extend(f"- {item}" for item in selection["pending_scope_questions"])
-        lines.append("")
-    lines.extend(["Stage 3: not-started", ""])
-    return "\n".join(lines).encode("utf-8")
-
-
 def export_selection(run_dir, *, expected_event_head=None):
     """Rebuild deterministic JSON, Markdown, validator, and StageResult views."""
 
@@ -727,7 +679,15 @@ def export_selection(run_dir, *, expected_event_head=None):
     selection_path = root / "selection.json"
     markdown_path = root / "selection.md"
     _write_projection(selection_path, selection)
-    _write_projection(markdown_path, _markdown(selection))
+    _write_projection(
+        markdown_path,
+        render_proposal(
+            selection,
+            state["packet"]["sources"],
+            event_head=state["event_head_sha256"],
+            stored_packet_sha256=state["manifest"]["stored_packet_sha256"],
+        ),
+    )
 
     timestamp = (
         state["events"][-1]["applied_at"]
