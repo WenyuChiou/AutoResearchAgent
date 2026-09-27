@@ -124,6 +124,21 @@ class CaptureHistoryTests(unittest.TestCase):
             second = self.capture()
         self.assertEqual(first, second)
 
+    def test_reported_null_and_zero_are_distinct_from_absent_native_fields(self):
+        transcript = self.root / "attempt-01.jsonl"
+        event = read_json(transcript)
+        event["item"].update(backend=None, result_count=0)
+        transcript.write_bytes(canonical(event) + b"\n")
+        self.record["attempts"][0]["files"][transcript.name] = sha(
+            transcript.read_bytes()
+        )
+        row = self.capture()[2]["events"][0]
+        self.assertIsNone(row["values"]["backend"])
+        self.assertEqual(row["field_paths"]["backend"], "item.backend")
+        self.assertEqual(row["values"]["result_count"], 0)
+        self.assertEqual(row["field_paths"]["result_count"], "item.result_count")
+        self.assertIsNone(row["field_paths"]["stderr"])
+
     def test_missing_modified_extra_and_wrong_attempt_files_fail_closed(self):
         path = self.root / "workspace/01/report.md"
         original = path.read_bytes()

@@ -26,6 +26,7 @@ python -m stage1_ab.capture_history CAPTURE NEW_OUTPUT
 其他版本保留為 process evidence，避免把刪除前的候選誤加到最終論文 inventory。
 
 Availability 只列固定 JSON 路徑的原始值及欄位路徑；未見值為 null。
+明確提供 null 的欄位仍保留 field path，與完全未提供的欄位不同；不把 null 補成零。
 `item.aggregated_output` 單獨保存，不冒充分離的 stdout／stderr。
 `observed_at` 是 runner 保存的 attempt 結束觀察時間；不是檔案寫入時間或工具起止時間。
 若原生事件有 timestamp，照原值記錄，不能推出它的起止語義。

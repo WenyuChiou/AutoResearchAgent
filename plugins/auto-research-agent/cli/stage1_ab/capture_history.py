@@ -72,10 +72,14 @@ def _availability(subject):
         observed, paths = {}, {}
         for field, parts in fields.items():
             value = event
+            present = True
             for part in parts:
-                value = value.get(part) if isinstance(value, dict) else None
+                if not isinstance(value, dict) or part not in value:
+                    value, present = None, False
+                    break
+                value = value[part]
             observed[field] = value
-            paths[field] = ".".join(parts) if value is not None else None
+            paths[field] = ".".join(parts) if present else None
         rows.append(
             {
                 "evidence_id": key,
