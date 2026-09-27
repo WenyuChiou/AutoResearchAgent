@@ -117,6 +117,7 @@ def paired_v31(lock_path, background_path, result_paths, capture_dirs, output):
             "result": result,
             "capture": record,
             "result_sha256": runner.sha(Path(result_path).read_bytes()),
+            "model_costs": read_json(Path(result_path).parent / "model-costs.json"),
         }
     if (
         set(by_run) != {row["run_id"] for row in expected}
