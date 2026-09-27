@@ -101,7 +101,16 @@ def unit_schema(kind, span_ids):
 
 
 def _prompt(
-    packet, phase, index, view_manifest, kind, assigned_core, prior, audits=None
+    packet,
+    phase,
+    index,
+    view_manifest,
+    kind,
+    assigned_core,
+    prior,
+    audits=None,
+    criterion_id=None,
+    review=None,
 ):
     rubric, digest = load_rubric()
     data = _phase_input(packet, phase)
@@ -109,6 +118,10 @@ def _prompt(
     data["spans"] = index
     data["judge_view_manifest"] = view_manifest
     data["assigned_core_assessments"] = assigned_core
+    if criterion_id:
+        data["assigned_criterion_id"] = criterion_id
+    if review is not None:
+        data["assigned_review"] = review
     if phase == "content" and audits is not None:
         data["source_audit_observations"] = audits
     rules = (
@@ -133,7 +146,23 @@ def _prompt(
         data["assigned_work_ids"] = sorted(assigned_ids)
         rules += "Return exactly one core_assessment for each assigned_work_id, no other work IDs, and empty criteria/omissions/issues. Sources and substitute mentions do not add assigned works. Use candidate or unverifiable if own-work text is missing. "
     else:
-        rules += "Return every criterion for this phase, empty core_assessments (already assigned separately), and supported omission/major-issue observations if any. "
+        if criterion_id:
+            rules += (
+                "Return only the assigned criterion, and empty core/omission/major-issue arrays. "
+                "The supplied review observations are fixed for this criterion. "
+                "For P2, return every frozen need ID in addressed_need_ids after considering it. "
+                "Return schema-defined conclusion_code and missing_evidence_codes consistent with score/status; "
+                "codes record substantive conclusions while reasons explain them. "
+            )
+        elif kind == "review":
+            rules += (
+                "Review every supplied span for grounded major errors and, in content phase, "
+                "material omissions against every frozen need. Return empty criteria and "
+                "core_assessments; return only supported omission and major-issue observations. "
+                "An unresolved allegation stays unresolved; lack of evidence is not confirmation. "
+            )
+        else:
+            rules += "Return every criterion for this phase, empty core_assessments (already assigned separately), and supported omission/major-issue observations if any. "
         if phase == "content":
             data["supported_closest_work_ids"] = [
                 row["work_id"] for row in assigned_core if row["closest"] == "supported"
@@ -177,6 +206,7 @@ def _prompt(
                 r
                 for r in rubric["criteria"]
                 if r["id"] in (CONTENT_IDS if phase == "content" else PROCESS_IDS)
+                and (not criterion_id or r["id"] == criterion_id)
             ],
             "packet": data,
         },
