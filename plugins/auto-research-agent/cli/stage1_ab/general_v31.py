@@ -11,7 +11,17 @@ from . import runner, sequence
 from .general import _check_result_scores, _paired_decision
 
 
-def _replay_result(result_path, capture_dir, lock_path, background_path, lock):
+def _replay_result(
+    result_path,
+    capture_dir,
+    lock_path,
+    background_path,
+    lock,
+    *,
+    execution_class="formal",
+):
+    if execution_class not in {"formal", "exploratory-pilot"}:
+        raise runner.ExecutionBlocked("unsupported paired replay class")
     path = Path(result_path).resolve()
     if path.name != "result.json":
         raise runner.ExecutionBlocked(
@@ -20,7 +30,7 @@ def _replay_result(result_path, capture_dir, lock_path, background_path, lock):
     result = read_json(path)
     validate_schema(result, "stage-evaluation-result.v3_1.schema.json")
     if (
-        result["execution_class"] != "formal"
+        result["execution_class"] != execution_class
         or result["evidence_mode"] != "evidence-audited"
     ):
         raise runner.ExecutionBlocked(
@@ -31,7 +41,7 @@ def _replay_result(result_path, capture_dir, lock_path, background_path, lock):
     config = value["model_config"]
     if (
         result["evaluation_input_sha256"] != runner.sha(canonical(value))
-        or value["execution_class"] != "formal"
+        or value["execution_class"] != execution_class
         or value["policy"] != execution_policy()
         or result["rubric_sha256"] != lock["rubric_sha256"]
         or result["spec_sha256"] != lock["spec_sha256"]
@@ -51,7 +61,7 @@ def _replay_result(result_path, capture_dir, lock_path, background_path, lock):
         artifact=[],
         saved_extraction=None,
         resume_pilot=False,
-        execution_class="formal",
+        execution_class=execution_class,
         portable_diagnostic=False,
         capture=str(capture_dir),
         lock=str(lock_path),

@@ -212,7 +212,8 @@
         "plugins/auto-research-agent/tests/test_capture_v31.py",
         "plugins/auto-research-agent/tests/test_capture_history.py",
         "plugins/auto-research-agent/tests/test_passive_observer.py",
-        "plugins/auto-research-agent/tests/test_comparison_report.py"
+        "plugins/auto-research-agent/tests/test_comparison_report.py",
+        "plugins/auto-research-agent/tests/test_pilot_report.py"
       ],
       "metric_effects": [
         {

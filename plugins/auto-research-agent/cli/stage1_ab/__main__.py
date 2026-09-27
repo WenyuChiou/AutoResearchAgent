@@ -92,6 +92,11 @@ def parser_for_commands():
     p.add_argument("output", type=Path)
     p.add_argument("--results", nargs=6, type=Path, required=True)
     p.add_argument("--capture-dirs", nargs=6, type=Path, required=True)
+    p = subs.add_parser("pilot-report-v31")
+    for name in ("lock", "background", "output"):
+        p.add_argument(name, type=Path)
+    p.add_argument("--results", nargs=2, type=Path, required=True)
+    p.add_argument("--capture-dirs", nargs=2, type=Path, required=True)
     p = subs.add_parser("export-ledger")
     p.add_argument("run", type=Path)
     p.add_argument("output", type=Path)
@@ -315,6 +320,12 @@ def main(argv=None):
             value = runner.verify_capture(args.output, verify_runtime=not args.portable)
         elif args.command == "paired-v3":
             value = general.paired_v3(
+                args.lock, args.background, args.results, args.capture_dirs, args.output
+            )
+        elif args.command == "pilot-report-v31":
+            from stage1_ab.pilot import pilot_report
+
+            value = pilot_report(
                 args.lock, args.background, args.results, args.capture_dirs, args.output
             )
         elif args.command == "export-ledger":
