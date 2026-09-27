@@ -156,6 +156,12 @@
   "capability_extensions": [
     {
       "capability_id": "cli:stage1-ab",
+      "mechanism": "Freeze public v3 hashes, verify native captures and paired results, and expose all saved attempt snapshots through a separate read-only adapter. Preserve complete UTF-8 file versions, deleted-file history and literal native-field availability; unavailable timing, backend and unsaved history remain unknown.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_ab_execution.py",
+        "plugins/auto-research-agent/tests/test_capture_v31.py",
+        "plugins/auto-research-agent/tests/test_capture_history.py"
+      ],
       "metric_effects": [
         {
           "metric_id": "P1",
