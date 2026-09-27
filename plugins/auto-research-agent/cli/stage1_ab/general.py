@@ -503,6 +503,7 @@ def freeze_v3(
     if v31:
         from stage1_brief.brief import validate_brief
         from stage1_eval.pipeline_v31 import bundle_sha_v31, execution_policy
+        from stage1_eval.source_runtime import source_runtime_preflight
 
         brief = read_json(research_brief_path)
         validate_brief(brief, require_confirmed=True)
@@ -511,6 +512,7 @@ def freeze_v3(
             evaluator_bundle_sha256=bundle_sha_v31(),
             evaluator_code_sha256=bundle_sha_v31(),
             evaluator_execution_policy=execution_policy(),
+            evaluator_source_runtime=source_runtime_preflight(),
             evaluator_research_hub_repo_path=str(
                 Path(evaluator_dependency_repo).resolve()
             ),

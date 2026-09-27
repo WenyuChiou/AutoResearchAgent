@@ -96,7 +96,9 @@
         "truncated judge views are disclosed and do not automatically lower subject scores",
         "one semantic correction and at most one same-setting transient transport retry; failed attempts are retained",
         "search-only and excluded-candidate mentions do not become bibliography entries; exact title-only repetitions resolve only to a unique explicit identity",
-        "criterion judges receive score prerequisites from their assigned work assessments; no automatic score repair"
+        "criterion judges receive score prerequisites from their assigned work assessments; no automatic score repair",
+        "a real PDF text probe and bound parser versions/bytes gate evaluation before model calls; missing parser is an evaluator error",
+        "judge passage choices use per-unit schema-enumerated aliases with immutable canonical span bindings; no fuzzy ID or quote repair"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
@@ -106,6 +108,7 @@
         "plugins/auto-research-agent/tests/test_extraction_v31.py",
         "plugins/auto-research-agent/tests/test_judging_v31.py",
         "plugins/auto-research-agent/tests/test_sources_v31.py",
+        "plugins/auto-research-agent/tests/test_source_runtime.py",
         "plugins/auto-research-agent/tests/test_pipeline_v31.py",
         "plugins/auto-research-agent/tests/test_stage1_ab_v31.py",
         "plugins/auto-research-agent/tests/test_native_search_runner_v31.py",

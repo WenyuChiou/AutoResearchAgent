@@ -20,6 +20,7 @@ from .judging_v31 import judge_packet_v31
 from .runtime import executable_sha256, installed_package_sha256
 from .score import aggregate
 from .sources_v31 import attach_public_sources, collect_sources_v31
+from .source_runtime import source_runtime_preflight
 
 
 def bundle_sha_v31():
@@ -151,6 +152,7 @@ def evaluate_v31(args, *, replay_only=False):
         raise EvaluationError(
             "v3.1 derives inputs from complete captures and verified units"
         )
+    source_runtime = source_runtime_preflight()
     policy = execution_policy()
     if (
         getattr(args, "portable_diagnostic", False)
@@ -160,7 +162,9 @@ def evaluate_v31(args, *, replay_only=False):
     subject, record = observe_capture_v31(
         args.capture, portable=getattr(args, "portable_diagnostic", False)
     )
-    binding = verify_binding_v31(args, spec, record, policy)
+    binding = verify_binding_v31(
+        args, spec, record, policy, source_runtime=source_runtime
+    )
     identity = {
         "model": args.model,
         "reasoning": args.reasoning,
@@ -179,6 +183,7 @@ def evaluate_v31(args, *, replay_only=False):
         "spec_sha256": sha(canonical(spec)),
         "capture_run_sha256": sha((Path(args.capture) / "run.json").read_bytes()),
         "policy": policy,
+        "source_runtime": source_runtime,
         "identity": identity,
         "binding": binding,
         "model_config": _request_config(
