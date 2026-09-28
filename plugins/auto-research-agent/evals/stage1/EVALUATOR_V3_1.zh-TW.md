@@ -175,3 +175,7 @@ evaluator identity 與 evidence mode 一致；相同可判比例不代表相同�
 及重大錯誤。Wall time 包含 observer 額外時間，不冒充 native tool duration；
 無法取得的金額與人工介入保持 null。此輸出不授予 freeze approval，目前驗證仍是
 合成資料工程測試；非美國預演與正式科學比較需各自完成其前置 gate。
+
+### Complete-judging source-audit view manifest
+
+Each native unit records `source_audit_view_manifest`: judge role, supplied audit roles, target and unit IDs, deterministic view hashes, unavailable targets/leaves, explicit scope exclusions, empty omitted lists and `truncated=false`. R1 and R2 receive only their own audits; ADJ receives both after disagreement. P3 units explicitly record source audits as not applicable. Replay reconstructs the manifest and rejects changed hashes or fields. The 240000-byte complete-prompt limit remains fail-closed, including audit evidence; no silent truncation or subject score is produced when it is exceeded. The 15-work fixture is implementation evidence only.

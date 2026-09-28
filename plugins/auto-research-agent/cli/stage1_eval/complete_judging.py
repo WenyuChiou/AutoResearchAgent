@@ -11,13 +11,13 @@ from .common import EvaluationError, canonical, sha
 from .judging import CONTENT_IDS, _signature
 from .judging_v31 import (
     _audit_signature,
-    _audit_view,
     _prompt,
     check_grounding,
     unit_schema,
     unknown_criteria,
 )
 from .spans import index_evidence, model_span_aliases, restore_passages
+from .source_audit_views import _audit_manifest, _observations
 from .units import run_unit
 
 MAX_COMPLETE_PROMPT_BYTES = 240_000
@@ -53,38 +53,6 @@ def _view(packet, phase):
     return aliases, manifest
 
 
-def _observations(audits, work_ids=None):
-    """Omit transport receipts, never audit conclusions or original source text."""
-    selected = _audit_view(audits, work_ids)
-    if selected is None:
-        return None
-    for audit in selected.values():
-        audit["summaries"] = [
-            {key: row[key] for key in ("target", "verdict", "unknown_reason")}
-            for row in audit["summaries"]
-        ]
-        for leaf in audit["leaves"]:
-            value = leaf["value"]
-            leaf["value"] = {
-                "verdict": value["verdict"],
-                "reason": value["reason"],
-                "passages": [
-                    {
-                        key: row.get(key)
-                        for key in (
-                            "evidence_id",
-                            "view",
-                            "start",
-                            "end",
-                            "source_level",
-                        )
-                    }
-                    for row in value["passages"]
-                ],
-            }
-    return selected
-
-
 def _call(
     packet,
     phase,
@@ -99,10 +67,19 @@ def _call(
     *,
     criterion=None,
     review=None,
+    role="r1",
 ):
     from .pipeline_v31 import persist
 
     index, manifest = _view(packet, phase)
+    supplied = _observations(
+        audits,
+        {w["work_id"] for w in packet["extraction"]["works"]}
+        if kind == "core"
+        else None,
+    )
+    audit_manifest = _audit_manifest(audits, supplied, role, phase, prior)
+    manifest["source_audit_view_manifest"] = audit_manifest
     schema = unit_schema("core" if kind == "core" else phase, index)
     schema["properties"]["criteria"].update(
         minItems=1 if criterion else 0, maxItems=1 if criterion else 0
@@ -154,11 +131,12 @@ def _call(
             "span_count": len(index),
             "omitted_span_count": 0,
             "truncated": False,
+            "source_audit_view_manifest": audit_manifest,
         },
         kind,
         core,
         prior,
-        audits,
+        supplied,
         criterion_id=criterion,
         review=review,
     )
@@ -242,6 +220,7 @@ def _call(
     )
     record = {
         "view": manifest,
+        "source_audit_view_manifest": audit_manifest,
         "native": native,
         "value": value,
         "prompt_sha256": sha(prompt.encode("utf-8")),
@@ -291,11 +270,12 @@ def _content(packet, root, options, audits, replay_only):
                 "core",
                 [],
                 prior,
-                _observations(audit, ids),
+                audit,
                 root,
                 label,
                 options,
                 replay_only,
+                role=role,
             )
             core.extend(value)
         label = f"content-{role}-review"
@@ -305,11 +285,12 @@ def _content(packet, root, options, audits, replay_only):
             "review",
             core,
             prior,
-            _observations(audit),
+            audit,
             root,
             label,
             options,
             replay_only,
+            role=role,
         )
         criteria = []
         semantics[role] = {}
@@ -321,13 +302,14 @@ def _content(packet, root, options, audits, replay_only):
                 "content",
                 core,
                 prior,
-                _observations(audit),
+                audit,
                 root,
                 label,
                 options,
                 replay_only,
                 criterion=key,
                 review=review,
+                role=role,
             )
             criteria.append(row["criterion"])
             semantics[role][key] = (
@@ -388,6 +370,7 @@ def _process(packet, root, options, replay_only):
             label,
             options,
             replay_only,
+            role=role,
         )
         roles[role] = {"criteria": deepcopy(rows), "core_assessments": [], **review}
     selected = check_grounding(roles.get("adj", roles["r1"]), packet, "process")

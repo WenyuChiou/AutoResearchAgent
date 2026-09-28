@@ -9,7 +9,7 @@ import test_criterion_execution as process_fixture
 import test_source_pipeline as source_fixture
 from test_judging_v31 import _packet, _evidence, _core
 from stage1_eval import complete_judging as complete
-from stage1_eval.common import EvaluationError, canonical, read_json
+from stage1_eval.common import EvaluationError, canonical, read_json, sha
 
 
 class CompleteJudgingTests(unittest.TestCase):
@@ -101,6 +101,13 @@ class CompleteJudgingTests(unittest.TestCase):
             sum(len(row["criteria"]) for row in result["selected"].values()), 10
         )
         self.assertEqual(result["adjudicated_phases"], [])
+        for criterion in result["provenance"]["process"]["complete_criteria"].values():
+            for role, execution in criterion["roles"].items():
+                for record in [execution, *execution["nodes"].values()]:
+                    manifest = record["source_audit_view_manifest"]
+                    self.assertEqual(manifest["judge_role"], role.upper())
+                    self.assertEqual(manifest["state"], "not-applicable")
+                    self.assertEqual(manifest["audit_source_roles"], [])
         self.assertEqual(
             len([p for p in self.prompts if "assigned_criterion_id" in p["packet"]]), 14
         )
@@ -216,6 +223,156 @@ class CompleteJudgingTests(unittest.TestCase):
                     criterion="P2V3.SCOPE",
                     review={"omission_assessments": [], "major_issues": []},
                 )
+
+    def representative_audits(self):
+        self.packet["extraction"]["works"] = [
+            {"work_id": f"w{i:02d}"} for i in range(15)
+        ]
+        for role in ("r1", "r2"):
+            for i in range(15):
+                target = {"id": f"target-{i:02d}", "work_ids": [f"w{i:02d}"]}
+                verdict = (
+                    "unverifiable"
+                    if i == 14
+                    else ("contradicted" if role == "r2" and i == 0 else "supported")
+                )
+                self.audits[role]["summaries"].append(
+                    {
+                        "target": target,
+                        "verdict": verdict,
+                        "unknown_reason": "source-unavailable" if i == 14 else None,
+                    }
+                )
+                for leaf in range(2):
+                    self.audits[role]["leaves"].append(
+                        {
+                            "unit_id": f"{role}-unit-{i:02d}-{leaf}",
+                            "target_id": target["id"],
+                            "value": {
+                                "verdict": verdict,
+                                "reason": "Synthetic source observation.",
+                                "passages": [],
+                            },
+                        }
+                    )
+
+    def test_fifteen_work_audit_manifest_isolated_adjudicated_unknown_and_replayed(
+        self,
+    ):
+        self.representative_audits()
+        with patch("stage1_eval.model_calls.subprocess.run", side_effect=self.respond):
+            result = self.invoke()
+        self.assertIn("content", result["adjudicated_phases"])
+        seen = {role: {"targets": set(), "units": set()} for role in ("r1", "r2")}
+        for label, record in result["provenance"]["content"].items():
+            manifest = record["source_audit_view_manifest"]
+            role = label.split("-")[1]
+            self.assertEqual(manifest["judge_role"], role.upper())
+            self.assertEqual(
+                manifest["audit_source_roles"],
+                ["r1", "r2"] if role == "adj" else [role],
+            )
+            self.assertFalse(manifest["omitted"])
+            self.assertFalse(manifest["truncated"])
+            for source_role, view in manifest["roles"].items():
+                self.assertTrue(
+                    all(u.startswith(source_role + "-") for u in view["unit_ids"])
+                )
+                seen[source_role]["targets"].update(view["target_ids"])
+                seen[source_role]["units"].update(view["unit_ids"])
+                if "core" not in label:
+                    self.assertEqual(len(view["target_ids"]), 15)
+                    self.assertEqual(len(view["unit_ids"]), 30)
+                    self.assertEqual(
+                        view["unavailable_targets"],
+                        [{"target_id": "target-14", "reason": "source-unavailable"}],
+                    )
+                    self.assertEqual(len(view["unavailable_unit_ids"]), 2)
+                    self.assertEqual(view["out_of_scope_target_ids"], [])
+        for role, view in seen.items():
+            self.assertEqual(view["targets"], {f"target-{i:02d}" for i in range(15)})
+            self.assertEqual(
+                view["units"],
+                {f"{role}-unit-{i:02d}-{j}" for i in range(15) for j in range(2)},
+            )
+        for prompt in self.prompts:
+            data = prompt["packet"]
+            manifest = data["judge_view_manifest"]["source_audit_view_manifest"]
+            supplied = data.get("source_audit_observations")
+            self.assertEqual(manifest["supplied_view_sha256"], sha(canonical(supplied)))
+            if supplied is not None:
+                for role, audit in supplied.items():
+                    self.assertEqual(
+                        manifest["roles"][role]["supplied_view_sha256"],
+                        sha(canonical(audit)),
+                    )
+            else:
+                self.assertEqual(manifest["state"], "not-applicable")
+        self.assertTrue(
+            all(
+                row["score"] is None
+                for row in result["selected"]["content"]["criteria"]
+            )
+        )
+        with patch("stage1_eval.model_calls.subprocess.run") as calls:
+            self.assertEqual(self.invoke(replay_only=True), result)
+        calls.assert_not_called()
+        path = self.root / "complete/content/content-r1-review.result.json"
+        original = path.read_bytes()
+        for field, changed in (
+            ("supplied_view_sha256", "0" * 64),
+            ("audit_source_roles", ["r2"]),
+        ):
+            value = json.loads(original)
+            value["source_audit_view_manifest"][field] = changed
+            path.write_bytes(canonical(value))
+            with patch("stage1_eval.model_calls.subprocess.run") as calls:
+                with self.assertRaisesRegex(EvaluationError, "artifact changed"):
+                    self.invoke(replay_only=True)
+            calls.assert_not_called()
+            path.write_bytes(original)
+
+    def test_fifteen_work_oversized_audit_fails_before_native_call_or_score(self):
+        self.representative_audits()
+        self.audits["r1"]["leaves"][0]["value"]["reason"] = (
+            "X" * complete.MAX_COMPLETE_PROMPT_BYTES
+        )
+        with patch("stage1_eval.model_calls.subprocess.run") as calls:
+            with self.assertRaisesRegex(EvaluationError, "no evidence was omitted"):
+                self.invoke()
+        calls.assert_not_called()
+        self.assertFalse((self.root / "complete/result.json").exists())
+
+    def test_unbound_or_duplicate_audit_leaves_are_not_silently_omitted(self):
+        from stage1_eval.source_audit_views import _observations
+
+        self.representative_audits()
+        self.audits["r1"]["leaves"][0]["target_id"] = "foreign"
+        with self.assertRaisesRegex(EvaluationError, "unbound obligations"):
+            _observations(self.audits)
+
+    def test_audit_role_isolation_and_adjudication_gate_fail_before_call(self):
+        self.representative_audits()
+        for role, audits, prior in (
+            ("r1", self.audits, None),
+            ("adj", self.audits, None),
+        ):
+            with patch("stage1_eval.model_calls.subprocess.run") as calls:
+                with self.assertRaises(EvaluationError):
+                    complete._call(
+                        self.packet,
+                        "content",
+                        "review",
+                        [],
+                        prior,
+                        audits,
+                        self.root / role,
+                        "review",
+                        self.options,
+                        False,
+                        role=role,
+                    )
+            calls.assert_not_called()
 
     def test_pipeline_connects_original_fields_audits_all_criteria_and_aggregation(
         self,
