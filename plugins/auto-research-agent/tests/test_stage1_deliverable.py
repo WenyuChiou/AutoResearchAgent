@@ -95,7 +95,9 @@ class ResearchDeliverableTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="stage1-deliverable-test-")
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        # macOS exposes its temp root through /var -> /private/var. Fixtures
+        # use the physical directory; production still rejects linked inputs.
+        self.root = Path(self.temp.name).resolve()
         self.inputs = self.root / "input"
         self.inputs.mkdir()
         self.output = self.root / "package"

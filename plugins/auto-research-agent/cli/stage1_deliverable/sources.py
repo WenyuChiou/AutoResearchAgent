@@ -233,7 +233,7 @@ def artifact_map(result):
             path.relative_to(root).as_posix() if path.is_absolute() else path.as_posix()
         )
         # safe_path also rejects .., drive letters, backslashes and links.
-        safe_path(Path(tempfile.gettempdir()), relative)
+        safe_path(Path(tempfile.gettempdir()).resolve(), relative)
         if relative in {"original.json", "source-fetch-result.json", "validation.json"}:
             raise DeliverableError("source artifact collides with package metadata")
         mapping[value] = relative
@@ -277,7 +277,9 @@ def validate_archive(root):
             ):
                 raise DeliverableError("source attempt byte binding differs")
     with tempfile.TemporaryDirectory(prefix="stage1-source-replay-") as temp:
-        relocated_root = Path(temp)
+        # Resolve only our own temp root (macOS /var aliases /private/var).
+        # Caller-provided roots still pass through the strict link guard.
+        relocated_root = Path(temp).resolve()
         for relative in set(mapping.values()):
             destination = safe_path(relocated_root, relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
