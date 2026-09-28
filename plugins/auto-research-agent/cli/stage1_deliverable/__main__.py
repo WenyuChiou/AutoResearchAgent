@@ -6,13 +6,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .common import DeliverableError
+from .common import DeliverableError, preflight
 from .package import build, validate
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    probe = commands.add_parser("preflight")
+    probe.add_argument("private_root", type=Path)
     export = commands.add_parser("build")
     export.add_argument("records", type=Path)
     export.add_argument("output", type=Path)
@@ -22,11 +24,12 @@ def main(argv=None):
     check.add_argument("--expected-sha256", required=True)
     args = parser.parse_args(argv)
     try:
-        result = (
-            build(args.records, args.output, args.records_sha256)
-            if args.command == "build"
-            else validate(args.package, args.expected_sha256)
-        )
+        if args.command == "preflight":
+            result = preflight(args.private_root)
+        elif args.command == "build":
+            result = build(args.records, args.output, args.records_sha256)
+        else:
+            result = validate(args.package, args.expected_sha256)
     except (
         DeliverableError,
         ValueError,

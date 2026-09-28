@@ -6,6 +6,7 @@ import os
 import re
 import stat
 import subprocess
+import tempfile
 from pathlib import Path, PurePosixPath
 
 
@@ -99,6 +100,30 @@ def private_output(path):
     if probe.returncode == 0:
         raise DeliverableError("private package cannot be inside Git")
     return path
+
+
+def preflight(private_root):
+    """Probe explicit private storage and the actual Python temporary root."""
+    root = private_output(private_root)
+    # Match the physical location used by our owned temporary replay copies.
+    temporary = private_output(Path(tempfile.gettempdir()).resolve())
+    for directory in {root, temporary}:
+        if not directory.is_dir():
+            raise DeliverableError("preflight root must be an existing directory")
+        with tempfile.TemporaryDirectory(
+            prefix="stage1-preflight-", dir=directory
+        ) as probe:
+            path = Path(probe) / "write-probe"
+            path.write_bytes(b"stage1-private-root-probe\n")
+            if path.read_bytes() != b"stage1-private-root-probe\n":
+                raise DeliverableError("private root write probe differs")
+    return {
+        "status": "passed",
+        "private_root": str(root),
+        "temporary_root": str(temporary),
+        "repository_guard": "outside-git",
+        "write_probe": "passed",
+    }
 
 
 def identifier(value):

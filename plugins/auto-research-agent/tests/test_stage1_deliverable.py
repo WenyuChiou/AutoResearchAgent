@@ -2,13 +2,17 @@
 
 import copy
 import json
+import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
+import bibtexparser
+from bibtexparser.latexenc import latex_to_unicode
 from openpyxl import load_workbook
 from requests import Timeout
 from requests.structures import CaseInsensitiveDict
@@ -17,7 +21,7 @@ from research_hub.source_fetch import fetch_public_source
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
 
-from stage1_deliverable import package, sources  # noqa: E402
+from stage1_deliverable import package, sources, views  # noqa: E402
 from stage1_deliverable.common import (  # noqa: E402
     DeliverableError,
     inventory,
@@ -257,6 +261,120 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.make_records(full_source_pdf(), "application/pdf")
         report = self.build()
         self.assertEqual(report["counts"]["acquired_full_text"]["pdf"], 1)
+
+    def test_bibtex_special_characters_and_uri_round_trip(self):
+        records = self.make_records()
+        paper = records["papers"][0]
+        paper["title"] = "\\ {literal} 50% A&B under_score #tag 日本\r\nnext"
+        paper["authors"] = ["Author & Co", "René Example"]
+        paper["venue"] = "Price $5 ~ approximate ^ exponent"
+        paper["url"] = "https://example.org/a_b?q=50%25&other=x_y#section"
+        paper["doi"] = "10.1234/a_b%25"
+        # A second entry after the hazardous field exposes swallowed entries.
+        second = copy.deepcopy(paper)
+        second.update(
+            work_id="work2", title="Unmatched { opening", url="https://example.org/{id}"
+        )
+        third = copy.deepcopy(paper)
+        third.update(work_id="work3", title="Unmatched } closing")
+        records["papers"] += [second, third]
+        raw = views.bibtex(records).decode("utf-8")
+        database = bibtexparser.loads(raw)
+        self.assertEqual(
+            [e["ID"] for e in database.entries], ["work1", "work2", "work3"]
+        )
+        entry = database.entries[0]
+        self.assertEqual(
+            entry["title"],
+            r"{\textbackslash} {\textbraceleft}literal{\textbraceright} 50\% A\&B under\_score \#tag 日本  next",
+        )
+        self.assertEqual(entry["author"], r"Author \& Co and René Example")
+        self.assertEqual(
+            entry["journal"],
+            r"Price \$5 {\textasciitilde} approximate {\textasciicircum} exponent",
+        )
+        self.assertEqual(entry["url"], paper["url"])
+        self.assertEqual(entry["doi"], paper["doi"])
+        self.assertEqual(database.entries[1]["url"], "https://example.org/%7Bid%7D")
+        self.assertEqual(
+            database.entries[1]["title"], r"Unmatched {\textbraceleft} opening"
+        )
+        self.assertEqual(
+            database.entries[2]["title"], r"Unmatched {\textbraceright} closing"
+        )
+        self.assertEqual(
+            bibtexparser.loads(bibtexparser.dumps(database)).entries, database.entries
+        )
+        # Independent decoding checks text fidelity, beyond accepting .bib syntax.
+        paper["title"] = "\\ 50% A&B under_score #tag 日本"
+        decoded = latex_to_unicode(
+            bibtexparser.loads(views.bibtex({"papers": [paper]}).decode()).entries[0][
+                "title"
+            ]
+        )
+        self.assertEqual(decoded, paper["title"])
+
+    def test_home_git_checkout_requires_external_private_and_temp_roots(self):
+        home = self.root / "home"
+        home.mkdir()
+        subprocess.run(["git", "init", str(home)], check=True, capture_output=True)
+        inside = home / "Temp"
+        outside = self.root / "private"
+        safe_temp = self.root / "temp"
+        for path in (inside, outside, safe_temp):
+            path.mkdir()
+        env = dict(os.environ, PYTHONPATH=str(PLUGIN / "cli"))
+        for output, temporary, expected in (
+            (inside, safe_temp, 1),
+            (outside, inside, 1),
+            (outside, safe_temp, 0),
+        ):
+            with self.subTest(output=output, temporary=temporary):
+                env.update(
+                    TEMP=str(temporary), TMP=str(temporary), TMPDIR=str(temporary)
+                )
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "stage1_deliverable",
+                        "preflight",
+                        str(output),
+                    ],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(result.returncode, expected, result.stderr)
+                if expected:
+                    self.assertIn("Git", result.stderr)
+                else:
+                    self.assertEqual(
+                        json.loads(result.stdout),
+                        {
+                            "status": "passed",
+                            "private_root": str(outside),
+                            "temporary_root": str(safe_temp),
+                            "repository_guard": "outside-git",
+                            "write_probe": "passed",
+                        },
+                    )
+        self.assertEqual(list(outside.iterdir()), [])
+        self.assertEqual(list(safe_temp.iterdir()), [])
+        self.make_records(full_source_pdf(), "application/pdf")
+        self.output = outside / "package"
+        with patch("tempfile.tempdir", str(safe_temp)):
+            report = self.build()
+            self.assertEqual(report["status"], "passed")
+            self.assertEqual(
+                package.validate(self.output, report["manifest_sha256"])["status"],
+                "passed",
+            )
+        # Skipping preflight cannot write a private replay copy under Git.
+        with patch("tempfile.tempdir", str(inside)):
+            with self.assertRaisesRegex(DeliverableError, "Git"):
+                package.validate(self.output, report["manifest_sha256"])
+        self.assertEqual(list(inside.iterdir()), [])
 
     def test_json_key_order_preserves_views_and_original_input_binding(self):
         records = self.make_records()

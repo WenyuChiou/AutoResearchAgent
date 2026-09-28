@@ -6,6 +6,7 @@ import io
 import json
 import zipfile
 from datetime import datetime
+from urllib.parse import quote
 
 from docx import Document
 from openpyxl import Workbook
@@ -234,14 +235,24 @@ def docx_bytes(lines):
 
 def bibtex(records):
     def escape(value):
-        return (
-            cell(value)
-            .replace("\\", r"\textbackslash{}")
-            .replace("{", r"\{")
-            .replace("}", r"\}")
-            .replace("\n", " ")
-            .replace("\r", " ")
-        )
+        # Translate once: generated TeX syntax must never be escaped again.
+        # Named brace glyphs keep even an unmatched input brace BibTeX-safe.
+        replacements = {
+            "\\": r"{\textbackslash}",
+            "{": r"{\textbraceleft}",
+            "}": r"{\textbraceright}",
+            "%": r"\%",
+            "&": r"\&",
+            "_": r"\_",
+            "#": r"\#",
+            "$": r"\$",
+            "~": r"{\textasciitilde}",
+            "^": r"{\textasciicircum}",
+            "\n": " ",
+            "\r": " ",
+            "\t": " ",
+        }
+        return "".join(replacements.get(char, char) for char in cell(value))
 
     entries = []
     for paper in records["papers"]:
@@ -258,11 +269,17 @@ def bibtex(records):
             + paper["evidence_level"],
         }
         lines = ["@misc{" + paper["work_id"] + ","]
-        lines += [
-            f"  {key} = {{{escape(value)}}},"
-            for key, value in fields.items()
-            if value is not None
-        ]
+        for key, value in fields.items():
+            if value is None:
+                continue
+            # BibLaTeX URL/DOI fields are verbatim, not TeX text. Preserve URI
+            # separators and existing percent escapes; encode unsafe braces.
+            encoded = (
+                quote(value, safe=":/?#[]@!$&'()*+,;=%-._~")
+                if key in {"url", "doi"}
+                else escape(value)
+            )
+            lines.append(f"  {key} = {{{encoded}}},")
         entries.append("\n".join([*lines, "}"]))
     return ("\n\n".join(entries) + "\n").encode("utf-8")
 

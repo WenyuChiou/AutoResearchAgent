@@ -35,6 +35,49 @@ Preserve partial exports and failures. `build` prints a JSON validation receipt
 containing `manifest_sha256`; retain it separately as the trusted validation
 hash. A hash copied from the package itself cannot establish authenticity.
 
+### Preflight when the home directory is a Git checkout
+
+The exporter rejects every package or temporary source copy inside Git, even
+if the checkout is the whole user home and the files are ignored. Desktop and
+the default Windows TEMP may therefore be unsuitable. Do not disable this
+guard or remove the home repository. Choose an existing, writable private
+directory outside **all** Git checkouts and links, with appropriate access
+permissions for the researcher. The preflight checks Git/link boundaries and
+read/write access; it does not certify operating-system user isolation.
+
+For example, from PowerShell, replace this path with your approved location:
+
+```powershell
+$stage1PrivateRoot = 'D:\Stage1Private'
+$stage1TempRoot = Join-Path $stage1PrivateRoot 'temp'
+New-Item -ItemType Directory -Force -Path $stage1PrivateRoot, $stage1TempRoot | Out-Null
+$env:TEMP = $stage1TempRoot
+$env:TMP = $stage1TempRoot
+$env:TMPDIR = $stage1TempRoot
+python -m stage1_deliverable preflight $stage1PrivateRoot
+if ($LASTEXITCODE -ne 0) { throw 'Stage 1 private-root preflight failed' }
+python -m unittest discover -s plugins/auto-research-agent/tests -p test_stage1_deliverable.py -v
+```
+
+Set these variables **before** starting Python; Python caches its temporary
+directory. On Unix, set `TMPDIR` to the chosen physical temporary directory.
+Store new inputs, packages and pilot workspaces under the approved private
+root. Retain the successful JSON receipt and its SHA-256 with the pilot's
+runtime bindings before launch. Both conditions must receive the same temporary
+directory policy. Preflight does not create a package or launch a model.
+Build and validation also reject temporary replay copies inside Git if the
+preflight was omitted. Use a fresh output name for each export.
+
+### Bibliography text and links
+
+BibTeX text fields escape literal TeX special characters in one pass and retain
+Unicode as UTF-8. The `url` and `doi` fields follow BibLaTeX's verbatim field
+convention: URI separators and existing percent escapes are preserved, while
+unsafe URI characters such as braces are percent-encoded. Use a Unicode-aware
+consumer such as BibLaTeX/Biber. The tests use pinned bibtexparser 1.4.4 for
+independent parsing and round-trip checks; they do not certify every legacy
+BibTeX style. See the [BibLaTeX manual, field types](https://tug.ctan.org/macros/latex2e/contrib/biblatex/doc/biblatex.pdf).
+
 ## Canonical records
 
 `records.json` has exactly these fields. Collections contain objects, not

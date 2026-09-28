@@ -12,7 +12,15 @@ import tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import urlsplit
 
-from .common import DeliverableError, canonical, read_json, safe_path, sha, write_json
+from .common import (
+    DeliverableError,
+    canonical,
+    private_output,
+    read_json,
+    safe_path,
+    sha,
+    write_json,
+)
 from .records import _keys, public_uri, timestamp
 
 HUB_SHA = "929bdd6d963acf4be5bc9d80ce3c5c0a0f77a834"
@@ -279,7 +287,7 @@ def validate_archive(root):
     with tempfile.TemporaryDirectory(prefix="stage1-source-replay-") as temp:
         # Resolve only our own temp root (macOS /var aliases /private/var).
         # Caller-provided roots still pass through the strict link guard.
-        relocated_root = Path(temp).resolve()
+        relocated_root = private_output(Path(temp).resolve())
         for relative in set(mapping.values()):
             destination = safe_path(relocated_root, relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
