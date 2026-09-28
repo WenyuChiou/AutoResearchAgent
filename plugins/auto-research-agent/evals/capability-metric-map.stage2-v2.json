@@ -260,7 +260,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_ideation",
       "problem": "Free-form research ideas can lose their provenance or be forced into unsupported structured claims; dependent or noncomparable studies can be mistaken for independent agreement.",
-      "mechanism": "Prepare native-capability comparison and open ideation prompts, then validate separate no-tool extraction against saved prose and versioned evidence; preserve earlier candidates when building the next packet.",
+      "mechanism": "Prepare native-capability comparison and open ideation prompts, then validate separate no-tool extraction against saved prose and versioned evidence; preserve earlier candidates when building the next packet. Export a draft Markdown/HTML companion from one validated view, retaining full bibliography and raw prose without granting recommendation or selection.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -295,7 +295,8 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_ideation.py",
-        "plugins/auto-research-agent/tests/test_stage2_ideation_integration.py"
+        "plugins/auto-research-agent/tests/test_stage2_ideation_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_ideation_report.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
