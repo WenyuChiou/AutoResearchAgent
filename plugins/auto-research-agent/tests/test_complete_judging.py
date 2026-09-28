@@ -61,7 +61,10 @@ class CompleteJudgingTests(unittest.TestCase):
             key = packet["assigned_criterion_id"]
             missing = (
                 "identity-ambiguous"
-                if self.different_code and "r2" in str(command)
+                if self.different_code
+                and Path(command[command.index("-o") + 1]).parent.name.startswith(
+                    "content-r2-"
+                )
                 else "source-unavailable"
             )
             rows["criteria"] = [
@@ -159,6 +162,7 @@ class CompleteJudgingTests(unittest.TestCase):
 
     def test_equal_null_scores_with_different_missing_codes_require_adjudication(self):
         self.different_code = True
+        self.root = self.root / "r2-in-parent"
         with patch("stage1_eval.model_calls.subprocess.run", side_effect=self.respond):
             result = self.invoke()
         self.assertEqual(result["adjudicated_phases"], ["content"])
