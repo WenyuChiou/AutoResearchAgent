@@ -273,6 +273,7 @@ class PilotReportTests(unittest.TestCase):
             ["cause-evidence-unavailable", "missing-artifact:source-audits.json"],
         )
         self.assertFalse((self.root / "pilot.json").exists())
+        self.replay.assert_not_called()
 
     def test_formal_lock_wrong_model_observer_and_pair_count_fail_before_replay(self):
         original = copy.deepcopy(self.lock)

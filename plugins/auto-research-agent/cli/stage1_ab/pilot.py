@@ -94,28 +94,7 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
             raise AdmissionBlocked(
                 "pilot capture is incomplete, duplicated or unbound", capture_reasons
             )
-        result = _replay_result(
-            result_path,
-            capture,
-            lock_path,
-            background_path,
-            lock,
-            execution_class="exploratory-pilot",
-        )
         root = Path(result_path).parent
-        binding = read_json(root / "evaluation-input.json")["binding"]
-        if (
-            binding.get("run_id") != record["run_id"]
-            or binding.get("series_id") != record["series_id"]
-        ):
-            raise AdmissionBlocked(
-                "pilot result belongs to a different capture",
-                [
-                    "different-capture-" + key
-                    for key in ("run_id", "series_id")
-                    if binding.get(key) != record[key]
-                ],
-            )
         artifacts = {}
         for name in (
             "result.json",
@@ -140,6 +119,27 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
                 "path": str(path.resolve()),
                 "sha256": runner.sha(path.read_bytes()),
             }
+        result = _replay_result(
+            result_path,
+            capture,
+            lock_path,
+            background_path,
+            lock,
+            execution_class="exploratory-pilot",
+        )
+        binding = read_json(root / "evaluation-input.json")["binding"]
+        if (
+            binding.get("run_id") != record["run_id"]
+            or binding.get("series_id") != record["series_id"]
+        ):
+            raise AdmissionBlocked(
+                "pilot result belongs to a different capture",
+                [
+                    "different-capture-" + key
+                    for key in ("run_id", "series_id")
+                    if binding.get(key) != record[key]
+                ],
+            )
         by_run[record["run_id"]] = {
             "result": result,
             "capture": record,
