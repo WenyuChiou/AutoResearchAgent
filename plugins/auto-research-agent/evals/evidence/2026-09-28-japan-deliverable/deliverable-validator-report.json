@@ -1,0 +1,52 @@
+{
+  "counts": {
+    "access_state_counts": {
+      "abstract-only": 2,
+      "available": 10,
+      "identity-mismatch": 2,
+      "login-page": 1,
+      "metadata-only": 16,
+      "network-error": 2,
+      "not-found": 3,
+      "parse-error": 0,
+      "paywalled": 0,
+      "rate-limited": 0
+    },
+    "acquired_full_text": {
+      "html": 0,
+      "pdf": 10,
+      "text": 0
+    },
+    "claims": 17,
+    "coverage": 6,
+    "full_text_acquisition_fraction": {
+      "denominator": 15,
+      "numerator": 10
+    },
+    "not_exercised": [
+      "paywalled",
+      "rate-limited",
+      "parse-error"
+    ],
+    "papers": 15,
+    "screening": 15,
+    "source_attempts": 36,
+    "source_bindings": {
+      "complete": 10,
+      "total": 10
+    }
+  },
+  "cross_format_reconciled": true,
+  "independent_validation_log_sha256": "0fdd1a943f8812e213099ddab6d737c03c2b586f18ab1e7068bb5283b7b7f327",
+  "kind": "Stage1DeliverableValidation",
+  "manifest_sha256": "784661637520e1dbdbb259b629c87108cbc4748c1ec97c71175d519745487ea0",
+  "original_package_unchanged": true,
+  "scientific_quality_scored": false,
+  "scope": "Mechanical package replay; not claim truth, scientific quality, or full pilot acceptance",
+  "source_semantic_replay": true,
+  "status": "passed",
+  "tamper_method": "Append Markdown content on disposable copy; recompute complete file inventory and external manifest SHA-256; invoke bound production validator",
+  "tamper_rejection": "canonical-to-view semantic replay differs: literature_review.md",
+  "tamper_report_sha256": "f1a4a6fbf7dbb8c052c90126ef0ae11fafcdb87a177069582499ca2870a69f6e",
+  "tamper_test_rejected": true
+}

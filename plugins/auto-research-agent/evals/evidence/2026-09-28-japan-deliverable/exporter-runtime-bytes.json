@@ -1,0 +1,282 @@
+{
+  "frozen_pilot_revision": "ca459f8cf3c80b1e40713b5c24d7ba0d9633d658",
+  "limitation": "This binds actual pilot runtime; later PR fixes did not execute in the frozen subject.",
+  "runtime": {
+    "docx": "available",
+    "exporter_sha256": "e5456062d38ed456a4bcdd6f97da967372186e9639a6afb4524e6332ba09e6d8",
+    "installed_distributions": {
+      "PyYAML": {
+        "file_count": 26,
+        "files_sha256": "76ca8fa084f12e8c470fee48ed96b628bca7174424b77cd085219fa953a7c1a5",
+        "version": "6.0.3"
+      },
+      "Pygments": {
+        "file_count": 352,
+        "files_sha256": "985528c40827b888e61c7acc39bddf5ceb178d71376e719d2ff6ea406cf1dd0b",
+        "version": "2.21.0"
+      },
+      "RapidFuzz": {
+        "file_count": 71,
+        "files_sha256": "1123396feba6686cfae6f1f68e6b80c174145376a89a2a286cb4f127f2266a07",
+        "version": "3.14.6"
+      },
+      "anyio": {
+        "file_count": 55,
+        "files_sha256": "06cf50dbcaa2f8e1e94176fa26957814fef5789a84927ef3ff2472fed1bfbb6a",
+        "version": "4.15.1"
+      },
+      "attrs": {
+        "file_count": 37,
+        "files_sha256": "4a2146a828a00386aae9a9233b9524b0fc1f995e2e50b2edaec34030821b9835",
+        "version": "26.1.0"
+      },
+      "bibtexparser": {
+        "file_count": 15,
+        "files_sha256": "72de0a68fcc2c87873fa1f6979bcc4461acabdc9f04ebc938481177d7e099617",
+        "version": "1.4.4"
+      },
+      "certifi": {
+        "file_count": 14,
+        "files_sha256": "de481a800db317f4e07fde9923f810ebeafecb2972805f8b18316271707f7fc5",
+        "version": "2026.7.22"
+      },
+      "cffi": {
+        "file_count": 34,
+        "files_sha256": "4eca178a3346dca2b914fe8c94cf7e66a81dd2f3b7bd0f3c3bd8d807410c562a",
+        "version": "2.1.1"
+      },
+      "charset-normalizer": {
+        "file_count": 24,
+        "files_sha256": "2a4e3c3785d3dbcc1ccef573a230220848fa954e9b0b47828edef09f17f7b224",
+        "version": "3.5.1"
+      },
+      "click": {
+        "file_count": 24,
+        "files_sha256": "8daf214d7a5424181a5ccf1bca2f75cc743408f6c76a073b2343ae7a774fc6d6",
+        "version": "8.5.0"
+      },
+      "cryptography": {
+        "file_count": 122,
+        "files_sha256": "e4aa51e94ceedb29818266ce15a7deebf442681cd4999c44a6eef990de68aac4",
+        "version": "50.0.1"
+      },
+      "et_xmlfile": {
+        "file_count": 12,
+        "files_sha256": "2f0373e5fcbe8dc3d1ab720e5effe3372cc16b698fa615979e2e7255a06f2b99",
+        "version": "2.0.0"
+      },
+      "feedparser": {
+        "file_count": 39,
+        "files_sha256": "2e51e75a0362a81e0205bfceb762a930aa30b51f79f120bafb63eeb303a43902",
+        "version": "6.0.14"
+      },
+      "feedparser-sgmllib": {
+        "file_count": 9,
+        "files_sha256": "00b117af2fd6fee1190eb4fb3256d9c0aeed222a8607d96688400d29d6f61e74",
+        "version": "2.1.0"
+      },
+      "h11": {
+        "file_count": 19,
+        "files_sha256": "857c7d63b556a47bed43326fe0eda2c959dd209eafaff0bcd50be34704d3caca",
+        "version": "0.16.0"
+      },
+      "httpcore": {
+        "file_count": 38,
+        "files_sha256": "e502e7c700b09e35b7782d5aa5f96d208b362790f1cb0b328b56051b229e4b83",
+        "version": "1.0.9"
+      },
+      "httpcore2": {
+        "file_count": 38,
+        "files_sha256": "7c7c46736b528c8d62c8058411dbb945714f0d80db9972e357b359c5dadffa00",
+        "version": "2.13.1"
+      },
+      "httpx": {
+        "file_count": 32,
+        "files_sha256": "9f1c791d0f325de975f49d0ddd0de2a7df47351f9aee2f0b3375ffd0311d6347",
+        "version": "0.28.1"
+      },
+      "httpx2": {
+        "file_count": 39,
+        "files_sha256": "bca76c4d088190d52479ca92caa7ad5ab8d4974479ada03c001ec88d93eb677d",
+        "version": "2.13.1"
+      },
+      "idna": {
+        "file_count": 19,
+        "files_sha256": "5b70a5c0e053861c306c88e93a7dcd7006887bf34d7fc759a467d8eda474bd8b",
+        "version": "3.20"
+      },
+      "jsonschema": {
+        "file_count": 46,
+        "files_sha256": "499c68f9be29ae4f35b7f65117dcc0654024f8b44114622d62b2d0346df93c74",
+        "version": "4.26.0"
+      },
+      "jsonschema-specifications": {
+        "file_count": 30,
+        "files_sha256": "0f0a1ae32c7ccbeb965178c9680241308fe3dccf35ae425fd34db9a33c1875fe",
+        "version": "2025.9.1"
+      },
+      "lxml": {
+        "file_count": 180,
+        "files_sha256": "290609372e7d0b6f697fc42432b46d60f0d80db605154e14861d497b3802281a",
+        "version": "6.1.3"
+      },
+      "markdown-it-py": {
+        "file_count": 77,
+        "files_sha256": "8291fc50cf2476c51c904333092f2ca09ed72a698970be49989b1f37559c30d2",
+        "version": "4.0.0"
+      },
+      "mdurl": {
+        "file_count": 13,
+        "files_sha256": "5631ec1f9640e389146e511511d1ab79c9e1b7d138490fefd029ac75380665a5",
+        "version": "0.1.2"
+      },
+      "networkx": {
+        "file_count": 603,
+        "files_sha256": "6d1f4379b1f0ef29ed5e1f14fff2cb6d8f3dc7490413cf6873c8bd1ce3b2185e",
+        "version": "3.6.1"
+      },
+      "notebooklm-py": {
+        "file_count": 58,
+        "files_sha256": "57d84dd7f4085eb4fc52a4dd7cb6529c140729de10cc0826e053fdcd48513a2d",
+        "version": "0.4.1"
+      },
+      "openpyxl": {
+        "file_count": 197,
+        "files_sha256": "9b6624d706d53ecc17b92c7259fac977e3e42cfcecb2afdb2cb31896dfacca2b",
+        "version": "3.1.5"
+      },
+      "pdfminer.six": {
+        "file_count": 191,
+        "files_sha256": "a443e6f31e3b349e7cc39e8da20a3d11450e98601ff944df14f745d06ad77b69",
+        "version": "20250506"
+      },
+      "pdfplumber": {
+        "file_count": 31,
+        "files_sha256": "265f5376e6d28de1f86adb2dc3e786c2685f83f4f675c1ecc6649e3587fdabac",
+        "version": "0.11.7"
+      },
+      "pillow": {
+        "file_count": 123,
+        "files_sha256": "2dae08725ad90a4fcc3610d8b4baa140a29832fd52a20364d5927f54503a01cf",
+        "version": "12.3.0"
+      },
+      "platformdirs": {
+        "file_count": 20,
+        "files_sha256": "323393a84c427b0ef9c4cc60ed37cb6a3207cdead01cb8054a104923645ccf5b",
+        "version": "4.12.1"
+      },
+      "pycparser": {
+        "file_count": 15,
+        "files_sha256": "8b20978ec95b86d187d7666dd4574df7313ff4cb89903e2b102a4e825b93cd79",
+        "version": "3.0"
+      },
+      "pyparsing": {
+        "file_count": 25,
+        "files_sha256": "45845852cdb445544fc9f9cae994af855bbc6e1a97d08365ffa48daf5dfc3f24",
+        "version": "3.3.3"
+      },
+      "pypdfium2": {
+        "file_count": 75,
+        "files_sha256": "21819cb4900f63713602846d9740b88cf6b31ddea33872499465058982c97b09",
+        "version": "5.13.0"
+      },
+      "python-docx": {
+        "file_count": 126,
+        "files_sha256": "8ec9ebd392953858b7de183918830dae3cf4907c23ea7a36aa8d43c7d8bc6f4d",
+        "version": "1.2.0"
+      },
+      "pyzotero": {
+        "file_count": 26,
+        "files_sha256": "a1b21dd764433a4a2c0731837ddbb2c32ccf218c71f116b5e52290cda6ca1146",
+        "version": "1.15.2"
+      },
+      "referencing": {
+        "file_count": 21,
+        "files_sha256": "cd5b7acf613826ff28ff92415b727f7c6e7814ffdddf3d675d0d6eb7a613e97f",
+        "version": "0.37.0"
+      },
+      "requests": {
+        "file_count": 28,
+        "files_sha256": "59657e1386fd3ece6dec8bad603429991390495c6436b2df0d34dc04100be718",
+        "version": "2.34.2"
+      },
+      "research-hub-pipeline": {
+        "file_count": 253,
+        "files_sha256": "1dfa9c6bfb221cbc0f069b033a2255135608bc63611db6d63f17b6c15b456143",
+        "version": "1.2.0"
+      },
+      "rfc3339-validator": {
+        "file_count": 9,
+        "files_sha256": "52d181c5932b1f0e91652f51351e652b77e2818f62b5fba55100a4215519e773",
+        "version": "0.1.4"
+      },
+      "rich": {
+        "file_count": 107,
+        "files_sha256": "2279d2697c433a4de63e5167de20a9dff32996f59cacce18ae33374a8db179e9",
+        "version": "15.0.0"
+      },
+      "rpds-py": {
+        "file_count": 11,
+        "files_sha256": "747e06ea51c89ee35d545b02cff23a3f1a048986b23ec2c30ffeb80c4d510fd8",
+        "version": "2026.6.3"
+      },
+      "six": {
+        "file_count": 8,
+        "files_sha256": "d0278c35d3d2b8cd775eea48635e564aa1642add065125e0c0ccd8da07040472",
+        "version": "1.17.0"
+      },
+      "truststore": {
+        "file_count": 13,
+        "files_sha256": "98627dcbf2d75c72e9b85705758058657d29ea55be2948b341fb7f8a15e44516",
+        "version": "0.10.4"
+      },
+      "typing_extensions": {
+        "file_count": 7,
+        "files_sha256": "41ea07475370548a5279a49d8267fbc3e4037db7823ad573a1e0cc9ae86ff862",
+        "version": "4.16.0"
+      },
+      "tzdata": {
+        "file_count": 635,
+        "files_sha256": "f04c159a2bcb810ad37c8674f7238472bbd20d0a02e1d48697955b8fa7ba1aad",
+        "version": "2026.4"
+      },
+      "tzlocal": {
+        "file_count": 13,
+        "files_sha256": "2b4e334858acb768002d9562d39a90ff815e7c4ec374784c3d813efff8fe5813",
+        "version": "5.4.4"
+      },
+      "urllib3": {
+        "file_count": 44,
+        "files_sha256": "677813b02eb48e2ddff6f179cd6b6f617f8daafb2534c87b9807fc5242c8ce1d",
+        "version": "2.8.0"
+      },
+      "whenever": {
+        "file_count": 30,
+        "files_sha256": "654707ea68b8c676367707cb25a06c438694eb789a2e8ecbf2b469d41423e029",
+        "version": "0.10.5"
+      }
+    },
+    "packages": {
+      "docx": {
+        "python_sha256": "4e87d75d7b7d9ba3a4fc6246f64600ea9f42505db8bcaa82fd1f91417afca6f5",
+        "version": "1.2.0"
+      },
+      "openpyxl": {
+        "python_sha256": "82f5c884f1c70851c2f42f30987157be27b4a31bfd0f1ecccf5920e240987727",
+        "version": "3.1.5"
+      },
+      "pdfplumber": {
+        "python_sha256": "3336eba93980be2a6ef7f9535137828943de9c36842f39c465a8e6ecc5b9b86a",
+        "version": "0.11.7"
+      },
+      "research_hub": {
+        "python_sha256": "dfa4bf511ff11f0d88d9bd20f0ee059e269a7b47f1d4fdf24708c5fbe7fb1efa",
+        "version": "1.2.0"
+      }
+    },
+    "python_sha256": "21bb438c0d4a6f1f164b9a646f6ee000340185e5871180aec06db8d3f07c0082",
+    "python_version": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+    "research_hub_merge_sha": "929bdd6d963acf4be5bc9d80ce3c5c0a0f77a834"
+  },
+  "runtime_binding_sha256": "8f52843adec165924b625d5b7c4f788f7dc05dd590fb91eb55d88ede7e73d570"
+}
