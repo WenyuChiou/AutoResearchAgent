@@ -100,3 +100,9 @@ because a next-step field suggests them.
 Keep independent evaluation outputs, condition labels and judge feedback outside
 the production choice process. An internal recommendation is not an external
 P4–P6 score. This first slice is experimental and has not demonstrated improvement.
+
+For real calls, load the [native execution interface](../../references/stage2-live.md)
+only when needed. Preserve the native research environment, capture prose before
+tool-free extraction, and run independent checks in separate host-isolated contexts.
+Attach native receipts to workflow actions; missing reviewers or required human
+audits remain pending. Separate profile paths alone do not prove isolation.
