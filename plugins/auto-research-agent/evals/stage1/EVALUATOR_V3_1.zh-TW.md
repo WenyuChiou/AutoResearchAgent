@@ -154,3 +154,15 @@ transcript、原始來源、擷取單元和判分單元重建結果，然後套�
 報告逐項分數、可判比例、未知、各對差值、中位數與範圍，另列來源失敗、模型
 失敗、耗時、工具呼叫、可得 tokens、成本與人工介入。部分 attempt 缺用量時，
 已觀察的小計和完整總量分開，未知總量不填零。完整報告保留未改善與證據不足結果。
+
+配對入口完成 capture 與 evaluator 的離線重播後，輸出 decision JSON，並在旁邊
+寫入同名 `.criteria.csv`、`.report.json` 與可編輯英文 `.html`。CSV 保留十個
+criterion 的每對 A/B 分數、可判比例、未知原因、evidence IDs 與 delta eligibility。
+維度差值必須具有完全相同的適用 criterion 集合、全部可判，且 rubric、spec、
+evaluator identity 與 evidence mode 一致；相同可判比例不代表相同分母。
+不合格差值保留 null 與機器可讀原因。觀察到的部分平均仍可列出，但不能當作完整差值。
+
+報告另保留 subject 每次 attempt 的實際 wall time、可得 usage、evaluator 模型成本
+及重大錯誤。Wall time 包含 observer 額外時間，不冒充 native tool duration；
+無法取得的金額與人工介入保持 null。此輸出不授予 freeze approval，目前驗證仍是
+合成資料工程測試；非美國預演與正式科學比較需各自完成其前置 gate。

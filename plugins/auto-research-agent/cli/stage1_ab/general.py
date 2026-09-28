@@ -640,6 +640,8 @@ def paired_v3(lock_path, background_path, result_paths, capture_dirs, output):
 
 def _paired_decision(lock, by_run, lock_sha256, output):
     """One unchanged scientific decision rule shared by evaluator versions."""
+    from .comparison import capture_costs, compare_results, export_report
+
     pairs = []
     has_unknown = False
     has_added_major = False
@@ -653,27 +655,17 @@ def _paired_decision(lock, by_run, lock_sha256, output):
             has_added_major = True
         if any(item.get("status") == "unresolved" for item in a_issues + b_issues):
             has_unknown = True
-        dimensions = {}
-        for metric in ("P1", "P2", "P3"):
-            left = a["dimensions"][metric]
-            right = b["dimensions"][metric]
-            if any(
-                value["unknown_count"] or value["observed_score_100"] is None
-                for value in (left, right)
-            ):
-                has_unknown = True
-                delta = None
-            else:
-                delta = round(
-                    right["observed_score_100"] - left["observed_score_100"], 2
-                )
-            dimensions[metric] = {
-                "A": left["observed_score_100"],
-                "B": right["observed_score_100"],
-                "delta": delta,
-                "A_assessed_fraction": left["assessed_fraction"],
-                "B_assessed_fraction": right["assessed_fraction"],
-            }
+        comparison = compare_results(a, b)
+        comparison["capture_costs"] = {
+            arm: capture_costs(by_run[row[condition]["run_id"]]["capture"])
+            for arm, condition in (("A", "baseline"), ("B", "treatment"))
+        }
+        comparison["evaluator_model_costs"] = {
+            arm: by_run[row[condition]["run_id"]].get("model_costs")
+            for arm, condition in (("A", "baseline"), ("B", "treatment"))
+        }
+        if any(not row["delta_eligible"] for row in comparison["dimensions"].values()):
+            has_unknown = True
         if (
             a["evaluator_status"] != "complete"
             or b["evaluator_status"] != "complete"
@@ -685,7 +677,7 @@ def _paired_decision(lock, by_run, lock_sha256, output):
             or b["scientific_readiness_status"] == "inconclusive"
         ):
             has_unknown = True
-        pairs.append({"repeat": repeat, "dimensions": dimensions})
+        pairs.append({"repeat": repeat, **comparison})
     deltas = {
         metric: [pair["dimensions"][metric]["delta"] for pair in pairs]
         for metric in ("P1", "P2", "P3")
@@ -732,5 +724,8 @@ def _paired_decision(lock, by_run, lock_sha256, output):
             run_id: item["result_sha256"] for run_id, item in by_run.items()
         },
     }
+    if Path(output).exists():
+        raise runner.ExecutionBlocked(f"output already exists: {output}")
+    export_report(value, output)
     runner.write_json(output, value)
     return value
