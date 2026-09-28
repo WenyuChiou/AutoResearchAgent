@@ -1,0 +1,127 @@
+"""Offline Stage 2 workflow records; native Codex still executes research."""
+
+import argparse
+import json
+from pathlib import Path
+import sys
+
+from stage2_check.contracts import decode_json
+from stage2_common import Stage2Error
+
+from .store import (
+    add_snapshot,
+    finish_action,
+    initialize_workflow,
+    inspect_workflow,
+    start_action,
+)
+
+
+def _read(path):
+    return decode_json(Path(path).read_bytes(), str(path))
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="python -m stage2_workflow")
+    commands = parser.add_subparsers(dest="command", required=True)
+    init = commands.add_parser(
+        "init", help="save the first immutable evidence snapshot"
+    )
+    init.add_argument("--packet", required=True)
+    init.add_argument("--source-root", required=True)
+    init.add_argument("--output", required=True)
+    init.add_argument("--settings", required=True)
+    init.add_argument("--policy-ref", required=True)
+    show = commands.add_parser(
+        "inspect", help="revalidate records and saved source bytes"
+    )
+    show.add_argument("--run", required=True)
+    show.add_argument("--expected-head")
+    snapshot = commands.add_parser(
+        "snapshot", help="append evidence and invalidate prior checks"
+    )
+    snapshot.add_argument("--run", required=True)
+    snapshot.add_argument("--packet", required=True)
+    snapshot.add_argument("--source-root", required=True)
+    snapshot.add_argument("--reason", required=True)
+    snapshot.add_argument("--impact", required=True)
+    snapshot.add_argument("--expected-head", required=True)
+    start = commands.add_parser(
+        "start", help="record action intent without invoking a model or tool"
+    )
+    start.add_argument("--run", required=True)
+    start.add_argument("--action-id", required=True)
+    start.add_argument("--kind", required=True)
+    start.add_argument("--inputs", required=True)
+    start.add_argument("--settings", required=True)
+    start.add_argument("--expected-head", required=True)
+    finish = commands.add_parser(
+        "finish", help="save result artifacts and the actual terminal state"
+    )
+    finish.add_argument("--run", required=True)
+    finish.add_argument("--action-id", required=True)
+    finish.add_argument(
+        "--status",
+        required=True,
+        choices=["complete", "failed", "unavailable", "empty", "interrupted"],
+    )
+    finish.add_argument("--artifacts", required=True)
+    finish.add_argument("--cost")
+    finish.add_argument("--error")
+    finish.add_argument("--expected-head", required=True)
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "init":
+            result = initialize_workflow(
+                args.packet,
+                args.source_root,
+                args.output,
+                _read(args.settings),
+                _read(args.policy_ref),
+            )
+        elif args.command == "inspect":
+            state = inspect_workflow(args.run, args.expected_head)
+            result = {
+                "head_sha256": state["head_sha256"],
+                "snapshot_count": len(state["snapshots"]),
+                "pending_candidate_ids": state["pending_candidate_ids"],
+                "action_ids": sorted(state["actions"]),
+                "integrity_scope": state["integrity_scope"],
+            }
+        elif args.command == "snapshot":
+            result = add_snapshot(
+                args.run,
+                args.packet,
+                args.source_root,
+                args.reason,
+                _read(args.impact),
+                args.expected_head,
+            )
+        elif args.command == "start":
+            result = start_action(
+                args.run,
+                args.action_id,
+                args.kind,
+                _read(args.inputs),
+                _read(args.settings),
+                args.expected_head,
+            )
+        else:
+            result = finish_action(
+                args.run,
+                args.action_id,
+                args.status,
+                _read(args.artifacts),
+                _read(args.cost) if args.cost else None,
+                args.error,
+                args.expected_head,
+            )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+    except (Stage2Error, OSError, ValueError) as error:
+        print(f"stage2-workflow: {error}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
