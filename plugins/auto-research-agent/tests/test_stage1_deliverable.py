@@ -1,6 +1,7 @@
 """Offline production exporter tests with real public source parser/CLI replay."""
 
 import copy
+import json
 from pathlib import Path
 import shutil
 import sys
@@ -256,6 +257,41 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.make_records(full_source_pdf(), "application/pdf")
         report = self.build()
         self.assertEqual(report["counts"]["acquired_full_text"]["pdf"], 1)
+
+    def test_json_key_order_preserves_views_and_original_input_binding(self):
+        records = self.make_records()
+        self.build()
+
+        def reversed_keys(value):
+            if isinstance(value, dict):
+                return {key: reversed_keys(value[key]) for key in reversed(value)}
+            if isinstance(value, list):
+                return [reversed_keys(item) for item in value]
+            return value
+
+        original = json.dumps(reversed_keys(records), indent=2).encode("utf-8")
+        self.records.write_bytes(original)
+        reordered = self.root / "reordered"
+        report = package.build(self.records, reordered, sha(original))
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual((reordered / "records.original.json").read_bytes(), original)
+        self.assertEqual(report["records_sha256"], sha(original))
+        for name in (
+            "literature_catalog.xlsx",
+            "literature_review.md",
+            "literature_review.docx",
+            "references.bib",
+            "claims_and_evidence.csv",
+            "search_and_screening.csv",
+            "coverage_and_stop.md",
+            "README.md",
+            "papers.jsonl",
+            "paper_manifest.jsonl",
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    (self.output / name).read_bytes(), (reordered / name).read_bytes()
+                )
 
     def test_paywall_unavailable_and_login_disguised_as_pdf_remain_distinct(self):
         cases = [

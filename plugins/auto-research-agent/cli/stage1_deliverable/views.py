@@ -12,7 +12,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-from .common import DeliverableError
+from .common import DeliverableError, canonical
 
 
 def cell(value):
@@ -268,6 +268,9 @@ def bibtex(records):
 
 
 def render(records, sources):
+    # JSON object order is not research data. Match the manifest's canonical
+    # ordering while preserving authored array order and original input bytes.
+    records = json.loads(canonical(records))
     all_tables = tables(records, sources)
     lines = review_lines(records)
     markdown = "\n".join(html.escape(line, quote=False) for line in lines) + "\n"
