@@ -125,8 +125,11 @@ def model_costs(root):
 
 def evaluate_v31(args, *, replay_only=False):
     from .__main__ import _verify_background
+    from .audit_source_evidence import materialize_audit_sources
     from .formal import observe_capture_v31, verify_binding_v31, verify_hub_receipts
     from .model_calls import _request_config
+    from .original_fields import extract_original_fields
+    from .source_audit_units import audit_sources
 
     output = Path(args.output).resolve()
     if output.exists() and not (args.resume_verified or replay_only):
@@ -222,6 +225,19 @@ def evaluate_v31(args, *, replay_only=False):
         persist(
             output / "extraction-provenance.json", provenance, replay_only=replay_only
         )
+        extraction, _ = extract_original_fields(
+            subject,
+            extraction,
+            provenance,
+            output / "original-fields",
+            options,
+            replay_only=replay_only,
+        )
+        persist(
+            output / "subject-original-extraction.json",
+            extraction,
+            replay_only=replay_only,
+        )
         background = None
         if args.mode == "evidence-audited":
             if (
@@ -267,9 +283,32 @@ def evaluate_v31(args, *, replay_only=False):
             "sha256": sha(canonical(subject)),
         }
         attach_public_sources(packet, sources)
+        catalogue = (background or {}).get("sources", []) + sources["sources"]
+        source_audits = {
+            role: audit_sources(
+                packet,
+                catalogue,
+                extraction,
+                output / "source-audits" / role,
+                options,
+                replay_only=replay_only,
+            )
+            for role in ("r1", "r2")
+        }
+        packet, materialization = materialize_audit_sources(packet, catalogue)
+        persist(
+            output / "source-materialization.json",
+            materialization,
+            replay_only=replay_only,
+        )
+        persist(output / "source-audits.json", source_audits, replay_only=replay_only)
         persist(output / "evidence-packet.json", packet, replay_only=replay_only)
         judgments = judge_packet_v31(
-            packet, output / "judging", options, replay_only=replay_only
+            packet,
+            output / "judging",
+            options,
+            replay_only=replay_only,
+            source_audits=source_audits,
         )
         persist(output / "judgments.json", judgments, replay_only=replay_only)
         costs = model_costs(output)
