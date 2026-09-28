@@ -21,6 +21,10 @@ from .source_audit_views import _audit_manifest, _observations
 from .units import run_unit
 
 MAX_COMPLETE_PROMPT_BYTES = 240_000
+MAX_CORE_ASSESSMENT_BYTES = 4_000
+MAX_REVIEW_BYTES = 30_000
+PREFLIGHT_CORE_SERIALIZATION_MARGIN = 3_000
+PREFLIGHT_REVIEW_SERIALIZATION_MARGIN = 20_000
 CONCLUSION_CODES = {
     None: "unverifiable",
     0: "does-not-meet-anchor",
@@ -53,24 +57,54 @@ def _view(packet, phase):
     return aliases, manifest
 
 
-def _call(
+def _maximum_core_assessment(work_id):
+    """Build a prompt-only row at the accepted per-assessment byte ceiling."""
+    row = {
+        "work_id": work_id,
+        "topic_core": "unverifiable",
+        "classic": "unverifiable",
+        "closest": "supported",
+        "requirement_ids": [],
+        "roles": [],
+        "contribution": "",
+        "decision_effect": "",
+        "omission_consequence": "",
+        "substitute_rationale": "",
+        "passages": [],
+        "uncertainty": "",
+    }
+    planned_bytes = MAX_CORE_ASSESSMENT_BYTES + PREFLIGHT_CORE_SERIALIZATION_MARGIN
+    padding = planned_bytes - len(canonical(row))
+    if padding < 0:
+        raise EvaluationError("work identity exceeds complete judge core budget")
+    row["uncertainty"] = "X" * padding
+    while len(canonical(row)) > planned_bytes:
+        row["uncertainty"] = row["uncertainty"][:-1]
+    return row
+
+
+def _maximum_review():
+    """Build a prompt-only envelope larger than any accepted issue review."""
+    return {
+        "omission_assessments": [],
+        "major_issues": [],
+        "preflight_padding": "X"
+        * (MAX_REVIEW_BYTES + PREFLIGHT_REVIEW_SERIALIZATION_MARGIN),
+    }
+
+
+def _prepare_call(
     packet,
     phase,
     kind,
     core,
     prior,
     audits,
-    root,
-    label,
-    options,
-    replay_only,
     *,
     criterion=None,
     review=None,
     role="r1",
 ):
-    from .pipeline_v31 import persist
-
     index, manifest = _view(packet, phase)
     supplied = _observations(
         audits,
@@ -140,7 +174,53 @@ def _call(
         criterion_id=criterion,
         review=review,
     )
-    if len(prompt.encode("utf-8")) > MAX_COMPLETE_PROMPT_BYTES:
+    return {
+        "index": index,
+        "manifest": manifest,
+        "audit_manifest": audit_manifest,
+        "schema": schema,
+        "needs": needs,
+        "prompt": prompt,
+        "prompt_bytes": len(prompt.encode("utf-8")),
+    }
+
+
+def _call(
+    packet,
+    phase,
+    kind,
+    core,
+    prior,
+    audits,
+    root,
+    label,
+    options,
+    replay_only,
+    *,
+    criterion=None,
+    review=None,
+    role="r1",
+):
+    from .pipeline_v31 import persist
+
+    prepared = _prepare_call(
+        packet,
+        phase,
+        kind,
+        core,
+        prior,
+        audits,
+        criterion=criterion,
+        review=review,
+        role=role,
+    )
+    index = prepared["index"]
+    manifest = prepared["manifest"]
+    audit_manifest = prepared["audit_manifest"]
+    schema = prepared["schema"]
+    needs = prepared["needs"]
+    prompt = prepared["prompt"]
+    if prepared["prompt_bytes"] > MAX_COMPLETE_PROMPT_BYTES:
         raise EvaluationError(
             "complete judge input exceeds frozen prompt budget; no evidence was omitted"
         )
@@ -167,7 +247,10 @@ def _call(
             ):
                 raise EvaluationError("core unit contains unrelated judgments")
             value["criteria"] = unknown_criteria("content")
-            return check_grounding(value, packet, "content")["core_assessments"]
+            rows = check_grounding(value, packet, "content")["core_assessments"]
+            if any(len(canonical(row)) > MAX_CORE_ASSESSMENT_BYTES for row in rows):
+                raise EvaluationError("complete core assessment exceeds byte budget")
+            return rows
         if value["core_assessments"]:
             raise EvaluationError(
                 "complete unit cannot replace assigned core assessments"
@@ -206,7 +289,12 @@ def _call(
             raise EvaluationError("issue review cannot award criterion scores")
         value["criteria"] = unknown_criteria(phase)
         check_grounding(value, packet, phase)
-        return {key: value[key] for key in ("omission_assessments", "major_issues")}
+        review_value = {
+            key: value[key] for key in ("omission_assessments", "major_issues")
+        }
+        if len(canonical(review_value)) > MAX_REVIEW_BYTES:
+            raise EvaluationError("complete issue review exceeds byte budget")
+        return review_value
 
     value, native = run_unit(
         prompt,
@@ -234,6 +322,99 @@ def _call(
     return value, record
 
 
+def _content_batches(packet):
+    works = packet["extraction"]["works"]
+    for offset in range(0, len(works), 4):
+        subpacket = deepcopy(packet)
+        subpacket["extraction"]["works"] = works[offset : offset + 4]
+        ids = {w["work_id"] for w in subpacket["extraction"]["works"]}
+        subpacket["extraction"]["central_claims"] = [
+            claim
+            for claim in packet["extraction"]["central_claims"]
+            if ids.intersection(claim["cited_work_ids"])
+        ]
+        yield offset // 4 + 1, subpacket
+
+
+def _preflight_content_role(packet, root, audits, role, prior, replay_only):
+    """Validate a whole role before its first native call and persist the plan."""
+    from .pipeline_v31 import persist
+
+    plans = []
+    maximum_core = []
+    for number, subpacket in _content_batches(packet):
+        label = f"content-{role}-core-{number:03d}"
+        prepared = _prepare_call(
+            subpacket, "content", "core", [], prior, audits, role=role
+        )
+        maximum_core.extend(
+            _maximum_core_assessment(row["work_id"])
+            for row in subpacket["extraction"]["works"]
+        )
+        plans.append((label, prepared))
+    prepared_review = _prepare_call(
+        packet, "content", "review", maximum_core, prior, audits, role=role
+    )
+    plans.append((f"content-{role}-review", prepared_review))
+    maximum_review = _maximum_review()
+    for criterion in sorted(CONTENT_IDS):
+        prepared = _prepare_call(
+            packet,
+            "content",
+            "content",
+            maximum_core,
+            prior,
+            audits,
+            criterion=criterion,
+            review=maximum_review,
+            role=role,
+        )
+        plans.append((f"content-{role}-{criterion}", prepared))
+    receipt_plans = [
+        {
+            "label": label,
+            "prompt_bytes_upper_bound": prepared["prompt_bytes"],
+            "prompt_upper_bound_sha256": sha(prepared["prompt"].encode("utf-8")),
+            "schema_sha256": sha(canonical(prepared["schema"])),
+            "view_sha256": sha(canonical(prepared["manifest"])),
+            "source_audit_view_sha256": prepared["audit_manifest"][
+                "supplied_view_sha256"
+            ],
+        }
+        for label, prepared in plans
+    ]
+    oversize = [
+        row["label"]
+        for row in receipt_plans
+        if row["prompt_bytes_upper_bound"] > MAX_COMPLETE_PROMPT_BYTES
+    ]
+    receipt = {
+        "kind": "Stage1CompleteJudgeRolePreflight.v1",
+        "role": role.upper(),
+        "status": "failed" if oversize else "passed",
+        "prompt_byte_limit": MAX_COMPLETE_PROMPT_BYTES,
+        "accepted_intermediate_byte_limits": {
+            "core_assessment": MAX_CORE_ASSESSMENT_BYTES,
+            "issue_review": MAX_REVIEW_BYTES,
+        },
+        "serialization_margins": {
+            "per_core_assessment": PREFLIGHT_CORE_SERIALIZATION_MARGIN,
+            "issue_review": PREFLIGHT_REVIEW_SERIALIZATION_MARGIN,
+        },
+        "plans": receipt_plans,
+        "oversize_unit_ids": oversize,
+        "error_code": "complete-role-prompt-budget-exceeded" if oversize else None,
+        "score_awarded": False,
+    }
+    persist(root / f"content-{role}-preflight.json", receipt, replay_only=replay_only)
+    if oversize:
+        raise EvaluationError(
+            "complete judge role exceeds frozen prompt budget before native calls; "
+            "no evidence was omitted"
+        )
+    return receipt
+
+
 def _content(packet, root, options, audits, replay_only):
     roles, records, semantics = {}, {}, {}
     for role in ("r1", "r2", "adj"):
@@ -252,18 +433,10 @@ def _content(packet, root, options, audits, replay_only):
             else None
         )
         audit = audits if role == "adj" else {role: audits[role]}
+        _preflight_content_role(packet, root, audit, role, prior, replay_only)
         core = []
-        works = packet["extraction"]["works"]
-        for offset in range(0, len(works), 4):
-            subpacket = deepcopy(packet)
-            subpacket["extraction"]["works"] = works[offset : offset + 4]
-            ids = {w["work_id"] for w in subpacket["extraction"]["works"]}
-            subpacket["extraction"]["central_claims"] = [
-                c
-                for c in packet["extraction"]["central_claims"]
-                if ids.intersection(c["cited_work_ids"])
-            ]
-            label = f"content-{role}-core-{offset // 4 + 1:03d}"
+        for number, subpacket in _content_batches(packet):
+            label = f"content-{role}-core-{number:03d}"
             value, records[label] = _call(
                 subpacket,
                 "content",

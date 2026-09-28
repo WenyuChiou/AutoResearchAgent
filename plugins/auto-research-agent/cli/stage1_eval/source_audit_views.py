@@ -3,6 +3,77 @@
 from .common import EvaluationError, canonical, sha
 
 
+_PASSAGE_IDENTITY_FIELDS = (
+    "evidence_id",
+    "artifact_sha256",
+    "text_sha256",
+    "source_version",
+    "work_id",
+    "origin",
+    "view",
+    "start",
+    "end",
+    "locator",
+)
+_PASSAGE_PROVENANCE_FIELDS = (
+    "span_id",
+    *_PASSAGE_IDENTITY_FIELDS,
+    "level",
+    "raw_source_sha256",
+    "source_record_sha256",
+    "version_alias",
+)
+
+
+def _passage_observation(passage):
+    """Validate and retain every immutable source binding, but not source text."""
+    required = {*_PASSAGE_PROVENANCE_FIELDS, "text"}
+    if not isinstance(passage, dict) or required - set(passage):
+        raise EvaluationError("source audit passage provenance is incomplete")
+    identity = {key: passage[key] for key in _PASSAGE_IDENTITY_FIELDS}
+    if passage["span_id"] != "span-" + sha(canonical(identity)):
+        raise EvaluationError("source audit passage identity binding changed")
+    for key in ("evidence_id", "source_version", "work_id", "origin", "view"):
+        if not isinstance(passage[key], str) or not passage[key]:
+            raise EvaluationError("source audit passage identity binding is invalid")
+    if (
+        not isinstance(passage["text"], str)
+        or type(passage["start"]) is not int
+        or type(passage["end"]) is not int
+        or passage["start"] < 0
+        or passage["end"] <= passage["start"]
+        or len(passage["text"]) != passage["end"] - passage["start"]
+    ):
+        raise EvaluationError("source audit passage location is invalid")
+    for key in ("artifact_sha256", "text_sha256"):
+        value = passage[key]
+        if (
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+        ):
+            raise EvaluationError("source audit passage hash binding is invalid")
+    for key in ("raw_source_sha256", "source_record_sha256"):
+        value = passage[key]
+        if value is not None and (
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+        ):
+            raise EvaluationError("source audit passage hash binding is invalid")
+    if (
+        passage["level"] not in {"metadata", "abstract", "full-text"}
+        or not isinstance(passage["version_alias"], str)
+        or not passage["version_alias"].endswith(
+            ":" + sha(passage["source_version"].encode())[:12]
+        )
+    ):
+        raise EvaluationError("source audit passage version binding is invalid")
+    # Preserve future immutable fields by default. The source text remains available
+    # through its evidence/span bindings and is intentionally not duplicated here.
+    return {key: passage[key] for key in sorted(passage) if key != "text"}
+
+
 def _observations(audits, work_ids=None):
     """Retain target/unit identity and all conclusions, without transport receipts."""
     if audits is None:
@@ -23,11 +94,33 @@ def _observations(audits, work_ids=None):
             if work_ids is None or work_ids.intersection(row["target"]["work_ids"])
         ]
         targets = {row["target"]["id"] for row in summaries}
+        target_work_ids = {
+            row["target"]["id"]: set(row["target"]["work_ids"]) for row in summaries
+        }
         leaves = []
         for row in audit["leaves"]:
             if row["target_id"] not in targets:
                 continue
             value = row["value"]
+            if (
+                value.get("verdict")
+                not in {
+                    "supported",
+                    "partially-supported",
+                    "contradicted",
+                    "unverifiable",
+                }
+                or not isinstance(value.get("reason"), str)
+                or not 1 <= len(value["reason"]) <= 400
+                or not isinstance(value.get("passages"), list)
+            ):
+                raise EvaluationError("source audit leaf is invalid")
+            passages = [_passage_observation(passage) for passage in value["passages"]]
+            if any(
+                passage["work_id"] not in target_work_ids[row["target_id"]]
+                for passage in passages
+            ):
+                raise EvaluationError("source audit passage work binding changed")
             leaves.append(
                 {
                     "unit_id": row["unit_id"],
@@ -35,19 +128,7 @@ def _observations(audits, work_ids=None):
                     "value": {
                         "verdict": value["verdict"],
                         "reason": value["reason"],
-                        "passages": [
-                            {
-                                key: passage.get(key)
-                                for key in (
-                                    "evidence_id",
-                                    "view",
-                                    "start",
-                                    "end",
-                                    "source_level",
-                                )
-                            }
-                            for passage in value["passages"]
-                        ],
+                        "passages": passages,
                     },
                 }
             )

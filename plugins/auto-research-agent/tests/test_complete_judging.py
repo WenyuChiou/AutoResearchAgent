@@ -2,6 +2,7 @@
 
 import json
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
@@ -228,13 +229,40 @@ class CompleteJudgingTests(unittest.TestCase):
                     review={"omission_assessments": [], "major_issues": []},
                 )
 
-    def representative_audits(self):
+    def _audit_passage(self, work, leaf):
+        text = f"Bound source passage for {work}, window {leaf}."
+        source_version = f"source-version-{work}"
+        identity = {
+            "evidence_id": f"source-{work}",
+            "artifact_sha256": sha(f"artifact-{work}".encode()),
+            "text_sha256": sha(f"complete-source-{work}".encode()),
+            "source_version": source_version,
+            "work_id": work,
+            "origin": "source-fetch",
+            "view": "text",
+            "start": 0,
+            "end": len(text),
+            "locator": {"page": leaf + 1},
+        }
+        return {
+            "span_id": "span-" + sha(canonical(identity)),
+            **identity,
+            "text": text,
+            "level": "full-text",
+            "raw_source_sha256": sha(f"raw-{work}-{leaf}".encode()),
+            "source_record_sha256": sha(f"record-{work}-{leaf}".encode()),
+            "version_alias": f"w{int(work[1:]) + 1}:{sha(source_version.encode())[:12]}",
+        }
+
+    def representative_audits(self, *, leaves_per_work=2, reason=None):
         self.packet["extraction"]["works"] = [
             {"work_id": f"w{i:02d}"} for i in range(15)
         ]
+        reason = reason or "Synthetic source observation."
         for role in ("r1", "r2"):
             for i in range(15):
-                target = {"id": f"target-{i:02d}", "work_ids": [f"w{i:02d}"]}
+                work = f"w{i:02d}"
+                target = {"id": f"target-{i:02d}", "work_ids": [work]}
                 verdict = (
                     "unverifiable"
                     if i == 14
@@ -247,15 +275,15 @@ class CompleteJudgingTests(unittest.TestCase):
                         "unknown_reason": "source-unavailable" if i == 14 else None,
                     }
                 )
-                for leaf in range(2):
+                for leaf in range(leaves_per_work):
                     self.audits[role]["leaves"].append(
                         {
                             "unit_id": f"{role}-unit-{i:02d}-{leaf}",
                             "target_id": target["id"],
                             "value": {
                                 "verdict": verdict,
-                                "reason": "Synthetic source observation.",
-                                "passages": [],
+                                "reason": reason,
+                                "passages": [self._audit_passage(work, leaf)],
                             },
                         }
                     )
@@ -267,6 +295,19 @@ class CompleteJudgingTests(unittest.TestCase):
         with patch("stage1_eval.model_calls.subprocess.run", side_effect=self.respond):
             result = self.invoke()
         self.assertIn("content", result["adjudicated_phases"])
+        for role in ("r1", "r2", "adj"):
+            preflight = read_json(
+                self.root / f"complete/content/content-{role}-preflight.json"
+            )
+            self.assertEqual(preflight["status"], "passed")
+            self.assertTrue(preflight["plans"])
+            self.assertTrue(
+                all(
+                    row["prompt_bytes_upper_bound"] <= preflight["prompt_byte_limit"]
+                    for row in preflight["plans"]
+                )
+            )
+            self.assertFalse(preflight["score_awarded"])
         seen = {role: {"targets": set(), "units": set()} for role in ("r1", "r2")}
         for label, record in result["provenance"]["content"].items():
             manifest = record["source_audit_view_manifest"]
@@ -312,6 +353,36 @@ class CompleteJudgingTests(unittest.TestCase):
                     )
             else:
                 self.assertEqual(manifest["state"], "not-applicable")
+        supplied_passage = next(
+            prompt["packet"]["source_audit_observations"]["r1"]["leaves"][0]["value"][
+                "passages"
+            ][0]
+            for prompt in self.prompts
+            if prompt["unit_kind"] == "core"
+            and "r1" in prompt["packet"].get("source_audit_observations", {})
+        )
+        self.assertNotIn("text", supplied_passage)
+        self.assertNotIn("source_level", supplied_passage)
+        self.assertEqual(
+            set(supplied_passage),
+            {
+                "span_id",
+                "evidence_id",
+                "artifact_sha256",
+                "text_sha256",
+                "source_version",
+                "work_id",
+                "origin",
+                "view",
+                "start",
+                "end",
+                "locator",
+                "level",
+                "raw_source_sha256",
+                "source_record_sha256",
+                "version_alias",
+            },
+        )
         self.assertTrue(
             all(
                 row["score"] is None
@@ -336,16 +407,48 @@ class CompleteJudgingTests(unittest.TestCase):
             calls.assert_not_called()
             path.write_bytes(original)
 
+        passage = self.audits["r1"]["leaves"][0]["value"]["passages"][0]
+        original_passage = deepcopy(passage)
+        changes = {
+            "span_id": "span-" + "0" * 64,
+            "evidence_id": "source-tampered",
+            "artifact_sha256": "0" * 64,
+            "text_sha256": "1" * 64,
+            "source_version": "source-version-tampered",
+            "work_id": "w99",
+            "origin": "tampered-origin",
+            "view": "tampered-view",
+            "start": 1,
+            "end": passage["end"] + 1,
+            "locator": {"page": 999},
+            "level": "abstract",
+            "raw_source_sha256": "2" * 64,
+            "source_record_sha256": "3" * 64,
+            "version_alias": "w99:tampered",
+        }
+        for field, changed in changes.items():
+            passage.clear()
+            passage.update(deepcopy(original_passage))
+            passage[field] = changed
+            with patch("stage1_eval.model_calls.subprocess.run") as calls:
+                with self.assertRaises(EvaluationError, msg=field):
+                    self.invoke(replay_only=True)
+            calls.assert_not_called()
+        passage.clear()
+        passage.update(original_passage)
+
     def test_fifteen_work_oversized_audit_fails_before_native_call_or_score(self):
-        self.representative_audits()
-        self.audits["r1"]["leaves"][0]["value"]["reason"] = (
-            "X" * complete.MAX_COMPLETE_PROMPT_BYTES
-        )
+        self.representative_audits(leaves_per_work=40, reason="X" * 400)
         with patch("stage1_eval.model_calls.subprocess.run") as calls:
             with self.assertRaisesRegex(EvaluationError, "no evidence was omitted"):
                 self.invoke()
         calls.assert_not_called()
         self.assertFalse((self.root / "complete/result.json").exists())
+        receipt = read_json(self.root / "complete/content/content-r1-preflight.json")
+        self.assertEqual(receipt["status"], "failed")
+        self.assertTrue(receipt["oversize_unit_ids"])
+        self.assertFalse(receipt["score_awarded"])
+        self.assertFalse((self.root / "complete/content/model-logs").exists())
 
     def test_unbound_or_duplicate_audit_leaves_are_not_silently_omitted(self):
         from stage1_eval.source_audit_views import _observations
