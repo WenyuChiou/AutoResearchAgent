@@ -647,6 +647,25 @@ def _read_json_artifact(manifest, role):
     return value, []
 
 
+DELIVERABLE_STATES = {
+    "available",
+    "abstract-only",
+    "metadata-only",
+    "paywalled",
+    "not-found",
+    "rate-limited",
+    "network-error",
+    "parse-error",
+    "login-page",
+    "identity-mismatch",
+}
+DELIVERABLE_FAILURE_STATES = DELIVERABLE_STATES - {
+    "available",
+    "abstract-only",
+    "metadata-only",
+}
+
+
 def validate_stage1_deliverable_pilot_manifest(manifest):
     """Validate public-safe evidence for the private, unscored Japan pilot."""
 
@@ -734,7 +753,47 @@ def validate_stage1_deliverable_pilot_manifest(manifest):
                 "Japan pilot must acquire at least one lawful public full text"
             )
         access_states = inventory.get("access_state_counts")
-        if not isinstance(access_states, dict) or any(
+        if "not_exercised" in inventory:
+            # New live runs preserve observed failures without manufacturing all
+            # possible HTTP outcomes. Legacy fully exercised evidence stays valid.
+            missing = inventory["not_exercised"]
+            if (
+                not isinstance(access_states, dict)
+                or set(access_states) != DELIVERABLE_STATES
+                or any(
+                    type(count) is not int or count < 0
+                    for count in access_states.values()
+                )
+                or not isinstance(missing, list)
+                or any(not isinstance(state, str) for state in missing)
+                or len(missing) != len(set(missing))
+                or set(missing)
+                != {state for state, count in access_states.items() if count == 0}
+            ):
+                errors.append(
+                    "Japan pilot observed counts and not_exercised must partition all source states"
+                )
+            elif not any(
+                access_states[state] > 0 for state in DELIVERABLE_FAILURE_STATES
+            ):
+                errors.append(
+                    "Japan pilot requires at least one actual unavailable/access-error observation"
+                )
+            elif (
+                not isinstance(acquired, dict)
+                or any(
+                    type(acquired.get(name)) is not int
+                    for name in ("pdf", "html", "text")
+                )
+                or not isinstance(bindings, dict)
+                or access_states["available"]
+                != sum(acquired[name] for name in ("pdf", "html", "text"))
+                or access_states["available"] != bindings.get("total")
+            ):
+                errors.append(
+                    "Japan pilot available attempts, acquired full sources and bindings must reconcile"
+                )
+        elif not isinstance(access_states, dict) or any(
             type(access_states.get(name)) is not int or access_states[name] < 1
             for name in ("paywalled", "not-found", "parse-error", "login-page")
         ):
@@ -808,6 +867,10 @@ def validate_stage1_deliverable_claims(deliverable_evidence, manifest):
         access_states.get(name, 0)
         for name in ("paywalled", "not-found", "parse-error", "login-page")
     )
+    if "not_exercised" in inventory and all(
+        type(x) is int for x in access_states.values()
+    ):
+        expected_total = sum(access_states.values())
     acquisition_match = re.search(
         r"\b(\d+)\s*/\s*(\d+)\b",
         deliverable_evidence["Public source acquisition evidence"],
@@ -851,7 +914,7 @@ def validate_stage1_deliverable_claims(deliverable_evidence, manifest):
         errors.append("Source binding claim does not match the Japan pilot inventory")
 
     states_match = re.search(
-        r"\b(\d+)\s+(?:fixture\s+)?states?\s+passed\b",
+        r"\b(\d+)\s+(?:fixture\s+)?states?\s+(?:passed|observed)\b",
         deliverable_evidence["Access-state evidence"],
         re.IGNORECASE,
     )
@@ -859,6 +922,11 @@ def validate_stage1_deliverable_claims(deliverable_evidence, manifest):
         access_states.get(name, 0) > 0
         for name in ("paywalled", "not-found", "parse-error", "login-page")
     )
+    if "not_exercised" in inventory:
+        expected_state_types = sum(
+            type(access_states.get(name)) is int and access_states[name] > 0
+            for name in DELIVERABLE_FAILURE_STATES
+        )
     if not states_match or int(states_match.group(1)) != expected_state_types:
         errors.append("Access-state claim does not match the Japan pilot inventory")
     return errors
@@ -1249,7 +1317,8 @@ def validate_pr_body(
                 "Access-state evidence must distinguish: " + ", ".join(missing_states)
             )
         if not re.search(
-            r"\b[1-9]\d*\s+(?:fixture\s+)?states?\s+passed\b", access_states
+            r"\b[1-9]\d*\s+(?:fixture\s+)?states?\s+(?:passed|observed)\b",
+            access_states,
         ):
             errors.append(
                 "Access-state evidence must report a positive number of states passed"

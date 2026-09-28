@@ -519,10 +519,11 @@ def probe_profile(
         if plugin.get("installed") is not True or plugin.get("enabled") is not True:
             raise ExecutionBlocked("treatment plugin is discovered but not enabled")
         skills = detail.get("plugin", {}).get("skills", []) if detail else []
-        if [skill.get("name") for skill in skills] != [
-            "auto-research-agent:stage1-literature"
-        ]:
-            raise ExecutionBlocked("treatment Stage 1 skill did not load")
+        if sorted(skill.get("name", "") for skill in skills) != [
+            "auto-research-agent:stage1-literature",
+            "auto-research-agent:stage2-directions",
+        ] or any(skill.get("enabled") is not True for skill in skills):
+            raise ExecutionBlocked("treatment reviewed skill inventory differs")
         cache = (
             Path(profile)
             / "plugins"
