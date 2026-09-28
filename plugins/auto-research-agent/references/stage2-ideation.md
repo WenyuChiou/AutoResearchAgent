@@ -41,6 +41,29 @@ the host's canonical retry policy; do not invent missing values to pass a schema
 This interface adds no retry budget or background engine. Reviewers check
 scientific support independently before a direction enters the choice package.
 
+## Editable draft report
+
+`python -m stage2_ideation report --packet PACKET --source-root SOURCES
+--raw-proposal RAW --extraction EXTRACTION --snapshot-sha256 SNAPSHOT --output NEW_DIR`
+exports `proposal-view.json`, editable `proposal.md`, standalone `proposal.html`
+and a file-hash manifest. Set `PYTHONPATH` to this plugin's `cli` directory.
+Supply the original packet and snapshot used for extraction, not the newer packet
+containing its candidates. Validation completes before creating a fresh directory;
+existing exports and human edits are never overwritten. A partial export without
+its manifest is incomplete.
+
+The common view preserves bibliography, evidence levels and exact excerpts,
+comparability, shared-data relationships, mechanisms, alternatives, uncertainty and
+raw prose. Public HTTP(S) source links are clickable; other identifiers remain
+inert text. Citation text cannot run HTML or become workflow instructions.
+Source hashes and excerpt bindings are checked; bibliographic identity and
+scientific support still require independent verification.
+
+This is a **draft companion**, not the checked selection package. The latter is
+produced by `stage2_workflow deliver` after review reconciliation. No report export
+records a user choice. Human edits must be retained as a new input and rechecked
+before a later selection package can be approved.
+
 ## What the tests establish
 
 Tests cover valid and invalid extraction structure, exact provenance, changed
