@@ -14,6 +14,10 @@ Never choose a different country or narrow scope without the user's decision.
 Read [the checker interface](../../references/stage2-directions.md) when creating
 or resuming a fixed-candidate run. Load source records and relevant candidate
 versions as needed; do not fill the context with every historical artifact.
+For evidence additions or multiple research actions, read the
+[workflow contract](../../references/stage2-workflow.md). Its offline CLI records
+immutable snapshots and action receipts; it does not yet dispatch the complete
+research/review loop. Do not treat an action receipt as proof of model execution.
 Keep native Codex search, reading, reasoning and code tools available. Reuse
 `literature-triage-matrix` and `gap-to-topic` when installed and applicable;
 their presence is not required to use the local checker.
