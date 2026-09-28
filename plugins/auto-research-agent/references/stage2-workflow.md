@@ -88,6 +88,8 @@ record operations. JSON input files are read strictly; errors return exit code 2
 | `snapshot` | `--packet`, `--impact`; also `--run`, `--source-root`, `--reason`, `--expected-head` | New snapshot and impact history |
 | `start` | `--inputs`, `--settings`; also `--run`, `--action-id`, `--kind`, `--expected-head` | New intent, or verified completed-unit reuse |
 | `finish` | `--artifacts`, optional `--cost`; also `--run`, `--action-id`, `--status`, `--expected-head`, optional `--error` | Immutable terminal result and copied artifact hashes |
+| `review-plan` | `--screening`; also `--run`, `--expected-head`, `--seed`, `--output` | Current-version isolated views for included and audited excluded candidates |
+| `reconcile` | `--batch`, `--reviews`, `--resolutions`; also `--run`, `--expected-head`, `--output` | Local reconciliation with explicit pending, missing and failed states |
 
 An impact file maps every candidate ID to `status` (`affected`, `unaffected` or
 `unknown`) and a nonempty `reason`. The artifact file maps names to objects with
@@ -97,6 +99,40 @@ for rehashed edits. `inspect` does not certify that a scientific stage finished.
 Policy references are recorded metadata. The caller still loads and enforces
 its canonical policy before native execution. This offline interface never
 calls a model, searches, spends an API budget or chooses a research direction.
+
+### Independent review batch
+
+A screening row has `candidate_id`, `candidate_version`, `included` (boolean),
+`distance` (nonnegative integer) and `reason`. Supply every current candidate
+exactly once. Distance is the researcher's recorded proximity to the shortlist,
+not an automatically measured scientific quality. The batch binds that whole
+population, seed, packet, snapshot and two separate role views per selected item.
+
+The host gives each reviewer only its own view and source access, saves the
+initial native result, and then performs synthesis. A result envelope has
+`candidate_id`, `candidate_version`, `role`, `status`, `review` and `error`.
+Only `complete` has a review object and null error. `empty`, `unavailable`,
+`failed` and `interrupted` have null review and an explanation. An absent
+envelope remains missing. None of these incomplete states permits synthesis.
+
+Resolutions contain `candidate_resolutions` (rows with `candidate_id` and the
+existing evidence-bound `resolution`) and `next_step`. Even matching scores
+need an explicit synthesis; no majority rule is introduced. An audited excluded
+idea can become a recommended option when the new evidence supports reopening
+it. Zero recommendations require an explained next step. Local readiness is not
+native execution attestation or proof that a scientific judgment is correct.
+
+Both commands write new UTF-8 JSON files and refuse overwrites. Use `start` and
+`finish` to preserve their inputs and outputs as workflow action artifacts.
+Never apply assessments inside the immutable snapshot's embedded checker: its
+history must stay empty, and inspection rejects this out-of-band mutation.
+
+`make_followup` in `stage2_workflow.orchestration` binds the question, material
+decision at risk, evidence needed, previous attempts, next action and canonical
+policy reference. It records whether unchanged unproductive work should stop
+and whether scope/resource changes need a human decision. It does not execute
+the action, verify a proposed action is useful, or grant another retry budget.
+The host must enforce the policy and save actual call results separately.
 
 ## Context, tools and limits
 

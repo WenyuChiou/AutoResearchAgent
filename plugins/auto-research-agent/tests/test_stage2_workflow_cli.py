@@ -156,6 +156,133 @@ class Stage2WorkflowCliTests(unittest.TestCase):
         self.assertEqual(output, "")
         self.assertIn("workflow-head-receipt-mismatch", error)
 
+    def test_review_plan_pending_reconciliation_and_exclusive_output(self):
+        self.init_workflow()
+        _, text, _ = self.invoke("inspect", "--run", str(self.run))
+        head = json.loads(text)["head_sha256"]
+        screening = self.root / "screening.json"
+        screening.write_text(
+            json.dumps(
+                [
+                    {
+                        "candidate_id": "candidate-1",
+                        "candidate_version": 1,
+                        "included": True,
+                        "distance": 0,
+                        "reason": "Needs independent review",
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+        batch = self.root / "batch.json"
+        plan_args = (
+            "review-plan",
+            "--run",
+            str(self.run),
+            "--expected-head",
+            head,
+            "--screening",
+            str(screening),
+            "--seed",
+            "fixed",
+            "--output",
+            str(batch),
+        )
+        code, text, error = self.invoke(*plan_args)
+        self.assertEqual((code, error), (0, ""))
+        self.assertEqual(
+            json.loads(batch.read_text(encoding="utf-8")), json.loads(text)
+        )
+        original = batch.read_bytes()
+        self.assertEqual(self.invoke(*plan_args)[0], 2)
+        self.assertEqual(batch.read_bytes(), original)
+        reviews = self.root / "reviews.json"
+        reviews.write_text("[]", encoding="utf-8")
+        resolutions = self.root / "resolutions.json"
+        resolutions.write_text(
+            json.dumps(
+                {
+                    "candidate_resolutions": [],
+                    "next_step": "Wait for independent reviewers",
+                }
+            ),
+            encoding="utf-8",
+        )
+        result = self.root / "reconciled.json"
+        reconcile_args = (
+            "reconcile",
+            "--run",
+            str(self.run),
+            "--expected-head",
+            head,
+            "--batch",
+            str(batch),
+            "--reviews",
+            str(reviews),
+            "--resolutions",
+            str(resolutions),
+            "--output",
+            str(result),
+        )
+        code, text, error = self.invoke(*reconcile_args)
+        self.assertEqual((code, error), (0, ""))
+        reconciled = json.loads(text)
+        self.assertFalse(reconciled["local_reconciliation_ready"])
+        self.assertEqual(reconciled["review_counts"]["missing"], 2)
+        self.assertEqual(reconciled["recommendations"], [])
+        malformed = {
+            "candidate_id": "candidate-1",
+            "candidate_version": 1,
+            "role": "challenger",
+            "status": "failed",
+            "review": None,
+            "error": "Failed",
+        }
+        for field in ("status", "candidate_id", "role", "candidate_version"):
+            with self.subTest(field=field):
+                reviews.write_text(
+                    json.dumps([{**malformed, field: []}]), encoding="utf-8"
+                )
+                # Use a new output path: the failure must occur before publication.
+                bad_output = self.root / (field + "-invalid.json")
+                code, text, error = self.invoke(*reconcile_args[:-1], str(bad_output))
+                self.assertEqual(code, 2)
+                self.assertEqual(text, "")
+                self.assertIn("stage2-workflow:", error)
+                self.assertFalse(bad_output.exists())
+        malformed.update(status="complete", error=None, review={"assessment": []})
+        reviews.write_text(json.dumps([malformed]), encoding="utf-8")
+        bad_output = self.root / "nested-invalid.json"
+        self.assertEqual(self.invoke(*reconcile_args[:-1], str(bad_output))[0], 2)
+        self.assertFalse(bad_output.exists())
+
+    def test_review_plan_rejects_stale_snapshot_before_writing(self):
+        self.init_workflow()
+        _, text, _ = self.invoke("inspect", "--run", str(self.run))
+        head = json.loads(text)["head_sha256"]
+        batch = self.root / "foreign-batch.json"
+        batch.write_text(json.dumps({"snapshot_sha256": "0" * 64}), encoding="utf-8")
+        output = self.root / "should-not-exist.json"
+        code, _, error = self.invoke(
+            "reconcile",
+            "--run",
+            str(self.run),
+            "--expected-head",
+            head,
+            "--batch",
+            str(batch),
+            "--reviews",
+            "not-read.json",
+            "--resolutions",
+            "not-read.json",
+            "--output",
+            str(output),
+        )
+        self.assertEqual(code, 2)
+        self.assertIn("review-batch-current-snapshot-mismatch", error)
+        self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
