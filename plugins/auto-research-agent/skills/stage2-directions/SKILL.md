@@ -64,6 +64,11 @@ Both routes use the same evidence checks, five axes and user selection gate.
 4. Apply the recorded assessment through `stage2_check`. Recommend, revise, park
    or reject with evidence and reasons. Supply a concrete next check for unknowns.
    A hard blocker cannot be offset by high scores on other axes.
+   In a versioned workflow, first use `stage2_workflow review-plan` for isolated
+   challenger and feasibility views, including the excluded-candidate audit.
+   Preserve independent native results before synthesis, then use `reconcile`.
+   Store results as action artifacts; do not mutate the snapshot's checker.
+   A local binding check is not proof of independent native execution.
 5. Keep earlier versions when revising. Recheck the new version; do not carry over
    its parent's approval. Preserve useful options when a different candidate fails.
    For missing evidence, identify a bounded lookup or a scope decision instead

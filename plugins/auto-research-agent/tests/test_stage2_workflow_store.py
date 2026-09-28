@@ -14,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from stage2_common import Stage2Error, canonical_hash  # noqa: E402
 from stage2_fixture_helpers import write_stage2_fixture  # noqa: E402
+from stage2_check import apply_assessment  # noqa: E402
+from test_stage2_checker import assessment  # noqa: E402
 from stage2_workflow import (  # noqa: E402
     add_snapshot,
     finish_action,
@@ -119,6 +121,16 @@ class Stage2WorkflowStoreTests(unittest.TestCase):
         self.rehash(manifest, "manifest_sha256")
         self.rewrite_json(manifest_path, manifest)
         with self.assertRaisesRegex(Stage2Error, "event-chain-invalid"):
+            inspect_workflow(self.run, expected_head=state["head_sha256"])
+
+    def test_embedded_checker_cannot_bypass_workflow_action_history(self):
+        state = self.initialize()
+        check = self.root / "assessment.json"
+        check.write_text(json.dumps(assessment(self.packet)), encoding="utf-8")
+        apply_assessment(self.run / "snapshots/000001/checker", check)
+        with self.assertRaisesRegex(
+            Stage2Error, "snapshot-checker-history-not-immutable"
+        ):
             inspect_workflow(self.run, expected_head=state["head_sha256"])
 
     def test_strict_json_and_orphan_snapshot_directory_fail_closed(self):

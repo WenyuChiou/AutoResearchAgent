@@ -8,6 +8,7 @@ import sys
 from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error
 
+from .orchestration import prepare_review_batch, reconcile_batch
 from .store import (
     add_snapshot,
     finish_action,
@@ -69,6 +70,17 @@ def main(argv=None):
     finish.add_argument("--cost")
     finish.add_argument("--error")
     finish.add_argument("--expected-head", required=True)
+    plan = commands.add_parser("review-plan", help="prepare isolated review views")
+    plan.add_argument("--screening", required=True)
+    plan.add_argument("--seed", required=True)
+    reconcile = commands.add_parser("reconcile", help="check local review results")
+    reconcile.add_argument("--batch", required=True)
+    reconcile.add_argument("--reviews", required=True)
+    reconcile.add_argument("--resolutions", required=True)
+    for command in (plan, reconcile):
+        command.add_argument("--run", required=True)
+        command.add_argument("--expected-head", required=True)
+        command.add_argument("--output", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
@@ -106,7 +118,7 @@ def main(argv=None):
                 _read(args.settings),
                 args.expected_head,
             )
-        else:
+        elif args.command == "finish":
             result = finish_action(
                 args.run,
                 args.action_id,
@@ -116,6 +128,31 @@ def main(argv=None):
                 args.error,
                 args.expected_head,
             )
+        else:
+            state = inspect_workflow(args.run, args.expected_head)
+            snapshot = state["latest_snapshot"]
+            packet = snapshot["packet"]
+            snapshot_hash = snapshot["event"]["payload"]["snapshot_sha256"]
+            if args.command == "review-plan":
+                result = prepare_review_batch(
+                    packet, snapshot_hash, _read(args.screening), args.seed
+                )
+            else:
+                batch = _read(args.batch)
+                if (
+                    not isinstance(batch, dict)
+                    or batch.get("snapshot_sha256") != snapshot_hash
+                ):
+                    raise Stage2Error("review-batch-current-snapshot-mismatch")
+                result = reconcile_batch(
+                    packet, batch, _read(args.reviews), _read(args.resolutions)
+                )
+            # Never overwrite a reviewed plan/result; bind it as an action artifact.
+            with Path(args.output).open("x", encoding="utf-8", newline="\n") as stream:
+                stream.write(
+                    json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2)
+                    + "\n"
+                )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     except (Stage2Error, OSError, ValueError) as error:
         print(f"stage2-workflow: {error}", file=sys.stderr)
