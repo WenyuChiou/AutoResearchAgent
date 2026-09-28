@@ -299,6 +299,72 @@
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:stage2-live",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": true,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage2_live",
+      "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives.",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V2.COMPARISON"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Actual capture completeness, source/runtime bindings, rejected tampering, successful exact-input replay and distinct evaluator failures"
+          ],
+          "human_judgment": "Independent evaluation establishes scientific support; required human audits remain explicit and synthetic tests cannot establish improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V2.OPPORTUNITY",
+            "P5V2.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Actual capture completeness, source/runtime bindings, rejected tampering, successful exact-input replay and distinct evaluator failures"
+          ],
+          "human_judgment": "Independent evaluation establishes scientific support; required human audits remain explicit and synthetic tests cannot establish improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V2.VALUE",
+            "P6V2.FEASIBILITY",
+            "P6V2.DISPOSITION",
+            "P6V2.PORTFOLIO"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Actual capture completeness, source/runtime bindings, rejected tampering, successful exact-input replay and distinct evaluator failures"
+          ],
+          "human_judgment": "Independent evaluation establishes scientific support; required human audits remain explicit and synthetic tests cannot establish improvement."
+        }
+      ],
+      "guardrails": [
+        "No weakening of native research capabilities for the baseline",
+        "No paper answer key or topic-specific production logic",
+        "Preserve raw prose and failed model attempts",
+        "Host must establish physical isolation; profile names alone are insufficient",
+        "No fabricated audits, permissions or costs",
+        "Existing frozen Stage2 v2 remains offline; formal readiness requires separate evidence"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_live_native.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_extraction.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_review_models.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_judges.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_cli.py"
+      ],
+      "live_ab_required_at": "stage2-general-formal-milestone",
+      "quality_improvement_claimed": false
     }
   ],
   "capability_extensions": [
