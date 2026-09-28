@@ -108,13 +108,22 @@ A 是原生 Codex；B 是同一 Codex 加 Stage 1 plugin。兩邊保留相同原
 5. **完整執行歷史。** 空工作目錄合法；多次 attempt 全部保留。結果檔不能被覆寫；
    每次評估的成功或失敗另存一筆。評估失敗沒有 subject 零分。
 
-Judge 的單元採有界證據視窗，保存完整索引、實際入選片段及截斷清單。
-每個作品最多 12,000 字元、每個單元最多 60,000 字元的來源文字；檔案先輪流取得
-片段，再依 claim、開頭、結尾與分散位置補入。若連各檔基本片段都放不下，回報
-評估限制。Process 檔案很多時，片段長度以「60,000／檔案數」和 900 的較小值切分，
-讓每個檔案都有可定位片段；完整索引仍不漏字。遺漏片段可能影響判斷時填未知；
-不因紀錄較長就自動降分或設定隱藏上限。
-完整 artifact 仍保留，便於後續查核。這是 evaluator 的限制，不是受測者的錯誤。
+v3.1 主入口使用 `complete_judging`。P1/P2 各 criterion 是獨立單元，每個單元
+收到全部 content spans；P2 必須逐一回報考慮過的 frozen need IDs。Core 判斷以
+四個作品為一組，但每組仍看完整 content。內容重大錯誤與 material omission
+先獨立覆核，再交 criterion 單元，不能由 criterion 覆寫。P3 則呼叫完整逐項
+執行器，涵蓋原生 envelope、decoded output 及每個 aggregation edge；P3 重大
+錯誤另以完整 process 證據覆核。沒有 top-k，也不丟掉尾端或反向證據。
+
+完整 content／issue review 的 prompt 與一次修正上限固定為 240,000 UTF-8 bytes；
+超限即 evaluator error，不能截斷或改成 subject unknown／零分。P3 保留既有
+整體單元與呼叫預算。這些限制由 evaluator bundle hash 綁定；實際六份舊輸出
+能否容納仍須 G1 驗證。不能把此實作或合成測試宣稱為 FREEZE_READY。
+
+每個單元先保存 planned view；只有原生回覆通過語意檢查後才保存 completed
+coverage。每個裁判有自己的 source audit。分數、來源結論或穩定 unknown code
+不同才觸發 ADJ；判語措辭不同不單獨觸發。舊有 bounded judge 留作歷史介面，
+主入口已不呼叫其片段裁剪路徑。原始檔與歷史結果均不改寫。
 
 ## 原文取得與文獻角色
 
@@ -166,3 +175,7 @@ evaluator identity 與 evidence mode 一致；相同可判比例不代表相同�
 及重大錯誤。Wall time 包含 observer 額外時間，不冒充 native tool duration；
 無法取得的金額與人工介入保持 null。此輸出不授予 freeze approval，目前驗證仍是
 合成資料工程測試；非美國預演與正式科學比較需各自完成其前置 gate。
+
+### Complete-judging source-audit view manifest
+
+Each native unit records `source_audit_view_manifest`: judge role, supplied audit roles, target and unit IDs, deterministic view hashes, unavailable targets/leaves, explicit scope exclusions, empty omitted lists and `truncated=false`. R1 and R2 receive only their own audits; ADJ receives both after disagreement. P3 units explicitly record source audits as not applicable. Replay reconstructs the manifest and rejects changed hashes or fields. The 240000-byte complete-prompt limit remains fail-closed, including audit evidence; no silent truncation or subject score is produced when it is exceeded. The 15-work fixture is implementation evidence only.

@@ -8,6 +8,7 @@ from .coverage_plan import build_coverage_plan, verify_coverage_plan
 from .judging import PROCESS_IDS
 from .pipeline_v31 import persist
 from .spans import model_span_aliases
+from .source_audit_views import _audit_manifest
 from .units import run_unit
 
 KINDS = ("supporting", "contrary", "uncertain", "irrelevant")
@@ -158,8 +159,11 @@ def _normalize(raw, assigned, aliases, children, final):
     }
 
 
-def _execute(packet, criterion, index, plan, directory, options, replay_only, prior):
+def _execute(
+    packet, criterion, index, plan, directory, options, replay_only, prior, role
+):
     nodes, completed = {}, []
+    audit_manifest = _audit_manifest(None, None, role, "process", prior)
     documents = {
         key: f"d{number}"
         for number, key in enumerate(
@@ -242,6 +246,7 @@ def _execute(packet, criterion, index, plan, directory, options, replay_only, pr
             max_prompt_bytes=PROMPT_BYTES,
         )
         nodes[label] = {
+            "source_audit_view_manifest": audit_manifest,
             "value": value,
             "counts": value["counts"],
             "native": native,
@@ -301,6 +306,7 @@ def _execute(packet, criterion, index, plan, directory, options, replay_only, pr
         "semantic_aggregation_complete": True,
     }
     result = {
+        "source_audit_view_manifest": audit_manifest,
         "nodes": nodes,
         "coverage": manifest,
         "verdict": nodes["final"]["value"]["verdict"],
@@ -420,6 +426,7 @@ def judge_process_criterion(
             model_options,
             replay_only,
             prior,
+            role,
         )
     result = {
         "kind": "Stage1CompleteProcessCriterion.v1",

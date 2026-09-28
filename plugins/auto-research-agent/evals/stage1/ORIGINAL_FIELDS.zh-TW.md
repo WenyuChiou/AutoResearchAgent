@@ -31,6 +31,7 @@ v3.1 主入口現在保留原 extraction，另存 `subject-original-extraction.j
 ADJ。ADJ 看同一批來源及兩份既有觀察，不另取新證據。完整摘要與獨立 metadata
 投影進入 evidence packet，尾端反證不再於建包時裁短。
 
-來源審計尚不直接給 rubric 分數。此變更仍使用既有有界 content judge，完整
-criterion 語意彙整、P3 主入口接線與重大錯誤完整覆核仍需後續整合。這些界線、
-原始六次診斷及非美國 pilot 完成前不能宣告 FREEZE_READY。合成測試不代表科學驗證。
+來源審計不直接給 rubric 分數。主入口改由 `complete_judging` 接收所有來源
+觀察，逐項處理完整 content、執行完整 P3 並另做重大錯誤覆核。完整 prompt
+超過固定預算時報 evaluator error，不截斷證據。原始六次診斷及非美國 pilot
+完成前仍不能宣告 FREEZE_READY。合成測試不代表科學驗證。

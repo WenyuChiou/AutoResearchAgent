@@ -16,7 +16,7 @@ from .common import (
 )
 from .extraction_v31 import extract_subject_v31
 from .judging import make_packet
-from .judging_v31 import judge_packet_v31
+from .complete_judging import judge_packet_complete as judge_packet_v31
 from .runtime import executable_sha256, installed_package_sha256
 from .score import aggregate
 from .sources_v31 import attach_public_sources, collect_sources_v31
