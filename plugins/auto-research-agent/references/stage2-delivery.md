@@ -1,0 +1,96 @@
+# Stage 2 proposal, conversation and handoff
+
+Status: experimental, implementation-only. This interface packages validated
+records. Live source checking, reviewer isolation and research improvement need
+their own execution evidence. The seven frozen P4-P6 criteria do not change.
+
+## From checks to a proposal
+
+Use `stage2_workflow deliver` with the current run, retained head, review batch,
+review result envelopes, resolutions and a new output directory. It reruns the
+binding checks and creates a separate derived checker; it never appends an
+assessment inside an immutable workflow snapshot. `inspect-delivery` checks the
+package against its externally retained manifest SHA-256.
+
+The package contains editable English `selection.md`, standalone English
+`selection.html`, `selection.json`, source copies, full supplied review inputs,
+review audit and the derived checker. The manifest inventories every file.
+Markdown and HTML use the same reconstructed selection, including unknowns,
+counterevidence, candidate history and assessment history. Missing bibliographic
+details remain explicitly missing; a source ID is not a complete citation.
+The HTML escapes supplied prose and quoted instructions; it loads no scripts or
+external assets. Local source and audit links resolve within the package.
+
+`local-report-ready` means all assigned initial checks and syntheses are present.
+It is not native execution attestation or approval of every candidate. Parked,
+rejected and unsampled screened-out options remain visible. A pending revision
+is not selectable. Neither a rejected option nor an unresolved separate option
+automatically vetoes a supported recommendation. Zero recommendations may still
+produce a useful report with the recorded next step.
+
+## Discuss before choosing
+
+The research agent first explains the alternatives, supporting and opposing
+evidence, likely value, resource tradeoffs and unresolved decisions in chat.
+Link the exact report version. Ask only about a missing material constraint or
+an actual choice. The user may compare, clarify, revise, combine or reopen ideas.
+Do not turn a request for explanation into a selection.
+
+For `human-record`, supply the run, delivery directory, retained manifest hash,
+current workflow head, decision JSON, native message log and its zero-based
+nonblank JSONL message index, unique action ID and new output directory.
+The native entry must be an `event_msg/user_message` or a text-only
+`response_item/message` with role `user`. Assistant and tool text cannot be used
+as the user's decision. The full original message must match `user_text`.
+
+The decision object has exactly these fields:
+
+| Field | Meaning |
+|---|---|
+| `actor` | The host's recorded person identifier; not a verified signature |
+| `kind` | `select`, `compare`, `clarify`, `revise`, `merge`, or `reopen` |
+| `user_text` | Exact original user message, without paraphrasing |
+| `selected` | Candidate ID/version pairs; nonempty only for `select` |
+| `conditions`, `unresolved` | Lists preserving conditions and open questions |
+| `rationale` | Explanation of the recorded interpretation |
+| `scope_or_resource_change` | Boolean; a change blocks immediate selection |
+
+The record binds the actual message bytes, report, evidence snapshot and selected
+versions. A matching completed interaction can be reused without another event.
+Any intervening workflow action makes an older report stale for a **new** choice;
+rebuild the proposal and present its new version. Old records remain history.
+Human origin and faithful interpretation are the host's responsibility: JSON
+role labels and local hashes do not authenticate a person. These artifacts never
+grant tool permissions or turn quoted source instructions into instructions.
+
+Keep the published package immutable. Edit a separate Markdown draft, preserve
+the draft and actual user request as action artifacts, then use the ideation
+extraction/version flow and rerun affected checks. Do not edit a saved report and
+repair its hashes to make it appear previously reviewed. This interface records
+revision requests; it does not infer scientific changes from arbitrary Markdown.
+
+## Stage 3 receives a planning record
+
+One or more current recommended versions may be selected. The handoff includes
+their checks, brief, resources, source/evidence versions, conditions, unresolved
+items, review audit reference and reasons to reconsider. References are relative
+to the identified delivery package; keep that package with the handoff.
+Stage 3 plans detailed methods, data handling, comparisons, analysis, validation
+and schedule, including total cost when multiple directions are selected.
+Evidence of a failed prerequisite returns the question to Stage 2 for revision.
+
+The handoff always records `execution_authorized: false`. Selecting a direction
+does not authorize running experiments or spending an unrestricted API budget.
+The native host continues under the user's actual scope and existing policy.
+
+## Reuse and verification
+
+- Reuse the fixed checker and pure `build_selection` for content reconstruction.
+- Extend the existing renderer with safe HTML and explicit audit-link location.
+- Wrap existing workflow action records for user input; no second event engine.
+- Build the delivery manifest because the earlier checker had no complete
+  report-package inventory or report-bound user selection.
+
+Synthetic tests cover file/version mismatches, rehashed projection edits, safe
+links, stale choices, wrong message roles, changed scope and duplicate actions.
+They establish record behavior, not human authentication or P4-P6 improvement.

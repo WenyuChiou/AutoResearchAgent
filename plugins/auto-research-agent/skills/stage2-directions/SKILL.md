@@ -85,6 +85,11 @@ Both routes use the same evidence checks, five axes and user selection gate.
    recommendations can be honest, but needs an explanation; multiple
    recommendations are allowed. Ask the researcher to choose before authorizing
    Stage 3.
+   For versioned workflows, use `stage2_workflow deliver` and
+   [the proposal and dialogue interface](../../references/stage2-delivery.md).
+   Explain the alternatives in chat, then link the exact Markdown/HTML report.
+   Record the actual user message with `human-record`; never invent approval.
+   Preserve edited drafts, create new candidate versions and recheck them.
 
 Check only preliminary feasibility here. A data download or a few LLM calls do
 not establish behavioral validity. The offline CLI records supplied scientific

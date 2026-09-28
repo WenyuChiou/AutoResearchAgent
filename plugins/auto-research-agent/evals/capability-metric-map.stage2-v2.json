@@ -205,7 +205,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_workflow",
       "problem": "A fixed evidence packet cannot incorporate newly found counterevidence without breaking prior assessment bindings; interrupted actions and missing independent reviews need explicit states.",
-      "mechanism": "Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states.",
+      "mechanism": "Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -244,7 +244,10 @@
         "plugins/auto-research-agent/tests/test_stage2_workflow_store.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_reviews.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_cli.py",
-        "plugins/auto-research-agent/tests/test_stage2_orchestration.py"
+        "plugins/auto-research-agent/tests/test_stage2_orchestration.py",
+        "plugins/auto-research-agent/tests/test_stage2_delivery.py",
+        "plugins/auto-research-agent/tests/test_stage2_interaction.py",
+        "plugins/auto-research-agent/tests/test_stage2_report_html.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false

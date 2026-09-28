@@ -256,9 +256,12 @@ def _brief(lines, brief):
     )
 
 
-def render_proposal(selection, source_snapshots, *, event_head, stored_packet_sha256):
+def render_proposal(
+    selection, source_snapshots, *, event_head, stored_packet_sha256, audit_prefix=""
+):
     """Return a complete prehuman proposal report as deterministic UTF-8 bytes."""
     packet, snapshots, evidence = _validate_bindings(selection, source_snapshots)
+    audit_base = (_safe_snapshot_path(audit_prefix) + "/") if audit_prefix else ""
     if not isinstance(event_head, str) or not _SHA.fullmatch(event_head):
         raise Stage2Error("report-event-head-invalid")
     packet_hash = selection.get("packet_sha256")
@@ -446,8 +449,8 @@ def render_proposal(selection, source_snapshots, *, event_head, stored_packet_sh
         [
             "## Audit trail",
             "",
-            "- Stored packet: [packet.json](packet.json)",
-            "- Run manifest: [run_manifest.json](run_manifest.json)",
+            f"- Stored packet: [packet.json]({audit_base}packet.json)",
+            f"- Run manifest: [run_manifest.json]({audit_base}run_manifest.json)",
             "- Selection data: [selection.json](selection.json)",
             f"- Original input packet SHA-256: {_code(packet_hash)}",
             f"- Stored packet.json SHA-256: {_code(stored_packet_sha256)}",
@@ -458,7 +461,7 @@ def render_proposal(selection, source_snapshots, *, event_head, stored_packet_sh
     for event in selection["assessment_history"]:
         lines.append(
             f"- Event {event['sequence']}: [events/{event['sequence']:06d}.json]"
-            f"(events/{event['sequence']:06d}.json)"
+            f"({audit_base}events/{event['sequence']:06d}.json)"
         )
     lines.extend(
         [

@@ -587,10 +587,8 @@ def _action_record(
     }
 
 
-def export_selection(run_dir, *, expected_event_head=None):
-    """Rebuild deterministic JSON, Markdown, validator, and StageResult views."""
-
-    state = inspect_run(run_dir, expected_event_head=expected_event_head)
+def build_selection(state):
+    """Reconstruct the selection from an already inspected checker state, without writes."""
     current_assessments = {}
     all_assessments = []
     for event in state["events"]:
@@ -675,6 +673,17 @@ def export_selection(run_dir, *, expected_event_head=None):
         "scientific_truth_validated": False,
         "stage3": {"status": "not-started", "execution_authorized": False},
     }
+    return selection
+
+
+def export_selection(run_dir, *, expected_event_head=None):
+    """Rebuild deterministic JSON, Markdown, validator, and StageResult views."""
+
+    state = inspect_run(run_dir, expected_event_head=expected_event_head)
+    selection = build_selection(state)
+    recommendations = selection["recommendations"]
+    blockers = selection["blocking_items"]
+    pending_scope = selection["pending_scope_questions"]
     root = state["root"]
     selection_path = root / "selection.json"
     markdown_path = root / "selection.md"

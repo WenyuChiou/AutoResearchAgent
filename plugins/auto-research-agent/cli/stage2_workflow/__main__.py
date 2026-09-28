@@ -9,6 +9,8 @@ from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error
 
 from .orchestration import prepare_review_batch, reconcile_batch
+from .delivery import build_delivery, inspect_delivery
+from .interaction import record_interaction
 from .store import (
     add_snapshot,
     finish_action,
@@ -77,10 +79,33 @@ def main(argv=None):
     reconcile.add_argument("--batch", required=True)
     reconcile.add_argument("--reviews", required=True)
     reconcile.add_argument("--resolutions", required=True)
-    for command in (plan, reconcile):
+    deliver = commands.add_parser("deliver", help="build a versioned proposal package")
+    for name in ("batch", "reviews", "resolutions"):
+        deliver.add_argument("--" + name, required=True)
+    for command in (plan, reconcile, deliver):
         command.add_argument("--run", required=True)
         command.add_argument("--expected-head", required=True)
         command.add_argument("--output", required=True)
+    delivery_check = commands.add_parser(
+        "inspect-delivery", help="verify a retained proposal receipt"
+    )
+    delivery_check.add_argument("--delivery", required=True)
+    delivery_check.add_argument("--manifest-sha256", required=True)
+    human = commands.add_parser(
+        "human-record", help="save actual user text and the viewed proposal version"
+    )
+    for name in (
+        "run",
+        "delivery",
+        "manifest-sha256",
+        "decision",
+        "message-log",
+        "action-id",
+        "output",
+        "expected-head",
+    ):
+        human.add_argument("--" + name, required=True)
+    human.add_argument("--message-index", type=int, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
@@ -126,6 +151,29 @@ def main(argv=None):
                 _read(args.artifacts),
                 _read(args.cost) if args.cost else None,
                 args.error,
+                args.expected_head,
+            )
+        elif args.command == "inspect-delivery":
+            result = inspect_delivery(args.delivery, args.manifest_sha256)["manifest"]
+        elif args.command == "human-record":
+            result = record_interaction(
+                args.run,
+                args.delivery,
+                args.manifest_sha256,
+                _read(args.decision),
+                args.message_log,
+                args.message_index,
+                args.action_id,
+                args.output,
+                args.expected_head,
+            )
+        elif args.command == "deliver":
+            result = build_delivery(
+                args.run,
+                _read(args.batch),
+                _read(args.reviews),
+                _read(args.resolutions),
+                args.output,
                 args.expected_head,
             )
         else:
