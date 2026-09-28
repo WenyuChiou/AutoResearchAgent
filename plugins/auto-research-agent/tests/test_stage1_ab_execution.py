@@ -186,6 +186,32 @@ class Stage1ABExecutionTests(unittest.TestCase):
             runner._native_config_sha(plain),
             runner._native_config_sha(generated),
         )
+        # Codex writes Windows trust keys with lower-case drive and path names.
+        # Normalize only the known probe path; unrelated trust stays bound.
+        native_key = str(probe).lower() if os.name == "nt" else str(probe)
+        normalized = (
+            plain + f'[projects.{json.dumps(native_key)}]\ntrust_level = "trusted"\n'
+        )
+        self.assertEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha(normalized, probe),
+        )
+        unrelated = normalized + (
+            f'[projects.{json.dumps(str(probe) + "-other")}]\ntrust_level = "trusted"\n'
+        )
+        self.assertNotEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha(unrelated, probe),
+        )
+        if os.name != "nt":
+            self.assertNotEqual(
+                runner._native_config_sha(plain),
+                runner._native_config_sha(
+                    plain + f"[projects.{json.dumps(str(probe).upper())}]\n"
+                    'trust_level = "trusted"\n',
+                    probe,
+                ),
+            )
 
     def test_plugin_tree_hash_uses_platform_independent_path_order(self):
         with tempfile.TemporaryDirectory() as temp:

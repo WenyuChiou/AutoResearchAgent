@@ -202,7 +202,13 @@ def _native_config_sha(config_text, probe_workspace=None):
     settings.pop("plugins", None)
     if probe_workspace is not None:
         projects = settings.get("projects", {})
-        projects.pop(str(Path(probe_workspace).resolve()), None)
+        probe_key = os.path.normcase(str(Path(probe_workspace).resolve()))
+        for key in list(projects):
+            if (
+                Path(key).is_absolute()
+                and os.path.normcase(os.path.normpath(key)) == probe_key
+            ):
+                projects.pop(key)
         if not projects:
             settings.pop("projects", None)
     return sha(json.dumps(settings, sort_keys=True).encode())
