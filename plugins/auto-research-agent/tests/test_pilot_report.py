@@ -2,16 +2,17 @@
 
 import copy
 import json
+import io
 import tempfile
 import unittest
-from contextlib import ExitStack
+from contextlib import ExitStack, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
 from test_comparison_report import result
 from test_stage1_ab_general_v3 import runs
 from stage1_ab import pilot, runner, general_v31
-from stage1_ab.__main__ import parser_for_commands
+from stage1_ab.__main__ import main, parser_for_commands
 from stage1_ab.general_v31 import _replay_result
 from stage1_eval.common import canonical
 
@@ -117,6 +118,11 @@ class PilotReportTests(unittest.TestCase):
         value = self.invoke()
         self.assertEqual(value["decision"], "unscored-pilot")
         self.assertTrue(value["replay_verified"])
+        self.assertEqual(
+            value["acceptance_status"], "comparison-eligible-awaiting-review"
+        )
+        self.assertEqual(value["acceptance_reason_codes"], [])
+        self.assert_no_authorization(value)
         self.assertFalse(value["freeze_ready"])
         self.assertFalse(value["formal_subject_runs_authorized"])
         self.assertIsNone(value["formal_quality_score"])
@@ -134,11 +140,139 @@ class PilotReportTests(unittest.TestCase):
         self.results[0].write_bytes(canonical(result(unknown=("P1V3.IDENTITY",))))
         value = self.invoke()
         self.assertEqual(value["acceptance_status"], "requires-cause-review")
+        self.assertIn(
+            "required-criterion-unverifiable", value["acceptance_reason_codes"]
+        )
+        self.assertIn(
+            "cause-evidence-review-required", value["acceptance_reason_codes"]
+        )
+        self.assert_no_authorization(value)
         cause = value["unknown_cause_review"][0]
         self.assertEqual(cause["criterion_id"], "P1V3.IDENTITY")
         self.assertTrue(cause["unknown_reason"])
         self.assertIn("source-audits.json", cause["review_artifacts"])
         self.assertIsNone(value["pairs"][0]["dimensions"]["P1"]["delta"])
+
+    def assert_no_authorization(self, value):
+        self.assertEqual(value["replay_status"], "replay-complete")
+        self.assertNotEqual(value["acceptance_status"], "replay-complete")
+        self.assertFalse(value["freeze_ready"])
+        self.assertFalse(value["formal_subject_runs_authorized"])
+
+    def test_different_applicable_sets_without_unknowns_require_review(self):
+        self.results[1].write_bytes(
+            canonical(result(inapplicable=("P2V3.BOUNDARIES",)))
+        )
+        value = self.invoke()
+        self.assertEqual(value["unknown_cause_review"], [])
+        self.assertEqual(value["acceptance_status"], "requires-cause-review")
+        self.assertIn(
+            "different-applicable-criterion-set", value["acceptance_reason_codes"]
+        )
+        self.assertIn("B-not-applicable", value["acceptance_reason_codes"])
+        self.assert_no_authorization(value)
+
+    def test_ineligible_criterion_alone_blocks_even_with_eligible_dimensions(self):
+        for path in self.results:
+            path.write_bytes(canonical(result(inapplicable=("P2V3.BOUNDARIES",))))
+        value = self.invoke()
+        self.assertTrue(
+            all(
+                row["delta_eligible"]
+                for row in value["pairs"][0]["dimensions"].values()
+            )
+        )
+        self.assertEqual(value["acceptance_status"], "requires-cause-review")
+        self.assertEqual(
+            value["acceptance_reason_codes"], ["A-not-applicable", "B-not-applicable"]
+        )
+        self.assert_no_authorization(value)
+
+    def test_result_binding_mismatches_and_incomplete_results_preserve_reasons(self):
+        for key in (
+            "evaluator_identity",
+            "spec_sha256",
+            "evidence_mode",
+            "evaluator_status",
+            "subject_status",
+            "extraction_status",
+        ):
+            changed = result()
+            changed[key] = "different"
+            self.results[1].write_bytes(canonical(changed))
+            with self.subTest(key=key):
+                value = self.invoke()
+                reason = (
+                    "B-" + key + "-incomplete"
+                    if key.endswith("_status")
+                    else "different-" + key
+                )
+                self.assertIn(reason, value["acceptance_reason_codes"])
+                self.assertEqual(value["acceptance_status"], "requires-cause-review")
+                self.assert_no_authorization(value)
+            (self.root / "pilot.json").unlink()
+            for suffix in (".html", ".criteria.csv", ".report.json"):
+                (self.root / "pilot.json").with_suffix(suffix).unlink()
+
+    def test_confirmed_possible_unresolved_major_issues_require_review(self):
+        for status in ("confirmed", "possible", "unresolved"):
+            changed = result()
+            changed["major_issues"] = [
+                {
+                    "issue_id": "synthetic-major",
+                    "status": status,
+                    "dimension": "P1",
+                    "reason": "Unresolved source contradiction.",
+                }
+            ]
+            if status == "confirmed":
+                changed["scientific_readiness_status"] = "fail-confirmed-major-issue"
+                changed["dimensions"]["P1"]["confirmed_major_issue_ids"] = [
+                    "synthetic-major"
+                ]
+            elif status == "unresolved":
+                changed["scientific_readiness_status"] = "inconclusive"
+                changed["dimensions"]["P1"]["unresolved_major_issue_ids"] = [
+                    "synthetic-major"
+                ]
+            self.results[1].write_bytes(canonical(changed))
+            with self.subTest(status=status):
+                value = self.invoke()
+                self.assertEqual(value["unknown_cause_review"], [])
+                self.assertEqual(value["acceptance_status"], "requires-cause-review")
+                self.assertIn(
+                    "B-major-issue-" + status, value["acceptance_reason_codes"]
+                )
+                self.assertEqual(
+                    value["major_issue_review"][0]["issue"]["issue_id"],
+                    "synthetic-major",
+                )
+                self.assert_no_authorization(value)
+            (self.root / "pilot.json").unlink()
+            for suffix in (".html", ".criteria.csv", ".report.json"):
+                (self.root / "pilot.json").with_suffix(suffix).unlink()
+
+    def test_lock_binding_rejection_retains_each_exact_reason_code(self):
+        self.lock["passive_observer"] = {}
+        self.lock["runtime"]["mode"] = "plan"
+        with self.assertRaises(pilot.AdmissionBlocked) as caught:
+            self.invoke()
+        self.assertEqual(
+            caught.exception.reason_codes,
+            ["different-passive_observer", "different-runtime-mode"],
+        )
+        self.replay.assert_not_called()
+
+    def test_unavailable_cause_artifact_blocks_with_specific_reason(self):
+        self.results[0].write_bytes(canonical(result(unknown=("P1V3.IDENTITY",))))
+        (self.results[0].parent / "source-audits.json").unlink()
+        with self.assertRaises(pilot.AdmissionBlocked) as caught:
+            self.invoke()
+        self.assertEqual(
+            caught.exception.reason_codes,
+            ["cause-evidence-unavailable", "missing-artifact:source-audits.json"],
+        )
+        self.assertFalse((self.root / "pilot.json").exists())
 
     def test_formal_lock_wrong_model_observer_and_pair_count_fail_before_replay(self):
         original = copy.deepcopy(self.lock)
@@ -201,6 +335,32 @@ class PilotReportTests(unittest.TestCase):
                 execution_class="repair-diagnostic",
             )
 
+    def test_cli_emits_structured_admission_reason_codes(self):
+        error = pilot.AdmissionBlocked("synthetic mismatch", ["different-runtime-mode"])
+        stream = io.StringIO()
+        with (
+            patch.object(pilot, "pilot_report", side_effect=error),
+            redirect_stderr(stream),
+        ):
+            status = main(
+                [
+                    "pilot-report-v31",
+                    "lock",
+                    "background",
+                    "output",
+                    "--results",
+                    "a",
+                    "b",
+                    "--capture-dirs",
+                    "a",
+                    "b",
+                ]
+            )
+        self.assertEqual(status, 1)
+        self.assertEqual(
+            json.loads(stream.getvalue())["reason_codes"], ["different-runtime-mode"]
+        )
+
     def test_cli_has_exact_two_run_arity(self):
         args = parser_for_commands().parse_args(
             [
@@ -256,6 +416,22 @@ class PilotReportTests(unittest.TestCase):
                 execution_class="exploratory-pilot",
             )
         self.assertEqual(actual, saved)
+        wrong_lock = {**self.lock, "spec_sha256": "changed", "rubric_sha256": "changed"}
+        with patch.object(general_v31, "evaluate_v31") as no_replay:
+            with self.assertRaises(pilot.AdmissionBlocked) as caught:
+                _replay_result(
+                    self.results[0],
+                    "0",
+                    self.lock_path,
+                    self.background,
+                    wrong_lock,
+                    execution_class="exploratory-pilot",
+                )
+        self.assertEqual(
+            caught.exception.reason_codes,
+            ["different-rubric_sha256", "different-spec_sha256"],
+        )
+        no_replay.assert_not_called()
         self.assertTrue(replay.call_args.kwargs["replay_only"])
         self.assertTrue(replay.call_args.args[0].resume_verified)
         self.assertFalse(replay.call_args.args[0].portable_diagnostic)

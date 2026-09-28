@@ -191,3 +191,5 @@ Each native unit records `source_audit_view_manifest`: judge role, supplied audi
 `requires-cause-review`；離線重播通過不等於未知原因已有科學證據支持，也不等於
 pilot acceptance 或 FREEZE_READY。操作者須依原 acceptance requirements 核對
 每個 cause 的原始證據並另交 G1、pilot 結果與 manifest，不能由本命令自動批准。
+
+Pilot `replay_status=replay-complete` describes byte verification only. `acceptance_status` is `requires-cause-review` if any criterion or dimension is ineligible, binding differs, result is incomplete, evidence needs review, or a major issue remains. `acceptance_reason_codes` preserves the original comparison codes; `major_issue_review` retains issue IDs, status and artifact bindings. Admission failures expose `reason_codes`, including missing cause artifacts and individual frozen-binding mismatches. Fully eligible output is `comparison-eligible-awaiting-review`; it still grants no readiness or experiment authorization.

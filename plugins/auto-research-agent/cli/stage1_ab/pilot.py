@@ -7,6 +7,7 @@ from stage1_eval.common import read_json
 from stage1_eval.pipeline_v31 import bundle_sha_v31, execution_policy
 
 from . import runner, sequence
+from .admission import AdmissionBlocked
 from .comparison import capture_costs, compare_results, export_report
 from .general_v31 import _replay_result
 
@@ -38,29 +39,34 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
     raw = Path(lock_path).read_bytes()
     lock = json.loads(raw)
     _require_complete_evaluator()
-    if (
-        lock.get("kind") != "Stage1ABPublicLockV3"
-        or lock.get("schema_version") != "3.1.0"
-        or lock.get("execution_class") != "pilot"
-        or lock.get("evaluator_bundle_sha256") != bundle_sha_v31()
-        or lock.get("evaluator_execution_policy") != execution_policy()
-        or lock.get("plugin_tree_sha256") != runner.tree_sha(runner.PLUGIN_ROOT)
-        or runner.sha(Path(background_path).read_bytes())
-        != lock.get("background_sha256")
-        or lock.get("passive_observer") != _observer_binding()
-        or lock.get("evaluator_runtime")
-        != {"model": "gpt-5.6-sol", "reasoning": "high"}
-        or any(
-            lock.get("runtime", {}).get(k) != v
-            for k, v in {
-                "model_id": "gpt-5.6-sol",
-                "reasoning": "high",
-                "mode": "default",
-                "search_enabled": True,
-            }.items()
-        )
-    ):
-        raise runner.ExecutionBlocked("pilot lock, observer or frozen bytes changed")
+    required = {
+        "kind": "Stage1ABPublicLockV3",
+        "schema_version": "3.1.0",
+        "execution_class": "pilot",
+        "evaluator_bundle_sha256": bundle_sha_v31(),
+        "evaluator_execution_policy": execution_policy(),
+        "plugin_tree_sha256": runner.tree_sha(runner.PLUGIN_ROOT),
+        "background_sha256": runner.sha(Path(background_path).read_bytes()),
+        "passive_observer": _observer_binding(),
+        "evaluator_runtime": {"model": "gpt-5.6-sol", "reasoning": "high"},
+    }
+    reasons = [
+        "different-" + key
+        for key, expected_value in required.items()
+        if lock.get(key) != expected_value
+    ]
+    reasons += [
+        "different-runtime-" + key
+        for key, expected_value in {
+            "model_id": "gpt-5.6-sol",
+            "reasoning": "high",
+            "mode": "default",
+            "search_enabled": True,
+        }.items()
+        if lock.get("runtime", {}).get(key) != expected_value
+    ]
+    if reasons:
+        raise AdmissionBlocked("pilot lock, observer or frozen bytes changed", reasons)
     expected = sequence.expected_runs(lock)
     if len(expected) != 2 or len(result_paths) != 2 or len(capture_dirs) != 2:
         raise runner.ExecutionBlocked(
@@ -69,19 +75,24 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
     by_run = {}
     for result_path, capture in zip(result_paths, capture_dirs, strict=True):
         record = runner.verify_capture(capture, verify_runtime=True)
-        if (
-            record.get("status") != "complete"
-            or record.get("lock_kind") != "Stage1ABPublicLockV3"
-            or record.get("lock_sha256") != runner.sha(raw)
-            or record.get("stage1_receipt_error")
-            or (
-                record.get("condition") == "treatment"
-                and not record.get("stage1_receipt")
-            )
-            or record["run_id"] in by_run
-        ):
-            raise runner.ExecutionBlocked(
-                "pilot capture is incomplete, duplicated or unbound"
+        capture_reasons = [
+            "capture-" + key + "-mismatch"
+            for key, expected_value in {
+                "status": "complete",
+                "lock_kind": "Stage1ABPublicLockV3",
+                "lock_sha256": runner.sha(raw),
+            }.items()
+            if record.get(key) != expected_value
+        ]
+        if record.get("stage1_receipt_error"):
+            capture_reasons.append("capture-stage1-receipt-error")
+        if record.get("condition") == "treatment" and not record.get("stage1_receipt"):
+            capture_reasons.append("capture-stage1-receipt-unavailable")
+        if record["run_id"] in by_run:
+            capture_reasons.append("duplicate-run-id")
+        if capture_reasons:
+            raise AdmissionBlocked(
+                "pilot capture is incomplete, duplicated or unbound", capture_reasons
             )
         result = _replay_result(
             result_path,
@@ -97,7 +108,14 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
             binding.get("run_id") != record["run_id"]
             or binding.get("series_id") != record["series_id"]
         ):
-            raise runner.ExecutionBlocked("pilot result belongs to a different capture")
+            raise AdmissionBlocked(
+                "pilot result belongs to a different capture",
+                [
+                    "different-capture-" + key
+                    for key in ("run_id", "series_id")
+                    if binding.get(key) != record[key]
+                ],
+            )
         artifacts = {}
         for name in (
             "result.json",
@@ -114,7 +132,10 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
         ):
             path = root / name
             if not path.is_file():
-                raise runner.ExecutionBlocked("pilot review artifact missing: " + name)
+                raise AdmissionBlocked(
+                    "pilot review artifact missing: " + name,
+                    ["cause-evidence-unavailable", "missing-artifact:" + name],
+                )
             artifacts[name] = {
                 "path": str(path.resolve()),
                 "sha256": runner.sha(path.read_bytes()),
@@ -129,7 +150,10 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
         set(by_run) != {r["run_id"] for r in expected}
         or len({r["capture"]["series_id"] for r in by_run.values()}) != 1
     ):
-        raise runner.ExecutionBlocked("pilot results mix runs or execution series")
+        raise AdmissionBlocked(
+            "pilot results mix runs or execution series",
+            ["different-run-set-or-execution-series"],
+        )
     pair = lock["paired_repeats"][0]
     arms = {
         arm: by_run[pair[condition]["run_id"]]
@@ -149,6 +173,27 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
                         "review_artifacts": arms[arm]["review_artifacts"],
                     }
                 )
+    acceptance_reasons = list(compared["binding_ineligibility_reasons"])
+    for row in [*compared["dimensions"].values(), *compared["criteria"]]:
+        if not row["delta_eligible"]:
+            acceptance_reasons.extend(row["ineligibility_reasons"])
+    major_review = []
+    for arm, item in arms.items():
+        for issue in item["result"].get("major_issues", []):
+            status = issue.get("status", "unavailable")
+            reason = arm + "-major-issue-" + status
+            acceptance_reasons.append(reason)
+            major_review.append(
+                {
+                    "arm": arm,
+                    "reason_code": reason,
+                    "issue": issue,
+                    "review_artifacts": item["review_artifacts"],
+                }
+            )
+    if cause_review:
+        acceptance_reasons.append("cause-evidence-review-required")
+    acceptance_reasons = sorted(set(acceptance_reasons))
     # Scores remain diagnostic model outputs. No formal improvement rule is run.
     compared.update(
         repeat=1,
@@ -160,6 +205,7 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
         "decision": "unscored-pilot",
         "lock_sha256": runner.sha(raw),
         "replay_verified": True,
+        "replay_status": "replay-complete",
         "pairs": [compared],
         "summary": {
             metric: {
@@ -173,9 +219,11 @@ def pilot_report(lock_path, background_path, result_paths, capture_dirs, output)
         },
         "unknown_cause_review": cause_review,
         "review_artifacts": {a: r["review_artifacts"] for a, r in arms.items()},
+        "major_issue_review": major_review,
+        "acceptance_reason_codes": acceptance_reasons,
         "acceptance_status": "requires-cause-review"
-        if cause_review
-        else "replay-complete",
+        if acceptance_reasons
+        else "comparison-eligible-awaiting-review",
         "acceptance_scope": "Archive integrity and comparison eligibility only; operator must check cause evidence and all pilot acceptance requirements before readiness.",
         "formal_quality_score": None,
         "formal_subject_runs_authorized": False,

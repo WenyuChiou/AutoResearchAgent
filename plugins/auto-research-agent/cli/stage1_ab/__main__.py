@@ -407,7 +407,10 @@ def main(argv=None):
         ValueError,
         subprocess.CalledProcessError,
     ) as error:
-        print(json.dumps({"valid": False, "error": str(error)}), file=sys.stderr)
+        failure = {"valid": False, "error": str(error)}
+        if hasattr(error, "reason_codes"):
+            failure["reason_codes"] = error.reason_codes
+        print(json.dumps(failure), file=sys.stderr)
         return 1
     print(json.dumps(value, sort_keys=True))
     return 0
