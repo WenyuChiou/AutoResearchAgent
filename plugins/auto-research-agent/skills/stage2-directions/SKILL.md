@@ -30,6 +30,11 @@ in prose, sketches or short derivations without a forced nested schema, idea
 quota or fixed reasoning path. Retain promising unfinished ideas for bounded
 follow-up rather than treating admission to discussion as final recommendation.
 Read the interface's open-proposal guidance when assessing a new method.
+For structured comparison and ideation tasks, load the
+[ideation interface](../../references/stage2-ideation.md). Save original prose
+before a separate no-tool extraction. Its schema and exact spans check records,
+not scientific support or native tool isolation. Retain the full extraction's
+bibliography, source roles and shared-study relationships beside each snapshot.
 
 Keep two equally valid entry routes: improve an existing method or design, and
 propose a new concept, mechanism or design. For improvements, identify the
