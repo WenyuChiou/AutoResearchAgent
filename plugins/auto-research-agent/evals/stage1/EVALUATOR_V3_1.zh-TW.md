@@ -179,3 +179,17 @@ evaluator identity 與 evidence mode 一致；相同可判比例不代表相同�
 ### Complete-judging source-audit view manifest
 
 Each native unit records `source_audit_view_manifest`: judge role, supplied audit roles, target and unit IDs, deterministic view hashes, unavailable targets/leaves, explicit scope exclusions, empty omitted lists and `truncated=false`. R1 and R2 receive only their own audits; ADJ receives both after disagreement. P3 units explicitly record source audits as not applicable. Replay reconstructs the manifest and rejects changed hashes or fields. The 240000-byte complete-prompt limit remains fail-closed, including audit evidence; no silent truncation or subject score is produced when it is exceeded. The 15-work fixture is implementation evidence only.
+一組不計分預演用 `stage1_ab pilot-report-v31 LOCK BACKGROUND OUTPUT
+--results A/result.json B/result.json --capture-dirs A_CAPTURE B_CAPTURE`。
+此命令只驗證及離線重播，沒有啟動 subject 的路徑。它要求 one-pair pilot lock、
+共同 observer、完整 evaluator，以及 GPT-5.6 Sol／High／Default 的既定配置。
+正式六份入口仍只接受 formal；預演結果不能混入正式配對。
+
+預演輸出 decision 固定為 `unscored-pilot`，不執行改善判定，formal quality score
+與正式中位數保持 null。判分數字僅作模型流程診斷，報告保留 eligibility、成本
+與未知原因的完整 hash-bound 查核檔案。存在 unknown 時標記
+`requires-cause-review`；離線重播通過不等於未知原因已有科學證據支持，也不等於
+pilot acceptance 或 FREEZE_READY。操作者須依原 acceptance requirements 核對
+每個 cause 的原始證據並另交 G1、pilot 結果與 manifest，不能由本命令自動批准。
+
+Pilot `replay_status=replay-complete` describes byte verification only. `acceptance_status` is `requires-cause-review` if any criterion or dimension is ineligible, binding differs, result is incomplete, evidence needs review, or a major issue remains. `acceptance_reason_codes` preserves the original comparison codes; `major_issue_review` retains issue IDs, status and artifact bindings. Admission failures expose `reason_codes`, including missing cause artifacts and individual frozen-binding mismatches. Fully eligible output is `comparison-eligible-awaiting-review`; it still grants no readiness or experiment authorization.

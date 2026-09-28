@@ -8,10 +8,21 @@ from stage1_eval.common import canonical, read_json, validate_schema
 from stage1_eval.pipeline_v31 import bundle_sha_v31, evaluate_v31, execution_policy
 
 from . import runner, sequence
+from .admission import AdmissionBlocked
 from .general import _check_result_scores, _paired_decision
 
 
-def _replay_result(result_path, capture_dir, lock_path, background_path, lock):
+def _replay_result(
+    result_path,
+    capture_dir,
+    lock_path,
+    background_path,
+    lock,
+    *,
+    execution_class="formal",
+):
+    if execution_class not in {"formal", "exploratory-pilot"}:
+        raise runner.ExecutionBlocked("unsupported paired replay class")
     path = Path(result_path).resolve()
     if path.name != "result.json":
         raise runner.ExecutionBlocked(
@@ -20,26 +31,48 @@ def _replay_result(result_path, capture_dir, lock_path, background_path, lock):
     result = read_json(path)
     validate_schema(result, "stage-evaluation-result.v3_1.schema.json")
     if (
-        result["execution_class"] != "formal"
+        result["execution_class"] != execution_class
         or result["evidence_mode"] != "evidence-audited"
     ):
-        raise runner.ExecutionBlocked(
-            "diagnostic or pilot evidence cannot enter formal pairs"
+        raise AdmissionBlocked(
+            "diagnostic or pilot evidence cannot enter formal pairs",
+            [
+                "different-" + key
+                for key, expected in {
+                    "execution_class": execution_class,
+                    "evidence_mode": "evidence-audited",
+                }.items()
+                if result[key] != expected
+            ],
         )
     root = path.parent
     value = read_json(root / "evaluation-input.json")
     config = value["model_config"]
-    if (
-        result["evaluation_input_sha256"] != runner.sha(canonical(value))
-        or value["execution_class"] != "formal"
-        or value["policy"] != execution_policy()
-        or result["rubric_sha256"] != lock["rubric_sha256"]
-        or result["spec_sha256"] != lock["spec_sha256"]
-        or value["identity"]["model"] != lock["evaluator_runtime"]["model"]
-        or value["identity"]["reasoning"] != lock["evaluator_runtime"]["reasoning"]
-    ):
-        raise runner.ExecutionBlocked(
-            "v3.1 result binding differs from the frozen experiment"
+    reasons = []
+    comparisons = {
+        "evaluation_input_sha256": (
+            result["evaluation_input_sha256"],
+            runner.sha(canonical(value)),
+        ),
+        "execution_class": (value["execution_class"], execution_class),
+        "evaluator_execution_policy": (value["policy"], execution_policy()),
+        "rubric_sha256": (result["rubric_sha256"], lock["rubric_sha256"]),
+        "spec_sha256": (result["spec_sha256"], lock["spec_sha256"]),
+        "evaluator-model": (
+            value["identity"]["model"],
+            lock["evaluator_runtime"]["model"],
+        ),
+        "evaluator-reasoning": (
+            value["identity"]["reasoning"],
+            lock["evaluator_runtime"]["reasoning"],
+        ),
+    }
+    for key, (actual, expected) in comparisons.items():
+        if actual != expected:
+            reasons.append("different-" + key)
+    if reasons:
+        raise AdmissionBlocked(
+            "v3.1 result binding differs from the frozen experiment", reasons
         )
     args = SimpleNamespace(
         output=str(root),
@@ -51,7 +84,7 @@ def _replay_result(result_path, capture_dir, lock_path, background_path, lock):
         artifact=[],
         saved_extraction=None,
         resume_pilot=False,
-        execution_class="formal",
+        execution_class=execution_class,
         portable_diagnostic=False,
         capture=str(capture_dir),
         lock=str(lock_path),

@@ -92,6 +92,11 @@ def parser_for_commands():
     p.add_argument("output", type=Path)
     p.add_argument("--results", nargs=6, type=Path, required=True)
     p.add_argument("--capture-dirs", nargs=6, type=Path, required=True)
+    p = subs.add_parser("pilot-report-v31")
+    for name in ("lock", "background", "output"):
+        p.add_argument(name, type=Path)
+    p.add_argument("--results", nargs=2, type=Path, required=True)
+    p.add_argument("--capture-dirs", nargs=2, type=Path, required=True)
     p = subs.add_parser("export-ledger")
     p.add_argument("run", type=Path)
     p.add_argument("output", type=Path)
@@ -317,6 +322,12 @@ def main(argv=None):
             value = general.paired_v3(
                 args.lock, args.background, args.results, args.capture_dirs, args.output
             )
+        elif args.command == "pilot-report-v31":
+            from stage1_ab.pilot import pilot_report
+
+            value = pilot_report(
+                args.lock, args.background, args.results, args.capture_dirs, args.output
+            )
         elif args.command == "export-ledger":
             value = export_run(
                 args.run, args.output, native_capture=args.native_capture
@@ -396,7 +407,10 @@ def main(argv=None):
         ValueError,
         subprocess.CalledProcessError,
     ) as error:
-        print(json.dumps({"valid": False, "error": str(error)}), file=sys.stderr)
+        failure = {"valid": False, "error": str(error)}
+        if hasattr(error, "reason_codes"):
+            failure["reason_codes"] = error.reason_codes
+        print(json.dumps(failure), file=sys.stderr)
         return 1
     print(json.dumps(value, sort_keys=True))
     return 0
