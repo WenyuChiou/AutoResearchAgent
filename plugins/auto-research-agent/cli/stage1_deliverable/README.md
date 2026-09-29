@@ -149,7 +149,15 @@ Editable views never become canonical: update records and export a new package.
 
 ## Tests and evidence limits
 
-From the repository root with the declared interpreter:
+Prerequisite for every command below: the actual Python temporary directory
+must be writable and outside **all** Git checkouts. A home Git checkout may
+contain the default TEMP. Follow the [private-root preflight](#preflight-when-the-home-directory-is-a-git-checkout)
+above and set `TEMP`, `TMP` and `TMPDIR` to the approved external root **before**
+starting Python. The suite checks this prerequisite once before creating any
+fixtures and fails with setup instructions if it is unmet; it does not skip
+the no-Git regression or weaken the production guard.
+
+From the repository root with the declared interpreter and that environment:
 
 ```text
 python -m unittest discover -s plugins/auto-research-agent/tests -p test_stage1_deliverable.py -v

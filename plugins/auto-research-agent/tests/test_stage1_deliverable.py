@@ -25,6 +25,7 @@ from stage1_deliverable import package, sources, views  # noqa: E402
 from stage1_deliverable.common import (  # noqa: E402
     DeliverableError,
     inventory,
+    preflight,
     read_json,
     sha,
     safe_path,
@@ -97,8 +98,25 @@ class Response:
 
 
 class ResearchDeliverableTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # This suite exercises the real no-Git guard. Require a checked
+        # external root before creating fixtures, including the fake home.
+        root = Path(tempfile.gettempdir()).resolve()
+        try:
+            preflight(root)
+        except (DeliverableError, OSError) as error:
+            raise RuntimeError(
+                "Exporter tests require a writable temporary root outside Git. "
+                "Set TEMP, TMP and TMPDIR to that root before starting Python; "
+                "see stage1_deliverable/README.md, Tests and evidence limits."
+            ) from error
+        cls.private_test_root = root
+
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="stage1-deliverable-test-")
+        self.temp = tempfile.TemporaryDirectory(
+            prefix="stage1-deliverable-test-", dir=self.private_test_root
+        )
         self.addCleanup(self.temp.cleanup)
         # macOS exposes its temp root through /var -> /private/var. Fixtures
         # use the physical directory; production still rejects linked inputs.
@@ -323,6 +341,11 @@ class ResearchDeliverableTests(unittest.TestCase):
         safe_temp = self.root / "temp"
         for path in (inside, outside, safe_temp):
             path.mkdir()
+        # A real home checkout can also contain the suite's default TEMP.
+        # Reject that host configuration before any fixture assumes safety.
+        with patch("tempfile.tempdir", str(inside)):
+            with self.assertRaisesRegex(RuntimeError, "Set TEMP, TMP and TMPDIR"):
+                type(self).setUpClass()
         env = dict(os.environ, PYTHONPATH=str(PLUGIN / "cli"))
         for output, temporary, expected in (
             (inside, safe_temp, 1),
