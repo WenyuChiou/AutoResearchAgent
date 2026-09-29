@@ -16,15 +16,15 @@ from .judging_v31 import (
     unit_schema,
     unknown_criteria,
 )
-from .spans import index_evidence, model_span_aliases, restore_passages
+from .prompt_transport import VERSION as TRANSPORT_VERSION
 from .source_audit_views import _audit_manifest, _observations
+from .spans import index_evidence, model_span_aliases, restore_passages
 from .units import run_unit
 
 MAX_COMPLETE_PROMPT_BYTES = 240_000
 MAX_CORE_ASSESSMENT_BYTES = 4_000
 MAX_REVIEW_BYTES = 30_000
-PREFLIGHT_CORE_SERIALIZATION_MARGIN = 3_000
-PREFLIGHT_REVIEW_SERIALIZATION_MARGIN = 20_000
+COMPLETE_EXECUTION_VERSION = "complete-judging.v2"
 CONCLUSION_CODES = {
     None: "unverifiable",
     0: "does-not-meet-anchor",
@@ -46,6 +46,8 @@ def _view(packet, phase):
     aliases, binding = model_span_aliases(index)
     manifest = {
         "kind": "Stage1CompleteJudgeView.v1",
+        "execution_version": COMPLETE_EXECUTION_VERSION,
+        "prompt_transport": TRANSPORT_VERSION,
         "phase": phase,
         "span_index_sha256": sha(canonical(index)),
         "expected_span_ids": sorted(index),
@@ -55,42 +57,6 @@ def _view(packet, phase):
         "alias_bindings": binding,
     }
     return aliases, manifest
-
-
-def _maximum_core_assessment(work_id):
-    """Build a prompt-only row at the accepted per-assessment byte ceiling."""
-    row = {
-        "work_id": work_id,
-        "topic_core": "unverifiable",
-        "classic": "unverifiable",
-        "closest": "supported",
-        "requirement_ids": [],
-        "roles": [],
-        "contribution": "",
-        "decision_effect": "",
-        "omission_consequence": "",
-        "substitute_rationale": "",
-        "passages": [],
-        "uncertainty": "",
-    }
-    planned_bytes = MAX_CORE_ASSESSMENT_BYTES + PREFLIGHT_CORE_SERIALIZATION_MARGIN
-    padding = planned_bytes - len(canonical(row))
-    if padding < 0:
-        raise EvaluationError("work identity exceeds complete judge core budget")
-    row["uncertainty"] = "X" * padding
-    while len(canonical(row)) > planned_bytes:
-        row["uncertainty"] = row["uncertainty"][:-1]
-    return row
-
-
-def _maximum_review():
-    """Build a prompt-only envelope larger than any accepted issue review."""
-    return {
-        "omission_assessments": [],
-        "major_issues": [],
-        "preflight_padding": "X"
-        * (MAX_REVIEW_BYTES + PREFLIGHT_REVIEW_SERIALIZATION_MARGIN),
-    }
 
 
 def _prepare_call(
@@ -173,6 +139,7 @@ def _prepare_call(
         supplied,
         criterion_id=criterion,
         review=review,
+        reference_transport=True,
     )
     return {
         "index": index,
@@ -336,37 +303,45 @@ def _content_batches(packet):
         yield offset // 4 + 1, subpacket
 
 
-def _preflight_content_role(packet, root, audits, role, prior, replay_only):
-    """Validate a whole role before its first native call and persist the plan."""
+def _preflight_content_role(
+    packet,
+    root,
+    audits,
+    role,
+    prior,
+    replay_only,
+    *,
+    stage="core",
+    core=None,
+    review=None,
+):
+    """Admit a stage using exact inputs; later stages await validated outputs."""
     from .pipeline_v31 import persist
 
     plans = []
-    maximum_core = []
-    for number, subpacket in _content_batches(packet):
+    if stage not in {"core", "review", "criteria"}:
+        raise EvaluationError("unknown complete judge preflight stage")
+    for number, subpacket in _content_batches(packet) if stage == "core" else []:
         label = f"content-{role}-core-{number:03d}"
         prepared = _prepare_call(
             subpacket, "content", "core", [], prior, audits, role=role
         )
-        maximum_core.extend(
-            _maximum_core_assessment(row["work_id"])
-            for row in subpacket["extraction"]["works"]
-        )
         plans.append((label, prepared))
-    prepared_review = _prepare_call(
-        packet, "content", "review", maximum_core, prior, audits, role=role
-    )
-    plans.append((f"content-{role}-review", prepared_review))
-    maximum_review = _maximum_review()
-    for criterion in sorted(CONTENT_IDS):
+    if stage == "review":
+        prepared = _prepare_call(
+            packet, "content", "review", core, prior, audits, role=role
+        )
+        plans.append((f"content-{role}-review", prepared))
+    for criterion in sorted(CONTENT_IDS) if stage == "criteria" else []:
         prepared = _prepare_call(
             packet,
             "content",
             "content",
-            maximum_core,
+            core,
             prior,
             audits,
             criterion=criterion,
-            review=maximum_review,
+            review=review,
             role=role,
         )
         plans.append((f"content-{role}-{criterion}", prepared))
@@ -389,7 +364,11 @@ def _preflight_content_role(packet, root, audits, role, prior, replay_only):
         if row["prompt_bytes_upper_bound"] > MAX_COMPLETE_PROMPT_BYTES
     ]
     receipt = {
-        "kind": "Stage1CompleteJudgeRolePreflight.v1",
+        "kind": "Stage1CompleteJudgeRolePreflight.v2",
+        "execution_version": COMPLETE_EXECUTION_VERSION,
+        "prompt_transport": TRANSPORT_VERSION,
+        "stage": stage,
+        "role_complete": False,
         "role": role.upper(),
         "status": "failed" if oversize else "passed",
         "prompt_byte_limit": MAX_COMPLETE_PROMPT_BYTES,
@@ -397,19 +376,23 @@ def _preflight_content_role(packet, root, audits, role, prior, replay_only):
             "core_assessment": MAX_CORE_ASSESSMENT_BYTES,
             "issue_review": MAX_REVIEW_BYTES,
         },
-        "serialization_margins": {
-            "per_core_assessment": PREFLIGHT_CORE_SERIALIZATION_MARGIN,
-            "issue_review": PREFLIGHT_REVIEW_SERIALIZATION_MARGIN,
-        },
+        "sizing": "exact-validated-inputs",
+        "core_input_sha256": sha(canonical(core)),
+        "review_input_sha256": sha(canonical(review)),
         "plans": receipt_plans,
         "oversize_unit_ids": oversize,
         "error_code": "complete-role-prompt-budget-exceeded" if oversize else None,
         "score_awarded": False,
     }
-    persist(root / f"content-{role}-preflight.json", receipt, replay_only=replay_only)
+    suffix = "" if stage == "core" else "-" + stage
+    persist(
+        root / f"content-{role}-preflight{suffix}.json",
+        receipt,
+        replay_only=replay_only,
+    )
     if oversize:
         raise EvaluationError(
-            "complete judge role exceeds frozen prompt budget before native calls; "
+            "complete judge stage exceeds frozen prompt budget before native calls; "
             "no evidence was omitted"
         )
     return receipt
@@ -452,6 +435,9 @@ def _content(packet, root, options, audits, replay_only):
             )
             core.extend(value)
         label = f"content-{role}-review"
+        _preflight_content_role(
+            packet, root, audit, role, prior, replay_only, stage="review", core=core
+        )
         review, records[label] = _call(
             packet,
             "content",
@@ -466,6 +452,17 @@ def _content(packet, root, options, audits, replay_only):
             role=role,
         )
         criteria = []
+        _preflight_content_role(
+            packet,
+            root,
+            audit,
+            role,
+            prior,
+            replay_only,
+            stage="criteria",
+            core=core,
+            review=review,
+        )
         semantics[role] = {}
         for key in sorted(CONTENT_IDS):
             label = f"content-{role}-{key}"

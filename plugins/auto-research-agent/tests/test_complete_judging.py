@@ -1,6 +1,8 @@
 """Complete native-unit submissions and replay, without scientific model claims."""
 
 import json
+import random
+import string
 import unittest
 from copy import deepcopy
 from pathlib import Path
@@ -8,9 +10,10 @@ from unittest.mock import patch
 
 import test_criterion_execution as process_fixture
 import test_source_pipeline as source_fixture
-from test_judging_v31 import _packet, _evidence, _core
 from stage1_eval import complete_judging as complete
 from stage1_eval.common import EvaluationError, canonical, read_json, sha
+from stage1_eval.prompt_transport import decode
+from test_judging_v31 import _core, _evidence, _packet
 
 
 class CompleteJudgingTests(unittest.TestCase):
@@ -33,7 +36,8 @@ class CompleteJudgingTests(unittest.TestCase):
         prompt = kwargs["input"].decode()
         if prompt.startswith("Evaluate the assigned Stage 1 criterion"):
             return self.process.respond(command, **kwargs)
-        data, _ = json.JSONDecoder().raw_decode(prompt[prompt.index('{"unit_kind"') :])
+        encoded, _ = json.JSONDecoder().raw_decode(prompt[prompt.index('{"keys"') :])
+        data = decode(encoded)
         self.prompts.append(data)
         packet = data["packet"]
         rows = {
@@ -143,7 +147,13 @@ class CompleteJudgingTests(unittest.TestCase):
             )
         for prompt in self.prompts:
             self.assertEqual(
-                "".join(r["text"] for r in prompt["packet"]["spans"].values()), text
+                "".join(
+                    prompt["packet"]["spans"][key]["text"]
+                    for key in sorted(
+                        prompt["packet"]["spans"], key=lambda s: int(s[1:])
+                    )
+                ),
+                text,
             )
             self.assertIn("TAIL CONTRARY FINDING", str(prompt))
             self.assertEqual(
@@ -153,7 +163,14 @@ class CompleteJudgingTests(unittest.TestCase):
 
     def test_oversize_fails_before_call_instead_of_omitting_evidence(self):
         self.packet["content_evidence"] = {
-            "answer": _evidence("X" * complete.MAX_COMPLETE_PROMPT_BYTES)
+            "answer": _evidence(
+                "".join(
+                    random.Random(31).choices(
+                        string.ascii_letters,
+                        k=complete.MAX_COMPLETE_PROMPT_BYTES + 1000,
+                    )
+                )
+            )
         }
         with patch("stage1_eval.model_calls.subprocess.run") as calls:
             with self.assertRaisesRegex(EvaluationError, "no evidence was omitted"):
@@ -254,13 +271,13 @@ class CompleteJudgingTests(unittest.TestCase):
             "version_alias": f"w{int(work[1:]) + 1}:{sha(source_version.encode())[:12]}",
         }
 
-    def representative_audits(self, *, leaves_per_work=2, reason=None):
+    def representative_audits(self, *, leaves_per_work=2, reason=None, work_count=15):
         self.packet["extraction"]["works"] = [
-            {"work_id": f"w{i:02d}"} for i in range(15)
+            {"work_id": f"w{i:02d}"} for i in range(work_count)
         ]
         reason = reason or "Synthetic source observation."
         for role in ("r1", "r2"):
-            for i in range(15):
+            for i in range(work_count):
                 work = f"w{i:02d}"
                 target = {"id": f"target-{i:02d}", "work_ids": [work]}
                 verdict = (
@@ -438,7 +455,13 @@ class CompleteJudgingTests(unittest.TestCase):
         passage.update(original_passage)
 
     def test_fifteen_work_oversized_audit_fails_before_native_call_or_score(self):
-        self.representative_audits(leaves_per_work=40, reason="X" * 400)
+        self.representative_audits(leaves_per_work=150, reason="X" * 400)
+        rng = random.Random(31)
+        for audit in self.audits.values():
+            for leaf in audit["leaves"]:
+                leaf["value"]["reason"] = "".join(
+                    rng.choices(string.ascii_letters, k=400)
+                )
         with patch("stage1_eval.model_calls.subprocess.run") as calls:
             with self.assertRaisesRegex(EvaluationError, "no evidence was omitted"):
                 self.invoke()

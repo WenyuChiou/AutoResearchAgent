@@ -12,6 +12,7 @@ from .common import (
     read_json,
     write_json,
 )
+from .judge_views_v31 import bounded_judge_view, judge_span_index
 from .judging import (
     CONTENT_IDS,
     PROCESS_IDS,
@@ -19,7 +20,6 @@ from .judging import (
     _signature,
     validate_judgment,
 )
-from .judge_views_v31 import bounded_judge_view, judge_span_index
 from .spans import model_span_aliases, restore_passages
 from .units import run_unit
 
@@ -111,6 +111,7 @@ def _prompt(
     audits=None,
     criterion_id=None,
     review=None,
+    reference_transport=False,
 ):
     rubric, digest = load_rubric()
     data = _phase_input(packet, phase)
@@ -198,20 +199,22 @@ def _prompt(
             if kind == "core"
             else prior
         )
-    return rules + json.dumps(
-        {
-            "unit_kind": kind,
-            "rubric_sha256": digest,
-            "rubric": [
-                r
-                for r in rubric["criteria"]
-                if r["id"] in (CONTENT_IDS if phase == "content" else PROCESS_IDS)
-                and (not criterion_id or r["id"] == criterion_id)
-            ],
-            "packet": data,
-        },
-        ensure_ascii=False,
-    )
+    payload = {
+        "unit_kind": kind,
+        "rubric_sha256": digest,
+        "rubric": [
+            r
+            for r in rubric["criteria"]
+            if r["id"] in (CONTENT_IDS if phase == "content" else PROCESS_IDS)
+            and (not criterion_id or r["id"] == criterion_id)
+        ],
+        "packet": data,
+    }
+    if reference_transport:
+        from .prompt_transport import render
+
+        return render(rules, payload)
+    return rules + json.dumps(payload, ensure_ascii=False)
 
 
 def judge_packet_v31(

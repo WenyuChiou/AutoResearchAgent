@@ -178,6 +178,27 @@ evaluator identity 與 evidence mode 一致；相同可判比例不代表相同�
 
 ### Complete-judging source-audit view manifest
 
+`complete-judging.v2` keeps the 240000-byte prompt limit and the accepted
+4000-byte per-core and 30000-byte issue-review limits. It admits three stages:
+all core batches, issue review using validated core outputs, then all criteria
+using validated core/review outputs. Each stage records exact input hashes and
+sizes before any of its native calls. A later rejection preserves earlier
+archives but produces no completed role or final score. Semantic-correction
+prompts are checked against the same limit before launch.
+
+`Stage1CompletePromptTransport.v1` stores literal JSON values in an inspectable
+reference table. Identical values and object-key lists are shared, with child
+nodes preceding parents; no text is shortened or encoded as an opaque blob.
+The decoder reconstructs the complete canonical input, checks its digest and
+canonical representation, and rejects missing references, duplicate aliases,
+extra nodes and changed content. Native replay also binds the exact encoded
+prompt to the reconstructed original evidence. Span aliases retain their
+numeric order. R1/R2 isolation and disagreement-only ADJ remain unchanged.
+The runtime execution policy records these versions and limits; the evaluator
+bundle hashes the transport implementation and is bound by the formal manifest.
+The frozen rubric and base policy file are unchanged. Synthetic 12/15/18-work
+tests establish implementation behavior, not model capacity or improvement.
+
 Each native unit records `source_audit_view_manifest`: judge role, supplied audit roles, target and unit IDs, deterministic view hashes, unavailable targets/leaves, explicit scope exclusions, empty omitted lists and `truncated=false`. R1 and R2 receive only their own audits; ADJ receives both after disagreement. P3 units explicitly record source audits as not applicable. Replay reconstructs the manifest and rejects changed hashes or fields. The 240000-byte complete-prompt limit remains fail-closed, including audit evidence; no silent truncation or subject score is produced when it is exceeded. The 15-work fixture is implementation evidence only.
 一組不計分預演用 `stage1_ab pilot-report-v31 LOCK BACKGROUND OUTPUT
 --results A/result.json B/result.json --capture-dirs A_CAPTURE B_CAPTURE`。
