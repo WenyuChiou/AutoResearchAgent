@@ -93,8 +93,11 @@ runtime and counts without publishing paper bytes. The pilot must exercise:
 
 1. Excel, Markdown, BibTeX, metadata, claims, screening and coverage output.
 2. Work/version, URL/URI, access-time and SHA-256 bindings.
-3. Available PDF, public HTML, paywall, not-found, parse-error and login-page
-   outcomes.
+3. At least one lawful public full source and an actual unavailable/access-error
+   observation. Preserve all ten access states as distinct counts. List every
+   zero-count state in `not_exercised`; never manufacture a live failure to
+   satisfy a checklist. Deterministic tests cover the unobserved branches. The
+   core team decides whether another lawful live probe is needed.
 4. No paywall bypass, no abstract-as-full-text label and no paper files in Git.
 5. Full package validation, including cross-format ID/count reconciliation and
    tamper rejection.

@@ -53,10 +53,13 @@ The [researcher-deliverable contract](references/stage1-research-deliverable.md)
 now defines the separate editable literature report, bibliography, classified
 metadata, provenance and lawfully accessible paper package required for a
 completed Stage 1 run. The PR contract requires explicit report, source-binding,
-access-state, lawful-access and Japan-pilot evidence from its future
-implementation. This repository does not yet claim that exporter is
-implemented; `stage1_export` remains an evaluator-input bundle and does not
-stand in for the researcher deliverable.
+access-state, lawful-access and Japan-pilot evidence. The experimental
+[`stage1_deliverable` CLI](cli/stage1_deliverable/README.md) builds and replays
+editable reports from canonical records and pinned public source receipts.
+It preserves access failures, rejects edited views and keeps private packages
+outside Git. It remains implementation-only; full Japan pilot acceptance and
+scientific improvement are not yet demonstrated. `stage1_export` remains the
+separate evaluator-input bundle.
 
 At each checkpoint, `coverage_and_stop.md` shows the saved cluster counts,
 reviewed candidates, recent status, round yields, failures and unresolved work.

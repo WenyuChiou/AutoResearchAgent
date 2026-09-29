@@ -1,0 +1,77 @@
+{
+  "access_state_counts": {
+    "abstract-only": 2,
+    "available": 10,
+    "identity-mismatch": 2,
+    "login-page": 1,
+    "metadata-only": 16,
+    "network-error": 2,
+    "not-found": 3,
+    "parse-error": 0,
+    "paywalled": 0,
+    "rate-limited": 0
+  },
+  "acquired_full_text": {
+    "html": 0,
+    "pdf": 10,
+    "text": 0
+  },
+  "canonical_input_sha256": "00b02d49278f20a5fbb6fb95d019abd5afd297f29cf3e0bdb78b756bb4aa0857",
+  "claims": 17,
+  "coverage": 6,
+  "docx": {
+    "reason": "python-docx present in declared runtime",
+    "status": "available"
+  },
+  "excel_sheets": [
+    "Papers",
+    "Classification",
+    "Findings",
+    "Claims",
+    "Screening",
+    "Coverage"
+  ],
+  "frozen_pilot_revision": "ca459f8cf3c80b1e40713b5c24d7ba0d9633d658",
+  "full_text_acquisition_fraction": {
+    "denominator": 15,
+    "numerator": 10
+  },
+  "improvement": "not yet demonstrated",
+  "not_exercised": [
+    "paywalled",
+    "rate-limited",
+    "parse-error"
+  ],
+  "outputs": {
+    "bibtex": 1,
+    "claims": 1,
+    "coverage": 1,
+    "excel": 1,
+    "markdown": 1,
+    "metadata": 1,
+    "screening": 1
+  },
+  "package_manifest_sha256": "784661637520e1dbdbb259b629c87108cbc4748c1ec97c71175d519745487ea0",
+  "papers": 15,
+  "scientific_quality_scored": false,
+  "scope": "actual B researcher package; scientific evaluation reported separately",
+  "screening": 15,
+  "source_attempts": 36,
+  "source_bindings": {
+    "complete": 10,
+    "total": 10
+  },
+  "status": "complete",
+  "view_file_hashes": {
+    "README.md": "31fa06794d326024756041610e1b93d255526c4524e6759525e57fa53a0bee58",
+    "claims_and_evidence.csv": "096fabaf18d984301c0bdf00eec5c9bffee343e727e5307f234f139eaaa1b6d7",
+    "coverage_and_stop.md": "98df95144c2c67b16e6b40966b64058c0445fb760b22d452cce10f8007903e2a",
+    "literature_catalog.xlsx": "c4c501e5d9b2faaca8eb58a129ffd9beef5d75c4e158157ea274780945a86f7f",
+    "literature_review.docx": "c9203b92a463d93b3419792ae9cffc7fba8860d772e5dcd00e788acec088b877",
+    "literature_review.md": "5f633056c95826fa24d62029ec44471b5b63458ea76c11c369065e66d10cfb52",
+    "paper_manifest.jsonl": "8e8670709c9a33f3d92993a433280746ea4fdc7fb05f7e103e876e10dda45a56",
+    "papers.jsonl": "8a14b619c1dc934cf91d4f7aed493b7d4835b4164d290b5f35c16535b6c47f4a",
+    "references.bib": "9c7912f252ced6b0bc537d3882f5cbba3752f49f9d77161b91a7006278dca3b5",
+    "search_and_screening.csv": "f109804769fbe7fcbdce2ebef77759271cd8b60b75224dae8c9b705169709a26"
+  }
+}

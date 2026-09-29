@@ -1,6 +1,7 @@
 """Synthetic fail-closed execution, capture integrity, and isolation tests."""
 
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from unittest.mock import MagicMock
 
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
@@ -61,6 +63,102 @@ class Result:
 
 
 class Stage1ABExecutionTests(unittest.TestCase):
+    def test_treatment_probe_requires_exact_current_reviewed_skills(self):
+        expected = [
+            {"name": "auto-research-agent:stage1-literature", "enabled": True},
+            {"name": "auto-research-agent:stage2-directions", "enabled": True},
+        ]
+        cases = [
+            expected,
+            expected[:1],
+            expected + [expected[0]],
+            expected + [{"name": "foreign:skill", "enabled": True}],
+            [expected[0], {**expected[1], "enabled": False}],
+        ]
+        for index, skills in enumerate(cases):
+            with self.subTest(index=index):
+                responses = [
+                    {},
+                    {
+                        "marketplaces": [
+                            {
+                                "name": "local",
+                                "path": "synthetic-market",
+                                "plugins": [
+                                    {
+                                        "name": "auto-research-agent",
+                                        "installed": True,
+                                        "enabled": True,
+                                        "localVersion": "0.1.0",
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    {
+                        "data": [
+                            {
+                                "model": "gpt-5.6-sol",
+                                "supportedReasoningEfforts": [
+                                    {"reasoningEffort": "high"}
+                                ],
+                            }
+                        ]
+                    },
+                    {"webSearch": True},
+                    {"plugin": {"skills": skills}},
+                ]
+                process = MagicMock()
+                process.stdin = io.StringIO()
+                process.stdout = io.StringIO(
+                    "".join(
+                        json.dumps({"id": n, "result": value}) + "\n"
+                        for n, value in enumerate(responses, 1)
+                    )
+                )
+                process.wait.return_value = 0
+                with (
+                    patch.object(runner.subprocess, "Popen", return_value=process),
+                    patch.object(
+                        runner.subprocess,
+                        "run",
+                        side_effect=[
+                            Result("codex-cli 0.153.0", ""),
+                            Result("Logged in", ""),
+                        ],
+                    ),
+                    patch.object(
+                        runner, "tree_sha", return_value="same-reviewed-bytes"
+                    ),
+                    patch.object(
+                        runner, "_functional_skill_smoke", return_value="read-skill-sha"
+                    ) as smoke,
+                ):
+                    if index == 0:
+                        proof = runner.probe_profile(
+                            "codex",
+                            self.profile,
+                            self.workspace,
+                            True,
+                            self.root / "absent-private",
+                        )
+                        self.assertEqual(
+                            proof["functional_skill_sha256"], "read-skill-sha"
+                        )
+                        smoke.assert_called_once()
+                    else:
+                        with self.assertRaisesRegex(
+                            runner.ExecutionBlocked, "skill inventory"
+                        ):
+                            runner.probe_profile(
+                                "codex",
+                                self.profile,
+                                self.workspace,
+                                True,
+                                self.root / "absent-private",
+                            )
+                        smoke.assert_not_called()
+
     def test_native_config_digest_ignores_only_plugin_metadata(self):
         plain = 'approval_policy = "on-request"\n'
         with_plugin = (
@@ -88,6 +186,32 @@ class Stage1ABExecutionTests(unittest.TestCase):
             runner._native_config_sha(plain),
             runner._native_config_sha(generated),
         )
+        # Codex writes Windows trust keys with lower-case drive and path names.
+        # Normalize only the known probe path; unrelated trust stays bound.
+        native_key = str(probe).lower() if os.name == "nt" else str(probe)
+        normalized = (
+            plain + f'[projects.{json.dumps(native_key)}]\ntrust_level = "trusted"\n'
+        )
+        self.assertEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha(normalized, probe),
+        )
+        unrelated = normalized + (
+            f'[projects.{json.dumps(str(probe) + "-other")}]\ntrust_level = "trusted"\n'
+        )
+        self.assertNotEqual(
+            runner._native_config_sha(plain),
+            runner._native_config_sha(unrelated, probe),
+        )
+        if os.name != "nt":
+            self.assertNotEqual(
+                runner._native_config_sha(plain),
+                runner._native_config_sha(
+                    plain + f"[projects.{json.dumps(str(probe).upper())}]\n"
+                    'trust_level = "trusted"\n',
+                    probe,
+                ),
+            )
 
     def test_plugin_tree_hash_uses_platform_independent_path_order(self):
         with tempfile.TemporaryDirectory() as temp:

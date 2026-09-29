@@ -170,12 +170,12 @@
     {
       "capability_id": "cli:stage1-deliverable",
       "kind": "cli",
-      "status": "foundation",
+      "status": "experimental",
       "runtime_integrity_required": true,
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_deliverable",
       "problem": "A literature run can finish with evaluator artifacts but no editable report, bibliography, classified metadata or lawful source package for the researcher.",
-      "mechanism": "Reserve a versioned Stage 1 exporter boundary that will derive researcher-facing views and a private source package from validated records, while publishing only hash-bound safe evidence.",
+      "mechanism": "Derive editable literature reports and a private public-source package from canonical version-bound records; replay the pinned research-hub source validator, runtime bytes, source spans, saved validation observations and every derived view. Escape bibliography text once while preserving verbatim URI fields. Preflight explicit private and temporary roots outside Git before execution; source replay also enforces that boundary. Record actual access failures and explicitly unexercised states without changing scientific scores.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -190,13 +190,14 @@
         }
       ],
       "guardrails": [
-        "foundation status does not claim that the exporter exists",
+        "experimental implementation-only status does not establish live pilot acceptance or scientific improvement",
         "lawful public sources only and no access-control bypass",
         "abstracts and metadata never become full text",
         "downloaded papers stay outside Git",
         "Japan pilot package conformance is not scientific-quality improvement"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_deliverable.py",
         ".github/scripts/test_validate_research_pr.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
@@ -206,7 +207,7 @@
   "capability_extensions": [
     {
       "capability_id": "cli:stage1-ab",
-      "mechanism": "Freeze public v3 hashes and a common passive observer. New captures save original native output and sample workspace versions before start, at completed items and after exit; evaluator v3.1 consumes all saved attempt and observer versions through a separate read-only adapter. Preserve complete UTF-8 bytes for every saved version, deletion markers, literal native-field availability and observation times; unknown native timing, backend state and unsampled file history are never inferred. Paired reporting checks identical applicable criterion sets before dimension subtraction and exports atomic values, assessed fractions, unknown reasons, evidence IDs, costs, JSON, CSV and inert English HTML. Pilot acceptance preserves every comparison ineligibility and major-issue reason, separates byte replay from comparison eligibility, and never grants freeze or formal-run authorization.",
+      "mechanism": "Freeze public v3 hashes and a common passive observer. New captures save original native output and sample workspace versions before start, at completed items and after exit; evaluator v3.1 consumes all saved attempt and observer versions through a separate read-only adapter. Preserve complete UTF-8 bytes for every saved version, deletion markers, literal native-field availability and observation times; unknown native timing, backend state and unsampled file history are never inferred. Paired reporting checks identical applicable criterion sets before dimension subtraction and exports atomic values, assessed fractions, unknown reasons, evidence IDs, costs, JSON, CSV and inert English HTML. Pilot acceptance preserves every comparison ineligibility and major-issue reason, separates byte replay from comparison eligibility, and never grants freeze or formal-run authorization. Clean treatment preflight requires exactly the current reviewed Stage 1 and Stage 2 skill inventory, rejects missing, duplicate, disabled or extra skills, and still binds installed bytes and a functional Stage 1 file read.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_ab_execution.py",
         "plugins/auto-research-agent/tests/test_capture_v31.py",

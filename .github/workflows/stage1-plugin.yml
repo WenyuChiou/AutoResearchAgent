@@ -40,7 +40,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # Windows process-replay tests exceeded 20 minutes on hosted runners.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 30 || 20 }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:

@@ -1,0 +1,45 @@
+{
+  "abstract_as_full_text": false,
+  "committed_paper_files": 0,
+  "full_text_identity_status_counts": {
+    "consistent": 4,
+    "unverified": 4,
+    "verified": 2
+  },
+  "limitations": [
+    "Observed public-only workflow is not an exhaustive secret-proof or external license determination.",
+    "Four full-source identities remain unverified; source byte/version binding does not establish bibliographic truth.",
+    "Native profiles do not provide OS-enforced read isolation; broad directory-name enumeration and denied process query are preserved privately.",
+    "No scientific acceptance or P1-P3 improvement is established."
+  ],
+  "paywall_bypass": false,
+  "public_artifact_policy": "Aggregate counts, filenames, runtime versions and byte hashes only; no paper text, subject prose, evaluator ratings, account credentials or URL query values",
+  "public_only_request_count": 17,
+  "repository_base": "76ca2955933af9df567bbdea99eae7ea4d38b144",
+  "reviewed_changed_files": {
+    ".github/scripts/test_validate_research_pr.py": "a061a637ac29c5fdcf20e09905afbb0cd9beb0bdefb5b417d1324fc41db2b153",
+    ".github/scripts/validate_research_pr.py": "5353336e837cbf8556d27c3c7ac59934ad3a6aa438a521825b9821e5da66c66b",
+    ".github/workflows/stage1-plugin.yml": "2ee7c1d20c2309c08e4ee2f8b8b2396a739560c74e4f7cf78d79a6dfe5a1f138",
+    "plugins/auto-research-agent/README.md": "55489a87369ea16b8f6cf5aec682093e9631ef4d7baf9332555f21e466bde49a",
+    "plugins/auto-research-agent/cli/stage1_ab/runner.py": "2de764b85cf279e9025cd8d41c63822c154bffa0726940d2aa8c9b0bda7b50dc",
+    "plugins/auto-research-agent/cli/stage1_deliverable/README.md": "7c1400a1556dae34eee5a8cb7e222ee7000b71cde0c180f30adef5a6bf3a6563",
+    "plugins/auto-research-agent/cli/stage1_deliverable/__init__.py": "0c48dc4eef341d65ed77136dee64853f148a5172f59fd4861b72042d6c38edae",
+    "plugins/auto-research-agent/cli/stage1_deliverable/__main__.py": "88d943e58796e1a9682da84a5d79ec7bcdd93e21d17db417af8dbff71a4b8b0b",
+    "plugins/auto-research-agent/cli/stage1_deliverable/common.py": "91d36590d25af804d356d3d34c5140a8030aecb70336126456f02b17c9107af0",
+    "plugins/auto-research-agent/cli/stage1_deliverable/package.py": "cec00baad1e7f566e0857d0a9a2a3d27756cb299ee1e190d222c963df41eaa31",
+    "plugins/auto-research-agent/cli/stage1_deliverable/records.py": "59a187482d6f9e7d6b978fcf4f886b553d6383f5db61d943e632ee032edc3c39",
+    "plugins/auto-research-agent/cli/stage1_deliverable/sources.py": "f735bc6ced0431c8c3c77e52b790e2481e8876a36c01ec82fdd7dc46ad437276",
+    "plugins/auto-research-agent/cli/stage1_deliverable/views.py": "b42ed0ab1b9b25d9bcd1782bb657314562f18064bc7ba3296cfc67b75a46a5fc",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "fa1384f6b105f56e32f6794350ffcc7db2cea499e46a2bd84c0287c748010efd",
+    "plugins/auto-research-agent/references/stage1-research-deliverable.md": "167bf48ae4da12bafb1d5ad4fcde3d395f51f74eb62053867a9c76a7d4cc9786",
+    "plugins/auto-research-agent/requirements-test.in": "f8418054b472fd93c6576e17ccf70d2f9938588f6d976813b6c0ee74921d6e54",
+    "plugins/auto-research-agent/requirements-test.txt": "4e96cf37d99dc22f80af2e879ee1d46d794bba714f0e71a3090ed35e557a3307",
+    "plugins/auto-research-agent/tests/test_stage1_ab_execution.py": "f3744d2bb0e522eaaca6d9f40185697c66921e5d458d1e729860a6c83c48f0f7",
+    "plugins/auto-research-agent/tests/test_stage1_deliverable.py": "8c5467a8a527d46ae49ad9598e46e6a3c009a4797543f426b15524c8de1b195b"
+  },
+  "reviewed_code_head": "dc66e1710bd06cea2d5591941c3ca900c266755b",
+  "scope": "Observed completed subject commands, 17 public-only receipt requests, 36 attempt metadata rows, bound evidence levels, and PR changed-file inventory",
+  "source_acquisition_redacted_evidence_sha256": "0e51ab031b43fc9a23b1bb731ad5f7dc5e26e4acd1b49635fea240b5e378fcd2",
+  "source_acquisition_review_sha256": "f09c1d6aff308c131137603ac35a01b664dc379929e3c414f661bf54e2f136ee",
+  "status": "passed"
+}

@@ -1,0 +1,41 @@
+{
+  "artifacts": [
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/deliverable-inventory.json",
+      "role": "deliverable-inventory",
+      "sha256": "a94fe9a98241f8f55c232484463754be46ea87379f19e70333d934f623c141e3"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/deliverable-validator-report.json",
+      "role": "deliverable-validator-report",
+      "sha256": "55eaf64b0d1f47a432045479c3e7f35b37a41fc43e39bb545c54b1c61a66b270"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/exporter-runtime-bytes.json",
+      "role": "exporter-runtime-bytes",
+      "sha256": "1a99d226832f17452f8827717d21ce3e76745547796708d3084d04103c427ecc"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/repository-guardrail-report.json",
+      "role": "repository-guardrail-report",
+      "sha256": "090af2c84bc89f64437de71e5d662889b5b74d831555a11cb64f76d2682075d3"
+    }
+  ],
+  "evaluation_readiness": "implementation-only",
+  "evidence_scope": "stage1-research-deliverable-pilot",
+  "execution_scope": "Completed B researcher-deliverable build, source replay, independent validation and actual rehashed-view tamper rejection only",
+  "execution_status": "complete",
+  "experimental": true,
+  "formal_subject_runs_authorized": false,
+  "frozen_pilot_revision": "ca459f8cf3c80b1e40713b5c24d7ba0d9633d658",
+  "full_chain_evaluation_attested": false,
+  "full_chain_scope_note": "This manifest does not attest complete A/B criterion judging, adjudication or pilot-report replay; those are separate private artifacts required before Task 1 completion.",
+  "improvement": "not yet demonstrated",
+  "kind": "ReadinessEvidenceManifest",
+  "pilot_geography": "Japan",
+  "pilot_lock_sha256": "c03501ebeb43fe4c237efc4878321c4ce171d9b0894edd4c446a9e645ec3472c",
+  "private_package_manifest_sha256": "784661637520e1dbdbb259b629c87108cbc4748c1ec97c71175d519745487ea0",
+  "reviewed_code_head": "dc66e1710bd06cea2d5591941c3ca900c266755b",
+  "schema_version": "1.0.0",
+  "validator_status": "passed"
+}

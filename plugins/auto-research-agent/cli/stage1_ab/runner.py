@@ -202,7 +202,13 @@ def _native_config_sha(config_text, probe_workspace=None):
     settings.pop("plugins", None)
     if probe_workspace is not None:
         projects = settings.get("projects", {})
-        projects.pop(str(Path(probe_workspace).resolve()), None)
+        probe_key = os.path.normcase(str(Path(probe_workspace).resolve()))
+        for key in list(projects):
+            if (
+                Path(key).is_absolute()
+                and os.path.normcase(os.path.normpath(key)) == probe_key
+            ):
+                projects.pop(key)
         if not projects:
             settings.pop("projects", None)
     return sha(json.dumps(settings, sort_keys=True).encode())
@@ -519,10 +525,11 @@ def probe_profile(
         if plugin.get("installed") is not True or plugin.get("enabled") is not True:
             raise ExecutionBlocked("treatment plugin is discovered but not enabled")
         skills = detail.get("plugin", {}).get("skills", []) if detail else []
-        if [skill.get("name") for skill in skills] != [
-            "auto-research-agent:stage1-literature"
-        ]:
-            raise ExecutionBlocked("treatment Stage 1 skill did not load")
+        if sorted(skill.get("name", "") for skill in skills) != [
+            "auto-research-agent:stage1-literature",
+            "auto-research-agent:stage2-directions",
+        ] or any(skill.get("enabled") is not True for skill in skills):
+            raise ExecutionBlocked("treatment reviewed skill inventory differs")
         cache = (
             Path(profile)
             / "plugins"

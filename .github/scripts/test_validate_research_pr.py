@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from validate_research_pr import (
     CRITERION_INVARIANTS,
@@ -22,6 +23,8 @@ from validate_research_pr import (
     load_rubrics,
     validate_pr_body,
     validate_readiness_manifest,
+    validate_stage1_deliverable_pilot_manifest,
+    DELIVERABLE_STATES,
 )
 
 VALID = """## Why
@@ -103,6 +106,79 @@ PILOT_MANIFEST = (
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
+    def test_live_deliverable_unobserved_states_are_explicit_not_fabricated(self):
+        manifest = json.loads(PILOT_MANIFEST.read_text(encoding="utf-8"))
+        reports = {
+            artifact["role"]: json.loads(
+                (Path(__file__).resolve().parents[2] / artifact["path"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            for artifact in manifest["artifacts"]
+            if artifact["role"] != "exporter-runtime-bytes"
+        }
+        manifest["_verified_roles"] = {
+            artifact["role"] for artifact in manifest["artifacts"]
+        }
+        inventory = reports["deliverable-inventory"]
+        counts = dict.fromkeys(DELIVERABLE_STATES, 0)
+        counts.update(available=3, **{"network-error": 1})
+        inventory.update(
+            access_state_counts=counts,
+            not_exercised=sorted(state for state, count in counts.items() if not count),
+        )
+        with patch(
+            "validate_research_pr._read_json_artifact",
+            side_effect=lambda _, role: (reports[role], []),
+        ):
+            self.assertEqual(validate_stage1_deliverable_pilot_manifest(manifest), [])
+            counts["available"] = 4
+            self.assertTrue(
+                any(
+                    "must reconcile" in error
+                    for error in validate_stage1_deliverable_pilot_manifest(manifest)
+                )
+            )
+            counts["available"] = 3
+            inventory["source_bindings"] = {"total": 4, "complete": 4}
+            self.assertTrue(
+                any(
+                    "must reconcile" in error
+                    for error in validate_stage1_deliverable_pilot_manifest(manifest)
+                )
+            )
+            inventory["source_bindings"] = {"total": 3, "complete": 3}
+            inventory["not_exercised"].remove("login-page")
+            self.assertTrue(
+                any(
+                    "partition" in error
+                    for error in validate_stage1_deliverable_pilot_manifest(manifest)
+                )
+            )
+            inventory["not_exercised"].append("login-page")
+            counts["network-error"] = 0
+            inventory["not_exercised"].append("network-error")
+            self.assertTrue(
+                any(
+                    "actual unavailable" in error
+                    for error in validate_stage1_deliverable_pilot_manifest(manifest)
+                )
+            )
+            counts["network-error"] = True
+            self.assertTrue(
+                any(
+                    "partition" in error
+                    for error in validate_stage1_deliverable_pilot_manifest(manifest)
+                )
+            )
+            counts["network-error"] = -1
+            self.assertTrue(
+                any(
+                    "partition" in error
+                    for error in validate_stage1_deliverable_pilot_manifest(manifest)
+                )
+            )
+
     def required_deliverable_body(self):
         old = """## Research Deliverable
 - Applicability: not-applicable
