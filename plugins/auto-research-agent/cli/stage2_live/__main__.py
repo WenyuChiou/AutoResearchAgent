@@ -13,6 +13,8 @@ from stage2_ideation import build_research_task
 from .extraction import run_live_extraction
 from .judges import run_stage2_judges
 from .native import CaptureError, capture_native, verify_capture
+from .preflight import inspect_preflight
+from .profile import prepare_profile
 from .review_models import (
     extract_resolution,
     extract_review,
@@ -36,6 +38,21 @@ def _save(path, value):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_live")
     commands = parser.add_subparsers(dest="command", required=True)
+    profile = commands.add_parser(
+        "prepare-profile", help="prepare a new profile from native skill discovery"
+    )
+    profile.add_argument("--destination", required=True)
+    profile.add_argument("--skills-response", required=True)
+    profile.add_argument("--skills-sha256", required=True)
+    profile.add_argument("--output", required=True)
+    preflight = commands.add_parser(
+        "preflight", help="verify effective policy, native actions and isolation"
+    )
+    preflight.add_argument("--capture", required=True)
+    preflight.add_argument("--receipt", required=True)
+    preflight.add_argument("--probe", required=True)
+    preflight.add_argument("--inventory-receipt")
+    preflight.add_argument("--output", required=True)
     capture = commands.add_parser("capture", help="capture one native research call")
     capture.add_argument("--request", required=True)
     capture.add_argument("--receipt-output", required=True)
@@ -103,7 +120,24 @@ def main(argv=None):
         command.add_argument("--source-root", required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == "capture":
+        if args.command in {"prepare-profile", "preflight"}:
+            if Path(args.output).exists():
+                raise CaptureError("output already exists")
+            if args.command == "prepare-profile":
+                result = prepare_profile(
+                    args.destination, args.skills_response, args.skills_sha256
+                )
+            else:
+                result = inspect_preflight(
+                    args.capture,
+                    args.receipt,
+                    _read(args.probe),
+                    inventory_receipt=_read(args.inventory_receipt)
+                    if args.inventory_receipt
+                    else None,
+                )
+            _save(args.output, result)
+        elif args.command == "capture":
             if Path(args.receipt_output).exists():
                 raise CaptureError("receipt output already exists")
             request = _read(args.request)
@@ -227,7 +261,8 @@ def main(argv=None):
         print(json.dumps(result, ensure_ascii=False))
         return (
             2
-            if result.get("status") in {"failed", "incomplete", "evaluator-failure"}
+            if result.get("status")
+            in {"failed", "incomplete", "evaluator-failure", "blocked"}
             else 0
         )
     except (
