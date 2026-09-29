@@ -35,6 +35,13 @@ def _write(value, path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+    diagnostics = sub.add_parser("prepare-diagnostics")
+    diagnostics.add_argument("--cases", required=True)
+    diagnostics.add_argument("--recipes", required=True)
+    diagnostics.add_argument("--output", required=True)
+    diagnostic_check = sub.add_parser("validate-diagnostic")
+    diagnostic_check.add_argument("--cases", required=True)
+    diagnostic_check.add_argument("--result", required=True)
     content = sub.add_parser("prepare-content")
     content.add_argument("--packet", required=True)
     content.add_argument("--source-root", required=True)
@@ -81,6 +88,17 @@ def main(argv=None):
     compare.add_argument("--pairs", required=True)
     compare.add_argument("--output")
     args = parser.parse_args(argv)
+    if args.command == "prepare-diagnostics":
+        from stage2_live.calibration import prepare_calibration
+
+        _write(prepare_calibration(_read(args.cases), _read(args.recipes)), args.output)
+        return 0
+    if args.command == "validate-diagnostic":
+        from .diagnostics import validate_diagnostic_output
+
+        validate_diagnostic_output(_read(args.result), _read(args.cases))
+        print('{"valid":true,"diagnostic_only":true,"scientific_approval":false}')
+        return 0
     if args.command == "compare":
         _write(compare_pairs(_read(args.pairs)), args.output)
         return 0
