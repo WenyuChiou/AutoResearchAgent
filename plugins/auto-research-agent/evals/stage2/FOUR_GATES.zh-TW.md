@@ -47,6 +47,8 @@ controller、shared extraction/actions、pure judge/controller replay、immutabl
 
 正式入口目前 **刻意維持 blocked**：原生 capture 尚未收齊每個 subject 的完整即時 inventory，以及包含子 agent 的完整投入計數。因此 validator 會回報 `per-execution-inventory-collector-unavailable` 和 `complete-subagent-budget-accounting-unavailable`，不接受只填文字預算就宣告已遵守上限。這是尚待實作的接口，不只是等待真人簽字。
 
+協定盤點及本機 Codex 0.153.3 的零模型呼叫另確認：app-server 沒有契約要求的 `tools/list` RPC，實際回傳 `-32600`、`unknown variant tools/list`。現有五個 inventory RPC 不代表完整原生工具清單；MCP 工具清單也不能取代它。須先新增符合實際原生介面的版本化證據契約，再串接 collector。不能補造第六個 RPC 回應，也不能宣稱換一台 host 就解決全部缺口。
+
 每次執行須有專屬 workspace／CODEX_HOME 的 preflight；新環境不能借用舊 PASS。Controller 的 `execution_preflights` 以 home/workspace 的 canonical hash 為鍵；`execution_inventories` 須綁定實際 thread ID 與同一 native archive 的 RPC bytes。現有 CLI collector 尚未提供後者，所以目前不能宣稱 controller 已能完成真實 pilot。執行前應先補完 collector，避免在已知無法驗收時浪費模型呼叫。
 
 正式六次紀錄另檢查六個不同 capture receipts、六個不同 thread ID 和實際 UTC 順序。兩個 pilot 不能共用同一 archive 或 brief。暫時只支援固定起始來源封包的 formal extraction；新增來源會明確拒絕為 `supplemental-evidence-not-supported`，待補上來源追加的原生取得鏈後才支援，不將合法補查算成受測者科學錯誤。

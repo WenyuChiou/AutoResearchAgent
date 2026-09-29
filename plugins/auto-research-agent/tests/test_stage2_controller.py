@@ -355,7 +355,7 @@ class Stage2ControllerTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.sources = self.root / "sources"
         self.packet = write_stage2_fixture(self.sources, candidate_count=1)
         self.packet_path = self.root / "packet.json"
