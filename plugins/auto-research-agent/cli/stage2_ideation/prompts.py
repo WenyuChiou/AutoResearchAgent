@@ -41,6 +41,7 @@ def _payload(packet):
         "brief": packet["brief"],
         "resources": packet["resources"],
         "comparison": packet["comparison"],
+        "literature": packet.get("literature", []),
         "sources": packet["sources"],
         "evidence": packet["evidence"],
         "unresolved": packet["unresolved"],

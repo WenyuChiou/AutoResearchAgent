@@ -207,8 +207,8 @@
       "runtime_integrity_required": false,
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_workflow",
-      "problem": "A fixed evidence packet cannot incorporate newly found counterevidence without breaking prior assessment bindings; interrupted actions and missing independent reviews need explicit states.",
-      "mechanism": "Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions.",
+      "problem": "A fixed evidence packet cannot incorporate newly found counterevidence without breaking prior assessment bindings; Stage 1 evidence can also lose its run, work/version or source provenance before Stage 2. Interrupted actions and missing independent reviews need explicit states.",
+      "mechanism": "Import validated Stage 1 deliverables into a v2 packet that binds run/state, handoff, deliverable, canonical records, brief, resources, structured literature metadata/classification/roles/findings, exact claims, source status, exact source bytes and unresolved coverage without inventing candidates or comparison results. Freeze separate Stage 1 literature/source/evidence projections while allowing separately marked Stage 2 additions. Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -218,7 +218,7 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "Retained packet/source/candidate versions, invalidated assessments and exact action input/artifact identities"
+            "Retained Stage 1 run/state, packet/source/work/candidate versions, invalidated assessments and exact action input/artifact identities"
           ],
           "human_judgment": "Independent live judges determine whether evidence supports an opportunity or revision."
         },
@@ -238,6 +238,12 @@
       ],
       "guardrails": [
         "No change to frozen rubric, previous packet or Stage3 authority",
+        "Stage 1 import creates no candidates and grants no Stage 2 execution authority",
+        "Stage 1 literature/source/evidence projections cannot be replaced by rehashed packet rows",
+        "Stage 2 v2 initialization requires the external packet SHA-256 from the import receipt",
+        "Stage 2 additions use a distinct origin and do not rewrite the Stage 1 projection",
+        "Full-text seed output remains in private storage outside Git",
+        "Metadata and abstracts never become full text during handoff",
         "No native execution or reviewer isolation attestation from local hashes alone",
         "No missing review interpreted as approval; no majority-vote truth",
         "No scientific improvement claim from synthetic tests",
@@ -245,6 +251,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_workflow_store.py",
+        "plugins/auto-research-agent/tests/test_stage1_stage2_handoff.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_reviews.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_cli.py",
         "plugins/auto-research-agent/tests/test_stage2_orchestration.py",

@@ -9,6 +9,7 @@ import os
 from pathlib import Path, PurePosixPath
 import shutil
 
+from stage1_deliverable.common import DeliverableError, private_output
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 
 from .contracts import decode_json, latest_candidates, validate_assessment
@@ -128,6 +129,38 @@ def _validate_manifest(manifest):
         raise Stage2Error("run-manifest-stage")
 
 
+def _validate_stage_input_refs(packet, manifest):
+    refs = manifest["stage_run"]["input_refs"]
+    if packet["schema_version"] == "1.0.0":
+        if refs:
+            raise Stage2Error("legacy-stage-run-input-refs-must-be-empty")
+        return
+    expected = [
+        {
+            "kind": "ArtifactRef",
+            "schema_version": VERSION,
+            "artifact_id": f"stage1-stage2-source-{manifest['packet_sha256'][:16]}",
+            "artifact_type": "stage1-stage2-source-packet",
+            "path": "input_packet.json",
+            "sha256": manifest["packet_sha256"],
+            "producer": "stage1-stage2-handoff",
+            "created_at": manifest["created_at"],
+        },
+        {
+            "kind": "ArtifactRef",
+            "schema_version": VERSION,
+            "artifact_id": f"stage1-stage2-stored-{manifest['stored_packet_sha256'][:16]}",
+            "artifact_type": "stage1-stage2-stored-packet",
+            "path": "packet.json",
+            "sha256": manifest["stored_packet_sha256"],
+            "producer": "stage1-stage2-handoff",
+            "created_at": manifest["created_at"],
+        },
+    ]
+    if refs != expected:
+        raise Stage2Error("stage1-stage2-input-ref-binding-mismatch")
+
+
 def _load_events(root):
     events_dir = root / "events"
     try:
@@ -209,14 +242,32 @@ def _original_packet(packet, manifest, histories=None):
 def inspect_run(run_dir, *, expected_event_head=None):
     """Validate an initialized run and its complete immutable history."""
 
-    root = Path(run_dir).resolve()
+    root = Path(run_dir).absolute()
     manifest = _read_json(root / "run_manifest.json")
     _validate_manifest(manifest)
     packet_path = root / manifest["packet_path"]
     packet = _read_json(packet_path)
+    if packet.get("schema_version") == "2.0.0":
+        try:
+            root = private_output(root)
+        except DeliverableError as error:
+            raise Stage2Error(f"stage2-private-output-invalid: {error}") from error
+    else:
+        root = root.resolve()
     if canonical_hash(packet) != manifest["stored_packet_sha256"]:
         raise Stage2Error("stored-packet-hash-mismatch")
+    if packet.get("schema_version") == "2.0.0":
+        input_packet_path = root / "input_packet.json"
+        try:
+            input_packet_bytes = input_packet_path.read_bytes()
+        except OSError as error:
+            raise Stage2Error(f"source-packet-read-failed: {error}") from error
+        if hashlib.sha256(input_packet_bytes).hexdigest() != manifest["packet_sha256"]:
+            raise Stage2Error("source-packet-byte-hash-mismatch")
+        if canonical_hash(_read_json(input_packet_path)) != manifest["packet_sha256"]:
+            raise Stage2Error("source-packet-canonical-hash-mismatch")
     validate_packet(packet, root)
+    _validate_stage_input_refs(packet, manifest)
     actual_sources = {source["source_id"]: source for source in packet["sources"]}
     snapshot_ids = [row.get("source_id") for row in manifest["source_snapshots"]]
     if len(snapshot_ids) != len(set(snapshot_ids)) or set(snapshot_ids) != set(
@@ -272,15 +323,36 @@ def inspect_run(run_dir, *, expected_event_head=None):
     }
 
 
-def initialize_run(packet_path, source_root, output_dir, *, clock=_utc_now):
+def initialize_run(
+    packet_path,
+    source_root,
+    output_dir,
+    expected_packet_sha256=None,
+    *,
+    clock=_utc_now,
+):
     """Create or inspect an exclusive source-bound Stage 2 checker run."""
 
     packet_file = Path(packet_path).resolve()
     source_root = Path(source_root).resolve()
-    output = Path(output_dir).resolve()
     source_packet = _read_json(packet_file)
-    validate_packet(source_packet, source_root)
     packet_sha256 = canonical_hash(source_packet)
+    if source_packet.get("schema_version") == "2.0.0":
+        if expected_packet_sha256 is None:
+            raise Stage2Error("stage2-v2-expected-packet-sha256-required")
+        if expected_packet_sha256 != packet_sha256:
+            raise Stage2Error("stage2-v2-external-packet-hash-mismatch")
+    elif expected_packet_sha256 is not None and expected_packet_sha256 != packet_sha256:
+        raise Stage2Error("stage2-external-packet-hash-mismatch")
+    try:
+        output = (
+            private_output(Path(output_dir).absolute())
+            if source_packet.get("schema_version") == "2.0.0"
+            else Path(output_dir).resolve()
+        )
+    except DeliverableError as error:
+        raise Stage2Error(f"stage2-private-output-invalid: {error}") from error
+    validate_packet(source_packet, source_root)
     if output.exists():
         state = inspect_run(output)
         if state["manifest"]["packet_sha256"] != packet_sha256:
@@ -326,6 +398,32 @@ def initialize_run(packet_path, source_root, output_dir, *, clock=_utc_now):
             stored_sources[source["source_id"]]["path"] = stored_relative
         _write_new(output / "packet.json", _canonical_bytes(stored_packet))
         created_at = clock()
+        input_refs = []
+        if source_packet["schema_version"] == "2.0.0":
+            _write_new(output / "input_packet.json", _canonical_bytes(source_packet))
+            stored_packet_sha256 = canonical_hash(stored_packet)
+            input_refs = [
+                {
+                    "kind": "ArtifactRef",
+                    "schema_version": VERSION,
+                    "artifact_id": f"stage1-stage2-source-{packet_sha256[:16]}",
+                    "artifact_type": "stage1-stage2-source-packet",
+                    "path": "input_packet.json",
+                    "sha256": packet_sha256,
+                    "producer": "stage1-stage2-handoff",
+                    "created_at": created_at,
+                },
+                {
+                    "kind": "ArtifactRef",
+                    "schema_version": VERSION,
+                    "artifact_id": f"stage1-stage2-stored-{stored_packet_sha256[:16]}",
+                    "artifact_type": "stage1-stage2-stored-packet",
+                    "path": "packet.json",
+                    "sha256": stored_packet_sha256,
+                    "producer": "stage1-stage2-handoff",
+                    "created_at": created_at,
+                },
+            ]
         manifest = {
             "kind": "Stage2CheckRun",
             "schema_version": VERSION,
@@ -346,7 +444,7 @@ def initialize_run(packet_path, source_root, output_dir, *, clock=_utc_now):
                 "attempt": 1,
                 "started_at": created_at,
                 "ended_at": None,
-                "input_refs": [],
+                "input_refs": input_refs,
             },
         }
         manifest["manifest_sha256"] = _manifest_hash(manifest)

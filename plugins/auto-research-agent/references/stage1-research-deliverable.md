@@ -106,3 +106,39 @@ Report acquired PDF/HTML/text counts, inaccessible reasons, full-text
 acquisition fraction and exporter runtime separately from P1-P3. A valid
 package proves delivery behavior. Scientific improvement still requires the
 frozen paired A/B and its existing decision rule.
+
+## Stage 1 to Stage 2 handoff
+
+Stage 2 must not copy claims from an editable spreadsheet or a chat summary.
+Run `python -m stage2_workflow import-stage1` with the trusted external hashes
+for the accepted Stage 1 handoff and private deliverable. The command also
+requires a confirmed `ResearchBrief` and an explicit resource-envelope text
+file. It creates a Stage 2 packet v2 whose structured literature records,
+sources, evidence and unresolved coverage items remain bound to the Stage 1
+work/version records. The structured projection retains title, authors, year,
+venue, DOI, URL, classification, literature roles, findings and claim IDs.
+
+The bridge verifies the complete private package before reading it. It carries
+exact extracted UTF-8 source text when available, preserves the true evidence
+level, and emits a metadata snapshot when source text is unavailable. It never
+promotes metadata or an abstract to full text. Each Stage 1 claim becomes a
+Stage 2 evidence row only when its exact quote is present in the bound source
+snapshot. Separate hashes freeze the imported Stage 1 literature, source and
+evidence projections. Stage 2 may append records marked `origin=stage2`, but it
+cannot rewrite the `origin=stage1` projection.
+
+The resulting packet has an empty candidate list. Its comparison field records
+which works and dimensions Stage 2 still needs to compare; it does not invent a
+comparison or research direction. Import status is
+`ready-for-explicit-stage2-start`, while the preserved Stage 2 state remains
+`not-started` and `execution_authorized: false`. A researcher must explicitly
+start the Stage 2 workflow. The Stage 2 `StageRun.input_refs` then binds the
+externally approved source-packet bytes and the relocated stored-packet bytes,
+so a later review can reconstruct exactly which Stage 1 evidence entered
+direction generation. Because the seed can contain publicly
+accessible full text, its output must pass the same private, outside-Git storage
+guard as the Stage 1 deliverable. Stage 2 v2 checker and workflow runs inherit
+the same guard because they copy the bound source snapshots. Retain the
+importer's external `packet_sha256` receipt and pass it as
+`--expected-packet-sha256` when initializing either v2 run. A packet that merely
+recomputes its own internal hashes is not accepted without that external value.

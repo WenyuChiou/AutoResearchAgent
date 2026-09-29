@@ -7,6 +7,7 @@ from .store import (
     inspect_workflow,
     start_action,
 )
+from .import_stage1 import build_stage2_seed
 
 __all__ = [
     "add_snapshot",
@@ -14,4 +15,5 @@ __all__ = [
     "initialize_workflow",
     "inspect_workflow",
     "start_action",
+    "build_stage2_seed",
 ]

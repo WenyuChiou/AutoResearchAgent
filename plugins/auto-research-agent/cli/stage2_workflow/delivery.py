@@ -237,7 +237,12 @@ def build_delivery(run_dir, batch, reviews, resolutions, output_dir, expected_he
     _write_new(output / "review_audit.json", audit)
 
     checker_root = output / "checker"
-    initialize_run(packet_path, source_root, checker_root)
+    initialize_run(
+        packet_path,
+        source_root,
+        checker_root,
+        canonical_hash(packet),
+    )
     for index, assessment in enumerate(_resolved_assessments(reconciliation), 1):
         assessment_path = output / "resolved_assessments" / f"{index:06d}.json"
         _write_new(assessment_path, assessment)

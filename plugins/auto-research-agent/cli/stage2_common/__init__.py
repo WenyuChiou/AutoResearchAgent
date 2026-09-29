@@ -3,6 +3,7 @@
 from .contract import (
     Stage2Error,
     canonical_hash,
+    stage1_projection_hash,
     validate_evidence_refs,
     validate_packet,
 )
@@ -10,6 +11,7 @@ from .contract import (
 __all__ = [
     "Stage2Error",
     "canonical_hash",
+    "stage1_projection_hash",
     "validate_evidence_refs",
     "validate_packet",
 ]
