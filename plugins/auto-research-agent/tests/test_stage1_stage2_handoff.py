@@ -46,7 +46,7 @@ class Stage1Stage2HandoffTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="stage1-stage2-test-")
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()
         self.deliverable = self.root / "stage1-deliverable"
         self.deliverable.mkdir()
         source_text = (
