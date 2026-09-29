@@ -14,13 +14,13 @@ from .common import (
     validate_schema,
     write_json,
 )
+from .complete_judging import judge_packet_complete as judge_packet_v31
 from .extraction_v31 import extract_subject_v31
 from .judging import make_packet
-from .complete_judging import judge_packet_complete as judge_packet_v31
 from .runtime import executable_sha256, installed_package_sha256
 from .score import aggregate
-from .sources_v31 import attach_public_sources, collect_sources_v31
 from .source_runtime import source_runtime_preflight
+from .sources_v31 import attach_public_sources, collect_sources_v31
 
 
 def bundle_sha_v31():
@@ -45,8 +45,24 @@ def bundle_sha_v31():
 
 
 def execution_policy():
+    from .complete_judging import (
+        COMPLETE_EXECUTION_VERSION,
+        MAX_COMPLETE_PROMPT_BYTES,
+        MAX_CORE_ASSESSMENT_BYTES,
+        MAX_REVIEW_BYTES,
+        TRANSPORT_VERSION,
+    )
+
     value = read_json(EVAL_ROOT / "stage1/execution-policy.v3_1.json")
     value["evaluator_bundle_sha256"] = bundle_sha_v31()
+    value["complete_judging"] = {
+        "execution_version": COMPLETE_EXECUTION_VERSION,
+        "prompt_transport": TRANSPORT_VERSION,
+        "prompt_byte_limit": MAX_COMPLETE_PROMPT_BYTES,
+        "core_assessment_byte_limit": MAX_CORE_ASSESSMENT_BYTES,
+        "issue_review_byte_limit": MAX_REVIEW_BYTES,
+        "preflight": "staged-exact-validated-inputs",
+    }
     return value
 
 

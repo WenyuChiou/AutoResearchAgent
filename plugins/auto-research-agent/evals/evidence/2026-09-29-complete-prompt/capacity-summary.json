@@ -1,0 +1,83 @@
+{
+  "scope": "unscored synthetic capacity, not G1 or formal scientific evidence",
+  "native_validated": true,
+  "offline_replay": "passed",
+  "new_calls_during_replay": 0,
+  "prompt_bytes": 224756,
+  "response_schema_bytes": 4834,
+  "works": 18,
+  "audit_targets": 185,
+  "audit_leaves": 185,
+  "model": "gpt-5.6-sol",
+  "reasoning": "high",
+  "codex_sha256": "0f8ed9678bca539aa6517adb0c8d50ad9a94ff5df4d21e149ae700d219fff69d",
+  "execution_policy": {
+    "complete_judging": {
+      "core_assessment_byte_limit": 4000,
+      "execution_version": "complete-judging.v2",
+      "issue_review_byte_limit": 30000,
+      "preflight": "staged-exact-validated-inputs",
+      "prompt_byte_limit": 240000,
+      "prompt_transport": "Stage1CompletePromptTransport.v1"
+    },
+    "evaluator_bundle_sha256": "cea4a2c6bb4120cdd3679eaa090531886565045ec17e07cf00bf1897937aa586",
+    "extraction_chunk_characters": 12000,
+    "kind": "EvaluatorModelExecutionPolicy",
+    "max_semantic_corrections_per_unit": 1,
+    "max_transient_transport_retries": 1,
+    "retry_timeouts": false,
+    "rubric_id": "stage1-general-v3",
+    "schema_version": "3.1.0",
+    "source_policy": "public-only",
+    "timeout_seconds": 600,
+    "unknown_is_zero": false
+  },
+  "costs": {
+    "attempts": 1,
+    "attempts_without_usage": 0,
+    "completed_turns_with_usage": 1,
+    "currency_cost": null,
+    "observed_token_subtotals": {
+      "cached_input_tokens": 0,
+      "input_tokens": 71777,
+      "output_tokens": 1096,
+      "reasoning_output_tokens": 943
+    },
+    "tokens": {
+      "cached_input_tokens": 0,
+      "input_tokens": 71777,
+      "output_tokens": 1096,
+      "reasoning_output_tokens": 943
+    }
+  },
+  "original_failure": "Probe bookkeeping KeyError prompt_bytes after a validated native generation; original receipt retained.",
+  "original_receipt_sha256": "3b2d30c44343a9bffda6d10f1c26b32c14824f37e9a3c980362ef3979f203f84",
+  "tool_free_transcript_validated": true,
+  "diagnostic_status": "unverifiable",
+  "codex_version": "0.153.0",
+  "wall_seconds": 24.155999999988126,
+  "kind": "Stage1CompletePromptCapacityEvidence.v1",
+  "formal_ready": false,
+  "synthetic_intermediate_assessments": true,
+  "saved_case_sizing": {
+    "scope": "offline sizing only; synthetic core/review outputs, not upper bounds or new G1 results",
+    "largest_bytes": 208473,
+    "core_min_bytes": 155162,
+    "core_max_bytes": 161546,
+    "model_calls": 0
+  },
+  "artifact_hashes": {
+    "plan.json": "8d3f56907783824c547e52d3c18be290ab1a23952f8a339658b7fcd245e43e1c",
+    "verified-receipt.json": "6e9272945c2608aff2b9a11b869b0459ed893a0ce2b068f33c43fbe0970280d3",
+    "saved-case-sizing.json": "92629367f92156a81ba5014b02cb8d11b763642a9a5f6237d84f182f2181c1e4",
+    "native/capacity-criterion.result.json": "977c84176e3c017d158382ec7f90c94c6c6537a566ad2e0264429f9f480c3469",
+    "native/model-logs/capacity-criterion.model-call/prompt.txt": "84e4c063b2ec366c016ebeb4ff9dc8b67e4430b5045624a8a451b7c7e02596f1",
+    "native/model-logs/capacity-criterion.model-call/attempt-01.record.json": "908eb6e0dc9e16b7f269d480ff74abed9ffea10d5522f3aa4458ab6f6435a628"
+  },
+  "limitations": [
+    "One synthetic native criterion proves capacity/schema/tool-free execution only, not scientific accuracy or a complete live role.",
+    "Saved-case sizing uses synthetic core/review values, not an upper bound; real stage outputs must pass exact admission.",
+    "Historical G1 failures are unchanged; no saved US output has been reevaluated and no new subject has run.",
+    "Currency costs unavailable; tokens and elapsed time are observed."
+  ]
+}

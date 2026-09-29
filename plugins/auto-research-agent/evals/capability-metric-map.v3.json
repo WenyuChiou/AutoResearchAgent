@@ -105,7 +105,8 @@
         "original citation values are restored from provenance-bound subject spans before source audits; conflicting occurrences remain separate, missing publication versions are not filled from external metadata, and original claims are unchanged",
         "v3.1 pipeline extracts original citation fields before source collection and independently audits all eligible work/claim windows for R1/R2; each content judge sees only its own audit and source conclusion disagreements trigger ADJ; full source materialization preserves abstract tails and identity metadata; audit observations are not scores or subject actions",
         "complete_judging submits every content span to each P1/P2 unit and requires every frozen need ID for P2; complete issue review precedes scoring and P3 uses all planned criterion units; oversized full prompts fail as evaluator errors without truncation; completed coverage requires validated native receipts and offline replay; diagnostic and pilot evidence remain prerequisites for readiness",
-        "P3 complete execution requires every planned native unit and aggregation edge; output and initial/correction prompts are byte bounded; a frozen whole-run unit/generation/attempt budget rejects before the first model call rather than truncating evidence; stable conclusion and missing-evidence codes participate in disagreement detection; missing units or inherited contrary evidence fail closed; independent requests are not shared judge generations; major-error and formal gates remain separate"
+        "P3 complete execution requires every planned native unit and aggregation edge; output and initial/correction prompts are byte bounded; a frozen whole-run unit/generation/attempt budget rejects before the first model call rather than truncating evidence; stable conclusion and missing-evidence codes participate in disagreement detection; missing units or inherited contrary evidence fail closed; independent requests are not shared judge generations; major-error and formal gates remain separate",
+        "complete-judging.v2 uses inspectable lossless JSON references with verified reconstruction; staged core/review/criterion admission uses actual validated inputs and preserves the 240000-byte prompt, 4000-byte core and 30000-byte review limits; incomplete roles cannot produce final scores; transport bytes and limits bind the evaluator policy and bundle"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
@@ -119,6 +120,7 @@
         "plugins/auto-research-agent/tests/test_source_audit_units.py",
         "plugins/auto-research-agent/tests/test_source_pipeline.py",
         "plugins/auto-research-agent/tests/test_complete_judging.py",
+        "plugins/auto-research-agent/tests/test_complete_prompt_transport.py",
         "plugins/auto-research-agent/tests/test_original_fields.py",
         "plugins/auto-research-agent/tests/test_audit_source_evidence.py",
         "plugins/auto-research-agent/tests/test_source_runtime.py",
