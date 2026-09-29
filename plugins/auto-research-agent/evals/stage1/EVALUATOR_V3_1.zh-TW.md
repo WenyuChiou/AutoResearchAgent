@@ -178,26 +178,24 @@ evaluator identity 與 evidence mode 一致；相同可判比例不代表相同�
 
 ### Complete-judging source-audit view manifest
 
-`complete-judging.v2` keeps the 240000-byte prompt limit and the accepted
-4000-byte per-core and 30000-byte issue-review limits. It admits three stages:
-all core batches, issue review using validated core outputs, then all criteria
-using validated core/review outputs. Each stage records exact input hashes and
-sizes before any of its native calls. A later rejection preserves earlier
-archives but produces no completed role or final score. Semantic-correction
-prompts are checked against the same limit before launch.
+`complete-judging.v2` 保留提示的 240000-byte 上限，以及既有的每筆核心文獻評估
+4000-byte、問題覆核 30000-byte 接受上限。准入檢查分成三階段：先檢查所有核心
+文獻批次，再以通過驗證的核心評估輸出檢查問題覆核，最後以通過驗證的核心評估與
+覆核輸出檢查所有評分項目。每個階段都在啟動該階段任何原生呼叫前，記錄確切的
+輸入雜湊與大小。後續階段若被拒絕，先前的執行紀錄仍保留，但不產生已完成的
+裁判角色結果或最終分數。語意修正提示也必須在呼叫前通過相同上限檢查。
 
-`Stage1CompletePromptTransport.v1` stores literal JSON values in an inspectable
-reference table. Identical values and object-key lists are shared, with child
-nodes preceding parents; no text is shortened or encoded as an opaque blob.
-The decoder reconstructs the complete canonical input, checks its digest and
-canonical representation, and rejects missing references, duplicate aliases,
-extra nodes and changed content. Native replay also binds the exact encoded
-prompt to the reconstructed original evidence. Span aliases retain their
-numeric order. R1/R2 isolation and disagreement-only ADJ remain unchanged.
-The runtime execution policy records these versions and limits; the evaluator
-bundle hashes the transport implementation and is bound by the formal manifest.
-The frozen rubric and base policy file are unchanged. Synthetic 12/15/18-work
-tests establish implementation behavior, not model capacity or improvement.
+`Stage1CompletePromptTransport.v1` 將 JSON 原始值存入可直接查閱的參照表。
+相同值及物件鍵名清單共用節點，子節點排在父節點之前；不縮短文字，也不將文字
+編成無法直接查閱的資料塊。解碼器還原完整的標準化輸入，核對其雜湊及標準化
+表示，並拒絕缺失的參照、重複別名、多餘節點及遭修改的內容。原生執行紀錄重播
+也會將確切的編碼提示綁定至還原後的原始證據。文字片段別名保留數字順序。
+R1／R2 維持隔離，仍只有實質分歧才啟動 ADJ。
+
+執行期政策記錄上述版本與限制；評估器套件將傳輸實作納入雜湊，並由正式清單
+綁定。凍結的 rubric 與基礎政策檔案保持不變。12／15／18 篇文獻的合成測試只
+驗證實作行為，不證明模型容量或研究改善。另以合成封包進行的原生容量測試，
+也只支持該次容量與執行驗證，不能代替 G1、實際預演或正式 A/B 證據。
 
 Each native unit records `source_audit_view_manifest`: judge role, supplied audit roles, target and unit IDs, deterministic view hashes, unavailable targets/leaves, explicit scope exclusions, empty omitted lists and `truncated=false`. R1 and R2 receive only their own audits; ADJ receives both after disagreement. P3 units explicitly record source audits as not applicable. Replay reconstructs the manifest and rejects changed hashes or fields. The 240000-byte complete-prompt limit remains fail-closed, including audit evidence; no silent truncation or subject score is produced when it is exceeded. The 15-work fixture is implementation evidence only.
 一組不計分預演用 `stage1_ab pilot-report-v31 LOCK BACKGROUND OUTPUT
