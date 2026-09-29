@@ -75,6 +75,30 @@ class Stage2LiveCliTests(unittest.TestCase):
             output,
         ]
 
+    def test_controller_recovery_is_nonzero(self):
+        spec = self.write("controller.json", {})
+        args = [
+            "controller",
+            "--workflow",
+            self.root / "workflow",
+            "--controller-root",
+            self.root / "controller",
+            "--delivery",
+            self.root / "delivery",
+            "--spec",
+            spec,
+            "--expected-head",
+            "a" * 64,
+            "--output",
+            self.root / "controller-result.json",
+        ]
+        with patch(
+            "stage2_live.controller.run_controller",
+            return_value={"status": "needs-recovery"},
+        ):
+            code, _, _ = self.invoke(args)
+        self.assertEqual(code, 2)
+
     def test_research_task_is_native_capable_and_source_bound(self):
         output = self.root / "research-task.json"
         code, stdout, stderr = self.invoke(

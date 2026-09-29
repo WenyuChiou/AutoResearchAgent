@@ -35,6 +35,16 @@ def _write(value, path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+    formal_plan = sub.add_parser("freeze-formal-plan")
+    formal_plan.add_argument("--config", required=True)
+    formal_plan.add_argument("--evidence-root", required=True)
+    formal_plan.add_argument("--output", required=True)
+    for name in ("validate-readiness", "validate-formal-result"):
+        entry = sub.add_parser(name)
+        for option in ("manifest", "evidence-root", "receipt", "output"):
+            entry.add_argument("--" + option, required=True)
+        if name == "validate-formal-result":
+            entry.add_argument("--plan", required=True)
     diagnostics = sub.add_parser("prepare-diagnostics")
     diagnostics.add_argument("--cases", required=True)
     diagnostics.add_argument("--recipes", required=True)
@@ -88,6 +98,41 @@ def main(argv=None):
     compare.add_argument("--pairs", required=True)
     compare.add_argument("--output")
     args = parser.parse_args(argv)
+    if args.command in {
+        "freeze-formal-plan",
+        "validate-readiness",
+        "validate-formal-result",
+    }:
+        from .formal import (
+            freeze_formal_plan_v1,
+            validate_readiness_v1,
+            validate_formal_result_v1,
+        )
+
+        try:
+            if args.command == "freeze-formal-plan":
+                value = freeze_formal_plan_v1(_read(args.config), args.evidence_root)
+            elif args.command == "validate-readiness":
+                value = validate_readiness_v1(
+                    args.manifest, args.evidence_root, args.receipt
+                )
+            else:
+                value = validate_formal_result_v1(
+                    args.manifest, args.evidence_root, args.receipt, _read(args.plan)
+                )
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            # An invalid/missing archive is a measurement failure, not a zero
+            # scientific score or permission to launch another subject.
+            value = {
+                "status": "blocked",
+                "error_type": "evaluator_failure",
+                "operation": args.command,
+                "reason": str(error),
+                "formal_ready": False,
+                "improvement_established": False,
+            }
+        _write(value, args.output)
+        return 2 if value.get("status") in {"blocked", "inconclusive"} else 0
     if args.command == "prepare-diagnostics":
         from stage2_live.calibration import prepare_calibration
 

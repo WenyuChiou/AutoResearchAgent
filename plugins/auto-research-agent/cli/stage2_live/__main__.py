@@ -38,6 +38,41 @@ def _save(path, value):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_live")
     commands = parser.add_subparsers(dest="command", required=True)
+    control = commands.add_parser(
+        "controller", help="run the foreground Stage 2 sequence"
+    )
+    for option in (
+        "workflow",
+        "controller-root",
+        "delivery",
+        "spec",
+        "expected-head",
+        "output",
+    ):
+        control.add_argument("--" + option, required=True)
+    control_check = commands.add_parser(
+        "verify-controller", help="read-only controller verification"
+    )
+    for option in ("controller-root", "receipt", "output"):
+        control_check.add_argument("--" + option, required=True)
+    action_extract = commands.add_parser(
+        "extract-actions", help="shared prose action extraction for either arm"
+    )
+    for option in (
+        "raw-proposal",
+        "packet",
+        "source-root",
+        "codex",
+        "evaluator-home",
+        "model",
+        "reasoning",
+        "policy",
+        "output",
+        "replay-receipt-output",
+    ):
+        action_extract.add_argument("--" + option, required=True)
+    action_extract.add_argument("--resume", action="store_true")
+    action_extract.add_argument("--replay-receipt")
     calibration = commands.add_parser(
         "calibrate", help="run one frozen supplied-fact calibration unit"
     )
@@ -136,7 +171,44 @@ def main(argv=None):
         command.add_argument("--source-root", required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == "calibrate":
+        if args.command in {"controller", "verify-controller"}:
+            from .controller import run_controller, verify_controller
+
+            if Path(args.output).exists():
+                raise CaptureError("output already exists")
+            if args.command == "controller":
+                result = run_controller(
+                    args.workflow,
+                    args.controller_root,
+                    args.delivery,
+                    args.expected_head,
+                    _read(args.spec),
+                )
+            else:
+                result = verify_controller(args.controller_root, args.receipt)
+            _save(args.output, result)
+        elif args.command == "extract-actions":
+            from .action_extraction import run_action_extraction
+
+            if Path(args.replay_receipt_output).exists():
+                raise CaptureError("replay receipt output already exists")
+            result = run_action_extraction(
+                Path(args.raw_proposal).read_bytes().decode("utf-8"),
+                _read(args.packet),
+                args.source_root,
+                codex=args.codex,
+                evaluator_home=args.evaluator_home,
+                model=args.model,
+                reasoning=args.reasoning,
+                execution_policy=_read(args.policy),
+                output_dir=args.output,
+                resume=args.resume,
+                resume_receipt=_read(args.replay_receipt)
+                if args.replay_receipt
+                else None,
+            )
+            _save(args.replay_receipt_output, result["replay_receipt"])
+        elif args.command == "calibrate":
             from .calibration import run_calibration_unit
 
             if Path(args.replay_receipt_output).exists():
@@ -297,7 +369,16 @@ def main(argv=None):
         return (
             2
             if result.get("status")
-            in {"failed", "incomplete", "evaluator-failure", "blocked"}
+            in {
+                "failed",
+                "incomplete",
+                "evaluator-failure",
+                "blocked",
+                "unresolved",
+                "needs-workspace",
+                "needs-recovery",
+                "follow-up-needed",
+            }
             else 0
         )
     except (
