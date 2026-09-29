@@ -44,7 +44,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_eval",
       "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
-      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target. Versioned formal admission replays actual preflights, pilot controller, calibration, extraction and blinded judge evidence; synthetic seams remain non-admissible.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -92,7 +92,8 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_evaluation.py",
         "plugins/auto-research-agent/tests/test_stage2_diagnostics.py",
-        "plugins/auto-research-agent/tests/test_stage2_diagnostic_fixtures.py"
+        "plugins/auto-research-agent/tests/test_stage2_diagnostic_fixtures.py",
+        "plugins/auto-research-agent/tests/test_stage2_formal.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -311,7 +312,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_live",
       "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
-      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -367,7 +368,12 @@
         "plugins/auto-research-agent/tests/test_stage2_live_cli.py",
         "plugins/auto-research-agent/tests/test_stage2_preflight.py",
         "plugins/auto-research-agent/tests/test_stage2_profile.py",
-        "plugins/auto-research-agent/tests/test_stage2_calibration.py"
+        "plugins/auto-research-agent/tests/test_stage2_calibration.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py",
+        "plugins/auto-research-agent/tests/test_stage2_readonly_replay.py",
+        "plugins/auto-research-agent/tests/test_stage2_action_extraction.py",
+        "plugins/auto-research-agent/tests/test_stage2_judge_replay.py",
+        "plugins/auto-research-agent/tests/test_stage2_environment.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
