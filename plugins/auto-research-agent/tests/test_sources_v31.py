@@ -13,9 +13,89 @@ from stage1_eval.common import EvaluationError, canonical, read_json, sha, write
 from stage1_eval.extraction_v31 import _aggregate_works, work_id_for  # noqa: E402
 from stage1_eval.sources_v31 import (  # noqa: E402
     _fetch,
+    _metadata,
     attach_public_sources,
     collect_sources_v31,
 )
+
+
+class MetadataSetupFailureTests(unittest.TestCase):
+    def test_uninitialized_hub_preserves_failure_and_stops_before_fetch(self):
+        from test_stage1_general_eval import spec
+
+        item = work()
+        stderr = (
+            b"ERROR: research-hub is not initialized.\n\n  Run: research-hub init\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with (
+                mock.patch(
+                    "stage1_eval.collector.subprocess.run",
+                    return_value=SimpleNamespace(
+                        returncode=1, stdout=b"", stderr=stderr
+                    ),
+                ) as search,
+                mock.patch(
+                    "stage1_eval.collector.executable_sha256", return_value="e" * 64
+                ),
+                mock.patch(
+                    "stage1_eval.collector.installed_package_sha256",
+                    return_value="p" * 64,
+                ),
+                mock.patch(
+                    "stage1_eval.sources_v31._fetch",
+                    return_value=(None, {"status": "timeout"}),
+                ) as fetch,
+            ):
+                with self.assertRaisesRegex(
+                    EvaluationError, "metadata evaluator setup failed"
+                ):
+                    collect_sources_v31({"works": [item]}, spec(), root, ["hub"])
+                search.assert_called_once()
+                fetch.assert_not_called()
+            directory = root / item["work_id"] / "metadata"
+            result = read_json(directory / "result.json")
+            self.assertEqual(result["receipts"][0]["status"], "backend-failure")
+            self.assertEqual(result["sources"], [])
+            error_path = directory / "raw" / result["receipts"][0]["stderr_path"]
+            self.assertEqual(error_path.read_bytes(), stderr)
+            before = {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+            with mock.patch("stage1_eval.collector.subprocess.run") as external:
+                with self.assertRaisesRegex(
+                    EvaluationError, "metadata evaluator setup failed"
+                ):
+                    _metadata(item, spec(), directory, ["hub"], replay_only=True)
+                external.assert_not_called()
+            self.assertEqual(before, {p: p.read_bytes() for p in before})
+            error_path.write_bytes(stderr + b"changed")
+            with self.assertRaisesRegex(EvaluationError, "metadata receipt mismatch"):
+                _metadata(item, spec(), directory, ["hub"], replay_only=True)
+
+    def test_other_backend_failure_retains_existing_unavailable_semantics(self):
+        from test_stage1_general_eval import spec
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with (
+                mock.patch(
+                    "stage1_eval.collector.subprocess.run",
+                    return_value=SimpleNamespace(
+                        returncode=1, stdout=b"", stderr=b"HTTP 503"
+                    ),
+                ),
+                mock.patch(
+                    "stage1_eval.collector.executable_sha256", return_value="e" * 64
+                ),
+                mock.patch(
+                    "stage1_eval.collector.installed_package_sha256",
+                    return_value="p" * 64,
+                ),
+            ):
+                result = _metadata(
+                    work(), spec(), Path(temporary), ["hub"], replay_only=False
+                )
+            self.assertEqual(result["receipts"][0]["status"], "backend-failure")
+            self.assertEqual(result["sources"], [])
 
 
 def work(title="A Study", identifier="10.1234/example"):

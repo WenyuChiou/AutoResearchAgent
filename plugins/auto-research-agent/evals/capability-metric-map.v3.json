@@ -90,6 +90,7 @@
         "no gold or human annotation is required for routine scoring",
         "packet-only cannot prove coverage",
         "evaluator errors are not subject zero",
+        "the pinned metadata CLI's uninitialized research-hub diagnostic stops evaluation after preserving and verifying raw receipts, including offline replay; it never becomes a source-unavailable judgment",
         "v3 cannot claim improvement before a paired experiment",
         "subject and evaluator dependencies are separately bound",
         "native evidence is admissible without treatment-specific ledger format",

@@ -56,6 +56,18 @@ def _metadata(work, spec, directory, command, replay_only):
         raise EvaluationError(
             f"metadata source reconstruction failed: {work['work_id']}"
         )
+    for receipt in result["receipts"]:
+        # The pinned CLI emits this diagnostic before it queries a backend.
+        # Preserve and verify its receipt, but never turn missing evaluator
+        # setup into a source-unavailable observation about the subject.
+        stderr = (raw / receipt["stderr_path"]).read_bytes()
+        if receipt["status"] == "backend-failure" and (
+            b"ERROR: research-hub is not initialized." in stderr.splitlines()
+        ):
+            raise EvaluationError(
+                f"metadata evaluator setup failed: research-hub is not initialized "
+                f"for {work['work_id']}; preserved receipt cannot be retried silently"
+            )
     return result
 
 
