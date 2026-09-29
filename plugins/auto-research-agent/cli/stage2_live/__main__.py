@@ -38,6 +38,22 @@ def _save(path, value):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_live")
     commands = parser.add_subparsers(dest="command", required=True)
+    calibration = commands.add_parser(
+        "calibrate", help="run one frozen supplied-fact calibration unit"
+    )
+    for option in (
+        "unit",
+        "codex",
+        "evaluator-home",
+        "model",
+        "reasoning",
+        "policy",
+        "output",
+    ):
+        calibration.add_argument("--" + option, required=True)
+    calibration.add_argument("--resume", action="store_true")
+    calibration.add_argument("--replay-receipt")
+    calibration.add_argument("--replay-receipt-output", required=True)
     profile = commands.add_parser(
         "prepare-profile", help="prepare a new profile from native skill discovery"
     )
@@ -120,7 +136,26 @@ def main(argv=None):
         command.add_argument("--source-root", required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command in {"prepare-profile", "preflight"}:
+        if args.command == "calibrate":
+            from .calibration import run_calibration_unit
+
+            if Path(args.replay_receipt_output).exists():
+                raise CaptureError("replay receipt output already exists")
+            result = run_calibration_unit(
+                _read(args.unit),
+                codex=args.codex,
+                evaluator_home=args.evaluator_home,
+                model=args.model,
+                reasoning=args.reasoning,
+                execution_policy=_read(args.policy),
+                output_dir=args.output,
+                resume=args.resume,
+                resume_receipt=_read(args.replay_receipt)
+                if args.replay_receipt
+                else None,
+            )
+            _save(args.replay_receipt_output, result["replay_receipt"])
+        elif args.command in {"prepare-profile", "preflight"}:
             if Path(args.output).exists():
                 raise CaptureError("output already exists")
             if args.command == "prepare-profile":

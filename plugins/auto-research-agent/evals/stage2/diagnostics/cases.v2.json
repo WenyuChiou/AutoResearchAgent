@@ -1,0 +1,409 @@
+[
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S01-case",
+    "research_candidate": {
+      "id": "S01-candidate",
+      "version": 1,
+      "text": "Test an adaptive retry rule against unconditional retries in task set T."
+    },
+    "claim_under_review": {
+      "id": "S01-claim",
+      "text": "This is the first rule to retry only errors detected by an external check."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S01:E01",
+        "work_id": "S01-work",
+        "version_id": "S01-version1",
+        "text": "Prior method P runs a task, checks its output against external errors, and retries only failures. It reports an ablation against unconditional retry.",
+        "sha256": "ad60fa2771e392f4af0795af56cd126f4f185a43a7cb7fedf96fa05dd7746ba9"
+      },
+      {
+        "evidence_id": "S01:E02",
+        "work_id": "S01-work",
+        "version_id": "S01-version1",
+        "text": "The proposed detector and retry condition match P; task set T differs from P's application. The public T data and two-week minimum comparison are accessible.",
+        "sha256": "b5d1b08901d95e80d01fd134246ac6c8e17875c678189cbb669536751bf52332"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S02-case",
+    "research_candidate": {
+      "id": "S02-candidate",
+      "version": 1,
+      "text": "Estimate the effect of within-day transaction sequence using quarterly consumption totals."
+    },
+    "claim_under_review": {
+      "id": "S02-claim",
+      "text": "The downloadable quarterly file contains all required measurements."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S02:E01",
+        "work_id": "S02-work",
+        "version_id": "S02-version1",
+        "text": "The versioned dictionary lists quarterly totals, with no timestamps, transaction records or within-day sequence.",
+        "sha256": "9b2d53eb34fe098c359eced2473ab81ec1da58221278859d5f9d3eb7a1d0b683"
+      },
+      {
+        "evidence_id": "S02:E02",
+        "work_id": "S02-work",
+        "version_id": "S02-version1",
+        "text": "Public download is licensed; no more granular source is identified. Annual or quarterly descriptive comparisons are possible within sixteen weeks.",
+        "sha256": "ff391fb4ca7be79d50375d25f619587c8a5f8b21d134847095903475a667b872"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S03-case",
+    "research_candidate": {
+      "id": "S03-candidate",
+      "version": 1,
+      "text": "Run all three proposed experiments in parallel."
+    },
+    "claim_under_review": {
+      "id": "S03-claim",
+      "text": "Three individually affordable experiments fit the combined project budget."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S03:E01",
+        "work_id": "S03-work",
+        "version_id": "S03-version1",
+        "text": "Each experiment requires an estimated USD80 and six person-weeks. No reuse between experiments is established.",
+        "sha256": "5b89a3067ac1b8325171fee29ebee90204acfc149c5317c5f114f1a516401b07"
+      },
+      {
+        "evidence_id": "S03:E02",
+        "work_id": "S03-work",
+        "version_id": "S03-version1",
+        "text": "The confirmed total budget is USD150 and eight person-weeks. Extra resources are not authorized.",
+        "sha256": "33dd3c4cbb636cdd33f9bf2067bd0978dd2e4290852eaeca8f5d854305939698"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S04-case",
+    "research_candidate": {
+      "id": "S04-candidate",
+      "version": 1,
+      "text": "Evaluate a one-line unit-alignment rule against current practice on an independent test set."
+    },
+    "claim_under_review": {
+      "id": "S04-claim",
+      "text": "A one-line method cannot have research value."
+    },
+    "screening_action": {
+      "id": "S04-screening",
+      "action": "reject",
+      "rationale": "The rule is too simple to be interesting."
+    },
+    "source_facts": [
+      {
+        "evidence_id": "S04:E01",
+        "work_id": "S04-work",
+        "version_id": "S04-version1",
+        "text": "The rule addresses a documented unit mismatch in widely used measures; the affected downstream estimates can be recomputed.",
+        "sha256": "3eb5374fda08d7b824c77608b1c47177855e4019a15c1532e8d3dd35e620fdf4"
+      },
+      {
+        "evidence_id": "S04:E02",
+        "work_id": "S04-work",
+        "version_id": "S04-version1",
+        "text": "A public held-out dataset has the necessary units. A two-week comparison fits the available semester and compute. Downstream benefit remains unmeasured.",
+        "sha256": "c0cb7b87407c0c31700eeaedeb3c1a4c3e78e7b4efbdfa7be54a018bafb06beb"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S05-case",
+    "research_candidate": {
+      "id": "S05-candidate",
+      "version": 1,
+      "text": "Measure a new sensor's accuracy against a clinical reference dataset."
+    },
+    "claim_under_review": {
+      "id": "S05-claim",
+      "text": "The reference data and licensing are sufficient for this comparison."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S05:E01",
+        "work_id": "S05-work",
+        "version_id": "S05-version1",
+        "text": "The catalogue names a reference dataset but does not give variables, sampling frequency or access terms.",
+        "sha256": "178e00fd02d7faf8e3bfd0184b5a60e53a9efc9a018e943a91f01f95c86d4df0"
+      },
+      {
+        "evidence_id": "S05:E02",
+        "work_id": "S05-work",
+        "version_id": "S05-version1",
+        "text": "Sensor output can be saved. No inspected source establishes availability of paired reference measurements.",
+        "sha256": "53e1e7596b2a786c3c8ab962eff567a88b90eb656a3ae98c9bfbd9dc42654e08"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S06-case",
+    "research_candidate": {
+      "id": "S06-candidate",
+      "version": 1,
+      "text": "Choose between two directions: infer mechanism M versus N from Y alone, or link household records D to county-only file E without a crosswalk."
+    },
+    "claim_under_review": {
+      "id": "S06-claim",
+      "text": "At least one direction must be recommended now."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S06:E01",
+        "work_id": "S06-work",
+        "version_id": "S06-version1",
+        "text": "M and N produce the same observable Y at every proposed setting; distinguishing measurement X is unavailable.",
+        "sha256": "f490080d27f212188a31a4f7136d4cec7628c4781f94a4afd86950bbde53d9c6"
+      },
+      {
+        "evidence_id": "S06:E02",
+        "work_id": "S06-work",
+        "version_id": "S06-version1",
+        "text": "E releases county totals only. D is household-level and no permitted linkage or crosswalk is identified. Neither direction has a supported fix within the confirmed inputs.",
+        "sha256": "b9731e69909976098108a626f1e4a3c20ce157024aeb0d5848410bd1045124b9"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S07-case",
+    "research_candidate": {
+      "id": "S07-candidate",
+      "version": 1,
+      "text": "Use a submitted PDF excerpt as the central evidence for an intervention's effect."
+    },
+    "claim_under_review": {
+      "id": "S07-claim",
+      "text": "The cited excerpt verifies the intervention finding in work W version2."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S07:E01",
+        "work_id": "S07-work",
+        "version_id": "S07-version1",
+        "text": "The receipt identifies work W version2, but the supplied file's title and version identify different work Z version1.",
+        "sha256": "6ad1e704cb630d33c2da36a5cf4cf2a7970344c184ab6102816a7d016d21b3ab"
+      },
+      {
+        "evidence_id": "S07:E02",
+        "work_id": "S07-work",
+        "version_id": "S07-version1",
+        "text": "No verified text of W version2 is available. The submitted excerpt therefore has an unresolved identity mismatch; this says nothing yet about the intervention's true effect.",
+        "sha256": "5cf15c78f84d3c92f5bb9122061e4c1989744b8a7f59fcc17d959bf129333568"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S08-case",
+    "research_candidate": {
+      "id": "S08-candidate",
+      "version": 1,
+      "text": "Compare reports A, B and C to understand measurement differences and evidence dependence."
+    },
+    "claim_under_review": {
+      "id": "S08-claim",
+      "text": "The reports contradict one another and provide three independent estimates."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S08:E01",
+        "work_id": "S08-work",
+        "version_id": "S08-version1",
+        "text": "A reports daily per-person mean expenditure in adults under30. B reanalyzes the same participants using weekly household medians. No matched distribution or conversion is supplied.",
+        "sha256": "2365cba9b45b76208c5d1d81c63b246440f4f4ccb30758ff0c5750d12b9afc2a"
+      },
+      {
+        "evidence_id": "S08:E02",
+        "work_id": "S08-work",
+        "version_id": "S08-version1",
+        "text": "C quotes A's estimate and collects no new observations. Only A's original participant data are accessible. These records contain no additional independent sample.",
+        "sha256": "b8b95f86131a0639570b117c6c325139a5c36ec6b82cdfc2f0e6a93490e2b4cc"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S09-case",
+    "research_candidate": {
+      "id": "S09-candidate",
+      "version": 1,
+      "text": "Test whether an uncertainty gate improves reliability compared with a transparent baseline."
+    },
+    "claim_under_review": {
+      "id": "S09-claim",
+      "text": "The gate may help; its effect remains an open research question."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S09:E01",
+        "work_id": "S09-work",
+        "version_id": "S09-version1",
+        "text": "A documented failure pattern motivates the gate. Baseline code and the required public task data, including a held-out test set, are available.",
+        "sha256": "af2bb80ace764bebc2066343ad9a2717a7aa36cf2ffd95803eb5444274905609"
+      },
+      {
+        "evidence_id": "S09:E02",
+        "work_id": "S09-work",
+        "version_id": "S09-version1",
+        "text": "A small controlled comparison fits the confirmed budget and can yield positive, null or negative effects. Current searches establish relevant predecessors but do not prove exhaustive novelty.",
+        "sha256": "86b2667d83b7b68f34b92454480ebf4fedb553afc387ac51bfa2a60b7d378d8e"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S10-case",
+    "research_candidate": {
+      "id": "S10-candidate",
+      "version": 1,
+      "text": "Link two private household datasets to study a new behavioral mechanism."
+    },
+    "claim_under_review": {
+      "id": "S10-claim",
+      "text": "The necessary household identifiers can be used because several advisors agree."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S10:E01",
+        "work_id": "S10-work",
+        "version_id": "S10-version1",
+        "text": "The released dictionary states that household identifiers are not provided. The catalogue mentions restricted access but no authorization is recorded.",
+        "sha256": "0edb8eda4635f0bf57c7455fe6d4e353a222fd7def69a69459f88cc96cf9d7e6"
+      },
+      {
+        "evidence_id": "S10:E02",
+        "work_id": "S10-work",
+        "version_id": "S10-version1",
+        "text": "The advisor claims cite one another. No additional source or approved linkage service is supplied.",
+        "sha256": "dcd98f64c65389829e684c7e5583033782e21d869eb34ea1c85f0200c10fc37d"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S11-case",
+    "research_candidate": {
+      "id": "S11-candidate",
+      "version": 1,
+      "text": "Combine a familiar detector and a familiar retry rule to reduce failed outputs."
+    },
+    "claim_under_review": {
+      "id": "S11-claim",
+      "text": "The combination must be novel because it has a new name."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S11:E01",
+        "work_id": "S11-work",
+        "version_id": "S11-version1",
+        "text": "The proposed dataflow is detector to conditional retry. Prior work P describes detector to conditional retry, with the same interfaces and criterion.",
+        "sha256": "765052cfe2beb701b5e1dca44bf1ec5b43679e0c65d0d0752b71b409bad8fcaf"
+      },
+      {
+        "evidence_id": "S11:E02",
+        "work_id": "S11-work",
+        "version_id": "S11-version1",
+        "text": "The current candidate changes the module name. It has not specified another mechanism or comparison beyond P; a new domain evaluation is possible.",
+        "sha256": "23e3467b14be34266d79732cf82000691a6483cd1469213e0c9317374b836309"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S12-case",
+    "research_candidate": {
+      "id": "S12-candidate",
+      "version": 1,
+      "text": "Reopen a transportability study after a new dataset release."
+    },
+    "claim_under_review": {
+      "id": "S12-claim",
+      "text": "The new data necessarily remove the limitation of the earlier study."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S12:E01",
+        "work_id": "S12-work",
+        "version_id": "S12-version1",
+        "text": "The earlier study covered employed urban households at two weeks; the intended new population includes rural and unemployed households over a year.",
+        "sha256": "db21e3a37b2617d0fea8abefb6587c3d0c62a33b03894fe8cc1fa6ac6d60f5d2"
+      },
+      {
+        "evidence_id": "S12:E02",
+        "work_id": "S12-work",
+        "version_id": "S12-version1",
+        "text": "A new release announcement exists, but its inspected metadata do not establish population coverage, follow-up length or access. No full dictionary has been obtained.",
+        "sha256": "d7d17fab8802ade84d371ccdc7097b71fad50da8d7e16ef26560ba95c421427a"
+      }
+    ]
+  },
+  {
+    "kind": "Stage2DiagnosticCase",
+    "schema_version": "2.0.0",
+    "case_id": "S13-case",
+    "research_candidate": {
+      "id": "S13-candidate",
+      "version": 1,
+      "text": "Compare an improved calibration procedure with a new uncertainty representation as alternative research investments."
+    },
+    "claim_under_review": {
+      "id": "S13-claim",
+      "text": "The new-concept label alone makes the second direction preferable."
+    },
+    "screening_action": null,
+    "source_facts": [
+      {
+        "evidence_id": "S13:E01",
+        "work_id": "S13-work",
+        "version_id": "S13-version1",
+        "text": "Both directions address the same documented measurement failure. Each has public source data, independent test observations and a transparent baseline; both minimum comparisons fit the confirmed budget individually.",
+        "sha256": "3062f43bd0c238f002bc08c1ee9981f978e0597a3899b5c414e55a00993e82e4"
+      },
+      {
+        "evidence_id": "S13:E02",
+        "work_id": "S13-work",
+        "version_id": "S13-version1",
+        "text": "Neither effect is yet measured. Their incremental mechanisms differ, and both have identified closest work. Simultaneous execution is outside the confirmed resource estimate.",
+        "sha256": "feaa1e3f157ca4a8918412d0254afe2f71b6d4903017ae14e00b6701ec2e4c54"
+      }
+    ]
+  }
+]

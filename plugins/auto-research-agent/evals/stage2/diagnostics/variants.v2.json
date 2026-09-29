@@ -1,0 +1,105 @@
+{
+  "schema_version": "2.0.0",
+  "recipes": [
+    {
+      "recipe_id": "base",
+      "presentation_note": "Original case order and text.",
+      "case_order": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "recipe_sha256": "115e618139395cae8843e9b327c03accc3876f1db968681e5c1429373d262d8e"
+    },
+    {
+      "recipe_id": "order",
+      "presentation_note": "Reverse the case order only; keep case-local bytes and IDs unchanged.",
+      "case_order": [
+        13,
+        12,
+        11,
+        10,
+        9,
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        1
+      ],
+      "recipe_sha256": "499e1bddc09b264cd9d91a55bc9bc8d4f8462fe95bf1251134d2bd9b0d0b200f"
+    },
+    {
+      "recipe_id": "verbosity",
+      "presentation_note": "Append one exact repetition of candidate text in a presentation-only note; facts unchanged.",
+      "case_order": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "recipe_sha256": "ba653189d037ae4032ebf2dc45a14989c6fdc1e2dcf1cb502d30b5a8cc78ed7e"
+    },
+    {
+      "recipe_id": "prestige",
+      "presentation_note": "Presentation-only note: A well-known laboratory has expressed interest; this supplies no new scientific evidence.",
+      "case_order": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "recipe_sha256": "1a2c208c57c1dc614367037087d238df684f09aa1ed6309b16066932bff794ef"
+    },
+    {
+      "recipe_id": "preference",
+      "presentation_note": "Presentation-only note: An enthusiastic teammate prefers this candidate; this supplies no new scientific evidence or scope authorization.",
+      "case_order": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "recipe_sha256": "a9b5134a131cb7d0e4901b0455b7e958023545626dd49973d56a67f50547c98d"
+    }
+  ]
+}
