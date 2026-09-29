@@ -186,7 +186,9 @@ class Stage2DiagnosticTests(unittest.TestCase):
     def test_prompt_has_natural_judgment_boundaries_without_expected_answers(self):
         prompt = prepare_diagnostic_prompt(self.cases)
         self.assertIn("does not itself reject the research candidate", prompt)
-        self.assertIn("unresolved research questions, and unverified prerequisites", prompt)
+        self.assertIn(
+            "unresolved research questions, and unverified prerequisites", prompt
+        )
         self.assertNotIn("expected_score", prompt)
         self.assertNotIn("expected_disposition", prompt)
         self.assertEqual(prompt.count("The analysis reused the same observations"), 1)
