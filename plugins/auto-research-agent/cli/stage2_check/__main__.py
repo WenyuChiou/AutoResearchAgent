@@ -16,6 +16,7 @@ def _parser():
     init.add_argument("--packet", required=True)
     init.add_argument("--source-root", required=True)
     init.add_argument("--output", required=True)
+    init.add_argument("--expected-packet-sha256")
     apply = commands.add_parser("apply", help="append an external assessment")
     apply.add_argument("--run", required=True)
     apply.add_argument("--assessment", required=True)
@@ -29,7 +30,12 @@ def main(argv=None):
     args = _parser().parse_args(argv)
     try:
         if args.command == "init":
-            result = initialize_run(args.packet, args.source_root, args.output)
+            result = initialize_run(
+                args.packet,
+                args.source_root,
+                args.output,
+                args.expected_packet_sha256,
+            )
         elif args.command == "apply":
             result = apply_assessment(args.run, args.assessment)
         else:

@@ -75,6 +75,26 @@ Stage 2 也要容許 AI 主動提出有理由的新看法、新方法或新研�
 未解事項與一組候選。ResearchBrief 沿用既有版本與使用者決定；不自行換國家。
 來源保留 work、version、hash、證據層級與原文位置。Metadata 不當成 findings 證據。
 
+從 Stage 1 進入時，先使用 `stage2_workflow import-stage1` 產生 Stage 2 v2 封包。
+Importer 會重播並驗證 Stage 1 私有研究交付包，核對 handoff 的 included works 與
+work/version，並將可讀原文及 exact claims 轉成 Stage 2 sources/evidence。無法取得原文的
+來源只保留 metadata snapshot；摘要或 metadata 不升級成全文。Stage 1 的 title、authors、
+year、venue、DOI、URL、分類、文獻角色、findings 與 claim IDs 會以結構化 literature rows
+保留，直接提供 Stage 2 比較與 ideation 使用。封包另外綁定 Stage 1
+run/state、handoff、deliverable manifest、canonical records、ResearchBrief 與資源限制的
+SHA-256，並分別固定 Stage 1 literature、sources 與 evidence 的投影。Stage 2 可以追加標為
+`origin=stage2` 的補查資料，但不能改寫 `origin=stage1` 的內容；任何綁定內容被改寫，
+Stage 2 驗證會拒絕。含原文的匯入輸出、checker 與 workflow run 都必須位於 Git
+checkout 之外的私有目錄。
+
+Importer 的 `candidates` 固定為空，`comparison` 只說明待比較文獻與面向，不宣稱已完成
+比較。匯入結果仍是 `not-started` 且沒有 Stage 2 execution authorization；研究者明確執行
+`stage2_workflow init` 後，StageRun 才建立並用 `input_refs` 同時綁定外部核准的 source
+packet 與內部搬移來源路徑後的 stored packet bytes。舊 v1
+封包保持可讀，但只有 v2 具備完整的 Stage 1 上游 provenance。初始化 v2 時必須另傳
+import receipt 的 `packet_sha256` 作為 `--expected-packet-sha256`；只在封包內重算所有 hash
+不能冒充外部信任。
+
 第一輪由 Codex／研究者提供語意查核，再用 CLI 驗證、保存與產生選擇包。
 程式不從關鍵字猜科學價值，也不把 JSON 通過稱為研究有效。原生搜尋、閱讀與
 程式執行能力仍可使用；research-hub 是可重用工具，不是所有查核的必經入口。

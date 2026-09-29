@@ -163,11 +163,20 @@ def _validate_append_only(previous, current):
         raise Stage2Error("workflow-brief-change-requires-explicit-decision")
     if canonical_hash(previous["resources"]) != canonical_hash(current["resources"]):
         raise Stage2Error("workflow-resources-change-requires-explicit-decision")
+    if previous["schema_version"] != current["schema_version"]:
+        raise Stage2Error("workflow-packet-version-change-requires-new-run")
+    if previous["schema_version"] == "2.0.0" and canonical_hash(
+        previous["upstream"]
+    ) != canonical_hash(current["upstream"]):
+        raise Stage2Error("workflow-upstream-stage1-binding-rewritten")
     for field, keys in (
+        ("literature", ("work_id", "version_id")),
         ("sources", ("source_id",)),
         ("evidence", ("evidence_id",)),
         ("candidates", ("candidate_id", "version")),
     ):
+        if field not in previous:
+            continue
         old_rows = {tuple(row[key] for key in keys): row for row in previous[field]}
         new_rows = {tuple(row[key] for key in keys): row for row in current[field]}
         for identity, row in old_rows.items():
@@ -374,6 +383,7 @@ def initialize_workflow(
     output_dir,
     settings: dict,
     policy_ref: dict,
+    expected_packet_sha256=None,
     *,
     clock=_now,
 ):
@@ -381,12 +391,23 @@ def initialize_workflow(
 
     if not isinstance(settings, dict) or not isinstance(policy_ref, dict):
         raise Stage2Error("workflow-settings-policy-must-be-objects")
+    initial_packet = _read_json(Path(packet_path).resolve())
+    initial_packet_sha256 = canonical_hash(initial_packet)
+    if initial_packet.get("schema_version") == "2.0.0":
+        if expected_packet_sha256 is None:
+            raise Stage2Error("stage2-v2-expected-packet-sha256-required")
+        if expected_packet_sha256 != initial_packet_sha256:
+            raise Stage2Error("stage2-v2-external-packet-hash-mismatch")
+    elif (
+        expected_packet_sha256 is not None
+        and expected_packet_sha256 != initial_packet_sha256
+    ):
+        raise Stage2Error("stage2-external-packet-hash-mismatch")
     root = Path(output_dir).resolve()
     if root.exists():
         state = inspect_workflow(root)
-        packet = _read_json(Path(packet_path))
         if (
-            state["manifest"]["initial_packet_sha256"] != canonical_hash(packet)
+            state["manifest"]["initial_packet_sha256"] != initial_packet_sha256
             or state["manifest"]["settings_sha256"] != canonical_hash(settings)
             or state["manifest"]["policy_ref_sha256"] != canonical_hash(policy_ref)
         ):
@@ -396,7 +417,13 @@ def initialize_workflow(
         root.mkdir(parents=False)
     except FileExistsError:
         return initialize_workflow(
-            packet_path, source_root, output_dir, settings, policy_ref, clock=clock
+            packet_path,
+            source_root,
+            output_dir,
+            settings,
+            policy_ref,
+            expected_packet_sha256,
+            clock=clock,
         )
     try:
         (root / "events").mkdir()
@@ -405,7 +432,11 @@ def initialize_workflow(
         snapshot_dir = root / "snapshots" / "000001"
         snapshot_dir.mkdir()
         checker_manifest = initialize_run(
-            packet_path, source_root, snapshot_dir / "checker", clock=clock
+            packet_path,
+            source_root,
+            snapshot_dir / "checker",
+            expected_packet_sha256,
+            clock=clock,
         )
         checker = inspect_run(snapshot_dir / "checker")
         packet = _restore_packet(checker)
@@ -694,8 +725,13 @@ def add_snapshot(
         except FileExistsError as error:
             raise Stage2Error("workflow-snapshot-directory-conflict") from error
         try:
+            snapshot_packet = _read_json(Path(packet_path).resolve())
             checker_manifest = initialize_run(
-                packet_path, source_root, snapshot_dir / "checker", clock=clock
+                packet_path,
+                source_root,
+                snapshot_dir / "checker",
+                canonical_hash(snapshot_packet),
+                clock=clock,
             )
             checker = inspect_run(snapshot_dir / "checker")
             packet = _restore_packet(checker)

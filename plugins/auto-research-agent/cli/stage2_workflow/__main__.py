@@ -11,6 +11,7 @@ from stage2_common import Stage2Error
 from .orchestration import prepare_review_batch, reconcile_batch
 from .delivery import build_delivery, inspect_delivery
 from .interaction import record_interaction
+from .import_stage1 import build_stage2_seed
 from .store import (
     add_snapshot,
     finish_action,
@@ -27,6 +28,16 @@ def _read(path):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_workflow")
     commands = parser.add_subparsers(dest="command", required=True)
+    handoff = commands.add_parser(
+        "import-stage1", help="validate Stage 1 and build an unstarted Stage 2 seed"
+    )
+    handoff.add_argument("--deliverable", required=True)
+    handoff.add_argument("--deliverable-manifest-sha256", required=True)
+    handoff.add_argument("--handoff", required=True)
+    handoff.add_argument("--handoff-sha256", required=True)
+    handoff.add_argument("--brief", required=True)
+    handoff.add_argument("--resources", required=True)
+    handoff.add_argument("--output", required=True)
     init = commands.add_parser(
         "init", help="save the first immutable evidence snapshot"
     )
@@ -35,6 +46,7 @@ def main(argv=None):
     init.add_argument("--output", required=True)
     init.add_argument("--settings", required=True)
     init.add_argument("--policy-ref", required=True)
+    init.add_argument("--expected-packet-sha256")
     show = commands.add_parser(
         "inspect", help="revalidate records and saved source bytes"
     )
@@ -108,13 +120,24 @@ def main(argv=None):
     human.add_argument("--message-index", type=int, required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == "init":
+        if args.command == "import-stage1":
+            result = build_stage2_seed(
+                args.deliverable,
+                args.deliverable_manifest_sha256,
+                args.handoff,
+                args.handoff_sha256,
+                args.brief,
+                args.resources,
+                args.output,
+            )
+        elif args.command == "init":
             result = initialize_workflow(
                 args.packet,
                 args.source_root,
                 args.output,
                 _read(args.settings),
                 _read(args.policy_ref),
+                args.expected_packet_sha256,
             )
         elif args.command == "inspect":
             state = inspect_workflow(args.run, args.expected_head)

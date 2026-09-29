@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage2-packet.v2.schema.json",
+  "title": "Stage 2 scientific packet v2 with Stage 1 provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "packet_id", "brief", "resources", "comparison", "literature", "evidence", "sources", "candidates", "unresolved", "upstream"],
+  "properties": {
+    "kind": {"const": "Stage2Packet"},
+    "schema_version": {"const": "2.0.0"},
+    "packet_id": {"$ref": "#/$defs/text"},
+    "brief": {"type": "object"},
+    "resources": {"$ref": "#/$defs/text"},
+    "comparison": {"$ref": "#/$defs/text"},
+    "literature": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/literature"}},
+    "sources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+    "unresolved": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+    "upstream": {"$ref": "#/$defs/upstream"}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "origin": {"enum": ["stage1", "stage2"]},
+    "literature": {
+      "type": "object", "additionalProperties": false,
+      "required": ["origin", "work_id", "version_id", "title", "authors", "year", "venue", "doi", "url", "evidence_level", "source_ids", "classification", "roles", "findings", "claim_ids"],
+      "properties": {
+        "origin": {"$ref": "#/$defs/origin"},
+        "work_id": {"$ref": "#/$defs/id"}, "version_id": {"$ref": "#/$defs/id"},
+        "title": {"$ref": "#/$defs/text"},
+        "authors": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}},
+        "year": {"type": ["integer", "null"], "minimum": 1000, "maximum": 9999},
+        "venue": {"$ref": "#/$defs/text"},
+        "doi": {"type": ["string", "null"], "pattern": "^10\\."},
+        "url": {"type": "string", "format": "uri"},
+        "evidence_level": {"enum": ["metadata", "abstract", "full-text"]},
+        "source_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "classification": {"$ref": "#/$defs/classification"},
+        "roles": {"type": "array", "items": {"$ref": "#/$defs/role"}},
+        "findings": {"$ref": "#/$defs/findings"},
+        "claim_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "classification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["topic_cluster", "method", "geography", "population", "data_type", "domain"],
+      "properties": {
+        "topic_cluster": {"$ref": "#/$defs/text"}, "method": {"$ref": "#/$defs/text"},
+        "geography": {"$ref": "#/$defs/text"}, "population": {"$ref": "#/$defs/text"},
+        "data_type": {"$ref": "#/$defs/text"}, "domain": {"$ref": "#/$defs/text"}
+      }
+    },
+    "findings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["question", "data", "method", "main_findings", "limitations", "relevance", "transferability"],
+      "properties": {
+        "question": {"$ref": "#/$defs/text"}, "data": {"$ref": "#/$defs/text"},
+        "method": {"$ref": "#/$defs/text"}, "main_findings": {"$ref": "#/$defs/text"},
+        "limitations": {"$ref": "#/$defs/text"}, "relevance": {"$ref": "#/$defs/text"},
+        "transferability": {"$ref": "#/$defs/text"}
+      }
+    },
+    "role": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "reason", "claim_ids"],
+      "properties": {
+        "role": {"enum": ["classic", "topic-core", "closest-work", "comparator"]},
+        "reason": {"$ref": "#/$defs/text"},
+        "claim_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["origin", "source_id", "work_id", "version_id", "path", "sha256", "evidence_level", "access_status", "retrieved_at", "source_url", "final_url", "access_note"],
+      "properties": {
+        "origin": {"$ref": "#/$defs/origin"},
+        "source_id": {"$ref": "#/$defs/id"}, "work_id": {"$ref": "#/$defs/id"},
+        "version_id": {"$ref": "#/$defs/id"}, "path": {"$ref": "#/$defs/text"},
+        "sha256": {"$ref": "#/$defs/sha"},
+        "evidence_level": {"enum": ["metadata", "abstract", "full-text"]},
+        "access_status": {"enum": ["available", "abstract-only", "metadata-only", "paywalled", "not-found", "rate-limited", "network-error", "parse-error", "login-page", "identity-mismatch", "stage2-added"]},
+        "retrieved_at": {"$ref": "#/$defs/text"},
+        "source_url": {"type": ["string", "null"], "format": "uri"},
+        "final_url": {"type": ["string", "null"], "format": "uri"},
+        "access_note": {"$ref": "#/$defs/text"}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["origin", "evidence_id", "source_id", "work_id", "version_id", "claim_text", "relation", "evidence_level", "locator", "quote"],
+      "properties": {
+        "origin": {"$ref": "#/$defs/origin"},
+        "evidence_id": {"$ref": "#/$defs/id"}, "source_id": {"$ref": "#/$defs/id"},
+        "work_id": {"$ref": "#/$defs/id"}, "version_id": {"$ref": "#/$defs/id"},
+        "claim_text": {"$ref": "#/$defs/text"}, "relation": {"$ref": "#/$defs/text"},
+        "evidence_level": {"enum": ["metadata", "abstract", "full-text"]},
+        "locator": {"$ref": "#/$defs/text"}, "quote": {"$ref": "#/$defs/text"}
+      }
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidate_id", "version", "parent_version", "question", "research_mode", "opportunity", "value", "approach", "requirements", "limitations", "evidence_ids"],
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/id"}, "version": {"type": "integer", "minimum": 1},
+        "parent_version": {"type": ["integer", "null"], "minimum": 1},
+        "question": {"$ref": "#/$defs/text"},
+        "research_mode": {"enum": ["exploratory", "confirmatory", "method-development", "theory", "replication", "validation"]},
+        "opportunity": {"$ref": "#/$defs/text"}, "value": {"$ref": "#/$defs/text"},
+        "approach": {"$ref": "#/$defs/text"},
+        "requirements": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "limitations": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "upstream": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "schema_version", "source_run_id", "source_state_sha256", "stage1_handoff_sha256", "stage1_deliverable_manifest_sha256", "stage1_records_sha256", "research_brief_sha256", "resources_sha256", "stage1_literature_sha256", "stage1_sources_sha256", "stage1_evidence_sha256", "included_work_ids", "eligible_for_stage2", "stage2", "binding_sha256"],
+      "properties": {
+        "kind": {"const": "Stage1Stage2Binding"},
+        "schema_version": {"const": "1.0.0"},
+        "source_run_id": {"$ref": "#/$defs/text"},
+        "source_state_sha256": {"$ref": "#/$defs/sha"},
+        "stage1_handoff_sha256": {"$ref": "#/$defs/sha"},
+        "stage1_deliverable_manifest_sha256": {"$ref": "#/$defs/sha"},
+        "stage1_records_sha256": {"$ref": "#/$defs/sha"},
+        "research_brief_sha256": {"$ref": "#/$defs/sha"},
+        "resources_sha256": {"$ref": "#/$defs/sha"},
+        "stage1_literature_sha256": {"$ref": "#/$defs/sha"},
+        "stage1_sources_sha256": {"$ref": "#/$defs/sha"},
+        "stage1_evidence_sha256": {"$ref": "#/$defs/sha"},
+        "included_work_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "eligible_for_stage2": {"const": true},
+        "stage2": {"const": {"status": "not-started", "execution_authorized": false}},
+        "binding_sha256": {"$ref": "#/$defs/sha"}
+      }
+    }
+  }
+}

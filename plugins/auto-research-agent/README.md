@@ -8,6 +8,11 @@ validity. The separate [P4-P6 evaluator](references/stage2-evaluation.md) remain
 offline and implementation-only. Research-quality improvement is not yet demonstrated.
 The historical `evals/stage-registry.v1.json` predates this separate v2 slice;
 current Stage 2 capability status is recorded in `evals/capability-metric-map.stage2-v2.json`.
+The [Stage 1 researcher deliverable](references/stage1-research-deliverable.md)
+enters Stage 2 through an explicit hash-bound v2 handoff. It preserves structured
+paper metadata, classifications, roles, findings, claims, source status and exact
+source bytes in a private outside-Git seed. Importing evidence does not generate
+candidates or authorize Stage 2 execution.
 
 Native Codex search, browsing, reasoning and tool choice remain available.
 The research-hub adapter is optional; a native search need not be repeated to
