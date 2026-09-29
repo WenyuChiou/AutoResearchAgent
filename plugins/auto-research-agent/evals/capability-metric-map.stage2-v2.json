@@ -309,7 +309,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_live",
       "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
-      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -362,7 +362,9 @@
         "plugins/auto-research-agent/tests/test_stage2_live_extraction.py",
         "plugins/auto-research-agent/tests/test_stage2_live_review_models.py",
         "plugins/auto-research-agent/tests/test_stage2_live_judges.py",
-        "plugins/auto-research-agent/tests/test_stage2_live_cli.py"
+        "plugins/auto-research-agent/tests/test_stage2_live_cli.py",
+        "plugins/auto-research-agent/tests/test_stage2_preflight.py",
+        "plugins/auto-research-agent/tests/test_stage2_profile.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
