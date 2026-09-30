@@ -34,7 +34,8 @@ class ReasonRecoveryTests(unittest.TestCase):
         self.fixture = fixtures.SourceAuditUnitTests()
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
-        self.root = self.fixture.root
+        # /var is a normal macOS temp alias; valid private destinations use its canonical path.
+        self.root = self.fixture.root.resolve()
         plan = build_audit_plan(
             self.fixture.packet, [self.fixture.record], self.fixture.extraction
         )
@@ -306,6 +307,94 @@ class ReasonRecoveryTests(unittest.TestCase):
             self.assertEqual(failure["status"], "binding-failed")
             self.assertFalse(failure["coverage_eligible"])
             self.assertIsNone(failure["unit_population"])
+
+    def test_import_traversal_refused_for_every_protected_root_and_outcome(self):
+        from stage1_eval.reason_recovery import import_recovery
+
+        roots = {key: self.root / key for key in ("generation", "old_code", "capture")}
+        refs = {}
+        for key, root in roots.items():
+            root.mkdir()
+            (root / "retained.json").write_bytes(b"retained original bytes")
+            value = (
+                {"root": str(root)}
+                if key != "capture"
+                else {"captures": {"one": {"root": str(root)}}}
+            )
+            path = self.root / (key + "-inventory.json")
+            path.write_bytes(canonical(value))
+            refs["captures" if key == "capture" else key] = {
+                "path": str(path),
+                "sha256": sha(path.read_bytes()),
+            }
+        manifest = self.root / "import-manifest.json"
+        manifest.write_bytes(canonical(refs))
+        digest = sha(manifest.read_bytes())
+        sibling = self.root / "sibling"
+        sibling.mkdir()
+
+        def snapshot():
+            return {
+                str(p.relative_to(self.root)): (
+                    p.is_dir(),
+                    p.stat().st_mtime_ns,
+                    None if p.is_dir() else sha(p.read_bytes()),
+                )
+                for p in (self.root, *self.root.rglob("*"))
+            }
+
+        before = snapshot()
+        for root in roots.values():
+            for failed in (False, True):
+                for destination in (
+                    sibling / ".." / root.name / "new-recovery",
+                    root / "new-recovery",
+                ):
+                    with (
+                        self.subTest(
+                            root=root.name, failed=failed, destination=str(destination)
+                        ),
+                        mock.patch(
+                            "stage1_eval.reason_recovery.dry_run",
+                            return_value={"success": True},
+                            side_effect=EvaluationError("synthetic dry-run failure")
+                            if failed
+                            else None,
+                        ) as dry,
+                        mock.patch.object(
+                            Path, "mkdir", side_effect=AssertionError("no mkdir")
+                        ) as mkdir,
+                    ):
+                        with self.assertRaises(EvaluationError):
+                            import_recovery(manifest, digest, destination)
+                        dry.assert_not_called()
+                        mkdir.assert_not_called()
+                    self.assertEqual(snapshot(), before)
+
+    def test_recovery_destination_keeps_lexical_symlink_and_reparse_rejection(self):
+        from stage1_eval.reason_recovery import import_recovery
+        import stat
+
+        unsafe = self.root / "unsafe"
+        unsafe.mkdir()
+        original_lstat = Path.lstat
+        for mode, attributes in ((stat.S_IFLNK, 0), (stat.S_IFDIR, 0x400)):
+
+            def marked(path, *args, **kwargs):
+                if path == unsafe:
+                    return SimpleNamespace(st_mode=mode, st_file_attributes=attributes)
+                return original_lstat(path, *args, **kwargs)
+
+            with (
+                mock.patch.object(Path, "lstat", marked),
+                self.assertRaisesRegex(EvaluationError, "traverse links"),
+            ):
+                import_recovery(
+                    "unused-manifest",
+                    "unused-digest",
+                    unsafe / ".." / "apparently-safe",
+                )
+        self.assertFalse((self.root / "apparently-safe").exists())
 
     def test_readonly_api_guard_blocks_original_append_rename_network_and_process(self):
         from stage1_eval.reason_recovery import readonly_guard

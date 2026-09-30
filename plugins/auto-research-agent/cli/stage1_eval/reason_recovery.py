@@ -902,20 +902,35 @@ def dry_run(manifest_path, expected_sha256):
         return _dry_run(manifest_path, expected_sha256)
 
 
-def import_recovery(manifest_path, expected_sha256, destination):
-    destination = Path(destination).absolute()
-    for ancestor in (destination, *destination.parents):
+def _recovery_destination(destination, protected=(), *, exists_ok=False):
+    """Check lexical indirection before canonical overlap and every output write."""
+    lexical = Path(destination).absolute()
+    for ancestor in (lexical, *lexical.parents):
         if (ancestor / ".git").exists():
             raise EvaluationError("private recovery output must be outside Git")
-        if ancestor.exists():
+        try:
             info = ancestor.lstat()
-            if (
-                stat.S_ISLNK(info.st_mode)
-                or getattr(info, "st_file_attributes", 0) & 0x400
-            ):
-                raise EvaluationError("private recovery output cannot traverse links")
-    if destination.exists():
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+            raise EvaluationError("private recovery output cannot traverse links")
+    if ".." in lexical.parts:
+        raise EvaluationError(
+            "private recovery output cannot contain traversal segments"
+        )
+    resolved = lexical.resolve()
+    for root in protected:
+        root = Path(root).resolve()
+        if resolved.is_relative_to(root) or root.is_relative_to(resolved):
+            raise EvaluationError("recovery destination overlaps original evidence")
+    if resolved.exists() and not exists_ok:
         raise EvaluationError("recovery destination already exists")
+    return resolved
+
+
+def import_recovery(manifest_path, expected_sha256, destination):
+    original_destination = destination
+    destination = _recovery_destination(original_destination)
     manifest = bound_json({"path": manifest_path, "sha256": expected_sha256})
     protected = [
         bound_json(manifest[key])["root"] for key in ("generation", "old_code")
@@ -923,13 +938,16 @@ def import_recovery(manifest_path, expected_sha256, destination):
     protected += [
         r["root"] for r in bound_json(manifest["captures"])["captures"].values()
     ]
-    for root in map(lambda p: Path(p).resolve(), protected):
-        if destination.is_relative_to(root) or root.is_relative_to(destination):
-            raise EvaluationError("recovery destination overlaps original evidence")
+    protected = [Path(root).resolve() for root in protected]
+    destination = _recovery_destination(original_destination, protected)
     try:
         result = dry_run(manifest_path, expected_sha256)
     except Exception as error:
+        destination = _recovery_destination(original_destination, protected)
         destination.mkdir(parents=True, exist_ok=False)
+        destination = _recovery_destination(
+            original_destination, protected, exists_ok=True
+        )
         write_json(
             destination / "recovery-failure.json",
             {
@@ -944,11 +962,14 @@ def import_recovery(manifest_path, expected_sha256, destination):
             },
         )
         raise
+    destination = _recovery_destination(original_destination, protected)
     destination.mkdir(parents=True, exist_ok=False)
     manifest_raw = Path(manifest_path).read_bytes()
     if sha(manifest_raw) != expected_sha256:
         raise EvaluationError("manifest changed during import")
+    destination = _recovery_destination(original_destination, protected, exists_ok=True)
     (destination / "manifest.json").write_bytes(manifest_raw)
+    destination = _recovery_destination(original_destination, protected, exists_ok=True)
     write_json(destination / "recovery.json", result)
     return result
 

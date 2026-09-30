@@ -234,7 +234,11 @@ python -m stage1_eval.reason_recovery replay NEW_PRIVATE_RECOVERY --sha256 MANIF
 CLI 與程式 API 在任何上游驗證前啟用唯讀 audit hook，禁止檔案寫入、子程序與網路，
 並停用 Python bytecode 寫入。這是受信任 Python 程式的同一執行緒防護，
 不是作業系統沙箱，也不宣稱跨執行緒繼承。import 只在唯讀驗證結束後寫入獨立
-恢復目錄。manifest 使用外部提供的
+恢復目錄。目的地先檢查原始路徑各層的 symlink／reparse point 與 Git 邊界，
+拒絕 `..`，再以 canonical 路徑檢查與 generation、原始程式及 capture 根目錄
+雙向不重疊。成功匯入與失敗收據都在建立目錄及寫入前重新檢查；不得用
+`sibling/../protected-root` 或短檔名別名繞過。合法私人目的地須先由操作者
+選定 canonical 路徑。manifest 使用外部提供的
 SHA-256；其 `generation`、`old_code`、`captures` 與 `source_plan`、`target_plan`
 都是 `{path,sha256}` 綁定。generation 清單列出所有證據檔，只排除 `profile`
 中除了 `config.toml` 之外的憑證與 cache。capture 清單逐 target 綁定所有檔案，
