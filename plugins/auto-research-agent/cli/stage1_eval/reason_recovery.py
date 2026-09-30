@@ -44,6 +44,14 @@ _REVIEWED_CODE_PAIRS = {
         "d70ac9b7626a6651e89eac70742c57ea272f9ae86a08ff95d903d3f0eecb3cb7",
     ),
 }
+REVIEWED_REASON_VIEW_DELTA_ID = "source-audit-view-reason-v2"
+_REVIEWED_REASON_VIEW_PAIRS = {
+    **_REVIEWED_CODE_PAIRS,
+    "cli/stage1_eval/source_audit_views.py": (
+        "eaffecbfe638c1c9a53d2e722938be6232d84381e4b21432715fd1e664515ed6",
+        "0c3a894578f0dc92a043fe9e722ebd95e6bc2fa27e6197c4c47472b5009fac88",
+    ),
+}
 
 
 _GUARD = contextvars.ContextVar("stage1_recovery_readonly", default=None)
@@ -717,9 +725,14 @@ def verify_operator_runtime(source, generation):
 
 
 def verify_contract_changes(inventory, current, reviewed_delta=None):
-    """Keep legacy rules; an explicit version admits only three exact hash pairs."""
-    if reviewed_delta is not None and reviewed_delta != REVIEWED_CODE_DELTA_ID:
+    """Keep legacy declarations; each explicit version admits exact hash pairs."""
+    versions = {
+        REVIEWED_CODE_DELTA_ID: _REVIEWED_CODE_PAIRS,
+        REVIEWED_REASON_VIEW_DELTA_ID: _REVIEWED_REASON_VIEW_PAIRS,
+    }
+    if reviewed_delta is not None and reviewed_delta not in versions:
         raise EvaluationError("unsupported reviewed evaluator code delta")
+    pairs = versions.get(reviewed_delta, {})
     allowed = {
         "cli/stage1_eval/source_audit_units.py",
         "cli/stage1_eval/reason_recovery.py",
@@ -750,16 +763,12 @@ def verify_contract_changes(inventory, current, reviewed_delta=None):
         new_digest = sha((current / relative).read_bytes())
         if old_digest == new_digest:
             continue
-        if reviewed_delta != REVIEWED_CODE_DELTA_ID or _REVIEWED_CODE_PAIRS.get(
-            relative
-        ) != (old_digest, new_digest):
+        if pairs.get(relative) != (old_digest, new_digest):
             raise EvaluationError("unexplained evaluator contract change: " + relative)
         changes.append(
             {"path": relative, "old_sha256": old_digest, "new_sha256": new_digest}
         )
-    if reviewed_delta is not None and {row["path"] for row in changes} != set(
-        _REVIEWED_CODE_PAIRS
-    ):
+    if reviewed_delta is not None and {row["path"] for row in changes} != set(pairs):
         raise EvaluationError("incomplete reviewed evaluator code delta")
     return {
         "policy_id": reviewed_delta,

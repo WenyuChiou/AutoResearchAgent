@@ -305,6 +305,39 @@ class CompleteJudgingTests(unittest.TestCase):
                         }
                     )
 
+    def test_recovered_reason_policy_reaches_actual_judge_view_losslessly(self):
+        for length in (401, 471, 1024):
+            with self.subTest(length=length):
+                self.audits = {
+                    role: {"summaries": [], "leaves": []} for role in ("r1", "r2")
+                }
+                self.representative_audits(reason="R" * length, work_count=1)
+                prepared = complete._prepare_call(
+                    self.packet,
+                    "content",
+                    "core",
+                    [],
+                    None,
+                    {"r1": self.audits["r1"]},
+                    role="r1",
+                )
+                encoded, _ = json.JSONDecoder().raw_decode(
+                    prepared["prompt"][prepared["prompt"].index('{"keys"') :]
+                )
+                supplied = decode(encoded)["packet"]["source_audit_observations"]
+                self.assertEqual(
+                    supplied["r1"]["leaves"][0]["value"]["reason"], "R" * length
+                )
+
+    def test_over_limit_audit_reason_rejects_before_judge_native_call(self):
+        self.representative_audits(reason="R" * 1025, work_count=1)
+        with patch("stage1_eval.model_calls.subprocess.run") as native:
+            with self.assertRaisesRegex(
+                EvaluationError, "source audit leaf is invalid"
+            ):
+                self.invoke()
+        native.assert_not_called()
+
     def test_fifteen_work_audit_manifest_isolated_adjudicated_unknown_and_replayed(
         self,
     ):

@@ -1,6 +1,7 @@
 """Deterministic, role-isolated audit views and inspectable submission manifests."""
 
 from .common import EvaluationError, canonical, sha
+from .source_audit_units import _schema as source_audit_schema
 
 
 _PASSAGE_IDENTITY_FIELDS = (
@@ -111,7 +112,9 @@ def _observations(audits, work_ids=None):
                     "unverifiable",
                 }
                 or not isinstance(value.get("reason"), str)
-                or not 1 <= len(value["reason"]) <= 400
+                or not 1
+                <= len(value["reason"])
+                <= source_audit_schema([])["properties"]["reason"]["maxLength"]
                 or not isinstance(value.get("passages"), list)
             ):
                 raise EvaluationError("source audit leaf is invalid")
