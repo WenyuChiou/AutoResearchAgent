@@ -127,7 +127,9 @@ def codex_runtime_sha(codex):
     return sha(b"\0".join(parts))
 
 
-def _runtime_pin(path, expected_sha=None, *, verify_host=False, workspace=None):
+def _runtime_pin(
+    path, expected_sha=None, *, verify_host=False, workspace=None, process_options=None
+):
     """Read the reviewed public CLI pin; host checks bind executable bytes."""
     if path is None:
         raise ExecutionBlocked("treatment runtime pin is required")
@@ -154,7 +156,11 @@ def _runtime_pin(path, expected_sha=None, *, verify_host=False, workspace=None):
                 raise ExecutionBlocked(
                     "treatment runtime data escapes subject workspace"
                 )
-        verify_identity(pin, probe=True)
+        verify_identity(
+            pin,
+            probe=True,
+            **({"process_options": process_options} if process_options else {}),
+        )
     return pin, sha(raw)
 
 
@@ -383,21 +389,47 @@ def probe_profile(
     prohibited_ids=(),
     allow_existing_workspace=False,
     probe_evidence_dir=None,
+    native_user=None,
+    probe_mode="functional",
+    protected_runtime=None,
 ):
     """Read-only probe; a missing login or uncertain plugin discovery blocks launch."""
+    if probe_mode not in {"functional", "subject-non-model-v2"}:
+        raise ExecutionBlocked("unknown profile probe mode")
     _assert_host_isolation(
         profile, workspace, private_root, prohibited_ids, allow_existing_workspace
     )
     env = dict(os.environ, CODEX_HOME=str(Path(profile).resolve()))
+    process_options = {}
+    if native_user is not None:
+        from .vm_guest import native_options
+
+        process_options, native_env = native_options(native_user)
+        env.update(native_env)
+
+    def check_runtime():
+        if native_user is not None:
+            from .vm_runtime import before_exec
+
+            before_exec(codex, protected_runtime, env)
+
+    check_runtime()
     version = subprocess.run(
-        [str(codex), "--version"], env=env, capture_output=True, text=True, timeout=20
+        [str(codex), "--version"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        **process_options,
     )
+    check_runtime()
     login = subprocess.run(
         [str(codex), "login", "status"],
         env=env,
         capture_output=True,
         text=True,
         timeout=20,
+        **process_options,
     )
     if (
         version.returncode
@@ -418,6 +450,7 @@ def probe_profile(
     # The public plugin API observes effective workspace discovery. Handshake
     # must complete before later requests; sending them all at once is invalid.
     with tempfile.TemporaryFile() as stderr:
+        check_runtime()
         process = subprocess.Popen(
             [str(codex), "app-server", "--stdio"],
             env=env,
@@ -427,6 +460,7 @@ def probe_profile(
             stderr=stderr,
             text=True,
             encoding="utf-8",
+            **process_options,
         )
         replies = queue.Queue()
 
@@ -567,7 +601,21 @@ def probe_profile(
     if expected_plugin:
         if probe_evidence_dir is not None:
             Path(probe_evidence_dir).mkdir(parents=True, exist_ok=False)
-        skill_sha = _functional_skill_smoke(codex, env, skill_path, probe_evidence_dir)
+        if probe_mode == "subject-non-model-v2":
+            skill_sha = None
+        elif native_user is None:
+            skill_sha = _functional_skill_smoke(
+                codex, env, skill_path, probe_evidence_dir
+            )
+        else:
+            skill_sha = _functional_skill_smoke(
+                codex,
+                env,
+                skill_path,
+                probe_evidence_dir,
+                native_user=native_user,
+                protected_runtime=protected_runtime,
+            )
     else:
         skill_sha = None
     config_text = config.read_text(encoding="utf-8") if config.exists() else ""
@@ -602,7 +650,23 @@ def probe_profile(
             + "\n",
             encoding="utf-8",
         )
+    installed_skill = {}
+    if probe_mode == "subject-non-model-v2":
+        if expected_plugin:
+            if native_user is None:
+                raw_skill = skill_path.read_bytes()
+            else:
+                import base64
+                from .vm_subject import call
+
+                raw_skill = base64.b64decode(
+                    call(native_user, "read", path=str(skill_path)), validate=True
+                )
+            installed_skill["installed_skill_sha256"] = sha(raw_skill)
+        else:
+            installed_skill["installed_skill_sha256"] = None
     return {
+        **installed_skill,
         "codex_version": version.stdout.strip(),
         "login_status": "authenticated",
         "plugin_names": names,
@@ -622,21 +686,51 @@ def probe_profile(
     }
 
 
-def _functional_skill_smoke(codex, env, skill_path, evidence_dir=None):
+def _functional_skill_smoke(
+    codex,
+    env,
+    skill_path,
+    evidence_dir=None,
+    *,
+    native_user=None,
+    protected_runtime=None,
+):
     """Ask the pinned subject model to read the installed skill in its real sandbox."""
-    expected = sha(skill_path.read_bytes())
+    if native_user is None:
+        expected = sha(skill_path.read_bytes())
+    else:
+        import base64
+        from .vm_subject import call
+
+        expected = sha(
+            base64.b64decode(
+                call(native_user, "read", path=str(skill_path)), validate=True
+            )
+        )
     if "CODEX_HOME" in env:
         directory = _skill_probe_directory(env["CODEX_HOME"])
         if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
             raise ExecutionBlocked("skill probe workspace is not a normal directory")
-        directory.mkdir(exist_ok=True)
-        if any(directory.iterdir()):
-            raise ExecutionBlocked("skill probe workspace is not empty")
+        if native_user is None:
+            directory.mkdir(exist_ok=True)
+            if any(directory.iterdir()):
+                raise ExecutionBlocked("skill probe workspace is not empty")
+        else:
+            call(native_user, "empty_directory", path=str(directory))
         context = nullcontext(str(directory))
     else:
         context = tempfile.TemporaryDirectory(prefix="stage1-ab-skill-probe-")
     with context as directory:
+        process_options = {}
+        if native_user is not None:
+            from .vm_guest import native_options
+
+            process_options, _ = native_options(native_user)
         try:
+            if native_user is not None:
+                from .vm_runtime import before_exec
+
+                before_exec(codex, protected_runtime, env)
             result = subprocess.run(
                 [
                     str(codex),
@@ -662,6 +756,7 @@ def _functional_skill_smoke(codex, env, skill_path, evidence_dir=None):
                 cwd=directory,
                 capture_output=True,
                 timeout=120,
+                **process_options,
             )
         except subprocess.TimeoutExpired as exc:
             raise ExecutionBlocked("treatment skill functional read timed out") from exc
@@ -719,6 +814,10 @@ def host_preflight(
     lock = read_json(lock_path)
     if lock.get("kind") not in PUBLIC_LOCK_KINDS:
         raise ExecutionBlocked("host preflight needs a frozen public lock")
+    if "guest_adapter" in lock:
+        raise ExecutionBlocked(
+            "guest lock requires separate guest collection and outside controller"
+        )
     if lock["kind"] == "Stage1ABPublicLockV3" and codex_runtime_sha(codex) != lock.get(
         "codex_runtime_sha256"
     ):
@@ -1002,11 +1101,16 @@ def _capture_subject(
     resume=False,
     registry=None,
     registry_path=None,
+    guest_admission=None,
 ):
     """One attempt only. Recovery appends to the same run and never repeats a completed turn."""
     lock = read_json(lock_path)
     if lock.get("kind") not in PUBLIC_LOCK_KINDS:
         raise ExecutionBlocked("missing public lock")
+    if ("guest_adapter" in lock) != (guest_admission is not None):
+        raise ExecutionBlocked(
+            "guest lock requires authenticated single-guest admission"
+        )
     if "passive_observer" in lock:
         from .observer import binding as observer_binding
 
@@ -1017,7 +1121,13 @@ def _capture_subject(
     ):
         raise ExecutionBlocked("v3 Codex runtime bytes changed before capture")
     preflight = read_json(host_preflight_path)
-    if (
+    if guest_admission is not None:
+        from .vm_guest import verify_admission
+
+        verify_admission(
+            guest_admission, lock_path, host_preflight_path, condition, repeat
+        )
+    elif (
         preflight.get("kind") != "Stage1ABHostPreflight"
         or preflight.get("valid") is not True
         or preflight.get("lock_sha256") != sha(Path(lock_path).read_bytes())
@@ -1025,7 +1135,11 @@ def _capture_subject(
         or lock.get("execution_policy") != SUBJECT_EXECUTION_POLICY
     ):
         raise ExecutionBlocked("missing or stale two-condition host preflight")
-    binding = _preflight_binding(preflight, repeat)
+    binding = (
+        preflight["binding"]
+        if guest_admission is not None
+        else _preflight_binding(preflight, repeat)
+    )
     if binding["profiles"][condition] != str(Path(profile).resolve()) or binding[
         "workspaces"
     ][condition] != str(Path(workspace).resolve()):
@@ -1051,7 +1165,11 @@ def _capture_subject(
         raise ExecutionBlocked("run order differs from frozen plan")
     run = row[condition]
     output = Path(output)
-    all_bindings = preflight.get("repeat_bindings", {"1": preflight}).values()
+    all_bindings = (
+        [binding]
+        if guest_admission is not None
+        else preflight.get("repeat_bindings", {"1": preflight}).values()
+    )
     if any(
         output.resolve().is_relative_to(Path(root).resolve())
         for item in all_bindings
@@ -1079,11 +1197,25 @@ def _capture_subject(
             for name, digest in record["attempts"][-1]["files"].items()
             if name.startswith("workspace/") and len(name.split("/", 2)) == 3
         }
-        current_files = {
-            "workspace/" + p.relative_to(workspace).as_posix(): sha(p.read_bytes())
-            for p in Path(workspace).rglob("*")
-            if p.is_file()
-        }
+        if guest_admission is not None:
+            from .vm_subject import call
+            import base64
+
+            observed = call(
+                guest_admission["native_user"], "snapshot", workspace=str(workspace)
+            )
+            if observed["errors"]:
+                raise ExecutionBlocked("workspace recovery snapshot failed")
+            current_files = {
+                "workspace/" + name: sha(base64.b64decode(data, validate=True))
+                for name, data in observed["files"].items()
+            }
+        else:
+            current_files = {
+                "workspace/" + p.relative_to(workspace).as_posix(): sha(p.read_bytes())
+                for p in Path(workspace).rglob("*")
+                if p.is_file()
+            }
         if current_files != previous_files:
             raise ExecutionBlocked("workspace changed before recovery")
     else:
@@ -1103,6 +1235,8 @@ def _capture_subject(
             record["lock_kind"] = lock["kind"]
             record["lock_sha256"] = sha(Path(lock_path).read_bytes())
             record["preflight_sha256"] = sha(Path(host_preflight_path).read_bytes())
+        if guest_admission is not None:
+            record["guest_binding"] = preflight["guest_binding"]
         thread_id = None
     _assert_host_isolation(profile, workspace, private_root, prohibited_ids, resume)
     probe = probe_profile(
@@ -1121,7 +1255,20 @@ def _capture_subject(
             if condition == "treatment"
             else None
         ),
+        **(
+            {
+                "native_user": guest_admission["native_user"],
+                "probe_mode": "subject-non-model-v2",
+                "protected_runtime": preflight["guest_binding"]["protected_runtime"],
+            }
+            if guest_admission is not None
+            else {}
+        ),
     )
+    if guest_admission is not None:
+        from .vm_lifecycle import match_probe
+
+        match_probe(preflight["lifecycle"], probe, lock, preflight["guest_binding"])
     frozen_probe = binding["probes"][condition]
     for key in (
         "codex_version",
@@ -1144,17 +1291,41 @@ def _capture_subject(
     if condition == "treatment" and tree_sha(PLUGIN_ROOT) != lock["plugin_tree_sha256"]:
         raise ExecutionBlocked("treatment plugin bytes differ from frozen lock")
     env = dict(os.environ, CODEX_HOME=str(Path(profile).resolve()))
+    process_options = {}
+    if guest_admission is not None:
+        from .vm_guest import native_options
+
+        process_options, native_env = native_options(guest_admission["native_user"])
+        env.update(native_env)
     env.pop("STAGE1_RUNTIME_PIN", None)
     if condition == "treatment":
-        _runtime_pin(
-            pin_binding.get("path"),
-            pin_binding["sha256"],
-            verify_host=True,
-            workspace=workspace,
-        )
+        if guest_admission is None:
+            _runtime_pin(
+                pin_binding.get("path"),
+                pin_binding["sha256"],
+                verify_host=True,
+                workspace=workspace,
+            )
+            workspace_env = _research_hub_workspace_env(Path(workspace), resume)
+        else:
+            from .vm_subject import call
+
+            _runtime_pin(
+                pin_binding.get("path"),
+                pin_binding["sha256"],
+                verify_host=True,
+                workspace=workspace,
+                process_options=process_options,
+            )
+            workspace_env = call(
+                guest_admission["native_user"],
+                "workspace_env",
+                workspace=str(workspace),
+                resume=resume,
+            )
         env["STAGE1_RUNTIME_PIN"] = pin_binding["path"]
         record["treatment_runtime_pin_path"] = pin_binding["path"]
-        env.update(_research_hub_workspace_env(Path(workspace), resume))
+        env.update(workspace_env)
     # The same writable, isolated workspace is required in both conditions so
     # the treatment can persist its append-only Stage 1 ledger.
     command = [str(codex), "exec", *SUBJECT_SANDBOX_ARGS]
@@ -1188,10 +1359,19 @@ def _capture_subject(
         sequence.save(registry_path, registry)
     output.mkdir(parents=True, exist_ok=resume)
     final_path = output / f"attempt-{attempt_no:02d}.final.txt"
-    command[-1:-1] = ["-o", str(final_path)]
+    native_final = final_path
+    if guest_admission is not None:
+        native_final = Path(guest_admission["native_final"])
+        if native_final.exists():
+            raise ExecutionBlocked("guest final-output scratch already exists")
+    command[-1:-1] = ["-o", str(native_final)]
     started = datetime.now(timezone.utc)
     prefix = f"attempt-{attempt_no:02d}"
     observer_dir = output / (prefix + ".observer")
+    if guest_admission is not None:
+        from .vm_runtime import before_exec
+
+        before_exec(command[0], preflight["guest_binding"]["protected_runtime"], env)
     if "passive_observer" in lock:
         from .observer import run_observed
 
@@ -1201,6 +1381,14 @@ def _capture_subject(
             env=env,
             cwd=workspace,
             output=observer_dir,
+            **(
+                {
+                    "process_options": process_options,
+                    "read_user": guest_admission["native_user"],
+                }
+                if guest_admission is not None
+                else {}
+            ),
         )
     else:
         result = subprocess.run(
@@ -1209,8 +1397,18 @@ def _capture_subject(
             env=env,
             cwd=workspace,
             capture_output=True,
+            **process_options,
         )
     ended = datetime.now(timezone.utc)
+    if guest_admission is not None:
+        from .vm_subject import call
+        import base64
+
+        final_data = call(
+            guest_admission["native_user"], "read", path=str(native_final)
+        )
+        if final_data is not None:
+            final_path.write_bytes(base64.b64decode(final_data, validate=True))
     prefix = f"attempt-{attempt_no:02d}"
     files = {}
     if observer_dir.exists():
@@ -1278,19 +1476,42 @@ def _capture_subject(
         if earlier.intersection(_completed_searches(result.stdout)):
             record["status"] = "incomplete"
     (output / "workspace" / f"{attempt_no:02d}").mkdir(parents=True, exist_ok=True)
-    for p in Path(workspace).rglob("*"):
-        if p.is_symlink():
+    if guest_admission is not None:
+        from .vm_subject import call
+        import base64
+
+        observed = call(
+            guest_admission["native_user"], "snapshot", workspace=str(workspace)
+        )
+        if observed["errors"]:
             record["status"] = "incomplete"
-            record["workspace_snapshot_error"] = "subject workspace contains a symlink"
-            continue
-        if p.is_file():
-            rel = p.relative_to(workspace).as_posix()
+            record["workspace_snapshot_error"] = observed["errors"]
+        for rel, encoded in observed["files"].items():
+            from .vm_common import safe_name
+
+            safe_name(rel)
             snapshot = output / "workspace" / f"{attempt_no:02d}" / rel
             snapshot.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(p, snapshot)
+            snapshot.write_bytes(base64.b64decode(encoded, validate=True))
             files["workspace/" + f"{attempt_no:02d}/" + rel] = sha(
                 snapshot.read_bytes()
             )
+    else:
+        for p in Path(workspace).rglob("*"):
+            if p.is_symlink():
+                record["status"] = "incomplete"
+                record["workspace_snapshot_error"] = (
+                    "subject workspace contains a symlink"
+                )
+                continue
+            if p.is_file():
+                rel = p.relative_to(workspace).as_posix()
+                snapshot = output / "workspace" / f"{attempt_no:02d}" / rel
+                snapshot.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(p, snapshot)
+                files["workspace/" + f"{attempt_no:02d}/" + rel] = sha(
+                    snapshot.read_bytes()
+                )
     if any(
         token.encode() in result.stdout or token.encode() in result.stderr
         for token in prohibited_ids
@@ -1560,7 +1781,17 @@ def verify_capture(output, *, verify_runtime=True):
             not in {item["run_id"] for item in sequence.expected_runs(lock)}
         ):
             raise ExecutionBlocked("v3 capture differs from frozen lock or preflight")
-        binding = _preflight_binding(preflight, record["repeat"])
+        if preflight.get("kind") == "Stage1GuestPreflight.v2":
+            from .vm_guest import verify_capture_binding
+
+            verify_capture_binding(
+                record, lock, preflight, verify_runtime=verify_runtime
+            )
+            binding = preflight["binding"]
+        else:
+            if record.get("guest_binding") is not None:
+                raise ExecutionBlocked("guest capture cannot use local preflight")
+            binding = _preflight_binding(preflight, record["repeat"])
         if record.get("profile_probe") != binding["probes"][record["condition"]]:
             raise ExecutionBlocked("v3 capture profile differs from frozen preflight")
         if record["condition"] == "treatment":

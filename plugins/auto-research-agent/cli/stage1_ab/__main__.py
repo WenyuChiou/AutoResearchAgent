@@ -43,6 +43,7 @@ def parser_for_commands():
     p.add_argument("--evaluator-dependency-repo", type=Path)
     p.add_argument("--evaluator-dependency-sha")
     p.add_argument("--research-brief", type=Path)
+    p.add_argument("--guest-adapter", action="store_true")
     p = subs.add_parser("probe")
     for name in ("codex", "profile", "workspace", "private_root"):
         p.add_argument(name, type=Path)
@@ -280,6 +281,7 @@ def main(argv=None):
                 evaluator_dependency_repo=args.evaluator_dependency_repo,
                 evaluator_dependency_sha=args.evaluator_dependency_sha,
                 research_brief_path=args.research_brief,
+                guest_adapter=args.guest_adapter,
             )
         elif args.command == "probe":
             value = runner.probe_profile(

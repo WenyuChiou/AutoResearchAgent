@@ -17,7 +17,7 @@ def absolute(value):
     return path.resolve()
 
 
-def inspect_python(prefix):
+def inspect_python(prefix, *, process_options=None):
     """Use the pinned interpreter's public import paths, without importing the CLI."""
     absolute(prefix[0])
     if prefix[1:3] != ["-I", "-B"]:
@@ -42,6 +42,7 @@ def inspect_python(prefix):
             check=True,
             timeout=30,
             encoding="utf-8",
+            **(process_options or {}),
         )
         info = json.loads(result.stdout)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
@@ -111,8 +112,10 @@ def tree_files(root, *, code_only=False):
         return dict(workers.map(hash_file, paths))
 
 
-def capture_identity(prefix):
-    mode, entry, info = inspect_python(prefix)
+def capture_identity(prefix, *, process_options=None):
+    mode, entry, info = inspect_python(
+        prefix, **({"process_options": process_options} if process_options else {})
+    )
     roots = {
         str(Path(p).resolve()): False for p in info["paths"] if p and Path(p).exists()
     }
@@ -156,7 +159,7 @@ def capture_identity(prefix):
     )
 
 
-def verify_identity(pin, *, probe=False):
+def verify_identity(pin, *, probe=False, process_options=None):
     identity = pin.get("code_identity")
     if not identity:
         raise LedgerError("runtime-code-identity-required")
@@ -194,6 +197,8 @@ def verify_identity(pin, *, probe=False):
         raise LedgerError("runtime-entry-not-in-inventory")
     if probe:
         # Recheck import resolution before launch; replay itself starts no process.
-        fresh = capture_identity(prefix)
+        fresh = capture_identity(
+            prefix, **({"process_options": process_options} if process_options else {})
+        )
         if fresh != identity:
             raise LedgerError("runtime-import-resolution-changed")

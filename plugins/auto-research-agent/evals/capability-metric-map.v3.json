@@ -250,14 +250,17 @@
   "capability_extensions": [
     {
       "capability_id": "cli:stage1-ab",
-      "mechanism": "Freeze public v3 hashes and a common passive observer. New captures save original native output and sample workspace versions before start, at completed items and after exit; evaluator v3.1 consumes all saved attempt and observer versions through a separate read-only adapter. Preserve complete UTF-8 bytes for every saved version, deletion markers, literal native-field availability and observation times; unknown native timing, backend state and unsampled file history are never inferred. Paired reporting checks identical applicable criterion sets before dimension subtraction and exports atomic values, assessed fractions, unknown reasons, evidence IDs, costs, JSON, CSV and inert English HTML. Pilot acceptance preserves every comparison ineligibility and major-issue reason, separates byte replay from comparison eligibility, and never grants freeze or formal-run authorization. Clean treatment preflight requires exactly the current reviewed Stage 1 and Stage 2 skill inventory, rejects missing, duplicate, disabled or extra skills, and still binds installed bytes and a functional Stage 1 file read.",
+      "mechanism": "Freeze public v3 hashes and a common passive observer. New captures save original native output and sample workspace versions before start, at completed items and after exit; evaluator v3.1 consumes all saved attempt and observer versions through a separate read-only adapter. Preserve complete UTF-8 bytes for every saved version, deletion markers, literal native-field availability and observation times; unknown native timing, backend state and unsampled file history are never inferred. Paired reporting checks identical applicable criterion sets before dimension subtraction and exports atomic values, assessed fractions, unknown reasons, evidence IDs, costs, JSON, CSV and inert English HTML. Pilot acceptance preserves every comparison ineligibility and major-issue reason, separates byte replay from comparison eligibility, and never grants freeze or formal-run authorization. Clean treatment preflight requires exactly the current reviewed Stage 1 and Stage 2 skill inventory, rejects missing, duplicate, disabled or extra skills, and still binds installed bytes and a functional Stage 1 file read. A versioned separate-VM adapter collects one guest probe at a time, authenticates own-slot admission, drops native processes to the subject account, retains passive observation and original capture verification, and advances one outside controller registry only after hash-verified portable transfers. No guest receives another arm or the controller registry; failures retain reservations. V2 guest lifecycle separates disposable diagnostic UID functional smoke from actual-subject non-model admission/capture. Signed receipts bind runtime/plugin/configuration, actual identity and task/result. Bilateral kernel access and retirement checks prohibit readable diagnostic storage; local defaults remain unchanged. Sudo policy admission accepts only a complete account-and-local-host-bound no-grants sentence with status zero or one and empty stderr; grant lists, mixed diagnostics and unknown states fail closed. Guest Codex admits only root-owned protected static ELF paths with complete lexical ancestor metadata and no interpreter/package/shared-library indirection or privilege bits/capabilities. Signed identity binds the exact runtime inventory; every diagnostic/probe/capture/resume launch compares accepted inventory and command path immediately before execution and removes loader overrides.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_ab_execution.py",
         "plugins/auto-research-agent/tests/test_capture_v31.py",
         "plugins/auto-research-agent/tests/test_capture_history.py",
         "plugins/auto-research-agent/tests/test_passive_observer.py",
         "plugins/auto-research-agent/tests/test_comparison_report.py",
-        "plugins/auto-research-agent/tests/test_pilot_report.py"
+        "plugins/auto-research-agent/tests/test_pilot_report.py",
+        "plugins/auto-research-agent/tests/test_vm_transport.py",
+        "plugins/auto-research-agent/tests/test_vm_lifecycle.py",
+        "plugins/auto-research-agent/tests/test_vm_runtime.py"
       ],
       "metric_effects": [
         {
@@ -348,6 +351,28 @@
           ],
           "human_judgment": "The core team reviews whether the declared change and reported evidence support the claim."
         }
+      ]
+    },
+    {
+      "capability_id": "cli:stage1-retrieval",
+      "mechanism": "Retain runtime byte and import-path verification while allowing the guest broker to execute the isolated Python import probe as the native subject UID; existing local callers retain their default behavior.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.SEARCH_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "guest dependency import probes execute with the same unprivileged UID as native research execution"
+          ],
+          "human_judgment": "Core review and live guest admission assess the actual isolation boundary; offline checks do not establish research quality."
+        }
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_runtime_identity.py",
+        "plugins/auto-research-agent/tests/test_vm_transport.py",
+        "plugins/auto-research-agent/tests/test_vm_lifecycle.py"
       ]
     }
   ]
