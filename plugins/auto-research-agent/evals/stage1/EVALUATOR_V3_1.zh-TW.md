@@ -327,3 +327,13 @@ import、新模型呼叫、G1 完成、日本預演、FREEZE_READY 或正式 A/B
 不能拿舊 manifest 執行。操作者須以新 immutable build 建立新版本封包、
 target plan、manifest 與修好的 host inventory，再由核心組核對精確 hash。
 測試或 code review 通過都不會授權 dry-run、import、resume 或新模型呼叫。
+
+## 恢復理由進入完整評分
+
+完整 judge 的 source audit view 沿用來源單元 schema 的 1024 字元理由上限，
+保留原始理由，不截短成 400 字元；1025 字元仍在呼叫模型前拒絕。
+這修復原先「恢復驗證成功，但完整評分仍拒絕」的接口不一致。
+新版 manifest 可明列 `reviewed_code_delta: "source-audit-view-reason-v2"`，
+綁定上述三組及 `source_audit_views.py` 的精確舊／新 bytes，共四組。
+舊宣告不會自動接受新 view。新的 build、bundle、target 與 manifest 都須重新
+核對；本修復不授權執行、不表示 G1 完成，也不表示研究品質改善。

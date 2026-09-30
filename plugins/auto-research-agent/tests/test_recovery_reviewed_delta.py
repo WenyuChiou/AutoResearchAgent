@@ -173,6 +173,35 @@ class ReviewedDeltaTests(unittest.TestCase):
         self.assertEqual(result["counts"], {"accepted": 0, "rejected": 0, "missing": 0})
         self.assertFalse(result["future_execution_authorized"])
 
+    def reason_view_inventory(self):
+        relative = "cli/stage1_eval/source_audit_views.py"
+        path = self.root / relative
+        path.write_bytes((PLUGIN / relative).read_bytes())
+        inventory = copy.deepcopy(self.inventory)
+        inventory["files"]["plugins/auto-research-agent/" + relative] = (
+            "eaffecbfe638c1c9a53d2e722938be6232d84381e4b21432715fd1e664515ed6"
+        )
+        return inventory
+
+    def test_reason_view_requires_its_own_explicit_four_byte_transition(self):
+        inventory = self.reason_view_inventory()
+        with self.assertRaisesRegex(EvaluationError, "unexplained evaluator"):
+            self.invoke(inventory=inventory)
+        receipt = self.invoke("source-audit-view-reason-v2", inventory)
+        self.assertEqual(receipt["policy_id"], "source-audit-view-reason-v2")
+        self.assertEqual(len(receipt["changes"]), 4)
+
+    def test_reason_view_rehash_does_not_admit_unreviewed_bytes(self):
+        inventory = self.reason_view_inventory()
+        path = self.root / "cli/stage1_eval/source_audit_views.py"
+        path.write_bytes(path.read_bytes() + b"\n# changed\n")
+        with self.assertRaisesRegex(EvaluationError, "unexplained evaluator"):
+            self.invoke("source-audit-view-reason-v2", inventory)
+
+    def test_reason_view_missing_old_binding_rejected(self):
+        with self.assertRaisesRegex(EvaluationError, "incomplete reviewed"):
+            self.invoke("source-audit-view-reason-v2")
+
 
 if __name__ == "__main__":
     unittest.main()
