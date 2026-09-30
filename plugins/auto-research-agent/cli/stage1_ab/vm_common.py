@@ -9,7 +9,7 @@ from pathlib import Path, PurePosixPath
 
 from . import runner
 
-VERSION = "Stage1GuestTransport.v1"
+VERSION = "Stage1GuestTransport.v2"
 
 
 def canonical(value):
@@ -30,6 +30,7 @@ def binding():
         "vm_controller.py",
         "vm_transport.py",
         "vm_subject.py",
+        "vm_lifecycle.py",
         "runner.py",
         "sequence.py",
     )

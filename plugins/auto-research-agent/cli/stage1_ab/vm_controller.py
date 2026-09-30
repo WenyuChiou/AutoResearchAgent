@@ -22,7 +22,7 @@ def _load(plan_path):
     plan = runner.read_json(plan_path)
     require(
         set(plan) == {"kind", "lock", "slots", "registry_root"}
-        and plan["kind"] == "Stage1GuestControllerPlan.v1",
+        and plan["kind"] == "Stage1GuestControllerPlan.v2",
         "controller plan fields differ",
     )
     lock = runner.read_json(plan["lock"])
@@ -158,7 +158,7 @@ def prepare(plan_path, transport):
     with sequence.exclusive(state_path):
         require(not state_path.exists(), "controller series already exists")
         state = {
-            "kind": "Stage1GuestControllerRegistry.v1",
+            "kind": "Stage1GuestControllerRegistry.v2",
             "plan_sha256": runner.sha(Path(plan_path).read_bytes()),
             "series_id": secrets.token_hex(32),
             "next_index": 0,

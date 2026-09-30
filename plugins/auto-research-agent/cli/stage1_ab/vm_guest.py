@@ -37,6 +37,7 @@ CONFIG_FIELDS = {
     "secret_file",
     "native_user",
     "native_tmp",
+    "diagnostic",
 }
 
 
@@ -78,7 +79,7 @@ def configuration(path):
     path = Path(path).resolve()
     config = runner.read_json(path)
     require(
-        set(config) == CONFIG_FIELDS and config["kind"] == "Stage1GuestConfig.v1",
+        set(config) == CONFIG_FIELDS and config["kind"] == "Stage1GuestConfig.v2",
         "guest config fields differ",
     )
     require(
@@ -206,6 +207,9 @@ def configuration(path):
 
 
 def collect_probe(config, lock, identity):
+    from . import vm_lifecycle
+
+    lifecycle = vm_lifecycle.admit(config, lock, identity)
     condition, repeat = config["condition"], config["repeat"]
     probe = runner.probe_profile(
         config["codex"],
@@ -215,6 +219,7 @@ def collect_probe(config, lock, identity):
         config["private_root"],
         probe_evidence_dir=Path(config["state_root"]) / "native-probe",
         native_user=config["native_user"],
+        probe_mode="subject-non-model-v2",
     )
     require(
         probe["codex_version"] == lock["runtime"]["app_version"]
@@ -239,8 +244,10 @@ def collect_probe(config, lock, identity):
             workspace=config["workspace"],
             process_options=options,
         )
+    vm_lifecycle.match_probe(lifecycle, probe, lock, identity)
     return {
-        "kind": "Stage1GuestPreflight.v1",
+        "kind": "Stage1GuestPreflight.v2",
+        "lifecycle": lifecycle,
         "valid": True,
         "guest_binding": identity,
         "adapter": binding(),
@@ -258,9 +265,17 @@ def collect_probe(config, lock, identity):
 
 
 def verify_capture_binding(record, lock, preflight, *, verify_runtime=True):
+    from .vm_lifecycle import match_probe
+
     identity = preflight.get("guest_binding", {})
+    match_probe(
+        preflight.get("lifecycle", {}),
+        preflight["binding"]["probes"][record["condition"]],
+        lock,
+        identity,
+    )
     require(
-        preflight.get("kind") == "Stage1GuestPreflight.v1"
+        preflight.get("kind") == "Stage1GuestPreflight.v2"
         and preflight.get("valid") is True
         and preflight.get("adapter") == lock.get("guest_adapter")
         and (not verify_runtime or preflight["adapter"] == binding()),
@@ -329,6 +344,12 @@ def verify_admission(context, lock_path, preflight_path, condition, repeat):
         "guest admission is not reserved",
     )
     verify_capture_binding({**identity, "guest_binding": identity}, lock, preflight)
+    from .vm_lifecycle import admit
+
+    require(
+        admit(config, lock, identity) == preflight["lifecycle"],
+        "guest lifecycle evidence changed",
+    )
 
 
 def execute(config_path, envelope):
@@ -379,7 +400,7 @@ def execute(config_path, envelope):
                 runner.write_json(
                     state_path,
                     {
-                        "kind": "Stage1GuestAdmission.v1",
+                        "kind": "Stage1GuestAdmission.v2",
                         "request_sha256": digest(request),
                         "series_id": request["series_id"],
                         "active": None,

@@ -20,6 +20,7 @@ from stage1_ab import (
     vm_guest as guest,
     vm_subject,
     vm_transport,
+    vm_lifecycle as lifecycle,
 )  # noqa: E402
 
 
@@ -90,6 +91,13 @@ class GuestTransportTests(unittest.TestCase):
                 "runtime_pin": str(self.pin),
                 "native_user": "synthetic-user",
                 "native_tmp": str(root / "native-tmp"),
+                "secret_file": str(key),
+                "diagnostic": {
+                    "native_user": "diagnostic",
+                    "profile": str(root / "diagnostic-profile"),
+                    "workspace": str(root / "diagnostic-workspace"),
+                    "native_tmp": str(root / "diagnostic-tmp"),
+                },
             }
             config_path = root / "config.json"
             runner.write_json(config_path, config)
@@ -111,7 +119,7 @@ class GuestTransportTests(unittest.TestCase):
             )
         self.plan_path = self.root / "controller.json"
         self.plan = {
-            "kind": "Stage1GuestControllerPlan.v1",
+            "kind": "Stage1GuestControllerPlan.v2",
             "lock": str(self.lock_path),
             "slots": slots,
             "registry_root": str(self.root / "controller-private"),
@@ -140,11 +148,43 @@ class GuestTransportTests(unittest.TestCase):
             patch.object(os, "chown", create=True),
             patch.object(vm_subject, "call", side_effect=self.subject_helper),
             patch.object(observer, "run_observed", side_effect=self.synthetic_native),
+            patch.object(lifecycle, "admit", side_effect=self.admit),
         ]
         self.real_observer = observer.run_observed
         for item in self.patches:
             item.start()
             self.addCleanup(item.stop)
+
+    def admit(self, config, lock, identity):
+        probe = self.probe(
+            None,
+            None,
+            None,
+            identity["condition"] == "treatment",
+            None,
+            probe_mode=lifecycle.MODE,
+        )
+        body = {
+            "kind": "Stage1DiagnosticReceipt.v2",
+            "actual_subject": identity,
+            "codex_runtime_sha256": lock["codex_runtime_sha256"],
+            "plugin_tree_sha256": lock["plugin_tree_sha256"],
+            "matching_probe": lifecycle.relevant(probe),
+            "task": lifecycle.TASK
+            if identity["condition"] == "treatment"
+            else "native-discovery-only-v1",
+            "model_calls": int(identity["condition"] == "treatment"),
+            "retired": True,
+            "result": "passed",
+            "functional_skill_sha256": "skill-sha",
+            "initial_setup_sha256": "setup",
+        }
+        return {
+            "kind": "Stage1GuestLifecycle.v2",
+            "mode": lifecycle.MODE,
+            "initial_setup_sha256": "setup",
+            "diagnostic": common.sign(body, b"synthetic-key"),
+        }
 
     def subject_helper(self, username, operation, **args):
         if operation == "workspace_env":
@@ -162,6 +202,7 @@ class GuestTransportTests(unittest.TestCase):
     def probe(
         self, codex, profile, workspace, expected_plugin, private_root, *args, **kwargs
     ):
+        self.assertEqual(kwargs.get("probe_mode"), lifecycle.MODE)
         return {
             "codex_version": "codex 0.153.0",
             "model": "gpt-5.6-sol",
@@ -173,7 +214,11 @@ class GuestTransportTests(unittest.TestCase):
             "config_sha256": "own-config",
             "plugin_names": ["auto-research-agent"] if expected_plugin else [],
             "installed_plugin_sha256": "plugin-sha" if expected_plugin else None,
-            "functional_skill_sha256": "skill-sha" if expected_plugin else None,
+            "functional_skill_sha256": "skill-sha"
+            if expected_plugin
+            and kwargs.get("probe_mode", "functional") == "functional"
+            else None,
+            "installed_skill_sha256": "skill-sha" if expected_plugin else None,
         }
 
     def synthetic_native(self, command, *, input, env, cwd, output, **kwargs):

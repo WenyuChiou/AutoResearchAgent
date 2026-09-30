@@ -390,8 +390,11 @@ def probe_profile(
     allow_existing_workspace=False,
     probe_evidence_dir=None,
     native_user=None,
+    probe_mode="functional",
 ):
     """Read-only probe; a missing login or uncertain plugin discovery blocks launch."""
+    if probe_mode not in {"functional", "subject-non-model-v2"}:
+        raise ExecutionBlocked("unknown profile probe mode")
     _assert_host_isolation(
         profile, workspace, private_root, prohibited_ids, allow_existing_workspace
     )
@@ -587,7 +590,9 @@ def probe_profile(
     if expected_plugin:
         if probe_evidence_dir is not None:
             Path(probe_evidence_dir).mkdir(parents=True, exist_ok=False)
-        if native_user is None:
+        if probe_mode == "subject-non-model-v2":
+            skill_sha = None
+        elif native_user is None:
             skill_sha = _functional_skill_smoke(
                 codex, env, skill_path, probe_evidence_dir
             )
@@ -629,7 +634,23 @@ def probe_profile(
             + "\n",
             encoding="utf-8",
         )
+    installed_skill = {}
+    if probe_mode == "subject-non-model-v2":
+        if expected_plugin:
+            if native_user is None:
+                raw_skill = skill_path.read_bytes()
+            else:
+                import base64
+                from .vm_subject import call
+
+                raw_skill = base64.b64decode(
+                    call(native_user, "read", path=str(skill_path)), validate=True
+                )
+            installed_skill["installed_skill_sha256"] = sha(raw_skill)
+        else:
+            installed_skill["installed_skill_sha256"] = None
     return {
+        **installed_skill,
         "codex_version": version.stdout.strip(),
         "login_status": "authenticated",
         "plugin_names": names,
@@ -1209,11 +1230,18 @@ def _capture_subject(
             else None
         ),
         **(
-            {"native_user": guest_admission["native_user"]}
+            {
+                "native_user": guest_admission["native_user"],
+                "probe_mode": "subject-non-model-v2",
+            }
             if guest_admission is not None
             else {}
         ),
     )
+    if guest_admission is not None:
+        from .vm_lifecycle import match_probe
+
+        match_probe(preflight["lifecycle"], probe, lock, preflight["guest_binding"])
     frozen_probe = binding["probes"][condition]
     for key in (
         "codex_version",
@@ -1722,7 +1750,7 @@ def verify_capture(output, *, verify_runtime=True):
             not in {item["run_id"] for item in sequence.expected_runs(lock)}
         ):
             raise ExecutionBlocked("v3 capture differs from frozen lock or preflight")
-        if preflight.get("kind") == "Stage1GuestPreflight.v1":
+        if preflight.get("kind") == "Stage1GuestPreflight.v2":
             from .vm_guest import verify_capture_binding
 
             verify_capture_binding(

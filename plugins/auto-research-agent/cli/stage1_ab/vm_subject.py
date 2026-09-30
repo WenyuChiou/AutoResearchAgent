@@ -56,6 +56,41 @@ def collect(workspace):
 
 def dispatch(request):
     operation = request.pop("operation")
+    if operation == "access":
+        return {
+            path: (os.access(path, os.R_OK) or os.access(path, os.X_OK))
+            for path in request["paths"]
+        }
+    if operation == "initial_setup":
+        import hashlib
+
+        home, profile = Path(request["home"]), Path(request["profile"])
+        for directory in (Path(request["workspace"]), Path(request["tmp"])):
+            if any(directory.iterdir()):
+                raise ValueError("fresh subject workspace/tmp is not empty")
+        if (home / ".cache").exists() and any((home / ".cache").iterdir()):
+            raise ValueError("fresh subject home cache is not empty")
+        result = {}
+        for item in profile.rglob("*"):
+            if item.is_symlink() or (item.is_file() and item.stat().st_nlink != 1):
+                raise ValueError("linked initial profile artifact")
+            if item.is_file():
+                name = item.relative_to(profile).as_posix()
+                file_sha = hashlib.sha256(item.read_bytes()).hexdigest()
+                if name not in {"config.toml", "auth.json"}:
+                    parts = name.split("/", 5)
+                    if not (
+                        request["treatment"]
+                        and len(parts) == 6
+                        and parts[:2] == ["plugins", "cache"]
+                        and parts[3] == "auto-research-agent"
+                        and request["accepted_plugin_files"].get(parts[5]) == file_sha
+                    ):
+                        raise ValueError(
+                            "initial profile has non-setup or changed plugin artifacts"
+                        )
+                result[name] = file_sha
+        return result
     if operation == "snapshot":
         return collect(request["workspace"])
     if operation == "empty_directory":
