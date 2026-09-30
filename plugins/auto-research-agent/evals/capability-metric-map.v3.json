@@ -3,6 +3,41 @@
   "extends": "capability-metric-map-v1",
   "capabilities": [
     {
+      "capability_id": "cli:stage1-output-scheduler",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": true,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage1_operator",
+      "problem": "A sequential operator can take too long to evaluate saved outputs, while an uncoordinated replacement can duplicate calls, share writable caches or lose failure history.",
+      "mechanism": "Wrap the unchanged evaluator with an externally digest-approved amendment, exclusive coordinator and per-output claims, isolated writable profiles and caches, a maximum of two active outputs, and a verified legacy fence-and-drain handoff. Preserve each evaluation, zero-call replay, capture inventory and failure receipt; stop new admission on failure and aggregate in the original target order.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": ["P3V3.DECISION_TRACE"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "every admitted output binds an approved amendment, runtime bytes, capture inventory and exclusive ownership",
+            "failures, drained in-flight work and non-admitted outputs remain separate from successful replay"
+          ],
+          "human_judgment": "The core team reviews whether preserved execution and handoff evidence supports the declared gate; scheduler completion does not establish scientific quality."
+        }
+      ],
+      "guardrails": [
+        "synthetic subprocess tests do not authorize live execution or demonstrate P1-P3 improvement",
+        "no evaluator, prompt, role independence, source coverage or model-policy changes",
+        "no automatic stale-claim recovery, old failure erasure or duplicate output admission",
+        "real admission requires exact amendment approval and verified legacy termination",
+        "private source bytes, answers and authentication files remain outside Git"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_output_scheduler.py",
+        "plugins/auto-research-agent/tests/test_stage1_output_scheduler_admission.py"
+      ],
+      "live_ab_required_at": "stage1-general-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
       "capability_id": "cli:stage1-core",
       "kind": "cli",
       "status": "experimental",
