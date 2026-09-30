@@ -27,6 +27,24 @@ from .spans import model_span_aliases
 KIND = "Stage1ReasonRecovery.v1"
 PLAN_KIND = "Stage1ReasonRecoveryPlan.v1"
 
+# Explicit opt-in to the reviewed PR65 lifecycle and PR67 packet-parity bytes.
+# These are migration pins, never a filename-only exception for future changes.
+REVIEWED_CODE_DELTA_ID = "accepted-pr65-pr67-v1"
+_REVIEWED_CODE_PAIRS = {
+    "cli/stage1_ab/observer.py": (
+        "a148c72b6218bcd816f2778aa5f73c715bc1277fa5e44b32d59f09dbd28c16c6",
+        "ed0df66426c9ae090cf5c1a0c5bf82ad5cb9ec1d96da075c7bae23195b643ef9",
+    ),
+    "cli/stage1_eval/judging.py": (
+        "b2ae35a4b79465e48e27c5aece8bd7afe2a75089935c1094d43b7a891f57fba8",
+        "df7f3e8a5dfe3240dc559c84307f3d0072cecc73526bc517535cbf8546899386",
+    ),
+    "cli/stage1_eval/pipeline_v31.py": (
+        "ccde8fd8c25d92375e8280542e5ae0aca09794e2cc43d913f750e2a0f3dc23cf",
+        "d70ac9b7626a6651e89eac70742c57ea272f9ae86a08ff95d903d3f0eecb3cb7",
+    ),
+}
+
 
 _GUARD = contextvars.ContextVar("stage1_recovery_readonly", default=None)
 _MUTATIONS = {
@@ -698,6 +716,57 @@ def verify_operator_runtime(source, generation):
         raise EvaluationError("original source configuration pin changed")
 
 
+def verify_contract_changes(inventory, current, reviewed_delta=None):
+    """Keep legacy rules; an explicit version admits only three exact hash pairs."""
+    if reviewed_delta is not None and reviewed_delta != REVIEWED_CODE_DELTA_ID:
+        raise EvaluationError("unsupported reviewed evaluator code delta")
+    allowed = {
+        "cli/stage1_eval/source_audit_units.py",
+        "cli/stage1_eval/reason_recovery.py",
+        "cli/stage1_eval/sources_v31.py",
+    }
+    changes = []
+    for relative, item in inventory["files"].items():
+        relative = relative.removeprefix("plugins/auto-research-agent/")
+        if (
+            not (
+                relative.startswith("cli/stage1_eval/")
+                or (
+                    relative.startswith("evals/schemas/")
+                    and "v3" in Path(relative).name
+                )
+                or relative
+                in {
+                    "evals/rubrics/stage1-general.v3.json",
+                    "evals/stage1/execution-policy.v3_1.json",
+                    "cli/stage1_ab/capture_history.py",
+                    "cli/stage1_ab/observer.py",
+                }
+            )
+            or relative in allowed
+        ):
+            continue
+        old_digest = item["sha256"] if isinstance(item, dict) else item
+        new_digest = sha((current / relative).read_bytes())
+        if old_digest == new_digest:
+            continue
+        if reviewed_delta != REVIEWED_CODE_DELTA_ID or _REVIEWED_CODE_PAIRS.get(
+            relative
+        ) != (old_digest, new_digest):
+            raise EvaluationError("unexplained evaluator contract change: " + relative)
+        changes.append(
+            {"path": relative, "old_sha256": old_digest, "new_sha256": new_digest}
+        )
+    if reviewed_delta is not None and {row["path"] for row in changes} != set(
+        _REVIEWED_CODE_PAIRS
+    ):
+        raise EvaluationError("incomplete reviewed evaluator code delta")
+    return {
+        "policy_id": reviewed_delta,
+        "changes": sorted(changes, key=lambda r: r["path"]),
+    }
+
+
 def _dry_run(manifest_path, expected_sha256):
     """Return fully revalidated private migration state without writing or calling models."""
     from .pipeline_v31 import bundle_sha_v31, execution_policy
@@ -748,33 +817,9 @@ def _dry_run(manifest_path, expected_sha256):
     verify_operator_runtime(source, generation)
     old_code = verify_code_contract(code_inventory, old_bundle)
     current = Path(__file__).resolve().parents[2]
-    # Request validation remains byte-identical; unrelated evaluator changes cannot pass.
-    allowed = {
-        "cli/stage1_eval/source_audit_units.py",
-        "cli/stage1_eval/reason_recovery.py",
-        "cli/stage1_eval/sources_v31.py",
-    }
-    for relative, item in code_inventory["files"].items():
-        relative = relative.removeprefix("plugins/auto-research-agent/")
-        digest = item["sha256"] if isinstance(item, dict) else item
-        if (
-            relative.startswith("cli/stage1_eval/")
-            or (relative.startswith("evals/schemas/") and "v3" in Path(relative).name)
-            or relative
-            in {
-                "evals/rubrics/stage1-general.v3.json",
-                "evals/stage1/execution-policy.v3_1.json",
-                "cli/stage1_ab/capture_history.py",
-                "cli/stage1_ab/observer.py",
-            }
-        ):
-            if (
-                relative not in allowed
-                and sha((current / relative).read_bytes()) != digest
-            ):
-                raise EvaluationError(
-                    "unexplained evaluator contract change: " + relative
-                )
+    code_delta = verify_contract_changes(
+        code_inventory, current, manifest.get("reviewed_code_delta")
+    )
     if not all(
         "plugins/auto-research-agent/cli/stage1_eval/" + name in code_inventory["files"]
         for name in ("model.py", "model_calls.py", "source_audit_units.py")
@@ -876,6 +921,7 @@ def _dry_run(manifest_path, expected_sha256):
         "target_plan_sha256": manifest["target_plan"]["sha256"],
         "source_bundle_sha256": old_bundle,
         "target_bundle_sha256": new_bundle,
+        **({"reviewed_code_delta": code_delta} if code_delta["policy_id"] else {}),
         "outputs": output_rows,
         "units": rows,
         "original_attempt_inventory": historical_attempts(

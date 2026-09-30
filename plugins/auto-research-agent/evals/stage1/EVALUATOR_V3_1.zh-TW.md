@@ -312,3 +312,18 @@ SHA-256。離線恢復必須重建同一個封包，不能因為換了一條程�
 失敗的 candidate04，另建新的 target plan 與 manifest，交核心組查核
 精確 SHA 後才可進行下一次有界 dry-run。程式測試通過不會自行授權
 import、新模型呼叫、G1 完成、日本預演、FREEZE_READY 或正式 A/B。
+
+## 已審核程式差異：明確選用，不按檔名放行
+
+原始 generation 的 `observer.py`、`judging.py` 與 `pipeline_v31.py`
+和已合併的 lifecycle／封包修復不同。舊恢復 manifest 保持原行為，仍拒絕
+這些差異。新的私有 manifest 可明列
+`reviewed_code_delta: "accepted-pr65-pr67-v1"`，只允許該版本固定的三組
+舊 SHA-256 → 新 SHA-256；三組都要齊全。相同檔名但任一 digest 不符，
+未知版本、缺一組，或其他 model／schema／rubric／policy／capture 變動均拒絕。
+恢復收據另保留選用版本與實際三組差異，不能把「已審核」當成任意放行。
+
+這次修改會再次改變 evaluator bundle。candidate05 保留為 prepared-only，
+不能拿舊 manifest 執行。操作者須以新 immutable build 建立新版本封包、
+target plan、manifest 與修好的 host inventory，再由核心組核對精確 hash。
+測試或 code review 通過都不會授權 dry-run、import、resume 或新模型呼叫。
