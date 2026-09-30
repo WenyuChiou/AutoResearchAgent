@@ -427,9 +427,49 @@ class GeneralEvaluationTests(unittest.TestCase):
         source = "\n".join(
             path.read_text(encoding="utf-8")
             for path in root.glob("*.py")
-            if path.name != "formal.py"
+            if path.name not in {"formal.py", "reason_recovery.py"}
         )
         self.assertNotIn("stage1_ab", source)
+        # Offline migration reconstructs the historical observer bundle using
+        # literal path/module labels, never condition-dependent scorer imports.
+        import ast
+
+        recovery_source = (root / "reason_recovery.py").read_text(encoding="utf-8")
+        tree = ast.parse(recovery_source)
+        allowed_labels = {
+            "cli/stage1_ab",
+            "stage1_ab.",
+            "cli/stage1_ab/capture_history.py",
+            "cli/stage1_ab/observer.py",
+        }
+        all_labels = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and "stage1_ab" in node.value
+        ]
+        scoped_labels = [
+            node
+            for function in tree.body
+            if isinstance(function, ast.FunctionDef)
+            and function.name in {"verify_code_contract", "_dry_run"}
+            for node in ast.walk(function)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and "stage1_ab" in node.value
+        ]
+        self.assertEqual(set(map(id, all_labels)), set(map(id, scoped_labels)))
+        self.assertEqual({node.value for node in all_labels}, allowed_labels)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                names = [alias.name for alias in node.names]
+                if isinstance(node, ast.ImportFrom):
+                    names.append(node.module or "")
+                self.assertFalse(any("stage1_ab" in name for name in names))
+        self.assertNotIn("__import__", recovery_source)
+        self.assertNotIn("import_module", recovery_source)
+
         self.assertNotIn("from validators.holdout_manifest", source)
         self.assertNotIn(
             "from validators.holdout_manifest",

@@ -212,3 +212,75 @@ pilot acceptance 或 FREEZE_READY。操作者須依原 acceptance requirements �
 每個 cause 的原始證據並另交 G1、pilot 結果與 manifest，不能由本命令自動批准。
 
 Pilot `replay_status=replay-complete` describes byte verification only. `acceptance_status` is `requires-cause-review` if any criterion or dimension is ineligible, binding differs, result is incomplete, evidence needs review, or a major issue remains. `acceptance_reason_codes` preserves the original comparison codes; `major_issue_review` retains issue IDs, status and artifact bindings. Admission failures expose `reason_codes`, including missing cause artifacts and individual frozen-binding mismatches. Fully eligible output is `comparison-eligible-awaiting-review`; it still grants no readiness or experiment authorization.
+
+## 來源審核說明長度的離線恢復
+
+`Stage1ReasonRecovery.v1` 只處理來源審核 JSON 的 `reason.maxLength`
+從 400 改為 1024。verdict、來源片段、完整 coverage、work/version、rubric、
+每單元最多一次語意修正及 transport retry 政策均保持原義。完整說明不截斷。
+
+既有失敗 generation 必須保留。不能把新的 schema 放回舊目錄後執行一般
+`--resume-verified`，因為原生 request、schema、generation-schema、政策、
+評估器 bundle 與各次 attempt 都有獨立綁定。
+
+離線入口：
+
+```powershell
+python -m stage1_eval.reason_recovery dry-run RECOVERY_MANIFEST --sha256 MANIFEST_SHA256
+python -m stage1_eval.reason_recovery import RECOVERY_MANIFEST --sha256 MANIFEST_SHA256 --destination NEW_PRIVATE_RECOVERY
+python -m stage1_eval.reason_recovery replay NEW_PRIVATE_RECOVERY --sha256 MANIFEST_SHA256
+```
+
+CLI 與程式 API 在任何上游驗證前啟用唯讀 audit hook，禁止檔案寫入、子程序與網路，
+並停用 Python bytecode 寫入。這是受信任 Python 程式的同一執行緒防護，
+不是作業系統沙箱，也不宣稱跨執行緒繼承。import 只在唯讀驗證結束後寫入獨立
+恢復目錄。manifest 使用外部提供的
+SHA-256；其 `generation`、`old_code`、`captures` 與 `source_plan`、`target_plan`
+都是 `{path,sha256}` 綁定。generation 清單列出所有證據檔，只排除 `profile`
+中除了 `config.toml` 之外的憑證與 cache。capture 清單逐 target 綁定所有檔案，
+並與原 generation 的 frozen capture inventory 逐項核對。完整私有清單不得公開。
+
+`outputs` 保留原 plan 的完整順序，每列是 `{id,output,background}`；`output`
+必須等於 `evaluations/<id>`，`background` 是證據審核模式的 `{path,sha256}`。
+目標 plan 的 kind 是 `Stage1ReasonRecoveryPlan.v1`，包含
+`source_plan_sha256`、`source_bundle_sha256`、`target_bundle_sha256`、
+`source_policy`、`target_policy`、`targets`。兩份政策只允許 bundle digest
+不同；目標政策也必須等於當前評估器政策。舊 bundle 由原始程式檔重新計算。
+除新增離線 importer、來源審核 reason/純規劃函式抽取，以及只在 replay-only
+模式可用的來源驗證回呼外，其他評估程式必須相同。回呼直接執行固定版本的公開
+`research_hub.source_fetch.validate_source_fetch`；這就是原 CLI 使用的驗證器，
+會重新核對來源 bytes 與解析結果。原 request、receipt、stdout、result 與 runtime
+檢查保持有效，只有 report 的 `checked_at` 可不同；不啟動 parser 子程序，
+也不追加原本的 source replay journal。非 replay-only 傳入回呼立即拒絕。
+
+恢復先用既有 validator 重播 capture、extraction、original fields、來源讀取與
+每個 native archive，重建各 role 的完整來源窗口計畫。每個原始／修正回應都
+保留其歷史 attempt；在新 schema 與相同來源片段 normalizer 下，依原始順序
+選擇第一份有效原始 JSON，不依分數挑選。原先已接受修正回應的單元也重新檢查
+原始回應。任何其他 schema、prompt、alias、runtime 或 policy 變更均拒絕。
+
+新目錄只寫 `manifest.json` 與 `recovery.json`。後者逐單元記錄
+`accepted`／`rejected`／`missing`、`coverage_eligible`、所選原始回應及
+`original_history`，另外保留全批次 `original_attempt_inventory`；
+`recovery_attempt_inventory` 是空清單。原始失敗及費用不能消失或重設。
+未開始的輸出其 unit population 保持 unknown；不能從其他輸出推估。
+拒絕的單元不貢獻 coverage。硬綁定失敗的 import 留下獨立
+`recovery-failure.json`，不把錯誤轉成全部 missing 或成功結果。
+
+未來獲審查的 evaluator 消費路徑必須明確辨識 `Stage1ReasonRecovery.v1`，
+驗證完整 manifest／source plan／target plan 及零呼叫重播，再只接收
+`coverage_eligible=true` 的單元；不能將 migration 收據當作新 native call。
+本版尚未提供執行未開始單元的消費路徑，也不授權任何新呼叫。工程測試、離線
+恢復與 hash 重播都不等於 G1、Japan pilot、FREEZE_READY 或正式 A/B 通過。
+
+若歷史資料有已通報且取得明確處置的 journal append 事件，manifest 必須另外
+綁定 `incident:{path,sha256}`，其 kind 為 `Stage1ReasonRecoveryIncident.v1`。
+事件契約包含 `decision_url`、綁定的 `pre_inventory`／`post_inventory`、
+單一 `changes` 及 `diagnostics:{traceback,diff}`。每筆 change 明列原／現行／
+追加 bytes 與 SHA-256，以及另存的 `derived_prefix:{path,sha256}`。
+完整清單必須證明只有該 journal 改變、沒有遺漏或新增；manifest 的 generation
+綁定現行 post inventory。僅允許驗證完全相符的原始 prefix 作為記憶體中的衍生
+檢視，並在 recovery 與每次 source observation 標記其來源。現行 journal、
+事故追加、原清單與完整費用／失敗歷史全部保留；不得自動忽略未完成尾端、截斷
+原檔，或把衍生 prefix 宣稱為未受改動的原檔。decision URL 只是處置來源，
+不能代替核心組對實際 manifest digest 與重新執行範圍的獨立核准。

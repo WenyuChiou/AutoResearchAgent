@@ -86,7 +86,9 @@ def _verify_capture(directory, receipt, names):
             raise EvaluationError("source-fetch raw capture changed")
 
 
-def _validate_fetch(prefix, directory, result_path, replay_only):
+def _validate_fetch(prefix, directory, result_path, replay_only, replay_validator=None):
+    if replay_validator is not None and not replay_only:
+        raise EvaluationError("read-only source validator requires replay-only mode")
     validation_dir = directory / "validation"
     request_path = validation_dir / "request.json"
     receipt_path = validation_dir / "receipt.json"
@@ -175,7 +177,9 @@ def _validate_fetch(prefix, directory, result_path, replay_only):
     _persist(saved_result, report)
     if canonical(read_json(saved_result)) != canonical(report):
         raise EvaluationError("saved source validation differs from captured stdout")
-    replay = _replay_source_bytes(
+    if replay_validator is not None and not replay_only:
+        raise EvaluationError("read-only source validator requires replay-only mode")
+    replay = (replay_validator or _replay_source_bytes)(
         result_path, prefix, validation_dir / "replay-events.jsonl"
     )
     if canonical({k: v for k, v in replay.items() if k != "checked_at"}) != canonical(
@@ -187,7 +191,9 @@ def _validate_fetch(prefix, directory, result_path, replay_only):
     return receipt, report
 
 
-def _fetch(command, args, directory, request, replay_only):
+def _fetch(command, args, directory, request, replay_only, replay_validator=None):
+    if replay_validator is not None and not replay_only:
+        raise EvaluationError("read-only source validator requires replay-only mode")
     prefix = [sys.executable if p == "@python" else p for p in command]
     binding = {
         "kind": FETCH_RECEIPT_VERSION,
@@ -270,11 +276,15 @@ def _fetch(command, args, directory, request, replay_only):
     expected_returncode = 0 if result.get("status") == "available" else 1
     if receipt.get("returncode") != expected_returncode:
         raise EvaluationError("source CLI exit code disagrees with result status")
-    _validate_fetch(prefix, directory, result_path, replay_only)
+    _validate_fetch(prefix, directory, result_path, replay_only, replay_validator)
     return result, receipt
 
 
-def collect_sources_v31(extraction, spec, output, command, *, replay_only=False):
+def collect_sources_v31(
+    extraction, spec, output, command, *, replay_only=False, replay_validator=None
+):
+    if replay_validator is not None and not replay_only:
+        raise EvaluationError("read-only source validator requires replay-only mode")
     root = Path(output)
     sources, receipts, fetched = [], [], []
     for work in extraction["works"]:
@@ -321,7 +331,9 @@ def collect_sources_v31(extraction, spec, output, command, *, replay_only=False)
             "output_dir": str(directory / "source"),
             "public_only": True,
         }
-        result, receipt = _fetch(command, args, directory, request, replay_only)
+        result, receipt = _fetch(
+            command, args, directory, request, replay_only, replay_validator
+        )
         fetched.append({"work_id": work_id, "receipt": receipt, "result": result})
     return {"sources": sources, "receipts": receipts, "public_fetches": fetched}
 

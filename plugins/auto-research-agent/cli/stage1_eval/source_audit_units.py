@@ -93,7 +93,7 @@ def _schema(aliases):
         "required": ["verdict", "reason", "addressed", "passages"],
         "properties": {
             "verdict": {"type": "string", "enum": VERDICTS},
-            "reason": {"type": "string", "minLength": 1, "maxLength": 400},
+            "reason": {"type": "string", "minLength": 1, "maxLength": 1024},
             "addressed": {
                 "type": "array",
                 "minItems": len(aliases),
@@ -119,15 +119,26 @@ def _persist(path, value, replay_only):
         write_json(path, value)
 
 
-def audit_sources(
-    packet, source_records, extraction, directory, model_options, *, replay_only=False
-):
-    """Run all eligible windows; replay receipts, retain contrary leaves and unknowns.
+def normalize_audit_value(value, group):
+    """Restore unchanged work/version-bound passages after schema validation."""
+    aliases, alias_map = model_span_aliases(group)
+    if len(set(value["addressed"])) != len(aliases) or set(value["addressed"]) != set(
+        aliases
+    ):
+        raise EvaluationError("source audit coverage aliases incomplete")
+    chosen = value["passages"]
+    if len(set(chosen)) != len(chosen) or (
+        value["verdict"] != "unverifiable" and not chosen
+    ):
+        raise EvaluationError("source audit evidence missing or duplicated")
+    return {
+        **value,
+        "passages": [{"span_id": alias_map[key], **aliases[key]} for key in chosen],
+    }
 
-    Acquisition authentication is a caller prerequisite, not proved by this API.
-    The conservative fold is not the later criterion-level semantic aggregation.
-    """
-    directory = Path(directory)
+
+def build_audit_plan(packet, source_records, extraction):
+    """Reconstruct the exact full source-window plan without model calls or writes."""
     view, derivation = materialize_audit_sources(
         json.loads(canonical(packet)), source_records
     )
@@ -157,7 +168,7 @@ def audit_sources(
             ),
         )
     )
-    leaves, summaries, plan = [], [], []
+    plan = []
     work_aliases = {
         key: f"w{n}"
         for n, key in enumerate(
@@ -231,6 +242,21 @@ def audit_sources(
         "plan": plan,
         "score_awarded": False,
     }
+    return binding
+
+
+def audit_sources(
+    packet, source_records, extraction, directory, model_options, *, replay_only=False
+):
+    """Run all eligible windows; replay receipts, retain contrary leaves and unknowns.
+
+    Acquisition authentication is a caller prerequisite, not proved by this API.
+    The conservative fold is not the later criterion-level semantic aggregation.
+    """
+    directory = Path(directory)
+    binding = build_audit_plan(packet, source_records, extraction)
+    plan = binding["plan"]
+    leaves, summaries = [], []
     _persist(directory / "plan.json", binding, replay_only)
     for target_plan in plan:
         target, labels = target_plan["target"], target_plan["expected_unit_ids"]
@@ -242,21 +268,7 @@ def audit_sources(
             _persist(schema_path, _schema(list(aliases)), replay_only)
 
             def normalize(value):
-                if len(set(value["addressed"])) != len(aliases) or set(
-                    value["addressed"]
-                ) != set(aliases):
-                    raise EvaluationError("source audit coverage aliases incomplete")
-                chosen = value["passages"]
-                if len(set(chosen)) != len(chosen) or (
-                    value["verdict"] != "unverifiable" and not chosen
-                ):
-                    raise EvaluationError("source audit evidence missing or duplicated")
-                return {
-                    **value,
-                    "passages": [
-                        {"span_id": alias_map[key], **aliases[key]} for key in chosen
-                    ],
-                }
+                return normalize_audit_value(value, group)
 
             try:
                 value, native = run_unit(
