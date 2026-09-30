@@ -453,12 +453,30 @@ class GeneralEvaluationTests(unittest.TestCase):
             node
             for function in tree.body
             if isinstance(function, ast.FunctionDef)
-            and function.name in {"verify_code_contract", "_dry_run"}
+            and function.name
+            in {"verify_code_contract", "verify_contract_changes", "_dry_run"}
             for node in ast.walk(function)
             if isinstance(node, ast.Constant)
             and isinstance(node.value, str)
             and "stage1_ab" in node.value
         ]
+        # Reviewed migration pins are literal path/hash data, not scorer imports.
+        for statement in tree.body:
+            if (
+                isinstance(statement, ast.Assign)
+                and isinstance(statement.value, ast.Dict)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "_REVIEWED_CODE_PAIRS"
+                    for target in statement.targets
+                )
+            ):
+                scoped_labels.extend(
+                    node
+                    for node in ast.walk(statement.value)
+                    if isinstance(node, ast.Constant)
+                    and isinstance(node.value, str)
+                    and "stage1_ab" in node.value
+                )
         self.assertEqual(set(map(id, all_labels)), set(map(id, scoped_labels)))
         self.assertEqual({node.value for node in all_labels}, allowed_labels)
         for node in ast.walk(tree):
