@@ -18,7 +18,7 @@ class ReviewedDeltaTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        self.root = Path(directory.name)
+        self.root = Path(directory.name).resolve()
         self.files = {
             "cli/stage1_ab/observer.py": "a148c72b6218bcd816f2778aa5f73c715bc1277fa5e44b32d59f09dbd28c16c6",
             "cli/stage1_eval/judging.py": "b2ae35a4b79465e48e27c5aece8bd7afe2a75089935c1094d43b7a891f57fba8",
