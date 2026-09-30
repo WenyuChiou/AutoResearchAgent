@@ -21,7 +21,25 @@ def binding():
     return {"policy": POLICY, "implementation_sha256": sha(Path(__file__).read_bytes())}
 
 
-def _snapshot(workspace, root):
+def _snapshot(workspace, root, read_user=None):
+    if read_user is not None:
+        import base64
+        from .vm_subject import call
+        from .vm_common import safe_name
+
+        observed = call(read_user, "snapshot", workspace=str(workspace))
+        files = {}
+        for name, encoded in observed["files"].items():
+            safe_name(name)
+            raw = base64.b64decode(encoded, validate=True)
+            digest = sha(raw)
+            blob = root / "blobs" / digest
+            if blob.exists() and blob.read_bytes() != raw:
+                raise EvaluationError("saved observer blob changed")
+            blob.write_bytes(raw)
+            files[name] = {"sha256": digest, "bytes": len(raw)}
+        return {"files": files, "errors": observed["errors"]}
+
     files, errors = {}, []
     for path in sorted(workspace.rglob("*")):
         relative = path.relative_to(workspace).as_posix()
@@ -50,7 +68,9 @@ def _snapshot(workspace, root):
     return {"files": files, "errors": errors}
 
 
-def run_observed(command, *, input, env, cwd, output):
+def run_observed(
+    command, *, input, env, cwd, output, process_options=None, read_user=None
+):
     """Drain both pipes, save original bytes, and sample without subject prompts.
 
     Sampling cannot guarantee an atomic filesystem view or capture every write.
@@ -70,7 +90,11 @@ def run_observed(command, *, input, env, cwd, output):
                 "line": line,
                 "event_sha256": sha(raw) if raw is not None else None,
                 "observed_at": datetime.now(timezone.utc).isoformat(),
-                **_snapshot(workspace, root),
+                **(
+                    _snapshot(workspace, root, read_user=read_user)
+                    if read_user is not None
+                    else _snapshot(workspace, root)
+                ),
             }
         )
 
@@ -87,6 +111,7 @@ def run_observed(command, *, input, env, cwd, output):
             stderr=subprocess.PIPE,
             env=env,
             cwd=workspace,
+            **(process_options or {}),
         )
 
         def read_stdout():
