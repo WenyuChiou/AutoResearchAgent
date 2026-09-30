@@ -391,6 +391,7 @@ def probe_profile(
     probe_evidence_dir=None,
     native_user=None,
     probe_mode="functional",
+    protected_runtime=None,
 ):
     """Read-only probe; a missing login or uncertain plugin discovery blocks launch."""
     if probe_mode not in {"functional", "subject-non-model-v2"}:
@@ -405,6 +406,14 @@ def probe_profile(
 
         process_options, native_env = native_options(native_user)
         env.update(native_env)
+
+    def check_runtime():
+        if native_user is not None:
+            from .vm_runtime import before_exec
+
+            before_exec(codex, protected_runtime, env)
+
+    check_runtime()
     version = subprocess.run(
         [str(codex), "--version"],
         env=env,
@@ -413,6 +422,7 @@ def probe_profile(
         timeout=20,
         **process_options,
     )
+    check_runtime()
     login = subprocess.run(
         [str(codex), "login", "status"],
         env=env,
@@ -440,6 +450,7 @@ def probe_profile(
     # The public plugin API observes effective workspace discovery. Handshake
     # must complete before later requests; sending them all at once is invalid.
     with tempfile.TemporaryFile() as stderr:
+        check_runtime()
         process = subprocess.Popen(
             [str(codex), "app-server", "--stdio"],
             env=env,
@@ -598,7 +609,12 @@ def probe_profile(
             )
         else:
             skill_sha = _functional_skill_smoke(
-                codex, env, skill_path, probe_evidence_dir, native_user=native_user
+                codex,
+                env,
+                skill_path,
+                probe_evidence_dir,
+                native_user=native_user,
+                protected_runtime=protected_runtime,
             )
     else:
         skill_sha = None
@@ -671,7 +687,13 @@ def probe_profile(
 
 
 def _functional_skill_smoke(
-    codex, env, skill_path, evidence_dir=None, *, native_user=None
+    codex,
+    env,
+    skill_path,
+    evidence_dir=None,
+    *,
+    native_user=None,
+    protected_runtime=None,
 ):
     """Ask the pinned subject model to read the installed skill in its real sandbox."""
     if native_user is None:
@@ -705,6 +727,10 @@ def _functional_skill_smoke(
 
             process_options, _ = native_options(native_user)
         try:
+            if native_user is not None:
+                from .vm_runtime import before_exec
+
+                before_exec(codex, protected_runtime, env)
             result = subprocess.run(
                 [
                     str(codex),
@@ -1233,6 +1259,7 @@ def _capture_subject(
             {
                 "native_user": guest_admission["native_user"],
                 "probe_mode": "subject-non-model-v2",
+                "protected_runtime": preflight["guest_binding"]["protected_runtime"],
             }
             if guest_admission is not None
             else {}
@@ -1341,6 +1368,10 @@ def _capture_subject(
     started = datetime.now(timezone.utc)
     prefix = f"attempt-{attempt_no:02d}"
     observer_dir = output / (prefix + ".observer")
+    if guest_admission is not None:
+        from .vm_runtime import before_exec
+
+        before_exec(command[0], preflight["guest_binding"]["protected_runtime"], env)
     if "passive_observer" in lock:
         from .observer import run_observed
 

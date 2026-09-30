@@ -20,6 +20,7 @@ from stage1_ab import (
     vm_guest as guest,
     vm_subject,
     vm_transport,
+    vm_runtime,
     vm_lifecycle as lifecycle,
 )  # noqa: E402
 
@@ -103,6 +104,7 @@ class GuestTransportTests(unittest.TestCase):
             runner.write_json(config_path, config)
             identity = {
                 "guest_id": name,
+                "protected_runtime": {"kind": "synthetic-test-runtime"},
                 "instance_sha256": common.digest(name),
                 "machine_id_sha256": common.digest(name + "-machine"),
                 "config_sha256": runner.sha(config_path.read_bytes()),
@@ -129,6 +131,7 @@ class GuestTransportTests(unittest.TestCase):
         self.messages = []
         self.fail_next = False
         self.patches = [
+            patch.object(vm_runtime, "before_exec"),
             patch.object(sequence, "REGISTRY_HOME", self.root / "registries"),
             patch.object(guest, "configuration", side_effect=self.config),
             patch.object(
@@ -261,6 +264,34 @@ class GuestTransportTests(unittest.TestCase):
 
     def prepare(self):
         return controller.prepare(self.plan_path, self.transport)
+
+    def test_runtime_recheck_blocks_capture_after_admission(self):
+        controller.prepare(self.plan_path, self.transport)
+        with patch.object(
+            vm_runtime,
+            "before_exec",
+            side_effect=runner.ExecutionBlocked("runtime replaced"),
+        ) as check:
+            with self.assertRaisesRegex(runner.ExecutionBlocked, "runtime replaced"):
+                controller.advance(self.plan_path, self.transport)
+        self.assertEqual(self.native_calls, 0)
+        self.assertEqual(check.call_args.args[0], "synthetic-codex")
+        self.assertEqual(
+            check.call_args.args[1], self.fixtures["baseline"][1]["protected_runtime"]
+        )
+
+    def test_runtime_recheck_blocks_resume_after_admission(self):
+        controller.prepare(self.plan_path, self.transport)
+        self.fail_next = True
+        controller.advance(self.plan_path, self.transport)
+        with patch.object(
+            vm_runtime,
+            "before_exec",
+            side_effect=runner.ExecutionBlocked("runtime replaced"),
+        ):
+            with self.assertRaisesRegex(runner.ExecutionBlocked, "runtime replaced"):
+                controller.advance(self.plan_path, self.transport, action="resume")
+        self.assertEqual(self.native_calls, 1)
 
     def test_actual_capture_observer_transfer_and_order_without_model(self):
         state = self.prepare()

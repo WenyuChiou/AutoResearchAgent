@@ -31,6 +31,7 @@ def binding():
         "vm_transport.py",
         "vm_subject.py",
         "vm_lifecycle.py",
+        "vm_runtime.py",
         "runner.py",
         "sequence.py",
     )

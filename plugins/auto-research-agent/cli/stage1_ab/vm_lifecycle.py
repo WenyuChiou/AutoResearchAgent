@@ -231,6 +231,7 @@ def run_diagnostic(config_path):
                 config["private_root"],
                 probe_evidence_dir=root / "diagnostic-evidence",
                 native_user=diagnostic["native_user"],
+                protected_runtime=identity["protected_runtime"],
             )
         finally:
             try:

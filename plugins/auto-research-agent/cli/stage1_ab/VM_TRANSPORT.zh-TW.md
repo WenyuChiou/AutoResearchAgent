@@ -34,7 +34,7 @@ Guest config 精確欄位如下（路徑均為該 guest 自己的路徑）：
   "machine_id_file": "/etc/machine-id",
   "profile": "/home/subject/.codex",
   "workspace": "/home/subject/workspace",
-  "codex": "/usr/local/bin/codex",
+  "codex": "/opt/codex/vendor/x86_64-unknown-linux-musl/bin/codex",
   "lock": "/root/stage1/public-lock.json",
   "prompt": "/root/stage1/prompt.txt",
   "private_root": "/absent-evaluator-private-root",
@@ -56,7 +56,7 @@ B 改為 `condition=treatment` 並提供自己可讀、已凍結的 runtime pin 
 
 Controller plan 精確包含 `kind=Stage1GuestControllerPlan.v2`、本機 `lock`、outside-Git `registry_root`、按凍結順序排列的 `slots`。每個 slot 有：
 
-- `identity`：guest_id、config_sha256、instance_sha256、machine_id_sha256、lock_sha256，以及 public lock 中自己的 repeat、condition、run_id、subject_id。
+- `identity`：guest_id、config_sha256、instance_sha256、machine_id_sha256、lock_sha256、完整 protected_runtime inventory，以及 public lock 中自己的 repeat、condition、run_id、subject_id。
 - `secret_file`：controller 私有的相應 guest key 路徑。
 - `transport`：ssh executable、host（只接受 localhost/127.0.0.1）、port、user、identity_file、known_hosts、guest_python、guest_config。使用既有 OpenSSH；只允許安全的遠端 token，`shell=False`，不轉發 agent。
 
@@ -98,3 +98,32 @@ Broker 在原生 UID 下實測雙向不可讀／不可 traverse 對方 roots；s
 `initial-setup.json`、`diagnostic-start.json`、`diagnostic-stop.json`、`diagnostic-evidence/`、`diagnostic-receipt.json` 全在 broker-private state。後續 app-server 的非模型探索可能寫 actual profile 自己的 cache/logs；那是記錄內的 setup 變化，不能宣稱整個 profile bytes 永遠 pristine，也不能混入 diagnostic files。B 的完整 `stage1-literature` / `stage2-directions` inventory 不變。
 
 此版本改變 adapter/runner/evaluator capture-module bundle。須在 accepted head 重新綁定新 Linux private evaluator 與新 lock；不得把本版本塞進正在執行的 Windows G1。單一 Linux Codex binary hash gate 保持，不引入 runtime split。G1、adapter review/CI/merge、Japan 與 exact-digest FREEZE_READY 授權仍分別必要；本 PR 只交付 implementation-only。
+
+## Guest Codex 不可替換執行檔
+
+PR65 review-5361832044 指出相同 hash 不代表 subject 無法稍後替換 launcher。
+Guest 現只接受絕對路徑的獨立 x86-64 ELF64 little-endian executable；local API
+仍支援原本 launcher。每個 lexical ancestor 與 binary 都須 root-owned、不可被
+其他帳戶寫入且可 traverse/execute，任何 symlink 都拒絕；binary 不得有
+setuid/setgid 或 Linux file capabilities。Root、kernel、mount 管理與 accepted
+binary 的行為仍受信任；這不是對抗惡意 root 的 attestation。
+
+不執行 npm/script resolver。Shebang、npm wrapper、ELF PT_INTERP、DT_NEEDED、
+RPATH/RUNPATH、audit/filter/auxiliary dependency 全部拒絕。實際凍結的 musl
+static PIE 可有 PT_DYNAMIC，但不能有外部 loader dependencies；其完整 binary
+bytes 才是 accepted runtime。其他平台或動態 runtime 需另行審查，不自動放寬。
+
+`Stage1ProtectedRuntime.v1` 保存 exact path、所有 ancestor 的 UID/GID/mode、
+device/inode、binary size/hash 與 ELF 結構。這份完整 inventory 加入 guest identity，
+由 controller slot、authenticated admission、diagnostic receipt、preflight 與 capture
+共同綁定。Configuration 先核對它與既有單一 binary hash gate；診斷、prepare、
+capture/resume 的每個 Codex process 啟動前再次比對已接受 inventory 與實際
+command[0]，不能量測新的 inventory 後默默接受。LD_*、GLIBC_TUNABLES 及
+GCONV_PATH 不傳給 guest Codex 程序，避免子程序繼承 loader overrides。
+
+`test_vm_runtime.py` 用合成 ELF 與明示 Linux metadata 測不可變正例、subject-owned
+binary/ancestor、writable parent、symlink、script/indirect payload、提升權限、
+替換 inventory、command substitution 與零呼叫拒絕；transport tests 另測准入後
+capture/resume 的立即重驗。Linux ownership/permissions 仍須实际 kernel proof，
+這輪沒有重跑 VM、native Codex 或模型。既有失敗與 b885/f707 歷史證據完整保留。
+新增模組屬 adapter binding；新 accepted head 必須重新凍結，現有 G1 不變。

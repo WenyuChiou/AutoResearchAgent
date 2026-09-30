@@ -208,7 +208,15 @@ def configuration(path):
         None,
     )
     require(slot is not None, "guest slot absent from lock")
+    from .vm_runtime import inventory
+
+    protected_runtime = inventory(config["codex"])
+    require(
+        protected_runtime["sha256"] == lock["codex_runtime_sha256"],
+        "protected ELF differs from lock",
+    )
     identity = {
+        "protected_runtime": protected_runtime,
         "guest_id": config["guest_id"],
         "config_sha256": runner.sha(path.read_bytes()),
         "instance_sha256": runner.sha(Path(config["instance_file"]).read_bytes()),
@@ -242,6 +250,7 @@ def collect_probe(config, lock, identity):
         config["private_root"],
         probe_evidence_dir=Path(config["state_root"]) / "native-probe",
         native_user=config["native_user"],
+        protected_runtime=identity["protected_runtime"],
         probe_mode="subject-non-model-v2",
     )
     require(

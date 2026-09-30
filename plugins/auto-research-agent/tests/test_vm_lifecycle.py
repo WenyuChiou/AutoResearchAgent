@@ -57,6 +57,7 @@ class LifecycleTests(unittest.TestCase):
             "condition": "treatment",
             "config_sha256": "actual-config",
             "guest_id": "actual-guest",
+            "protected_runtime": {"kind": "synthetic-test-runtime"},
         }
         self.lock = {"codex_runtime_sha256": "binary", "plugin_tree_sha256": "plugin"}
         self.probe = {key: key + "-value" for key in lifecycle.MATCH_FIELDS}

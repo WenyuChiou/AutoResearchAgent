@@ -41,6 +41,7 @@ def _load(plan_path):
             set(identity)
             == {
                 "guest_id",
+                "protected_runtime",
                 "config_sha256",
                 "instance_sha256",
                 "machine_id_sha256",
