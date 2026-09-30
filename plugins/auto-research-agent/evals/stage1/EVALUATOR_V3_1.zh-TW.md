@@ -288,3 +288,27 @@ SHA-256；其 `generation`、`old_code`、`captures` 與 `source_plan`、`target
 事故追加、原清單與完整費用／失敗歷史全部保留；不得自動忽略未完成尾端、截斷
 原檔，或把衍生 prefix 宣稱為未受改動的原檔。decision URL 只是處置來源，
 不能代替核心組對實際 manifest digest 與重新執行範圍的獨立核准。
+
+
+## v3.1 輸入封包：執行與離線恢復必須相同
+
+評估器要先把答案、來源與搜尋紀錄裝成一個「封包」，再綁定它的
+SHA-256。離線恢復必須重建同一個封包，不能因為換了一條程式路徑，
+就把同一份搜尋紀錄算成不同的數量。
+
+- 原始 v3.1 執行依 evidence 的 `origin` 計算 native trace 與交付檔案；
+  不能靠 ID 是否以 `trace-` 或 `artifact-` 開頭猜測。
+- `judging.make_packet_v31` 現在由 `pipeline_v31` 與
+  `reason_recovery.reconstruct_context` 共用，保留原始 v3.1 執行封包內容。
+  舊版 `make_packet` 不改寫，既有紀錄與來源查核 plan 也不改寫。
+- 回歸測試以原始 pipeline 的明確欄位建立預期 plan，實際執行恢復的
+  重建函式；兩者必須逐 byte 相同。另檢查零 subprocess、只使用 replay
+  入口，以及完整合成檔案清單、內容與修改時間不變。
+
+這修復的是「同一份證據可以正確重建」，不是 P1–P3 科學品質已改善。
+若舊封包、來源、版本、runtime 或原文 hash 真正不同，仍必須拒絕。
+
+**套用修復後的下一步：** evaluator bundle 的 bytes 已改變，必須保留
+失敗的 candidate04，另建新的 target plan 與 manifest，交核心組查核
+精確 SHA 後才可進行下一次有界 dry-run。程式測試通過不會自行授權
+import、新模型呼叫、G1 完成、日本預演、FREEZE_READY 或正式 A/B。
