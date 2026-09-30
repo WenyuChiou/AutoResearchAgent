@@ -35,10 +35,10 @@ class SchedulerAdmissionTests(unittest.TestCase):
         plan["evidence_scope"] = "repair-diagnostic"
         plan["legacy"] = {"generation": str(generation), "fenced_target": job["id"]}
         codex = base / "synthetic-codex.exe"
-        guard = Path(scheduler.__file__).with_name("offline_replay.py")
+        guard = Path(scheduler.__file__).with_name("offline_replay.py").resolve()
         codex.write_bytes(b"synthetic executable; never launched")
         plan["runtime"] = {
-            "python_executable": sys.executable,
+            "python_executable": str(Path(sys.executable).resolve()),
             "cli_root": str(fixtures.PLUGIN / "cli"),
             "codex_executable": str(codex),
             "replay_guard": str(guard),
@@ -74,6 +74,9 @@ class SchedulerAdmissionTests(unittest.TestCase):
             *Path(scheduler.__file__).parent.glob("*.py"),
         ]:
             plan["bindings"].append({"path": str(path), "sha256": fixtures.sha(path)})
+        # Hosted Python launchers can be symlinks; bind their actual target bytes.
+        for binding in plan["bindings"]:
+            binding["path"] = str(Path(binding["path"]).resolve())
         job["env"] = {
             "PYTHONPATH": plan["runtime"]["cli_root"],
             "RESEARCH_HUB_CONFIG": str(config),
