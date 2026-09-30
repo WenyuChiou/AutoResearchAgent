@@ -368,8 +368,9 @@ def verify_bindings(plan):
 
 def load_approved(path, expected, approval):
     require(approval == expected, "external approval must name exact amendment digest")
-    require(digest(path) == expected, "amendment bytes changed")
-    plan = read(path)
+    raw = Path(path).read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == expected, "amendment bytes changed")
+    plan = json.loads(raw)
     validate_amendment(plan, expected)
     verify_bindings(plan)
     return plan
@@ -709,6 +710,10 @@ def run(amendment_path, expected_sha256, *, approval_sha256, process_inspector=N
     )
     lock, admission_closed, results = threading.Lock(), threading.Event(), {}
 
+    def close_admission():
+        with lock:
+            admission_closed.set()
+
     def execute(job):
         directory = control / job["id"]
         outcome = {"id": job["id"], "status": "failed", "phases": []}
@@ -796,10 +801,20 @@ def run(amendment_path, expected_sha256, *, approval_sha256, process_inspector=N
                             directory / f"{phase}-process.json",
                             {"pid": proc.pid, "started_at": started},
                         )
+                    except Exception:
+                        # A known bookkeeping failure must stop new work before drain.
+                        close_admission()
+                        raise
                     finally:
-                        code = (
-                            proc.wait()
-                        )  # always retain ownership, even if bookkeeping fails
+                        try:
+                            # Retain ownership even when process-receipt persistence fails.
+                            code = proc.wait()
+                        except Exception:
+                            close_admission()
+                            raise
+                        if code != 0:
+                            # Publish failure before closing streams or saving receipts.
+                            close_admission()
                 receipt = {
                     "phase": phase,
                     "exit_code": code,
@@ -838,6 +853,7 @@ def run(amendment_path, expected_sha256, *, approval_sha256, process_inspector=N
                 replay_archive_unchanged=True,
             )
         except Exception as exc:
+            close_admission()
             outcome["error"] = f"{type(exc).__name__}: {exc}"
         with lock:
             if outcome["status"] != "complete":

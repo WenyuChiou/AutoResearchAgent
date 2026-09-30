@@ -456,6 +456,127 @@ class SchedulerAdmissionTests(unittest.TestCase):
             for child in processes:
                 child.wait(timeout=10)
 
+    def assert_failure_closes_admission_before_blocking_work(self, failure_path):
+        plan = self.fixture.fixture(
+            "failure-barrier-" + failure_path, count=3, max_jobs=2
+        )
+        boundary_observed = threading.Event()
+        release_failed_worker = threading.Event()
+        coordinator_rechecked = threading.Event()
+        real_save, real_wait = scheduler.save, scheduler.wait
+        launched = []
+        completed_waits = []
+        wait_count = 0
+
+        def wait_event(event):
+            # Timeout only prevents a broken test hanging; ordering assertions use
+            # events and the coordinator's next admission-loop checkpoint.
+            if not event.wait(10):
+                raise AssertionError("synthetic barrier was never reached")
+
+        class SyntheticProcess:
+            def __init__(self, argv, **kwargs):
+                self.phase, self.output, self.job_id = argv[2:5]
+                self.pid = 81000 + len(launched)
+                launched.append((self.job_id, self.phase))
+
+            def wait(self):
+                if self.job_id == "job-0":
+                    if failure_path == "bookkeeping":
+                        boundary_observed.set()
+                        wait_event(release_failed_worker)
+                        code = 0
+                    else:
+                        code = 9
+                else:
+                    wait_event(boundary_observed)
+                    if self.phase == "evaluate":
+                        output = Path(self.output)
+                        output.mkdir()
+                        fixtures.write_json(
+                            output / "result.json", {"job_id": self.job_id}
+                        )
+                    code = 0
+                completed_waits.append((self.job_id, self.phase, code))
+                return code
+
+        def controlled_save(path, value):
+            path = Path(path)
+            if path.parent.name == "job-0":
+                if (
+                    failure_path == "bookkeeping"
+                    and path.name == "evaluate-process.json"
+                ):
+                    raise OSError("synthetic failure before child drain")
+                if failure_path == "nonzero" and path.name == "evaluate-exit.json":
+                    boundary_observed.set()
+                    wait_event(release_failed_worker)
+            return real_save(path, value)
+
+        def observed_coordinator_wait(futures, **kwargs):
+            nonlocal wait_count
+            wait_count += 1
+            if wait_count == 2:
+                # The sibling future has been consumed and the coordinator has
+                # completed its next admission pass. No wall-clock absence test.
+                coordinator_rechecked.set()
+            return real_wait(futures, **kwargs)
+
+        with (
+            patch.object(scheduler.subprocess, "Popen", SyntheticProcess),
+            patch.object(scheduler, "save", controlled_save),
+            patch.object(scheduler, "wait", observed_coordinator_wait),
+            ThreadPoolExecutor(max_workers=1) as pool,
+        ):
+            future = pool.submit(self.fixture.run_plan, plan)
+            try:
+                wait_event(coordinator_rechecked)
+                self.assertFalse((Path(plan["control_root"]) / "job-2").exists())
+                self.assertFalse(any(job_id == "job-2" for job_id, _ in launched))
+                self.assertIn(("job-1", "replay", 0), completed_waits)
+            finally:
+                release_failed_worker.set()
+            result = future.result(timeout=10)
+        self.assertEqual(
+            [job["status"] for job in result["jobs"]],
+            ["failed", "complete", "not-admitted"],
+        )
+        self.assertEqual(result["status"], "failed-preserved")
+        self.assertTrue(any(job_id == "job-0" for job_id, _, _ in completed_waits))
+        for job_id in ("job-0", "job-1"):
+            self.assertTrue(
+                (Path(plan["control_root"]) / job_id / "terminal.json").is_file()
+            )
+
+    def test_nonzero_exit_closes_admission_before_delayed_exit_receipt(self):
+        self.assert_failure_closes_admission_before_blocking_work("nonzero")
+
+    def test_known_bookkeeping_failure_closes_admission_before_child_drain(self):
+        self.assert_failure_closes_admission_before_blocking_work("bookkeeping")
+
+    def test_amendment_replacement_cannot_change_approved_parsed_bytes(self):
+        plan = self.fixture.fixture("amendment-read-race", count=1, max_jobs=1)
+        path, digest = self.fixture.save(plan)
+        replacement = copy.deepcopy(plan)
+        replacement["max_jobs"] = 2
+        replacement_bytes = json.dumps(replacement).encode()
+        read_bytes = Path.read_bytes
+        reads = []
+
+        def replace_after_read(candidate):
+            data = read_bytes(candidate)
+            if candidate.resolve() == path.resolve():
+                reads.append(data)
+                if len(reads) == 1:
+                    path.write_bytes(replacement_bytes)
+            return data
+
+        with patch.object(Path, "read_bytes", replace_after_read):
+            loaded = scheduler.load_approved(path, digest, digest)
+        self.assertEqual(loaded["max_jobs"], 1)
+        self.assertEqual(len(reads), 1)
+        self.assertEqual(json.loads(read_bytes(path))["max_jobs"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()
