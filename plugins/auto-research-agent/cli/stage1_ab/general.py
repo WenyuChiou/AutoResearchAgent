@@ -361,6 +361,7 @@ def freeze_v3(
     evaluator_dependency_repo=None,
     evaluator_dependency_sha=None,
     research_brief_path=None,
+    guest_adapter=False,
 ):
     """Create an immutable public lock with topic needs, not expected papers."""
     if repeats not in (1, 3):
@@ -525,6 +526,12 @@ def freeze_v3(
         )
     if any("holdout" in key or "answer_key" in key for key in lock):
         raise runner.ExecutionBlocked("v3 public lock contains an answer-key field")
+    if guest_adapter:
+        from .vm_common import binding as guest_binding
+
+        if not v31:
+            raise runner.ExecutionBlocked("guest adapter requires v3.1")
+        lock["guest_adapter"] = guest_binding()
     runner.write_json(output, lock)
     return lock
 
