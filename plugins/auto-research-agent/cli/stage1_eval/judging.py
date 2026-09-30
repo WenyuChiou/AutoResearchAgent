@@ -96,6 +96,27 @@ def make_packet(task, spec, subject, extraction, background, subject_sources, *,
     return packet
 
 
+def make_packet_v31(
+    task, spec, subject, extraction, background, subject_sources, *, mode
+):
+    """Use the same origin-based capture inventory for execution and recovery."""
+    packet = make_packet(
+        task, spec, subject, extraction, background, subject_sources, mode=mode
+    )
+    evidence = subject["evidence"].values()
+    packet["process_evidence"]["capture-integrity"] = {
+        "text": (
+            f"Subject status: {subject['status']}; native trace events: "
+            f"{sum(v['origin'] == 'subject-native-trace' for v in evidence)}; "
+            "delivered artifacts: "
+            f"{sum(v['origin'] == 'subject-delivered-artifact' for v in evidence)}"
+        ),
+        "origin": "evaluator-mechanical-inventory",
+        "sha256": sha(canonical(subject)),
+    }
+    return packet
+
+
 def _schema_for_phase(output_dir, phase):
     schema = json.loads(
         (EVAL_ROOT / "schemas/stage1-general-judge.v3.schema.json").read_text(

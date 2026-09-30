@@ -405,7 +405,7 @@ def reconstruct_context(
     from .extraction_v31 import extract_subject_v31
     from .original_fields import extract_original_fields
     from .sources_v31 import collect_sources_v31, attach_public_sources
-    from .judging import make_packet
+    from .judging import make_packet_v31
     from .model_calls import _request_config
     from .source_runtime import source_runtime_preflight
     from .runtime import installed_package_sha256
@@ -480,7 +480,7 @@ def reconstruct_context(
         ),
     )
     _assert_saved(output / "subject-sources.json", sources)
-    packet = make_packet(
+    packet = make_packet_v31(
         task.decode(),
         spec,
         subject,

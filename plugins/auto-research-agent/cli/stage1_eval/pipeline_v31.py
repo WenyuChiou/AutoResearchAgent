@@ -16,7 +16,7 @@ from .common import (
 )
 from .complete_judging import judge_packet_complete as judge_packet_v31
 from .extraction_v31 import extract_subject_v31
-from .judging import make_packet
+from .judging import make_packet_v31
 from .runtime import executable_sha256, installed_package_sha256
 from .score import aggregate
 from .source_runtime import source_runtime_preflight
@@ -277,7 +277,7 @@ def evaluate_v31(args, *, replay_only=False):
                 binding,
             )
         persist(output / "subject-sources.json", sources, replay_only=replay_only)
-        packet = make_packet(
+        packet = make_packet_v31(
             task.decode("utf-8"),
             spec,
             subject,
@@ -286,18 +286,6 @@ def evaluate_v31(args, *, replay_only=False):
             sources,
             mode=args.mode,
         )
-        # v3.1 keeps every attempt; IDs are no longer the legacy trace-N form.
-        evidence = subject["evidence"].values()
-        packet["process_evidence"]["capture-integrity"] = {
-            "text": (
-                f"Subject status: {subject['status']}; native trace events: "
-                f"{sum(v['origin'] == 'subject-native-trace' for v in evidence)}; "
-                "delivered artifacts: "
-                f"{sum(v['origin'] == 'subject-delivered-artifact' for v in evidence)}"
-            ),
-            "origin": "evaluator-mechanical-inventory",
-            "sha256": sha(canonical(subject)),
-        }
         attach_public_sources(packet, sources)
         catalogue = (background or {}).get("sources", []) + sources["sources"]
         source_audits = {
