@@ -41,6 +41,27 @@ CONFIG_FIELDS = {
 }
 
 
+def _sudo_policy_denies_all(result, username, hostname):
+    """A successful policy listing can report no grants with exit status zero."""
+    if (
+        result.returncode not in {0, 1}
+        or result.stderr != b""
+        or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*", hostname)
+    ):
+        return False
+    # sudo prints its short run-host name; permit the measured kernel name too.
+    # Never resolve DNS or accept a denial for an arbitrary other host/account.
+    hosts = {hostname, hostname.split(".", 1)[0]}
+    pattern = (
+        rb"User "
+        + re.escape(username.encode("utf-8"))
+        + rb" is not allowed to run sudo on (?:"
+        + b"|".join(re.escape(host.encode("ascii")) for host in sorted(hosts))
+        + rb")\.\n?"
+    )
+    return re.fullmatch(pattern, result.stdout) is not None
+
+
 def native_options(username):
     require(
         os.name == "posix" and os.geteuid() == 0,
@@ -49,7 +70,10 @@ def native_options(username):
     import pwd
 
     account = pwd.getpwnam(username)
-    require(account.pw_uid != 0, "native subject must be unprivileged")
+    require(
+        account.pw_uid != 0 and account.pw_name == username,
+        "native subject must be the named unprivileged account",
+    )
     options = {"user": account.pw_uid, "group": account.pw_gid, "extra_groups": []}
     sudo = subprocess.run(
         ["sudo", "-n", "-l", "-U", username],
@@ -58,8 +82,7 @@ def native_options(username):
         env=dict(os.environ, LC_ALL="C"),
     )
     require(
-        sudo.returncode == 1
-        and b"not allowed to run sudo" in sudo.stderr + sudo.stdout,
+        _sudo_policy_denies_all(sudo, account.pw_name, os.uname().nodename),
         "native subject has sudo grants or sudo policy could not be verified",
     )
     return (

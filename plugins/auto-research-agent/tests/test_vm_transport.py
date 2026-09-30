@@ -490,7 +490,12 @@ class PrivilegeBoundaryTests(unittest.TestCase):
     def test_restricted_sudo_grant_and_unknown_policy_fail_closed(self):
         from types import SimpleNamespace
 
-        fake_os = SimpleNamespace(name="posix", geteuid=lambda: 0, environ={})
+        fake_os = SimpleNamespace(
+            name="posix",
+            geteuid=lambda: 0,
+            environ={},
+            uname=lambda: SimpleNamespace(nodename="vm"),
+        )
         fake_pwd = SimpleNamespace(
             getpwnam=lambda name: SimpleNamespace(
                 pw_uid=1000, pw_gid=1000, pw_name=name, pw_dir="/home/subject"
@@ -520,6 +525,59 @@ class PrivilegeBoundaryTests(unittest.TestCase):
             self.assertEqual(
                 run.call_args.args[0], ["sudo", "-n", "-l", "-U", "subject"]
             )
+
+    def test_observed_zero_status_denial_and_legacy_one_are_account_host_bound(self):
+        from types import SimpleNamespace
+
+        for user in ("s1proofactual", "s1proofdiag", "subject"):
+            for code in (0, 1):
+                for host in ("stage1-clean-base", "stage1-clean-base.example"):
+                    with self.subTest(user=user, code=code, host=host):
+                        result = SimpleNamespace(
+                            returncode=code,
+                            stdout=f"User {user} is not allowed to run sudo on {host}.\n".encode(),
+                            stderr=b"",
+                        )
+                        self.assertTrue(
+                            guest._sudo_policy_denies_all(
+                                result, user, "stage1-clean-base.example"
+                            )
+                        )
+
+    def test_sudo_denial_rejects_ambiguous_policy_account_host_and_diagnostics(self):
+        from types import SimpleNamespace
+
+        denial = b"User subject is not allowed to run sudo on vm.\n"
+        grant = b"User subject may run the following commands on vm:\n (root) /usr/bin/python3\n"
+        for code, stdout, stderr in (
+            (0, grant, b""),
+            (1, b"policy unavailable", b""),
+            (2, denial, b""),
+            (-9, denial, b""),
+            (0, denial + grant, b""),
+            (0, grant + denial, b""),
+            (0, denial, grant),
+            (0, denial, b"sudo: unable to resolve host vm\n"),
+            (1, b"", denial),
+            (0, denial.replace(b"subject", b"other"), b""),
+            (0, denial.replace(b"vm.", b"other."), b""),
+            (0, denial + b"\n", b""),
+            (0, b" " + denial, b""),
+            (0, denial + b"\x00", b""),
+        ):
+            with self.subTest(code=code, stdout=stdout, stderr=stderr):
+                self.assertFalse(
+                    guest._sudo_policy_denies_all(
+                        SimpleNamespace(returncode=code, stdout=stdout, stderr=stderr),
+                        "subject",
+                        "vm",
+                    )
+                )
+        result = SimpleNamespace(returncode=0, stdout=denial, stderr=b"")
+        self.assertFalse(
+            guest._sudo_policy_denies_all(result, "subject".replace("b", "."), "vm")
+        )
+        self.assertFalse(guest._sudo_policy_denies_all(result, "subject", "vm\n"))
 
     def test_file_helper_drops_uid_and_does_not_need_broker_directory_access(self):
         from types import SimpleNamespace

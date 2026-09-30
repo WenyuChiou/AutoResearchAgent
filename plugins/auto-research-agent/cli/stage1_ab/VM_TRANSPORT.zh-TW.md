@@ -8,6 +8,8 @@
 
 Guest broker 以 root 運行；獨立 subject 帳戶沒有 sudo 能力。actual subject 的 native version/login/app-server/capture 程序都明確降權為 subject UID/GID；functional-skill 僅在獨立 diagnostic UID/GID 執行。所有程序清空附加群組，使用自己的 HOME/tmp。Observer 的歸檔寫入留在 broker；subject workspace、final output 的讀取與 runtime import probe 都降權。讀取 helper 的最小標準庫程式由 broker 透過 `python -I -B -c` 傳入，不開放 root-only treatment 原始碼給 A。B 的 workspace 初始化只傳入既有初始化函式，亦降權執行，避免 symlink race 變成 root 讀寫。即使 subject 在檢查後換成指向私有檔案的 symlink，核心的 UID 權限仍拒絕讀取。簽章 key、guest config、instance marker、probe、admission 與 captures 都在 root-owned 0700 目錄；key 為 root-owned 0600。Subject 無法自簽 probe 或准入。每次以 root 查詢 `sudo -n -l -U subject`，只有明確無任何 sudo grants 才通過；受限 Python grant 也拒絕。Broker source、interpreter 與祖先目錄必須 root-owned 且不能被其他帳戶寫入。
 
+sudo policy 查詢固定使用 `LC_ALL=C`。只接受 exit 0 或 1、空 stderr，以及 stdout 完整一句 `User <實際帳號> is not allowed to run sudo on <本機 hostname>.`（可有一個結尾換行）。Hostname 必須等於核心回報的 hostname 或其 short form，不查 DNS。Debian 的成功 policy listing 可在沒有 grants 時回傳 0；這不是權限授予。其他帳號／主機、grant 清單、混合輸出、額外診斷或其他 exit status 全部拒絕。此修正源自保留的 proof-only guest 失敗；尚未重跑 Linux kernel proof，不把 parser 測試當成隔離通過。
+
 Controller 是單一受信任操作者，持有每個 guest 不同的隨機 HMAC key；它不是對抗 controller 作假的硬體遠端認證。初始身份由操作者建立全新 VM 後核對：guest ID、配置原始 bytes hash、唯一 instance marker hash、實際 `/etc/machine-id` hash及 public lock hash。基底 clone 的 machine-id 可以相同，instance marker、config 和 key 必須每 guest 不同。SSH known_hosts 需預先核對，禁止自動接受未知 key。錯連 guest 時其獨立 key/config/instance 不匹配，即拒絕。
 
 只有 controller 保存完整 ordered series 和先前 captures。Guest 收到的 request 欄位僅 version、action、自己的 identity、nonce、series ID、自己的 preflight hash；沒有 path/file 上傳介面。全體共用的 public lock 僅含公開計畫，沒有別人的 profile、workspace、答案、transcript、capture、evaluator/private 資料或 controller registry。
