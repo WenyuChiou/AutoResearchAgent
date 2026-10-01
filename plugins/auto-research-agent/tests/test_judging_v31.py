@@ -185,8 +185,115 @@ class GroundingTests(unittest.TestCase):
                 index_evidence(changed),
             )
 
+    def _claim_grounding(self, bindings, *, score=1, unbound=False, status="scored"):
+        packet = _packet(
+            claims=[{"cited_work_ids": ["work-a", "work-b"]}]
+            + ([{"cited_work_ids": []}] if unbound else [])
+        )
+        packet["sources"] = bindings
+        value = {
+            "core_assessments": [],
+            "criteria": [
+                {
+                    "criterion_id": "P1V3.CLAIM_SUPPORT",
+                    "status": status,
+                    "score": score,
+                    "passages": [{"evidence_id": key} for key in bindings],
+                }
+            ],
+        }
+        with patch("stage1_eval.judging_v31.validate_judgment", return_value=value):
+            return check_grounding(value, packet, "content")
+
+    def test_claim_support_rejects_foreign_or_unbound_text_for_any_score(self):
+        for work_id in ("work-unrelated", None):
+            for score in (0, 1, 2):
+                with (
+                    self.subTest(work_id=work_id, score=score),
+                    self.assertRaisesRegex(EvaluationError, "no source text bound"),
+                ):
+                    self._claim_grounding(
+                        {
+                            "source": {
+                                "subject_work_id": work_id,
+                                "source_level": "full-text",
+                            }
+                        },
+                        score=score,
+                    )
+
+    def test_partial_claim_support_can_use_a_relevant_source_subset(self):
+        value = self._claim_grounding(
+            {"source": {"subject_work_id": "work-a", "source_level": "abstract"}}
+        )
+        self.assertEqual(value["criteria"][0]["score"], 1)
+
+    def test_full_claim_support_rejects_missing_text_for_one_cited_work(self):
+        for level in ("metadata", None):
+            with (
+                self.subTest(level=level),
+                self.assertRaisesRegex(
+                    EvaluationError, "full score needs every central"
+                ),
+            ):
+                self._claim_grounding(
+                    {
+                        "a": {"subject_work_id": "work-a", "source_level": "abstract"},
+                        "b": {"subject_work_id": "work-b", "source_level": level},
+                    },
+                    score=2,
+                )
+
+    def test_full_claim_support_accepts_all_cited_text_but_not_unbound_claims(self):
+        bindings = {
+            "a": {"subject_work_id": "work-a", "source_level": "abstract"},
+            "b": {"subject_work_id": "work-b", "source_level": "full-text"},
+        }
+        value = self._claim_grounding(bindings, score=2)
+        self.assertEqual(value["criteria"][0]["score"], 2)
+        with self.assertRaisesRegex(EvaluationError, "full score needs every central"):
+            self._claim_grounding(bindings, score=2, unbound=True)
+
+    def test_unverifiable_claim_support_stays_null_without_source_text(self):
+        value = self._claim_grounding(
+            {}, score=None, unbound=True, status="unverifiable"
+        )
+        self.assertIsNone(value["criteria"][0]["score"])
+
 
 class JudgeViewTests(unittest.TestCase):
+    def test_full_content_view_prioritizes_claim_matches_for_every_work(self):
+        evidence, works, claims = {}, [], []
+        for work_id, token in (("work-a", "quasar"), ("work-b", "nebula")):
+            chunks = ["neutral filler ".ljust(600, ".") for _ in range(12)]
+            chunks[7] = f"{token} positive evidence ".ljust(600, ".")
+            chunks[8] = f"{token} contrary evidence ".ljust(600, ".")
+            evidence[work_id] = _evidence(
+                "".join(chunks), origin="evaluator-reference-check", work_id=work_id
+            )
+            works.append({"work_id": work_id, "title": "Ordinary study"})
+            claims.append({"exact_text": token, "cited_work_ids": [work_id]})
+        packet = _packet(evidence, works, claims)
+        index = index_evidence(evidence, span_characters=600)
+        with patch("stage1_eval.judge_views_v31.MAX_WORK_CHARS", 2400):
+            view, manifest = bounded_judge_view(packet, "content", index)
+            repeated, repeated_manifest = bounded_judge_view(packet, "content", index)
+        self.assertEqual(view, repeated)
+        self.assertEqual(manifest, repeated_manifest)
+        self.assertEqual(manifest["selected_evidence_file_count"], 2)
+        for work_id, token in (("work-a", "quasar"), ("work-b", "nebula")):
+            rows = [row for row in view.values() if row["work_id"] == work_id]
+            self.assertEqual({row["start"] for row in rows}, {0, 4200, 4800, 6600})
+            self.assertTrue(any(f"{token} positive" in row["text"] for row in rows))
+            self.assertTrue(any(f"{token} contrary" in row["text"] for row in rows))
+            self.assertLessEqual(sum(len(row["text"]) for row in rows), 2400)
+            for row in rows:
+                self.assertEqual(
+                    row["text"], evidence[work_id]["text"][row["start"] : row["end"]]
+                )
+        self.assertTrue(manifest["truncated"])
+        self.assertGreater(manifest["omitted_span_count"], 0)
+
     def test_many_native_events_keep_bound_excerpts_from_every_file(self):
         evidence = {
             f"event-{number}": _evidence(

@@ -161,7 +161,12 @@ def bounded_judge_view(packet, phase, index, *, work_ids=None):
     grouped = defaultdict(list)
     for span_id, row in candidates.items():
         grouped[row["evidence_id"]].append((span_id, row))
-    terms = _terms(packet, work_ids)
+    # Full criterion/review units have no work filter, but still need the
+    # extracted claims' terms when ranking each work's source excerpts.
+    term_work_ids = work_ids or tuple(
+        row["work_id"] for row in packet["extraction"]["works"]
+    )
+    terms = _terms(packet, term_work_ids)
     ordered = {}
     for evidence_id, rows in grouped.items():
         work_id = _work_id(packet, rows[0][1])
