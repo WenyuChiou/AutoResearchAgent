@@ -117,6 +117,12 @@ file. It creates a Stage 2 packet v2 whose structured literature records,
 sources, evidence and unresolved coverage items remain bound to the Stage 1
 work/version records. The structured projection retains title, authors, year,
 venue, DOI, URL, classification, literature roles, findings and claim IDs.
+Unverified, partially supported and contradicted claims are also listed in the
+Stage 2 unresolved items with their work/version, assertion and source locator.
+Their evidence relations remain unchanged; an exact quote binding does not
+make an unresolved assertion a confirmed premise. Claims without accessible
+source text must remain explicit coverage obligations in the canonical records,
+rather than acquiring an invented quote merely to enter the evidence table.
 
 The bridge verifies the complete private package before reading it. It carries
 exact extracted UTF-8 source text when available, preserves the true evidence
