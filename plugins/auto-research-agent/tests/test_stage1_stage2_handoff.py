@@ -1,5 +1,6 @@
 """Stage 1 deliverables enter Stage 2 without losing source provenance."""
 
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -252,6 +253,77 @@ class Stage1Stage2HandoffTests(unittest.TestCase):
 
     def packet(self):
         return json.loads((self.output / "packet.json").read_text(encoding="utf-8"))
+
+    def test_claim_uncertainty_remains_visible_in_stage2_unresolved(self):
+        claim = self.records["claims"][0]
+        for relation in ("supports", "unverified", "partial", "contradicts"):
+            with self.subTest(relation=relation):
+                claim["relation"] = relation
+                self.output = self.root / ("stage2-" + relation)
+                manifest = json.loads(
+                    (self.deliverable / "provenance_manifest.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                manifest["canonical_records"] = self.records
+                (self.deliverable / "provenance_manifest.json").write_text(
+                    json.dumps(manifest), encoding="utf-8"
+                )
+                self.deliverable_manifest_sha256 = sha(
+                    (self.deliverable / "provenance_manifest.json").read_bytes()
+                )
+                receipt = self.build()
+                packet = self.packet()
+                validate_packet(packet, self.output)
+                claim_issues = [
+                    row for row in packet["unresolved"] if row.startswith("Claim ")
+                ]
+                self.assertEqual(len(claim_issues), int(relation != "supports"))
+                if claim_issues:
+                    self.assertIn("Claim claim1 for work1 version v1", claim_issues[0])
+                    self.assertIn("remains " + relation, claim_issues[0])
+                    self.assertIn("Synthetic illustrative claim.", claim_issues[0])
+                    self.assertIn("source=src1", claim_issues[0])
+                    self.assertIn("characters 0:20", claim_issues[0])
+                self.assertEqual(packet["evidence"][0]["relation"], relation)
+                self.assertEqual(packet["candidates"], [])
+                self.assertFalse(receipt["stage2_execution_authorized"])
+
+    def test_unresolved_claims_exclude_works_outside_accepted_handoff(self):
+        omitted_paper = copy.deepcopy(self.records["papers"][0])
+        omitted_paper.update(
+            work_id="work2",
+            title="Omitted synthetic study",
+            source_ids=["src2"],
+            claim_ids=["claim2"],
+        )
+        omitted_paper["roles"][0]["claim_ids"] = ["claim2"]
+        omitted_source = copy.deepcopy(self.records["sources"][0])
+        omitted_source.update(source_id="src2", work_id="work2")
+        omitted_claim = copy.deepcopy(self.records["claims"][0])
+        omitted_claim.update(claim_id="claim2", work_id="work2", source_id="src2")
+        self.records["papers"].append(omitted_paper)
+        self.records["sources"].append(omitted_source)
+        self.records["claims"].append(omitted_claim)
+        manifest_path = self.deliverable / "provenance_manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["canonical_records"] = self.records
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        self.deliverable_manifest_sha256 = sha(manifest_path.read_bytes())
+
+        receipt = self.build()
+        packet = self.packet()
+        validate_packet(packet, self.output)
+        claim_issues = [row for row in packet["unresolved"] if row.startswith("Claim ")]
+        self.assertEqual(len(claim_issues), 1)
+        self.assertIn("Claim claim1 for work1 version v1", claim_issues[0])
+        self.assertNotIn("claim2", "\n".join(packet["unresolved"]))
+        self.assertNotIn("src2", "\n".join(packet["unresolved"]))
+        self.assertEqual([row["work_id"] for row in packet["literature"]], ["work1"])
+        self.assertEqual([row["source_id"] for row in packet["sources"]], ["src1"])
+        self.assertEqual([row["evidence_id"] for row in packet["evidence"]], ["claim1"])
+        self.assertEqual(packet["candidates"], [])
+        self.assertFalse(receipt["stage2_execution_authorized"])
 
     def test_valid_handoff_initializes_stage2_with_bound_input_ref(self):
         receipt = self.build()

@@ -124,7 +124,7 @@ def _comparison_text(handoff):
     )
 
 
-def _unresolved(records, unavailable):
+def _unresolved(records, unavailable, included):
     rows = [
         (
             f"Coverage need {row['need_id']}: {row['unresolved']} "
@@ -135,6 +135,18 @@ def _unresolved(records, unavailable):
     rows.extend(
         f"Source {source_id} remained {status}; Stage 2 only receives metadata."
         for source_id, status in sorted(unavailable.items())
+    )
+    rows.extend(
+        (
+            f"Claim {claim['claim_id']} for {claim['work_id']} "
+            f"version {claim['version_id']} remains {claim['relation']}: "
+            f"{claim['text']} (source={claim['source_id']}; "
+            f"evidence={claim['evidence_level']}; locator={claim['locator']}). "
+            "Verify the unresolved assertion before using it as a confirmed premise."
+        )
+        for claim in records["claims"]
+        if claim["work_id"] in included
+        and claim["relation"] in {"unverified", "partial", "contradicts"}
     )
     return rows
 
@@ -276,7 +288,7 @@ def build_stage2_seed(
             "evidence": evidence,
             "sources": stage2_sources,
             "candidates": [],
-            "unresolved": _unresolved(records, unavailable),
+            "unresolved": _unresolved(records, unavailable, included),
             "upstream": upstream,
         }
         # Revalidate after source reads so the imported projection cannot mix
