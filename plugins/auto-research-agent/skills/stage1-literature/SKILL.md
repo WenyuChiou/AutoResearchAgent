@@ -29,6 +29,18 @@ before promising a completed Stage 1 result. A final literature stage must
 produce its editable reports, bibliography, classified metadata, provenance and
 lawfully accessible source package. The evaluation-input exporter alone is not
 the researcher deliverable.
+Before starting a run expected to produce that package, read the
+[deliverable CLI instructions](../../cli/stage1_deliverable/README.md) and check
+its pinned runtime, documented `preflight`, and private output root outside Git.
+Confirm that source reading and file writing are actually available. If a
+dependency or permission is unavailable, preserve the failure, report the
+delivery limit early, and continue useful authorized native research. Keep any
+native fallback explicitly partial; do not claim canonical package validation.
+Build the package from canonical records with `stage1_deliverable build`, then
+run its documented `validate` with the expected package hash. Report actual
+validation, available full-source counts and per-work access states. A valid
+package may still contain unresolved research evidence; validation does not
+establish full-text availability, claim support or scientific completeness.
 Keep topic-core, historical classic status and closest-work status separate.
 When nominating a core work, use the source-bound
 [`schemas/core-assessment.v1.schema.json`](../../schemas/core-assessment.v1.schema.json)
@@ -61,6 +73,21 @@ captured native run is evidence of execution, not scientific adequacy or a
 optional tool fails, preserve the failure, use another available tool when
 useful, and report any evidence that remains inaccessible. Do not suppress an
 invalid CLI ledger or describe planned queries as executed.
+
+Before final delivery, check each decision-relevant method, finding and
+limitation as a separate claim. Bind its work/version, actual source level,
+exact source quote and reproducible location. Record `supported`, `partial`,
+`contradicted` or `unverifiable`; identity checks and search receipts do not
+verify a claim. For an Unknown, inspect the saved evidence first, then make a
+useful bounded follow-up or narrow the assertion to what the source supports.
+Remove unsupported detail from the final assertion while preserving the
+original claim, revision reason and unresolved evidence in the record. Do not
+repeat an exhausted failed acquisition without a relevant change.
+Report supported, partial, contradicted and Unknown counts against all assessed
+claims, including Unknowns in that denominator; report an empty denominator as
+unavailable. Never count an Unknown as verified support. Material unresolved
+needs mean partial research completion, even if package validation passes.
+Keep evaluator technical failures separate from observed research deficiencies.
 
 This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations and an operational coverage gate based on source reviews.

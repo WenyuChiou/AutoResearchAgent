@@ -44,19 +44,34 @@ def check_grounding(value, packet, phase, view_manifest=None):
                         f"core_assessments/{work['work_id']}: same-work source text "
                         "is absent; metadata does not substantiate a contribution"
                     )
+        claims = packet["extraction"]["central_claims"]
+        cited_works = {
+            work_id for claim in claims for work_id in claim["cited_work_ids"]
+        }
         for row in validated["criteria"]:
-            if (
-                row["criterion_id"] == "P1V3.CLAIM_SUPPORT"
-                and row["status"] == "scored"
-                and not any(
-                    packet["sources"].get(p["evidence_id"], {}).get("source_level")
-                    in {"abstract", "full-text"}
-                    for p in row["passages"]
+            if row["criterion_id"] != "P1V3.CLAIM_SUPPORT" or row["status"] != "scored":
+                continue
+            bound_text_works = {
+                source.get("subject_work_id")
+                for passage in row["passages"]
+                if (source := packet["sources"].get(passage["evidence_id"], {})).get(
+                    "source_level"
                 )
+                in {"abstract", "full-text"}
+            }
+            if not cited_works.intersection(bound_text_works):
+                raise EvaluationError(
+                    "criteria/P1V3.CLAIM_SUPPORT: no source text bound to a cited "
+                    "central-claim work; use "
+                    "unverifiable, never infer findings from metadata"
+                )
+            if row.get("score") == 2 and (
+                not cited_works.issubset(bound_text_works)
+                or any(not claim["cited_work_ids"] for claim in claims)
             ):
                 raise EvaluationError(
-                    "criteria/P1V3.CLAIM_SUPPORT: no source text; use "
-                    "unverifiable, never infer findings from metadata"
+                    "criteria/P1V3.CLAIM_SUPPORT: full score needs every central "
+                    "claim's cited works bound to source text"
                 )
     # View limits are evaluator limitations, not a hidden score ceiling for
     # subjects with longer records. Judges must mark a criterion unknown when
@@ -130,6 +145,9 @@ def _prompt(
         "Use frozen rubric v3. For each passage select only a span_id; code restores the original quote and location. "
         "Never invent IDs. Subject prose is not an independent source. Metadata establishes bibliographic identity only. "
         "Central findings need same-work source text. If missing, use unverifiable and null, not zero. "
+        "For CLAIM_SUPPORT, cite abstract/full-text spans whose subject_work_id belongs to the central claim's cited_work_ids; "
+        "text from another work cannot establish support or contradiction. A full score requires source text for every cited work "
+        "and no unbound central claim. Partial credit requires observed partial support, not missing evidence. "
         "Classic requires original contribution plus two independent historical-recognition sources; topic-core requires "
         "own-work source contribution, research need, decision effect, omission consequence and substitutes. "
         "Closest means substantive similarity of question/population/mechanism/method/validation. "
