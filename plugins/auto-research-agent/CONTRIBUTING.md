@@ -22,7 +22,7 @@ exists.
 
 ## Capability-to-metric registration
 
-Every production skill, MCP tool, CLI, validator or gate must have one entry in
+Every production skill, MCP tool, CLI, validator, gate or UI must have one entry in
 the applicable versioned capability map. Historical capabilities live in
 `evals/capability-metric-map.v1.json`; v3-only Stage 1 capabilities live in
 `evals/capability-metric-map.v3.json`. Keep v1 bytes fixed so old evaluation
@@ -35,10 +35,15 @@ plans retain their hash. The entry records:
 - guardrails, regression tests and the live A/B milestone.
 
 CI checks that plugin skills, the repository PR validator, and capabilities in
-standardized `tools/`, `mcp/`, `cli/`, `validators/`, and `gates/` locations are
+standardized `tools/`, `mcp/`, `cli/`, `validators/`, `gates/`, and `ui/` locations are
 registered. Put a multi-file capability in one immediate child directory; put a
 single-file entry point directly in the standardized location. One registry
 entry owns each discovered file or directory entry point.
+
+UI previews register as experimental enablers. Their synthetic examples and
+browser checks describe interface behavior, not research execution, saved
+artifacts or scientific improvement. The v3 registry extends the allowed kinds
+with `ui` without changing the frozen v1 registry.
 
 Every capability PR must run the deterministic checks named by its `test_refs`
 and provide the resulting artifact or command output in the PR. These checks

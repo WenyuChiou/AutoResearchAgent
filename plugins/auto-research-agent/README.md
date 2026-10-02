@@ -1,5 +1,11 @@
 # AutoResearchAgent research plugin
 
+The [Research Studio UI preview](ui/research-studio/README.md) provides a
+standalone interface with Simplified Chinese, English and Traditional Chinese.
+It demonstrates six stage workspaces, output previews, file provenance and run
+history using synthetic examples. Open the local page to explore the design;
+running research, saving artifacts and backup services are not connected.
+
 Stage 2 now has an experimental [fixed-candidate checker](references/stage2-directions.md)
 and the `stage2-directions` skill. Given a confirmed brief, sources and candidates,
 it validates supplied assessments, preserves revisions and exports a prehuman

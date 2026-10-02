@@ -257,17 +257,34 @@ def text_is_concrete(value):
 def load_capability_metrics(path=DEFAULT_REGISTRY):
     registry = json.loads(path.read_text(encoding="utf-8"))
     entries = list(registry["capabilities"])
+    allowed_kinds = set(registry["requirements"]["allowed_kinds"])
     extensions = []
     if path == DEFAULT_REGISTRY:
         for extension_path in (DEFAULT_V3_REGISTRY, DEFAULT_STAGE2_REGISTRY):
             extension = json.loads(extension_path.read_text(encoding="utf-8"))
             if extension.get("extends") != "capability-metric-map-v1":
                 raise ValueError("capability extension must extend v1")
+            additional_kinds = extension.get("additional_allowed_kinds", [])
+            if (
+                not isinstance(additional_kinds, list)
+                or any(kind != "ui" for kind in additional_kinds)
+                or len(additional_kinds) != len(set(additional_kinds))
+            ):
+                raise ValueError("unsupported capability kind extension")
+            allowed_kinds.update(additional_kinds)
             entries.extend(extension["capabilities"])
             extensions.extend(extension.get("capability_extensions", []))
     ids = [entry["capability_id"] for entry in entries]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate capability ID across registries")
+    for entry in entries:
+        kind = entry.get("kind", "")
+        if kind not in allowed_kinds or not re.fullmatch(
+            re.escape(kind) + r":[a-z0-9]+(?:-[a-z0-9]+)*", entry["capability_id"]
+        ):
+            raise ValueError("capability ID must match a registered kind")
+        if not isinstance(entry.get("implementation_only", False), bool):
+            raise ValueError("implementation_only must be boolean")
     capabilities = {
         entry["capability_id"]: {
             "metrics": {effect["metric_id"] for effect in entry["metric_effects"]},
@@ -278,6 +295,7 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
             },
             "owner_path": entry["owner_path"],
             "kind": entry.get("kind", ""),
+            "implementation_only": entry.get("implementation_only", False),
             "runtime_integrity_required": entry.get(
                 "runtime_integrity_required", entry.get("kind") == "cli"
             ),
@@ -507,7 +525,8 @@ def _owner_files(owner_path, repo_root):
             path
             for path in owner.rglob("*")
             if path.is_file()
-            and path.suffix.casefold() in {".py", ".json", ".md", ".yaml", ".yml"}
+            and path.suffix.casefold()
+            in {".py", ".json", ".md", ".yaml", ".yml", ".html", ".js"}
             and "tests" not in {part.casefold() for part in path.parts}
         ]
     return []
@@ -1092,6 +1111,7 @@ def path_is_capability_entry(path):
         "plugins/auto-research-agent/cli/",
         "plugins/auto-research-agent/validators/",
         "plugins/auto-research-agent/gates/",
+        "plugins/auto-research-agent/ui/",
     )
     matched_root = next((root for root in roots if normalized.startswith(root)), None)
     if matched_root is None:
@@ -1554,6 +1574,12 @@ def validate_pr_body(
     declared_capabilities = capability_ids(
         label_value(parsed.get("What", ""), "Affected capability ID(s)")
     )
+    if known_capabilities is not None and readiness != "implementation-only":
+        for capability_id in declared_capabilities:
+            if known_capabilities.get(capability_id, {}).get("implementation_only"):
+                errors.append(
+                    f"capability '{capability_id}' permits only implementation-only readiness"
+                )
     if (
         RESEARCH_DELIVERABLE_CAPABILITY in declared_capabilities
         and deliverable_applicability != "required"
