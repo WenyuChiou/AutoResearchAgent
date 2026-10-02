@@ -21,7 +21,6 @@ from validate_research_pr import (
     load_invariant_registry,
     load_operational_submetrics,
     load_rubrics,
-    production_symbol_exists,
     validate_pr_body,
     validate_readiness_manifest,
     validate_stage1_deliverable_pilot_manifest,
@@ -107,116 +106,6 @@ PILOT_MANIFEST = (
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
-    def ui_body(self):
-        return (
-            VALID.replace("skill:stage1-literature", "ui:research-studio")
-            .replace("Target primary metric(s): P2", "Target primary metric(s): P3")
-            .replace("P2.CLUSTERS", "P3.DECISION_TRACE")
-            .replace(
-                "S1_COVER -> SKILL.coverage_obligations",
-                "S1_DECISION_REASON -> studio.trace",
-            )
-        )
-
-    def test_registered_ui_preview_accepts_actual_javascript_mapping(self):
-        self.assertEqual(
-            validate_pr_body(
-                self.ui_body(),
-                load_capability_metrics(),
-                changed_paths=[
-                    "plugins/auto-research-agent/ui/research-studio/studio.js"
-                ],
-            ),
-            [],
-        )
-
-    def test_ui_changes_require_their_registered_capability(self):
-        path = "plugins/auto-research-agent/ui/research-studio/studio.js"
-        capabilities = load_capability_metrics()
-        errors = validate_pr_body(VALID, capabilities, changed_paths=[path])
-        self.assertIn(
-            "changed capabilities missing from 'Affected capability ID(s):': "
-            "ui:research-studio",
-            errors,
-        )
-        del capabilities["ui:research-studio"]
-        errors = validate_pr_body(VALID, capabilities, changed_paths=[path])
-        self.assertIn(f"changed capability path '{path}' has no registry owner", errors)
-
-    def test_ui_mapping_rejects_missing_or_foreign_symbols(self):
-        for symbol in ("studio.missing_provenance_renderer", "report.render_proposal"):
-            with self.subTest(symbol=symbol):
-                errors = validate_pr_body(
-                    self.ui_body().replace("studio.trace", symbol),
-                    load_capability_metrics(),
-                )
-                self.assertIn(
-                    "operational mapping target does not exist under a declared "
-                    f"production owner: {symbol}",
-                    errors,
-                )
-
-    def test_ui_preview_cannot_claim_live_or_improvement_readiness(self):
-        for readiness in ("stage-executable", "improvement-demonstrated"):
-            with self.subTest(readiness=readiness):
-                errors = validate_pr_body(
-                    self.ui_body().replace(
-                        "Evaluation readiness: implementation-only",
-                        f"Evaluation readiness: {readiness}",
-                    ),
-                    load_capability_metrics(),
-                )
-                self.assertIn(
-                    "capability 'ui:research-studio' permits only implementation-only readiness",
-                    errors,
-                )
-
-    def test_web_symbol_mapping_excludes_test_files_and_foreign_owners(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            owner = root / "ui/example"
-            owner.mkdir(parents=True)
-            (owner / "tests").mkdir()
-            (owner / "studio.js").write_text("function trace() {}", encoding="utf-8")
-            (owner / "index.html").write_text(
-                '<main id="artifact_view"></main>', encoding="utf-8"
-            )
-            (owner / "tests/studio.js").write_text(
-                "function fixture_only() {}", encoding="utf-8"
-            )
-            capabilities = {"ui:example": {"owner_path": "ui/example"}}
-            for target, expected in (
-                ("studio.trace", True),
-                ("index.artifact_view", True),
-                ("studio.fixture_only", False),
-                ("another.trace", False),
-            ):
-                with self.subTest(target=target):
-                    self.assertEqual(
-                        production_symbol_exists(
-                            target, ["ui:example"], capabilities, root
-                        ),
-                        expected,
-                    )
-
-    def test_ui_kind_requires_explicit_supported_extension(self):
-        original = (
-            Path(__file__).resolve().parents[2]
-            / "plugins/auto-research-agent/evals/capability-metric-map.v3.json"
-        )
-        with tempfile.TemporaryDirectory() as directory:
-            extension_path = Path(directory) / "extension.json"
-            for kinds in ([], ["tool"], ["ui", "ui"], "ui"):
-                with self.subTest(kinds=kinds):
-                    extension = json.loads(original.read_text(encoding="utf-8"))
-                    extension["additional_allowed_kinds"] = kinds
-                    extension_path.write_text(json.dumps(extension), encoding="utf-8")
-                    with patch(
-                        "validate_research_pr.DEFAULT_V3_REGISTRY", extension_path
-                    ):
-                        with self.assertRaises(ValueError):
-                            load_capability_metrics()
-
     def test_live_deliverable_unobserved_states_are_explicit_not_fabricated(self):
         manifest = json.loads(PILOT_MANIFEST.read_text(encoding="utf-8"))
         reports = {

@@ -14,7 +14,7 @@ SCORECARD = PLUGIN_ROOT / "evals/primary-scorecard.v1.json"
 RUBRIC = PLUGIN_ROOT / "evals/rubrics/aging-bidirectional-rubric.v1.json"
 GENERAL_RUBRIC = PLUGIN_ROOT / "evals/rubrics/stage1-general.v3.json"
 CAPABILITY_ID = re.compile(
-    r"^(?:skill|mcp-tool|cli|validator|gate|ui):[a-z0-9]+(?:-[a-z0-9]+)*$"
+    r"^(?:skill|mcp-tool|cli|validator|gate):[a-z0-9]+(?:-[a-z0-9]+)*$"
 )
 
 
@@ -29,17 +29,6 @@ class CapabilityMetricMapTests(unittest.TestCase):
         for extension in extensions:
             if extension["extends"] != cls.registry["registry_version"]:
                 raise AssertionError("extension must extend the frozen v1 map")
-            additional_kinds = extension.get("additional_allowed_kinds", [])
-            if (
-                not isinstance(additional_kinds, list)
-                or any(kind != "ui" for kind in additional_kinds)
-                or len(additional_kinds) != len(set(additional_kinds))
-            ):
-                raise AssertionError("unsupported capability kind extension")
-            cls.registry["requirements"]["allowed_kinds"] = sorted(
-                set(cls.registry["requirements"]["allowed_kinds"])
-                | set(additional_kinds)
-            )
             cls.registry["capabilities"].extend(extension["capabilities"])
         by_id = {
             entry["capability_id"]: entry for entry in cls.registry["capabilities"]
@@ -102,7 +91,7 @@ class CapabilityMetricMapTests(unittest.TestCase):
         }
         expected.add(".github/scripts/validate_research_pr.py")
         expected.add(".github/scripts/check_research_pr_dependencies.py")
-        for directory in ("tools", "mcp", "cli", "validators", "gates", "ui"):
+        for directory in ("tools", "mcp", "cli", "validators", "gates"):
             root = PLUGIN_ROOT / directory
             if root.exists():
                 for path in root.iterdir():

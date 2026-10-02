@@ -1,44 +1,7 @@
 {
   "registry_version": "capability-metric-map-v3",
   "extends": "capability-metric-map-v1",
-  "additional_allowed_kinds": ["ui"],
   "capabilities": [
-    {
-      "capability_id": "ui:research-studio",
-      "kind": "ui",
-      "status": "experimental",
-      "implementation_only": true,
-      "runtime_integrity_required": false,
-      "metric_role": "enabler",
-      "owner_path": "plugins/auto-research-agent/ui/research-studio",
-      "problem": "The research workflow has no standalone interface preview for inspecting all six stages, proposed artifact locations and recorded provenance links in three interface languages.",
-      "mechanism": "Display synthetic stages, artifact metadata, inputs, producing attempts and explicitly planned downstream links with Simplified Chinese, English and Traditional Chinese interface text. The actual studio.trace renderer keeps source identifiers separate from translated labels. Register the UI as an auditability enabler without running research, saving research files or calculating scientific metrics.",
-      "metric_effects": [
-        {
-          "metric_id": "P3",
-          "rubric_criteria": ["P3.DECISION_TRACE"],
-          "expected_direction": "establish-measurement",
-          "hard_measures": [
-            "browser smoke checks inspect stage navigation, supported locales and synthetic artifact provenance links; these are interface checks, not measured S1_DECISION_REASON values",
-            "PR checks reject unregistered UI changes, missing mapped source symbols and readiness claims above implementation-only"
-          ],
-          "human_judgment": "Reviewers assess whether the preview communicates example provenance and unknown states clearly. Any real P3 benefit requires a future live adapter and separate evaluation; the legacy criterion identifies the intended auditability role, not a scored research run."
-        }
-      ],
-      "guardrails": [
-        "all displayed research results and run actions remain explicitly synthetic",
-        "no model calls, research execution, research-file writes or backup creation",
-        "interface language changes do not rewrite source content, identifiers, paths or hashes",
-        "planned downstream use, unknown verification and simulated review are not executed or scientifically verified results",
-        "capability registration and interface tests do not demonstrate scientific improvement"
-      ],
-      "test_refs": [
-        "plugins/auto-research-agent/tests/test_capability_metric_map.py",
-        ".github/scripts/test_validate_research_pr.py"
-      ],
-      "live_ab_required_at": "deferred-until-live-ui-adapter-and-scientific-evaluation-milestone",
-      "quality_improvement_claimed": false
-    },
     {
       "capability_id": "cli:stage1-output-scheduler",
       "kind": "cli",
@@ -377,7 +340,6 @@
     },
     {
       "capability_id": "validator:research-pr-contract",
-      "mechanism": "Retain existing PR evidence checks while admitting the explicit UI kind extension, requiring ownership and declaration for UI source changes, reading real JavaScript and HTML mapping targets, and enforcing a capability's implementation-only limit. Frozen v1 bytes and existing scientific criteria remain unchanged.",
       "metric_effects": [
         {
           "metric_id": "P3",
