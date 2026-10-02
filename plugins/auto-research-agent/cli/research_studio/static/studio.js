@@ -165,9 +165,9 @@
     $("run-button").disabled = !canRun(); $("run-button").textContent = t(state.submitting ? "submitting" : state.pending ? "retry" : "run");
     $("run-blocker").textContent = !state.connected ? t("connectFirst") : state.status?.active_run_id ? t("activeExists") : !state.status?.available ? text(state.status?.reason) || t("blocked") : "";
     $("current-run").replaceChildren(); $("status-timeline").replaceChildren();
-    if (!state.run) $("current-run").append(node("p", "rs-empty-run", t("noRun")));
+    if (!state.run || state.run.stage !== state.stage) $("current-run").append(node("p", "rs-empty-run", t("noRun")));
     else { $("current-run").append(node("p", "rs-run-id", state.run.id), node("span", "rs-badge blue", statusLabel(state.run.status)), node("p", "rs-source-text", state.run.topic)); for (const status of ["created", "running", "human-review"]) { const item = node("span", "", t(status)); item.classList.toggle("active", status === "created" || state.run.status === status); $("status-timeline").append(item); } if (state.run.error) $("current-run").append(node("p", "rs-source-text", state.run.error)); }
-    $("stop-button").disabled = !state.connected || !active(state.run) || state.stopping; $("stop-button").textContent = t(state.stopping ? "stopping" : "stop");
+    $("stop-button").disabled = !state.connected || state.run?.stage !== state.stage || !active(state.run) || state.stopping; $("stop-button").textContent = t(state.stopping ? "stopping" : "stop");
     $("execution-panel").hidden = !state.run || state.stage !== 1; $("event-count").textContent = `${t("newestEvents")} · ${state.events.length}`;
     $("event-log").replaceChildren(...(state.events.length ? state.events.map(event => { const row = node("div", "rs-event"); row.append(node("div", "rs-event-meta", `${event.seq} · ${event.type} · ${dateLabel(event.created_at)}`), node("pre", "", event.text)); return row; }) : [node("p", "rs-empty", t("noEvents"))]));
     renderResults();
