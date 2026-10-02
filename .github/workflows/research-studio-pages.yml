@@ -29,6 +29,7 @@ jobs:
           API_BASE_URL: ${{ inputs.api_base_url }}
         run: |
           python3 - <<'PY'
+          import ipaddress
           import json
           import os
           from pathlib import Path
@@ -36,10 +37,17 @@ jobs:
 
           raw = os.environ['API_BASE_URL']
           url = urlsplit(raw)
+          hostname = (url.hostname or '').rstrip('.')
+          try:
+              address = ipaddress.ip_address(hostname)
+              address = getattr(address, 'ipv4_mapped', None) or address
+              loopback = address.is_loopback
+          except ValueError:
+              loopback = hostname == 'localhost'
           if (raw != raw.strip() or any(c.isspace() for c in raw)
               or url.scheme != 'https' or not url.hostname or url.username
               or url.password or url.path not in ('', '/') or url.query or url.fragment
-              or url.hostname in ('localhost', '127.0.0.1', '::1') or '\\' in raw):
+              or loopback or '\\' in raw):
               raise SystemExit('Provide an HTTPS API origin without credentials, path, or query')
           url.port  # Reject an invalid port before publishing.
           source = Path('plugins/auto-research-agent/cli/research_studio/static')
