@@ -16,8 +16,13 @@ The package contains editable English `selection.md`, standalone English
 `selection.html`, `selection.json`, source copies, full supplied review inputs,
 review audit and the derived checker. The manifest inventories every file.
 Markdown and HTML use the same reconstructed selection, including unknowns,
-counterevidence, candidate history and assessment history. Missing bibliographic
-details remain explicitly missing; a source ID is not a complete citation.
+counterevidence, candidate history and assessment history. V2 literature rows
+produce a shared bibliography with title, authors, year, venue, DOI or URL,
+recorded roles and source/claim links. An excerpt receives only its explicitly
+bound roles; it does not inherit every role assigned to the whole paper.
+Missing bibliographic details remain explicitly missing, including legacy v1
+inputs; a source ID is not a complete citation. Recorded roles and metadata do
+not establish scientific correctness or upgrade an abstract to full text.
 The HTML escapes supplied prose and quoted instructions; it loads no scripts or
 external assets. Local source and audit links resolve within the package.
 

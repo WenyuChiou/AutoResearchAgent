@@ -270,7 +270,61 @@ def _histories(selection, evidence):
 </section>"""
 
 
-def _sources(snapshots, evidence):
+def _bibliography(bibliography, evidence):
+    if not bibliography["available"]:
+        return f'<section id="bibliography"><h2>Accepted bibliography</h2><p>{_text(bibliography["message"])}</p></section>'
+    works = []
+    for work in bibliography["works"]:
+        doi = (
+            f'<a href="{_e(work["doi_href"])}">{_text(work["doi"])}</a>'
+            if work["doi_href"]
+            else _text(work["doi"])
+            if work["doi"] is not None
+            else "not recorded"
+        )
+        url = (
+            f'<a href="{_e(work["url_href"])}">{_text(work["url"])}</a>'
+            if work["url_href"]
+            else _text(work["url"])
+        )
+        roles = (
+            "".join(
+                f"<li><strong>{_text(role['role'])}</strong>: {_text(role['reason'])}; "
+                f"claims={_evidence_links(role['claim_ids'], evidence)}</li>"
+                for role in work["roles"]
+            )
+            or "<li>None recorded</li>"
+        )
+        sources = (
+            ", ".join(
+                f"{_snapshot_link(source)} (level={_text(source['evidence_level'])})"
+                for source in work["sources"]
+            )
+            or "none recorded"
+        )
+        works.append(
+            '<article class="card bibliography-work">'
+            f"<h3>{_text(work['work_id'])} / {_text(work['version_id'])}</h3><dl>"
+            f"<dt>Title</dt><dd>{_text(work['title'])}</dd>"
+            f"<dt>Authors</dt><dd>{'; '.join(_text(item) for item in work['authors'])}</dd>"
+            f"<dt>Year</dt><dd>{work['year'] if work['year'] is not None else 'not recorded'}</dd>"
+            f"<dt>Venue</dt><dd>{_text(work['venue'])}</dd>"
+            f"<dt>DOI</dt><dd>{doi}</dd><dt>URL</dt><dd>{url}</dd>"
+            f"<dt>Origin</dt><dd>{_text(work['origin'])}</dd>"
+            f"<dt>Recorded work evidence level</dt><dd>{_text(work['evidence_level'])}</dd>"
+            f"<dt>Saved sources</dt><dd>{sources}</dd></dl>"
+            "<h4>Recorded literature roles</h4>"
+            "<p>These are saved classifications, not semantic verification.</p>"
+            f"<ul>{roles}</ul></article>"
+        )
+    return (
+        '<section id="bibliography"><h2>Accepted bibliography</h2>'
+        + "".join(works)
+        + "</section>"
+    )
+
+
+def _sources(snapshots, evidence, bibliography):
     evidence_by_source = {}
     for row in evidence.values():
         evidence_by_source.setdefault(row["source_id"], []).append(row["evidence_id"])
@@ -304,11 +358,24 @@ def _sources(snapshots, evidence):
             f"<dt>Version</dt><dd>{_text(row['version_id'])}</dd>"
             f"<dt>Evidence level</dt><dd>{_text(source['evidence_level'])}</dd>"
             f"<dt>SHA-256</dt><dd><code>{_text(source['sha256'])}</code></dd>"
-            "<dt>Bibliographic title</dt><dd>not recorded in the Stage 2 schema</dd>"
-            "<dt>Authors</dt><dd>not recorded in the Stage 2 schema</dd>"
-            "<dt>DOI</dt><dd>not recorded in the Stage 2 schema</dd>"
-            "<dt>Claim-specific literature role</dt><dd>not recorded in the Stage 2 schema</dd>"
-            f"</dl><h4>Exact excerpt</h4><pre>{_text(row['quote'])}</pre></article>"
+            + (
+                "<dt>Bibliographic metadata</dt><dd>not recorded in this v1 packet</dd>"
+                if not bibliography["available"]
+                else ""
+            )
+            + (
+                "<dt>Recorded claim-specific literature roles</dt><dd>"
+                "Classification only; semantic support is not verified. "
+                + "; ".join(
+                    f"{_text(role['role'])}: {_text(role['reason'])}"
+                    for role in bibliography["by_evidence"].get(evidence_id, [])
+                )
+                + "</dd>"
+                if bibliography["available"]
+                and bibliography["by_evidence"].get(evidence_id)
+                else ""
+            )
+            + f"</dl><h4>Exact excerpt</h4><pre>{_text(row['quote'])}</pre></article>"
         )
     return f"""
 <section id="sources"><h2>Saved source snapshots</h2>{inventory}
@@ -318,7 +385,7 @@ def _sources(snapshots, evidence):
 
 def render_selection_html(selection, source_snapshots):
     """Render complete validated Stage 2 content as safe standalone HTML bytes."""
-    packet, snapshots, evidence = canonical_report._validate_bindings(
+    packet, snapshots, evidence, bibliography = canonical_report._validate_bindings(
         selection, source_snapshots
     )
     packet_hash = selection["packet_sha256"]
@@ -335,7 +402,8 @@ def render_selection_html(selection, source_snapshots):
             _current_options(selection, evidence),
             _questions(selection),
             _histories(selection, evidence),
-            _sources(snapshots, evidence),
+            _bibliography(bibliography, evidence),
+            _sources(snapshots, evidence, bibliography),
             (
                 '<section id="audit"><h2>Audit trail</h2>'
                 f"<p><strong>Original input packet SHA-256:</strong> <code>{_text(packet_hash)}</code></p>"
@@ -365,7 +433,7 @@ a{{color:var(--accent)}} code{{overflow-wrap:anywhere}} h1,h2,h3{{line-height:1.
 </style></head><body>
 <header><p class="tag">Proposal for discussion</p><h1>Stage 2 research-direction proposal</h1>
 <p>Compare the options, review the evidence and open questions, then choose a direction. A proposed method has not yet been shown to work. Your choice and the detailed study plan are the next steps.</p>
-<nav aria-label="Report sections"><a href="#summary">Summary</a><a href="#brief">Brief</a><a href="#comparison">Comparison</a><a href="#options">Current options</a><a href="#questions">Open questions</a><a href="#history">History</a><a href="#sources">Sources</a><a href="#audit">Audit</a></nav></header>
+<nav aria-label="Report sections"><a href="#summary">Summary</a><a href="#brief">Brief</a><a href="#comparison">Comparison</a><a href="#options">Current options</a><a href="#questions">Open questions</a><a href="#history">History</a><a href="#bibliography">Bibliography</a><a href="#sources">Sources</a><a href="#audit">Audit</a></nav></header>
 <main>{body}</main></body></html>
 """
     return document.encode("utf-8")
