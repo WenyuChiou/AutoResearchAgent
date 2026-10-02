@@ -1,0 +1,82 @@
+name: Research Studio Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: Public HTTPS API origin (never include a token)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-studio-pages
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Package only public interface files
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          raw = os.environ['API_BASE_URL']
+          url = urlsplit(raw)
+          if (raw != raw.strip() or any(c.isspace() for c in raw)
+              or url.scheme != 'https' or not url.hostname or url.username
+              or url.password or url.path not in ('', '/') or url.query or url.fragment
+              or url.hostname in ('localhost', '127.0.0.1', '::1') or '\\' in raw):
+              raise SystemExit('Provide an HTTPS API origin without credentials, path, or query')
+          url.port  # Reject an invalid port before publishing.
+          source = Path('plugins/auto-research-agent/cli/research_studio/static')
+          names = {'index.html', 'studio.css', 'studio.js', 'config.js'}
+          if source.is_symlink() or {p.name for p in source.iterdir()} != names:
+              raise SystemExit('Static source must contain exactly the four reviewed public files')
+          target = Path('_research_studio_pages')
+          target.mkdir(exist_ok=False)
+          for name in sorted(names):
+              path = source / name
+              if path.is_symlink() or not path.is_file() or path.stat().st_size > 5_000_000:
+                  raise SystemExit('Static file is not an ordinary bounded public asset: ' + name)
+              if name == 'config.js':
+                  config = json.dumps({'apiBaseUrl': raw.rstrip('/')})
+                  (target / name).write_text('window.RESEARCH_STUDIO_CONFIG = Object.freeze(' + config + ');\n', encoding='utf-8')
+              else:
+                  (target / name).write_bytes(path.read_bytes())
+          PY
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: _research_studio_pages
+          retention-days: 1
+
+  deploy:
+    needs: package
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    # A maintainer must configure required reviewers and main-only protection.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+      - name: Publish approved static artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

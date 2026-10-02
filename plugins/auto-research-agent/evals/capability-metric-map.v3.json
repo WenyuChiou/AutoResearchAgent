@@ -10,7 +10,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_studio",
       "problem": "A static stage preview cannot execute the Harness, preserve real attempts or retrieve private output files from an external browser.",
-      "mechanism": "Expose the persistent execution core through a single-owner authenticated HTTP API around the existing Stage 1 skill. Record confirmed requests, runtime bindings, native events and actual output hashes; require a dedicated supervised Linux service, preserve failures and never infer scientific completion. Browser controls and deployment are a separate review slice.",
+      "mechanism": "Connect a multilingual static browser interface to a single-owner authenticated HTTP API around the existing Stage 1 skill. Display confirmed requests, runtime bindings, native events and actual output hashes; require a dedicated supervised Linux service, preserve failures and never infer scientific completion. GitHub Pages publishes only four public interface assets; private execution and files stay on the owner's server.",
       "metric_effects": [
         {
           "metric_id": "P3",

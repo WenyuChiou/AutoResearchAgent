@@ -1,5 +1,13 @@
 # AutoResearchAgent research plugin
 
+The experimental [Research Studio service](cli/research_studio/README.md) wraps
+the existing Stage 1 skill for a private, single-owner web workspace. Its browser
+can be hosted on GitHub Pages; execution and files require a separately configured
+Linux server. Requests, native events, failures and output hashes are retained.
+Process success only requests human review, and Stages 2-6 have no web execution
+adapter yet. Deployment, authenticated live execution and scientific improvement
+are not established by the implementation tests.
+
 Stage 2 now has an experimental [fixed-candidate checker](references/stage2-directions.md)
 and the `stage2-directions` skill. Given a confirmed brief, sources and candidates,
 it validates supplied assessments, preserves revisions and exports a prehuman

@@ -1,0 +1,28 @@
+[Unit]
+Description=Private single-owner Research Studio API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=research-studio
+Group=research-studio
+WorkingDirectory=/srv/research-studio/data
+EnvironmentFile=/etc/research-studio/server.env
+Environment=PYTHONPATH=/opt/research-studio/harness/plugins/auto-research-agent/cli
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=HOME=/srv/research-studio
+Environment=TEMP=/srv/research-studio/tmp
+Environment=TMP=/srv/research-studio/tmp
+Environment=TMPDIR=/srv/research-studio/tmp
+ExecStart=/opt/research-studio/venv/bin/python -m research_studio --data-root /srv/research-studio/data --codex /opt/research-studio/codex/codex --codex-home /srv/research-studio/codex-home --expected-harness-sha ${ARA_HARNESS_SHA} --origin ${ARA_ORIGIN} --host 127.0.0.1 --port 8765
+UMask=0077
+NoNewPrivileges=true
+ProtectControlGroups=true
+Delegate=no
+KillMode=control-group
+TimeoutStopSec=45
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
