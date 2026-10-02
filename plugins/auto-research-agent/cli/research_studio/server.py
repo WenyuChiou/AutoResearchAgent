@@ -7,6 +7,7 @@ import re
 from urllib.parse import parse_qs, urlsplit
 
 from .store import StudioError, canonical
+from .interaction import bounded, decide, identifier, reply
 
 
 def make_server(engine, token, origins, address):
@@ -108,11 +109,67 @@ def make_server(engine, token, origins, address):
                 if self.command == "GET" and path == "/api/status":
                     return self.send(200, engine.status())
                 if path == "/api/runs":
+                    if (
+                        self.command == "POST"
+                        and isinstance(body, dict)
+                        and "kind" in body
+                    ):
+                        raise StudioError(
+                            "use the dialogue endpoint for conversations", 400
+                        )
                     return (
                         self.send(202, {"run": engine.submit(body)})
                         if self.command == "POST"
                         else self.send(200, {"runs": engine.store.list()})
                     )
+                if path == "/api/decisions" and self.command == "POST":
+                    return self.send(200, {"decision": decide(engine, body)})
+                if path == "/api/decisions/query" and self.command == "POST":
+                    if (
+                        not isinstance(body, dict)
+                        or set(body) != {"stage", "topic"}
+                        or type(body["stage"]) is not int
+                        or not 1 <= body["stage"] <= 6
+                        or not bounded(body["topic"], 4000)
+                    ):
+                        raise StudioError("invalid decision query", 400)
+                    return self.send(
+                        200,
+                        {
+                            "decisions": engine.store.decisions(
+                                body["stage"], body["topic"]
+                            )
+                        },
+                    )
+                if path == "/api/dialogue/turns" and self.command == "POST":
+                    if not isinstance(body, dict) or body.get("kind") != "dialogue":
+                        raise StudioError("dialogue request required", 400)
+                    return self.send(202, {"run": engine.submit(body)})
+                if path == "/api/dialogue/threads" and self.command == "GET":
+                    stage = int(parse_qs(parsed.query).get("stage", ["0"])[0])
+                    if not 1 <= stage <= 6:
+                        raise StudioError("invalid stage", 400)
+                    return self.send(200, {"threads": engine.store.threads(stage)})
+                if path.startswith("/api/dialogue/threads/") and self.command == "GET":
+                    thread_id = path.rsplit("/", 1)[-1]
+                    if not identifier(thread_id):
+                        raise StudioError("invalid thread ID", 400)
+                    turns = engine.store.turns(thread_id)
+                    messages = []
+                    for run in turns:
+                        try:
+                            answer, reply_error = reply(engine, run), None
+                        except StudioError as error:
+                            answer, reply_error = None, str(error)
+                        messages.append(
+                            {"run": run, "reply": answer, "reply_error": reply_error}
+                        )
+                    decisions = (
+                        engine.store.decisions(turns[0]["stage"], turns[0]["topic"])
+                        if turns
+                        else []
+                    )
+                    return self.send(200, {"turns": messages, "decisions": decisions})
                 match = re.fullmatch(
                     r"/api/runs/([0-9a-f-]{36})(?:/(stop|artifacts/[0-9a-f]{64}))?",
                     path,

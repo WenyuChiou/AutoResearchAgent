@@ -79,6 +79,9 @@ class Store:
                 CREATE TABLE IF NOT EXISTS events (
                     seq INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT,
                     type TEXT, text TEXT, created_at REAL);
+                CREATE TABLE IF NOT EXISTS owner_decisions (
+                    id TEXT PRIMARY KEY, stage INTEGER, topic TEXT,
+                    request TEXT, created_at REAL);
             """)
             changed = db.execute(
                 "UPDATE runs SET status='interrupted', error=?, updated_at=? "
@@ -118,7 +121,8 @@ class Store:
     def list(self):
         with self.connect() as db:
             ids = db.execute(
-                "SELECT id FROM runs ORDER BY created_at DESC LIMIT 100"
+                "SELECT id FROM runs WHERE COALESCE(json_extract(request,'$.kind'),'research') "
+                "!= 'dialogue' ORDER BY created_at DESC LIMIT 100"
             ).fetchall()
         return [self.get(row["id"]) for row in ids]
 
@@ -138,6 +142,61 @@ class Store:
                     "{}",
                 ),
             )
+
+    def turns(self, thread_id):
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT id FROM runs WHERE json_extract(request,'$.kind')='dialogue' "
+                "AND json_extract(request,'$.thread_id')=? ORDER BY rowid LIMIT 100",
+                (thread_id,),
+            ).fetchall()
+        return [self.get(row["id"]) for row in rows]
+
+    def threads(self, stage):
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT id FROM runs WHERE rowid IN (SELECT MAX(rowid) FROM runs "
+                "WHERE json_extract(request,'$.kind')='dialogue' "
+                "AND json_extract(request,'$.stage')=? "
+                "GROUP BY json_extract(request,'$.thread_id')) ORDER BY rowid DESC LIMIT 50",
+                (stage,),
+            ).fetchall()
+        return [self.get(row["id"]) for row in rows]
+
+    def decision(self, decision_id):
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT * FROM owner_decisions WHERE id=?", (decision_id,)
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row["id"],
+            "request": json.loads(row["request"]),
+            "created_at": row["created_at"],
+        }
+
+    def decisions(self, stage, topic):
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT id FROM owner_decisions WHERE stage=? AND topic=? ORDER BY rowid DESC LIMIT 50",
+                (stage, topic),
+            ).fetchall()
+        return [self.decision(row["id"]) for row in reversed(rows)]
+
+    def save_decision(self, request):
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO owner_decisions VALUES(?,?,?,?,?)",
+                (
+                    request["request_id"],
+                    request["stage"],
+                    request["topic"],
+                    canonical(request),
+                    time.time(),
+                ),
+            )
+        return self.decision(request["request_id"])
 
     def update(self, run_id, status, *, error=None, exit_code=None, manifest=None):
         with self.connect() as db:
@@ -176,6 +235,7 @@ class Store:
         return {
             "run": run,
             "manifest": run["manifest"],
+            "manifest_sha256": sha(canonical(run["manifest"]).encode()),
             "events": events,
             "cursor": events[-1]["seq"] if events else after,
             "artifacts": run["manifest"].get("artifacts", []),

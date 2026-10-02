@@ -46,6 +46,35 @@
                 <div class="rs-evidence-row"><div><span data-i18n="evidenceFiles"></span><p id="evidence-summary"></p></div><button type="button" id="open-evidence" class="rs-text-button" data-i18n="inspectEvidence"></button></div>
               </section>
               <div class="rs-artifact-strip"><span id="artifact-summary"></span><button type="button" id="open-artifacts" class="rs-text-button" data-i18n="openArtifacts"></button></div>
+              <section class="rs-canvas rs-dialogue" aria-labelledby="dialogue-title">
+                <div class="rs-canvas-header"><h3 id="dialogue-title" data-i18n="dialogueTitle"></h3><button id="new-dialogue" type="button" class="rs-text-button" data-i18n="newDialogue"></button></div>
+                <div class="rs-interaction-body">
+                  <p id="dialogue-hint" class="rs-disclosure"></p>
+                  <label for="dialogue-thread" data-i18n="savedDialogues"></label><select id="dialogue-thread"></select>
+                  <div id="dialogue-log" class="rs-dialogue-log" role="log" aria-live="polite"></div>
+                  <div id="dialogue-question" class="rs-question" hidden></div>
+                  <form id="dialogue-form">
+                    <label for="dialogue-message" data-i18n="answerHere"></label><textarea id="dialogue-message" rows="3" maxlength="8000" required data-placeholder="answerPlaceholder"></textarea>
+                    <label class="rs-checkbox"><input id="dialogue-context" type="checkbox"><span data-i18n="attachRun"></span></label>
+                    <p id="dialogue-source" class="rs-disclosure"></p>
+                    <label for="dialogue-file" data-i18n="attachText"></label><select id="dialogue-file"></select>
+                    <div class="rs-action-row"><button id="dialogue-send" class="rs-button primary" type="submit" data-i18n="sendDialogue"></button><button id="dialogue-stop" class="rs-button" type="button" data-i18n="stop"></button></div>
+                  </form>
+                </div>
+              </section>
+              <section class="rs-canvas rs-dialogue" aria-labelledby="decision-title">
+                <div class="rs-canvas-header"><h3 id="decision-title" data-i18n="yourActions"></h3></div>
+                <div class="rs-interaction-body">
+                  <p class="rs-disclosure" data-i18n="decisionBoundary"></p>
+                  <label for="decision-scope" data-i18n="scopeDraft"></label><textarea id="decision-scope" rows="3" maxlength="4000"></textarea>
+                  <div class="rs-action-row"><button id="use-scope" type="button" class="rs-button" data-i18n="useSuggestion"></button><button id="confirm-scope" type="button" class="rs-button primary" data-i18n="confirmScope"></button></div>
+                  <p id="scope-receipt" class="rs-disclosure"></p>
+                  <hr><p id="review-target" class="rs-source-text"></p>
+                  <label for="review-note" data-i18n="reviewNote"></label><textarea id="review-note" rows="2" maxlength="4000"></textarea>
+                  <div class="rs-action-row"><button id="accept-review" type="button" class="rs-button" data-i18n="acceptReview"></button><button id="request-changes" type="button" class="rs-button" data-i18n="requestChanges"></button></div>
+                  <details><summary data-i18n="decisionHistory"></summary><div id="decision-history"></div></details>
+                </div>
+              </section>
               <section id="execution-panel" class="rs-canvas rs-execution-panel" hidden>
                 <details><summary class="rs-canvas-header"><span data-i18n="runEvents"></span><span id="event-count" class="rs-badge"></span></summary><div id="event-log" class="rs-event-log" data-aria="runEvents"></div></details>
               </section>
