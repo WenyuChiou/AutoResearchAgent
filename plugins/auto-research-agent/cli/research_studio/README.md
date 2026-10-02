@@ -4,6 +4,22 @@ Research Studio has a public static interface and a private, single-owner execut
 
 The interface supports Simplified Chinese, English, and Traditional Chinese. Stage 1 is the only execution adapter in this version. Stages 2–6 remain visible but disabled. A finished process, saved manifest, or green test is not scientific acceptance or a P1–P9 improvement.
 
+The visual baseline is the original Research Studio proposal from PR #72: dark
+sidebar, topic and language controls, stage input/output summary, a central
+results-and-evidence canvas, artifact links, and a secondary run/review panel.
+Keep this arrangement when adding features. Scope and timeout controls expand
+inside the run panel; they must not replace the results canvas. The coverage
+matrix remains visible with unknown-value placeholders until a structured
+coverage adapter exists. File-type counts use actual artifacts and must never
+be labeled as literature coverage or scientific quality. Do not restore the
+proposal's sample papers, counts, or simulated execution as real output.
+
+Review order is #73 (withdraw the unreviewed merge), #74 (execution core), #75
+(authenticated API), then #76 (this interface and deployment). Withdrawing
+the merge does not discard the original visual design. Contributors do not
+merge this stack; the core team reviews each slice. The separate hosted preview
+is for interface inspection and does not establish a live Harness deployment.
+
 ```text
 Browser → GitHub Pages: HTML / CSS / JavaScript only
         → HTTPS API: owner token → Python service → native Codex

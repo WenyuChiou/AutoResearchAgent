@@ -21,6 +21,15 @@
     out1: ["实际文件、执行日志、哈希清单", "Actual files, execution logs and hash manifest", "實際檔案、執行日誌與雜湊清單"], out2: ["比较矩阵 / 缺口报告 / 证据链", "Comparison matrix / Gap report / Evidence links", "比較矩陣 / 缺口報告 / 證據鏈"], out3: ["实验计划 / 基线设计 / 预算", "Experiment plan / Baselines / Budget", "實驗計畫 / 基準設計 / 預算"], out4: ["任务队列 / 原始结果 / 失败日志", "Task queue / Raw results / Failure logs", "任務佇列 / 原始結果 / 失敗日誌"], out5: ["结果表 / 图表 / 不确定性分析", "Result tables / Figures / Uncertainty analysis", "結果表 / 圖表 / 不確定性分析"], out6: ["论文草稿 / 引用检查 / 投稿包", "Manuscript / Citation checks / Submission package", "論文草稿 / 引用檢查 / 投稿資料包"],
     exec1: ["后端启动已配置的 Stage 1 worker，保存真实事件与其实际产物。", "The backend starts its configured Stage 1 worker and records real events and resulting artifacts.", "後端啟動已設定的 Stage 1 worker，保存實際事件與其產出檔案。"], execFuture: ["适配器尚未接入；此页面不会启动该阶段。", "The adapter is not integrated; this page cannot start this stage.", "適配器尚未整合；此頁面不會啟動此階段。"], gate1: ["核对来源、范围覆盖、文件与未解决问题。当前界面不替代研究审阅。", "Review sources, scope coverage, files and unresolved questions. This UI does not perform research review.", "核對來源、範圍涵蓋、檔案與未解問題；目前介面不取代研究審閱。"], gateFuture: ["在适配器接入后，依据证据完整性与本阶段标准单独审阅。", "Once integrated, review evidence completeness and the stage's criteria separately.", "適配器整合後，依證據完整性與本階段標準個別審閱。"]
   };
+  Object.assign(messages, {
+    resultsEvidence: ["结果与证据", "Results & evidence", "結果與證據"], fixedStageView: ["每个阶段都有固定展示位置", "A dedicated view for every stage", "每個階段皆有固定展示位置"], runStage: ["运行本阶段", "Run this stage", "執行本階段"],
+    view1: ["文献覆盖概览", "Literature coverage overview", "文獻涵蓋概覽"], view2: ["比较矩阵与研究缺口", "Comparison matrix & research gaps", "比較矩陣與研究缺口"], view3: ["研究设计蓝图", "Research design blueprint", "研究設計藍圖"], view4: ["实验任务与运行轨迹", "Experiment tasks & execution trace", "實驗任務與執行軌跡"], view5: ["结果分析与不确定性", "Analysis & uncertainty", "結果分析與不確定性"], view6: ["论文结构与证据关联", "Manuscript structure & evidence", "論文結構與證據關聯"],
+    awaitingResults: ["等待研究结果", "Awaiting research results", "等待研究結果"], coveragePending: ["预留展示 · 尚无结构化覆盖数据，横线表示未知，不是零。", "Reserved view · No structured coverage data yet. Dashes mean unknown, not zero.", "預留展示 · 尚無結構化涵蓋資料；橫線表示未知，而非零。"], direction: ["研究方向", "Research area", "研究方向"], method: ["方法", "Methods", "方法"], evaluation: ["评估", "Evaluation", "評估"], reproduction: ["复现", "Reproduction", "重現"],
+    evidenceFiles: ["证据与产物", "Evidence & artifacts", "證據與產出"], inspectEvidence: ["查看证据 →", "Inspect evidence →", "查看證據 →"], evidencePending: ["来源、原文位置与核验记录将在产物中查看。", "Inspect sources, locators and verification records in the output files.", "於產出檔案中查看來源、原文位置與核驗紀錄。"], outputTypes: ["本次文件类型 · 不代表文献覆盖率", "Run file types · Not literature coverage", "本次檔案類型 · 不代表文獻涵蓋率"],
+    short1: ["文献与证据", "Literature & evidence", "文獻與證據"], short2: ["比较与缺口", "Comparison & gaps", "比較與缺口"], short3: ["设计与可行性", "Design & feasibility", "設計與可行性"], short4: ["实验执行", "Experiments", "實驗執行"], short5: ["分析与图表", "Analysis & figures", "分析與圖表"], short6: ["写作与投稿", "Writing & submission", "寫作與投稿"],
+    goal1: ["建立可追溯的文献池，让研究判断连接到原文证据。", "Build a traceable literature collection and connect research decisions to source evidence.", "建立可追溯的文獻池，讓研究判斷連結至原文證據。"],
+    out1: ["文献表、证据报告、原始记录", "Literature tables, evidence reports, original records", "文獻表、證據報告、原始紀錄"]
+  });
   const state = { locale: "zh-Hans", view: "work", stage: 1, base: "", token: "", connected: false, connecting: false, reachable: false, status: null, runs: [], run: null, events: [], cursor: 0, artifacts: [], manifest: null, artifactId: null, preview: null, verified: new Set(), submitting: false, stopping: false, pending: null, notice: null };
   const controllers = new Set(), objectUrls = new Set();
   let generation = 0, selection = 0, pollTimer = null, previewSerial = 0, lastStatusAt = 0;
@@ -114,12 +123,37 @@
   function renderStages() {
     for (const id of ["stage-nav", "mobile-stages"]) {
       const buttons = [];
-      for (let stage = 1; stage <= 6; stage++) { const button = node("button", id === "stage-nav" ? "rs-stage" : ""); button.type = "button"; button.classList.toggle("active", state.stage === stage); button.setAttribute("aria-pressed", String(state.stage === stage)); if (id === "stage-nav") button.append(node("span", "rs-stage-num", stage)); button.append(node("span", "", `${id === "mobile-stages" ? stage + " " : ""}${t("stage" + stage)}`)); button.addEventListener("click", () => { state.stage = stage; state.view = "work"; render(); }); buttons.push(button); }
+      for (let stage = 1; stage <= 6; stage++) { const button = node("button", id === "stage-nav" ? "rs-stage" : ""); button.type = "button"; button.classList.toggle("active", state.stage === stage); button.setAttribute("aria-pressed", String(state.stage === stage)); if (id === "stage-nav") button.append(node("span", "rs-stage-num", stage)); button.append(node("span", "", `${id === "mobile-stages" ? stage + " " : ""}${t("short" + stage)}`)); button.addEventListener("click", () => { state.stage = stage; state.view = "work"; render(); }); buttons.push(button); }
       $(id).replaceChildren(...buttons);
     }
     $("stage-kicker").textContent = `STAGE 0${state.stage} / 06`; $("stage-title").textContent = t("stage" + state.stage); $("stage-goal").textContent = t("goal" + state.stage); $("stage-inputs").textContent = t("in" + state.stage); $("stage-outputs").textContent = t("out" + state.stage); $("stage-execution").textContent = t(state.stage === 1 ? "exec1" : "execFuture"); $("stage-gate").textContent = t(state.stage === 1 ? "gate1" : "gateFuture");
-    $("stage-availability").textContent = t(state.stage > 1 ? "notIntegrated" : !state.connected ? "disconnected" : state.status?.available ? "ready" : "blocked"); $("run-form").hidden = state.stage !== 1; $("future-stage").hidden = state.stage === 1;
-    $("stage-nodes").replaceChildren(...t("out" + state.stage).split(" / ").map(label => node("span", "", label)));
+    $("stage-availability").textContent = t(state.stage > 1 ? "notIntegrated" : !state.connected ? "disconnected" : state.status?.available ? "ready" : "blocked"); $("run-settings").hidden = state.stage !== 1; $("run-button").hidden = state.stage !== 1;
+    renderResults();
+  }
+  function renderResults() {
+    const current = state.stage === 1 && state.run, files = current ? state.artifacts : [];
+    $("result-title").textContent = t("view" + state.stage);
+    $("result-label").textContent = t(state.stage === 1 ? "awaitingResults" : "notIntegrated");
+    const visual = $("stage-visual"); visual.replaceChildren();
+    if (state.stage === 1) {
+      const table = node("table", "rs-coverage-table"), head = node("tr"), body = node("tbody");
+      for (const key of ["direction", "method", "evaluation", "reproduction"]) { const cell = node("th", "", t(key)); cell.scope = "col"; head.append(cell); }
+      const thead = node("thead"); thead.append(head); table.append(thead);
+      for (let row = 1; row <= 3; row++) { const tr = node("tr"), label = node("th", "", `${t("direction")} ${row}`); label.scope = "row"; tr.append(label); for (let col = 0; col < 3; col++) tr.append(node("td", "", "—")); body.append(tr); }
+      table.append(body); const caption = node("caption", "", t("coveragePending")); table.append(caption); visual.append(table);
+    } else {
+      const placeholder = node("div", "rs-placeholder"), blueprint = node("div", "rs-blueprint");
+      blueprint.append(...t("out" + state.stage).split(" / ").map(label => node("span", "", label)));
+      placeholder.append(blueprint, node("p", "", t("futureNotice"))); visual.append(placeholder);
+    }
+    if (files.length) {
+      const groups = new Map(); for (const file of files) { const type = extension(file.path); groups.set(type, (groups.get(type) || 0) + 1); }
+      const chart = node("div", "rs-output-chart"); chart.append(node("p", "rs-section-label", t("outputTypes")));
+      for (const [type, count] of Array.from(groups).sort((a, b) => b[1] - a[1]).slice(0, 6)) { const row = node("div", "rs-output-row"), meter = node("meter"); meter.min = 0; meter.max = files.length; meter.value = count; meter.setAttribute("aria-label", `${type} ${count} / ${files.length}`); row.append(node("span", "", type.toUpperCase()), meter, node("span", "", count)); chart.append(row); } visual.append(chart);
+    }
+    $("evidence-summary").textContent = files.length ? files.slice(0, 2).map(file => filename(file.path)).join(" · ") : t("evidencePending");
+    $("open-evidence").disabled = !files.length; $("open-artifacts").disabled = !current;
+    $("artifact-summary").textContent = current ? `${state.run.id} · ${files.length} ${t("files")}` : t("noRun");
   }
   function renderWorkspace() {
     for (const id of ["topic", "scope", "timeout", "scope-confirmed"]) $(id).disabled = state.submitting;
@@ -132,7 +166,7 @@
     $("stop-button").disabled = !state.connected || !active(state.run) || state.stopping; $("stop-button").textContent = t(state.stopping ? "stopping" : "stop");
     $("execution-panel").hidden = !state.run || state.stage !== 1; $("event-count").textContent = `${t("newestEvents")} · ${state.events.length}`;
     $("event-log").replaceChildren(...(state.events.length ? state.events.map(event => { const row = node("div", "rs-event"); row.append(node("div", "rs-event-meta", `${event.seq} · ${event.type} · ${dateLabel(event.created_at)}`), node("pre", "", event.text)); return row; }) : [node("p", "rs-empty", t("noEvents"))]));
-    $("artifact-summary").textContent = `${state.artifacts.length} ${t("files")}`; $("open-artifacts").disabled = !state.run;
+    renderResults();
   }
   function renderHistory() {
     $("history-list").replaceChildren();
@@ -209,6 +243,8 @@
   });
   $("stop-button").addEventListener("click", async () => { if (!active(state.run) || state.stopping) return; const id = state.run.id, current = generation; state.stopping = true; render(); try { await api(`/api/runs/${encodeURIComponent(id)}/stop`, { method: "POST", body: {} }); await refreshStatus(); if (state.run?.id === id) await loadRun(id); } catch (error) { handleError(error); } finally { if (current === generation) { state.stopping = false; render(); } } });
   $("open-artifacts").addEventListener("click", () => { state.view = "files"; render(); });
+  $("open-evidence").addEventListener("click", () => { state.view = "files"; render(); });
+  $("run-form").addEventListener("invalid", () => { $("run-settings").open = true; }, true);
   $("file-run").addEventListener("change", () => { const id = $("file-run").value; if (state.runs.some(run => run.id === id)) loadRun(id, true).catch(handleError); });
   $("refresh-history").addEventListener("click", () => refreshRuns().then(render).catch(handleError));
   $("refresh-files").addEventListener("click", () => { if (state.run) loadRun(state.run.id).catch(handleError); });
