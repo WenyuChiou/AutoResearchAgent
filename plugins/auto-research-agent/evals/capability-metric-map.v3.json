@@ -3,6 +3,42 @@
   "extends": "capability-metric-map-v1",
   "capabilities": [
     {
+      "capability_id": "cli:research-studio",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": true,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/research_studio",
+      "problem": "A static stage preview cannot execute the Harness, preserve real attempts or retrieve private output files from an external browser.",
+      "mechanism": "Provide the persistent execution core for a single-owner web service around the existing Stage 1 skill. Record confirmed requests, runtime bindings, native events and actual output hashes; require a dedicated supervised Linux service, preserve failures and never infer scientific completion. HTTP admission, browser controls and deployment are separate review slices.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": ["P3.DECISION_TRACE"],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "each admitted request has a persistent identity and runtime binding",
+            "repeated requests and service restarts do not repeat model execution",
+            "downloaded output bytes match the recorded attempt and SHA-256"
+          ],
+          "human_judgment": "The researcher reviews the real output and existing canonical ledger; UI state and process exit codes do not establish scientific validity or authorize the next stage."
+        }
+      ],
+      "guardrails": [
+        "implementation-only until a deployed authenticated live run is inspected",
+        "no simulated success, model fallback, automatic stage completion or approval",
+        "single-owner service; not a multi-tenant security boundary",
+        "research output, credentials and private event logs remain outside Git and Pages",
+        "Stages 2 through 6 remain unavailable until their own execution adapters are reviewed"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_research_studio.py",
+        "plugins/auto-research-agent/tests/test_research_studio_supervision.py"
+      ],
+      "live_ab_required_at": "stage1-general-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
       "capability_id": "cli:stage1-output-scheduler",
       "kind": "cli",
       "status": "experimental",
