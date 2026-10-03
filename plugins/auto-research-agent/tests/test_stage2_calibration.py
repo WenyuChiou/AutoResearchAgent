@@ -2,6 +2,8 @@
 
 import json
 import copy
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -19,6 +21,158 @@ import test_stage2_diagnostics as fixtures  # noqa: E402
 
 
 class CalibrationTests(unittest.TestCase):
+    def test_malformed_unit_fails_before_dispatch_and_cli_returns_failed_json(self):
+        from unittest.mock import patch
+
+        from stage2_eval.diagnostics import DiagnosticError
+        from stage2_live.__main__ import main
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            policy = root / "policy.json"
+            policy.write_text("{}", encoding="utf-8")
+            for unit in (None, []):
+                with self.subTest(unit=unit):
+                    with patch(
+                        "stage2_live.calibration.codex_runtime_sha",
+                        side_effect=AssertionError(
+                            "must not dispatch or inspect runtime"
+                        ),
+                    ):
+                        with self.assertRaisesRegex(
+                            DiagnosticError, "must be an object"
+                        ):
+                            run_calibration_unit(
+                                unit,
+                                codex="missing-native-executable",
+                                evaluator_home=root,
+                                model="gpt-test",
+                                reasoning="high",
+                                execution_policy={},
+                                output_dir=root / "output",
+                            )
+                        source = root / "unit.json"
+                        source.write_text(json.dumps(unit), encoding="utf-8")
+                        stderr = io.StringIO()
+                        with contextlib.redirect_stderr(stderr):
+                            result = main(
+                                [
+                                    "calibrate",
+                                    "--unit",
+                                    str(source),
+                                    "--codex",
+                                    "missing-native-executable",
+                                    "--evaluator-home",
+                                    str(root),
+                                    "--model",
+                                    "gpt-test",
+                                    "--reasoning",
+                                    "high",
+                                    "--policy",
+                                    str(policy),
+                                    "--output",
+                                    str(root / "output"),
+                                    "--replay-receipt-output",
+                                    str(root / "receipt.json"),
+                                ]
+                            )
+                        self.assertEqual(result, 2)
+                        response = json.loads(stderr.getvalue())
+                        self.assertEqual(response["status"], "failed")
+                        self.assertIn("must be an object", response["error"])
+                        self.assertFalse((root / "output").exists())
+                        self.assertFalse((root / "receipt.json").exists())
+
+    def test_prepare_cli_can_freeze_v21_without_changing_legacy_default(self):
+        from stage2_eval.__main__ import main
+
+        root = Path(__file__).resolve().parents[1] / "evals/stage2/diagnostics"
+        with tempfile.TemporaryDirectory() as temporary:
+            for version in ("2.0.0", "2.1.0"):
+                target = Path(temporary) / (version + ".json")
+                args = [
+                    "prepare-diagnostics",
+                    "--cases",
+                    str(root / "cases.v2.json"),
+                    "--recipes",
+                    str(root / "variants.v2.json"),
+                    "--output",
+                    str(target),
+                ]
+                if version == "2.1.0":
+                    args += ["--output-version", version]
+                self.assertEqual(main(args), 0)
+                for unit in json.loads(target.read_text(encoding="utf-8")):
+                    self.assertEqual(
+                        unit.get("diagnostic_output_version", "2.0.0"), version
+                    )
+                    validate_calibration_unit(unit, output_version=version)
+
+    def test_v21_units_bind_schema_prompt_and_source_id_expansion(self):
+        fixture = fixtures.Stage2DiagnosticTests()
+        fixture.setUp()
+        recipes = {"schema_version": "2.0.0", "recipes": []}
+        for name in ("base", "order", "verbosity", "prestige", "preference"):
+            payload = {
+                "recipe_id": name,
+                "presentation_note": "Presentation only",
+                "case_order": [1, 2],
+            }
+            recipes["recipes"].append(
+                dict(payload, recipe_sha256=canonical_hash(payload))
+            )
+        unit = prepare_calibration(fixture.cases, recipes, output_version="2.1.0")[0]
+        with self.assertRaisesRegex(ValueError, "version-aware runtime"):
+            validate_calibration_unit(unit)
+        validate_calibration_unit(unit, output_version="2.1.0")
+
+        raw = fixtures.output_v21(fixture.rows)
+        for row in raw["results"]:
+            for group in [
+                row["evidence_refs"],
+                *(check["evidence_refs"] for check in row["checks"].values()),
+            ]:
+                for ref in group:
+                    del ref["exact_quote"]
+        raw["results"][0]["checks"]["materials"].update(
+            score=0,
+            judgment_basis="demonstrated-incompatibility",
+            negative_evidence_ids=["fact-claim"],
+        )
+        expanded = expand_source_ids(raw, fixture.cases, output_version="2.1.0")
+        self.assertEqual(
+            expanded["results"][0]["checks"]["materials"]["negative_evidence_ids"],
+            ["fact-claim"],
+        )
+        self.assertEqual(
+            expanded["results"][0]["checks"]["materials"]["evidence_refs"][0][
+                "exact_quote"
+            ],
+            fixture.cases[0]["source_facts"][0]["text"],
+        )
+        seen = []
+
+        def adapter(prompt, schema, directory, label, **options):
+            contract = json.loads(Path(schema).read_text(encoding="utf-8"))
+            seen.append(contract["properties"]["schema_version"]["enum"])
+            options["semantic_validator"](raw)
+            return raw, {"test_adapter": True}
+
+        with tempfile.TemporaryDirectory() as temp:
+            binary = Path(temp) / "codex.exe"
+            binary.write_bytes(b"synthetic native executable")
+            run_calibration_unit(
+                unit,
+                codex=str(binary),
+                evaluator_home=temp,
+                model="gpt-test",
+                reasoning="high",
+                execution_policy={},
+                output_dir=Path(temp) / "result",
+                call_adapter=adapter,
+            )
+        self.assertEqual(seen, [["2.1.0"]])
+
     def test_source_ids_restore_exact_versioned_facts_without_accepting_forged_quotes(
         self,
     ):

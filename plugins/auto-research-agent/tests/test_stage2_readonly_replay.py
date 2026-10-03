@@ -204,9 +204,20 @@ class ReadOnlyReplayTests(unittest.TestCase):
             low_level.assert_not_called()
 
     def test_calibration_replays_source_ids_and_keeps_scientific_approval_false(self):
+        self._check_calibration_replay("2.0.0")
+
+    def test_calibration_v21_replay_binds_version_and_rejects_rehashed_downgrade(self):
+        self._check_calibration_replay("2.1.0")
+
+    def _check_calibration_replay(self, output_version):
         fixture = diagnostics_fixtures.Stage2DiagnosticTests()
         fixture.setUp()
-        raw = diagnostics_fixtures.output(copy.deepcopy(fixture.rows))
+        output_builder = (
+            diagnostics_fixtures.output_v21
+            if output_version == "2.1.0"
+            else diagnostics_fixtures.output
+        )
+        raw = output_builder(copy.deepcopy(fixture.rows))
         for row in raw["results"]:
             groups = [
                 row["evidence_refs"],
@@ -217,7 +228,9 @@ class ReadOnlyReplayTests(unittest.TestCase):
                     del ref["exact_quote"]
         prompt = __import__(
             "stage2_eval.diagnostics", fromlist=["prepare_diagnostic_prompt"]
-        ).prepare_diagnostic_prompt(fixture.cases, source_ids=True)
+        ).prepare_diagnostic_prompt(
+            fixture.cases, source_ids=True, output_version=output_version
+        )
         frozen = {
             "variant": "base",
             "cases": fixture.cases,
@@ -245,9 +258,14 @@ class ReadOnlyReplayTests(unittest.TestCase):
             "case_count": len(fixture.cases),
             "evidence_transport": "source-id-v1",
         }
+        if output_version != "2.0.0":
+            frozen["diagnostic_output_version"] = output_version
         unit_root = self.root / "calibration"
         receipt, unit = self.make_unit(
-            unit_root, "diagnostic", diagnostic_schema(source_ids=True), raw
+            unit_root,
+            "diagnostic",
+            diagnostic_schema(source_ids=True, output_version=output_version),
+            raw,
         )
         write_json(unit_root / "frozen-unit.json", frozen)
         expanded = expand_source_ids(raw, fixture.cases)
@@ -291,6 +309,22 @@ class ReadOnlyReplayTests(unittest.TestCase):
         dispatch.assert_not_called()
         self.assertFalse(verified["scientific_approval"])
         self.assertEqual(verified["actual_call_count"], 1)
+        if output_version == "2.1.0":
+            downgraded = copy.deepcopy(frozen)
+            downgraded.pop("diagnostic_output_version")
+            write_json(unit_root / "frozen-unit.json", downgraded)
+            with patch("stage2_live.replay.replay_native_model_call_archive") as replay:
+                with self.assertRaisesRegex(
+                    ValueError, "calibration .* prompt mismatch"
+                ):
+                    verify_calibration_unit(
+                        unit_root,
+                        external,
+                        frozen_unit=downgraded,
+                        expected_config=self.config,
+                        expected_policy=POLICY,
+                    )
+                replay.assert_not_called()
 
     def extraction_fixture(self):
         sources = self.root / "sources"
