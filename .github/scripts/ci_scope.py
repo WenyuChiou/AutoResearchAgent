@@ -12,6 +12,7 @@ ENGINE_JOBS = {"bazel", "cargo-deny", "codespell", "repo-checks", "rust-ci", "sd
 PLUGIN_CI = {
     ".agents/plugins/marketplace.json",
     ".github/workflows/stage1-plugin.yml",
+    ".github/workflows/research-studio-pages.yml",
     ".github/workflows/blocking-ci.yml",
     ".github/scripts/ci_scope.py",
     ".github/scripts/test_ci_scope.py",

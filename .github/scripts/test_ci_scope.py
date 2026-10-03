@@ -16,6 +16,9 @@ class ScopeTests(unittest.TestCase):
         self.assertTrue(ci_scope.plugin_only(["plugins/auto-research-agent/skill.md"]))
         self.assertTrue(ci_scope.plugin_only([".github/workflows/stage1-plugin.yml"]))
         self.assertTrue(
+            ci_scope.plugin_only([".github/workflows/research-studio-pages.yml"])
+        )
+        self.assertTrue(
             ci_scope.plugin_only(
                 [
                     ".github/scripts/check_research_pr_dependencies.py",
@@ -33,6 +36,8 @@ class ScopeTests(unittest.TestCase):
             ["unknown/file"],
             ["plugins/auto-research-agent/a.py", "sdk/python/old.py"],
             ["plugins/another-plugin/plugin.json"],
+            [".github/workflows/research-studio-pages.yml", "codex-rs/core/src/lib.rs"],
+            [".github/workflows/unregistered-pages.yml"],
         ]:
             with self.subTest(paths=paths):
                 self.assertFalse(ci_scope.plugin_only(paths))
