@@ -10,7 +10,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_common",
       "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
-      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -31,7 +31,8 @@
         "Candidate properties never replace independent judgment"
       ],
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_evaluation.py"
+        "plugins/auto-research-agent/tests/test_stage2_evaluation.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -106,7 +107,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_check",
       "problem": "Research directions can be recommended despite missing evidence or infeasible materials; revision history and useful alternatives can be lost.",
-      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates and retained revisions. Render the final Markdown/HTML proposal from a shared work/version/source-bound bibliography projection, with claim-specific recorded roles, exact excerpts and honest missing legacy metadata.",
+      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates and retained revisions. Render the final Markdown/HTML proposal from a shared work/version/source-bound bibliography projection, with claim-specific recorded roles, exact excerpts and honest missing legacy metadata. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -145,7 +146,8 @@
         "plugins/auto-research-agent/tests/test_stage2_checker.py",
         "plugins/auto-research-agent/tests/test_stage2_report.py",
         "plugins/auto-research-agent/tests/test_plugin_loading.py",
-        "plugins/auto-research-agent/tests/test_stage2_bibliography.py"
+        "plugins/auto-research-agent/tests/test_stage2_bibliography.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -211,7 +213,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_workflow",
       "problem": "A fixed evidence packet cannot incorporate newly found counterevidence without breaking prior assessment bindings; Stage 1 evidence can also lose its run, work/version or source provenance before Stage 2. Interrupted actions and missing independent reviews need explicit states.",
-      "mechanism": "Import validated Stage 1 deliverables into a v2 packet that binds run/state, handoff, deliverable, canonical records, brief, resources, structured literature metadata/classification/roles/findings, exact claims, source status, exact source bytes and unresolved coverage without inventing candidates or comparison results. Freeze separate Stage 1 literature/source/evidence projections while allowing separately marked Stage 2 additions. Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions.",
+      "mechanism": "Import validated Stage 1 deliverables into a v2 packet that binds run/state, handoff, deliverable, canonical records, brief, resources, structured literature metadata/classification/roles/findings, exact claims, source status, exact source bytes and unresolved coverage without inventing candidates or comparison results. Freeze separate Stage 1 literature/source/evidence projections while allowing separately marked Stage 2 additions. Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -260,7 +262,8 @@
         "plugins/auto-research-agent/tests/test_stage2_orchestration.py",
         "plugins/auto-research-agent/tests/test_stage2_delivery.py",
         "plugins/auto-research-agent/tests/test_stage2_interaction.py",
-        "plugins/auto-research-agent/tests/test_stage2_report_html.py"
+        "plugins/auto-research-agent/tests/test_stage2_report_html.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
