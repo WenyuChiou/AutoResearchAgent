@@ -32,6 +32,11 @@ CLI and represents tools separately: only a hash-bound native model-request
 transport artifact can establish the complete offered-tool inventory. Missing
 tool evidence remains unknown. Turn-context inventory fields are synthetic
 compatibility evidence only and cannot open the runtime gate.
+
+``Stage2ProductionRuntimeProbeSpec`` uses the same expected runtime, executor,
+and read/write/search/child witnesses without isolation sentinels. Its missing
+inventory evidence remains an explicit observation and cannot establish a
+complete inventory or filesystem-read isolation.
 """
 
 import hashlib
@@ -39,6 +44,11 @@ import json
 from pathlib import Path, PureWindowsPath
 import re
 
+from .codemode import (
+    CodeModeWitnessError,
+    inspect_production_child,
+    inspect_production_wrapper,
+)
 from .native import CaptureError, verify_capture
 
 
@@ -126,11 +136,17 @@ def _capture_path(capture, value, label):
 def _validate_probe_spec(spec):
     if not isinstance(spec, dict):
         raise PreflightError("probe_spec must be an object")
+    kind = spec.get("kind")
     if (
-        spec.get("kind") != "Stage2RuntimeProbeSpec"
+        kind
+        not in {
+            "Stage2RuntimeProbeSpec",
+            "Stage2ProductionRuntimeProbeSpec",
+        }
         or spec.get("schema_version") != "1.0.0"
     ):
         raise PreflightError("probe_spec kind/schema_version mismatch")
+    production = kind == "Stage2ProductionRuntimeProbeSpec"
     executor = spec.get("executor")
     if not isinstance(executor, dict) or set(executor) != {
         "shell_path",
@@ -172,13 +188,10 @@ def _validate_probe_spec(spec):
             "probe_spec must require workspace-write and network access"
         )
     probes = spec.get("probes")
-    if not isinstance(probes, dict) or set(probes) != {
-        "read",
-        "write",
-        "search",
-        "child",
-        "isolation",
-    }:
+    required_probes = {"read", "write", "search", "child"}
+    if not production:
+        required_probes.add("isolation")
+    if not isinstance(probes, dict) or set(probes) != required_probes:
         raise PreflightError("probe_spec requires exact capability probes")
     read = probes["read"]
     if not isinstance(read, dict) or set(read) != {"event_id", "source_path", "nonce"}:
@@ -209,47 +222,72 @@ def _validate_probe_spec(spec):
             or not all(_nonempty_string(probe[key]) for key in required)
         ):
             raise PreflightError(f"{name} probe fields are invalid")
-    isolation = probes["isolation"]
-    sentinels = isolation.get("sentinels") if isinstance(isolation, dict) else None
-    if not isinstance(sentinels, dict) or set(sentinels) != {
-        "judge",
-        "peer",
-        "expected-outcomes",
-    }:
-        raise PreflightError("isolation sentinel fields are invalid")
     event_ids = []
-    for name, sentinel in sentinels.items():
-        required = {
-            "event_id",
-            "path",
-            "request_sha256",
-            "receipt_path",
-            "receipt_sha256",
-            "sentinel_sha256",
-            "nonce",
-        }
-        if (
-            not isinstance(sentinel, dict)
-            or set(sentinel) != required
-            or not all(_nonempty_string(sentinel[key]) for key in required)
-            or not all(
-                _HEX.fullmatch(sentinel[key])
-                for key in (
-                    "request_sha256",
-                    "receipt_sha256",
-                    "sentinel_sha256",
+    if not production:
+        isolation = probes["isolation"]
+        sentinels = isolation.get("sentinels") if isinstance(isolation, dict) else None
+        if not isinstance(sentinels, dict) or set(sentinels) != {
+            "judge",
+            "peer",
+            "expected-outcomes",
+        }:
+            raise PreflightError("isolation sentinel fields are invalid")
+        for name, sentinel in sentinels.items():
+            required = {
+                "event_id",
+                "path",
+                "request_sha256",
+                "receipt_path",
+                "receipt_sha256",
+                "sentinel_sha256",
+                "nonce",
+            }
+            if (
+                not isinstance(sentinel, dict)
+                or set(sentinel) != required
+                or not all(_nonempty_string(sentinel[key]) for key in required)
+                or not all(
+                    _HEX.fullmatch(sentinel[key])
+                    for key in (
+                        "request_sha256",
+                        "receipt_sha256",
+                        "sentinel_sha256",
+                    )
                 )
-            )
-        ):
-            raise PreflightError(f"isolation {name} fields are invalid")
-        _relative_path(sentinel["receipt_path"], f"isolation {name} receipt_path")
-        event_ids.append(sentinel["event_id"])
+            ):
+                raise PreflightError(f"isolation {name} fields are invalid")
+            _relative_path(sentinel["receipt_path"], f"isolation {name} receipt_path")
+            event_ids.append(sentinel["event_id"])
     all_ids = [
         probes[name]["event_id"] for name in ("read", "write", "search", "child")
     ]
     all_ids.extend(event_ids)
     if len(all_ids) != len(set(all_ids)):
         raise PreflightError("probe event IDs must be unique")
+    return production
+
+
+def require_matching_preflight_contract(report, probe_spec):
+    """Reject a report whose validation scope does not match its probe kind."""
+    if not isinstance(report, dict) or not isinstance(probe_spec, dict):
+        raise PreflightError("preflight report/probe contract mismatch")
+    production = probe_spec.get("kind") == "Stage2ProductionRuntimeProbeSpec"
+    if production:
+        matches = (
+            report.get("kind") == "Stage2ProductionRuntimePreflight"
+            and report.get("validation_scope") == "production-single"
+            and report.get("filesystem_read_isolation") == "not-assessed"
+            and report.get("quality_improvement") == "not-established"
+            and report.get("formal_ready") is False
+        )
+    else:
+        matches = (
+            probe_spec.get("kind") == "Stage2RuntimeProbeSpec"
+            and report.get("kind") == "Stage2RuntimePreflight"
+            and "validation_scope" not in report
+        )
+    if not matches:
+        raise PreflightError("preflight report/probe contract mismatch")
 
 
 def _load_jsonl(path):
@@ -285,6 +323,29 @@ def _session_id(events):
     if len(set(identities)) > 1:
         raise PreflightError("one archived session declares conflicting identities")
     return identities[0] if identities else None
+
+
+def _session_identity(events, production):
+    """Select native child metadata only for the production archive shape."""
+    if not production:
+        return _session_id(events)
+    children = []
+    for event in events:
+        payload = _payload(event)
+        source = payload.get("source")
+        subagent = source.get("subagent") if isinstance(source, dict) else None
+        if subagent is not None and not isinstance(subagent, dict):
+            raise PreflightError("native subagent metadata must be an object")
+        spawn = subagent.get("thread_spawn") if subagent is not None else None
+        if event.get("type") == "session_meta" and isinstance(spawn, dict):
+            identity = payload.get("id")
+            if _nonempty_string(identity):
+                children.append(identity)
+    if len(set(children)) > 1:
+        raise PreflightError(
+            "one archived child session declares conflicting identities"
+        )
+    return children[0] if children else _session_id(events)
 
 
 def _turn_context(events):
@@ -517,11 +578,14 @@ def _capability(status, reason, event_id=None, evidence_file=None):
     }
 
 
-def _unknown_capabilities(reason):
-    return {
+def _unknown_capabilities(reason, *, production=False):
+    capabilities = {
         name: _capability("unknown", reason)
-        for name in ("read", "write", "search", "child", "isolation")
+        for name in ("read", "write", "search", "child")
     }
+    if not production:
+        capabilities["isolation"] = _capability("unknown", reason)
+    return capabilities
 
 
 def _assistant_result(events):
@@ -814,7 +878,15 @@ def _v2_tools(capture, receipt, archive_files, context, thread_id):
     }
 
 
-def _inventory(context, capture, receipt, archive_files, primary_thread_id=None):
+def _inventory(
+    context,
+    capture,
+    receipt,
+    archive_files,
+    primary_thread_id=None,
+    *,
+    require_session_owner=False,
+):
     fallback = _context_inventory(context)
     if receipt is None:
         return fallback, None
@@ -838,6 +910,17 @@ def _inventory(context, capture, receipt, archive_files, primary_thread_id=None)
         inventory[name] = _inventory_entry(
             name, capture, receipt["entries"][name], archive_files
         )
+    if require_session_owner:
+        entry = receipt["entries"]["instructions"]
+        path = _capture_path(capture, entry["path"], "inventory instructions path")
+        if path.is_file():
+            value = _unwrap_result(json.loads(path.read_bytes()))
+            thread = value.get("thread") if isinstance(value, dict) else None
+            owner = thread.get("id") if isinstance(thread, dict) else None
+            if owner is not None and owner != primary_thread_id:
+                raise PreflightError("inventory instructions thread mismatch")
+            if owner is None:
+                inventory["instructions"].update(status="unknown", value=None)
     if version == "2.0.0":
         inventory["tools"] = _v2_tools(
             capture, receipt, archive_files, context, primary_thread_id
@@ -961,7 +1044,7 @@ def inspect_preflight(
     capture_dir, record_sha256_receipt, probe_spec, *, inventory_receipt=None
 ):
     """Reconstruct functional capability evidence from one authentic capture."""
-    _validate_probe_spec(probe_spec)
+    production = _validate_probe_spec(probe_spec)
     capture = Path(capture_dir).resolve()
     try:
         record, _ = verify_capture(capture, record_sha256_receipt)
@@ -1018,16 +1101,23 @@ def inspect_preflight(
     primary_matches = [
         (path, events)
         for path, events in session_rows
-        if _session_id(events) == thread_id
+        if _session_identity(events, production) == thread_id
     ]
     if len(primary_matches) > 1:
         raise PreflightError("ambiguous primary session for captured thread_id")
     if not _nonempty_string(thread_id) or not primary_matches:
         blockers.append("primary-session-missing")
         inventory, inventory_receipt_sha256 = _inventory(
-            {}, capture, inventory_receipt, archive_files, thread_id
+            {},
+            capture,
+            inventory_receipt,
+            archive_files,
+            thread_id,
+            require_session_owner=production,
         )
-        capabilities = _unknown_capabilities("primary archived session is unavailable")
+        capabilities = _unknown_capabilities(
+            "primary archived session is unavailable", production=production
+        )
         actual = {
             "sandbox_policy": None,
             "sandbox": None,
@@ -1046,9 +1136,16 @@ def inspect_preflight(
         if context is None:
             blockers.append("primary-turn-context-missing")
             inventory, inventory_receipt_sha256 = _inventory(
-                {}, capture, inventory_receipt, archive_files, thread_id
+                {},
+                capture,
+                inventory_receipt,
+                archive_files,
+                thread_id,
+                require_session_owner=production,
             )
-            capabilities = _unknown_capabilities("primary turn_context is unavailable")
+            capabilities = _unknown_capabilities(
+                "primary turn_context is unavailable", production=production
+            )
             actual = {
                 "sandbox_policy": None,
                 "sandbox": None,
@@ -1063,7 +1160,12 @@ def inspect_preflight(
             }
         else:
             inventory, inventory_receipt_sha256 = _inventory(
-                context, capture, inventory_receipt, archive_files, thread_id
+                context,
+                capture,
+                inventory_receipt,
+                archive_files,
+                thread_id,
+                require_session_owner=production,
             )
             actual = _actual_runtime(context, workspace)
             indexes = _event_index(primary_events)
@@ -1081,6 +1183,21 @@ def inspect_preflight(
                 read_probe["event_id"], indexes, stdout_indexes
             )
             _check_nonce_inputs(capture, primary_events, read_probe, read_entry)
+            code_read = None
+            if (
+                production
+                and read_entry is not None
+                and _event_kind(read_entry) == "exec"
+            ):
+                try:
+                    code_read = inspect_production_wrapper(
+                        primary_events,
+                        read_probe["event_id"],
+                        "exec_command",
+                        executor,
+                    )
+                except CodeModeWitnessError:
+                    code_read = None
             if not read_path.is_file():
                 capabilities = {
                     "read": _capability(
@@ -1115,6 +1232,10 @@ def inspect_preflight(
                     blockers.append("read-event-missing")
                 elif not _is_exact_read(
                     read_entry, read_probe["source_path"], executor
+                ) and not (
+                    code_read is not None
+                    and code_read["arguments"].get("cmd")
+                    == read_probe_command(read_probe["source_path"], executor["family"])
                 ):
                     capabilities = {
                         "read": _capability(
@@ -1125,8 +1246,9 @@ def inspect_preflight(
                         )
                     }
                     blockers.append("read-event-unrelated")
-                elif _DENIED.search(_event_output(read_entry)) or _event_failed(
-                    read_entry
+                elif code_read is None and (
+                    _DENIED.search(_event_output(read_entry))
+                    or _event_failed(read_entry)
                 ):
                     capabilities = {
                         "read": _capability(
@@ -1137,7 +1259,11 @@ def inspect_preflight(
                         )
                     }
                     blockers.append("read-capability-failed")
-                elif read_probe["nonce"] not in _event_output(read_entry):
+                elif read_probe["nonce"] not in (
+                    code_read["output"]["output"]
+                    if code_read is not None
+                    else _event_output(read_entry)
+                ):
                     capabilities = {
                         "read": _capability(
                             "unknown",
@@ -1156,6 +1282,10 @@ def inspect_preflight(
                             primary_ref,
                         )
                     }
+                    if code_read is not None:
+                        capabilities["read"]["native_event_id"] = code_read[
+                            "native_item_id"
+                        ]
 
             write_probe = probes["write"]
             write_path = _capture_path(
@@ -1171,6 +1301,21 @@ def inspect_preflight(
             write_entry = _named_event_any(
                 write_probe["event_id"], indexes, stdout_indexes
             )
+            code_write = None
+            if (
+                production
+                and write_entry is not None
+                and _event_kind(write_entry) == "exec"
+            ):
+                try:
+                    code_write = inspect_production_wrapper(
+                        primary_events,
+                        write_probe["event_id"],
+                        "exec_command",
+                        executor,
+                    )
+                except CodeModeWitnessError:
+                    code_write = None
             if write_start_path.exists():
                 capabilities["write"] = _capability(
                     "failed",
@@ -1205,7 +1350,19 @@ def inspect_preflight(
                         primary_ref,
                     )
                     blockers.append("write-event-missing")
-                elif write_probe["output_path"] not in _event_request(write_entry):
+                elif _event_kind(write_entry) == "exec" and code_write is None:
+                    capabilities["write"] = _capability(
+                        "failed",
+                        "specified Code Mode write lacks authenticated terminal evidence",
+                        write_probe["event_id"],
+                        primary_ref,
+                    )
+                    blockers.append("write-capability-failed")
+                elif write_probe["output_path"] not in (
+                    code_write["arguments"]["cmd"]
+                    if code_write is not None
+                    else _event_request(write_entry)
+                ):
                     capabilities["write"] = _capability(
                         "failed",
                         "specified write event does not reference the frozen output",
@@ -1213,7 +1370,7 @@ def inspect_preflight(
                         primary_ref,
                     )
                     blockers.append("write-event-unrelated")
-                elif _event_failed(write_entry):
+                elif code_write is None and _event_failed(write_entry):
                     capabilities["write"] = _capability(
                         "failed",
                         "specified write event failed",
@@ -1228,11 +1385,30 @@ def inspect_preflight(
                         write_probe["event_id"],
                         primary_ref,
                     )
+                    if code_write is not None:
+                        capabilities["write"]["native_event_id"] = code_write[
+                            "native_item_id"
+                        ]
 
             search_probe = probes["search"]
             search_entry = _named_event_any(
                 search_probe["event_id"], indexes, stdout_indexes
             )
+            code_search = None
+            if (
+                production
+                and search_entry is not None
+                and _event_kind(search_entry) == "exec"
+            ):
+                try:
+                    code_search = inspect_production_wrapper(
+                        primary_events,
+                        search_probe["event_id"],
+                        "web__run",
+                        executor,
+                    )
+                except CodeModeWitnessError:
+                    code_search = None
             if search_entry is None:
                 capabilities["search"] = _capability(
                     "unknown",
@@ -1246,7 +1422,7 @@ def inspect_preflight(
                 output = _event_output(search_entry)
                 item = search_entry["item"] or {}
                 has_result = bool(output.strip()) or bool(item.get("results"))
-                if "search" not in kind:
+                if "search" not in kind and code_search is None:
                     capabilities["search"] = _capability(
                         "failed",
                         "specified event is not a search",
@@ -1254,7 +1430,7 @@ def inspect_preflight(
                         primary_ref,
                     )
                     blockers.append("search-event-unrelated")
-                elif _event_failed(search_entry):
+                elif code_search is None and _event_failed(search_entry):
                     capabilities["search"] = _capability(
                         "failed",
                         "specified search failed",
@@ -1262,7 +1438,7 @@ def inspect_preflight(
                         primary_ref,
                     )
                     blockers.append("search-capability-failed")
-                elif not has_result:
+                elif not has_result and code_search is None:
                     capabilities["search"] = _capability(
                         "unknown",
                         "search declaration has no archived result",
@@ -1277,6 +1453,10 @@ def inspect_preflight(
                         search_probe["event_id"],
                         primary_ref,
                     )
+                    if code_search is not None:
+                        capabilities["search"]["native_event_id"] = code_search[
+                            "native_item_id"
+                        ]
 
             child_probe = probes["child"]
             child_entry = _named_event_any(
@@ -1285,12 +1465,28 @@ def inspect_preflight(
             child_matches = [
                 (path, events)
                 for path, events in session_rows
-                if _session_id(events) == child_probe["child_thread_id"]
+                if _session_identity(events, production)
+                == child_probe["child_thread_id"]
             ]
             if len(child_matches) > 1:
                 raise PreflightError("ambiguous child session identity")
             child_link = _text(child_entry) if child_entry is not None else ""
             child_kind = _event_kind(child_entry) if child_entry is not None else ""
+            production_child = None
+            if production and child_entry is not None:
+                try:
+                    production_child = inspect_production_child(
+                        primary_events,
+                        child_probe["event_id"],
+                        child_probe["child_thread_id"],
+                        thread_id,
+                        [
+                            (_session_identity(events, production), events)
+                            for _, events in session_rows
+                        ],
+                    )
+                except CodeModeWitnessError:
+                    production_child = None
             if child_entry is None or not (
                 "subagent" in child_kind or child_kind in {"spawn_agent", "spawn-agent"}
             ):
@@ -1301,7 +1497,9 @@ def inspect_preflight(
                     primary_ref,
                 )
                 blockers.append("child-link-missing")
-            elif child_probe["child_thread_id"] not in child_link:
+            elif (production and production_child is None) or (
+                not production and child_probe["child_thread_id"] not in child_link
+            ):
                 capabilities["child"] = _capability(
                     "failed",
                     "specified call does not link the frozen child thread",
@@ -1336,7 +1534,9 @@ def inspect_preflight(
 
             sentinel_failures = []
             sentinel_unknowns = []
-            for name, sentinel in probes["isolation"]["sentinels"].items():
+            for name, sentinel in (
+                probes.get("isolation", {}).get("sentinels", {}).items()
+            ):
                 entry = _named_event_any(sentinel["event_id"], indexes, stdout_indexes)
                 receipt_path = _capture_path(
                     capture,
@@ -1395,7 +1595,7 @@ def inspect_preflight(
                     evidence_file=primary_ref,
                 )
                 blockers.append("isolation-denial-missing")
-            else:
+            elif not production:
                 capabilities["isolation"] = _capability(
                     "passed",
                     "each frozen sentinel has a matching archived denied read",
@@ -1439,9 +1639,14 @@ def inspect_preflight(
         blockers.append("network-restricted")
     if actual["approval_policy"] is None:
         blockers.append("approval-policy-unknown")
+    inventory_observations = []
     for name, value in inventory.items():
         if value["status"] != "present":
-            blockers.append(f"inventory-{name}-{value['status']}")
+            observation = f"inventory-{name}-{value['status']}"
+            if production:
+                inventory_observations.append(observation)
+            else:
+                blockers.append(observation)
     blockers = sorted(set(blockers))
     archive_files = sorted(
         {item["path"]: item for item in archive_files}.values(),
@@ -1450,8 +1655,12 @@ def inspect_preflight(
     runtime_gate = not blockers and all(
         capability["status"] == "passed" for capability in capabilities.values()
     )
-    return {
-        "kind": "Stage2RuntimePreflight",
+    report = {
+        "kind": (
+            "Stage2ProductionRuntimePreflight"
+            if production
+            else "Stage2RuntimePreflight"
+        ),
         "schema_version": "1.0.0",
         "status": "passed" if runtime_gate else "blocked",
         "runtime_gate": runtime_gate,
@@ -1468,6 +1677,16 @@ def inspect_preflight(
         "blockers": blockers,
         "archive_files": archive_files,
     }
+    if production:
+        report.update(
+            {
+                "validation_scope": "production-single",
+                "filesystem_read_isolation": "not-assessed",
+                "quality_improvement": "not-established",
+                "observations": sorted(inventory_observations),
+            }
+        )
+    return report
 
 
 def verify_preflight(
@@ -1479,6 +1698,7 @@ def verify_preflight(
     recomputed = inspect_preflight(
         capture_dir, receipt, probe_spec, inventory_receipt=inventory_receipt
     )
+    require_matching_preflight_contract(recomputed, probe_spec)
     if report != recomputed:
         raise PreflightError(
             "submitted preflight report does not equal recomputed evidence"

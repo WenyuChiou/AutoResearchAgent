@@ -8,6 +8,8 @@ from stage2_common import Stage2Error, canonical_hash
 from .native import verify_capture, codex_runtime_sha, _path_binding
 from .preflight import (
     verify_preflight,
+    PreflightError,
+    require_matching_preflight_contract,
     _actual_runtime,
     _load_jsonl,
     _session_id,
@@ -35,6 +37,7 @@ def verify_environment_start(preflight, native, home, workspace):
         preflight["probe_spec"],
         inventory_receipt=preflight["inventory_receipt"],
     )
+    require_matching_preflight_contract(report, preflight["probe_spec"])
     if report.get("runtime_gate") is not True or report.get("status") != "passed":
         raise Stage2Error("execution-preflight-not-passed")
     record, _ = verify_capture(preflight["capture_dir"], preflight["receipt"])
@@ -66,10 +69,11 @@ def verify_environment_start(preflight, native, home, workspace):
 
 
 def verify_environment_capture(capture_dir, receipt, preflight, inventory_receipt):
-    """Require actual turn permissions and a complete per-execution inventory.
+    """Require actual turn permissions and the inventory appropriate to scope.
 
     RPC bytes must be in the authenticated subject archive, not copied from a
-    differently configured preflight. Missing inventory is an admission failure.
+    differently configured preflight. Missing inventory blocks formal admission;
+    ordinary production preserves it as an explicit unknown observation.
     """
     record, _ = verify_capture(capture_dir, receipt)
     stable = record["stable_request_binding"]
@@ -80,6 +84,7 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
         preflight["probe_spec"],
         inventory_receipt=preflight["inventory_receipt"],
     )
+    require_matching_preflight_contract(report, preflight["probe_spec"])
     if report.get("runtime_gate") is not True:
         raise Stage2Error("execution-preflight-not-passed")
     prior, _ = verify_capture(preflight["capture_dir"], preflight["receipt"])
@@ -121,19 +126,70 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
         or _actual_runtime(context, stable["workspace"]) != report["actual_runtime"]
     ):
         raise Stage2Error("execution-effective-policy-differs-from-preflight")
+    production = report.get("validation_scope") == "production-single"
+    if inventory_receipt is None and production:
+        return {
+            "status": "verified",
+            "thread_id": record["event_summary"]["thread_id"],
+            "inventory_sha256": None,
+            "inventory_status": "not-captured",
+        }
     if not isinstance(inventory_receipt, dict):
         raise Stage2Error("execution-inventory-not-captured")
+    thread_id = record["event_summary"]["thread_id"]
+    try:
+        inventory, _ = _inventory(
+            context,
+            root.resolve(),
+            inventory_receipt,
+            [],
+            thread_id,
+            require_session_owner=production,
+        )
+    except PreflightError as error:
+        code = (
+            "execution-inventory-thread-mismatch"
+            if "thread mismatch" in str(error)
+            else "execution-inventory-invalid"
+        )
+        raise Stage2Error(f"{code}: {error}") from error
     entries = inventory_receipt.get("entries", {})
-    for item in entries.values():
-        if record["archived_files"].get(item.get("path")) != item.get("sha256"):
+    for name, item in entries.items():
+        if (
+            not production or inventory.get(name, {}).get("status") == "present"
+        ) and record["archived_files"].get(item.get("path")) != item.get("sha256"):
             raise Stage2Error("execution-inventory-not-in-native-archive")
-    # The raw thread/start response must identify this actual subject session.
+    # Even optional production evidence must belong to this actual session.
     instruction = entries.get("instructions", {})
+    if inventory.get("instructions", {}).get("status") == "present":
+        raw = json.loads((root / instruction["path"]).read_text(encoding="utf-8"))
+        result = raw.get("result", raw)
+        if result.get("thread", {}).get("id") != thread_id:
+            raise Stage2Error("execution-inventory-thread-mismatch")
+    if production:
+        statuses = {name: row["status"] for name, row in inventory.items()}
+        return {
+            "status": "verified",
+            "thread_id": record["event_summary"]["thread_id"],
+            "inventory_sha256": canonical_hash(
+                {name: row["value"] for name, row in inventory.items()}
+            ),
+            "inventory_status": (
+                "complete"
+                if all(status == "present" for status in statuses.values())
+                else "incomplete"
+            ),
+            "inventory_observations": [
+                f"inventory-{name}-{status}"
+                for name, status in sorted(statuses.items())
+                if status != "present"
+            ],
+        }
+    # The raw thread/start response must identify this actual subject session.
     raw = json.loads((root / instruction["path"]).read_text(encoding="utf-8"))
     result = raw.get("result", raw)
     if result.get("thread", {}).get("id") != record["event_summary"]["thread_id"]:
         raise Stage2Error("execution-inventory-thread-mismatch")
-    inventory, _ = _inventory(context, root.resolve(), inventory_receipt, [])
     if any(x["status"] != "present" for x in inventory.values()) or {
         k: v["value"] for k, v in inventory.items()
     } != {k: v["value"] for k, v in report["inventory"].items()}:

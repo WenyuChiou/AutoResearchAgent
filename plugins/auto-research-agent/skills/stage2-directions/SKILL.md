@@ -117,3 +117,10 @@ only when needed. Preserve the native research environment, capture prose before
 tool-free extraction, and run independent checks in separate host-isolated contexts.
 Attach native receipts to workflow actions; missing reviewers or required human
 audits remain pending. Separate profile paths alone do not prove isolation.
+
+For ordinary research, read the [functional preflight](../../references/stage2-runtime-preflight.md)
+and use its explicit `production-single` contract before native execution.
+It checks read, write, search and child capabilities; it does not require A/B
+runs or evaluator answer files. Keep independent research checks in the workflow.
+Formal comparisons additionally require the documented denied-read and inventory
+proof; a production pass cannot replace it or establish scientific improvement.

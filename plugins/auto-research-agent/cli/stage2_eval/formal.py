@@ -641,6 +641,12 @@ def validate_readiness_v1(
         inventory, _ = _read_ref(
             evidence_root, row["inventory_receipt"], "preflight inventory"
         )
+        _require(
+            probe.get("kind") != "Stage2ProductionRuntimeProbeSpec"
+            and report.get("kind") != "Stage2ProductionRuntimePreflight"
+            and report.get("validation_scope") != "production-single",
+            "production-only preflight cannot establish formal A/B isolation",
+        )
         capture = _contained(
             evidence_root, row["capture_dir"], "preflight capture", directory=True
         )

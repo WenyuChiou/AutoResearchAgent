@@ -32,7 +32,7 @@ from stage2_live.native import (
     codex_runtime_sha,
     verify_capture,
 )
-from stage2_live.preflight import verify_preflight
+from stage2_live.preflight import verify_preflight, require_matching_preflight_contract
 from stage2_live.environment import (
     preflight_for_environment,
     verify_environment_start,
@@ -191,6 +191,7 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
         preflight["probe_spec"],
         inventory_receipt=preflight["inventory_receipt"],
     )
+    require_matching_preflight_contract(verified, preflight["probe_spec"])
     if verified.get("runtime_gate") is not True or verified.get("status") != "passed":
         raise Stage2Error("controller-preflight-not-ready")
     native = spec["native"]
