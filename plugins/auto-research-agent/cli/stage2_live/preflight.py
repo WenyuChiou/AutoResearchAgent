@@ -37,11 +37,16 @@ compatibility evidence only and cannot open the runtime gate.
 and read/write/search/child witnesses without isolation sentinels. Its missing
 inventory evidence remains an explicit observation and cannot establish a
 complete inventory or filesystem-read isolation.
+
+Production probe v1.1 adds an absolute ``read.command_path``. It must name
+exactly the frozen working directory plus the relative archived source_path;
+archive containment and native command/output checks remain unchanged. Formal
+isolation probes retain v1.0 and do not opt into this production-only contract.
 """
 
 import hashlib
 import json
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 
 from .codemode import (
@@ -134,6 +139,30 @@ def _capture_path(capture, value, label):
     return path
 
 
+def _read_command_path(spec):
+    """Bind a v1.1 absolute command to the same relative archived source."""
+    read = spec["probes"]["read"]
+    if spec["schema_version"] == "1.0.0":
+        return read["source_path"]
+    command = read["command_path"]
+    if not _nonempty_string(command):
+        raise PreflightError("read command_path must be a non-empty absolute path")
+    path_type = (
+        PureWindowsPath if spec["executor"]["family"] == "windows" else PurePosixPath
+    )
+    base = path_type(spec["executor"]["working_directory"])
+    target = path_type(command)
+    source = _relative_path(read["source_path"], "read source_path")
+    if (
+        not base.is_absolute()
+        or not target.is_absolute()
+        or ".." in target.parts
+        or target != base.joinpath(*source.parts)
+    ):
+        raise PreflightError("read command_path is not the bound workspace source")
+    return command
+
+
 def _validate_probe_spec(spec):
     if not isinstance(spec, dict):
         raise PreflightError("probe_spec must be an object")
@@ -144,7 +173,11 @@ def _validate_probe_spec(spec):
             "Stage2RuntimeProbeSpec",
             "Stage2ProductionRuntimeProbeSpec",
         }
-        or spec.get("schema_version") != "1.0.0"
+        or spec.get("schema_version") not in {"1.0.0", "1.1.0"}
+        or (
+            spec.get("schema_version") == "1.1.0"
+            and kind != "Stage2ProductionRuntimeProbeSpec"
+        )
     ):
         raise PreflightError("probe_spec kind/schema_version mismatch")
     production = kind == "Stage2ProductionRuntimeProbeSpec"
@@ -195,9 +228,13 @@ def _validate_probe_spec(spec):
     if not isinstance(probes, dict) or set(probes) != required_probes:
         raise PreflightError("probe_spec requires exact capability probes")
     read = probes["read"]
-    if not isinstance(read, dict) or set(read) != {"event_id", "source_path", "nonce"}:
+    read_keys = {"event_id", "source_path", "nonce"}
+    if spec["schema_version"] == "1.1.0":
+        read_keys.add("command_path")
+    if not isinstance(read, dict) or set(read) != read_keys:
         raise PreflightError("read probe fields are invalid")
     _relative_path(read["source_path"], "read source_path")
+    _read_command_path(spec)
     if not _nonempty_string(read["event_id"]) or not _nonempty_string(read["nonce"]):
         raise PreflightError("read probe values are invalid")
     write = probes["write"]
@@ -1190,6 +1227,7 @@ def inspect_preflight(
             probes = probe_spec["probes"]
 
             read_probe = probes["read"]
+            read_command_path = _read_command_path(probe_spec)
             read_path = _capture_path(
                 capture,
                 "archive/workspace-start/" + read_probe["source_path"],
@@ -1247,13 +1285,11 @@ def inspect_preflight(
                     }
                     blockers.append("read-event-missing")
                 elif not _is_exact_read(
-                    read_entry, read_probe["source_path"], executor
+                    read_entry, read_command_path, executor
                 ) and not (
                     code_read is not None
                     and code_read["arguments"].get("cmd")
-                    in _allowed_read_commands(
-                        read_probe["source_path"], executor["family"]
-                    )
+                    in _allowed_read_commands(read_command_path, executor["family"])
                 ):
                     capabilities = {
                         "read": _capability(

@@ -33,7 +33,8 @@ class NativeProposalTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        # macOS exposes /var through a symlink; bind the real fixture workspace.
+        self.root = Path(temporary.name).resolve()
 
     def capture(self, name="capture", *, proposal=b"Full proposal.\n", final="Saved."):
         root = self.root / name
