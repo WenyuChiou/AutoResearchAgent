@@ -48,10 +48,22 @@ Clone `https://github.com/WenyuChiou/AutoResearchAgent.git` into the code direct
 
 ```sh
 python3.11 -m venv /opt/research-studio/venv
-/opt/research-studio/venv/bin/python -m pip install -r /opt/research-studio/harness/plugins/auto-research-agent/requirements-test.txt
+/opt/research-studio/venv/bin/python -m pip install --no-compile -r /opt/research-studio/harness/plugins/auto-research-agent/requirements-test.txt
 ```
 
 These dependencies include the pinned research-hub revision; install them during provisioning, not during a run. Preserve the installed environment for each release. The service itself uses Python's standard HTTP server behind a reverse proxy.
+
+Before starting the service, verify that production plugin directories and the
+installed research-hub package contain no `.pyc` or `.pyo` files, including
+ignored `__pycache__` directories. Use a clean dedicated installation and remove
+such caches while the service is stopped; do not clean an active installation.
+Preflight rejects executable caches because source hashes do not bind their
+contents. `PYTHONDONTWRITEBYTECODE=1` prevents new caches but does not prevent
+Python from reading existing caches. Keep it enabled from service startup,
+including manual invocations (`python -B -m research_studio`).
+
+Owner tokens must use at least 32 characters from `A-Z`, `a-z`, `0-9`, `_`, `-`.
+The engine and HTTP listener both reject other alphabets before accepting work.
 
 Install the native Linux Codex executable from an [official release or standalone installation](https://github.com/openai/codex#installing-and-running-codex-cli). Select the host architecture, retain release metadata and the executable SHA-256, and preserve any companion resources. Use the real native executable at `/opt/research-studio/codex/codex`, not an npm JavaScript launcher or shell wrapper. No release version or image digest is guessed by this guide. Record and test the chosen version before accepting a deployment.
 

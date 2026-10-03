@@ -7,14 +7,12 @@ import re
 from urllib.parse import parse_qs, urlsplit
 
 from .store import StudioError, canonical
+from .runtime import validate_token
 from .interaction import bounded, decide, identifier, reply
 
 
 def make_server(engine, token, origins, address):
-    if len(token) < 32 or not token.isascii() or any(c.isspace() for c in token):
-        raise StudioError(
-            "API token must contain at least 32 non-whitespace ASCII characters"
-        )
+    validate_token(token)
     for origin in origins:
         url = urlsplit(origin)
         if (

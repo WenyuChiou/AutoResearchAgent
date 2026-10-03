@@ -13,7 +13,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 from research_studio.runtime import Engine  # noqa: E402
 from research_studio.server import make_server  # noqa: E402
-from research_studio.store import Store  # noqa: E402
+from research_studio.store import Store, StudioError  # noqa: E402
 
 TOKEN = "synthetic-api-owner-token-1234567890"
 ORIGIN = "https://owner.github.io"
@@ -74,6 +74,22 @@ class StudioHttpTests(unittest.TestCase):
         self.assertEqual(
             self.call("/api/runs", method="POST", body={"command": "evil"})[0], 400
         )
+
+    def test_json_escaped_tokens_are_rejected_before_any_use(self):
+        for token in ("x" * 32 + '"', "x" * 32 + "\\", "x" * 32 + " ", "短" * 32):
+            with self.subTest(token=repr(token)):
+                with self.assertRaisesRegex(StudioError, "URL-safe"):
+                    make_server(self.engine, token, {ORIGIN}, ("127.0.0.1", 0))
+                # Direct Engine users cannot bypass the HTTP startup guard and
+                # reach request, log-redaction or artifact paths with this token.
+                with self.assertRaisesRegex(StudioError, "URL-safe"):
+                    Engine(
+                        self.store,
+                        self.root / "codex",
+                        self.root / "profile",
+                        "0" * 40,
+                        token,
+                    )
 
     def test_blocked_request_persists_and_cursor_is_bounded(self):
         request = {

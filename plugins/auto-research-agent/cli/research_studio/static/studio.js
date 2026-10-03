@@ -92,6 +92,14 @@
     if (!isRecord(data) || !usableRun(data.run) || data.run.id !== id || !Array.isArray(data.events) || !Array.isArray(data.artifacts) || !Number.isSafeInteger(data.cursor) || data.cursor < state.cursor) throw new Error(t("malformed"));
     const becameTerminal = active(state.run) && !active(data.run);
     state.run = data.run;
+    if (reset) {
+      state.stage = data.run.stage;
+      $("topic").value = data.run.topic;
+      $("scope").value = data.run.scope || "";
+      $("scope-confirmed").checked = false;
+      state.pending = null;
+      resetInteraction();
+    }
     const known = new Set(state.events.map(event => event.seq));
     for (const event of data.events) if (isRecord(event) && Number.isSafeInteger(event.seq) && event.seq >= 0 && !known.has(event.seq)) { state.events.push({ seq: event.seq, type: text(event.type), text: text(event.text).slice(0, 8192), created_at: typeof event.created_at === "number" ? event.created_at : text(event.created_at) }); known.add(event.seq); }
     state.events = state.events.slice(-1000); state.cursor = data.cursor; state.artifacts = data.artifacts.filter(validArtifact);
