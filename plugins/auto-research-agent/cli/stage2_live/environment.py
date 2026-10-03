@@ -12,7 +12,7 @@ from .preflight import (
     require_matching_preflight_contract,
     _actual_runtime,
     _load_jsonl,
-    _session_id,
+    _session_identity,
     _turn_context,
     _inventory,
 )
@@ -109,6 +109,7 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
         record["started_at"]
     ):
         raise Stage2Error("execution-preflight-after-subject")
+    production = report.get("validation_scope") == "production-single"
     root = Path(capture_dir)
     sessions = [
         _load_jsonl(p) for p in (root / "archive/native-sessions").rglob("*.jsonl")
@@ -116,7 +117,7 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
     primary = [
         rows
         for rows in sessions
-        if _session_id(rows) == record["event_summary"]["thread_id"]
+        if _session_identity(rows, production) == record["event_summary"]["thread_id"]
     ]
     if len(primary) != 1:
         raise Stage2Error("execution-primary-session-not-unique")
@@ -126,7 +127,6 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
         or _actual_runtime(context, stable["workspace"]) != report["actual_runtime"]
     ):
         raise Stage2Error("execution-effective-policy-differs-from-preflight")
-    production = report.get("validation_scope") == "production-single"
     if inventory_receipt is None and production:
         return {
             "status": "verified",

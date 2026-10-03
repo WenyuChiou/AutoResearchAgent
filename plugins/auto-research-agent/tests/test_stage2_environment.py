@@ -14,6 +14,7 @@ from stage2_common import Stage2Error
 from stage2_live.environment import preflight_for_environment, verify_environment_start
 from stage2_live.environment import verify_environment_capture
 from stage2_live.native import _path_binding
+from stage2_live.preflight import PreflightError
 
 
 class EnvironmentBindingTests(unittest.TestCase):
@@ -216,6 +217,118 @@ class EnvironmentBindingTests(unittest.TestCase):
                 )
                 with self.assertRaisesRegex(Stage2Error, "profile-changed"):
                     verify_environment_start(preflight, native, home, workspace)
+
+    def test_production_selects_typed_child_lineage_but_formal_stays_strict(self):
+        from stage2_live.preflight import _actual_runtime
+
+        context = {
+            "model": "m",
+            "effort": "high",
+            "sandbox_policy": {"type": "workspace-write", "network_access": True},
+        }
+
+        def verify(events, *, production=True, duplicate=False):
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                sessions = root / "archive/native-sessions"
+                sessions.mkdir(parents=True)
+                raw = "\n".join(json.dumps(row) for row in events) + "\n"
+                (sessions / "child.jsonl").write_text(raw, encoding="utf-8")
+                if duplicate:
+                    (sessions / "duplicate.jsonl").write_text(raw, encoding="utf-8")
+                stable = {
+                    "codex_home": "same-home",
+                    "workspace": "same-workspace",
+                    "config_bindings": {},
+                }
+                actual = {
+                    "stable_request_binding": stable,
+                    "started_at": "2026-10-03T01:00:00+00:00",
+                    "event_summary": {"thread_id": "child-thread"},
+                    "archived_files": {},
+                }
+                prior = {
+                    "stable_request_binding": stable,
+                    "ended_at": "2026-10-03T00:00:00+00:00",
+                }
+                preflight = {
+                    "report": {},
+                    "capture_dir": "prior",
+                    "receipt": "b" * 64,
+                    "probe_spec": {
+                        "kind": "Stage2ProductionRuntimeProbeSpec"
+                        if production
+                        else "Stage2RuntimeProbeSpec",
+                        "schema_version": "1.0.0",
+                    },
+                    "inventory_receipt": {},
+                }
+                report = {
+                    "kind": "Stage2ProductionRuntimePreflight"
+                    if production
+                    else "Stage2RuntimePreflight",
+                    "runtime_gate": True,
+                    "formal_ready": False,
+                    "actual_runtime": _actual_runtime(context, "same-workspace"),
+                }
+                if production:
+                    report.update(
+                        validation_scope="production-single",
+                        filesystem_read_isolation="not-assessed",
+                        quality_improvement="not-established",
+                    )
+                with (
+                    patch(
+                        "stage2_live.environment.verify_preflight",
+                        return_value=report,
+                    ),
+                    patch(
+                        "stage2_live.environment.verify_capture",
+                        side_effect=[(actual, ""), (prior, "")],
+                    ),
+                ):
+                    return verify_environment_capture(root, "a" * 64, preflight, None)
+
+        authentic_child = [
+            {"type": "session_meta", "payload": {"id": "parent-thread"}},
+            {
+                "type": "session_meta",
+                "payload": {
+                    "id": "child-thread",
+                    "source": {
+                        "subagent": {
+                            "thread_spawn": {"parent_thread_id": "parent-thread"}
+                        }
+                    },
+                },
+            },
+            {"type": "turn_context", "payload": context},
+        ]
+        result = verify(authentic_child)
+        self.assertEqual(result["thread_id"], "child-thread")
+        self.assertEqual(result["inventory_status"], "not-captured")
+        with self.assertRaisesRegex(PreflightError, "conflicting identities"):
+            verify(authentic_child, production=False)
+        with self.assertRaisesRegex(Stage2Error, "primary-session-not-unique"):
+            verify(authentic_child, duplicate=True)
+
+        conflicting_children = copy.deepcopy(authentic_child)
+        conflicting_children.insert(
+            2,
+            {
+                "type": "session_meta",
+                "payload": {
+                    "id": "other-child",
+                    "source": {
+                        "subagent": {
+                            "thread_spawn": {"parent_thread_id": "parent-thread"}
+                        }
+                    },
+                },
+            },
+        )
+        with self.assertRaisesRegex(PreflightError, "child session.*conflicting"):
+            verify(conflicting_children)
 
 
 if __name__ == "__main__":
