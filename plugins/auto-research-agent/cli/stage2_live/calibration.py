@@ -28,7 +28,9 @@ from .judges import (
 )
 
 
-def diagnostic_schema(*, source_ids=False):
+def diagnostic_schema(*, source_ids=False, output_version="2.0.0"):
+    if not isinstance(output_version, str) or output_version not in {"2.0.0", "2.1.0"}:
+        raise DiagnosticError("unsupported diagnostic output version")
     evidence = {
         "type": "array",
         "items": _object(
@@ -37,21 +39,36 @@ def diagnostic_schema(*, source_ids=False):
             else {"evidence_id": _text(), "exact_quote": _text()}
         ),
     }
-    check = _object(
-        {
-            "status": {
-                "type": "string",
-                "enum": ["assessed", "unknown", "not-applicable"],
-            },
-            "score": {"type": ["integer", "null"], "enum": [0, 1, 2, None]},
-            "rationale": _text(),
-            "evidence_refs": evidence,
-        }
-    )
+    check_fields = {
+        "status": {
+            "type": "string",
+            "enum": ["assessed", "unknown", "not-applicable"],
+        },
+        "score": {"type": ["integer", "null"], "enum": [0, 1, 2, None]},
+        "rationale": _text(),
+        "evidence_refs": evidence,
+    }
+    if output_version == "2.1.0":
+        check_fields.update(
+            {
+                "judgment_basis": {
+                    "type": "string",
+                    "enum": [
+                        "demonstrated-incompatibility",
+                        "partial-support",
+                        "sufficient-support",
+                        "evidence-not-established",
+                        "not-applicable",
+                    ],
+                },
+                "negative_evidence_ids": {"type": "array", "items": _text()},
+            }
+        )
+    check = _object(check_fields)
     return _object(
         {
             "kind": {"type": "string", "enum": ["Stage2DiagnosticOutput"]},
-            "schema_version": {"type": "string", "enum": ["2.0.0"]},
+            "schema_version": {"type": "string", "enum": [output_version]},
             "results": {
                 "type": "array",
                 "items": _object(
@@ -86,7 +103,7 @@ def diagnostic_schema(*, source_ids=False):
     )
 
 
-def expand_source_ids(value, cases):
+def expand_source_ids(value, cases, *, output_version=None):
     """Restore a selected frozen fact verbatim, never repair a model-written quote."""
     _validate_cases(cases)
     expanded = copy.deepcopy(value)
@@ -112,11 +129,11 @@ def expand_source_ids(value, cases):
         raise DiagnosticError(
             "source-id transport references unknown case or source"
         ) from error
-    validate_diagnostic_output(expanded, cases)
+    validate_diagnostic_output(expanded, cases, output_version=output_version)
     return expanded
 
 
-def prepare_calibration(cases, recipes, *, source_ids=True):
+def prepare_calibration(cases, recipes, *, source_ids=True, output_version="2.0.0"):
     """Freeze prompts without supplying expected dispositions to the subject."""
     _validate_cases(cases)
     if not isinstance(recipes, dict) or recipes.get("schema_version") != "2.0.0":
@@ -145,7 +162,9 @@ def prepare_calibration(cases, recipes, *, source_ids=True):
         ):
             raise DiagnosticError("recipe order must cover every case once")
         ordered = [copy.deepcopy(cases[index - 1]) for index in order]
-        prompt = prepare_diagnostic_prompt(ordered, source_ids=source_ids)
+        prompt = prepare_diagnostic_prompt(
+            ordered, source_ids=source_ids, output_version=output_version
+        )
         # Order is the only difference in the order variant. Other presentation
         # changes are explicit metadata; scientific source bytes never change.
         if row["recipe_id"] == "verbosity":
@@ -160,25 +179,36 @@ def prepare_calibration(cases, recipes, *, source_ids=True):
             prompt += (
                 "\n\nPRESENTATION NOTE FOR EACH CASE:\n" + row["presentation_note"]
             )
-        result.append(
-            {
-                "variant": row["recipe_id"],
-                "cases": ordered,
-                "prompt": prompt,
-                "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
-                "recipe_sha256": row["recipe_sha256"],
-                "recipe": copy.deepcopy(row),
-                "case_count": len(ordered),
-                "evidence_transport": "source-id-v1" if source_ids else "verbatim-v1",
-            }
-        )
+        unit = {
+            "variant": row["recipe_id"],
+            "cases": ordered,
+            "prompt": prompt,
+            "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            "recipe_sha256": row["recipe_sha256"],
+            "recipe": copy.deepcopy(row),
+            "case_count": len(ordered),
+            "evidence_transport": "source-id-v1" if source_ids else "verbatim-v1",
+        }
+        if output_version != "2.0.0":
+            unit["diagnostic_output_version"] = output_version
+        result.append(unit)
     return result
 
 
-def validate_calibration_unit(unit, *, legacy_recipe=None):
+def validate_calibration_unit(unit, *, legacy_recipe=None, output_version=None):
     """Reconstruct a variant; old archives require a separately frozen recipe."""
     if not isinstance(unit, dict):
         raise DiagnosticError("calibration unit must be an object")
+    frozen_output_version = unit.get("diagnostic_output_version", "2.0.0")
+    if not isinstance(frozen_output_version, str) or frozen_output_version not in {
+        "2.0.0",
+        "2.1.0",
+    }:
+        raise DiagnosticError("unsupported diagnostic output version")
+    if frozen_output_version == "2.1.0" and output_version != frozen_output_version:
+        raise DiagnosticError("2.1 calibration requires a version-aware runtime")
+    if output_version is not None and output_version != frozen_output_version:
+        raise DiagnosticError("calibration output version mismatch")
     _validate_cases(unit.get("cases"))
     recipe = unit.get("recipe", legacy_recipe)
     if not isinstance(recipe, dict):
@@ -211,6 +241,7 @@ def validate_calibration_unit(unit, *, legacy_recipe=None):
         original,
         {"schema_version": "2.0.0", "recipes": recipes},
         source_ids=unit["evidence_transport"] == "source-id-v1",
+        output_version=frozen_output_version,
     )
     expected = next(row for row in generated if row["variant"] == unit["variant"])
     # The real recipe digest must match too; regenerating must not repair tamper.
@@ -237,7 +268,10 @@ def run_calibration_unit(
     call_adapter=None,
 ):
     """One actual model unit, with one bounded semantic correction if needed."""
-    validate_calibration_unit(unit)
+    if not isinstance(unit, dict):
+        raise DiagnosticError("calibration unit must be an object")
+    output_version = unit.get("diagnostic_output_version", "2.0.0")
+    validate_calibration_unit(unit, output_version=output_version)
     runtime_sha256 = codex_runtime_sha(codex)
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -270,19 +304,22 @@ def run_calibration_unit(
         call_adapter=call_adapter or call_model_v31,
         prompt=unit["prompt"],
         schema=diagnostic_schema(
-            source_ids=unit.get("evidence_transport") == "source-id-v1"
+            source_ids=unit.get("evidence_transport") == "source-id-v1",
+            output_version=output_version,
         ),
         output_dir=output,
         label="diagnostic",
         options=options,
         validate=lambda value: (
-            expand_source_ids(value, unit["cases"])
+            expand_source_ids(value, unit["cases"], output_version=output_version)
             if unit.get("evidence_transport") == "source-id-v1"
-            else validate_diagnostic_output(value, unit["cases"])
+            else validate_diagnostic_output(
+                value, unit["cases"], output_version=output_version
+            )
         ),
     )
     if unit.get("evidence_transport") == "source-id-v1":
-        value = expand_source_ids(value, unit["cases"])
+        value = expand_source_ids(value, unit["cases"], output_version=output_version)
     return _finish_result(
         output,
         name,

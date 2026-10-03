@@ -44,7 +44,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_eval",
       "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
-      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target. Versioned formal admission replays actual preflights, pilot controller, calibration, extraction and blinded judge evidence; synthetic seams remain non-admissible.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target. Versioned formal admission replays actual preflights, pilot controller, calibration, extraction and blinded judge evidence; synthetic seams remain non-admissible. Opt-in diagnostic output 2.1 records the judgment basis and source-bound negative witness IDs for an assessed zero; missing verification remains unknown/null. Legacy 2.0 output and default prompts remain readable without rewriting original results.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -87,7 +87,8 @@
       "guardrails": [
         "No paper answer list or topic-specific production rules",
         "No live or formal improvement claim from offline mechanics",
-        "Candidate properties never replace independent judgment"
+        "Candidate properties never replace independent judgment",
+        "Negative witness identity is technical evidence only; independent semantic checking must establish actual incompatibility"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_evaluation.py",
@@ -321,7 +322,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_live",
       "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
-      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls.",
       "metric_effects": [
         {
           "metric_id": "P4",

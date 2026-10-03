@@ -49,6 +49,9 @@ def main(argv=None):
     diagnostics.add_argument("--cases", required=True)
     diagnostics.add_argument("--recipes", required=True)
     diagnostics.add_argument("--output", required=True)
+    diagnostics.add_argument(
+        "--output-version", choices=("2.0.0", "2.1.0"), default="2.0.0"
+    )
     diagnostic_check = sub.add_parser("validate-diagnostic")
     diagnostic_check.add_argument("--cases", required=True)
     diagnostic_check.add_argument("--result", required=True)
@@ -136,7 +139,14 @@ def main(argv=None):
     if args.command == "prepare-diagnostics":
         from stage2_live.calibration import prepare_calibration
 
-        _write(prepare_calibration(_read(args.cases), _read(args.recipes)), args.output)
+        _write(
+            prepare_calibration(
+                _read(args.cases),
+                _read(args.recipes),
+                output_version=args.output_version,
+            ),
+            args.output,
+        )
         return 0
     if args.command == "validate-diagnostic":
         from .diagnostics import validate_diagnostic_output

@@ -243,7 +243,10 @@ def verify_calibration_unit(
     if frozen_path.read_bytes() != canonical(frozen_unit) + b"\n":
         raise Stage2Error("replay-frozen-calibration-unit-mismatch")
     _validate_cases(frozen_unit.get("cases"))
-    validate_calibration_unit(frozen_unit, legacy_recipe=legacy_recipe)
+    output_version = frozen_unit.get("diagnostic_output_version", "2.0.0")
+    validate_calibration_unit(
+        frozen_unit, legacy_recipe=legacy_recipe, output_version=output_version
+    )
     if (
         codex_runtime_sha(expected_config["codex"])
         != expected_config["codex_executable_sha256"]
@@ -257,24 +260,30 @@ def verify_calibration_unit(
 
     def validate(value):
         if source_ids:
-            expand_source_ids(value, frozen_unit["cases"])
+            expand_source_ids(
+                value, frozen_unit["cases"], output_version=output_version
+            )
         else:
             from stage2_eval.diagnostics import validate_diagnostic_output
 
-            validate_diagnostic_output(value, frozen_unit["cases"])
+            validate_diagnostic_output(
+                value, frozen_unit["cases"], output_version=output_version
+            )
 
     replay = replay_unit(
         root,
         "diagnostic",
         unit_receipt,
         prompt=frozen_unit["prompt"],
-        schema=diagnostic_schema(source_ids=source_ids),
+        schema=diagnostic_schema(source_ids=source_ids, output_version=output_version),
         config=expected_config,
         policy=expected_policy,
         validate=validate,
     )
     normalized = (
-        expand_source_ids(replay["value"], frozen_unit["cases"])
+        expand_source_ids(
+            replay["value"], frozen_unit["cases"], output_version=output_version
+        )
         if source_ids
         else copy.deepcopy(replay["value"])
     )
