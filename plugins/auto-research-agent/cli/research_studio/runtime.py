@@ -48,6 +48,13 @@ def reject_bytecode(path):
         )
 
 
+def validate_token(token):
+    if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_-]{32,}", token):
+        raise StudioError(
+            "API token must contain at least 32 URL-safe characters (A-Z, a-z, 0-9, _, -)"
+        )
+
+
 def dependency_binding(plugin):
     """Read the committed lock, rejecting unknown marker syntax rather than guessing."""
     environment = {
@@ -264,6 +271,7 @@ class Engine:
         reasoning="high",
         plugin=None,
     ):
+        validate_token(token)
         self.store, self.codex, self.home = (
             store,
             Path(codex).absolute(),
