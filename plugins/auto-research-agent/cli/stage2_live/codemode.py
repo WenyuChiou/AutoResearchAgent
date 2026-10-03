@@ -223,8 +223,9 @@ def _cwd_path(value):
         if re.match(r"/[A-Za-z]:/", value):
             value = value[1:]
     if re.match(r"[A-Za-z]:[\\/]", value):
-        return value.replace("/", "\\").rstrip("\\").casefold()
-    return value.rstrip("/")
+        normalized = value.replace("/", "\\").rstrip("\\").casefold()
+        return normalized + "\\" if len(normalized) == 2 else normalized
+    return value.rstrip("/") or ("/" if value.startswith("/") else "")
 
 
 def _native_items(events, start, end, item_type):
@@ -331,8 +332,9 @@ def inspect_production_wrapper(events, event_id, expected_tool, executor):
         }
         if (
             set(arguments) - allowed
-            or arguments.get("shell") != executor["shell_path"]
-            or arguments.get("workdir") != executor["working_directory"]
+            or _cwd_path(arguments.get("shell")) != _cwd_path(executor["shell_path"])
+            or _cwd_path(arguments.get("workdir"))
+            != _cwd_path(executor["working_directory"])
             or arguments.get("login") is not False
             or not isinstance(arguments.get("cmd"), str)
         ):

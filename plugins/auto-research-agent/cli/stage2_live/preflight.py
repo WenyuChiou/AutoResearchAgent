@@ -46,6 +46,7 @@ import re
 
 from .codemode import (
     CodeModeWitnessError,
+    _cwd_path,
     inspect_production_child,
     inspect_production_wrapper,
 )
@@ -498,10 +499,22 @@ def read_probe_command(path, platform="windows"):
     if not _nonempty_string(path) or any(c in path for c in "\r\n\x00"):
         raise PreflightError("invalid probe path")
     if platform == "windows":
-        return "[System.IO.File]::ReadAllText('" + path.replace("'", "''") + "')"
+        return (
+            "Get-Content -LiteralPath '"
+            + path.replace("'", "''")
+            + "' -Raw -Encoding UTF8"
+        )
     if platform == "posix":
         return "/bin/cat -- '" + path.replace("'", "'\"'\"'") + "'"
     raise PreflightError("unsupported probe platform")
+
+
+def _allowed_read_commands(path, platform):
+    """Retain exact historical reads while using a cmdlet in constrained shells."""
+    commands = {read_probe_command(path, platform)}
+    if platform == "windows":
+        commands.add("[System.IO.File]::ReadAllText('" + path.replace("'", "''") + "')")
+    return commands
 
 
 def _is_exact_read(entry, path, executor):
@@ -525,15 +538,16 @@ def _is_exact_read(entry, path, executor):
         }:
             return False
         if (
-            decoded.get("shell") != executor["shell_path"]
-            or decoded.get("workdir") != executor["working_directory"]
+            _cwd_path(decoded.get("shell")) != _cwd_path(executor["shell_path"])
+            or _cwd_path(decoded.get("workdir"))
+            != _cwd_path(executor["working_directory"])
             or decoded.get("login") is not False
         ):
             return False
         command = decoded.get("cmd")
     else:
         return False
-    return command == read_probe_command(path, executor["family"])
+    return command in _allowed_read_commands(path, executor["family"])
 
 
 def _check_nonce_inputs(capture, events, read_probe, read_entry):
@@ -1058,11 +1072,13 @@ def inspect_preflight(
         raise PreflightError("verified capture lacks stable_request_binding")
     executor = probe_spec["executor"]
     bound_shell = stable.get("config_bindings", {}).get("probe_shell")
-    if bound_shell != {
-        "kind": "file",
-        "path": executor["shell_path"],
-        "sha256": executor["shell_sha256"],
-    }:
+    if (
+        not isinstance(bound_shell, dict)
+        or set(bound_shell) != {"kind", "path", "sha256"}
+        or bound_shell["kind"] != "file"
+        or bound_shell["sha256"] != executor["shell_sha256"]
+        or _cwd_path(bound_shell["path"]) != _cwd_path(executor["shell_path"])
+    ):
         raise PreflightError("probe shell differs from archived host binding")
     shell_archive = _capture_path(
         capture, "archive/config_bindings/probe_shell", "probe shell"
@@ -1235,7 +1251,9 @@ def inspect_preflight(
                 ) and not (
                     code_read is not None
                     and code_read["arguments"].get("cmd")
-                    == read_probe_command(read_probe["source_path"], executor["family"])
+                    in _allowed_read_commands(
+                        read_probe["source_path"], executor["family"]
+                    )
                 ):
                     capabilities = {
                         "read": _capability(

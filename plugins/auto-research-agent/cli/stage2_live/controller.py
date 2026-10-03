@@ -39,6 +39,7 @@ from stage2_live.environment import (
     verify_environment_capture,
 )
 from stage2_live.replay import replay_unit, verify_extraction
+from stage2_live.native_proposal import choose_captured_proposal
 import stage2_live.review_models as review_models
 from stage2_live.review_models import (
     extract_resolution,
@@ -468,8 +469,10 @@ class _ProductionAdapter:
                 "controller-native-research-incomplete: "
                 + str(capture.get("status", "unknown"))
             )
+        proposal = choose_captured_proposal(context["output"], capture)
         return {
-            "raw_proposal": capture["event_summary"]["final_output"],
+            "raw_proposal": proposal["text"],
+            "proposal_provenance": proposal["provenance"],
             "record_sha256_receipt": capture["record_sha256_receipt"],
             "capture_dir": str(context["output"]),
             "capture_evidence_class": capture["evidence_class"],
