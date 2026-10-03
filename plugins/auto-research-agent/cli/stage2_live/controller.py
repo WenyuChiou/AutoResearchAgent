@@ -141,11 +141,15 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
         "preflight",
         "workspaces",
     }
-    if set(spec) not in (
-        required,
-        required | {"execution_preflights", "execution_inventories"},
+    allowed = {"execution_preflights", "execution_inventories", "followup_policy"}
+    extras = set(spec) - required
+    if (
+        not required.issubset(spec)
+        or not extras.issubset(allowed)
+        or (("execution_preflights" in extras) != ("execution_inventories" in extras))
     ):
         raise Stage2Error("controller-spec-shape")
+    _material_followup_policy(spec.get("followup_policy"))
     if spec["confirmed_brief_sha256"] != canonical_hash(packet["brief"]):
         raise Stage2Error("controller-brief-not-confirmed")
     if spec["base_snapshot_sha256"] != snapshot_sha256:
@@ -541,7 +545,25 @@ class _ProductionAdapter:
         )
 
 
-def _followups(reconciliation):
+def _material_followup_policy(policy):
+    if policy is None:
+        return False
+    if (
+        not isinstance(policy, dict)
+        or policy.get("investigate_material_partial") is not True
+        or policy
+        != {
+            "kind": "Stage2FollowupPolicy",
+            "schema_version": "2.0.0",
+            "investigate_material_partial": True,
+        }
+    ):
+        raise Stage2Error("unsupported-controller-followup-policy")
+    return True
+
+
+def _followups(reconciliation, policy=None):
+    material_partial = _material_followup_policy(policy)
     rows = []
     for candidate in reconciliation["candidates"]:
         resolved = candidate["reconciliation"]
@@ -552,9 +574,22 @@ def _followups(reconciliation):
             {
                 finding["next_check"]
                 for finding in assessment["checks"].values()
-                if finding["status"] == "unknown" and finding["blocking"]
+                if (finding["status"] == "unknown" and finding["blocking"])
+                or (
+                    material_partial
+                    and finding["status"] == "assessed"
+                    and finding["score"] in {0, 1}
+                    and finding["next_check"]
+                    and assessment["disposition"] in {"revise", "park"}
+                )
             }
         )
+        if (
+            material_partial
+            and assessment["disposition"] in {"revise", "park"}
+            and assessment["next_step"]
+        ):
+            missing = sorted(set(missing) | {assessment["next_step"]})
         if assessment["scope_change_requested"] or missing:
             rows.append(
                 {
@@ -893,7 +928,7 @@ def _run_controller_impl(
         "next_step": "Review unresolved evidence and scope before selecting if no candidate is eligible.",
     }
     reconciliation = reconcile_batch(packet, batch, reviews, resolution_input)
-    followups = _followups(reconciliation)
+    followups = _followups(reconciliation, spec.get("followup_policy"))
     if followups:
         return _terminal(
             "follow-up-needed",
