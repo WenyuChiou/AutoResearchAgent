@@ -55,10 +55,26 @@ Stage 1 的 exploratory acceptance 只允許明確啟動 Stage 2 探索；
 只有科學內容變更才需要重評；改版面不改核心 selection，不需重呼叫 judge。
 可恢復單元必須與外部保存的 receipt、來源、設定及原始呼叫一致。
 
-下述日常 CLI 與透明交付功能須待後續 delivery PR 合併後才可使用；本 PR 是評分契約。
+日常 CLI 與透明交付已實作，隨 delivery PR 提供；正式安裝請使用核心組合併後的版本。
+工程測試通過不等於兩個完整研究預演或正式 A/B 已完成。
 具名覆核到達後，使用 `stage2_live finalize-daily-v3` 並提供外部保存的 parent replay receipt 建立另一份結果，
 綁定原 bundle 與 audit 的 hash；不覆寫原結果，也不重呼叫 judge。
 若 R2 失敗，R1 已完成的九項評語仍保留，完整面向分數保持 null。
+
+## 日常執行預檢與失敗恢復
+
+每個實際使用的 profile／workspace 都須有相符的原生呼叫證據。
+日常 production probe v1.1 可保留相對的 `source_path` 作為封包索引，
+同時使用絕對的 `command_path` 讀取檔案。兩者必須指向已固定 workspace 的同一檔案；
+nonce、shell bytes、原生工具結果、來源範圍和路徑別名防護仍全部檢查。
+舊 v1.0 保留，正式隔離 probe 不使用這個日常 v1.1 契約。
+原生讀、寫、搜尋與子 agent 成功，只能證明這些能力；完整 inventory 及檔案隔離
+尚未查核時仍明示 unknown。不能用日常 PASS 宣告 formal-ready。
+
+待解分歧識別字未對齊時，會列出 required／missing／extra 的主張識別字。
+這幫助擷取器知道漏了哪個判斷，不允許只複製識別字就通過：來源、候選版本、
+獨立初評及實質解決理由仍須核對。保留失敗原文與 attempt；只在相關輸入或程式
+已有核實修正時依凍結政策恢復，不重跑已完成的研究或查核。
 
 ## 使用者會拿到什麼
 
