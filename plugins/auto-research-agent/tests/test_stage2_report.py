@@ -81,8 +81,9 @@ class Stage2ReportTests(unittest.TestCase):
         self.assertNotEqual(original_hash, stored_hash)
         self.assertIn(f"Original input packet SHA-256: ```{original_hash}```", text)
         self.assertIn(f"Stored packet.json SHA-256: ```{stored_hash}```", text)
-        self.assertIn("Bibliographic title: not recorded", text)
-        self.assertIn("Claim-specific literature role: not recorded", text)
+        self.assertIn("Structured bibliography is unavailable in this v1 packet", text)
+        self.assertIn("title, authors, year, venue, DOI, URL", text)
+        self.assertIn("Bibliographic metadata: not recorded in this v1 packet", text)
         local_links = [
             target
             for target in re.findall(r"\[[^]]*\]\(([^)]+)\)", text)

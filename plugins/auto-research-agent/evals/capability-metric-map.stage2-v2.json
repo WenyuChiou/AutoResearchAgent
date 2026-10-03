@@ -105,7 +105,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_check",
       "problem": "Research directions can be recommended despite missing evidence or infeasible materials; revision history and useful alternatives can be lost.",
-      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates, retained revisions and a prehuman proposal report with linked excerpts, source snapshots and explicit missing metadata.",
+      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates and retained revisions. Render the final Markdown/HTML proposal from a shared work/version/source-bound bibliography projection, with claim-specific recorded roles, exact excerpts and honest missing legacy metadata.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -137,12 +137,14 @@
         "No autonomous Stage3 authorization",
         "Unknown is not zero or verified",
         "A failed alternative does not erase an eligible recommendation",
-        "Keep native tools and independent evaluation separate"
+        "Keep native tools and independent evaluation separate",
+        "Recorded bibliography roles are not semantic verification; a claim never inherits unrelated work roles or a stronger source evidence level"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_checker.py",
         "plugins/auto-research-agent/tests/test_stage2_report.py",
-        "plugins/auto-research-agent/tests/test_plugin_loading.py"
+        "plugins/auto-research-agent/tests/test_plugin_loading.py",
+        "plugins/auto-research-agent/tests/test_stage2_bibliography.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false,

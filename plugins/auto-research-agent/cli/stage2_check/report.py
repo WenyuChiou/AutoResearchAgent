@@ -7,6 +7,7 @@ from pathlib import PurePosixPath, PureWindowsPath
 from urllib.parse import quote
 
 from stage2_common import Stage2Error
+from stage2_check.bibliography import build_bibliography
 
 AXES = ("opportunity", "value", "answerability", "materials", "execution")
 _SHA = re.compile(r"^[0-9a-f]{64}$")
@@ -143,7 +144,63 @@ def _validate_bindings(selection, source_snapshots):
             if finding is None:
                 raise Stage2Error(f"report-assessment-axis-missing: {axis}")
             _evidence_links(finding.get("evidence_ids", []), evidence)
-    return packet, snapshots, evidence
+    bibliography = build_bibliography(packet, snapshots, evidence)
+    return packet, snapshots, evidence, bibliography
+
+
+def _bibliography(lines, bibliography, evidence):
+    lines.extend(["## Accepted bibliography", ""])
+    if not bibliography["available"]:
+        lines.extend([bibliography["message"], ""])
+        return
+    for work in bibliography["works"]:
+        authors = "; ".join(_text(author) for author in work["authors"])
+        year = str(work["year"]) if work["year"] is not None else "not recorded"
+        doi = (
+            f"[{_text(work['doi'])}]({work['doi_href']})"
+            if work["doi_href"]
+            else _text(work["doi"])
+            if work["doi"] is not None
+            else "not recorded"
+        )
+        url = (
+            f"[{_text(work['url'])}]({work['url_href']})"
+            if work["url_href"]
+            else _text(work["url"])
+        )
+        lines.extend(
+            [
+                f"### {_text(work['work_id'])} / {_text(work['version_id'])}",
+                "",
+                f"- Title: {_text(work['title'])}",
+                f"- Authors: {authors}",
+                f"- Year: {year}",
+                f"- Venue: {_text(work['venue'])}",
+                f"- DOI: {doi}",
+                f"- URL: {url}",
+                f"- Origin: {_text(work['origin'])}",
+                f"- Recorded work evidence level: {_text(work['evidence_level'])}",
+                "- Saved sources: "
+                + (
+                    ", ".join(
+                        f"[{_text(source['source_id'])}]({_safe_snapshot_path(source['path'])}) "
+                        f"(level={_text(source['evidence_level'])})"
+                        for source in work["sources"]
+                    )
+                    or "none recorded"
+                ),
+                "- Recorded literature roles describe the saved Stage 1/2 classification; they are not semantic verification:",
+            ]
+        )
+        lines.extend(
+            [
+                f"  - {_text(role['role'])}: {_text(role['reason'])}; "
+                f"claims={_evidence_links(role['claim_ids'], evidence)}"
+                for role in work["roles"]
+            ]
+            or ["  - None recorded"]
+        )
+        lines.append("")
 
 
 def _candidate_details(lines, candidate, evidence, level="###"):
@@ -260,7 +317,9 @@ def render_proposal(
     selection, source_snapshots, *, event_head, stored_packet_sha256, audit_prefix=""
 ):
     """Return a complete prehuman proposal report as deterministic UTF-8 bytes."""
-    packet, snapshots, evidence = _validate_bindings(selection, source_snapshots)
+    packet, snapshots, evidence, bibliography = _validate_bindings(
+        selection, source_snapshots
+    )
     audit_base = (_safe_snapshot_path(audit_prefix) + "/") if audit_prefix else ""
     if not isinstance(event_head, str) or not _SHA.fullmatch(event_head):
         raise Stage2Error("report-event-head-invalid")
@@ -395,7 +454,9 @@ def render_proposal(
                 f"- Revision: {_text(row['candidate_id'])} v{row['from_version']} to v{row['to_version']}; "
                 f"reason={_text(row['reason'])}; evidence={_evidence_links(row['evidence_ids'], evidence)}"
             )
-    lines.extend(["", "## Saved source snapshots", ""])
+    lines.append("")
+    _bibliography(lines, bibliography, evidence)
+    lines.extend(["## Saved source snapshots", ""])
     evidence_by_source = {}
     for row in evidence.values():
         evidence_by_source.setdefault(row["source_id"], []).append(row["evidence_id"])
@@ -434,10 +495,23 @@ def render_proposal(
                 f"- Version: {_text(row['version_id'])}",
                 f"- Evidence level: {_text(source['evidence_level'])}",
                 f"- SHA-256: {_code(source['sha256'])}",
-                "- Bibliographic title: not recorded in the Stage 2 schema.",
-                "- Authors: not recorded in the Stage 2 schema.",
-                "- DOI: not recorded in the Stage 2 schema.",
-                "- Claim-specific literature role: not recorded in the Stage 2 schema.",
+                *(
+                    ["- Bibliographic metadata: not recorded in this v1 packet."]
+                    if not bibliography["available"]
+                    else []
+                ),
+                *(
+                    [
+                        "- Recorded claim-specific literature roles (classification only; semantic support is not verified): "
+                        + "; ".join(
+                            f"{_text(role['role'])}: {_text(role['reason'])}"
+                            for role in bibliography["by_evidence"].get(evidence_id, [])
+                        )
+                    ]
+                    if bibliography["available"]
+                    and bibliography["by_evidence"].get(evidence_id)
+                    else []
+                ),
                 "Exact excerpt:",
                 *_quote_block(row["quote"]),
                 "",
