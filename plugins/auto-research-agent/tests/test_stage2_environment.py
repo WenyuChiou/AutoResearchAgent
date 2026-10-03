@@ -1,6 +1,7 @@
 """Execution-specific admission failures; no model or provider execution."""
 
 from pathlib import Path
+import copy
 import tempfile
 import json
 import sys
@@ -59,11 +60,16 @@ class EnvironmentBindingTests(unittest.TestCase):
                 "report": {},
                 "capture_dir": "prior",
                 "receipt": "b" * 64,
-                "probe_spec": {},
+                "probe_spec": {
+                    "kind": "Stage2RuntimeProbeSpec",
+                    "schema_version": "1.0.0",
+                },
                 "inventory_receipt": {},
             }
             expected = {
+                "kind": "Stage2RuntimePreflight",
                 "runtime_gate": True,
+                "formal_ready": False,
                 "actual_runtime": _actual_runtime(context, "same-workspace"),
             }
             with (
@@ -77,6 +83,63 @@ class EnvironmentBindingTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(Stage2Error, "inventory-not-captured"):
                     verify_environment_capture(root, "a" * 64, preflight, None)
+            production = copy.deepcopy(preflight)
+            production["probe_spec"]["kind"] = "Stage2ProductionRuntimeProbeSpec"
+            production_report = copy.deepcopy(expected)
+            production_report.update(
+                {
+                    "kind": "Stage2ProductionRuntimePreflight",
+                    "validation_scope": "production-single",
+                    "filesystem_read_isolation": "not-assessed",
+                    "quality_improvement": "not-established",
+                }
+            )
+            with (
+                patch(
+                    "stage2_live.environment.verify_preflight",
+                    return_value=production_report,
+                ),
+                patch(
+                    "stage2_live.environment.verify_capture",
+                    side_effect=[(actual, ""), (prior, "")],
+                ),
+            ):
+                result = verify_environment_capture(root, "a" * 64, production, None)
+            self.assertEqual(result["inventory_status"], "not-captured")
+            instruction_path = root / "archive/thread-start.json"
+            instruction_path.write_text(
+                json.dumps({"result": {"thread": {"id": "foreign-session"}}}),
+                encoding="utf-8",
+            )
+            actual["archived_files"]["archive/thread-start.json"] = "c" * 64
+            with (
+                patch(
+                    "stage2_live.environment.verify_preflight",
+                    return_value=production_report,
+                ),
+                patch(
+                    "stage2_live.environment.verify_capture",
+                    side_effect=[(actual, ""), (prior, "")],
+                ),
+                patch(
+                    "stage2_live.environment._inventory",
+                    return_value=({"instructions": {"status": "present"}}, None),
+                ),
+            ):
+                with self.assertRaisesRegex(Stage2Error, "inventory-thread-mismatch"):
+                    verify_environment_capture(
+                        root,
+                        "a" * 64,
+                        production,
+                        {
+                            "entries": {
+                                "instructions": {
+                                    "path": "archive/thread-start.json",
+                                    "sha256": "c" * 64,
+                                }
+                            }
+                        },
+                    )
             expected["actual_runtime"]["model"] = "different-model"
             with (
                 patch(
@@ -121,10 +184,18 @@ class EnvironmentBindingTests(unittest.TestCase):
                 "report": {},
                 "capture_dir": str(root / "probe"),
                 "receipt": "b" * 64,
-                "probe_spec": {},
+                "probe_spec": {
+                    "kind": "Stage2RuntimeProbeSpec",
+                    "schema_version": "1.0.0",
+                },
                 "inventory_receipt": {},
             }
-            report = {"runtime_gate": True, "status": "passed"}
+            report = {
+                "kind": "Stage2RuntimePreflight",
+                "runtime_gate": True,
+                "status": "passed",
+                "formal_ready": False,
+            }
             with (
                 patch("stage2_live.environment.verify_preflight", return_value=report),
                 patch(

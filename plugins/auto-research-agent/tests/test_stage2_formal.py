@@ -49,6 +49,20 @@ def reference(root, path):
 
 
 class Stage2FormalTests(unittest.TestCase):
+    def test_production_only_preflight_cannot_replace_formal_isolation(self):
+        manifest = self._readiness_manifest()
+        report = {
+            "kind": "Stage2ProductionRuntimePreflight",
+            "status": "passed",
+            "runtime_gate": True,
+            "validation_scope": "production-single",
+        }
+        path = write_json(self.root / "preflight-A.json", report)
+        manifest["preflights"][0]["report"] = reference(self.root, path)
+        manifest_path, digest = self._save_manifest(manifest, "readiness.json")
+        with self.assertRaisesRegex(FormalError, "production-only preflight"):
+            validate_readiness_v1(manifest_path, self.root, digest)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

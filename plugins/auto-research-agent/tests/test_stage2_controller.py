@@ -741,12 +741,17 @@ class Stage2ControllerTests(unittest.TestCase):
             "report": {"bound": "report"},
             "capture_dir": str(self.root / "preflight-capture"),
             "receipt": "9" * 64,
-            "probe_spec": {"bound": "probe"},
+            "probe_spec": {
+                "kind": "Stage2RuntimeProbeSpec",
+                "schema_version": "1.0.0",
+            },
             "inventory_receipt": inventory,
         }
         verified = {
+            "kind": "Stage2RuntimePreflight",
             "runtime_gate": True,
             "status": "passed",
+            "formal_ready": False,
             "actual_runtime": {
                 "model": "synthetic-model",
                 "reasoning": "medium",
@@ -775,6 +780,26 @@ class Stage2ControllerTests(unittest.TestCase):
         ):
             _validate_spec(spec, self.packet, self.base, synthetic=False)
             self.assertIs(preflight.call_args.kwargs["inventory_receipt"], inventory)
+
+            production_spec = copy.deepcopy(spec)
+            production_spec["preflight"]["probe_spec"]["kind"] = (
+                "Stage2ProductionRuntimeProbeSpec"
+            )
+            production_verified = copy.deepcopy(verified)
+            production_verified.update(
+                {
+                    "kind": "Stage2ProductionRuntimePreflight",
+                    "validation_scope": "production-single",
+                    "filesystem_read_isolation": "not-assessed",
+                    "quality_improvement": "not-established",
+                }
+            )
+            preflight.return_value = production_verified
+            _validate_spec(production_spec, self.packet, self.base, synthetic=False)
+
+            preflight.return_value = verified
+            with self.assertRaisesRegex(ValueError, "report/probe contract mismatch"):
+                _validate_spec(production_spec, self.packet, self.base, synthetic=False)
 
             wrong_model = copy.deepcopy(verified)
             wrong_model["actual_runtime"]["model"] = "other-model"
