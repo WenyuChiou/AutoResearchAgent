@@ -22,6 +22,8 @@
     exec1: ["后端启动已配置的 Stage 1 worker，保存真实事件与其实际产物。", "The backend starts its configured Stage 1 worker and records real events and resulting artifacts.", "後端啟動已設定的 Stage 1 worker，保存實際事件與其產出檔案。"], execFuture: ["适配器尚未接入；此页面不会启动该阶段。", "The adapter is not integrated; this page cannot start this stage.", "適配器尚未整合；此頁面不會啟動此階段。"], gate1: ["核对来源、范围覆盖、文件与未解决问题。当前界面不替代研究审阅。", "Review sources, scope coverage, files and unresolved questions. This UI does not perform research review.", "核對來源、範圍涵蓋、檔案與未解問題；目前介面不取代研究審閱。"], gateFuture: ["在适配器接入后，依据证据完整性与本阶段标准单独审阅。", "Once integrated, review evidence completeness and the stage's criteria separately.", "適配器整合後，依證據完整性與本階段標準個別審閱。"]
   };
   Object.assign(messages, {
+    attachText: ["可选：附带一个文本产物（最多 12 KB）", "Optional: attach one text artifact (up to 12 KB)", "可選：附上一個文字產出檔案（最多 12 KB）"], noAttachment: ["不附带文件内容", "Do not attach file contents", "不附上檔案內容"],
+    dialogueTitle: ["本阶段对话 · Codex", "Stage conversation · Codex", "本階段對話 · Codex"], newDialogue: ["新对话", "New conversation", "新對話"], savedDialogues: ["已保存的对话", "Saved conversations", "已儲存的對話"], answerHere: ["在这里回答或提问", "Answer or ask here", "在這裡回答或提問"], answerPlaceholder: ["回答上方问题，或补充研究要求…", "Answer the question above or add research requirements…", "回答上方問題，或補充研究要求…"], sendDialogue: ["发送给 Codex", "Send to Codex", "傳送給 Codex"], attachRun: ["附带当前运行的范围与来源记录", "Include the selected run's scope and provenance", "附上目前執行的範圍與來源紀錄"], yourActions: ["待你处理", "Your actions", "待你處理"], scopeDraft: ["1 · 编辑并确认研究范围", "1 · Edit and confirm scope", "1 · 編輯並確認研究範圍"], useSuggestion: ["填入 Codex 建议", "Use Codex suggestion", "填入 Codex 建議"], confirmScope: ["确认此范围", "Confirm this scope", "確認此範圍"], reviewNote: ["2 · 审阅意见（退回修改时必填）", "2 · Review notes (required for changes)", "2 · 審閱意見（退回修改時必填）"], acceptReview: ["记录审阅通过", "Record review acceptance", "記錄審閱通過"], requestChanges: ["退回修改", "Request changes", "退回修改"], decisionHistory: ["确认与审阅记录", "Scope and review history", "確認與審閱紀錄"], awaitingAnswer: ["待你回答", "Your answer is needed", "待你回答"], confirmedScope: ["已确认范围", "Confirmed scope", "已確認範圍"], noDecisions: ["暂无确认或审阅记录。", "No scope or review decisions yet.", "尚無確認或審閱紀錄。"], dialogueHelp: ["每次发送调用后端 Codex；保留全部对话，模型读取最近 6 轮。讨论不会启动研究。", "Each send calls backend Codex. All turns are saved; the model reads the latest 6. Discussion does not start research.", "每次傳送呼叫後端 Codex；保留全部對話，模型讀取最近 6 輪。討論不會啟動研究。"], dialogueUnavailable: ["连接支持阶段对话的 Harness 服务器后，可在此回答 Codex。", "Connect a Harness server with stage conversations to answer Codex here.", "連線支援階段對話的 Harness 伺服器後，可在此回答 Codex。"], decisionBoundary: ["确认范围不会启动任务。审阅记录绑定当前产物版本，不自动推进下一阶段，也不替代科研验证。", "Scope confirmation does not launch work. Review records bind the artifact version; they neither advance stages nor replace research validation.", "確認範圍不會啟動任務。審閱紀錄綁定目前產出版本，不自動推進下一階段，亦不取代研究驗證。"], noDialogue: ["先填写顶部研究主题，再开始对话。", "Enter a research topic above, then start a conversation.", "先填寫頂部研究主題，再開始對話。"], scopeRequired: ["请先在“待你处理”中确认与本次执行完全一致的范围。", "First confirm the exact execution scope in Your actions.", "請先在「待你處理」中確認與本次執行完全一致的範圍。"], reviewSelected: ["审阅当前运行", "Review selected run", "審閱目前執行"], you: ["你", "You", "你"], confirm_scope: ["确认范围", "Scope confirmed", "確認範圍"], accept_review: ["审阅通过记录", "Review acceptance recorded", "審閱通過紀錄"], request_changes: ["要求修改", "Changes requested", "要求修改"],
     resultsEvidence: ["结果与证据", "Results & evidence", "結果與證據"], fixedStageView: ["每个阶段都有固定展示位置", "A dedicated view for every stage", "每個階段皆有固定展示位置"], runStage: ["运行本阶段", "Run this stage", "執行本階段"],
     view1: ["文献覆盖概览", "Literature coverage overview", "文獻涵蓋概覽"], view2: ["比较矩阵与研究缺口", "Comparison matrix & research gaps", "比較矩陣與研究缺口"], view3: ["研究设计蓝图", "Research design blueprint", "研究設計藍圖"], view4: ["实验任务与运行轨迹", "Experiment tasks & execution trace", "實驗任務與執行軌跡"], view5: ["结果分析与不确定性", "Analysis & uncertainty", "結果分析與不確定性"], view6: ["论文结构与证据关联", "Manuscript structure & evidence", "論文結構與證據關聯"],
     awaitingResults: ["等待研究结果", "Awaiting research results", "等待研究結果"], coveragePending: ["预留展示 · 尚无结构化覆盖数据，横线表示未知，不是零。", "Reserved view · No structured coverage data yet. Dashes mean unknown, not zero.", "預留展示 · 尚無結構化涵蓋資料；橫線表示未知，而非零。"], direction: ["研究方向", "Research area", "研究方向"], method: ["方法", "Methods", "方法"], evaluation: ["评估", "Evaluation", "評估"], reproduction: ["复现", "Reproduction", "重現"],
@@ -49,6 +51,7 @@
   function renderNotice() { $("notice").hidden = !state.notice; $("notice").textContent = state.notice ? t(state.notice.key) + (state.notice.detail ? ` ${state.notice.detail}` : "") : ""; }
   function clearPreview() { previewSerial++; for (const url of objectUrls) URL.revokeObjectURL(url); objectUrls.clear(); state.preview = null; }
   function clearConnection(clearInputs = true) {
+    resetInteraction();
     generation++; selection++; clearTimeout(pollTimer); pollTimer = null;
     for (const controller of controllers) controller.abort(); controllers.clear(); clearPreview();
     Object.assign(state, { token: "", connected: false, connecting: false, reachable: false, status: null, runs: [], run: null, events: [], cursor: 0, artifacts: [], manifest: null, artifactId: null, submitting: false, stopping: false, pending: null, notice: null }); lastStatusAt = 0;
@@ -83,16 +86,25 @@
   async function refreshStatus() { const data = await api("/api/status"); if (!isRecord(data) || typeof data.available !== "boolean" || !Array.isArray(data.stages)) throw new Error(t("malformed")); state.status = data; state.reachable = true; lastStatusAt = Date.now(); }
   async function loadRun(id, reset = false) {
     const currentSelection = reset ? ++selection : selection;
-    if (reset) { state.run = state.runs.find(run => run.id === id) || { id, status: "unknown" }; state.events = []; state.cursor = 0; state.artifacts = []; state.manifest = null; state.artifactId = null; clearPreview(); render(); }
+    if (reset) { state.run = state.runs.find(run => run.id === id) || { id, status: "unknown" }; state.events = []; state.cursor = 0; state.artifacts = []; state.manifest = null; state.manifestSha = null; state.artifactId = null; clearPreview(); render(); }
     const data = await api(`/api/runs/${encodeURIComponent(id)}?after=${state.cursor}`);
     if (currentSelection !== selection || !state.run || state.run.id !== id) return;
     if (!isRecord(data) || !usableRun(data.run) || data.run.id !== id || !Array.isArray(data.events) || !Array.isArray(data.artifacts) || !Number.isSafeInteger(data.cursor) || data.cursor < state.cursor) throw new Error(t("malformed"));
     const becameTerminal = active(state.run) && !active(data.run);
     state.run = data.run;
+    if (reset) {
+      state.stage = data.run.stage;
+      $("topic").value = data.run.topic;
+      $("scope").value = data.run.scope || "";
+      $("scope-confirmed").checked = false;
+      state.pending = null;
+      resetInteraction();
+    }
     const known = new Set(state.events.map(event => event.seq));
     for (const event of data.events) if (isRecord(event) && Number.isSafeInteger(event.seq) && event.seq >= 0 && !known.has(event.seq)) { state.events.push({ seq: event.seq, type: text(event.type), text: text(event.text).slice(0, 8192), created_at: typeof event.created_at === "number" ? event.created_at : text(event.created_at) }); known.add(event.seq); }
     state.events = state.events.slice(-1000); state.cursor = data.cursor; state.artifacts = data.artifacts.filter(validArtifact);
     state.manifest = isRecord(data.manifest) ? data.manifest : null;
+    state.manifestSha = data.manifest_sha256 || null;
     if (!state.artifacts.some(file => file.id === state.artifactId)) { state.artifactId = state.artifacts[0]?.id || null; clearPreview(); }
     if (becameTerminal) await refreshStatus();
     render();
@@ -118,7 +130,7 @@
     $("refresh-history").disabled = !state.connected; $("refresh-files").disabled = !state.connected || !state.run;
     $("server-status").textContent = t(!state.connected ? "disconnected" : state.status?.available ? "ready" : "blocked"); $("server-reason").textContent = state.connected ? text(state.status?.reason) : "";
     $("footer-status").textContent = state.connected ? state.base : t("disconnected");
-    renderStages(); renderWorkspace(); renderHistory(); renderFiles(); renderNotice();
+    renderStages(); renderWorkspace(); renderHistory(); renderFiles(); renderNotice(); renderInteraction();
   }
   function renderStages() {
     for (const id of ["stage-nav", "mobile-stages"]) {
@@ -161,9 +173,9 @@
     $("run-button").disabled = !canRun(); $("run-button").textContent = t(state.submitting ? "submitting" : state.pending ? "retry" : "run");
     $("run-blocker").textContent = !state.connected ? t("connectFirst") : state.status?.active_run_id ? t("activeExists") : !state.status?.available ? text(state.status?.reason) || t("blocked") : "";
     $("current-run").replaceChildren(); $("status-timeline").replaceChildren();
-    if (!state.run) $("current-run").append(node("p", "rs-empty-run", t("noRun")));
+    if (!state.run || state.run.stage !== state.stage) $("current-run").append(node("p", "rs-empty-run", t("noRun")));
     else { $("current-run").append(node("p", "rs-run-id", state.run.id), node("span", "rs-badge blue", statusLabel(state.run.status)), node("p", "rs-source-text", state.run.topic)); for (const status of ["created", "running", "human-review"]) { const item = node("span", "", t(status)); item.classList.toggle("active", status === "created" || state.run.status === status); $("status-timeline").append(item); } if (state.run.error) $("current-run").append(node("p", "rs-source-text", state.run.error)); }
-    $("stop-button").disabled = !state.connected || !active(state.run) || state.stopping; $("stop-button").textContent = t(state.stopping ? "stopping" : "stop");
+    $("stop-button").disabled = !state.connected || state.run?.stage !== state.stage || !active(state.run) || state.stopping; $("stop-button").textContent = t(state.stopping ? "stopping" : "stop");
     $("execution-panel").hidden = !state.run || state.stage !== 1; $("event-count").textContent = `${t("newestEvents")} · ${state.events.length}`;
     $("event-log").replaceChildren(...(state.events.length ? state.events.map(event => { const row = node("div", "rs-event"); row.append(node("div", "rs-event-meta", `${event.seq} · ${event.type} · ${dateLabel(event.created_at)}`), node("pre", "", event.text)); return row; }) : [node("p", "rs-empty", t("noEvents"))]));
     renderResults();
@@ -213,6 +225,107 @@
       renderFileDetail();
     } catch (error) { if (current !== generation || currentSelection !== selection || serial !== previewSerial) return; state.preview = null; renderFileDetail(); throw error; }
   }
+  const interaction = { key: "", serial: 0, thread: null, turns: [], threads: [], decisions: [], pending: null, busy: false, loading: false, decisionPending: null };
+  const interactionKey = () => JSON.stringify([state.stage, $("topic").value.trim()]);
+  const interactionEnabled = () => state.connected && state.reachable && state.status?.features?.stage_dialogue === true;
+  const matchingRun = () => state.run && state.run.stage === state.stage && state.run.topic === $("topic").value.trim() && !active(state.run);
+  function resetInteraction() {
+    interaction.serial++; Object.assign(interaction, { key: interactionKey(), thread: null, turns: [], threads: [], decisions: [], pending: null, busy: false, loading: false, decisionPending: null });
+    for (const id of ["dialogue-message", "decision-scope", "review-note"]) $(id).value = "";
+    $("dialogue-context").checked = false;
+  }
+  function confirmedScope() { return interaction.key === interactionKey() ? interaction.decisions.findLast(item => item.request.action === "confirm_scope" && item.request.scope === $("scope").value.trim()) : null; }
+  async function refreshInteraction() {
+    if (!interactionEnabled() || interaction.loading || !$("topic").value.trim()) return;
+    const serial = interaction.serial, key = interaction.key, thread = interaction.thread;
+    interaction.loading = true;
+    try {
+      const threads = await api(`/api/dialogue/threads?stage=${state.stage}`);
+      const decisions = await api("/api/decisions/query", { method: "POST", body: { stage: state.stage, topic: $("topic").value.trim() } });
+      const result = thread ? await api(`/api/dialogue/threads/${encodeURIComponent(thread)}`) : null;
+      if (serial !== interaction.serial || key !== interactionKey() || thread !== interaction.thread) return;
+      interaction.threads = threads.threads.filter(run => run.topic === $("topic").value.trim()); interaction.decisions = decisions.decisions;
+      if (result) interaction.turns = result.turns;
+      const latest = interaction.turns.at(-1)?.run;
+      if (latest && !active(latest) && state.status?.active_run_id === latest.id) { await refreshStatus(); if (serial !== interaction.serial) return; renderWorkspace(); }
+      if (interaction.pending && interaction.turns.some(turn => turn.run.id === interaction.pending.request_id)) { interaction.pending = null; $("dialogue-message").value = ""; }
+      renderInteraction(false);
+    } finally { if (serial === interaction.serial) interaction.loading = false; }
+  }
+  function renderInteraction(refresh = true) {
+    if (interaction.key !== interactionKey()) resetInteraction();
+    const enabled = interactionEnabled(), last = interaction.turns.at(-1), busy = interaction.busy || active(last?.run), source = matchingRun();
+    $("dialogue-hint").textContent = t(enabled ? "dialogueHelp" : "dialogueUnavailable");
+    const options = [node("option", "", t("newDialogue"))]; options[0].value = "";
+    for (const run of interaction.threads) { const option = node("option", "", `${dateLabel(run.created_at)} · ${run.thread_id.slice(0, 8)}`); option.value = run.thread_id; options.push(option); }
+    if (interaction.thread && !options.some(option => option.value === interaction.thread)) { const option = node("option", "", interaction.thread.slice(0, 8)); option.value = interaction.thread; options.push(option); }
+    $("dialogue-thread").replaceChildren(...options); $("dialogue-thread").value = interaction.thread || "";
+    $("dialogue-thread").disabled = interaction.busy || !!interaction.pending || !!interaction.decisionPending; $("new-dialogue").disabled = $("dialogue-thread").disabled;
+    const log = $("dialogue-log");
+    // Keep the live region stable when polling returns identical messages.
+    const signature = JSON.stringify([state.locale, interaction.turns]);
+    if (log.dataset.signature !== signature) {
+      log.dataset.signature = signature; log.replaceChildren();
+      if (!interaction.turns.length) log.append(node("p", "rs-disclosure", t("noDialogue")));
+      for (const turn of interaction.turns) {
+        const user = node("div", "rs-chat-message rs-chat-user"), assistant = node("div", "rs-chat-message");
+        user.append(node("strong", "", t("you")), node("p", "rs-source-text", turn.run.message));
+        assistant.append(node("strong", "", "Codex"), node("p", "rs-source-text", turn.reply?.message || turn.reply_error || turn.run.error || statusLabel(turn.run.status)), node("small", "rs-disclosure", `${turn.run.id} · ${dateLabel(turn.run.created_at)}`));
+        log.append(user, assistant);
+      }
+    }
+    $("dialogue-question").hidden = !last?.reply?.question; $("dialogue-question").textContent = last?.reply?.question ? `${t("awaitingAnswer")} · ${last.reply.question}` : "";
+    $("dialogue-message").disabled = interaction.busy || !!interaction.pending;
+    $("dialogue-send").disabled = !enabled || busy || (!interaction.pending && ((!interaction.turns.length && !!interaction.thread) || !state.status?.available || !!state.status.active_run_id));
+    $("dialogue-send").textContent = t(interaction.pending ? "retry" : "sendDialogue"); $("dialogue-stop").disabled = !enabled || !active(last?.run);
+    $("dialogue-context").disabled = !source || busy || !!interaction.pending;
+    $("dialogue-source").textContent = source ? `${state.run.id} · ${t("source")}` : t("noRun");
+    const selectedFile = $("dialogue-file").value, files = [node("option", "", t("noAttachment"))]; files[0].value = "";
+    if (source && $("dialogue-context").checked) for (const file of state.artifacts.filter(file => file.size <= 12000 && ["md", "txt", "json", "csv", "bib", "yaml", "yml", "tsv", "log"].includes(extension(file.path)))) { const option = node("option", "", `${file.path} · ${sizeLabel(file.size)}`); option.value = file.id; files.push(option); }
+    $("dialogue-file").replaceChildren(...files); $("dialogue-file").value = files.some(file => file.value === selectedFile) ? selectedFile : ""; $("dialogue-file").disabled = !source || !$("dialogue-context").checked || busy || !!interaction.pending;
+    $("use-scope").disabled = !last?.reply?.suggested_scope || !!interaction.decisionPending;
+    $("confirm-scope").disabled = !enabled || interaction.busy; $("decision-scope").disabled = !!interaction.decisionPending;
+    $("scope-receipt").textContent = confirmedScope() ? `${t("confirmedScope")} · ${confirmedScope().id}` : "";
+    $("review-target").textContent = source ? `${t("reviewSelected")} · ${state.run.id}\nSHA-256 ${state.manifestSha || "—"}` : t("noRun");
+    $("accept-review").disabled = !enabled || !source || !state.manifestSha || state.run.status !== "human-review" || interaction.busy;
+    $("request-changes").disabled = !enabled || !source || !state.manifestSha || state.run.status === "blocked" || interaction.busy;
+    $("review-note").disabled = !!interaction.decisionPending;
+    $("decision-history").replaceChildren(...interaction.decisions.map(item => node("p", "rs-source-text", `${t(item.request.action)} · ${dateLabel(item.created_at)}\n${item.request.scope || item.request.note || ""}\n${item.id}${item.request.run_id ? " · " + item.request.run_id : ""}`)));
+    if (!interaction.decisions.length) $("decision-history").append(node("p", "rs-disclosure", t("noDecisions")));
+    const locked = interaction.busy || !!interaction.pending || !!interaction.decisionPending;
+    $("topic").disabled = state.submitting || locked;
+    root.querySelectorAll(".rs-stage, #mobile-stages button").forEach(button => { button.disabled = locked; });
+    if (refresh && enabled) refreshInteraction().catch(error => { if (error.name !== "AbortError") notify("apiError", error.message); });
+  }
+  $("dialogue-thread").addEventListener("change", () => { interaction.serial++; interaction.loading = false; interaction.thread = $("dialogue-thread").value || null; interaction.turns = []; renderInteraction(); });
+  $("new-dialogue").addEventListener("click", () => { resetInteraction(); renderInteraction(); });
+  $("topic").addEventListener("change", () => { resetInteraction(); renderInteraction(); });
+  $("dialogue-context").addEventListener("change", () => renderInteraction(false));
+  $("dialogue-form").addEventListener("submit", async event => {
+    event.preventDefault(); if (!interactionEnabled() || interaction.busy) return;
+    const topic = $("topic").value.trim(), message = $("dialogue-message").value.trim(); if (!topic || !message) { notify("noDialogue"); return; }
+    if (!interaction.thread) interaction.thread = crypto.randomUUID();
+    const payload = interaction.pending || { kind: "dialogue", request_id: crypto.randomUUID(), thread_id: interaction.thread, parent_turn_id: interaction.turns.at(-1)?.run.id || null, stage: state.stage, topic, message, context_run_id: $("dialogue-context").checked && matchingRun() ? state.run.id : null, artifact_ids: [], timeout_seconds: 600 };
+    if (!interaction.pending && payload.context_run_id && $("dialogue-file").value) payload.artifact_ids = [$("dialogue-file").value];
+    interaction.pending = payload; interaction.busy = true; const serial = interaction.serial;
+    renderInteraction(false);
+    try { const data = await api("/api/dialogue/turns", { method: "POST", body: payload }); if (serial !== interaction.serial) return; if (!usableRun(data.run)) throw new Error(t("malformed")); interaction.pending = null; $("dialogue-message").value = ""; await refreshStatus(); await refreshInteraction(); }
+    catch (error) { if (serial === interaction.serial) { if (error.httpStatus) interaction.pending = null; handleError(error); } }
+    finally { if (serial === interaction.serial) { interaction.busy = false; renderInteraction(); } }
+  });
+  $("dialogue-stop").addEventListener("click", async () => { const run = interaction.turns.at(-1)?.run; if (!active(run)) return; try { await api(`/api/runs/${encodeURIComponent(run.id)}/stop`, { method: "POST", body: {} }); await refreshStatus(); await refreshInteraction(); } catch (error) { handleError(error); } });
+  $("use-scope").addEventListener("click", () => { $("decision-scope").value = interaction.turns.at(-1)?.reply?.suggested_scope || ""; });
+  for (const [id, action] of [["confirm-scope", "confirm_scope"], ["accept-review", "accept_review"], ["request-changes", "request_changes"]]) $(id).addEventListener("click", async () => {
+    if (!interactionEnabled() || interaction.busy) return;
+    const topic = $("topic").value.trim(), scope = $("decision-scope").value.trim(), note = $("review-note").value.trim();
+    if (!topic || (action === "confirm_scope" && !scope) || (action === "request_changes" && !note)) { notify("invalidInput"); return; }
+    const payload = interaction.decisionPending || { request_id: crypto.randomUUID(), stage: state.stage, topic, action, scope: action === "confirm_scope" ? scope : null, run_id: action === "confirm_scope" ? null : state.run?.id, manifest_sha256: action === "confirm_scope" ? null : state.manifestSha, note };
+    if (payload.action !== action) { notify("uncertainSubmit"); return; }
+    interaction.decisionPending = payload; interaction.busy = true; const serial = interaction.serial; renderInteraction(false);
+    try { const result = await api("/api/decisions", { method: "POST", body: payload }); if (serial !== interaction.serial) return; interaction.decisions.push(result.decision); interaction.decisionPending = null; if (action === "confirm_scope" && state.stage === 1) { $("scope").value = payload.scope; $("scope-confirmed").checked = false; state.pending = null; } await refreshInteraction(); }
+    catch (error) { if (serial === interaction.serial) { if (error.httpStatus) interaction.decisionPending = null; handleError(error); } }
+    finally { if (serial === interaction.serial) { interaction.busy = false; renderInteraction(); } }
+  });
   root.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => { state.view = button.dataset.view; render(); }));
   $("connection-button").addEventListener("click", () => { state.view = "connection"; render(); });
   $("language").addEventListener("change", () => { if (!locales.includes($("language").value)) return; state.locale = $("language").value; try { localStorage.setItem("research-studio.locale", state.locale); } catch {} render(); });
@@ -229,6 +342,7 @@
     event.preventDefault(); const topic = $("topic").value.trim(), scope = $("scope").value.trim(), timeout = Number($("timeout").value);
     if (!canRun() || !topic || !scope || topic.length > 4000 || scope.length > 4000 || !Number.isInteger(timeout) || timeout < 60 || timeout > 3600 || !$("scope-confirmed").checked) { notify("invalidInput"); return; }
     const payload = state.pending || { topic, scope, scope_confirmed: true, stage: 1, timeout_seconds: timeout, request_id: crypto.randomUUID() };
+    if (interactionEnabled()) { const confirmation = confirmedScope(); if (!confirmation) { notify("scopeRequired"); return; } payload.scope_confirmation_id = confirmation.id; }
     state.pending = payload; state.submitting = true; state.notice = null; const current = generation; let posted = false, acknowledged = false; render();
     try {
       await refreshStatus();

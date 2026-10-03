@@ -223,6 +223,10 @@ def fingerprint(plugin, codex, expected_sha, env):
 
 
 def validate_request(request):
+    if isinstance(request, dict) and request.get("kind") == "dialogue":
+        from .interaction import validate_dialogue
+
+        return validate_dialogue(request)
     required = {
         "request_id",
         "topic",
@@ -231,13 +235,21 @@ def validate_request(request):
         "stage",
         "timeout_seconds",
     }
-    if not isinstance(request, dict) or set(request) != required:
+    if not isinstance(request, dict) or set(request) not in (
+        required,
+        required | {"scope_confirmation_id"},
+    ):
         raise StudioError("unsupported or missing request fields", 400)
     try:
         if str(uuid.UUID(request["request_id"])) != request["request_id"]:
             raise ValueError()
     except (ValueError, TypeError, AttributeError) as error:
         raise StudioError("request_id must be a canonical UUID", 400) from error
+    if "scope_confirmation_id" in request:
+        from .interaction import identifier
+
+        if not identifier(request["scope_confirmation_id"]):
+            raise StudioError("invalid scope confirmation ID", 400)
     if (
         type(request["stage"]) is not int
         or request["stage"] != 1
@@ -340,6 +352,7 @@ class Engine:
         ) as error:
             runtime, reason = None, str(error)
         result = {
+            "features": {"stage_dialogue": True, "owner_decisions": True},
             "available": reason is None,
             "reason": reason,
             "runtime": runtime,
@@ -368,11 +381,32 @@ class Engine:
                 if error.status != 404:
                     raise
             else:
-                if any(existing[k] != v for k, v in request.items()):
+                if (
+                    existing.get("kind") != request.get("kind")
+                    or existing.get("scope_confirmation_id")
+                    != request.get("scope_confirmation_id")
+                    or any(existing.get(k) != v for k, v in request.items())
+                ):
                     raise StudioError("request_id already binds different input")
                 return existing
             if self.active:
                 raise StudioError("another run is active")
+            if request.get("kind") == "dialogue":
+                from .interaction import dialogue_context
+
+                dialogue_context(self, request)
+            elif "scope_confirmation_id" in request:
+                decision = self.store.decision(request["scope_confirmation_id"])
+                if not decision or any(
+                    decision["request"].get(k) != v
+                    for k, v in {
+                        "action": "confirm_scope",
+                        "stage": 1,
+                        "topic": request["topic"],
+                        "scope": request["scope"],
+                    }.items()
+                ):
+                    raise StudioError("scope confirmation does not match this run", 400)
             self.store.create(request)
             availability = self.status(refresh=True)
             if not availability["available"]:
@@ -418,6 +452,21 @@ class Engine:
             str(workspace / "final.md"),
         ]
         return argv + (["--model", self.model] if self.model else []) + ["-"]
+
+    def dialogue_command(self, workspace):
+        command = self.command(workspace)
+        command[command.index("--sandbox") + 1] = "read-only"
+        network = command.index("sandbox_workspace_write.network_access=true")
+        del command[network - 1 : network + 1]
+        command = [
+            part.replace('web_search="live"', 'web_search="disabled"')
+            for part in command
+        ]
+        command[-1:-1] = [
+            "--output-schema",
+            str(Path(__file__).with_name("dialogue.schema.json")),
+        ]
+        return command
 
     @staticmethod
     def kill(process):
@@ -510,12 +559,18 @@ class Engine:
                 "User request JSON follows:\n" + canonical(request)
             )
             command = self.command(workspace)
+            if request.get("kind") == "dialogue":
+                from .interaction import prompt as dialogue_prompt
+
+                prompt = dialogue_prompt(self, request)
+                command = self.dialogue_command(workspace)
             manifest = {
                 "kind": "ResearchStudioExecutionIndex",
                 "version": 1,
                 "runtime": identity,
                 "producer_run_id": run_id,
-                "stage": 1,
+                "stage": request["stage"],
+                "purpose": request.get("kind", "research"),
                 "command": command,
                 "request_sha256": sha(canonical(request).encode()),
                 "prompt_sha256": sha(prompt.encode()),
@@ -613,7 +668,7 @@ class Engine:
                                 "sha256": sha(data),
                                 "size": len(data),
                                 "version": 1,
-                                "stage": 1,
+                                "stage": request["stage"],
                                 "producer_run_id": run_id,
                                 "harness_sha": identity["harness_sha"],
                             }
@@ -631,6 +686,13 @@ class Engine:
                 status, error = "failed", "Codex returned no final message"
             if "manifest" in locals():
                 manifest["artifacts"] = artifacts
+            if request.get("kind") == "dialogue" and status == "human-review":
+                from .interaction import parse_reply
+
+                try:
+                    parse_reply(self._bytes(workspace, "final.md"))
+                except (StudioError, OSError) as invalid:
+                    status, error = "failed", str(invalid)
             self.store.update(
                 run_id,
                 status,

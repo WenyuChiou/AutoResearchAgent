@@ -10,7 +10,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_studio",
       "problem": "A static stage preview cannot execute the Harness, preserve real attempts or retrieve private output files from an external browser.",
-      "mechanism": "Connect a multilingual static browser interface to a single-owner authenticated HTTP API around the existing Stage 1 skill. Display confirmed requests, runtime bindings, native events and actual output hashes; require a dedicated supervised Linux service, preserve failures and never infer scientific completion. GitHub Pages publishes only four public interface assets; private execution and files stay on the owner's server.",
+      "mechanism": "Connect a multilingual static browser interface to a single-owner authenticated HTTP API around the existing Stage 1 skill. Display confirmed requests, runtime bindings, native events and actual output hashes; require a dedicated supervised Linux service, preserve failures and never infer scientific completion. GitHub Pages publishes only four public interface assets; private execution and files stay on the owner's server. Stage conversations use read-only Codex turns with structured questions, bounded history and hash-checked optional evidence; explicit owner scope and review decisions persist independently from research execution and scientific status.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -29,12 +29,13 @@
         "no simulated success, model fallback, automatic stage completion or approval",
         "single-owner service; not a multi-tenant security boundary",
         "research output, credentials and private event logs remain outside Git and Pages",
-        "Stages 2 through 6 remain unavailable until their own execution adapters are reviewed"
+        "Stages 2 through 6 support discussion only; execution remains unavailable until their adapters are reviewed"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_studio.py",
         "plugins/auto-research-agent/tests/test_research_studio_supervision.py",
-        "plugins/auto-research-agent/tests/test_research_studio_http.py"
+        "plugins/auto-research-agent/tests/test_research_studio_http.py",
+        "plugins/auto-research-agent/tests/test_research_studio_interaction.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

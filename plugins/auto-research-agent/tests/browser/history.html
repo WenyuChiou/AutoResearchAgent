@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>History browser/API regression</title>
+<h1>History browser/API regression</h1>
+<p>Synthetic fixture only. Real UI and HTTP API; no model calls.</p>
+<pre id="result">RUNNING</pre>
+<iframe id="studio" title="Actual Research Studio UI" style="width:100%;height:750px"></iframe>
+<script>
+(async () => {
+  const result = document.getElementById("result"), frame = document.getElementById("studio");
+  let assertions = 0;
+  const check = (condition, message) => { assertions++; if (!condition) throw new Error(message); };
+  const until = async (predicate, label) => {
+    const deadline = Date.now() + 15000;
+    while (!await predicate()) {
+      if (Date.now() > deadline) throw new Error(`Timed out: ${label}`);
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+  };
+  const reload = () => new Promise(resolve => { frame.onload = resolve; frame.src = `/ui/index.html?test=${crypto.randomUUID()}`; });
+  let report;
+  try {
+    const fixture = await (await fetch("/fixture.json")).json();
+    const {run, manifest_sha256: hash, artifacts} = fixture.detail;
+    const api = async path => {
+      const response = await fetch(path, {headers: {Authorization: `Bearer ${fixture.token}`}});
+      check(response.ok, `API ${path}: ${response.status}`);
+      return response.json();
+    };
+    for (const initialTopic of ["", "Different synthetic topic"]) {
+      await reload(); // New document clears the in-memory connection and interaction state.
+      const doc = frame.contentDocument, win = frame.contentWindow;
+      const get = id => doc.getElementById(id);
+      const fill = (id, value) => { get(id).value = value; get(id).dispatchEvent(new win.Event("input", {bubbles:true})); };
+      check(get("topic").value === "", "fresh page has empty topic");
+      fill("topic", initialTopic);
+      get("topic").dispatchEvent(new win.Event("change", {bubbles:true}));
+      get("connection-button").click();
+      fill("api-url", location.origin); fill("access-token", fixture.token);
+      get("connection-form").requestSubmit();
+      await until(() => !get("disconnect-button").disabled && !get("connect-button").disabled, "reconnect");
+      // A stale draft and authorization must not survive inspecting another run.
+      fill("decision-scope", "stale draft"); fill("review-note", "stale note");
+      get("scope-confirmed").checked = true;
+      doc.querySelector('[data-view="history"]').click();
+      await until(() => get("history-list").querySelector("button"), "history loaded");
+      const row = [...get("history-list").children].find(el => el.textContent.includes(run.id));
+      check(!!row, "prior fixture run present");
+      row.querySelector("button").click();
+      await until(() => !get("accept-review").disabled, "bound review enabled after inspect");
+      check(get("topic").value === run.topic, "topic restored");
+      check(get("scope").value === run.scope, "scope restored");
+      check(get("stage-kicker").textContent === "STAGE 01 / 06", "stage restored");
+      check(!get("scope-confirmed").checked, "execution authorization cleared");
+      check(get("decision-scope").value === "" && get("review-note").value === "", "stale drafts cleared");
+      check(get("review-target").textContent.includes(run.id) && get("review-target").textContent.includes(hash), "visible review target bound");
+      get("accept-review").click();
+      await until(() => get("decision-history").textContent.includes(run.id) && !get("accept-review").disabled, "review persisted");
+      get("dialogue-context").click();
+      check(!get("dialogue-file").disabled, "attachments enabled");
+      const file = artifacts.find(item => item.path === "final.md");
+      check([...get("dialogue-file").options].some(option => option.value === file.id), "correct artifact offered");
+      get("dialogue-file").value = file.id;
+      fill("dialogue-message", `Synthetic attachment test: ${initialTopic || "empty topic"}`);
+      get("dialogue-form").requestSubmit();
+      await until(() => get("dialogue-log").textContent.includes("Synthetic attachment received."), "synthetic reply");
+      const threads = (await api("/api/dialogue/threads?stage=1")).threads;
+      let turns = [];
+      for (const thread of threads) {
+        const response = await api(`/api/dialogue/threads/${thread.thread_id}`);
+        turns.push(...response.turns);
+      }
+      const turn = turns.find(item => item.run.message === `Synthetic attachment test: ${initialTopic || "empty topic"}`);
+      check(!!turn, "dialogue saved by real service");
+      check(turn.run.context_run_id === run.id && turn.run.topic === run.topic && turn.run.stage === run.stage, "attachment action bound to inspected run/topic/stage");
+      check(JSON.stringify(turn.run.artifact_ids) === JSON.stringify([file.id]), "submitted attachment ID matches manifest");
+      result.textContent = `Scenario passed: ${initialTopic || "empty topic"}; ${assertions} assertions`;
+    }
+    report = {status:"passed", assertions, scenarios:["refresh/reconnect with empty topic", "refresh/reconnect with different topic"], scope:"synthetic browser/service only"};
+  } catch (error) { report = {status:"failed", assertions, error:String(error.stack)}; }
+  result.textContent = JSON.stringify(report, null, 2);
+  await fetch("/test-result", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(report)});
+})();
+</script>

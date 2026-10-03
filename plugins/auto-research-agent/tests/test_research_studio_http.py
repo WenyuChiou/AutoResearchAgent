@@ -112,6 +112,66 @@ class StudioHttpTests(unittest.TestCase):
         )
         self.assertEqual(len(self.call("/api/runs")[2]["runs"]), 1)
 
+    def test_dialogue_and_decisions_remain_authenticated_and_separate(self):
+        decision = {
+            "request_id": str(uuid.uuid4()),
+            "stage": 2,
+            "topic": "Synthetic",
+            "action": "confirm_scope",
+            "scope": "Compare supplied evidence",
+            "run_id": None,
+            "manifest_sha256": None,
+            "note": "",
+        }
+        self.assertEqual(
+            self.call("/api/decisions", method="POST", body=decision, token="wrong")[0],
+            401,
+        )
+        self.assertEqual(
+            self.call("/api/decisions", method="POST", body=decision)[0], 200
+        )
+        result = self.call(
+            "/api/decisions/query",
+            method="POST",
+            body={"stage": 2, "topic": "Synthetic"},
+        )
+        self.assertEqual(result[2]["decisions"][0]["request"], decision)
+        self.assertEqual(
+            self.call(
+                "/api/decisions/query",
+                method="POST",
+                body={"stage": True, "topic": "Synthetic"},
+            )[0],
+            400,
+        )
+        request = {
+            "kind": "dialogue",
+            "request_id": str(uuid.uuid4()),
+            "thread_id": str(uuid.uuid4()),
+            "parent_turn_id": None,
+            "context_run_id": None,
+            "artifact_ids": [],
+            "stage": 2,
+            "topic": "Synthetic",
+            "message": "Which evidence is missing?",
+            "timeout_seconds": 60,
+        }
+        self.assertEqual(self.call("/api/runs", method="POST", body=request)[0], 400)
+        self.assertEqual(
+            self.call("/api/dialogue/turns", method="POST", body=request)[2]["run"][
+                "status"
+            ],
+            "blocked",
+        )
+        self.assertEqual(self.call("/api/runs")[2]["runs"], [])
+        self.assertEqual(
+            len(self.call("/api/dialogue/threads?stage=2")[2]["threads"]), 1
+        )
+        turn = self.call("/api/dialogue/threads/" + request["thread_id"])[2]["turns"][0]
+        self.assertEqual(
+            (turn["run"]["message"], turn["reply"]), (request["message"], None)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

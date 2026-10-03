@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "message": { "type": "string" },
+    "question": { "type": "string" },
+    "suggested_scope": { "type": "string" }
+  },
+  "required": ["message", "question", "suggested_scope"],
+  "additionalProperties": false
+}
