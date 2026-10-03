@@ -100,6 +100,57 @@ def main(argv=None):
     compare = sub.add_parser("compare")
     compare.add_argument("--pairs", required=True)
     compare.add_argument("--output")
+    content_v3 = sub.add_parser("prepare-content-v3")
+    for flag in (
+        "packet",
+        "source-root",
+        "subject-id",
+        "input-sha256",
+        "config-sha256",
+        "output",
+    ):
+        content_v3.add_argument("--" + flag, required=True)
+    action_v3 = sub.add_parser("prepare-action-v3")
+    for flag in (
+        "packet",
+        "source-root",
+        "content-view",
+        "content-assessment",
+        "action-record",
+        "output",
+    ):
+        action_v3.add_argument("--" + flag, required=True)
+    judge_v3 = sub.add_parser("validate-judge-v3")
+    for flag in (
+        "packet",
+        "source-root",
+        "content-view",
+        "action-view",
+        "judge",
+        "output",
+    ):
+        judge_v3.add_argument("--" + flag, required=True)
+    merge_v3 = sub.add_parser("merge-v3")
+    for flag in (
+        "packet",
+        "source-root",
+        "content-view",
+        "action-view",
+        "r1",
+        "r2",
+        "output",
+    ):
+        merge_v3.add_argument("--" + flag, required=True)
+    merge_v3.add_argument("--action-view-r2")
+    merge_v3.add_argument("--action-view-adj")
+    merge_v3.add_argument("--adj")
+    merge_v3.add_argument("--audit")
+    compare_v3 = sub.add_parser("compare-v3")
+    compare_v3.add_argument("--pairs", required=True)
+    compare_v3.add_argument("--output", required=True)
+    bundle_v3 = sub.add_parser("validate-bundle-v3")
+    bundle_v3.add_argument("--bundle", required=True)
+    bundle_v3.add_argument("--output", required=True)
     args = parser.parse_args(argv)
     if args.command in {
         "freeze-formal-plan",
@@ -157,8 +208,74 @@ def main(argv=None):
     if args.command == "compare":
         _write(compare_pairs(_read(args.pairs)), args.output)
         return 0
+    if args.command in {"compare-v3", "validate-bundle-v3"}:
+        from .evaluation_v3 import compare_pairs_v3, validate_bundle_v3
+
+        if args.command == "compare-v3":
+            value = compare_pairs_v3(_read(args.pairs))
+        else:
+            validate_bundle_v3(_read(args.bundle))
+            value = {
+                "valid": True,
+                "diagnostic_only": True,
+                "external_claim_ready": False,
+            }
+        _write(value, args.output)
+        return 0
     packet = _read(args.packet)
     validate_packet(packet, args.source_root)
+    if args.command.endswith("-v3"):
+        from .evaluation_v3 import (
+            merge_judgments_v3,
+            prepare_action_view_v3,
+            prepare_content_view_v3,
+            validate_judge_output_v3,
+        )
+
+        if args.command == "prepare-content-v3":
+            value = prepare_content_view_v3(
+                packet,
+                args.subject_id,
+                args.input_sha256,
+                args.config_sha256,
+            )
+        elif args.command == "prepare-action-v3":
+            value = prepare_action_view_v3(
+                packet,
+                _read(args.content_view),
+                _read(args.content_assessment),
+                _read(args.action_record),
+            )
+        elif args.command == "validate-judge-v3":
+            validate_judge_output_v3(
+                _read(args.judge),
+                _read(args.content_view),
+                _read(args.action_view),
+                packet,
+            )
+            value = {
+                "valid": True,
+                "diagnostic_only": True,
+                "external_claim_ready": False,
+            }
+        else:
+            value = merge_judgments_v3(
+                _read(args.r1),
+                _read(args.r2),
+                _read(args.content_view),
+                _read(args.action_view),
+                packet,
+                action_view_r2=(
+                    _read(args.action_view_r2) if args.action_view_r2 else None
+                ),
+                adj=_read(args.adj) if args.adj else None,
+                action_view_adj=(
+                    _read(args.action_view_adj) if args.action_view_adj else None
+                ),
+                audit=_read(args.audit) if args.audit else None,
+            )
+        _write(value, args.output)
+        return 0
     if args.command == "prepare-content":
         value = prepare_content_view(
             packet,
