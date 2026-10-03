@@ -1,5 +1,7 @@
 # AutoResearchAgent evaluation contract
 
+The current opt-in Stage 2 path uses [balanced v3 scoring and transparent delivery](stage2/STAGE2_V3_EVALUATION.zh-TW.md): three criteria each for P4/P5/P6, separate six-point dimensions, and retained independent comments. Ordinary B-only capability checks do not certify formal A/B isolation. The v2 contracts below remain for their historical inputs and results; do not mix their scores or denominators with v3.
+
 Stage 2 has a separate experimental [general v2 contract](stage2/SCIENTIFIC_CONTRACT.zh-TW.md),
 [direction checker](stage2/DIRECTION_CHECKER_RUBRIC.zh-TW.md) and
 [independent P4-P6 protocol](stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md).

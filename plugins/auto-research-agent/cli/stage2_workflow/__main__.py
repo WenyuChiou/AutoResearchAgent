@@ -112,6 +112,13 @@ def main(argv=None):
     deliver = commands.add_parser("deliver", help="build a versioned proposal package")
     for name in ("batch", "reviews", "resolutions"):
         deliver.add_argument("--" + name, required=True)
+    deliver.add_argument(
+        "--source-update-receipt",
+        action="append",
+        nargs=2,
+        metavar=("PATH", "EXPECTED_SHA256"),
+        help="opt into v1.1 provenance using a raw source-update receipt and retained SHA",
+    )
     for command in (plan, reconcile, deliver):
         command.add_argument("--run", required=True)
         command.add_argument("--expected-head", required=True)
@@ -273,6 +280,7 @@ def main(argv=None):
                 _read(args.resolutions),
                 args.output,
                 args.expected_head,
+                source_update_receipts=args.source_update_receipt,
             )
         else:
             state = inspect_workflow(args.run, args.expected_head)

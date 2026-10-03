@@ -2,6 +2,7 @@
 """End-to-end mechanics use explicit injected calls, never scientific live claims."""
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -23,6 +24,7 @@ from stage2_workflow.evaluation_delivery import (
     build_evaluated_delivery,
     inspect_evaluated_delivery,
     evaluation_projection,
+    _evaluated_html,
 )
 from stage2_fixture_helpers import write_stage2_fixture
 from test_stage2_checker import assessment
@@ -127,6 +129,14 @@ class DailyV3Tests(unittest.TestCase):
         self.assertIn("P4V3.FIDELITY", html)
         self.assertIn("R1 source-bound comment", html)
         self.assertIn("R2 source-bound comment", html)
+        self.assertLess(
+            html.index('id="summary"'), html.index('id="evaluation-overview"')
+        )
+        self.assertLess(
+            html.index('id="evaluation-overview"'), html.index('id="brief"')
+        )
+        self.assertIn("100% (6/6)", html)
+        self.assertEqual(manifest["presentation_version"], "1.1.0")
         self.assertFalse(manifest["stage3_authorized"])
         self.assertFalse(bundle["improvement_demonstrated"])
 
@@ -143,6 +153,8 @@ class DailyV3Tests(unittest.TestCase):
         self.assertEqual(view["evaluation_status"], "audit-required")
         self.assertEqual(view["rows"][0]["judges"]["R2"]["score"], 1)
         self.assertFalse(manifest["formal_ready"])
+        html = (self.root / "delivery" / "selection.html").read_text(encoding="utf-8")
+        self.assertIn("the required named audit is pending", html)
 
     def test_failure_still_delivers_readable_research_without_zero(self):
         bundle = self.run_judges(fail=True)
@@ -152,10 +164,46 @@ class DailyV3Tests(unittest.TestCase):
             (self.root / "delivery" / "evaluation_projection.json").read_bytes()
         )
         self.assertIsNone(view["dimensions"]["P4"]["score"])
+        html = (self.root / "delivery" / "selection.html").read_text(encoding="utf-8")
+        overview = html.split('id="evaluation-overview"', 1)[1].split("</section>", 1)[
+            0
+        ]
+        self.assertIn("Unknown", overview)
+        self.assertNotIn("0%", overview)
         self.assertIn(
             "Evaluation not completed",
             (self.root / "delivery" / "selection.html").read_text(),
         )
+
+    def test_legacy_presentation_receipt_replays_without_new_judge_calls(self):
+        bundle = self.run_judges()
+        manifest = self.delivery(bundle)
+        root = self.root / "delivery"
+        snapshots = [
+            {**row, "path": "sources/" + row["path"]} for row in self.packet["sources"]
+        ]
+        projection = evaluation_projection(
+            bundle,
+            self.selection,
+            self.sources,
+            expected_bundle_sha256=canonical_hash(bundle),
+        )
+        legacy = _evaluated_html(
+            self.selection, snapshots, projection, "1.0.0"
+        ).encode()
+        self.assertNotIn(b'id="evaluation-overview"', legacy)
+        (root / "selection.html").write_bytes(legacy)
+        manifest.pop("presentation_version")
+        for row in manifest["artifacts"]:
+            if row["path"] == "selection.html":
+                row.update(sha256=hashlib.sha256(legacy).hexdigest(), bytes=len(legacy))
+        manifest.pop("manifest_sha256")
+        manifest["manifest_sha256"] = canonical_hash(manifest)
+        (root / "evaluation_manifest.json").write_text(json.dumps(manifest))
+        inspect_evaluated_delivery(
+            root, expected_manifest_sha256=manifest["manifest_sha256"]
+        )
+        self.assertEqual(len(self.calls), 4)
 
     def test_r2_failure_retains_all_r1_comments(self):
         bundle = self.run_judges(fail_label="r2-judge")

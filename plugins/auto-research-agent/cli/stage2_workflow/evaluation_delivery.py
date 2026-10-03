@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import json
+from html import escape
 from pathlib import Path
 
 from stage1_deliverable.common import private_output, safe_path
@@ -36,6 +37,49 @@ def _evaluation_fragment(view):
         raise Stage2Error("evaluation-delivery-invalid-rendered-body")
     body = document.split("<body>", 1)[1].split("</body>", 1)[0]
     return '<section id="external-evaluation">' + body + "</section>"
+
+
+def _evaluation_overview(view):
+    """Expose validated dimensions before the detailed proposal, never infer null."""
+    status = escape(view["evaluation_status"])
+    notice = (
+        "Scores and comments are provisional; the required named audit is pending."
+        if view["evaluation_status"] == "audit-required"
+        else "Evaluation is incomplete; unavailable scores are not zero."
+        if view["evaluation_status"] != "completed"
+        else "Independent assessment is complete; this is not an A/B improvement claim."
+    )
+    rows = []
+    for name, dimension in view["dimensions"].items():
+        score = (
+            "Unknown"
+            if dimension["score"] is None
+            else f"{dimension['score']:g}% ({dimension['sum']}/6)"
+        )
+        rows.append(f"<tr><th>{escape(name)}</th><td>{escape(score)}</td></tr>")
+    return (
+        '<section id="evaluation-overview"><h2>Independent evaluation overview</h2>'
+        f"<p>Status: {status}</p><p class=notice>{notice}</p>"
+        "<table><thead><tr><th>Dimension</th><th>Score</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+        '<p><a href="#external-evaluation">Read all nine criteria, original '
+        "R1/R2/ADJ comments, evidence and audit status.</a></p></section>"
+    )
+
+
+def _evaluated_html(selection, snapshots, view, presentation_version):
+    document = _utf8(render_selection_html(selection, snapshots))
+    if presentation_version == "1.1.0":
+        document = document.replace(
+            "</section>", "</section>" + _evaluation_overview(view), 1
+        ).replace(
+            '<a href="#brief">Brief</a>',
+            '<a href="#evaluation-overview">Scores</a><a href="#brief">Brief</a>',
+            1,
+        )
+    elif presentation_version != "1.0.0":
+        raise Stage2Error("evaluation-delivery-presentation-version-invalid")
+    return document.replace("</main>", _evaluation_fragment(view) + "</main>")
 
 
 def _candidate_order_normalized(packet):
@@ -281,7 +325,7 @@ def build_evaluated_delivery(
     view = evaluation_projection(
         bundle, selection, source_root, expected_bundle_sha256=expected_bundle_sha256
     )
-    html = render_selection_html(selection, source_snapshots).decode("utf-8")
+    html = _evaluated_html(selection, source_snapshots, view, "1.1.0")
     markdown = render_proposal(
         selection,
         source_snapshots,
@@ -290,7 +334,6 @@ def build_evaluated_delivery(
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
-    html = html.replace("</main>", _evaluation_fragment(view) + "</main>")
     markdown += "\n\n" + _utf8(render_evaluation_markdown(view))
     destination = private_output(output_dir)
     if destination.exists():
@@ -325,6 +368,7 @@ def build_evaluated_delivery(
     manifest = {
         "kind": "Stage2EvaluatedDelivery",
         "schema_version": "3.0.0",
+        "presentation_version": "1.1.0",
         "core_selection_sha256": canonical_hash(selection),
         "bundle_sha256": expected_bundle_sha256,
         "event_head": event_head,
@@ -385,10 +429,11 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
         {**source, "path": "sources/" + source["path"]}
         for source in selection["evaluation_packet"]["sources"]
     ]
-    html = (
-        render_selection_html(selection, snapshots)
-        .decode("utf-8")
-        .replace("</main>", _evaluation_fragment(projection) + "</main>")
+    html = _evaluated_html(
+        selection,
+        snapshots,
+        projection,
+        manifest.get("presentation_version", "1.0.0"),
     )
     markdown = render_proposal(
         selection,

@@ -1,5 +1,9 @@
 # 評估指標操作型定義
 
+**目前 Stage 2：**明確使用 v3 時，採本檔末段九項 `S2V3_*` 與
+[v3 評估流程](stage2/STAGE2_V3_EVALUATION.zh-TW.md)。每面向固定三項／六分，
+必要項目 null 時整個面向也為 null；下方 v1／v2 保留原分母。
+
 **目前 Stage 1：**rubric v3、[evaluator v3.1](stage1/EVALUATOR_V3_1.zh-TW.md)。
 原生搜尋只計實際 action 與已公開的 queries；沒有回傳結果清單時，結果數為未知。
 範圍入口另報未授權縮小範圍次數、決定可追溯率與必要澄清是否完成，不併入 P1–P3。
