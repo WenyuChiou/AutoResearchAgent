@@ -21,6 +21,7 @@ from copy import deepcopy
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from stage2_common import canonical_hash
+from stage2_common import Stage2Error
 from stage2_live.calibration import prepare_calibration
 from stage2_live.replay import verify_calibration_unit, verify_extraction
 from stage2_common import validate_packet
@@ -85,12 +86,25 @@ def _relative(value, label):
 
 def _contained(root, relative, label, *, directory=False):
     posix = _relative(relative, label)
+    # The host chooses the evidence root; canonicalize platform aliases such as
+    # macOS /var. Manifest-controlled components must be checked before resolve.
     root = Path(root).resolve()
     path = root.joinpath(*posix.parts)
-    current = root
-    for part in posix.parts:
-        current = current / part
-        _require(not current.is_symlink(), f"symlink escape in {label}")
+    components = list(
+        root.joinpath(*posix.parts[:index]) for index in range(1, len(posix.parts) + 1)
+    )
+    for current in components:
+        try:
+            attributes = getattr(current.lstat(), "st_file_attributes", 0)
+        except FileNotFoundError:
+            attributes = 0
+        except OSError as error:
+            raise FormalError(f"cannot inspect {label} path component") from error
+        junction = hasattr(current, "is_junction") and current.is_junction()
+        _require(
+            not current.is_symlink() and not junction and not attributes & 0x400,
+            f"linked path component in {label}",
+        )
     resolved = path.resolve()
     try:
         resolved.relative_to(root)
@@ -120,7 +134,7 @@ def _read_ref(root, ref, label):
         raise FormalError(f"{label} is not UTF-8 JSON") from error
 
 
-def _read_manifest(path, root, receipt, kind):
+def _read_manifest(path, root, receipt, kind, *, versions=(VERSION,)):
     path = _contained(root, path, "manifest")
     raw = path.read_bytes()
     _sha(receipt, "externally retained manifest receipt")
@@ -133,7 +147,7 @@ def _read_manifest(path, root, receipt, kind):
     except (UnicodeDecodeError, ValueError) as error:
         raise FormalError("manifest is not UTF-8 JSON") from error
     _require(value.get("kind") == kind, f"wrong {kind} kind")
-    _require(value.get("schema_version") == VERSION, f"wrong {kind} version")
+    _require(value.get("schema_version") in versions, f"wrong {kind} version")
     return value
 
 
@@ -475,6 +489,78 @@ def _calibration_blockers(calibration, root, verifier=verify_calibration_unit):
     return blockers
 
 
+def _rubric_quality_blockers(binding, root, verifier=None, *, judge_contract=None):
+    """Require replayed native QA, not a hand-filled aggregate acceptance flag."""
+    from .rubric_admission import verify_rubric_quality_admission
+
+    expected = (
+        "verification_code_sha256",
+        "model",
+        "reasoning",
+        "runtime_sha256",
+        "rubric_sha256",
+        "guidance_sha256",
+        "execution_policy_sha256",
+    )
+    _fields(
+        binding,
+        (
+            "dataset",
+            "reference",
+            "run_dir",
+            "run_result_sha256_receipt",
+            "codex_executable",
+            *expected,
+        ),
+        "rubric quality binding",
+    )
+    dataset, _ = _read_ref(root, binding["dataset"], "rubric quality dataset")
+    reference, _ = _read_ref(root, binding["reference"], "rubric quality reference")
+    run_dir = _contained(root, binding["run_dir"], "rubric quality run", directory=True)
+    _sha(binding["run_result_sha256_receipt"], "rubric quality run receipt")
+    _text(binding["codex_executable"], "rubric quality executable")
+    executable = Path(binding["codex_executable"])
+    _require(executable.is_absolute(), "rubric quality executable must be absolute")
+    for field in expected:
+        if field.endswith("sha256"):
+            _sha(binding[field], f"rubric quality {field}")
+        else:
+            _text(binding[field], f"rubric quality {field}")
+    try:
+        result = (verifier or verify_rubric_quality_admission)(
+            dataset,
+            reference,
+            dataset_sha256=canonical_hash(dataset),
+            reference_sha256=canonical_hash(reference),
+            run_dir=run_dir,
+            run_result_sha256=binding["run_result_sha256_receipt"],
+            codex=executable,
+        )
+    except (Stage2Error, OSError) as error:
+        raise FormalError(f"rubric quality replay failed: {error}") from error
+    _require(isinstance(result, dict), "rubric quality replay is not an object")
+    actual = result.get("bindings")
+    _require(
+        isinstance(actual, dict)
+        and all(actual.get(field) == binding[field] for field in expected),
+        "rubric quality verification differs from manifest binding",
+    )
+    if judge_contract is not None:
+        _require(
+            all(
+                actual[field] == judge_contract.get(field)
+                for field in ("model", "reasoning", "runtime_sha256")
+            ),
+            "rubric quality judge differs from frozen evaluation plan",
+        )
+    _require(
+        result.get("formal_ready") is False, "QA cannot itself assert formal readiness"
+    )
+    if result.get("accepted") is not True:
+        return ["rubric-quality-not-accepted"]
+    return []
+
+
 def validate_readiness_v1(
     manifest_path,
     evidence_root,
@@ -493,6 +579,7 @@ def validate_readiness_v1(
         evidence_root,
         externally_retained_manifest_receipt,
         "Stage2FormalReadinessManifest",
+        versions=(VERSION, "1.1.0"),
     )
     _fields(
         manifest,
@@ -503,6 +590,7 @@ def validate_readiness_v1(
             "pilots",
             "calibration",
             "formal_plan",
+            *(("rubric_quality",) if manifest["schema_version"] == "1.1.0" else ()),
         ),
         "readiness manifest",
     )
@@ -521,6 +609,8 @@ def validate_readiness_v1(
                 "complete-subagent-budget-accounting-unavailable",
             ]
         )
+        if manifest["schema_version"] == VERSION:
+            blockers.append("legacy-rubric-quality-evidence-unbound")
     plan, _ = _read_ref(evidence_root, manifest["formal_plan"], "formal plan")
     validate_formal_plan_v1(plan, evidence_root)
     preflights = manifest["preflights"]
@@ -655,6 +745,15 @@ def validate_readiness_v1(
             verifiers.get("verify_calibration_unit", verify_calibration_unit),
         )
     )
+    if manifest["schema_version"] == "1.1.0":
+        blockers.extend(
+            _rubric_quality_blockers(
+                manifest["rubric_quality"],
+                evidence_root,
+                verifiers.get("verify_rubric_quality"),
+                judge_contract=plan["evaluator_contracts"]["judge"],
+            )
+        )
     plan, _ = _read_ref(evidence_root, manifest["formal_plan"], "formal plan")
     validate_formal_plan_v1(plan, evidence_root)
     if synthetic:
