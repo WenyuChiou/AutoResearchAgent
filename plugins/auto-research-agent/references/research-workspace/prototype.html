@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>研究工作區｜離線互動參考</title>
+    <title>Research Workspace | Offline Interaction Reference</title>
     <style>
       :root {
         --paper: #f4eedf;
@@ -24,7 +24,7 @@
         margin: 0;
         background: var(--paper);
         color: var(--ink);
-        font-family: "Noto Serif TC", "PMingLiU", "Yu Mincho", serif;
+        font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
         font-size: 18px;
         line-height: 1.55;
       }
@@ -60,7 +60,7 @@
       .eyebrow {
         margin: 0 0 7px;
         color: var(--teal);
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: Aptos, "Segoe UI", sans-serif;
         font-size: 14px;
         font-weight: 700;
         letter-spacing: 0.14em;
@@ -102,7 +102,7 @@
         display: block;
         text-align: right;
         font:
-          13px/1.4 "Microsoft JhengHei",
+          13px/1.4 Aptos,
           sans-serif;
         color: var(--danger);
         margin-top: 7px;
@@ -122,7 +122,7 @@
         color: #dce5df;
         padding: 15px 12px;
         text-align: left;
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: Aptos, "Segoe UI", sans-serif;
       }
       .stage:last-child {
         border-right: 1px solid #ffffff25;
@@ -152,7 +152,7 @@
         border-bottom: 0;
       }
       .stage.locked span::after {
-        content: " · 尚未接通";
+        content: " · Not connected";
         font-size: 11px;
         color: #e2c58f;
       }
@@ -193,7 +193,7 @@
         padding: 15px 18px;
         border-bottom: 1px solid var(--line);
         font:
-          700 13px/1.3 "Microsoft JhengHei",
+          700 13px/1.3 Aptos,
           sans-serif;
         letter-spacing: 0.12em;
         color: var(--muted);
@@ -217,7 +217,7 @@
         display: block;
         color: var(--muted);
         font:
-          12px/1.4 "Microsoft JhengHei",
+          12px/1.4 Aptos,
           sans-serif;
       }
       .node:hover,
@@ -233,7 +233,7 @@
       }
       .kicker {
         font:
-          700 13px/1.3 "Microsoft JhengHei",
+          700 13px/1.3 Aptos,
           sans-serif;
         color: var(--ochre);
         letter-spacing: 0.12em;
@@ -256,7 +256,7 @@
       }
       .section-title {
         font:
-          700 14px/1.3 "Microsoft JhengHei",
+          700 14px/1.3 Aptos,
           sans-serif;
         letter-spacing: 0.08em;
         color: var(--teal);
@@ -274,7 +274,7 @@
       }
       .note-card b {
         display: block;
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: Aptos, "Segoe UI", sans-serif;
       }
       .note-card p {
         margin: 7px 0 0;
@@ -287,7 +287,7 @@
         background: #e3ece6;
         color: var(--teal);
         font:
-          700 12px/1.2 "Microsoft JhengHei",
+          700 12px/1.2 Aptos,
           sans-serif;
         margin: 0 7px 7px 0;
       }
@@ -318,7 +318,7 @@
       }
       .detail-block h3 {
         font:
-          700 13px/1.3 "Microsoft JhengHei",
+          700 13px/1.3 Aptos,
           sans-serif;
         color: var(--muted);
         margin: 0 0 7px;
@@ -364,7 +364,7 @@
         background: #466a86;
       }
       .status b {
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: Aptos, "Segoe UI", sans-serif;
       }
       .status p {
         margin: 2px 0 0;
@@ -384,7 +384,7 @@
         vertical-align: top;
       }
       th {
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: Aptos, "Segoe UI", sans-serif;
         color: var(--muted);
       }
       .empty-note {
@@ -396,7 +396,7 @@
         padding: 0 clamp(22px, 5vw, 72px) 32px;
         color: var(--muted);
         font:
-          13px/1.5 "Microsoft JhengHei",
+          13px/1.5 Aptos,
           sans-serif;
       }
       @media (max-width: 1050px) {
@@ -448,109 +448,148 @@
       <header>
         <div class="mast">
           <div>
-            <p class="eyebrow">示意資料 · 離線流程小樣 · 執行器尚未接通</p>
-            <h1>研究工作區</h1>
+            <p class="eyebrow">
+              SYNTHETIC DATA · OFFLINE WORKFLOW PROTOTYPE · EXECUTOR NOT
+              CONNECTED
+            </p>
+            <h1>Research Workspace</h1>
             <p class="subtitle">
-              把研究流程整理成可閱讀、可追查的編輯桌面。此頁只示範資訊架構，所有紀錄皆為合成內容。
+              A readable, traceable editorial desk for research workflows. This
+              page demonstrates information architecture only; every record is
+              synthetic.
             </p>
           </div>
           <div>
             <div class="controls">
-              <button class="control" disabled title="本機執行器尚未接通">
-                開始研究</button
-              ><button class="control" disabled title="本機執行器尚未接通">
-                繼續執行
+              <button
+                class="control"
+                disabled
+                title="Local executor is not connected"
+              >
+                Start Research</button
+              ><button
+                class="control"
+                disabled
+                title="Local executor is not connected"
+              >
+                Continue Run
               </button>
             </div>
-            <span class="control-note">研究控制已停用：等待本機執行器接通</span>
+            <span class="control-note"
+              >Research controls are disabled while the local executor is
+              pending.</span
+            >
           </div>
         </div>
       </header>
-      <nav class="stage-rail" id="stageRail" aria-label="研究階段"></nav>
-      <nav class="view-tabs" aria-label="內容檢視">
+      <nav class="stage-rail" id="stageRail" aria-label="Research stages"></nav>
+      <nav class="view-tabs" aria-label="Content views">
         <button class="view-tab active" data-view="wiki">Wiki</button
-        ><button class="view-tab" data-view="delivery">交付與來源</button
-        ><button class="view-tab" data-view="history">評估與歷史</button>
+        ><button class="view-tab" data-view="delivery">
+          Deliverables & Sources</button
+        ><button class="view-tab" data-view="history">
+          Evaluation & History
+        </button>
       </nav>
       <main>
         <section class="panel">
-          <div class="panel-head" id="outlineTitle">階段節點</div>
+          <div class="panel-head" id="outlineTitle">Stage Nodes</div>
           <div class="node-list" id="nodeList"></div>
         </section>
         <article class="panel" id="article" aria-live="polite"></article>
         <aside class="panel">
-          <div class="panel-head">所選節點</div>
+          <div class="panel-head">Selected Node</div>
           <div class="detail" id="detail"></div>
         </aside>
       </main>
       <p class="footer-note">
-        離線互動參考 ·
-        重新整理只會重設示意介面，不會派送工作、寫入資料或重新執行研究。
+        Offline interaction reference · Refreshing resets this prototype only.
+        It cannot dispatch work, write data, or rerun research.
       </p>
     </div>
     <script>
       const stages = [
         {
           n: "Stage 1",
-          title: "證據",
-          purpose: "建立可追查的文獻與主張基礎。",
+          title: "Evidence",
+          purpose: "Build a traceable foundation of literature and claims.",
           nodes: [
-            "範圍與地域",
-            "關鍵字與概念",
-            "搜尋與閱讀",
-            "核心／經典／最接近研究分類",
-            "主張查核",
-            "覆蓋與停止判斷",
-            "交付套件",
-            "P1–P3 評估",
+            "Scope & Geography",
+            "Keywords & Concepts",
+            "Search & Reading",
+            "Core, Classic & Closest-Work Roles",
+            "Claim Checks",
+            "Coverage & Stop Decision",
+            "Deliverable Package",
+            "P1–P3 Evaluation",
           ],
         },
         {
           n: "Stage 2",
-          title: "比較與方向",
-          purpose: "從共同證據視圖比較研究並形成可選方向。",
+          title: "Comparison & Directions",
+          purpose:
+            "Compare research through a shared evidence view and form viable directions.",
           nodes: [
-            "匯入 Stage 1",
-            "共同比較",
-            "開放構想",
-            "擷取候選紀錄",
-            "獨立挑戰與可行性",
-            "修正／補查／暫存／淘汰",
-            "選擇套件",
-            "P4–P6 評估",
-            "使用者決定與 Stage 3 交接",
+            "Import Stage 1",
+            "Common Comparison",
+            "Open Ideation",
+            "Capture Candidate Records",
+            "Independent Challenge & Feasibility",
+            "Revise, Recheck, Park or Reject",
+            "Selection Package",
+            "P4–P6 Evaluation",
+            "User Decision & Stage 3 Handoff",
           ],
         },
         {
           n: "Stage 3",
-          title: "研究設計",
-          purpose: "把選定方向轉成可檢驗的問題、設計與驗證計畫。",
-          nodes: ["方向輸入", "問題與方法設計", "驗證與交付規格"],
+          title: "Study Design",
+          purpose:
+            "Turn the selected direction into a testable question, design, and validation plan.",
+          nodes: [
+            "Direction Input",
+            "Question & Method Design",
+            "Validation & Delivery Spec",
+          ],
         },
         {
           n: "Stage 4",
-          title: "執行",
-          purpose: "依核准計畫執行並保存版本、失敗與資源紀錄。",
-          nodes: ["設計封包輸入", "執行與觀察", "可重建輸出"],
+          title: "Execution",
+          purpose:
+            "Run the approved plan while preserving versions, failures, and resource records.",
+          nodes: [
+            "Design Package Input",
+            "Run & Observe",
+            "Reproducible Output",
+          ],
         },
         {
           n: "Stage 5",
-          title: "分析",
-          purpose: "把執行結果轉成有邊界、可檢查的分析。",
-          nodes: ["結果與品質輸入", "分析與穩健性", "結論與限制輸出"],
+          title: "Analysis",
+          purpose: "Turn execution results into bounded, reviewable analysis.",
+          nodes: [
+            "Results & Quality Input",
+            "Analysis & Robustness",
+            "Findings & Limits",
+          ],
         },
         {
           n: "Stage 6",
-          title: "寫作與投稿",
-          purpose: "將證據、方法、結果與限制組成可編輯稿件。",
-          nodes: ["已核准材料輸入", "論述與引用寫作", "稿件與投稿交付物"],
+          title: "Writing & Submission",
+          purpose:
+            "Shape the evidence, methods, results, and limits into an editable manuscript.",
+          nodes: [
+            "Approved Materials",
+            "Argument & Citation Writing",
+            "Manuscript & Submission Deliverables",
+          ],
         },
       ];
       let state = {
         stage: 0,
         node: 0,
         view: "wiki",
-        history: "嘗試 A · 版本 v0（合成）",
+        history: "Attempt A · Version v0 (synthetic)",
       };
       const $ = (id) => document.getElementById(id);
       const make = (tag, text, cls) => {
@@ -614,25 +653,25 @@
           root.append(
             make(
               "div",
-              "尚未接通執行：此階段目前只顯示預期的輸入、目的與輸出，不代表已執行或已有結果。",
+              "Execution is not connected: this stage shows expected inputs, purpose, and outputs only. It does not imply a run or results.",
               "read-only",
             ),
           );
         root.append(make("div", undefined, "rule"));
-        addSection(root, "此節點要完成什麼", nodePurpose(name));
+        addSection(root, "What this node must complete", nodePurpose(name));
         const grid = make("div", undefined, "card-grid");
         [
-          ["輸入", nodeInput(name)],
-          ["輸出", nodeOutput(name)],
+          ["Input", nodeInput(name)],
+          ["Output", nodeOutput(name)],
           [
-            "證據邊界",
-            "所有示意紀錄均為合成；未讀取私人論文，也不把搜尋結果自動升格為研究結論。",
+            "Evidence boundary",
+            "Every example record is synthetic. No private papers were read, and search results are never promoted automatically into research findings.",
           ],
           [
-            "狀態",
+            "Status",
             state.stage > 1
-              ? "唯讀規格 · 尚未接通執行"
-              : "互動參考 · 不會派送或儲存",
+              ? "Read-only specification · Execution not connected"
+              : "Interaction reference · No dispatch or storage",
           ],
         ].forEach((x) => {
           const c = make("div", undefined, "note-card");
@@ -642,30 +681,36 @@
         root.append(grid);
         addSection(
           root,
-          "來源閱讀",
-          "可從安全的已知相對路徑閱讀外掛狀態；其餘來源按鈕保持停用，避免誤連到未驗證位置。",
+          "Source reading",
+          "The plugin status is available through a safe, known relative path. Other source controls stay disabled to prevent links to unverified locations.",
         );
-        const a = make("a", "開啟外掛 README", "source-link");
+        const a = make("a", "Open plugin README", "source-link");
         a.href = "../../README.md";
         root.append(a);
       }
       function renderDelivery(root, s, name) {
         root.append(
-          make("div", "交付與來源 / 合成示意", "kicker"),
-          make("h2", s.n + " 的交付界面"),
+          make("div", "Deliverables & Sources / Synthetic Example", "kicker"),
+          make("h2", s.n + " Delivery Interface"),
           make(
             "p",
-            "這裡呈現預期交付物與來源綁定方式；沒有實際論文檔案，也不會下載或匯出。",
+            "This view shows expected deliverables and source bindings. It contains no paper files and cannot download or export anything.",
             "lede",
           ),
         );
         root.append(make("div", undefined, "rule"));
         const grid = make("div", undefined, "card-grid");
         [
-          ["節點輸出", nodeOutput(name)],
-          ["來源狀態", "示意來源 S-A · metadata-only · 不冒充全文"],
-          ["版本綁定", "work-demo / version-demo · 合成標籤"],
-          ["私密邊界", "私人來源應留在 Git 外；本頁未嵌入任何全文或憑證"],
+          ["Node output", nodeOutput(name)],
+          [
+            "Source status",
+            "Synthetic source S-A · metadata-only · never presented as full text",
+          ],
+          ["Version binding", "work-demo / version-demo · synthetic labels"],
+          [
+            "Private boundary",
+            "Private sources stay outside Git; this page embeds no full text or credentials",
+          ],
         ].forEach((x) => {
           const c = make("div", undefined, "note-card");
           c.append(make("b", x[0]), make("p", x[1]));
@@ -673,29 +718,37 @@
         });
         root.append(
           grid,
-          make("div", "來源按鈕停用：尚無已驗證的本機交付套件。", "read-only"),
+          make(
+            "div",
+            "Source control disabled: no verified local deliverable package is bound.",
+            "read-only",
+          ),
         );
-        const b = make("button", "檢視來源檔", "control");
+        const b = make("button", "View Source File", "control");
         b.disabled = true;
-        b.title = "本機來源尚未綁定";
+        b.title = "No local source is bound";
         root.append(b);
       }
       function renderHistory(root, s) {
         root.append(
-          make("div", "評估與歷史 / 合成示意", "kicker"),
-          make("h2", s.n + " 的明確版本檢視"),
+          make("div", "Evaluation & History / Synthetic Example", "kicker"),
+          make("h2", s.n + " Explicit Version View"),
           make(
             "p",
-            "歷史選擇器綁定嘗試與版本，不隨主題名稱改變，也不會在切換時重跑研究。",
+            "The history selector binds an explicit attempt and version independently of the topic name. Switching it never reruns research.",
             "lede",
           ),
         );
-        const label = make("label", "選擇明確的嘗試／版本", "section-title"),
+        const label = make(
+            "label",
+            "Select an explicit attempt and version",
+            "section-title",
+          ),
           select = make("select", undefined, "history");
         [
-          "嘗試 A · 版本 v0（合成）",
-          "嘗試 B · 版本 v1（合成）",
-          "嘗試 C · 版本 v2（合成）",
+          "Attempt A · Version v0 (synthetic)",
+          "Attempt B · Version v1 (synthetic)",
+          "Attempt C · Version v2 (synthetic)",
         ].forEach((v) => {
           const o = make("option", v);
           o.value = v;
@@ -714,19 +767,29 @@
           select,
           make(
             "p",
-            "目前綁定：" + state.history + "。切換只改變本頁展示。",
+            "Currently bound: " +
+              state.history +
+              ". Switching changes this display only.",
             "history-note",
           ),
         );
         root.append(make("div", undefined, "rule"));
         [
-          ["unknown", "未知", "必要證據尚未取得，因此不評分。"],
+          [
+            "unknown",
+            "Unknown",
+            "Required evidence is unavailable, so no score is assigned.",
+          ],
           [
             "failure",
-            "評估器失敗",
-            "評估流程或解析器失敗；不是受測研究的低分。",
+            "Evaluator failure",
+            "The evaluation process or parser failed. This is not a low score for the research under review.",
           ],
-          ["low", "觀察到低分", "已有足夠證據，並觀察到 rubric 所定義的缺失。"],
+          [
+            "low",
+            "Observed low score",
+            "Evidence is sufficient, and a rubric-defined deficiency was observed.",
+          ],
         ].forEach((x) => {
           const box = make("div", undefined, "status " + x[0]),
             dot = make("i"),
@@ -737,13 +800,13 @@
         });
         addSection(
           root,
-          "P 指標狀態",
+          "P-metric status",
           (state.stage === 0
             ? "P1–P3"
             : state.stage === 1
               ? "P4–P6"
-              : "預留評估") +
-            "：未評分。此原型不產生研究分數，也不把介面完整度當成品質改善證據。",
+              : "Reserved evaluation") +
+            ": unscored. This prototype produces no research score and does not treat interface completeness as evidence of quality improvement.",
         );
       }
       function renderDetail() {
@@ -752,20 +815,20 @@
           d = $("detail");
         d.replaceChildren();
         [
-          ["目前選取", s.n + " · " + name],
-          ["輸入", nodeInput(name)],
-          ["輸出", nodeOutput(name)],
+          ["Current selection", s.n + " · " + name],
+          ["Input", nodeInput(name)],
+          ["Output", nodeOutput(name)],
           [
-            "為何阻擋",
+            "Why blocked",
             state.stage > 1
-              ? "前置階段尚無已核准交接，且本機執行器未接通。"
-              : "這是離線小樣；未綁定研究執行器與真實來源。",
+              ? "No approved handoff exists from the prior stage, and the local executor is not connected."
+              : "This is an offline prototype with no research executor or real sources bound.",
           ],
           [
-            "下一步",
+            "Next action",
             state.stage > 1
-              ? "先完成並明確核准上一階段的版本化交接。"
-              : "接通本機執行器後，再由使用者啟動真實流程。",
+              ? "Complete and explicitly approve the versioned handoff from the prior stage."
+              : "Connect the local executor, then let the user start the real workflow.",
           ],
         ].forEach((x) => {
           const b = make("div", undefined, "detail-block");
@@ -785,38 +848,43 @@
       }
       function nodePurpose(n) {
         const map = {
-          "範圍與地域":
-            "保留原始研究方向、地域選擇與未決事項，避免把建議誤記為已接受範圍。",
-          "核心／經典／最接近研究分類":
-            "分開保存三種角色及其來源理由；年齡、名氣或相似標題都不能自動成立。",
-          "主張查核":
-            "逐一區分 supported、partial、contradicted 與 unverifiable。",
-          "覆蓋與停止判斷":
-            "檢查近期搜尋、最接近研究、未解需求與停止理由，不以篇數代替充分性。",
-          "獨立挑戰與可行性":
-            "另行檢查 closest work、材料、可回答性、驗證途徑與資源依賴。",
-          "修正／補查／暫存／淘汰":
-            "以證據保存 revise、park、reject 的理由與解除條件。",
-          "使用者決定與 Stage 3 交接":
-            "記錄人類選擇，將選定方向與未解事項交給下一階段。",
+          "Scope & Geography":
+            "Preserve the original research direction, geographic choice, and open decisions without treating a suggestion as an accepted scope.",
+          "Core, Classic & Closest-Work Roles":
+            "Keep the three roles and their source-based reasons separate; age, prominence, or a similar title establishes none of them automatically.",
+          "Claim Checks":
+            "Classify each claim as supported, partial, contradicted, or unverifiable.",
+          "Coverage & Stop Decision":
+            "Check the recent sweep, closest work, unresolved needs, and stopping rationale without substituting paper counts for sufficiency.",
+          "Independent Challenge & Feasibility":
+            "Independently check closest work, materials, answerability, validation paths, and resource dependencies.",
+          "Revise, Recheck, Park or Reject":
+            "Preserve evidence-based reasons and release conditions for revision, rechecking, parking, or rejection.",
+          "User Decision & Stage 3 Handoff":
+            "Record the human choice and hand the selected direction and unresolved items to the next stage.",
         };
         return (
           map[n] ||
-          "以清楚的輸入、決策理由與版本化輸出完成此節點，並保留未知與失敗。"
+          "Complete this node with clear inputs, decision reasons, and versioned outputs while preserving unknowns and failures."
         );
       }
       function nodeInput(n) {
-        if (n.includes("匯入")) return "已核准的 Stage 1 交付與外部雜湊";
-        if (n.includes("評估")) return "版本化證據視圖與凍結 rubric";
-        if (state.stage > 1) return "上一階段已核准、可重建的交接封包";
-        return "合成研究簡述、示意來源紀錄與未解問題";
+        if (n.includes("Import"))
+          return "Approved Stage 1 deliverable with an external hash";
+        if (n.includes("Evaluation"))
+          return "Versioned evidence view and frozen rubric";
+        if (state.stage > 1)
+          return "Approved, reproducible handoff package from the prior stage";
+        return "Synthetic research brief, example source records, and open questions";
       }
       function nodeOutput(n) {
-        if (n.includes("評估")) return "分開的 P 指標狀態：目前皆為未評分";
-        if (n.includes("交付") || n.includes("套件"))
-          return "版本化選擇／交付套件與來源對照";
-        if (state.stage > 1) return "唯讀輸出規格；目前沒有執行結果";
-        return "合成節點紀錄、理由、來源狀態與下一步";
+        if (n.includes("Evaluation"))
+          return "Separate P-metric states: all currently unscored";
+        if (state.stage > 1)
+          return "Read-only output specification; no execution result exists";
+        if (n.includes("Package") || n.includes("Deliverable"))
+          return "Versioned choice or delivery package with source mapping";
+        return "Synthetic node record, rationale, source status, and next action";
       }
       document.querySelectorAll(".view-tab").forEach((b) => {
         b.setAttribute("aria-pressed", String(b.dataset.view === state.view));
