@@ -326,7 +326,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_live",
       "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
-      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls. Inventory receipt2.0 binds five supported RPC responses and separately captured host model-request tools; unknown offered tools block admission and unsupported tools/list is never required.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -387,7 +387,8 @@
         "plugins/auto-research-agent/tests/test_stage2_readonly_replay.py",
         "plugins/auto-research-agent/tests/test_stage2_action_extraction.py",
         "plugins/auto-research-agent/tests/test_stage2_judge_replay.py",
-        "plugins/auto-research-agent/tests/test_stage2_environment.py"
+        "plugins/auto-research-agent/tests/test_stage2_environment.py",
+        "plugins/auto-research-agent/tests/test_stage2_inventory_v2.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false

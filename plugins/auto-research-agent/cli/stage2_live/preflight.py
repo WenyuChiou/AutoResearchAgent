@@ -26,11 +26,12 @@ archived call/output evidence.  Missing proof is reported as ``unknown`` and
 blocks the gate; a proved denial/failure is reported as ``failed``.
 
 The optional ``inventory_receipt`` is a frozen
-``Stage2RuntimeInventoryReceipt`` v1 object. Its six entries each bind the raw
-response bytes for config/read, thread/start, skills/list, plugin/list,
-mcpServerStatus/list, or tools/list. Missing and unsupported evidence remains
-unknown. Turn-context inventory fields are synthetic compatibility evidence
-only and cannot open the runtime gate.
+``Stage2RuntimeInventoryReceipt``. Historical v1 receipts bind six RPC response
+files, including tools/list. V2 binds the five RPCs supported by the current
+CLI and represents tools separately: only a hash-bound native model-request
+transport artifact can establish the complete offered-tool inventory. Missing
+tool evidence remains unknown. Turn-context inventory fields are synthetic
+compatibility evidence only and cannot open the runtime gate.
 """
 
 import hashlib
@@ -56,6 +57,15 @@ _FAILED = re.compile(
     re.IGNORECASE,
 )
 _INVENTORY_KEYS = ("instructions", "skills", "plugins", "mcp", "tools", "settings")
+_INVENTORY_V2_KEYS = ("instructions", "skills", "plugins", "mcp", "settings")
+_INVENTORY_SOURCES = {
+    "settings": "config/read",
+    "instructions": "thread/start",
+    "skills": "skills/list",
+    "plugins": "plugin/list",
+    "mcp": "mcpServerStatus/list",
+    "tools": "tools/list",
+}
 
 
 def _sha(data):
@@ -93,12 +103,22 @@ def _relative_path(value, label):
 
 def _capture_path(capture, value, label):
     path = capture / _relative_path(value, label)
-    resolved = path.resolve()
-    if not resolved.is_relative_to(capture) or any(
-        item.is_symlink()
-        for item in (path, *path.parents)
-        if item != capture and item.is_relative_to(capture)
-    ):
+    for item in (path, *path.parents):
+        if not item.is_relative_to(capture):
+            break
+        try:
+            attributes = item.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise PreflightError(f"{label} cannot inspect capture ancestry") from error
+        if item.is_symlink() or getattr(attributes, "st_file_attributes", 0) & 0x400:
+            raise PreflightError(f"{label} contains a symlink or reparse ancestor")
+    try:
+        resolved = path.resolve()
+    except (OSError, RuntimeError) as error:
+        raise PreflightError(f"{label} cannot resolve verified capture") from error
+    if not resolved.is_relative_to(capture):
         raise PreflightError(f"{label} escapes the verified capture")
     return path
 
@@ -619,61 +639,209 @@ def _parse_inventory_source(name, source, value):
     return None
 
 
-def _inventory(context, capture, receipt, archive_files):
+def _tool_identity(tool):
+    if not isinstance(tool, dict):
+        return None
+    kind = tool.get("type")
+    if kind == "function":
+        parameters = tool.get("parameters")
+        if (
+            _nonempty_string(tool.get("name"))
+            and isinstance(parameters, dict)
+            and parameters.get("type") == "object"
+        ):
+            return tool["name"].strip()
+    elif kind == "custom":
+        form = tool.get("format")
+        if (
+            _nonempty_string(tool.get("name"))
+            and isinstance(form, dict)
+            and form.get("type") in ("text", "grammar")
+        ):
+            return tool["name"].strip()
+    elif kind in ("web_search", "web_search_preview"):
+        return kind
+    return None
+
+
+def _parse_model_request_tools(value, context, thread_id):
+    if not isinstance(value, dict) or set(value) != {
+        "kind",
+        "schema_version",
+        "backend",
+        "thread_id",
+        "request_id",
+        "request",
+    }:
+        return None
+    if (
+        value["kind"] != "Stage2NativeModelRequest"
+        or value["schema_version"] != "1.0.0"
+        or value["backend"] != "responses"
+        or not _nonempty_string(value["request_id"])
+    ):
+        return None
+    request = value["request"]
+    if (
+        not isinstance(request, dict)
+        or not _nonempty_string(request.get("model"))
+        or not isinstance(request.get("input"), list)
+        or not request["input"]
+    ):
+        return None
+    if not _nonempty_string(thread_id) or not _nonempty_string(context.get("model")):
+        return None
+    if value["thread_id"] != thread_id or request["model"] != context["model"]:
+        return None
+    tools = request.get("tools")
+    if not isinstance(tools, list) or not tools:
+        return None
+    identities = [_tool_identity(tool) for tool in tools]
+    if any(identity is None for identity in identities) or len(set(identities)) != len(
+        identities
+    ):
+        return None
+    return {
+        "tools": tools,
+        "tool_identities": identities,
+        "backend": value["backend"],
+        "thread_id": thread_id,
+        "model": request["model"],
+        "request_id": value["request_id"],
+    }
+
+
+def _inventory_entry(name, capture, entry, archive_files):
+    if not isinstance(entry, dict) or set(entry) != {"source", "path", "sha256"}:
+        raise PreflightError(f"inventory {name} receipt fields are invalid")
+    if entry["source"] != _INVENTORY_SOURCES[name] or not _HEX.fullmatch(
+        str(entry["sha256"])
+    ):
+        raise PreflightError(f"inventory {name} source or hash is invalid")
+    path = _capture_path(capture, entry["path"], f"inventory {name} path")
+    if not path.is_file():
+        return {
+            "status": "unknown",
+            "value": None,
+            "source": entry["source"],
+            "evidence_file": entry["path"],
+        }
+    raw = path.read_bytes()
+    if _sha(raw) != entry["sha256"]:
+        raise PreflightError(f"inventory {name} raw-response hash differs")
+    archive_files.append(_archive_hash(path, capture))
+    try:
+        parsed = json.loads(raw)
+    except (UnicodeDecodeError, ValueError) as error:
+        raise PreflightError(f"inventory {name} raw response is malformed") from error
+    value = _parse_inventory_source(name, entry["source"], parsed)
+    return {
+        "status": "present" if value is not None else "unknown",
+        "value": value,
+        "source": entry["source"],
+        "evidence_file": entry["path"],
+    }
+
+
+def _v2_tools(capture, receipt, archive_files, context, thread_id):
+    entry = receipt.get("tools")
+    if entry is None:
+        return {
+            "status": "unknown",
+            "value": None,
+            "source": "native-model-request",
+            "evidence_file": None,
+        }
+    required = {"status", "source", "path", "sha256"}
+    if not isinstance(entry, dict) or not required.issubset(entry):
+        raise PreflightError("inventory tools receipt fields are invalid")
+    if (
+        entry["source"] != "native-model-request"
+        or not isinstance(entry["status"], str)
+        or entry["status"]
+        not in {
+            "unknown",
+            "captured",
+        }
+    ):
+        raise PreflightError("inventory tools source or status is invalid")
+    if entry["status"] == "unknown":
+        if entry["path"] is not None or entry["sha256"] is not None:
+            raise PreflightError("unknown inventory tools cannot claim evidence")
+        return {
+            "status": "unknown",
+            "value": None,
+            "source": entry["source"],
+            "evidence_file": None,
+        }
+    if not _HEX.fullmatch(str(entry["sha256"])):
+        raise PreflightError("inventory tools hash is invalid")
+    relative = _relative_path(entry["path"], "inventory tools path")
+    parts = tuple(part.lower() for part in relative.parts)
+    if len(parts) < 3 or parts[:2] not in {
+        ("archive", "transport"),
+        ("archive", "native-model-requests"),
+    }:
+        raise PreflightError(
+            "inventory tools must bind a host transport model-request artifact"
+        )
+    path = _capture_path(capture, entry["path"], "inventory tools path")
+    if not path.is_file():
+        return {
+            "status": "unknown",
+            "value": None,
+            "source": entry["source"],
+            "evidence_file": entry["path"],
+        }
+    raw = path.read_bytes()
+    if _sha(raw) != entry["sha256"]:
+        raise PreflightError("inventory tools raw-response hash differs")
+    archive_files.append(_archive_hash(path, capture))
+    try:
+        request = json.loads(raw)
+    except (UnicodeDecodeError, ValueError) as error:
+        raise PreflightError("inventory tools model request is malformed") from error
+    value = _parse_model_request_tools(request, context, thread_id)
+    if value is None:
+        raise PreflightError(
+            "inventory tools model request has invalid tool identities or runtime binding"
+        )
+    return {
+        "status": "present",
+        "value": value,
+        "source": entry["source"],
+        "evidence_file": entry["path"],
+    }
+
+
+def _inventory(context, capture, receipt, archive_files, primary_thread_id=None):
     fallback = _context_inventory(context)
     if receipt is None:
         return fallback, None
     if (
         not isinstance(receipt, dict)
         or receipt.get("kind") != "Stage2RuntimeInventoryReceipt"
-        or receipt.get("schema_version") != "1.0.0"
         or not isinstance(receipt.get("entries"), dict)
-        or set(receipt["entries"]) != set(_INVENTORY_KEYS)
     ):
         raise PreflightError("inventory receipt kind/schema/entries are invalid")
-    expected_sources = {
-        "settings": "config/read",
-        "instructions": "thread/start",
-        "skills": "skills/list",
-        "plugins": "plugin/list",
-        "mcp": "mcpServerStatus/list",
-        "tools": "tools/list",
-    }
+    version = receipt.get("schema_version")
+    if version == "1.0.0":
+        keys = _INVENTORY_KEYS
+    elif version == "2.0.0":
+        keys = _INVENTORY_V2_KEYS
+    else:
+        raise PreflightError("inventory receipt kind/schema/entries are invalid")
+    if set(receipt["entries"]) != set(keys):
+        raise PreflightError("inventory receipt kind/schema/entries are invalid")
     inventory = {}
-    for name in _INVENTORY_KEYS:
-        entry = receipt["entries"][name]
-        if not isinstance(entry, dict) or set(entry) != {"source", "path", "sha256"}:
-            raise PreflightError(f"inventory {name} receipt fields are invalid")
-        if entry["source"] != expected_sources[name] or not _HEX.fullmatch(
-            str(entry["sha256"])
-        ):
-            raise PreflightError(f"inventory {name} source or hash is invalid")
-        path = _capture_path(capture, entry["path"], f"inventory {name} path")
-        if not path.is_file():
-            inventory[name] = {
-                "status": "unknown",
-                "value": None,
-                "source": entry["source"],
-                "evidence_file": entry["path"],
-            }
-            continue
-        raw = path.read_bytes()
-        if _sha(raw) != entry["sha256"]:
-            raise PreflightError(f"inventory {name} raw-response hash differs")
-        archive_files.append(_archive_hash(path, capture))
-        try:
-            parsed = json.loads(raw)
-        except (UnicodeDecodeError, ValueError) as error:
-            raise PreflightError(
-                f"inventory {name} raw response is malformed"
-            ) from error
-        value = _parse_inventory_source(name, entry["source"], parsed)
-        inventory[name] = {
-            "status": "present" if value is not None else "unknown",
-            "value": value,
-            "source": entry["source"],
-            "evidence_file": entry["path"],
-        }
+    for name in keys:
+        inventory[name] = _inventory_entry(
+            name, capture, receipt["entries"][name], archive_files
+        )
+    if version == "2.0.0":
+        inventory["tools"] = _v2_tools(
+            capture, receipt, archive_files, context, primary_thread_id
+        )
     return inventory, _canonical_hash(receipt)
 
 
@@ -857,7 +1025,7 @@ def inspect_preflight(
     if not _nonempty_string(thread_id) or not primary_matches:
         blockers.append("primary-session-missing")
         inventory, inventory_receipt_sha256 = _inventory(
-            {}, capture, inventory_receipt, archive_files
+            {}, capture, inventory_receipt, archive_files, thread_id
         )
         capabilities = _unknown_capabilities("primary archived session is unavailable")
         actual = {
@@ -878,7 +1046,7 @@ def inspect_preflight(
         if context is None:
             blockers.append("primary-turn-context-missing")
             inventory, inventory_receipt_sha256 = _inventory(
-                {}, capture, inventory_receipt, archive_files
+                {}, capture, inventory_receipt, archive_files, thread_id
             )
             capabilities = _unknown_capabilities("primary turn_context is unavailable")
             actual = {
@@ -895,7 +1063,7 @@ def inspect_preflight(
             }
         else:
             inventory, inventory_receipt_sha256 = _inventory(
-                context, capture, inventory_receipt, archive_files
+                context, capture, inventory_receipt, archive_files, thread_id
             )
             actual = _actual_runtime(context, workspace)
             indexes = _event_index(primary_events)
