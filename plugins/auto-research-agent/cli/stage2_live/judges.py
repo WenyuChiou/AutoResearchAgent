@@ -30,6 +30,8 @@ from stage2_eval.evaluation import RUBRIC_PATH
 
 from .judge_schemas import content_assessment_schema, judge_assessment_schema
 
+GUIDANCE_PATH = RUBRIC_PATH.with_name("stage2-judge-guidance.v1.json")
+
 
 def _write_new_or_equal(path, value):
     path = Path(path)
@@ -49,8 +51,52 @@ def _read_rubric():
         raise Stage2Error(f"cannot load Stage 2 rubric: {error}") from error
 
 
+def _read_guidance():
+    try:
+        value = json.loads(GUIDANCE_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError) as error:
+        raise Stage2Error(f"cannot load Stage 2 judge guidance: {error}") from error
+    keys = {
+        "kind",
+        "schema_version",
+        "rubric_id",
+        "purpose",
+        "observation_statuses",
+        "major_error_rules",
+        "decision_order",
+    }
+    if (
+        not isinstance(value, dict)
+        or set(value) != keys
+        or value.get("kind") != "Stage2JudgeGuidance"
+        or value.get("schema_version") != "1.0.0"
+        or value.get("rubric_id") != "stage2-general-v2"
+    ):
+        raise Stage2Error("invalid Stage 2 judge guidance contract")
+    statuses, rules, order = (
+        value["observation_statuses"],
+        value["major_error_rules"],
+        value["decision_order"],
+    )
+    if (
+        not isinstance(statuses, dict)
+        or set(statuses) != {"observed", "unavailable", "verified-absent"}
+        or not isinstance(rules, dict)
+        or set(rules) != set(_read_rubric()["major_error_ids"])
+        or not isinstance(order, list)
+        or not order
+    ):
+        raise Stage2Error("invalid Stage 2 judge guidance rules")
+    texts = [value["purpose"], *statuses.values(), *rules.values(), *order]
+    if any(not isinstance(text, str) or not text.strip() for text in texts):
+        raise Stage2Error("empty Stage 2 judge guidance rule")
+    return value
+
+
 def _code_binding():
+    _read_guidance()
     paths = [Path(__file__), Path(judge_schemas.__file__), Path(stage2_common.__file__)]
+    paths.append(GUIDANCE_PATH)
     paths.append(Path(__file__).with_name("native.py"))
     paths.extend(sorted(Path(stage2_eval.evaluation.__file__).parent.glob("*.py")))
     import hashlib
@@ -330,7 +376,11 @@ def _content_prompt(content_view, rubric):
         "disposition, score, other reviewer output, or experimental identity. Use only "
         "the admitted evidence IDs. Return the required Stage2ContentAssessment JSON.\n"
         + json.dumps(
-            {"rubric": rubric, "content_view": content_view},
+            {
+                "rubric": rubric,
+                "judge_guidance": _read_guidance(),
+                "content_view": content_view,
+            },
             ensure_ascii=False,
             sort_keys=True,
         )
@@ -346,6 +396,7 @@ def _judge_prompt(role, content_view, action_view, rubric, prior=None):
     payload = {
         "assigned_role": role,
         "rubric": rubric,
+        "judge_guidance": _read_guidance(),
         "content_view": content_view,
         "action_view": action_view,
     }

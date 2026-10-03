@@ -1,0 +1,131 @@
+{
+  "kind": "Stage2RubricQualityAggregate",
+  "schema_version": "1.0.0",
+  "date": "2026-10-03",
+  "rubric": "stage2-general-v2",
+  "attempts": [
+    {
+      "name": "QA01",
+      "status": "complete",
+      "passed": false,
+      "result_sha256": "42975734cb2f53aabf816504a3c928c36fa5f2b3a0b8c22d286932f8cb0b0f69",
+      "counts": {
+        "agreement_exact": 55,
+        "agreement_total": 56,
+        "invariant_exact": 56,
+        "invariant_total": 56,
+        "within_range_correct": 107,
+        "within_range_total": 112
+      },
+      "rates": {
+        "presentation_invariance": 1.0,
+        "r1_r2_agreement": 0.9821428571428571,
+        "within_range_accuracy": 0.9553571428571429
+      },
+      "critical_mismatch_count": 1,
+      "significant_disagreement_count": 5,
+      "execution": {
+        "completed_units": 16,
+        "cost": "unknown",
+        "native_attempts_observed": 16,
+        "observed_completed_unit_attempts": 16,
+        "planned_units": 16,
+        "started_units": 16
+      },
+      "formal_ready": false
+    },
+    {
+      "name": "QA02",
+      "status": "complete",
+      "passed": false,
+      "result_sha256": "932d216ce5dbe34a1737ef9aed279de1265d58983a934588f0f6bafa65d713b0",
+      "counts": {
+        "agreement_exact": 56,
+        "agreement_total": 56,
+        "invariant_exact": 56,
+        "invariant_total": 56,
+        "within_range_correct": 110,
+        "within_range_total": 112
+      },
+      "rates": {
+        "presentation_invariance": 1.0,
+        "r1_r2_agreement": 1.0,
+        "within_range_accuracy": 0.9821428571428571
+      },
+      "critical_mismatch_count": 0,
+      "significant_disagreement_count": 1,
+      "execution": {
+        "archived_native_attempts": 16,
+        "completed_units": 16,
+        "cost": "unknown",
+        "planned_units": 16,
+        "started_units": 16
+      },
+      "formal_ready": false
+    },
+    {
+      "name": "QA03",
+      "status": "complete",
+      "passed": true,
+      "result_sha256": "692d96a2cd474b22ecdfb11b6d22562eae249d4cf7ae300bf452576b20f83582",
+      "counts": {
+        "agreement_exact": 56,
+        "agreement_total": 56,
+        "invariant_exact": 56,
+        "invariant_total": 56,
+        "within_range_correct": 102,
+        "within_range_total": 112
+      },
+      "rates": {
+        "presentation_invariance": 1.0,
+        "r1_r2_agreement": 1.0,
+        "within_range_accuracy": 0.9107142857142857
+      },
+      "critical_mismatch_count": 0,
+      "significant_disagreement_count": 0,
+      "execution": {
+        "archived_native_attempts": 16,
+        "completed_units": 16,
+        "cost": "unknown",
+        "planned_units": 16,
+        "started_units": 16
+      },
+      "formal_ready": false
+    }
+  ],
+  "qa02_adjudication": {
+    "result_sha256": "cd3c9ab5341bff20c2910c3bb19b46568c7e5bcb3e08d97207f34a1741d60432",
+    "status": "complete",
+    "quality_accepted": false,
+    "execution": {
+      "archived_native_attempts": 2,
+      "completed_units": 2,
+      "planned_units": 2
+    },
+    "original_rates_preserved": true
+  },
+  "qa03_revalidation": {
+    "status": "complete",
+    "quality_accepted": true,
+    "result_sha256": "1fc025b3c76ed43d373001327f3235fcd540ba28b98dc0ef883a1362f9a3cca8",
+    "request_sha256": "18a305aa29367a0412673fb1ff391ac19df62647ee5ab569b6ce66ce654da651",
+    "original_native_result_sha256": "692d96a2cd474b22ecdfb11b6d22562eae249d4cf7ae300bf452576b20f83582",
+    "planned_new_model_units": 0,
+    "completed_new_model_units": 0,
+    "archived_attempt_count": "unknown",
+    "original_metrics_unchanged": true
+  },
+  "residuals": {
+    "criterion": "P5V2.REVISION",
+    "out_of_range_judgments": 10,
+    "unique_controlled_presentations": 5,
+    "pattern": "both judges scored the partial-revision anchor and four equivalent variants 2 rather than reference 1",
+    "independent_research_failure_count": null
+  },
+  "formal_ready": false,
+  "live_pilots_completed": 0,
+  "formal_subject_runs_completed": 0,
+  "research_quality_improvement": "not yet demonstrated",
+  "monetary_cost": "unknown",
+  "privacy": "No source text, paper list, reference answer, case ID or authentication profile is included."
+}
