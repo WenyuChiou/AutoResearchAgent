@@ -35,7 +35,8 @@ class DailyV3Tests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        # macOS /var is a system alias; fixtures use its physical temp location.
+        self.root = Path(self.temp.name).resolve()
         private = patch(
             "stage2_workflow.evaluation_delivery.private_output",
             side_effect=lambda path: Path(path).absolute(),
