@@ -174,7 +174,7 @@ Not recorded|未记录|未記錄
 Recorded paper-to-keyword and paper-to-role assignments|已记录的文献与关键词、角色关系|已記錄的文獻與關鍵字、角色關係
 `;
   const catalog = new Map(rows.trim().split("\n").map(row => { const [key, ...values] = row.split("|"); return [key, values]; }));
-  let locale = "zh-Hans";
+  let locale = "en";
   try { const saved = localStorage.getItem("research-workspace-language"); if (["en", "zh-Hans", "zh-Hant"].includes(saved)) locale = saved; } catch { /* Storage is optional for offline files. */ }
   const originals = new WeakMap();
   const attributes = new WeakMap();
@@ -204,6 +204,7 @@ Recorded paper-to-keyword and paper-to-role assignments|已记录的文献与关
       if (node.nodeValue !== translated) node.nodeValue = translated;
     }
     root.querySelectorAll("[title], [aria-label], [placeholder]").forEach(el => {
+      if (el.closest("[translate='no']")) return;
       if (!attributes.has(el)) attributes.set(el, Object.fromEntries(["title", "aria-label", "placeholder"].filter(key => el.hasAttribute(key)).map(key => [key, el.getAttribute(key)])));
       for (const [key, value] of Object.entries(attributes.get(el))) el.setAttribute(key, t(value));
     });

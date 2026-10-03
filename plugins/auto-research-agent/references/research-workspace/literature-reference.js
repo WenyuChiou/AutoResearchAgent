@@ -96,6 +96,12 @@
     Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
     return element;
   };
+  // Source values may collide with UI labels, e.g. a paper titled "Evidence".
+  const source = (tag, value) => {
+    const element = create(tag, value);
+    element.setAttribute("translate", "no");
+    return element;
+  };
   const shown = (value) =>
     value === null || value === undefined || value === "" ? "Not recorded" : String(value);
 
@@ -137,8 +143,8 @@
     return `% SYNTHETIC BIBLIOGRAPHY — OFFLINE UI DEMO ONLY\n${entries.join("\n\n")}\n`;
   }
 
-  function render(root) {
-    let selectedId = demoRecords[0].workId;
+  function render(root, records = demoRecords) {
+    let selectedId = records[0]?.workId || null;
     let zoom = 1;
     const filters = { text: "", keyword: "", role: "" };
     root.replaceChildren();
@@ -173,7 +179,7 @@
       blank.value = "";
       select.append(blank);
       values.forEach((value) => {
-        const option = create("option", value);
+        const option = source("option", value);
         option.value = value;
         select.append(option);
       });
@@ -181,12 +187,12 @@
     addOptions(
       keywordFilter,
       "All keywords",
-      [...new Set(demoRecords.flatMap((paper) => paper.keywords))].sort(),
+      [...new Set(records.flatMap((paper) => paper.keywords))].sort(),
     );
     addOptions(
       roleFilter,
       "All roles",
-      [...new Set(demoRecords.flatMap((paper) => paper.roles.map((role) => role.name)))].sort(),
+      [...new Set(records.flatMap((paper) => paper.roles.map((role) => role.name)))].sort(),
     );
     addField("Filter literature", textFilter);
     addField("Keyword", keywordFilter);
@@ -268,7 +274,7 @@
 
     const visible = () => {
       const needle = filters.text.trim().toLowerCase();
-      return demoRecords.filter((paper) => {
+      return records.filter((paper) => {
         const haystack = [paper.workId, paper.title, paper.authors.join(" "), paper.journal]
           .join(" ")
           .toLowerCase();
@@ -296,6 +302,7 @@
     };
     const nodeGroup = (type, label, x, y, width, id) => {
       const group = createSvg("g", {
+        translate: "no",
         class: `graph-node ${type}${id === selectedId ? " selected" : ""}`,
         transform: `translate(${x} ${y})`,
       });
@@ -345,6 +352,7 @@
           class: "graph-edge",
         });
         const edgeTitle = createSvg("title");
+        edgeTitle.setAttribute("translate", "no");
         edgeTitle.textContent = reason;
         line.append(edgeTitle);
         svg.append(line);
@@ -415,8 +423,8 @@
         row.dataset.paperId = paper.workId;
         row.setAttribute("aria-pressed", String(paper.workId === selectedId));
         row.append(
-          create("strong", paper.title),
-          create("small", `${paper.authors.join("; ")} · ${paper.year} · ${paper.sourceStatus}`),
+          source("strong", paper.title),
+          source("small", `${paper.authors.join("; ")} · ${paper.year} · ${paper.sourceStatus}`),
         );
         row.onclick = () =>
           setSelection(paper.workId, `.paper-row[data-paper-id="${paper.workId}"]`);
@@ -424,11 +432,11 @@
       });
       if (!papers.length)
         paperList.append(create("p", "No synthetic records match these filters.", "empty-note"));
-      count.textContent = `${papers.length} of ${demoRecords.length} synthetic records visible`;
+      count.textContent = `${papers.length} of ${records.length} synthetic records visible`;
     }
 
     function updateDetail() {
-      const paper = demoRecords.find((record) => record.workId === selectedId);
+      const paper = records.find((record) => record.workId === selectedId);
       detail.replaceChildren();
       if (!paper || !visible().some((record) => record.workId === selectedId)) {
         detail.append(
@@ -436,7 +444,7 @@
         );
         return;
       }
-      detail.append(create("strong", paper.title));
+      detail.append(source("strong", paper.title));
       const description = create("dl");
       [
         ["Work ID", paper.workId],
@@ -449,9 +457,9 @@
         ["DOI", shown(paper.doi)],
         ["Source", paper.sourceStatus],
         ["Keywords", paper.keywords.join(", ")],
-      ].forEach(([term, value]) => description.append(create("dt", term), create("dd", value)));
+      ].forEach(([term, value]) => description.append(create("dt", term), source("dd", value)));
       detail.append(description, create("div", "Recorded role basis", "section-title"));
-      paper.roles.forEach((role) => detail.append(create("p", `${role.name}: ${role.basis}`)));
+      paper.roles.forEach((role) => detail.append(source("p", `${role.name}: ${role.basis}`)));
     }
 
     function updateTable() {
@@ -486,7 +494,7 @@
           shown(paper.pages),
           shown(paper.doi),
           paper.sourceStatus,
-        ].forEach((value) => row.append(create("td", value)));
+        ].forEach((value) => row.append(source("td", value)));
         body.append(row);
       });
       table.append(head, body);
