@@ -115,10 +115,14 @@ def _literature_projection(papers, included):
 
 
 def _comparison_text(handoff):
-    titles = "; ".join(paper["title"] for paper in handoff["papers"])
+    return _comparison_for_papers(handoff["papers"])
+
+
+def _comparison_for_papers(papers):
+    titles = "; ".join(paper["title"] for paper in papers)
     dimensions = ", ".join(DIMENSIONS)
     return (
-        f"Stage 1 supplied {len(handoff['papers'])} included works ({titles}) for "
+        f"Stage 1 supplied {len(papers)} included works ({titles}) for "
         f"comparison across: {dimensions}. Stage 2 has not yet compared these works, "
         "generated research directions, or selected a direction."
     )
@@ -149,6 +153,74 @@ def _unresolved(records, unavailable, included):
         and claim["relation"] in {"unverified", "partial", "contradicts"}
     )
     return rows
+
+
+def _project_stage1(deliverable_root, output, records, included):
+    """Copy the selected immutable Stage 1 projection into a Stage 2 seed."""
+
+    papers = {row["work_id"]: row for row in records["papers"]}
+    sources_dir = output / "sources"
+    sources_dir.mkdir()
+    stage2_sources = []
+    unavailable = {}
+    source_by_id = {row["source_id"]: row for row in records["sources"]}
+    for work_id in sorted(included):
+        paper = papers[work_id]
+        for source_id in paper["source_ids"]:
+            source = source_by_id[source_id]
+            raw, result = _source_bytes(deliverable_root, source, paper)
+            relative = f"sources/{source_id}.txt"
+            (output / relative).write_bytes(raw)
+            stage2_sources.append(
+                {
+                    "origin": "stage1",
+                    "source_id": source_id,
+                    "work_id": work_id,
+                    "version_id": paper["version_id"],
+                    "path": relative,
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                    "evidence_level": result["evidence_level"],
+                    "access_status": result["status"],
+                    "retrieved_at": result["retrieved_at"],
+                    "source_url": result["source_url"] or None,
+                    "final_url": result["final_url"] or None,
+                    "access_note": source["access_note"],
+                }
+            )
+            if result["status"] != "available":
+                unavailable[source_id] = result["status"]
+
+    literature = _literature_projection(papers, included)
+    evidence = [
+        {
+            "origin": "stage1",
+            "evidence_id": row["claim_id"],
+            "source_id": row["source_id"],
+            "work_id": row["work_id"],
+            "version_id": row["version_id"],
+            "claim_text": row["text"],
+            "relation": row["relation"],
+            "evidence_level": row["evidence_level"],
+            "locator": row["locator"],
+            "quote": row["quote"],
+        }
+        for row in records["claims"]
+        if row["work_id"] in included
+    ]
+    return literature, stage2_sources, evidence, unavailable
+
+
+def _revalidate_deliverable(deliverable_root, deliverable_manifest_sha256, manifest):
+    """Reject a deliverable that changed while source bytes were projected."""
+
+    deliverable_package.validate(deliverable_root, deliverable_manifest_sha256)
+    final_manifest = _read_bound_json(
+        deliverable_root / "provenance_manifest.json",
+        deliverable_manifest_sha256,
+        "stage1-deliverable-manifest",
+    )
+    if final_manifest != manifest:
+        raise Stage2Error("stage1-deliverable-changed-during-import")
 
 
 def build_stage2_seed(
@@ -208,55 +280,10 @@ def build_stage2_seed(
         output.mkdir(parents=False)
         owned_output = True
         reject_links(output)
-        sources_dir = output / "sources"
-        sources_dir.mkdir()
-        stage2_sources = []
-        unavailable = {}
-        source_by_id = {row["source_id"]: row for row in records["sources"]}
-        for work_id in sorted(handoff_papers):
-            paper = papers[work_id]
-            for source_id in paper["source_ids"]:
-                source = source_by_id[source_id]
-                raw, result = _source_bytes(deliverable_root, source, paper)
-                relative = f"sources/{source_id}.txt"
-                (output / relative).write_bytes(raw)
-                stage2_sources.append(
-                    {
-                        "origin": "stage1",
-                        "source_id": source_id,
-                        "work_id": work_id,
-                        "version_id": paper["version_id"],
-                        "path": relative,
-                        "sha256": hashlib.sha256(raw).hexdigest(),
-                        "evidence_level": result["evidence_level"],
-                        "access_status": result["status"],
-                        "retrieved_at": result["retrieved_at"],
-                        "source_url": result["source_url"] or None,
-                        "final_url": result["final_url"] or None,
-                        "access_note": source["access_note"],
-                    }
-                )
-                if result["status"] != "available":
-                    unavailable[source_id] = result["status"]
-
         included = set(handoff_papers)
-        literature = _literature_projection(papers, included)
-        evidence = [
-            {
-                "origin": "stage1",
-                "evidence_id": row["claim_id"],
-                "source_id": row["source_id"],
-                "work_id": row["work_id"],
-                "version_id": row["version_id"],
-                "claim_text": row["text"],
-                "relation": row["relation"],
-                "evidence_level": row["evidence_level"],
-                "locator": row["locator"],
-                "quote": row["quote"],
-            }
-            for row in records["claims"]
-            if row["work_id"] in included
-        ]
+        literature, stage2_sources, evidence, unavailable = _project_stage1(
+            deliverable_root, output, records, included
+        )
         upstream = {
             "kind": "Stage1Stage2Binding",
             "schema_version": "1.0.0",
@@ -293,14 +320,7 @@ def build_stage2_seed(
         }
         # Revalidate after source reads so the imported projection cannot mix
         # bytes from two deliverable states changed during this operation.
-        deliverable_package.validate(deliverable_root, deliverable_manifest_sha256)
-        final_manifest = _read_bound_json(
-            deliverable_root / "provenance_manifest.json",
-            deliverable_manifest_sha256,
-            "stage1-deliverable-manifest",
-        )
-        if final_manifest != manifest:
-            raise Stage2Error("stage1-deliverable-changed-during-import")
+        _revalidate_deliverable(deliverable_root, deliverable_manifest_sha256, manifest)
         validate_packet(packet, output)
         (output / "packet.json").write_bytes(_canonical_bytes(packet))
         return {

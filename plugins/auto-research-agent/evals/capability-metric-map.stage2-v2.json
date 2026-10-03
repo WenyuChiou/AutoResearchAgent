@@ -263,7 +263,8 @@
         "plugins/auto-research-agent/tests/test_stage2_delivery.py",
         "plugins/auto-research-agent/tests/test_stage2_interaction.py",
         "plugins/auto-research-agent/tests/test_stage2_report_html.py",
-        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py"
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false

@@ -12,6 +12,7 @@ from .orchestration import prepare_review_batch, reconcile_batch
 from .delivery import build_delivery, inspect_delivery
 from .interaction import record_interaction
 from .import_stage1 import build_stage2_seed
+from .exploratory import build_exploratory_seed
 from .store import (
     add_snapshot,
     finish_action,
@@ -38,6 +39,17 @@ def main(argv=None):
     handoff.add_argument("--brief", required=True)
     handoff.add_argument("--resources", required=True)
     handoff.add_argument("--output", required=True)
+    exploratory = commands.add_parser(
+        "import-stage1-exploratory",
+        help="build a non-sufficient Stage 2 seed from a reviewed Stage 1 deliverable",
+    )
+    exploratory.add_argument("--deliverable", required=True)
+    exploratory.add_argument("--deliverable-manifest-sha256", required=True)
+    exploratory.add_argument("--acceptance", required=True)
+    exploratory.add_argument("--acceptance-sha256", required=True)
+    exploratory.add_argument("--brief", required=True)
+    exploratory.add_argument("--resources", required=True)
+    exploratory.add_argument("--output", required=True)
     init = commands.add_parser(
         "init", help="save the first immutable evidence snapshot"
     )
@@ -126,6 +138,16 @@ def main(argv=None):
                 args.deliverable_manifest_sha256,
                 args.handoff,
                 args.handoff_sha256,
+                args.brief,
+                args.resources,
+                args.output,
+            )
+        elif args.command == "import-stage1-exploratory":
+            result = build_exploratory_seed(
+                args.deliverable,
+                args.deliverable_manifest_sha256,
+                args.acceptance,
+                args.acceptance_sha256,
                 args.brief,
                 args.resources,
                 args.output,
