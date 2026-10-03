@@ -1,6 +1,7 @@
 """Synthetic subprocess integration only; never calls Codex or research providers."""
 
 import os
+import py_compile
 from pathlib import Path
 import subprocess
 import sys
@@ -151,6 +152,39 @@ class StudioTests(unittest.TestCase):
         self.assertNotEqual(self.git("rev-parse", "HEAD").strip(), self.head)
         with self.assertRaisesRegex(StudioError, "revision differs"):
             fingerprint(self.plugin, self.binary, self.head, self.engine.env)
+
+    def test_valid_stale_bytecode_cannot_pass_runtime_binding(self):
+        source = self.plugin / "cli/cached_fixture.py"
+        source.write_text("VALUE = 'FIRST'\n", encoding="utf-8")
+        stamp = source.stat()
+        py_compile.compile(str(source), doraise=True)
+        source.write_text("VALUE = 'OTHER'\n", encoding="utf-8")
+        os.utime(source, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+        (self.plugin / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+        self.git("add", "cli/cached_fixture.py", ".gitignore")
+        self.git(
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "source with ignored cache",
+        )
+        head = self.git("rev-parse", "HEAD").strip()
+        # -B prevents writes but still imports the valid stale timestamp/size cache.
+        value = subprocess.check_output(
+            [
+                sys.executable,
+                "-B",
+                "-c",
+                "import cached_fixture; print(cached_fixture.VALUE)",
+            ],
+            env=self.engine.env,
+        )
+        self.assertEqual(value.strip(), b"FIRST")
+        with self.assertRaisesRegex(StudioError, "unbound Python bytecode"):
+            fingerprint(self.plugin, self.binary, head, self.engine.env)
 
     def test_artifact_tamper_and_secret_environment(self):
         result = self.run_fixture(
