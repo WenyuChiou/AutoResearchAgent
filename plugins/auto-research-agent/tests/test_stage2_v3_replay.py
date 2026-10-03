@@ -74,7 +74,9 @@ class QualityV3ReplayTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.parent = Path(temporary.name)
+        # macOS exposes /var via /private/var; use the real fixture root while
+        # retaining production rejection of caller-supplied symlink ancestors.
+        self.parent = Path(temporary.name).resolve()
         self.root = self.parent / "native_calls"
         self.root.mkdir()
         self.codex = self.parent / "codex.exe"
