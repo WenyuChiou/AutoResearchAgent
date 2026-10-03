@@ -213,7 +213,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_workflow",
       "problem": "A fixed evidence packet cannot incorporate newly found counterevidence without breaking prior assessment bindings; Stage 1 evidence can also lose its run, work/version or source provenance before Stage 2. Interrupted actions and missing independent reviews need explicit states.",
-      "mechanism": "Import validated Stage 1 deliverables into a v2 packet that binds run/state, handoff, deliverable, canonical records, brief, resources, structured literature metadata/classification/roles/findings, exact claims, source status, exact source bytes and unresolved coverage without inventing candidates or comparison results. Freeze separate Stage 1 literature/source/evidence projections while allowing separately marked Stage 2 additions. Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged.",
+      "mechanism": "Import validated Stage 1 deliverables into a v2 packet that binds run/state, handoff, deliverable, canonical records, brief, resources, structured literature metadata/classification/roles/findings, exact claims, source status, exact source bytes and unresolved coverage without inventing candidates or comparison results. Freeze separate Stage 1 literature/source/evidence projections while allowing separately marked Stage 2 additions. Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged. Prerequisite records bind seven explicit categories to current candidate versions and source evidence, compute joint resource demands without guessing missing budgets, and retain structural-only verification.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -264,7 +264,8 @@
         "plugins/auto-research-agent/tests/test_stage2_interaction.py",
         "plugins/auto-research-agent/tests/test_stage2_report_html.py",
         "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py",
-        "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py"
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py",
+        "plugins/auto-research-agent/tests/test_stage2_prerequisites.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -326,7 +327,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_live",
       "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
-      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls. Inventory receipt2.0 binds five supported RPC responses and separately captured host model-request tools; unknown offered tools block admission and unsupported tools/list is never required.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls. Inventory receipt2.0 binds five supported RPC responses and separately captured host model-request tools; unknown offered tools block admission and unsupported tools/list is never required. Versioned opt-in followup2 routes material partial findings and repair next steps while retaining legacy behavior; unknown new-method performance alone does not force proof before research.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -388,7 +389,8 @@
         "plugins/auto-research-agent/tests/test_stage2_action_extraction.py",
         "plugins/auto-research-agent/tests/test_stage2_judge_replay.py",
         "plugins/auto-research-agent/tests/test_stage2_environment.py",
-        "plugins/auto-research-agent/tests/test_stage2_inventory_v2.py"
+        "plugins/auto-research-agent/tests/test_stage2_inventory_v2.py",
+        "plugins/auto-research-agent/tests/test_stage2_material_followup.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
