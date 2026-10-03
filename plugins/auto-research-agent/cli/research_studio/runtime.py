@@ -40,6 +40,21 @@ def file_sha(path):
     return digest.hexdigest()
 
 
+def reject_bytecode(path):
+    """Source hashes cannot authenticate executable caches, even valid stale ones."""
+    if path.is_file() and path.suffix.lower() in {".pyc", ".pyo"}:
+        raise StudioError(
+            "unbound Python bytecode cache; remove caches before service startup"
+        )
+
+
+def validate_token(token):
+    if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_-]{32,}", token):
+        raise StudioError(
+            "API token must contain at least 32 URL-safe characters (A-Z, a-z, 0-9, _, -)"
+        )
+
+
 def dependency_binding(plugin):
     """Read the committed lock, rejecting unknown marker syntax rather than guessing."""
     environment = {
@@ -95,9 +110,16 @@ def dependency_binding(plugin):
                 raise StudioError("research-hub source pin differs from lock")
             files = {}
             for name in distribution.files or []:
+                reject_bytecode(Path(distribution.locate_file(name)).absolute())
                 if str(name).endswith(".py"):
                     path = Path(distribution.locate_file(name)).absolute()
                     safe_path(path.parent, path.name)
+                    reject_bytecode(path.with_suffix(".pyc"))
+                    reject_bytecode(path.with_suffix(".pyo"))
+                    cache = path.parent / "__pycache__"
+                    for cached in cache.glob(path.stem + ".*.pyc"):
+                        safe_path(path.parent, cached.relative_to(path.parent))
+                        reject_bytecode(cached)
                     files[str(name)] = file_sha(path)
             if not files:
                 raise StudioError("research-hub installed source inventory missing")
@@ -165,6 +187,7 @@ def fingerprint(plugin, codex, expected_sha, env):
         source = safe_path(plugin, name)
         for path in sorted(source.rglob("*") if source.is_dir() else [source]):
             safe_path(plugin, path.relative_to(plugin))
+            reject_bytecode(path)
             if "__pycache__" not in path.parts and path.is_file():
                 files[path.relative_to(plugin).as_posix()] = file_sha(path)
     binary = safe_path(codex.parent, codex.name)
@@ -248,6 +271,7 @@ class Engine:
         reasoning="high",
         plugin=None,
     ):
+        validate_token(token)
         self.store, self.codex, self.home = (
             store,
             Path(codex).absolute(),
