@@ -392,6 +392,193 @@
         border: 1px dashed var(--line);
         background: #f9f4e8;
       }
+      .literature-shell {
+        min-width: 0;
+      }
+      main.literature-layout article,
+      main.literature-layout aside {
+        grid-column: 2/-1;
+      }
+      .lit-toolbar {
+        display: grid;
+        grid-template-columns: minmax(150px, 2fr) repeat(2, minmax(120px, 1fr));
+        gap: 10px;
+        margin: 22px 0 12px;
+      }
+      .lit-field {
+        display: grid;
+        gap: 5px;
+        font:
+          700 12px/1.3 Aptos,
+          "Segoe UI",
+          sans-serif;
+        color: var(--muted);
+      }
+      .lit-field input,
+      .lit-field select {
+        width: 100%;
+        min-width: 0;
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        background: white;
+        font:
+          15px/1.3 Aptos,
+          "Segoe UI",
+          sans-serif;
+      }
+      .lit-actions,
+      .graph-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0;
+      }
+      .lit-button {
+        border: 1px solid var(--teal);
+        padding: 8px 11px;
+        background: #edf2e9;
+        color: var(--teal);
+        font:
+          700 13px/1.2 Aptos,
+          "Segoe UI",
+          sans-serif;
+      }
+      .lit-button:hover,
+      .lit-button:focus-visible {
+        background: var(--teal);
+        color: white;
+      }
+      .graph-frame {
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #faf5e9;
+      }
+      .literature-graph {
+        display: block;
+        width: 100%;
+        min-width: 720px;
+        min-height: 340px;
+      }
+      .graph-edge {
+        stroke: #9b927f;
+        stroke-width: 1.4;
+      }
+      .graph-node text {
+        pointer-events: none;
+        font:
+          600 16px/1 Aptos,
+          "Segoe UI",
+          sans-serif;
+        fill: var(--ink);
+      }
+      .graph-node rect {
+        stroke-width: 2;
+      }
+      .graph-node.paper rect {
+        fill: #fffaf0;
+        stroke: var(--teal);
+      }
+      .graph-node.keyword rect {
+        fill: #e6eee8;
+        stroke: #71918a;
+      }
+      .graph-node.role rect {
+        fill: #f2e3c7;
+        stroke: var(--ochre);
+      }
+      .graph-node.paper {
+        cursor: pointer;
+      }
+      .graph-node.paper.selected rect,
+      .graph-node.paper:focus rect {
+        stroke: var(--danger);
+        stroke-width: 4;
+      }
+      .graph-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        margin: 10px 0 18px;
+        color: var(--muted);
+        font:
+          13px/1.4 Aptos,
+          "Segoe UI",
+          sans-serif;
+      }
+      .legend-key::before {
+        content: "";
+        display: inline-block;
+        width: 14px;
+        height: 9px;
+        margin-right: 6px;
+        border: 2px solid var(--teal);
+        background: white;
+      }
+      .legend-key.keyword::before {
+        border-color: #71918a;
+        background: #e6eee8;
+      }
+      .legend-key.role::before {
+        border-color: var(--ochre);
+        background: #f2e3c7;
+      }
+      .paper-list {
+        display: grid;
+        gap: 8px;
+        margin: 12px 0 20px;
+      }
+      .paper-row {
+        border: 1px solid var(--line);
+        padding: 11px 13px;
+        background: #fffaf0;
+        text-align: left;
+      }
+      .paper-row.selected {
+        border-left: 5px solid var(--teal);
+        background: #e7eee8;
+      }
+      .paper-row small {
+        display: block;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .paper-detail {
+        border-left: 4px solid var(--ochre);
+        padding: 14px 17px;
+        background: #f1e5cc;
+      }
+      .paper-detail dl {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 6px 12px;
+        margin: 10px 0;
+      }
+      .paper-detail dt {
+        font:
+          700 13px/1.4 Aptos,
+          "Segoe UI",
+          sans-serif;
+        color: var(--muted);
+      }
+      .paper-detail dd {
+        margin: 0;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+      .metadata-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        margin-top: 12px;
+      }
+      .metadata-scroll table {
+        min-width: 980px;
+        background: #fffaf0;
+      }
+      .lit-caveat {
+        color: var(--muted);
+        font-size: 14px;
+      }
       .footer-note {
         padding: 0 clamp(22px, 5vw, 72px) 32px;
         color: var(--muted);
@@ -430,7 +617,20 @@
         main {
           grid-template-columns: 1fr;
         }
+        main.literature-layout article,
+        main.literature-layout aside {
+          grid-column: 1/-1;
+        }
         .card-grid {
+          grid-template-columns: 1fr;
+        }
+        .lit-toolbar {
+          grid-template-columns: 1fr;
+        }
+        .literature-graph {
+          min-height: 280px;
+        }
+        .paper-detail dl {
           grid-template-columns: 1fr;
         }
         .view-tabs {
@@ -488,7 +688,9 @@
         ><button class="view-tab" data-view="delivery">
           Deliverables & Sources</button
         ><button class="view-tab" data-view="history">
-          Evaluation & History
+          Evaluation & History</button
+        ><button class="view-tab" data-view="literature" hidden>
+          Literature
         </button>
       </nav>
       <main>
@@ -504,9 +706,11 @@
       </main>
       <p class="footer-note">
         Offline interaction reference · Refreshing resets this prototype only.
-        It cannot dispatch work, write data, or rerun research.
+        It cannot execute research or modify canonical records; only synthetic
+        bibliography export is available.
       </p>
     </div>
+    <script src="./literature-reference.js"></script>
     <script>
       const stages = [
         {
@@ -612,6 +816,7 @@
           b.onclick = () => {
             state.stage = i;
             state.node = 0;
+            if (state.view === "literature" && i !== 0) state.view = "wiki";
             render();
             rail.children[i].focus();
           };
@@ -694,7 +899,7 @@
           make("h2", s.n + " Delivery Interface"),
           make(
             "p",
-            "This view shows expected deliverables and source bindings. It contains no paper files and cannot download or export anything.",
+            "This view shows expected deliverables and source bindings. It contains no paper files and cannot download sources or export canonical deliverables.",
             "lede",
           ),
         );
@@ -841,9 +1046,28 @@
           s = stages[state.stage],
           name = s.nodes[state.node];
         root.replaceChildren();
+        document
+          .querySelector("main")
+          .classList.toggle("literature-layout", state.view === "literature");
+        root.classList.remove("literature-shell");
         if (state.view === "wiki") renderWiki(root, s, name);
         if (state.view === "delivery") renderDelivery(root, s, name);
         if (state.view === "history") renderHistory(root, s);
+        if (state.view === "literature") {
+          if (window.LiteratureReference?.render) {
+            window.LiteratureReference.render(root);
+          } else {
+            root.append(
+              make("div", "Stage 1 / Literature", "kicker"),
+              make("h2", "Literature reference unavailable"),
+              make(
+                "p",
+                "The local literature-reference.js helper is missing. This offline view cannot load without its sibling file.",
+                "read-only",
+              ),
+            );
+          }
+        }
         renderDetail();
       }
       function nodePurpose(n) {
@@ -889,6 +1113,7 @@
       document.querySelectorAll(".view-tab").forEach((b) => {
         b.setAttribute("aria-pressed", String(b.dataset.view === state.view));
         b.onclick = () => {
+          if (b.dataset.view === "literature" && state.stage !== 0) return;
           state.view = b.dataset.view;
           document.querySelectorAll(".view-tab").forEach((x) => {
             x.classList.toggle("active", x === b);
@@ -898,6 +1123,15 @@
         };
       });
       function render() {
+        const literatureTab = document.querySelector(
+          '[data-view="literature"]',
+        );
+        literatureTab.hidden = state.stage !== 0;
+        document.querySelectorAll(".view-tab").forEach((x) => {
+          const active = x.dataset.view === state.view;
+          x.classList.toggle("active", active);
+          x.setAttribute("aria-pressed", String(active));
+        });
         renderStages();
         renderNodes();
         renderContent();
