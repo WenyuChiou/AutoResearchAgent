@@ -5,6 +5,7 @@ records; they cannot authenticate a host that fabricates all session receipts.
 """
 
 import copy
+import json
 import hashlib
 
 from stage2_check.contracts import AXES, latest_candidates, validate_assessment
@@ -218,9 +219,26 @@ def reconcile_reviews(packet, candidate_id, snapshot_sha256, reviews, resolution
         "substantive-disagreements-required",
     )
     all_disagreements = set(disagreements + resolution["substantive_disagreements"])
+    addressed = resolution["addressed"]
     _require(
-        set(resolution["addressed"]) == all_disagreements, "unresolved-disagreement"
+        isinstance(addressed, list)
+        and all(isinstance(item, str) and item.strip() for item in addressed),
+        "addressed-disagreements-must-be-strings",
     )
+    if set(addressed) != all_disagreements:
+        # Give the bounded, tool-free correction the exact missing identifiers;
+        # the equality requirement and evidence checks below are not relaxed.
+        raise Stage2Error(
+            "unresolved-disagreement: "
+            + json.dumps(
+                {
+                    "required_addressed": sorted(all_disagreements),
+                    "missing": sorted(all_disagreements - set(addressed)),
+                    "extra": sorted(set(addressed) - all_disagreements),
+                },
+                ensure_ascii=False,
+            )
+        )
     if all_disagreements:
         _require(
             resolution["method"] != "synthesis", "material-disagreement-needs-evidence"

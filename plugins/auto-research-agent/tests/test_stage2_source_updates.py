@@ -19,7 +19,8 @@ class SourceUpdatesTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        # macOS exposes /var through a symlink; bind the real fixture workspace.
+        self.root = Path(self.temp.name).resolve()
         self.packet = write_stage2_fixture(self.root / "old")
         self.original = copy.deepcopy(self.packet)
         raw = (
