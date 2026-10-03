@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>研究工作區｜離線互動參考</title>
+    <style>
+      :root {
+        --paper: #f4eedf;
+        --paper2: #fffaf0;
+        --ink: #14283b;
+        --muted: #64706f;
+        --teal: #2e6865;
+        --ochre: #b47a2a;
+        --line: #c8c0af;
+        --soft: #e8e0cf;
+        --danger: #8f4338;
+        --shadow: 0 14px 34px #263b3b18;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "Noto Serif TC", "PMingLiU", "Yu Mincho", serif;
+        font-size: 18px;
+        line-height: 1.55;
+      }
+      button,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .shell {
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 88% 8%, #d7c69d66 0 12%, transparent 34%),
+          linear-gradient(90deg, #223b3b0b 1px, transparent 1px);
+        background-size:
+          auto,
+          32px 32px;
+      }
+      header {
+        padding: 28px clamp(22px, 5vw, 72px) 22px;
+        border-bottom: 1px solid var(--line);
+        background: #f8f2e7e8;
+        backdrop-filter: blur(8px);
+      }
+      .mast {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+      }
+      .eyebrow {
+        margin: 0 0 7px;
+        color: var(--teal);
+        font-family: "Microsoft JhengHei", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+      }
+      .eyebrow::before {
+        content: "";
+        display: inline-block;
+        width: 28px;
+        border-top: 3px solid var(--ochre);
+        margin: 0 10px 4px 0;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 52px);
+        font-weight: 500;
+        letter-spacing: 0.04em;
+      }
+      .subtitle {
+        max-width: 620px;
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .control {
+        border: 1px solid var(--line);
+        padding: 10px 14px;
+        background: #ede6d8;
+        color: #78766f;
+      }
+      .control:disabled {
+        cursor: not-allowed;
+      }
+      .control-note {
+        display: block;
+        text-align: right;
+        font:
+          13px/1.4 "Microsoft JhengHei",
+          sans-serif;
+        color: var(--danger);
+        margin-top: 7px;
+      }
+      .stage-rail {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        border-bottom: 1px solid var(--line);
+        background: var(--ink);
+        padding: 0 clamp(12px, 4vw, 60px);
+      }
+      .stage {
+        position: relative;
+        border: 0;
+        border-left: 1px solid #ffffff25;
+        background: transparent;
+        color: #dce5df;
+        padding: 15px 12px;
+        text-align: left;
+        font-family: "Microsoft JhengHei", sans-serif;
+      }
+      .stage:last-child {
+        border-right: 1px solid #ffffff25;
+      }
+      .stage b {
+        display: block;
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        color: #bdc9c5;
+      }
+      .stage span {
+        display: block;
+        font-size: 16px;
+        margin-top: 3px;
+      }
+      .stage.active {
+        background: var(--teal);
+        color: white;
+      }
+      .stage.active::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        bottom: -8px;
+        border: 8px solid transparent;
+        border-top-color: var(--teal);
+        border-bottom: 0;
+      }
+      .stage.locked span::after {
+        content: " · 尚未接通";
+        font-size: 11px;
+        color: #e2c58f;
+      }
+      .view-tabs {
+        display: flex;
+        gap: 24px;
+        padding: 18px clamp(22px, 5vw, 72px) 0;
+        background: var(--paper2);
+      }
+      .view-tab {
+        border: 0;
+        border-bottom: 3px solid transparent;
+        background: none;
+        padding: 7px 1px 10px;
+        font-weight: 700;
+      }
+      .view-tab.active {
+        color: var(--teal);
+        border-color: var(--ochre);
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(230px, 300px) minmax(380px, 1fr) minmax(
+            250px,
+            330px
+          );
+        gap: 18px;
+        padding: 22px clamp(16px, 4vw, 60px) 48px;
+        max-width: 1600px;
+        margin: auto;
+      }
+      .panel {
+        background: var(--paper2);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      .panel-head {
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--line);
+        font:
+          700 13px/1.3 "Microsoft JhengHei",
+          sans-serif;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .node-list {
+        padding: 9px;
+      }
+      .node {
+        width: 100%;
+        border: 0;
+        border-bottom: 1px solid var(--soft);
+        background: transparent;
+        padding: 12px 11px;
+        text-align: left;
+      }
+      .node:last-child {
+        border-bottom: 0;
+      }
+      .node small {
+        display: block;
+        color: var(--muted);
+        font:
+          12px/1.4 "Microsoft JhengHei",
+          sans-serif;
+      }
+      .node:hover,
+      .node.active {
+        background: #e7eee8;
+      }
+      .node.active {
+        box-shadow: inset 4px 0 var(--teal);
+      }
+      article {
+        padding: clamp(24px, 4vw, 48px);
+        min-height: 590px;
+      }
+      .kicker {
+        font:
+          700 13px/1.3 "Microsoft JhengHei",
+          sans-serif;
+        color: var(--ochre);
+        letter-spacing: 0.12em;
+      }
+      h2 {
+        margin: 10px 0 14px;
+        font-size: clamp(28px, 3vw, 42px);
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      .lede {
+        font-size: 20px;
+        color: #344a51;
+        max-width: 780px;
+      }
+      .rule {
+        height: 1px;
+        background: var(--line);
+        margin: 26px 0;
+      }
+      .section-title {
+        font:
+          700 14px/1.3 "Microsoft JhengHei",
+          sans-serif;
+        letter-spacing: 0.08em;
+        color: var(--teal);
+        margin: 25px 0 10px;
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .note-card {
+        border: 1px solid var(--line);
+        padding: 15px;
+        background: #faf5e9;
+      }
+      .note-card b {
+        display: block;
+        font-family: "Microsoft JhengHei", sans-serif;
+      }
+      .note-card p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .tag {
+        display: inline-block;
+        padding: 4px 9px;
+        background: #e3ece6;
+        color: var(--teal);
+        font:
+          700 12px/1.2 "Microsoft JhengHei",
+          sans-serif;
+        margin: 0 7px 7px 0;
+      }
+      .read-only {
+        border-left: 4px solid var(--ochre);
+        padding: 12px 15px;
+        background: #f1e5cc;
+        margin: 20px 0;
+        color: #674c25;
+      }
+      .source-link {
+        color: var(--teal);
+        text-decoration-thickness: 2px;
+        text-underline-offset: 3px;
+      }
+      aside {
+        align-self: start;
+      }
+      .detail {
+        padding: 17px;
+      }
+      .detail-block {
+        padding: 15px 0;
+        border-bottom: 1px solid var(--soft);
+      }
+      .detail-block:last-child {
+        border-bottom: 0;
+      }
+      .detail-block h3 {
+        font:
+          700 13px/1.3 "Microsoft JhengHei",
+          sans-serif;
+        color: var(--muted);
+        margin: 0 0 7px;
+      }
+      .detail-block p {
+        margin: 0;
+        font-size: 16px;
+      }
+      .history {
+        width: 100%;
+        padding: 9px;
+        border: 1px solid var(--line);
+        background: white;
+      }
+      .history-note {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 7px;
+      }
+      .status {
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        padding: 12px;
+        margin: 9px 0;
+        border: 1px solid var(--line);
+        background: #faf5e9;
+      }
+      .status i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-top: 8px;
+        flex: none;
+      }
+      .unknown i {
+        background: var(--ochre);
+      }
+      .failure i {
+        background: var(--danger);
+      }
+      .low i {
+        background: #466a86;
+      }
+      .status b {
+        font-family: "Microsoft JhengHei", sans-serif;
+      }
+      .status p {
+        margin: 2px 0 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 15px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        font-family: "Microsoft JhengHei", sans-serif;
+        color: var(--muted);
+      }
+      .empty-note {
+        padding: 24px;
+        border: 1px dashed var(--line);
+        background: #f9f4e8;
+      }
+      .footer-note {
+        padding: 0 clamp(22px, 5vw, 72px) 32px;
+        color: var(--muted);
+        font:
+          13px/1.5 "Microsoft JhengHei",
+          sans-serif;
+      }
+      @media (max-width: 1050px) {
+        main {
+          grid-template-columns: 260px 1fr;
+        }
+        aside {
+          grid-column: 1/-1;
+        }
+        .stage-rail {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (max-width: 720px) {
+        body {
+          font-size: 16px;
+        }
+        .mast {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .controls {
+          justify-content: flex-start;
+        }
+        .control-note {
+          text-align: left;
+        }
+        .stage-rail {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        main {
+          grid-template-columns: 1fr;
+        }
+        .card-grid {
+          grid-template-columns: 1fr;
+        }
+        .view-tabs {
+          gap: 13px;
+          overflow: auto;
+        }
+        .panel {
+          min-width: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <div class="mast">
+          <div>
+            <p class="eyebrow">示意資料 · 離線流程小樣 · 執行器尚未接通</p>
+            <h1>研究工作區</h1>
+            <p class="subtitle">
+              把研究流程整理成可閱讀、可追查的編輯桌面。此頁只示範資訊架構，所有紀錄皆為合成內容。
+            </p>
+          </div>
+          <div>
+            <div class="controls">
+              <button class="control" disabled title="本機執行器尚未接通">
+                開始研究</button
+              ><button class="control" disabled title="本機執行器尚未接通">
+                繼續執行
+              </button>
+            </div>
+            <span class="control-note">研究控制已停用：等待本機執行器接通</span>
+          </div>
+        </div>
+      </header>
+      <nav class="stage-rail" id="stageRail" aria-label="研究階段"></nav>
+      <nav class="view-tabs" aria-label="內容檢視">
+        <button class="view-tab active" data-view="wiki">Wiki</button
+        ><button class="view-tab" data-view="delivery">交付與來源</button
+        ><button class="view-tab" data-view="history">評估與歷史</button>
+      </nav>
+      <main>
+        <section class="panel">
+          <div class="panel-head" id="outlineTitle">階段節點</div>
+          <div class="node-list" id="nodeList"></div>
+        </section>
+        <article class="panel" id="article" aria-live="polite"></article>
+        <aside class="panel">
+          <div class="panel-head">所選節點</div>
+          <div class="detail" id="detail"></div>
+        </aside>
+      </main>
+      <p class="footer-note">
+        離線互動參考 ·
+        重新整理只會重設示意介面，不會派送工作、寫入資料或重新執行研究。
+      </p>
+    </div>
+    <script>
+      const stages = [
+        {
+          n: "Stage 1",
+          title: "證據",
+          purpose: "建立可追查的文獻與主張基礎。",
+          nodes: [
+            "範圍與地域",
+            "關鍵字與概念",
+            "搜尋與閱讀",
+            "核心／經典／最接近研究分類",
+            "主張查核",
+            "覆蓋與停止判斷",
+            "交付套件",
+            "P1–P3 評估",
+          ],
+        },
+        {
+          n: "Stage 2",
+          title: "比較與方向",
+          purpose: "從共同證據視圖比較研究並形成可選方向。",
+          nodes: [
+            "匯入 Stage 1",
+            "共同比較",
+            "開放構想",
+            "擷取候選紀錄",
+            "獨立挑戰與可行性",
+            "修正／補查／暫存／淘汰",
+            "選擇套件",
+            "P4–P6 評估",
+            "使用者決定與 Stage 3 交接",
+          ],
+        },
+        {
+          n: "Stage 3",
+          title: "研究設計",
+          purpose: "把選定方向轉成可檢驗的問題、設計與驗證計畫。",
+          nodes: ["方向輸入", "問題與方法設計", "驗證與交付規格"],
+        },
+        {
+          n: "Stage 4",
+          title: "執行",
+          purpose: "依核准計畫執行並保存版本、失敗與資源紀錄。",
+          nodes: ["設計封包輸入", "執行與觀察", "可重建輸出"],
+        },
+        {
+          n: "Stage 5",
+          title: "分析",
+          purpose: "把執行結果轉成有邊界、可檢查的分析。",
+          nodes: ["結果與品質輸入", "分析與穩健性", "結論與限制輸出"],
+        },
+        {
+          n: "Stage 6",
+          title: "寫作與投稿",
+          purpose: "將證據、方法、結果與限制組成可編輯稿件。",
+          nodes: ["已核准材料輸入", "論述與引用寫作", "稿件與投稿交付物"],
+        },
+      ];
+      let state = {
+        stage: 0,
+        node: 0,
+        view: "wiki",
+        history: "嘗試 A · 版本 v0（合成）",
+      };
+      const $ = (id) => document.getElementById(id);
+      const make = (tag, text, cls) => {
+        const el = document.createElement(tag);
+        if (text !== undefined) el.textContent = text;
+        if (cls) el.className = cls;
+        return el;
+      };
+      function renderStages() {
+        const rail = $("stageRail");
+        rail.replaceChildren();
+        stages.forEach((s, i) => {
+          const b = make("button");
+          b.className =
+            "stage" +
+            (i === state.stage ? " active" : "") +
+            (i > 1 ? " locked" : "");
+          b.setAttribute("aria-pressed", String(i === state.stage));
+          b.append(make("b", s.n), make("span", s.title));
+          b.onclick = () => {
+            state.stage = i;
+            state.node = 0;
+            render();
+            rail.children[i].focus();
+          };
+          rail.append(b);
+        });
+      }
+      function renderNodes() {
+        const s = stages[state.stage],
+          list = $("nodeList");
+        $("outlineTitle").textContent = s.n + " · " + s.title;
+        list.replaceChildren();
+        s.nodes.forEach((name, i) => {
+          const b = make("button");
+          b.className = "node" + (i === state.node ? " active" : "");
+          b.setAttribute("aria-pressed", String(i === state.node));
+          b.append(
+            make("small", String(i + 1).padStart(2, "0")),
+            make("span", name),
+          );
+          b.onclick = () => {
+            state.node = i;
+            renderNodes();
+            renderContent();
+            list.children[i].focus();
+          };
+          list.append(b);
+        });
+      }
+      function addSection(root, title, text) {
+        root.append(make("div", title, "section-title"), make("p", text));
+      }
+      function renderWiki(root, s, name) {
+        root.append(
+          make("div", s.n + " / " + s.title, "kicker"),
+          make("h2", name),
+          make("p", s.purpose, "lede"),
+        );
+        if (state.stage > 1)
+          root.append(
+            make(
+              "div",
+              "尚未接通執行：此階段目前只顯示預期的輸入、目的與輸出，不代表已執行或已有結果。",
+              "read-only",
+            ),
+          );
+        root.append(make("div", undefined, "rule"));
+        addSection(root, "此節點要完成什麼", nodePurpose(name));
+        const grid = make("div", undefined, "card-grid");
+        [
+          ["輸入", nodeInput(name)],
+          ["輸出", nodeOutput(name)],
+          [
+            "證據邊界",
+            "所有示意紀錄均為合成；未讀取私人論文，也不把搜尋結果自動升格為研究結論。",
+          ],
+          [
+            "狀態",
+            state.stage > 1
+              ? "唯讀規格 · 尚未接通執行"
+              : "互動參考 · 不會派送或儲存",
+          ],
+        ].forEach((x) => {
+          const c = make("div", undefined, "note-card");
+          c.append(make("b", x[0]), make("p", x[1]));
+          grid.append(c);
+        });
+        root.append(grid);
+        addSection(
+          root,
+          "來源閱讀",
+          "可從安全的已知相對路徑閱讀外掛狀態；其餘來源按鈕保持停用，避免誤連到未驗證位置。",
+        );
+        const a = make("a", "開啟外掛 README", "source-link");
+        a.href = "../../README.md";
+        root.append(a);
+      }
+      function renderDelivery(root, s, name) {
+        root.append(
+          make("div", "交付與來源 / 合成示意", "kicker"),
+          make("h2", s.n + " 的交付界面"),
+          make(
+            "p",
+            "這裡呈現預期交付物與來源綁定方式；沒有實際論文檔案，也不會下載或匯出。",
+            "lede",
+          ),
+        );
+        root.append(make("div", undefined, "rule"));
+        const grid = make("div", undefined, "card-grid");
+        [
+          ["節點輸出", nodeOutput(name)],
+          ["來源狀態", "示意來源 S-A · metadata-only · 不冒充全文"],
+          ["版本綁定", "work-demo / version-demo · 合成標籤"],
+          ["私密邊界", "私人來源應留在 Git 外；本頁未嵌入任何全文或憑證"],
+        ].forEach((x) => {
+          const c = make("div", undefined, "note-card");
+          c.append(make("b", x[0]), make("p", x[1]));
+          grid.append(c);
+        });
+        root.append(
+          grid,
+          make("div", "來源按鈕停用：尚無已驗證的本機交付套件。", "read-only"),
+        );
+        const b = make("button", "檢視來源檔", "control");
+        b.disabled = true;
+        b.title = "本機來源尚未綁定";
+        root.append(b);
+      }
+      function renderHistory(root, s) {
+        root.append(
+          make("div", "評估與歷史 / 合成示意", "kicker"),
+          make("h2", s.n + " 的明確版本檢視"),
+          make(
+            "p",
+            "歷史選擇器綁定嘗試與版本，不隨主題名稱改變，也不會在切換時重跑研究。",
+            "lede",
+          ),
+        );
+        const label = make("label", "選擇明確的嘗試／版本", "section-title"),
+          select = make("select", undefined, "history");
+        [
+          "嘗試 A · 版本 v0（合成）",
+          "嘗試 B · 版本 v1（合成）",
+          "嘗試 C · 版本 v2（合成）",
+        ].forEach((v) => {
+          const o = make("option", v);
+          o.value = v;
+          o.selected = v === state.history;
+          select.append(o);
+        });
+        select.onchange = (e) => {
+          state.history = e.target.value;
+          renderContent();
+          $("attemptHistory").focus();
+        };
+        select.id = "attemptHistory";
+        label.htmlFor = "attemptHistory";
+        root.append(
+          label,
+          select,
+          make(
+            "p",
+            "目前綁定：" + state.history + "。切換只改變本頁展示。",
+            "history-note",
+          ),
+        );
+        root.append(make("div", undefined, "rule"));
+        [
+          ["unknown", "未知", "必要證據尚未取得，因此不評分。"],
+          [
+            "failure",
+            "評估器失敗",
+            "評估流程或解析器失敗；不是受測研究的低分。",
+          ],
+          ["low", "觀察到低分", "已有足夠證據，並觀察到 rubric 所定義的缺失。"],
+        ].forEach((x) => {
+          const box = make("div", undefined, "status " + x[0]),
+            dot = make("i"),
+            copy = make("div");
+          copy.append(make("b", x[1]), make("p", x[2]));
+          box.append(dot, copy);
+          root.append(box);
+        });
+        addSection(
+          root,
+          "P 指標狀態",
+          (state.stage === 0
+            ? "P1–P3"
+            : state.stage === 1
+              ? "P4–P6"
+              : "預留評估") +
+            "：未評分。此原型不產生研究分數，也不把介面完整度當成品質改善證據。",
+        );
+      }
+      function renderDetail() {
+        const s = stages[state.stage],
+          name = s.nodes[state.node],
+          d = $("detail");
+        d.replaceChildren();
+        [
+          ["目前選取", s.n + " · " + name],
+          ["輸入", nodeInput(name)],
+          ["輸出", nodeOutput(name)],
+          [
+            "為何阻擋",
+            state.stage > 1
+              ? "前置階段尚無已核准交接，且本機執行器未接通。"
+              : "這是離線小樣；未綁定研究執行器與真實來源。",
+          ],
+          [
+            "下一步",
+            state.stage > 1
+              ? "先完成並明確核准上一階段的版本化交接。"
+              : "接通本機執行器後，再由使用者啟動真實流程。",
+          ],
+        ].forEach((x) => {
+          const b = make("div", undefined, "detail-block");
+          b.append(make("h3", x[0]), make("p", x[1]));
+          d.append(b);
+        });
+      }
+      function renderContent() {
+        const root = $("article"),
+          s = stages[state.stage],
+          name = s.nodes[state.node];
+        root.replaceChildren();
+        if (state.view === "wiki") renderWiki(root, s, name);
+        if (state.view === "delivery") renderDelivery(root, s, name);
+        if (state.view === "history") renderHistory(root, s);
+        renderDetail();
+      }
+      function nodePurpose(n) {
+        const map = {
+          "範圍與地域":
+            "保留原始研究方向、地域選擇與未決事項，避免把建議誤記為已接受範圍。",
+          "核心／經典／最接近研究分類":
+            "分開保存三種角色及其來源理由；年齡、名氣或相似標題都不能自動成立。",
+          "主張查核":
+            "逐一區分 supported、partial、contradicted 與 unverifiable。",
+          "覆蓋與停止判斷":
+            "檢查近期搜尋、最接近研究、未解需求與停止理由，不以篇數代替充分性。",
+          "獨立挑戰與可行性":
+            "另行檢查 closest work、材料、可回答性、驗證途徑與資源依賴。",
+          "修正／補查／暫存／淘汰":
+            "以證據保存 revise、park、reject 的理由與解除條件。",
+          "使用者決定與 Stage 3 交接":
+            "記錄人類選擇，將選定方向與未解事項交給下一階段。",
+        };
+        return (
+          map[n] ||
+          "以清楚的輸入、決策理由與版本化輸出完成此節點，並保留未知與失敗。"
+        );
+      }
+      function nodeInput(n) {
+        if (n.includes("匯入")) return "已核准的 Stage 1 交付與外部雜湊";
+        if (n.includes("評估")) return "版本化證據視圖與凍結 rubric";
+        if (state.stage > 1) return "上一階段已核准、可重建的交接封包";
+        return "合成研究簡述、示意來源紀錄與未解問題";
+      }
+      function nodeOutput(n) {
+        if (n.includes("評估")) return "分開的 P 指標狀態：目前皆為未評分";
+        if (n.includes("交付") || n.includes("套件"))
+          return "版本化選擇／交付套件與來源對照";
+        if (state.stage > 1) return "唯讀輸出規格；目前沒有執行結果";
+        return "合成節點紀錄、理由、來源狀態與下一步";
+      }
+      document.querySelectorAll(".view-tab").forEach((b) => {
+        b.setAttribute("aria-pressed", String(b.dataset.view === state.view));
+        b.onclick = () => {
+          state.view = b.dataset.view;
+          document.querySelectorAll(".view-tab").forEach((x) => {
+            x.classList.toggle("active", x === b);
+            x.setAttribute("aria-pressed", String(x === b));
+          });
+          renderContent();
+        };
+      });
+      function render() {
+        renderStages();
+        renderNodes();
+        renderContent();
+      }
+      render();
+    </script>
+  </body>
+</html>
