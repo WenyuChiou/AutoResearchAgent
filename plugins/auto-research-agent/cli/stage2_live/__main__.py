@@ -38,6 +38,17 @@ def _save(path, value):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_live")
     commands = parser.add_subparsers(dest="command", required=True)
+    observe = commands.add_parser(
+        "observe-runtime", help="private app-server snapshot; no model turn or A/B"
+    )
+    for option in ("codex", "codex-home", "workspace", "output", "receipt-output"):
+        observe.add_argument("--" + option, required=True)
+    observe.add_argument("--thread-id")
+    observation_check = commands.add_parser(
+        "verify-observation", help="read-only verification of a runtime snapshot"
+    )
+    observation_check.add_argument("--directory", required=True)
+    observation_check.add_argument("--receipt", required=True)
     control = commands.add_parser(
         "controller", help="run the foreground Stage 2 sequence"
     )
@@ -171,7 +182,48 @@ def main(argv=None):
         command.add_argument("--source-root", required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command in {"controller", "verify-controller"}:
+        if args.command == "observe-runtime":
+            from .observation import collect_runtime_observation
+
+            if Path(args.receipt_output).exists():
+                raise CaptureError("observation receipt output already exists")
+            for protected in (args.output, args.codex_home, args.workspace):
+                if (
+                    Path(args.receipt_output)
+                    .resolve()
+                    .is_relative_to(Path(protected).resolve())
+                ):
+                    raise CaptureError(
+                        "observation receipt must be outside archive/profile/workspace"
+                    )
+            result = collect_runtime_observation(
+                codex=args.codex,
+                codex_home=args.codex_home,
+                workspace=args.workspace,
+                output_dir=args.output,
+                thread_id=args.thread_id,
+            )
+            _save(
+                args.receipt_output,
+                {"record_sha256_receipt": result["record_sha256_receipt"]},
+            )
+            result = {
+                k: result[k]
+                for k in (
+                    "kind",
+                    "status",
+                    "record_sha256_receipt",
+                    "model_turns_dispatched",
+                    "offered_tool_inventory",
+                    "formal_ready",
+                )
+            }
+        elif args.command == "verify-observation":
+            from .observation import verify_runtime_observation
+
+            verified = verify_runtime_observation(args.directory, args.receipt)
+            result = {k: verified[k] for k in ("kind", "status", "formal_ready")}
+        elif args.command in {"controller", "verify-controller"}:
             from .controller import run_controller, verify_controller
 
             if Path(args.output).exists():
