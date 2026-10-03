@@ -285,6 +285,7 @@
       updateGraph();
       updateList();
       updateDetail();
+      window.WorkspaceI18n?.apply(root);
       if (focusSelector) root.querySelector(focusSelector)?.focus();
     };
 
@@ -499,6 +500,7 @@
       updateList();
       updateDetail();
       updateTable();
+      window.WorkspaceI18n?.apply(root);
     }
 
     textFilter.addEventListener("input", () => {
@@ -516,14 +518,17 @@
     zoomOut.onclick = () => {
       zoom = Math.max(0.7, zoom - 0.15);
       updateGraph();
+      window.WorkspaceI18n?.apply(root);
     };
     zoomIn.onclick = () => {
       zoom = Math.min(1.6, zoom + 0.15);
       updateGraph();
+      window.WorkspaceI18n?.apply(root);
     };
     zoomReset.onclick = () => {
       zoom = 1;
       updateGraph();
+      window.WorkspaceI18n?.apply(root);
     };
     exportButton.onclick = () => {
       const blob = new Blob([toBibTeX(visible())], {

@@ -1,0 +1,61 @@
+/* Original Research Studio visual language; Wiki reference structure retained. */
+:root { --paper:#f4f5f7; --paper2:#fff; --ink:#203047; --muted:#64758c; --teal:#3766a8; --ochre:#3766a8; --line:#dce3ed; --soft:#edf1f7; --shadow:none; }
+body { font:14px/1.65 "Segoe UI", "Microsoft YaHei", sans-serif; }
+.shell { background:var(--paper); padding-left:206px; }
+header { padding:28px 32px 24px; background:#fff; backdrop-filter:none; }
+h1 { font-size:29px; letter-spacing:0; }
+.eyebrow { font-size:10px; letter-spacing:.08em; }
+.eyebrow::before { display:none; }
+.subtitle { max-width:700px; }
+.mast { align-items:center; }
+.controls { align-items:center; }
+.control, select { border:1px solid var(--line); border-radius:6px; background:#f6f8fb; padding:7px 11px; font-size:13px; }
+.control:disabled { color:#8591a3; background:#f4f5f7; }
+.control-note { font-size:11px; color:var(--muted); }
+.language-control { display:flex; align-items:center; gap:8px; margin-bottom:12px; justify-content:flex-end; font-size:12px; }
+.studio-sidebar { position:fixed; inset:0 auto 0 0; width:206px; background:#1f2c3d; color:#bccbe0; padding:28px 14px; overflow-y:auto; display:flex; flex-direction:column; }
+.studio-brand { display:flex; gap:12px; padding:0 12px 30px; align-items:center; }
+.studio-brand strong { font:600 22px Georgia,serif; color:#fff; }
+.studio-brand small { display:block; font-size:9px; letter-spacing:.16em; }
+.brand-mark { background:#35465e; color:white; font:600 26px Georgia,serif; padding:0 9px; border-radius:8px; }
+.sidebar-title { padding:10px 14px; margin-top:22px; font-size:10px; letter-spacing:.12em; }
+.sidebar-workspace { padding:10px 14px; border-radius:6px; background:#35465e; color:#fff; }
+.stage-rail { display:flex; flex-direction:column; padding:0; background:transparent; border:0; gap:6px; }
+.stage { border:0!important; border-radius:6px; padding:12px 14px; }
+.stage b { color:#9eb1cd; font-size:10px; }
+.stage span { font-size:13px; margin:0; }
+.stage.active { background:#35465e; }
+.stage.active::after, .stage.locked span::after { display:none; }
+.stage.locked { opacity:.75; }
+.sidebar-footer { margin-top:auto; padding:32px 12px 0; font-size:11px; }
+.view-tabs { gap:22px; padding:0 32px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.view-tab { font:500 13px/1.5 "Segoe UI",sans-serif; padding:15px 0 12px; }
+main { max-width:1600px; grid-template-columns:190px minmax(0,1fr); padding:26px 30px; gap:20px; align-items:start; }
+main > aside { grid-column:2; }
+main > section { grid-row:1 / span 2; }
+.panel { min-width:0; border-radius:9px; overflow:hidden; }
+.panel-head { font-size:11px; letter-spacing:.04em; padding:15px; }
+.node { padding:9px; border-radius:5px; font-size:12px; }
+.node small { display:inline-block; margin-right:6px; font-size:10px; }
+.node:hover, .node.active { background:#edf2fa; }
+article { padding:26px; min-height:420px; }
+h2 { font-size:26px; }
+.lede { font-size:14px; color:var(--muted); }
+.kicker, .section-title { font-size:11px; letter-spacing:.04em; }
+.note-card { border-radius:6px; background:#f8faff; padding:14px; }
+.note-card p { font-size:12px; }
+.read-only { background:#f7f2e7; font-size:12px; }
+.detail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 20px; padding:18px; }
+.detail-block { padding:0; border:0; }
+.detail p { font-size:12px; }
+.footer-note { margin:0; padding:15px 32px 25px; font-size:11px; }
+main.literature-layout { grid-template-columns:minmax(0,1fr); }
+main.literature-layout > section, main.literature-layout > aside { display:none; }
+.graph-frame, .paper-detail, .lit-toolbar, .paper-row, .metadata-scroll { background:#fff; }
+button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline:3px solid #82abe5; outline-offset:3px; }
+textarea { display:block; width:100%; resize:vertical; border:1px solid var(--line); border-radius:6px; padding:10px; font:inherit; background:#fff; color:var(--ink); }
+textarea:focus-visible { outline:3px solid #82abe5; outline-offset:2px; }
+.discussion-actions { display:flex; flex-wrap:wrap; gap:8px; }
+@media(min-width:1500px) { main { grid-template-columns:210px minmax(0,1fr) 250px; } main > aside { grid-column:3; } main > section { grid-row:auto; } .detail { display:block; } }
+@media(max-width:1000px) { .shell { padding-left:174px; } .studio-sidebar { width:174px; } .mast { display:block; } .language-control,.controls { justify-content:flex-start; } main { grid-template-columns:minmax(0,1fr); padding:20px; } main > section { grid-row:auto; } main > aside { grid-column:auto; } .node-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:640px) { .shell { padding-left:0; } .studio-sidebar { position:static; width:auto; padding:16px; } .studio-brand { padding:0 0 12px; } .sidebar-title,.sidebar-workspace,.sidebar-footer { display:none; } .stage-rail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } header { padding:22px 18px; } .view-tabs { padding:0 18px; gap:16px; } main { padding:16px; } .card-grid,.detail { grid-template-columns:1fr; } article { padding:20px; } h1 { font-size:26px; } .stage { padding:8px 12px; } }
