@@ -1,6 +1,7 @@
 """Controlled review mechanics; these are not live scientific judgments."""
 
 import copy
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -171,6 +172,48 @@ class Stage2WorkflowReviewTests(unittest.TestCase):
             reconcile_reviews(
                 self.packet, "candidate-1", self.snapshot, rows, resolution
             )
+
+    def test_failed_resolution_reports_exact_missing_and_extra_identifiers(self):
+        rows = [self.review(role) for role in ("challenger", "feasibility")]
+        resolution = self.resolution(rows)
+        issue = "Competing mechanism produces identical output"
+        resolution["substantive_disagreements"] = [issue]
+        resolution["addressed"] = ["materials assessment"]
+        with self.assertRaises(Stage2Error) as caught:
+            reconcile_reviews(
+                self.packet, "candidate-1", self.snapshot, rows, resolution
+            )
+        label, payload = str(caught.exception).split(": ", 1)
+        self.assertEqual(label, "unresolved-disagreement")
+        self.assertEqual(
+            json.loads(payload),
+            {
+                "required_addressed": [issue],
+                "missing": [issue],
+                "extra": ["materials assessment"],
+            },
+        )
+        # Copying the exact identifier is insufficient without an evidence method.
+        resolution["addressed"] = [issue]
+        with self.assertRaisesRegex(
+            Stage2Error, "material-disagreement-needs-evidence"
+        ):
+            reconcile_reviews(
+                self.packet, "candidate-1", self.snapshot, rows, resolution
+            )
+
+    def test_invalid_addressed_payload_is_a_contract_failure(self):
+        rows = [self.review(role) for role in ("challenger", "feasibility")]
+        for invalid in (None, "materials", [None], [{}], [""]):
+            with self.subTest(invalid=invalid):
+                resolution = self.resolution(rows)
+                resolution["addressed"] = invalid
+                with self.assertRaisesRegex(
+                    Stage2Error, "addressed-disagreements-must-be-strings"
+                ):
+                    reconcile_reviews(
+                        self.packet, "candidate-1", self.snapshot, rows, resolution
+                    )
 
     def test_excluded_audit_keeps_borderline_plus_saved_seed_draw(self):
         rows = [

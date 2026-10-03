@@ -127,6 +127,9 @@ class Stage2CodeModeWrapperTests(unittest.TestCase):
         ]
 
     def test_literal_parser_rejects_dynamic_extra_and_transformed_wrappers(self):
+        self.assertEqual(_cwd_path("C:/"), _cwd_path("c:\\"))
+        self.assertNotEqual(_cwd_path("C:/"), _cwd_path("c:"))
+        self.assertNotEqual(_cwd_path("/"), _cwd_path(""))
         self.assertNotEqual(_cwd_path("/tmp/Probe"), _cwd_path("/tmp/probe"))
         self.assertIsNone(_cwd_path("file://foreign-host/C:/workspace"))
         valid = "const r=await tools.web__run({search_query:[{q:'fixed'}]});text(JSON.stringify(r));"
@@ -155,6 +158,19 @@ class Stage2CodeModeWrapperTests(unittest.TestCase):
         )
         self.assertEqual(witness["output"]["output"], "proof\r\n")
         self.assertEqual(witness["native_item_id"], "exec-native")
+
+    def test_windows_path_separators_do_not_change_executor_identity(self):
+        self.arguments["shell"] = self.arguments["shell"].replace("\\", "/")
+        self.arguments["workdir"] = self.arguments["workdir"].replace("\\", "/")
+        witness = inspect_production_wrapper(
+            self.read_events(), "call-read", "exec_command", EXECUTOR
+        )
+        self.assertEqual(witness["native_item_id"], "exec-native")
+        self.arguments["shell"] = "C:/different/shell.exe"
+        with self.assertRaises(CodeModeWitnessError):
+            inspect_production_wrapper(
+                self.read_events(), "call-read", "exec_command", EXECUTOR
+            )
 
     def test_immediate_write_and_search_accept_authenticated_native_results(self):
         write_events = custom_call("write", "exec_command", self.arguments) + [
