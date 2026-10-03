@@ -45,7 +45,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_eval",
       "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
-      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target. Versioned formal admission replays actual preflights, pilot controller, calibration, extraction and blinded judge evidence; synthetic seams remain non-admissible. Opt-in diagnostic output 2.1 records the judgment basis and source-bound negative witness IDs for an assessed zero; missing verification remains unknown/null. Legacy 2.0 output and default prompts remain readable without rewriting original results.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target. Versioned formal admission replays actual preflights, pilot controller, calibration, extraction and blinded judge evidence; synthetic seams remain non-admissible. Opt-in diagnostic output 2.1 records the judgment basis and source-bound negative witness IDs for an assessed zero; missing verification remains unknown/null. Legacy 2.0 output and default prompts remain readable without rewriting original results. Fixed-denominator rubric QA separates observed, unavailable and verified-absent records; unknown remains null, significant disagreement and critical errors block acceptance.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -95,7 +95,8 @@
         "plugins/auto-research-agent/tests/test_stage2_evaluation.py",
         "plugins/auto-research-agent/tests/test_stage2_diagnostics.py",
         "plugins/auto-research-agent/tests/test_stage2_diagnostic_fixtures.py",
-        "plugins/auto-research-agent/tests/test_stage2_formal.py"
+        "plugins/auto-research-agent/tests/test_stage2_formal.py",
+        "plugins/auto-research-agent/tests/test_stage2_rubric_quality.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -327,7 +328,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_live",
       "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
-      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls. Inventory receipt2.0 binds five supported RPC responses and separately captured host model-request tools; unknown offered tools block admission and unsupported tools/list is never required. Versioned opt-in followup2 routes material partial findings and repair next steps while retaining legacy behavior; unknown new-method performance alone does not force proof before research.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls. Inventory receipt2.0 binds five supported RPC responses and separately captured host model-request tools; unknown offered tools block admission and unsupported tools/list is never required. Versioned opt-in followup2 routes material partial findings and repair next steps while retaining legacy behavior; unknown new-method performance alone does not force proof before research. Tool-free rubric QA archives actual R1/R2 calls and separate immutable-input ADJ; injected adapters cannot attest quality and no QA run grants formal readiness.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -390,7 +391,9 @@
         "plugins/auto-research-agent/tests/test_stage2_judge_replay.py",
         "plugins/auto-research-agent/tests/test_stage2_environment.py",
         "plugins/auto-research-agent/tests/test_stage2_inventory_v2.py",
-        "plugins/auto-research-agent/tests/test_stage2_material_followup.py"
+        "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
+        "plugins/auto-research-agent/tests/test_stage2_rubric_quality.py",
+        "plugins/auto-research-agent/tests/test_stage2_rubric_adjudication.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false

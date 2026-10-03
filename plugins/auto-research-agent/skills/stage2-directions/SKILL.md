@@ -101,6 +101,17 @@ Keep independent evaluation outputs, condition labels and judge feedback outside
 the production choice process. An internal recommendation is not an external
 P4–P6 score. This first slice is experimental and has not demonstrated improvement.
 
+When reviewing enabling requirements or several directions together, read the
+[prerequisite and followup interface](../../evals/stage2/MATERIAL_PREREQUISITES_AND_FOLLOWUP.zh-TW.md).
+Record data, tools, models, licenses, cost, premises and validation paths against
+the current candidate and source versions. Use reasoned not-applicable entries
+for theory; do not invent empirical requirements. Missing per-candidate estimates
+or resource limits leave joint demand or capacity unknown. Count shared work once
+only when its participating candidates and basis are explicit. These records check
+bindings, not scientific truth. Opt-in material followup identifies the decision
+that could change and its next check; it does not authorize a new search engine,
+grant human approval, or require a new method to have proven effectiveness.
+
 For real calls, load the [native execution interface](../../references/stage2-live.md)
 only when needed. Preserve the native research environment, capture prose before
 tool-free extraction, and run independent checks in separate host-isolated contexts.
