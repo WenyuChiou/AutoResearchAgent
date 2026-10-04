@@ -1,5 +1,12 @@
 # Stage 2 rubric judge 品質與限制
 
+> **本檔是 v2／QA01–QA03 的歷史紀錄。** 下方七項 rubric、56 案例及
+> 0／2 預演，是 v3 上線前的快照，不是目前狀態；原始數字完整保留。
+> 現行九項標準、盲化校準與操作請看 [Stage 2 v3](STAGE2_V3_EVALUATION.zh-TW.md)。
+> [2026-10-04 的 B 預演紀錄](../evidence/stage2-v3-b-pilot-endpoints-2026-10-04.json)
+> 記錄兩份自動選擇包及評分：US 待具名覆核，修訂後 flaky-test 的 R1／R2 一致。
+> 這不代表方向已選定、實驗可執行或品質已改善；正式 A/B 仍為 0／6。
+
 這套校準只檢查 evaluator 能否依固定 rubric、控制事實與 subject record 穩定判分。它是 diagnostic，不是正式 A/B，也不證明研究方向品質改善。
 
 | 輪次 | 範圍正確率 | R1/R2 一致 | 風格不變性 | 結果 |
