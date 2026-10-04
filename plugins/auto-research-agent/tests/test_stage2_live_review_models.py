@@ -14,13 +14,14 @@ PLUGIN = HERE.parent
 sys.path.insert(0, str(PLUGIN / "cli"))
 sys.path.insert(0, str(HERE))
 
-from stage1_eval.common import canonical  # noqa: E402
+from stage1_eval.common import EvaluationError, canonical  # noqa: E402
 from stage2_common import Stage2Error, canonical_hash  # noqa: E402
 from stage2_fixture_helpers import write_stage2_fixture  # noqa: E402
 from stage2_live.review_models import (  # noqa: E402
     _schema,
     extract_resolution,
     extract_review,
+    _resolution_extraction_label,
     reconciliation_task,
     review_task,
 )
@@ -90,6 +91,23 @@ class StubModel:
             "execution_status": "injected-test",
             "label": label,
         }
+
+
+class OutputWritingStubModel(StubModel):
+    """Mirror the production adapter's label.json side effect."""
+
+    def __init__(self, values):
+        super().__init__(values)
+        self.raw_outputs = {}
+
+    def __call__(self, prompt, schema_path, output_dir, label, **options):
+        value, provenance = super().__call__(
+            prompt, schema_path, output_dir, label, **options
+        )
+        raw = canonical(value) + b"\n"
+        (Path(output_dir) / f"{label}.json").write_bytes(raw)
+        self.raw_outputs[label] = raw
+        return value, provenance
 
 
 class Stage2LiveReviewModelTests(unittest.TestCase):
@@ -405,7 +423,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             "Resolution prose cites ev-1 and preserves the independent records.",
             "session-resolution",
         )
-        adapter = StubModel({"resolution": resolution_payload(self.packet)})
+        adapter = StubModel({"resolution-extraction": resolution_payload(self.packet)})
         result = extract_resolution(
             self.packet,
             self.sources,
@@ -453,7 +471,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             addressed=["opportunity", "disposition", substantive],
             changed_judgment_reason="The source-bound measurement record supports score 2.",
         )
-        adapter = StubModel({"resolution": payload})
+        adapter = StubModel({"resolution-extraction": payload})
 
         result = extract_resolution(
             **self.resolution_args(
@@ -501,7 +519,12 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             addressed=["The opportunity disagreement was resolved."],
             changed_judgment_reason="The source-bound record supports score 2.",
         )
-        adapter = StubModel({"resolution": invalid, "resolution-correction": invalid})
+        adapter = StubModel(
+            {
+                "resolution-extraction": invalid,
+                "resolution-extraction-correction": invalid,
+            }
+        )
 
         with self.assertRaisesRegex(Stage2Error, "unresolved-disagreement"):
             extract_resolution(
@@ -511,7 +534,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             )
         self.assertEqual(
             [call["label"] for call in adapter.calls],
-            ["resolution", "resolution-correction"],
+            ["resolution-extraction", "resolution-extraction-correction"],
         )
 
     def test_empty_assessed_evidence_is_corrected_once_to_valid_resolution(self):
@@ -528,7 +551,12 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
         for axis in ("opportunity", "value"):
             invalid["assessment"]["checks"][axis]["evidence_ids"] = []
         valid = resolution_payload(self.packet)
-        adapter = StubModel({"resolution": invalid, "resolution-correction": valid})
+        adapter = StubModel(
+            {
+                "resolution-extraction": invalid,
+                "resolution-extraction-correction": valid,
+            }
+        )
 
         result = extract_resolution(
             **self.resolution_args(
@@ -538,7 +566,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
 
         self.assertEqual(
             [call["label"] for call in adapter.calls],
-            ["resolution", "resolution-correction"],
+            ["resolution-extraction", "resolution-extraction-correction"],
         )
         self.assertIn(
             "evidence_ids: [] should be non-empty",
@@ -552,6 +580,76 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
         correction_prompt = adapter.calls[1]["prompt"]
         self.assertIn("stage2-reconciliation-extraction-fields", correction_prompt)
         self.assertIn('"pending_categorical_ids": []', correction_prompt)
+
+    def test_model_output_and_public_resolution_envelope_use_distinct_paths(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "separate-resolution-paths",
+            "reconciliation_task",
+            task,
+            "The saved reconciliation supports the bounded synthesis.",
+            "session-separate-resolution-paths",
+        )
+        adapter = OutputWritingStubModel(
+            {"resolution-extraction": resolution_payload(self.packet)}
+        )
+        output = "separate-resolution-paths-out"
+
+        result = extract_resolution(
+            **self.resolution_args(reviews, capture, receipt, output, adapter)
+        )
+
+        output_dir = self.root / output
+        raw_path = output_dir / "resolution-extraction.json"
+        envelope_path = output_dir / "resolution.json"
+        self.assertEqual(result["extraction_unit_label"], "resolution-extraction")
+        self.assertEqual(
+            result["replay_receipt"]["unit_receipts"].keys(),
+            {"resolution-extraction"},
+        )
+        self.assertEqual(
+            raw_path.read_bytes(), adapter.raw_outputs["resolution-extraction"]
+        )
+        self.assertNotEqual(raw_path.read_bytes(), envelope_path.read_bytes())
+        envelope = json.loads(envelope_path.read_text(encoding="utf-8"))
+        self.assertEqual(envelope["extraction_unit_label"], "resolution-extraction")
+        self.assertEqual(envelope["resolution"], result["resolution"])
+
+    def test_interrupted_legacy_collision_fails_closed_without_regeneration(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "legacy-collision",
+            "reconciliation_task",
+            task,
+            "The legacy saved reconciliation was accepted before envelope finalization.",
+            "session-legacy-collision",
+        )
+        output = self.root / "legacy-collision-out"
+        output.mkdir()
+        collided_raw = canonical(resolution_payload(self.packet)) + b"\n"
+        (output / "resolution.json").write_bytes(collided_raw)
+        replay_receipt = {
+            "result_sha256": None,
+            "unit_receipts": {"resolution": "a" * 64},
+        }
+        self.assertEqual(
+            _resolution_extraction_label(True, replay_receipt), "resolution"
+        )
+        adapter = StubModel({})
+
+        with self.assertRaisesRegex(EvaluationError, "saved result differs"):
+            extract_resolution(
+                **self.resolution_args(
+                    reviews, capture, receipt, "legacy-collision-out", adapter
+                ),
+                resume=True,
+                resume_receipt=replay_receipt,
+            )
+
+        self.assertEqual(adapter.calls, [])
+        self.assertEqual((output / "resolution.json").read_bytes(), collided_raw)
 
 
 if __name__ == "__main__":
