@@ -10,7 +10,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace_native",
       "problem": "A short-lived execution cannot retain interleaved native questions, typed request identities or ambiguous dispatch outcomes for a project session.",
-      "mechanism": "Build a persistent injected JSON-RPC pump with a required durable event sink, mandatory binding checks before every write, exact native request answers and unusable connections after ambiguous dispatch. Production launch and session authority are separate, unadmitted work.",
+      "mechanism": "Build a persistent injected JSON-RPC pump with a required durable event sink, mandatory binding checks before every write, exact native request answers and unusable connections after ambiguous dispatch. Store immutable project/index/thread bindings and exclusive process-held owners in SQLite with atomic state events and unknown unfinished recovery. Controller wiring, operation journal and production launch remain separate, unadmitted work.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -29,7 +29,8 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace_native_transport.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_binding.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_native_binding.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_store.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
