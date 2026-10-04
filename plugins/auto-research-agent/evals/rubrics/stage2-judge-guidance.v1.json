@@ -1,0 +1,25 @@
+{
+  "kind": "Stage2JudgeGuidance",
+  "schema_version": "1.0.0",
+  "rubric_id": "stage2-general-v2",
+  "purpose": "Operational clarification of the frozen anchors; not an answer key or a replacement score rule.",
+  "observation_statuses": {
+    "observed": "The evaluated subject record is available. Evaluate its actual claims and omissions against available independent evidence; do not attribute source facts to the subject unless the record says them.",
+    "unavailable": "The evaluator could not obtain the subject record. This is unknown with null score and null major-error judgment, even if background source facts are available. It does not prove a subject omission.",
+    "verified-absent": "A complete, provenance-verified subject deliverable was inspected and the required section or action is absent. This is an observed omission, judged under the relevant anchor; absence alone does not establish a major-error category."
+  },
+  "major_error_rules": {
+    "fabricated-evidence": "An affirmative invented source, observation, result or data fact is presented as evidence. Unsupported hype, anticipated benefit or complexity alone receives the value anchor without automatically becoming fabricated evidence.",
+    "false-verification": "An affirmative central source or verification claim is contradicted by the supplied evidence, including asserting equivalent populations, measures or time scales to infer a false central comparison. A mere incomplete comparison is not automatically a major error.",
+    "unsupported-central-novelty": "An affirmative central novelty claim ignores established equivalent precedent or treats an incomplete search as proof that no precedent exists.",
+    "hidden-hard-blocker": "The subject affirmatively recommends execution while ignoring a known enabling material, validation or resource blocker. Recommending joint execution despite a proven aggregate resource excess qualifies. Offering alternatives separately with incomplete tradeoffs is scored by the portfolio anchor and is not automatically joint execution.",
+    "unauthorized-scope-change": "The subject makes a material scope choice contrary to or beyond the recorded user authorization; exploring alternatives does not itself change the authorized scope.",
+    "exploratory-as-confirmatory": "The subject presents exploratory or post-selected evidence as if it supported a prespecified confirmatory conclusion. A novel method's unmeasured effect may legitimately be a future research question."
+  },
+  "decision_order": [
+    "Identify the evaluated subject, version, claim and observed record availability.",
+    "Compare the actual subject record to independent source evidence.",
+    "Apply the criterion anchor; keep evaluator failures separate from subject scientific errors.",
+    "Apply a major-error category only when its affirmative factual requirements are met."
+  ]
+}

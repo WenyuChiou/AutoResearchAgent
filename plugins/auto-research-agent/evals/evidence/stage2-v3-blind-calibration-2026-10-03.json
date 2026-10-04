@@ -1,0 +1,97 @@
+{
+  "kind": "Stage2V3BlindCalibrationSummary",
+  "version": "1.0.0",
+  "date": "2026-10-03",
+  "topic": "controlled supplied-fact calibration, separate from research subjects",
+  "model": "gpt-5.6-sol",
+  "reasoning": "high",
+  "rubric_sha256": "1121489fc91d7e8e4c551719dcb896e1ceb806092eb31c5b15c418b33217d85e",
+  "dataset_sha256": "4d5ba60c162c54b88d7bffc0af171e2356f71ce4bda2dab887464828b489d63c",
+  "reference_sha256": "2ba95228f2067f841a504a0ce051ad602fed39ce4378cd6ce648142a419d0d22",
+  "native_result_file_sha256": "e7ec2ec86a2b43a48a015d4c4335fa64526365f9c227aef1fd9634a5112e3094",
+  "readonly_replay_file_sha256": "739dcc3bd8b1f1d9a1d360f8178684f895447528ebc7c250bf4be2156c9dc029",
+  "opaque_prompt_and_schema_ids": true,
+  "old_leaked_calibration_admitted": false,
+  "native_authenticated": true,
+  "qa_pass": true,
+  "presentations": 72,
+  "designated_judgments": 144,
+  "actual_model_attempts": 18,
+  "metrics": {
+    "range": {
+      "matched": 144,
+      "percent": 100.0,
+      "required": 144
+    },
+    "per_criterion": {
+      "P4V3.COMPARABILITY": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P4V3.FIDELITY": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P4V3.SYNTHESIS": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P5V3.CONTRIBUTION": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P5V3.PRECEDENT": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P5V3.REVISION": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P6V3.CHOICE": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P6V3.FEASIBILITY": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      },
+      "P6V3.VALUE": {
+        "matched": 16,
+        "percent": 100.0,
+        "required": 16
+      }
+    },
+    "agreement": {
+      "matched": 72,
+      "percent": 100.0,
+      "required": 72
+    },
+    "invariance": {
+      "matched": 72,
+      "percent": 100.0,
+      "required": 72
+    },
+    "critical_errors": [],
+    "unresolved_disagreements": [],
+    "evaluator_failures": []
+  },
+  "human_approval_claimed": false,
+  "cost": "unknown",
+  "formal_ready": false,
+  "improvement_demonstrated": false,
+  "independent_trials_claimed": false,
+  "limitations": [
+    "Only the frozen supplied-fact cases are calibrated.",
+    "Real research pilots and formal paired A/B remain separate requirements.",
+    "Old calls with score-revealing IDs are contaminated diagnostic evidence only."
+  ]
+}

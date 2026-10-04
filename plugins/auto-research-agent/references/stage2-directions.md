@@ -91,12 +91,19 @@ in the comparison or rationale, including contrary evidence and what remains
 untested. No hidden reasoning transcript is needed; give a concise explanation
 that another researcher can check.
 
-The v1 packet does not have structured title, author, DOI or evidence-role
-fields. Supply verified citation details with source IDs in the comparison when
-available; the report labels the missing structured metadata and never invents
-a bibliography or guesses a source's role. Automated bibliography enrichment
-and live proposal generation remain future work. Re-exporting old runs enriches
-the readable view without rewriting their input, events or evaluation contract.
+The v2 packet carries structured literature records from the admitted source
+package. The final report shows title, authors, year, venue, DOI or URL, recorded
+roles and their reasons, and the bound source and claim IDs. Each excerpt shows
+only the roles whose claim IDs include that excerpt. A role is a supplied
+research judgment, not a new verification of classic status or claim support.
+The excerpt's own evidence level remains visible even if another snapshot of
+the same work contains full text.
+
+The v1 packet has no structured bibliography. Its missing fields remain
+explicitly missing. The renderer never guesses citation details or a role from
+a quote, and it does not search for metadata. Re-exporting produces a new
+readable projection without rewriting inputs, events or evaluation results;
+keep any previously published delivery package immutable.
 
 ## Open proposal development
 

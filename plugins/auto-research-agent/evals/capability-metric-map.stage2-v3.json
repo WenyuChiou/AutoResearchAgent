@@ -1,0 +1,330 @@
+{
+  "registry_id": "capability-metric-map-stage2-v3",
+  "schema_version": "3.0.0",
+  "extends": "capability-metric-map-v1",
+  "capabilities": [],
+  "capability_extensions": [
+    {
+      "capability_id": "cli:stage2-eval",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.CONTRIBUTION",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.VALUE",
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        }
+      ],
+      "mechanism": "Opt-in source-context v1 binds exact source bytes, adjacent context, evidence levels and unverified semantic declarations; bounded context and independent review prevent location binding from being misread as semantic verification.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_source_context.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
+      ],
+      "source_context_calibration_contract": "12 context cases/24 judgments combined with72/144 via recomputation; mechanics-only until authentic independent native calls exist",
+      "source_context_calibration_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_source_context_quality.py"
+      ],
+      "formal_admission_bridge": "Schema2.0.0 binds v3 plan/readiness/result artifact receipts and replays six v3 judge bundles; unsupported native inventory, nested usage, quality and preflight/controller replay remain explicit blockers. No formal promotion.",
+      "formal_admission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_formal_admission_v3.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-check",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.CONTRIBUTION",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.VALUE",
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        }
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-live",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.CONTRIBUTION",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.VALUE",
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        }
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_source_context.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
+      ],
+      "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
+      "research_followup_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_research_followups.py",
+        "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-workflow",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement",
+            "Authenticated source updates or content-only revisions bind immutable snapshots, preserved source/candidate history, optional exact excerpts on existing sources, and fresh affected-version checks; zero new evidence is legal for substantive content correction",
+            "Summary and full comments agree across Markdown/HTML/wiki; presentation-only replay makes zero new judge calls; unknown and pending audit remain visible"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.CONTRIBUTION",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement",
+            "Authenticated source updates or content-only revisions bind immutable snapshots, preserved source/candidate history, optional exact excerpts on existing sources, and fresh affected-version checks; zero new evidence is legal for substantive content correction",
+            "Summary and full comments agree across Markdown/HTML/wiki; presentation-only replay makes zero new judge calls; unknown and pending audit remain visible"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.VALUE",
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement",
+            "Authenticated source updates or content-only revisions bind immutable snapshots, preserved source/candidate history, optional exact excerpts on existing sources, and fresh affected-version checks; zero new evidence is legal for substantive content correction",
+            "Summary and full comments agree across Markdown/HTML/wiki; presentation-only replay makes zero new judge calls; unknown and pending audit remain visible"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        }
+      ]
+    },
+    {
+      "capability_id": "validator:research-pr-contract",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.CONTRIBUTION",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.VALUE",
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        }
+      ]
+    },
+    {
+      "capability_id": "skill:stage2-directions",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.CONTRIBUTION",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.VALUE",
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+          ],
+          "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
+        }
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-ideation",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Replacement comparison/current unresolved view preserves original snapshots and exact prose/evidence bindings"
+          ],
+          "human_judgment": "Independent source-grounded judgments; extraction is not scientific validation."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Authenticated source updates or content-only revisions bind immutable snapshots, preserved source/candidate history, optional exact excerpts on existing sources, and fresh affected-version checks; zero new evidence is legal for substantive content correction"
+          ],
+          "human_judgment": "Fresh affected-version review establishes assessment support; no formal improvement claim."
+        }
+      ]
+    }
+  ]
+}

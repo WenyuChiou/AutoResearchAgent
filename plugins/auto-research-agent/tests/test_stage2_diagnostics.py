@@ -125,7 +125,24 @@ def output(rows):
     }
 
 
+def output_v21(rows):
+    value = output(copy.deepcopy(rows))
+    value["schema_version"] = "2.1.0"
+    for row in value["results"]:
+        for check in row["checks"].values():
+            check["judgment_basis"] = "partial-support"
+            check["negative_evidence_ids"] = []
+    return value
+
+
 class Stage2DiagnosticTests(unittest.TestCase):
+    def test_default_prompt_remains_the_frozen_v20_prompt(self):
+        default = prepare_diagnostic_prompt(cases())
+        self.assertEqual(
+            hashlib.sha256(default.encode("utf-8")).hexdigest(),
+            "8d26c298105d8f1a68764abfeb5b929b0f682fed2f4120da7cc690767b61cd1e",
+        )
+
     def test_prompt_supplies_host_hashes_without_case_specific_answers(self):
         prompt = prepare_diagnostic_prompt(cases())
         for case in cases():
@@ -255,6 +272,110 @@ class Stage2DiagnosticTests(unittest.TestCase):
         no_evidence[0]["checks"]["value"]["evidence_refs"] = []
         with self.assertRaisesRegex(DiagnosticError, "assessed check needs evidence"):
             validate_diagnostic_output(output(no_evidence), self.cases)
+
+    def test_v21_distinguishes_observed_incompatibility_from_unknown(self):
+        missing = fact(
+            "fact-missing",
+            "work-data",
+            "version-data-1",
+            "The data dictionary explicitly omits the required monthly variable.",
+        )
+        self.cases[0]["source_facts"].append(missing)
+        observed = output_v21(self.rows)
+        observed["results"][0]["case_sha256"] = canonical_hash(self.cases[0])
+        check = observed["results"][0]["checks"]["materials"]
+        check.update(
+            score=0,
+            judgment_basis="demonstrated-incompatibility",
+            evidence_refs=[
+                {"evidence_id": "fact-missing", "exact_quote": missing["text"]}
+            ],
+            negative_evidence_ids=["fact-missing"],
+        )
+        validate_diagnostic_output(observed, self.cases)
+
+        unknown = output_v21(self.rows)
+        unknown["results"][0]["case_sha256"] = canonical_hash(self.cases[0])
+        unknown_check = unknown["results"][0]["checks"]["materials"]
+        unknown_check.update(
+            status="unknown",
+            score=None,
+            rationale="Verified access has not been established.",
+            evidence_refs=[],
+            judgment_basis="evidence-not-established",
+        )
+        validate_diagnostic_output(unknown, self.cases)
+
+        unknown_check["score"] = 0
+        with self.assertRaisesRegex(DiagnosticError, "unknown check needs null score"):
+            validate_diagnostic_output(unknown, self.cases)
+
+    def test_v21_zero_requires_a_unique_witness_from_the_same_check(self):
+        missing = output_v21(self.rows)
+        check = missing["results"][0]["checks"]["materials"]
+        check.update(score=0, judgment_basis="demonstrated-incompatibility")
+        with self.assertRaisesRegex(DiagnosticError, "needs negative evidence"):
+            validate_diagnostic_output(missing, self.cases)
+
+        foreign = output_v21(self.rows)
+        foreign_check = foreign["results"][0]["checks"]["materials"]
+        foreign_check.update(
+            score=0,
+            judgment_basis="demonstrated-incompatibility",
+            negative_evidence_ids=["fact-screen"],
+        )
+        with self.assertRaisesRegex(DiagnosticError, "must reference that check"):
+            validate_diagnostic_output(foreign, self.cases)
+
+        other_dimension = output_v21(self.rows)
+        other_case = self.cases[0]
+        other_fact = fact(
+            "fact-other",
+            "work-other",
+            "version-other-1",
+            "A separate execution constraint was observed.",
+        )
+        other_case["source_facts"].append(other_fact)
+        other_dimension["results"][0]["case_sha256"] = canonical_hash(other_case)
+        other_dimension["results"][0]["checks"]["execution"]["evidence_refs"] = [
+            {"evidence_id": "fact-other", "exact_quote": other_fact["text"]}
+        ]
+        other_check = other_dimension["results"][0]["checks"]["materials"]
+        other_check.update(
+            score=0,
+            judgment_basis="demonstrated-incompatibility",
+            negative_evidence_ids=["fact-other"],
+        )
+        with self.assertRaisesRegex(DiagnosticError, "must reference that check"):
+            validate_diagnostic_output(other_dimension, self.cases)
+
+    def test_v21_nonzero_and_boolean_witnesses_are_rejected(self):
+        nonzero = output_v21(self.rows)
+        nonzero["results"][0]["checks"]["value"]["negative_evidence_ids"] = [
+            "fact-claim"
+        ]
+        with self.assertRaisesRegex(DiagnosticError, "forbids negative evidence"):
+            validate_diagnostic_output(nonzero, self.cases)
+
+        boolean = output_v21(self.rows)
+        boolean["results"][0]["checks"]["value"]["negative_evidence_ids"] = True
+        with self.assertRaisesRegex(DiagnosticError, "must be nonblank strings"):
+            validate_diagnostic_output(boolean, self.cases)
+
+    def test_v21_prompt_states_zero_and_semantic_review_boundaries(self):
+        prompt = prepare_diagnostic_prompt(self.cases, output_version="2.1.0")
+        self.assertIn("affirmative counterevidence", prompt)
+        self.assertIn("Missing verification", prompt)
+
+    def test_malformed_output_version_is_an_explicit_contract_error(self):
+        for version in (["2.1.0"], {"version": "2.1.0"}, None):
+            with self.subTest(version=version):
+                malformed = output_v21(self.rows)
+                malformed["schema_version"] = version
+                with self.assertRaisesRegex(DiagnosticError, "output version"):
+                    validate_diagnostic_output(malformed, self.cases)
+                with self.assertRaisesRegex(DiagnosticError, "output version"):
+                    prepare_diagnostic_prompt(self.cases, output_version=version)
 
     def test_duplicate_ids_and_exact_case_coverage_are_required(self):
         duplicate_cases = copy.deepcopy(self.cases)

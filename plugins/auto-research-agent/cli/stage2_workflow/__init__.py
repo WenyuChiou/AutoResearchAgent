@@ -8,6 +8,7 @@ from .store import (
     start_action,
 )
 from .import_stage1 import build_stage2_seed
+from .exploratory import build_exploratory_seed
 
 __all__ = [
     "add_snapshot",
@@ -16,4 +17,5 @@ __all__ = [
     "inspect_workflow",
     "start_action",
     "build_stage2_seed",
+    "build_exploratory_seed",
 ]

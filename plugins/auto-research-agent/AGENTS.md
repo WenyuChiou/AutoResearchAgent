@@ -23,6 +23,14 @@ Read these files in order. Do not rely on a summary from an earlier task.
 For Stage 2 work, also read the [scientific contract](evals/stage2/SCIENTIFIC_CONTRACT.zh-TW.md),
 [checker rubric](evals/stage2/DIRECTION_CHECKER_RUBRIC.zh-TW.md) and
 [independent evaluation protocol](evals/stage2/INDEPENDENT_EVALUATION_PROTOCOL.zh-TW.md).
+For opt-in v3, read [the balanced evaluation and transparent delivery guide](evals/stage2/STAGE2_V3_EVALUATION.zh-TW.md).
+Register v3 effects in `evals/capability-metric-map.stage2-v3.json`; preserve v2.
+Nine criteria are three per P4/P5/P6, each dimension has a fixed denominator of six.
+Unavailable necessary evidence is null; evaluator failure is separate. Ordinary
+B-only scoring and production preflight cannot attest formal A/B isolation.
+Every completed v3 selection package requires independent content-first R1/R2
+scoring (ADJ on disagreement), or an explicit incomplete-assessment delivery.
+Keep raw comments, evidence locations and pending named audit visible in HTML.
 Register new Stage 2 capabilities in `evals/capability-metric-map.stage2-v2.json`.
 The general Stage 2 v2 path is implementation-only: fixed-candidate checks and
 offline evaluation mechanics do not establish live execution or improvement.

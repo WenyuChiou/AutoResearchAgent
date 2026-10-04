@@ -9,7 +9,12 @@ from .native import CaptureError
 
 
 def prepare_profile(
-    destination, skills_response, skills_response_sha256, *, platform=None
+    destination,
+    skills_response,
+    skills_response_sha256,
+    *,
+    platform=None,
+    workspace=None,
 ):
     """Disable discovered personal skills equally for A and B; keep bundled skills.
 
@@ -52,6 +57,30 @@ def prepare_profile(
         'model_reasoning_effort = "high"',
         'web_search = "live"',
     ]
+    if workspace is not None:
+        work = Path(workspace).resolve()
+        if (
+            not work.is_dir()
+            or not (work / ".git").is_dir()
+            or Path(workspace).is_symlink()
+        ):
+            raise CaptureError(
+                "explicit workspace must be an existing Git-root directory"
+            )
+        if (
+            work == home.resolve()
+            or work in home.resolve().parents
+            or home.resolve() in work.parents
+        ):
+            raise CaptureError("explicit workspace and profile must be separate")
+        # Native Codex persists this same user-authorized project registration on
+        # first use. Do it before byte-bound preflight, never relax sandbox policy.
+        project = (
+            str(work).lower() if (platform or sys.platform) == "win32" else str(work)
+        )
+        lines.extend(
+            ["", "[projects." + json.dumps(project) + "]", 'trust_level = "trusted"']
+        )
     if (platform or sys.platform) == "win32":
         # With the Windows sandbox disabled, native Codex downgrades an explicit
         # workspace-write request to read-only. Enable enforcement, never bypass it.

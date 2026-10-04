@@ -165,7 +165,7 @@ def _validate_append_only(previous, current):
         raise Stage2Error("workflow-resources-change-requires-explicit-decision")
     if previous["schema_version"] != current["schema_version"]:
         raise Stage2Error("workflow-packet-version-change-requires-new-run")
-    if previous["schema_version"] == "2.0.0" and canonical_hash(
+    if previous["schema_version"] in {"2.0.0", "2.1.0"} and canonical_hash(
         previous["upstream"]
     ) != canonical_hash(current["upstream"]):
         raise Stage2Error("workflow-upstream-stage1-binding-rewritten")
@@ -393,7 +393,7 @@ def initialize_workflow(
         raise Stage2Error("workflow-settings-policy-must-be-objects")
     initial_packet = _read_json(Path(packet_path).resolve())
     initial_packet_sha256 = canonical_hash(initial_packet)
-    if initial_packet.get("schema_version") == "2.0.0":
+    if initial_packet.get("schema_version") in {"2.0.0", "2.1.0"}:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != initial_packet_sha256:

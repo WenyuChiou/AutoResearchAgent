@@ -5,6 +5,7 @@ import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 from stage1_brief.brief import validate_brief
 
@@ -13,6 +14,8 @@ SCHEMA_PATHS = {
     / "schemas/stage2-packet.v1.schema.json",
     "2.0.0": Path(__file__).resolve().parents[2]
     / "schemas/stage2-packet.v2.schema.json",
+    "2.1.0": Path(__file__).resolve().parents[2]
+    / "schemas/stage2-packet.v2_1.schema.json",
 }
 
 
@@ -67,9 +70,18 @@ def _schema_validate(packet):
     _require(path is not None, f"unsupported Stage 2 packet version: {version!r}")
     try:
         schema = json.loads(path.read_text(encoding="utf-8"))
+        registry = Registry()
+        dependencies = [SCHEMA_PATHS["2.0.0"]] if version == "2.1.0" else []
+        for schema_path in dependencies:
+            value = json.loads(schema_path.read_text(encoding="utf-8"))
+            registry = registry.with_resource(
+                schema_path.name, Resource.from_contents(value)
+            )
     except (OSError, ValueError) as error:
         raise Stage2Error(f"cannot load Stage 2 packet schema: {error}") from error
-    errors = sorted(Draft202012Validator(schema).iter_errors(packet), key=str)
+    errors = sorted(
+        Draft202012Validator(schema, registry=registry).iter_errors(packet), key=str
+    )
     if errors:
         first = errors[0]
         where = "/".join(map(str, first.absolute_path)) or "$"
@@ -114,7 +126,7 @@ def validate_packet(packet, root):
     except (ValueError, KeyError, TypeError) as error:
         raise Stage2Error(f"invalid confirmed ResearchBrief: {error}") from error
 
-    if packet["schema_version"] == "2.0.0":
+    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
         upstream = packet["upstream"]
         unsigned = {
             key: value for key, value in upstream.items() if key != "binding_sha256"
@@ -131,12 +143,33 @@ def validate_packet(packet, root):
             upstream["resources_sha256"] == canonical_hash(packet["resources"]),
             "stage1-stage2-resources-binding-mismatch",
         )
+        if packet["schema_version"] == "2.1.0":
+            acceptance = upstream["acceptance"]
+            _require(
+                upstream["acceptance_sha256"] == canonical_hash(acceptance),
+                "stage2-exploratory-acceptance-hash-mismatch",
+            )
+            for field, upstream_field in (
+                ("deliverable_manifest_sha256", "stage1_deliverable_manifest_sha256"),
+                ("stage1_records_sha256", "stage1_records_sha256"),
+                ("research_brief_sha256", "research_brief_sha256"),
+                ("resources_sha256", "resources_sha256"),
+                ("included_work_ids", "included_work_ids"),
+            ):
+                _require(
+                    acceptance[field] == upstream[upstream_field],
+                    f"stage2-exploratory-acceptance-{field}-mismatch",
+                )
+            _require(
+                all(item in packet["unresolved"] for item in acceptance["limitations"]),
+                "stage2-exploratory-limitations-not-preserved",
+            )
 
     sources = packet["sources"]
     evidence = packet["evidence"]
     literature = packet.get("literature", [])
     candidates = packet["candidates"]
-    if packet["schema_version"] == "2.0.0":
+    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
         _unique(literature, "work_id", "literature work_id")
     _unique(sources, "source_id", "source_id")
     _unique(sources, "path", "source path")
@@ -195,7 +228,7 @@ def validate_packet(packet, root):
                 f"source is not a UTF-8 snapshot: {source['source_id']}"
             ) from error
 
-    if packet["schema_version"] == "2.0.0":
+    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
         included = set(packet["upstream"]["included_work_ids"])
         stage1_literature = [row for row in literature if row["origin"] == "stage1"]
         stage1_sources = [row for row in sources if row["origin"] == "stage1"]

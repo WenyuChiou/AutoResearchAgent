@@ -1,0 +1,100 @@
+{
+  "kind": "Stage2V3BOnlyPilotEndpointSummary",
+  "schema_version": "1.0.0",
+  "as_of": "2026-10-04",
+  "rubric_version": "stage2-general-v3",
+  "rubric_sha256": "1121489fc91d7e8e4c551719dcb896e1ceb806092eb31c5b15c418b33217d85e",
+  "evaluation_kind": "B-only live diagnostics; not paired A/B",
+  "automated_selection_and_assessment_endpoints": {
+    "complete": 2,
+    "planned": 2,
+    "meaning": "Readable version-bound selection plus independent AI assessment; not human selection or scientific approval"
+  },
+  "us_aging": {
+    "manifest_sha256": "fe5716ea1311c9a01434553aa48906627e9d666ad063f8467320dc72f58639d5",
+    "bundle_sha256": "10d6b88934bf5a8c1c090befd936c8e46b9be7d54478649c2af63206f3fbaee3",
+    "assessment_status": "audit-required",
+    "named_audit": "required-pending",
+    "dispositions": [
+      "revise",
+      "park"
+    ],
+    "recommendations": 0,
+    "raw_comments": 27,
+    "adjudicator_provisional_sums": {
+      "P4": 5,
+      "P5": 5,
+      "P6": 4
+    },
+    "final_merged_sums": {
+      "P4": null,
+      "P5": null,
+      "P6": null
+    },
+    "accepted_assessment_units": 6,
+    "actual_assessment_invocations": 7,
+    "invalid_attempts_preserved": 1
+  },
+  "flaky_test_revised": {
+    "manifest_sha256": "a56a25a7293284408e0abc243466a5a1f391a0490c9b89e356fa6cb7cd47abf9",
+    "bundle_sha256": "33b8bc2d58b14f155dcc22a411f48296ec66e52627b4efe33d7a5cdfa9fa8323",
+    "assessment_status": "completed",
+    "named_audit": "not-required-by-frozen-triggers",
+    "dispositions": [
+      "revise",
+      "revise"
+    ],
+    "recommendations": 0,
+    "raw_comments": 18,
+    "R1_R2_scores": {
+      "P4V3.FIDELITY": 2,
+      "P4V3.COMPARABILITY": 2,
+      "P4V3.SYNTHESIS": 2,
+      "P5V3.PRECEDENT": 1,
+      "P5V3.CONTRIBUTION": 2,
+      "P5V3.REVISION": 2,
+      "P6V3.VALUE": 2,
+      "P6V3.FEASIBILITY": 2,
+      "P6V3.CHOICE": 2
+    },
+    "dimension_sums": {
+      "P4": 6,
+      "P5": 5,
+      "P6": 6
+    },
+    "dimension_max": 6,
+    "accepted_assessment_units": 4,
+    "actual_assessment_invocations": 4,
+    "ADJ_invoked": false,
+    "major_errors": [],
+    "repair_calls": {
+      "source_free_revision_and_initial_checks": 7,
+      "remaining_checks_recovery_and_reconciliation": 7,
+      "daily_assessment": 4
+    },
+    "original_disputed_scores_retained": true,
+    "original_evaluator_error": "Original judges misread study context and omitted full-text table; the disputed score difference is not a harness effect size",
+    "remaining_limitation": "Closest-work coverage beyond four supplied snapshots is not established; experimental artifacts and resources remain unverified"
+  },
+  "daily_subject_model": "gpt-5.6-sol",
+  "reasoning": "high",
+  "producer_commits": [
+    "06fc38b4f47a0bb1322dbef18c27bf2de1742aab",
+    "6441b694279ec30c67cff0838eab0ab5d00cced2"
+  ],
+  "formal_ab_runs_completed": 0,
+  "formal_ab_runs_planned": 6,
+  "formal_ready": false,
+  "scientific_improvement_demonstrated": false,
+  "human_direction_chosen": false,
+  "stage3_execution_authorized": false,
+  "monetary_cost": null,
+  "remaining_formal_prerequisites": [
+    "verified host file isolation",
+    "complete nested usage",
+    "frozen common investment policy",
+    "required named audits"
+  ],
+  "private_native_evidence_published": false,
+  "copyright_source_text_published": false
+}
