@@ -40,7 +40,7 @@ even if recording fails. A read-to-commit crash can lose bytes; unmatched intent
 remain unknown and old connection epochs cannot reopen. Authenticated lifecycle and
 controller admission remain separate requirements; recorded bytes grant no authority.
 Tests use synthetic channels and local storage; no Codex/model runs. Production launch,
-controller wiring, HTTP/UI, scoring and live E2E remain separate slices.
+authenticated lifecycle, HTTP/UI, scoring and live E2E remain separate slices.
 No research/import/resume authority is granted; existing Engine guards stay unchanged.
 
 Run these offline checks from the repository root with an installed Python interpreter
@@ -62,4 +62,11 @@ A read-only bridge joins a saved outgoing frame to contiguous intent/result suff
 
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_write_observation.py -v
+```
+
+Existing-thread injected durable controller.
+An existing-thread injected controller joins the journals and recording pump with mandatory caller admission and write-time checks. Local action intents precede native intents; same-key replay never writes, unknown work stays blocked and request resolution remains distinct from turn completion. This is not authenticated lifecycle, HTTP/UI or native acceptance.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_controller.py -v
 ```
