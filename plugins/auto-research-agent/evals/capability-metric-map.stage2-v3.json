@@ -56,6 +56,10 @@
       "source_context_calibration_contract": "12 context cases/24 judgments combined with72/144 via recomputation; mechanics-only until authentic independent native calls exist",
       "source_context_calibration_tests": [
         "plugins/auto-research-agent/tests/test_stage2_source_context_quality.py"
+      ],
+      "formal_admission_bridge": "Schema2.0.0 binds v3 plan/readiness/result artifact receipts and replays six v3 judge bundles; unsupported native inventory, nested usage, quality and preflight/controller replay remain explicit blockers. No formal promotion.",
+      "formal_admission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_formal_admission_v3.py"
       ]
     },
     {
