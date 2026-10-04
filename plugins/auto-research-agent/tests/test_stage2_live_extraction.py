@@ -125,6 +125,37 @@ class Stage2LiveExtractionTests(unittest.TestCase):
         options.update(changes)
         return run_live_extraction(**options)
 
+    def revision_generation(self):
+        index = build_span_index(self.raw)
+        value = generated_extraction(
+            self.raw, self.packet, span_id=index["spans"][0]["span_id"]
+        )
+        candidate = copy.deepcopy(self.packet["candidates"][0])
+        candidate["question"] = "A corrected source-bound research question."
+        for key in ("candidate_id", "version", "parent_version"):
+            candidate.pop(key)
+        value["candidates"] = [
+            {
+                "candidate": candidate,
+                "existing_candidate_id": self.packet["candidates"][0]["candidate_id"],
+                "route": "improvement",
+                "mechanism": "Correct the comparison before a fresh review.",
+                "closest_work_refs": [],
+                "strong_alternatives": ["Retain the current candidate as parked."],
+                "change_mind_conditions": ["The corrected evidence is unavailable."],
+                "claim_labels": [
+                    {
+                        "text": "A corrected source-bound research question.",
+                        "status": "untested-benefit",
+                        "evidence_ids": [],
+                    }
+                ],
+                "spans": [{"span_id": index["spans"][0]["span_id"]}],
+            }
+        ]
+        value["unresolved"] = ["Current artifact access remains unknown."]
+        return value
+
     def test_span_index_has_versioned_full_coverage_and_generation_uses_ids(self):
         index = build_span_index(self.raw, max_chunk_characters=19)
         self.assertEqual("".join(row["quote"] for row in index["spans"]), self.raw)
@@ -336,6 +367,34 @@ class Stage2LiveExtractionTests(unittest.TestCase):
             )
         self.assertEqual(second, first)
         self.assertEqual(adapter.labels, ["extraction"])
+
+    def test_content_revision_mode_is_prompt_request_and_resume_bound(self):
+        adapter = StubGeneration(self.revision_generation())
+        first = self.invoke(
+            adapter,
+            name="content-revision",
+            update_mode="replace-comparison-unresolved",
+        )
+        self.assertEqual(first["packet_update_mode"], "replace-comparison-unresolved")
+        self.assertEqual(
+            first["next_packet"]["update_mode"],
+            "replace-comparison-unresolved",
+        )
+        request = json.loads(
+            (self.root / "content-revision/request.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(request["packet_update_mode"], "replace-comparison-unresolved")
+        self.assertIn("complete corrected current comparison", adapter.last_prompt)
+        with self.assertRaisesRegex(
+            Exception, "resume input, schema, runtime, or sources"
+        ):
+            self.invoke(
+                adapter,
+                name="content-revision",
+                resume=True,
+                resume_receipt=first["replay_receipt"],
+                update_mode="append",
+            )
 
     def test_rehashed_unit_and_result_rejected_by_external_receipts(self):
         for mutate_result in (False, True):

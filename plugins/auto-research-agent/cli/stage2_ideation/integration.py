@@ -7,7 +7,37 @@ from stage2_common import Stage2Error, canonical_hash, validate_packet
 from .extraction import validate_extraction
 
 
-def build_next_packet(packet, source_root, raw_proposal, extraction, snapshot_sha256):
+UPDATE_MODES = {"append", "replace-comparison-unresolved"}
+
+
+def _comparison_text(rows, *, replacement):
+    additions = []
+    for row in rows:
+        refs = ", ".join(row["evidence_ids"]) or "no verified evidence reference"
+        additions.append(
+            f"{row['dimension']} [{row['comparability']}]: {row['finding']} "
+            f"(evidence: {refs}; limitations: {row['noncomparability'] or 'not stated'})"
+        )
+    if not additions:
+        return None
+    heading = (
+        "Corrected proposal comparison (supersedes the current comparison; prior "
+        "snapshots retain history):\n"
+        if replacement
+        else "Additional proposal comparison (subject to independent review):\n"
+    )
+    return heading + "\n".join(additions)
+
+
+def build_next_packet(
+    packet,
+    source_root,
+    raw_proposal,
+    extraction,
+    snapshot_sha256,
+    *,
+    update_mode="append",
+):
     """Preserve old evidence/candidates and validate a proposed next snapshot.
 
     The caller must save the raw proposal before invoking an extractor and record
@@ -15,11 +45,14 @@ def build_next_packet(packet, source_root, raw_proposal, extraction, snapshot_sh
     verifies that extraction was tool-free. It never applies a scientific check.
     """
     validate_packet(packet, source_root)
+    if update_mode not in UPDATE_MODES:
+        raise Stage2Error("ideation-packet-update-mode-invalid")
     result = validate_extraction(raw_proposal, extraction, packet, snapshot_sha256)
     next_packet = copy.deepcopy(packet)
     existing = {
         (row["candidate_id"], row["version"]): row for row in packet["candidates"]
     }
+    affected = []
     for row in result["candidates"]:
         candidate = row["candidate"]
         key = (candidate["candidate_id"], candidate["version"])
@@ -29,21 +62,62 @@ def build_next_packet(packet, source_root, raw_proposal, extraction, snapshot_sh
         else:
             next_packet["candidates"].append(copy.deepcopy(candidate))
             existing[key] = candidate
-    additions = []
-    for row in result["comparison_rows"]:
-        refs = ", ".join(row["evidence_ids"]) or "no verified evidence reference"
-        additions.append(
-            f"{row['dimension']} [{row['comparability']}]: {row['finding']} "
-            f"(evidence: {refs}; limitations: {row['noncomparability'] or 'not stated'})"
-        )
-    if additions:
-        next_packet["comparison"] += (
-            "\n\nAdditional proposal comparison (subject to independent review):\n"
-            + "\n".join(additions)
-        )
-    for unknown in result["unresolved"]:
-        if unknown not in next_packet["unresolved"]:
-            next_packet["unresolved"].append(unknown)
+            affected.append(candidate["candidate_id"])
+    comparison = _comparison_text(
+        result["comparison_rows"],
+        replacement=update_mode == "replace-comparison-unresolved",
+    )
+    if update_mode == "replace-comparison-unresolved":
+        latest = {
+            candidate_id: max(
+                (
+                    row
+                    for row in packet["candidates"]
+                    if row["candidate_id"] == candidate_id
+                ),
+                key=lambda row: row["version"],
+            )
+            for candidate_id in {row["candidate_id"] for row in packet["candidates"]}
+        }
+        if len(affected) != len(set(affected)):
+            raise Stage2Error("ideation-content-revision-duplicate-candidate")
+        candidate_changed = False
+        for row in result["candidates"]:
+            candidate = row["candidate"]
+            previous = latest.get(candidate["candidate_id"])
+            if (
+                previous is None
+                or candidate["version"] != previous["version"] + 1
+                or candidate["parent_version"] != previous["version"]
+                or {
+                    key: value
+                    for key, value in candidate.items()
+                    if key not in {"version", "parent_version"}
+                }
+                == {
+                    key: value
+                    for key, value in previous.items()
+                    if key not in {"version", "parent_version"}
+                }
+            ):
+                raise Stage2Error("ideation-content-revision-invalid-candidate")
+            candidate_changed = True
+        next_comparison = comparison or packet["comparison"]
+        next_unresolved = copy.deepcopy(result["unresolved"])
+        if not (
+            candidate_changed
+            or next_comparison != packet["comparison"]
+            or next_unresolved != packet["unresolved"]
+        ):
+            raise Stage2Error("ideation-content-revision-no-substantive-change")
+        next_packet["comparison"] = next_comparison
+        next_packet["unresolved"] = next_unresolved
+    else:
+        if comparison:
+            next_packet["comparison"] += "\n\n" + comparison
+        for unknown in result["unresolved"]:
+            if unknown not in next_packet["unresolved"]:
+                next_packet["unresolved"].append(unknown)
     next_packet["packet_id"] = (
         "ideation-" + canonical_hash({"parent": packet, "extraction": result})[:24]
     )
@@ -56,4 +130,6 @@ def build_next_packet(packet, source_root, raw_proposal, extraction, snapshot_sh
         "review_required": True,
         "native_execution_verified": False,
         "scientific_quality_verified": False,
+        "update_mode": update_mode,
+        "affected_candidate_ids": sorted(affected),
     }
