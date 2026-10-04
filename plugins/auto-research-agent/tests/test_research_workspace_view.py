@@ -5,8 +5,10 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
+from research_workspace.projection import validate_index
 from research_workspace.view import render_view, write_workspace
 from research_workspace.stages import stage_registry
 from stage1_deliverable.common import DeliverableError, canonical, sha
@@ -141,6 +143,73 @@ class WorkspaceViewTests(unittest.TestCase):
             with self.assertRaisesRegex(DeliverableError, "hash differs"):
                 render_view(path, Path(folder) / "view", folder, sha(original))
             self.assertFalse((Path(folder) / "view").exists())
+
+    def test_file_replaced_after_hash_uses_only_the_approved_bytes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            path = root / "index.json"
+            approved_index = fixture_index()
+            path.write_bytes(canonical(approved_index) + b"\n")
+            approved_raw = path.read_bytes()
+            expected_hash = sha(approved_raw)
+            replacement = dict(approved_index, topic="Unapproved replacement")
+            replacement_raw = canonical(replacement) + b"\n"
+            replacement_path = root / "replacement.json"
+            replacement_path.write_bytes(replacement_raw)
+            actual_read_bytes = Path.read_bytes
+            reads = []
+
+            def read_bytes(candidate):
+                if candidate == path:
+                    reads.append(candidate)
+                return actual_read_bytes(candidate)
+
+            def hash_then_replace(raw):
+                digest = sha(raw)
+                self.assertEqual(raw, approved_raw)
+                replacement_path.replace(path)
+                return digest
+
+            def capture(index, raw, reference_root, output):
+                validate_index(index)
+                return {"index": index, "raw": raw}
+
+            with (
+                patch.object(Path, "read_bytes", read_bytes),
+                patch("research_workspace.view.sha", side_effect=hash_then_replace),
+                patch(
+                    "research_workspace.view._write_view", side_effect=capture
+                ) as writer,
+            ):
+                result = render_view(path, root / "view", root, expected_hash)
+            self.assertEqual(result, {"index": approved_index, "raw": approved_raw})
+            writer.assert_called_once_with(
+                approved_index, approved_raw, root, root / "view"
+            )
+            self.assertEqual(reads, [path])
+            self.assertEqual(path.read_bytes(), replacement_raw)
+            self.assertFalse((root / "view").exists())
+
+    def test_hash_bound_duplicate_json_keys_are_rejected_before_writing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            path = root / "index.json"
+            original = canonical(fixture_index())
+            for key, replacement in (
+                (b'"project_id":', b'"project_id":"duplicate", "project_id":'),
+                (b'"limitations":', b'"limitations":"duplicate", "limitations":'),
+            ):
+                with self.subTest(key=key):
+                    self.assertIn(key, original)
+                    path.write_bytes(original.replace(key, replacement, 1))
+                    approved_raw = path.read_bytes()
+                    with patch("research_workspace.view._write_view") as writer:
+                        with self.assertRaisesRegex(
+                            DeliverableError, "duplicate JSON key"
+                        ):
+                            render_view(path, root / "view", root, sha(approved_raw))
+                        writer.assert_not_called()
+                    self.assertFalse((root / "view").exists())
 
     def test_template_drift_rejected_before_private_output(self):
         with tempfile.TemporaryDirectory() as folder:

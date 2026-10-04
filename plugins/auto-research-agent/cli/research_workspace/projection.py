@@ -1,7 +1,6 @@
 """Project a bound private delivery package without granting research readiness."""
 
 from copy import deepcopy
-import json
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, ValidationError
@@ -19,6 +18,7 @@ from stage1_deliverable.common import (
 )
 from stage1_deliverable.records import validate_records
 
+from .json_bytes import decode_json
 from .stages import stage_registry
 
 
@@ -65,26 +65,27 @@ def validate_index(index):
     return index
 
 
-def _jsonl(path):
-    def unique(pairs):
-        value = {}
-        for key, item in pairs:
-            _require(key not in value, "duplicate JSON key")
-            value[key] = item
-        return value
+def _jsonl(raw):
+    return [decode_json(line) for line in raw.splitlines()]
 
-    return [
-        json.loads(line, object_pairs_hook=unique)
-        for line in path.read_bytes().splitlines()
-    ]
+
+def _bound_reader(root, files):
+    def bound_read(relative):
+        _require(relative in files, "unlisted package artifact")
+        raw = safe_path(root, relative).read_bytes()
+        row = files[relative]
+        _require(sha(raw) == row["sha256"], "package artifact hash mismatch")
+        _require(len(raw) == row["bytes"], "package artifact byte count mismatch")
+        return raw
+
+    return bound_read
 
 
 def _package(root, expected):
     manifest_path = safe_path(root, "package_manifest.json")
-    _require(
-        sha(manifest_path.read_bytes()) == expected, "external package hash mismatch"
-    )
-    outer = read_json(manifest_path)
+    raw = manifest_path.read_bytes()
+    _require(sha(raw) == expected, "external package hash mismatch")
+    outer = decode_json(raw)
     _require(
         outer.get("kind") == "Stage1PrivateDeliveryPackageManifest"
         and outer.get("schema_version") == "1.0.0",
@@ -96,6 +97,7 @@ def _package(root, expected):
     if extra_manifest.is_file():
         actual["provenance_manifest.json"] = sha(extra_manifest.read_bytes())
     files = outer["files"]
+    bound_read = _bound_reader(root, files)
     _require(
         actual == {name: row["sha256"] for name, row in files.items()},
         "package inventory mismatch",
@@ -106,7 +108,7 @@ def _package(root, expected):
             "package byte count mismatch",
         )
     delivery = safe_path(root, "deliverable")
-    manifest = read_json(safe_path(delivery, "provenance_manifest.json"))
+    manifest = decode_json(bound_read("deliverable/provenance_manifest.json"))
     _require(
         manifest.get("kind") == "Stage1ResearchDeliverable"
         and manifest.get("schema_version") == "1.0.0",
@@ -114,21 +116,21 @@ def _package(root, expected):
     )
     _require(inventory(delivery) == manifest["files"], "deliverable inventory mismatch")
     records = validate_records(manifest["canonical_records"])
-    original = safe_path(delivery, "records.original.json")
+    original = bound_read("deliverable/records.original.json")
     _require(
-        sha(original.read_bytes()) == manifest["original_input_sha256"],
+        sha(original) == manifest["original_input_sha256"],
         "original records hash mismatch",
     )
-    _require(read_json(original) == records, "canonical records mismatch")
+    _require(decode_json(original) == records, "canonical records mismatch")
     _require(
-        _jsonl(safe_path(delivery, "papers.jsonl")) == records["papers"],
+        _jsonl(bound_read("deliverable/papers.jsonl")) == records["papers"],
         "paper view mismatch",
     )
     return outer, manifest, records
 
 
-def _source_records(delivery, records):
-    attempts = _jsonl(safe_path(delivery, "paper_manifest.jsonl"))
+def _source_records(bound_read, records):
+    attempts = _jsonl(bound_read("deliverable/paper_manifest.jsonl"))
     _require(
         len({(row["source_id"], row["attempt"]) for row in attempts}) == len(attempts),
         "duplicate source attempt",
@@ -136,13 +138,13 @@ def _source_records(delivery, records):
     output, texts = [], {}
     papers = {paper["work_id"]: paper for paper in records["papers"]}
     for source in records["sources"]:
-        archive = safe_path(delivery, "sources/" + source["source_id"])
-        original = safe_path(archive, "original.json")
+        archive = "deliverable/sources/" + source["source_id"] + "/"
+        original = bound_read(archive + "original.json")
         _require(
-            sha(original.read_bytes()) == source["result_sha256"],
+            sha(original) == source["result_sha256"],
             "source receipt hash mismatch",
         )
-        receipt = read_json(original)
+        receipt = decode_json(original)
         sources.validate_receipt_shape(receipt)
         _require(
             sources.receipt_digest(receipt) == receipt["receipt_sha256"],
@@ -155,10 +157,12 @@ def _source_records(delivery, records):
                 ("extracted_text_path", "extracted_text_sha256"),
             ):
                 if item.get(path_key):
-                    raw = safe_path(archive, mapping[item[path_key]]).read_bytes()
+                    raw = bound_read(archive + mapping[item[path_key]])
                     _require(
                         sha(raw) == item[hash_key], "source artifact hash mismatch"
                     )
+                    if item is receipt and path_key == "extracted_text_path":
+                        texts[source["source_id"]] = raw.decode("utf-8")
         paper = papers[source["work_id"]]
 
         def normalize(value):
@@ -188,16 +192,9 @@ def _source_records(delivery, records):
             for key in ("archive_path", "paper_path"):
                 if row[key]:
                     _require(
-                        sha(safe_path(delivery, row[key]).read_bytes())
-                        == row["sha256"],
+                        sha(bound_read("deliverable/" + row[key])) == row["sha256"],
                         "source manifest bytes mismatch",
                     )
-        if receipt.get("extracted_text_path"):
-            texts[source["source_id"]] = (
-                safe_path(archive, mapping[receipt["extracted_text_path"]])
-                .read_bytes()
-                .decode("utf-8")
-            )
         output.append({**deepcopy(source), "receipt": receipt, "attempts": rows})
     _require(
         {row["source_id"] for row in attempts} == {row["source_id"] for row in output},
@@ -267,8 +264,8 @@ def project_package(
     )
     root = private_output(package_root)
     outer, manifest, records = _package(root, expected_manifest_sha256)
-    delivery = safe_path(root, "deliverable")
-    source_rows = _source_records(delivery, records)
+    bound_read = _bound_reader(root, outer["files"])
+    source_rows = _source_records(bound_read, records)
     manifest_sha = outer["files"]["deliverable/provenance_manifest.json"]["sha256"]
     record_sha = manifest["original_input_sha256"]
 
@@ -317,18 +314,18 @@ def project_package(
             {
                 "path": name,
                 "sha256": info["sha256"],
-                "text": safe_path(root, name).read_bytes().decode("utf-8"),
+                "text": bound_read(name).decode("utf-8"),
             }
             for name, info in sorted(outer["files"].items())
             if name.endswith(suffix)
         ]
 
-    readiness = read_json(safe_path(root, "stage2_readiness.json"))
+    readiness_raw = bound_read("stage2_readiness.json")
     _require(
-        outer["stage2_readiness_sha256"]
-        == sha(safe_path(root, "stage2_readiness.json").read_bytes()),
+        outer["stage2_readiness_sha256"] == sha(readiness_raw),
         "readiness binding mismatch",
     )
+    readiness = decode_json(readiness_raw)
     result = {
         "kind": "WorkspaceIndex",
         "schema_version": "1.0.0",

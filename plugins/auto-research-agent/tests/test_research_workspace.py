@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from copy import deepcopy
+import inspect
 import sys
 import unittest
 from unittest.mock import patch
@@ -10,6 +11,7 @@ import test_stage1_deliverable as fixture
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 from research_workspace.projection import project_package, validate_index  # noqa: E402
+from research_workspace import projection  # noqa: E402
 from stage1_deliverable.common import (  # noqa: E402
     DeliverableError,
     canonical,
@@ -165,6 +167,100 @@ class WorkspaceTests(unittest.TestCase):
         text.write_text("altered evidence", encoding="utf-8")
         with self.assertRaisesRegex(DeliverableError, "inventory"):
             self.project()
+
+    def test_outer_manifest_is_parsed_from_the_hash_checked_snapshot(self):
+        path = self.root / "package_manifest.json"
+        approved = path.read_bytes()
+        manifest = read_json(path)
+        original_sha = projection.sha
+        replaced = False
+
+        def replace_after_hash(raw):
+            nonlocal replaced
+            digest = original_sha(raw)
+            if raw == approved and not replaced:
+                path.write_bytes(approved.replace(b"Stage1Private", b"Unapproved"))
+                replaced = True
+            return digest
+
+        try:
+            with patch.object(projection, "sha", side_effect=replace_after_hash):
+                result, _, _ = projection._package(self.root, self.digest)
+            self.assertTrue(replaced)
+            self.assertEqual(result, manifest)
+        finally:
+            path.write_bytes(approved)
+
+    def test_transient_document_replacement_cannot_escape_final_inventory(self):
+        path = self.fixture.output / "search_and_screening.csv"
+        approved = path.read_bytes()
+        unapproved = b"query,status\r\nunapproved,complete\r\n"
+        original_read = Path.read_bytes
+        replaced = False
+
+        def transient_read(current):
+            nonlocal replaced
+            caller = inspect.currentframe().f_back.f_code.co_name
+            if current == path and caller in {"documents", "bound_read"}:
+                current.write_bytes(unapproved)
+                replaced = True
+                try:
+                    return original_read(current)
+                finally:
+                    current.write_bytes(approved)
+            return original_read(current)
+
+        with patch.object(Path, "read_bytes", transient_read):
+            with self.assertRaisesRegex(DeliverableError, "artifact hash mismatch"):
+                self.project()
+        self.assertTrue(replaced)
+        self.assertEqual(path.read_bytes(), approved)
+        self.assertEqual(self.project()["search"][0]["text"], approved.decode())
+
+    def test_each_consumed_artifact_is_checked_after_inventory(self):
+        paths = [
+            "deliverable/provenance_manifest.json",
+            "deliverable/records.original.json",
+            "deliverable/papers.jsonl",
+            "deliverable/paper_manifest.jsonl",
+            "deliverable/sources/src1/original.json",
+            "stage2_readiness.json",
+        ]
+        paths += [
+            path.relative_to(self.root).as_posix()
+            for path in self.fixture.output.glob("sources/*/extracted/*")
+        ]
+        original_reader = projection._bound_reader
+        for relative in paths:
+            with self.subTest(relative=relative):
+                path = self.root / relative
+                approved = path.read_bytes()
+                replaced = []
+
+                def replace_at_consumption(root, files):
+                    read = original_reader(root, files)
+
+                    def bound_read(name):
+                        if name != relative or replaced:
+                            return read(name)
+                        path.write_bytes(approved + b"unapproved")
+                        replaced.append(name)
+                        try:
+                            return read(name)
+                        finally:
+                            path.write_bytes(approved)
+
+                    return bound_read
+
+                with patch.object(
+                    projection, "_bound_reader", side_effect=replace_at_consumption
+                ):
+                    with self.assertRaisesRegex(
+                        DeliverableError, "artifact hash mismatch"
+                    ):
+                        self.project()
+                self.assertEqual(replaced, [relative])
+                self.assertEqual(path.read_bytes(), approved)
 
     def test_rehashed_wrong_work_version_and_quote_are_rejected(self):
         original = self.fixture.output / "records.original.json"

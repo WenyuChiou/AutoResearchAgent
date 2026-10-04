@@ -8,12 +8,12 @@ from stage1_deliverable.common import (
     DeliverableError,
     canonical,
     private_output,
-    read_json,
     safe_path,
     sha,
 )
 from .projection import validate_index
 from .wiki import wiki_files
+from .json_bytes import decode_json
 
 REFERENCE_COMMIT = "085f363179a79375fc8e3590dda9725e25eda71a"
 REFERENCE_HASHES = {
@@ -77,7 +77,7 @@ def render_view(index_path, output, reference_root, expected_index_sha256):
     raw = Path(index_path).read_bytes()
     if sha(raw) != expected_index_sha256:
         raise DeliverableError("WorkspaceIndex hash differs")
-    index = read_json(index_path)
+    index = decode_json(raw)
     return _write_view(index, raw, reference_root, output)
 
 
@@ -210,6 +210,7 @@ def _write_view(index, raw, reference_root, output):
                 "stages.py",
                 "view.py",
                 "wiki.py",
+                "json_bytes.py",
                 "WorkspaceIndex.v1.schema.json",
             )
         },
