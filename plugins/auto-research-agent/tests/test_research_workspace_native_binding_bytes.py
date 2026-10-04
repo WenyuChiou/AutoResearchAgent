@@ -8,9 +8,11 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 from research_workspace_native.binding import BindingError, BindingVerifier
+from research_workspace_native.transport import JsonRpcTransport, TransportError
 from stage1_ledger.journal import canonical, digest
 
 
@@ -116,6 +118,17 @@ class PhysicalDependencyTests(unittest.TestCase):
         self.assertEqual(
             self.marker.read_bytes(), before, "guard must not execute clean filters"
         )
+        channel = Mock()
+        transport = JsonRpcTransport(
+            channel,
+            connection_id="fixture",
+            on_event=lambda event: None,
+            verify_binding=guard,
+        )
+        self.addCleanup(transport.close)
+        with self.assertRaises(TransportError):
+            transport.send_request("turn/start", {}, request_id=1)
+        channel.write.assert_not_called()
 
     def test_constructor_cannot_adopt_already_polluted_physical_bytes(self):
         self.mask()
