@@ -202,7 +202,7 @@ def expand_span_ids(value, raw_proposal, span_index, packet=None):
     return result
 
 
-def _prompt(task, packet, span_index, schema):
+def _prompt(task, packet, span_index, schema, update_mode="append"):
     sources = [
         {
             key: row.get(key)
@@ -260,7 +260,15 @@ def _prompt(task, packet, span_index, schema):
         "current_candidate_versions": candidates,
         "numbered_proposal_spans": span_index["spans"],
         "generation_schema": schema,
+        "packet_update_mode": update_mode,
     }
+    mode_instruction = (
+        "This is a source-free content revision. Return a complete corrected current "
+        "comparison, the complete current unresolved list, and a substantive revision "
+        "of every affected existing candidate. Do not repeat withdrawn claims. "
+        if update_mode == "replace-comparison-unresolved"
+        else "The extracted comparison and unresolved items append to the current packet. "
+    )
     return (
         "Extract the already-captured Stage 2 proposal into one JSON object with no tools "
         "and no new research. The numbered proposal spans cover the original proposal bytes "
@@ -271,7 +279,9 @@ def _prompt(task, packet, span_index, schema):
         "Never invent a literature identifier, fact, source, approval, feasibility finding, or "
         "runtime claim. Keep missing metadata null and unresolved facts unknown. The receipt is "
         "only the declared no-tool task policy and isolation_verified must remain false. Zero "
-        "candidates is valid. Return JSON matching generation_schema exactly.\n"
+        "candidates is valid. "
+        + mode_instruction
+        + "Return JSON matching generation_schema exactly.\n"
         + json.dumps(payload, ensure_ascii=False, sort_keys=True)
     )
 
@@ -313,6 +323,7 @@ def _request(
     reasoning,
     policy,
     adapter_mode,
+    update_mode="append",
 ):
     source_bindings = _source_bindings(packet, source_root)
     return {
@@ -347,6 +358,7 @@ def _request(
         "reasoning": reasoning,
         "execution_policy": policy,
         "adapter_mode": adapter_mode,
+        "packet_update_mode": update_mode,
     }
 
 
@@ -365,6 +377,7 @@ def run_live_extraction(
     *,
     resume_receipt=None,
     call_adapter=None,
+    update_mode="append",
 ):
     """Run one bound extraction unit and return a next packet only after validation."""
     validate_packet(packet, source_root)
@@ -372,7 +385,7 @@ def run_live_extraction(
     task = build_extraction_task(raw_proposal, packet, snapshot_sha256)
     spans = build_span_index(raw_proposal)
     schema = generation_schema(spans, packet)
-    prompt = _prompt(task, packet, spans, schema)
+    prompt = _prompt(task, packet, spans, schema, update_mode)
     policy = judges._execution_policy(execution_policy)
     output = Path(output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -394,6 +407,7 @@ def run_live_extraction(
         reasoning,
         policy,
         "native" if call_adapter is None else "injected-test",
+        update_mode,
     )
     request_path = output / "request.json"
     if request_path.exists():
@@ -464,7 +478,12 @@ def run_live_extraction(
         expanded = expand_span_ids(generated, raw_proposal, spans, packet)
         validated = validate_extraction(raw_proposal, expanded, packet, snapshot_sha256)
         next_packet = build_next_packet(
-            packet, source_root, raw_proposal, validated, snapshot_sha256
+            packet,
+            source_root,
+            raw_proposal,
+            validated,
+            snapshot_sha256,
+            update_mode=update_mode,
         )
         result = {
             "kind": "Stage2LiveExtractionResult",
@@ -478,6 +497,7 @@ def run_live_extraction(
             "scientific_approval": None,
             "usage": None,
             "cost": None,
+            "packet_update_mode": update_mode,
         }
         return judges._finish_result(output, "result.json", result, collected_receipts)
     except Exception as error:

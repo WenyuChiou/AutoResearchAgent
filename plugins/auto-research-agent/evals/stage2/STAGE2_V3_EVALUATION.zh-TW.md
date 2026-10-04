@@ -106,6 +106,40 @@ manifest 核對輸出，避免讓 HTML 與 bundle 互相 hash。
 科學內容正確或使用者已同意。缺少其他必要處置紀錄時，外部評分仍保持未完成。
 只有與當前候選及來源相符的完整紀錄，才允許進入独立 judge 評分。
 
+## 使用原有來源修正內容
+
+有時不用找新文章，就能查出比較或候選方向的錯誤。例如，同一本書的
+下一頁已經解釋研究對象，原先只讀到背景。此時應保存修訂與依據。
+
+`Stage2ContentRevision` 支援原有來源上的修訂，保留來源身分、版本及
+原始 bytes。既有 evidence 與候選歷史不能改寫；可補充同一來源的
+逐字節錄及 `lines N-M` 位置。新增節錄必須核對原文，不需要新增 source。
+沒有新增 evidence 的純內容修訂也合法。
+
+操作順序如下：
+
+1. `stage2_live prepare-content-revision-input` 接收原 packet、來源根目錄
+   及新增節錄清單；沒有新增節錄時使用空清單。
+2. 保存修訂原稿，使用 `stage2_live extract` 的
+   `--update-mode replace-comparison-unresolved` 擷取新版。
+   預設 append 模式仍供原先生成流程使用。
+3. 以既有 snapshot／revision 接口建立不可變的新快照及影響理由。
+   修訂後的目前比較與 unresolved 取代舊 current view，歷史仍保留。
+4. `stage2_live content-revision` 驗證父子 packet、相鄰快照、原稿、
+   擷取呼叫的外部 receipt 及受影響候選，產生修訂依據。
+5. 對受影響的新版候選重新獨立查核，再交付與外部評分。舊版通過不算。
+   交付既有 `--source-update-receipt PATH SHA256` 接口也接受此種
+   已驗證的內容修訂 receipt；兩種 kind 仍分別核對，不能互相冒充。
+
+真正的內容改變才算修訂。只增加版本號、只改處置標籤或重算 hash，
+不能證明完成修正。來源 bytes、原始證據、producer receipt 或新版查核
+不符時拒絕接受；此紀錄本身不能宣稱內容正確或研究品質改善。
+
+評分者也會誤讀背景或漏掉上下文。若原文查證推翻評語，應保留原評語，
+另記 evaluator error、補齊有位置的原文，再獨立重評。
+節錄未出現的資訊，須區分全文已有但未納入、原文不可取得及實際不存在；
+不能直接當成造假。三位評分者同意，也不能代替原文。
+
 ## 如何驗收
 
 工程測試核對來源／版本／hash、九項完整性、null 分母、舊版相容、

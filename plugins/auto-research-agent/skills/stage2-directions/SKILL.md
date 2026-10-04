@@ -84,6 +84,14 @@ Both routes use the same evidence checks, five axes and user selection gate.
    its parent's approval. Preserve useful options when a different candidate fails.
    For missing evidence, identify a bounded lookup or a scope decision instead
    of claiming the missing fact is verified.
+   When existing source text resolves an error, use the documented
+   `Stage2ContentRevision` path: preserve source bytes and prior evidence, add
+   exact same-source locators only if needed, and extract with
+   `replace-comparison-unresolved`. Authenticate the extraction and adjacent
+   snapshot receipt before delivery, then obtain fresh affected-version reviews.
+   Do not duplicate a source to satisfy revision bookkeeping. Verify disputed
+   judge comments against source context; absent excerpt detail does not prove
+   that the full text lacks it. Retain evaluator errors separately.
 6. Export the choice package before human selection. Read its `selection.md` as
    a proposal report: inspect the opportunity, value, proposed approach, five
    checks, linked excerpts and revision history. Explain each source's actual

@@ -8,6 +8,10 @@ from pathlib import Path
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_eval import validate_action_record
 from stage2_workflow.store import _validate_append_only
+from stage2_live.content_revision import (
+    CONTENT_REVISION_FIELDS,
+    validate_content_revision_receipt,
+)
 
 VERSION = "1.0.0"
 RECEIPT_FIELDS = {
@@ -41,7 +45,7 @@ def _candidate_map(packet):
     return {(row["candidate_id"], row["version"]): row for row in packet["candidates"]}
 
 
-def _revision_rows(parent, current, impact):
+def _revision_rows(parent, current, impact, *, require_added_evidence=True):
     _validate_append_only(parent, current)
     old = _candidate_map(parent)
     new = _candidate_map(current)
@@ -62,8 +66,26 @@ def _revision_rows(parent, current, impact):
             raise Stage2Error("revision-provenance-parent-version-mismatch")
         evidence_ids = sorted(
             set(candidate["evidence_ids"]) - set(previous["evidence_ids"])
+            if require_added_evidence
+            else set(candidate["evidence_ids"])
         )
-        if not evidence_ids or not set(evidence_ids).issubset(valid_evidence):
+        if (
+            (require_added_evidence and not evidence_ids)
+            or not set(evidence_ids).issubset(valid_evidence)
+            or (
+                not require_added_evidence
+                and {
+                    key: value
+                    for key, value in candidate.items()
+                    if key not in {"version", "parent_version"}
+                }
+                == {
+                    key: value
+                    for key, value in previous.items()
+                    if key not in {"version", "parent_version"}
+                }
+            )
+        ):
             raise Stage2Error("revision-provenance-added-evidence-invalid")
         rows.append(
             {
@@ -78,7 +100,16 @@ def _revision_rows(parent, current, impact):
 
 
 def _validate_receipt(value):
-    if not isinstance(value, dict) or set(value) != RECEIPT_FIELDS:
+    if not isinstance(value, dict):
+        raise Stage2Error("revision-provenance-source-update-shape")
+    if value.get("kind") == "Stage2ContentRevision":
+        if (
+            set(value) != CONTENT_REVISION_FIELDS
+            or value.get("schema_version") != "1.0.0"
+        ):
+            raise Stage2Error("revision-provenance-content-revision-version")
+        return "content_revision"
+    if set(value) != RECEIPT_FIELDS:
         raise Stage2Error("revision-provenance-source-update-shape")
     if value["kind"] != "Stage2SourceUpdate" or value["schema_version"] != "1.0.0":
         raise Stage2Error("revision-provenance-source-update-version")
@@ -88,6 +119,7 @@ def _validate_receipt(value):
         or value["prior_reviews_carried_forward"] is not False
     ):
         raise Stage2Error("revision-provenance-source-update-claims-invalid")
+    return "source_update"
 
 
 def capture_revision_provenance(state, bindings):
@@ -106,7 +138,7 @@ def capture_revision_provenance(state, bindings):
         if _sha(raw) != expected_sha256:
             raise Stage2Error("revision-provenance-receipt-hash-mismatch")
         receipt = _decode(raw, str(path))
-        _validate_receipt(receipt)
+        receipt_type = _validate_receipt(receipt)
         matches = []
         for parent, current in zip(state["snapshots"], state["snapshots"][1:]):
             if (
@@ -143,7 +175,20 @@ def capture_revision_provenance(state, bindings):
         adjacent_packet = _decode(adjacent.read_bytes(), str(adjacent))
         if adjacent_packet != current["packet"]:
             raise Stage2Error("revision-provenance-adjacent-packet-mismatch")
-        receipt_name = f"revision_provenance/source_update_{index:06d}.json"
+        if receipt_type == "content_revision":
+            revisions = validate_content_revision_receipt(
+                path,
+                parent,
+                current,
+                receipt["source_root"],
+                authenticate_extraction=True,
+                require_adjacent_packet=True,
+            )
+        else:
+            revisions = _revision_rows(
+                parent["packet"], current["packet"], payload["impact"]
+            )
+        receipt_name = f"revision_provenance/{receipt_type}_{index:06d}.json"
         parent_name = f"revision_provenance/parent_packet_{index:06d}.json"
         files[receipt_name] = raw
         files[parent_name] = json.dumps(
@@ -168,9 +213,7 @@ def capture_revision_provenance(state, bindings):
                 ],
                 "snapshot_reason": payload["reason"],
                 "impact": copy.deepcopy(payload["impact"]),
-                "revisions": _revision_rows(
-                    parent["packet"], current["packet"], payload["impact"]
-                ),
+                "revisions": revisions,
             }
         )
     provenance = {
@@ -223,12 +266,8 @@ def inspect_revision_provenance(root, provenance, packet, manifest):
     for index, step in enumerate(provenance["steps"], 1):
         if not isinstance(step, dict) or set(step) != step_fields:
             raise Stage2Error("revision-provenance-step-shape")
-        expected_receipt = f"revision_provenance/source_update_{index:06d}.json"
         expected_parent = f"revision_provenance/parent_packet_{index:06d}.json"
-        if (
-            step["receipt_file"] != expected_receipt
-            or step["parent_packet_file"] != expected_parent
-        ):
+        if step["parent_packet_file"] != expected_parent:
             raise Stage2Error("revision-provenance-file-path-invalid")
         if step["snapshot_sequence"] <= prior_sequence:
             raise Stage2Error("revision-provenance-order-invalid")
@@ -237,7 +276,10 @@ def inspect_revision_provenance(root, provenance, packet, manifest):
         if _sha(receipt_raw) != step["receipt_sha256"]:
             raise Stage2Error("revision-provenance-receipt-hash-mismatch")
         receipt = _decode(receipt_raw, step["receipt_file"])
-        _validate_receipt(receipt)
+        receipt_type = _validate_receipt(receipt)
+        expected_receipt = f"revision_provenance/{receipt_type}_{index:06d}.json"
+        if step["receipt_file"] != expected_receipt:
+            raise Stage2Error("revision-provenance-file-path-invalid")
         parent = _decode(
             (root / step["parent_packet_file"]).read_bytes(), step["parent_packet_file"]
         )
@@ -259,10 +301,36 @@ def inspect_revision_provenance(root, provenance, packet, manifest):
                         later["parent_packet_file"],
                     )
                     break
-        if (
-            current is None
-            or _revision_rows(parent, current, step["impact"]) != step["revisions"]
-        ):
+        if current is None:
+            raise Stage2Error("revision-provenance-revision-mismatch")
+        if receipt_type == "content_revision":
+            parent_state = {
+                "packet": parent,
+                "event": {
+                    "payload": {"snapshot_sha256": step["parent_snapshot_sha256"]}
+                },
+            }
+            current_state = {
+                "packet": current,
+                "event": {
+                    "payload": {
+                        "snapshot_sha256": step["snapshot_sha256"],
+                        "impact": step["impact"],
+                    },
+                    "event_sha256": receipt["workflow_event_sha256"],
+                },
+            }
+            actual_revisions = validate_content_revision_receipt(
+                root / step["receipt_file"],
+                parent_state,
+                current_state,
+                root / "checker" / "sources",
+                authenticate_extraction=False,
+                require_adjacent_packet=False,
+            )
+        else:
+            actual_revisions = _revision_rows(parent, current, step["impact"])
+        if actual_revisions != step["revisions"]:
             raise Stage2Error("revision-provenance-revision-mismatch")
         revisions.extend(copy.deepcopy(step["revisions"]))
     if provenance["steps"]:

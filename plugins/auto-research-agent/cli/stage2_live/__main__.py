@@ -162,6 +162,26 @@ def main(argv=None):
     ):
         source_update.add_argument("--" + option, required=True)
     source_update.add_argument("--unresolved")
+    revision_input = commands.add_parser(
+        "prepare-content-revision-input",
+        help="bind exact new excerpts from existing source bytes",
+    )
+    for option in ("packet", "source-root", "additions", "output"):
+        revision_input.add_argument("--" + option, required=True)
+    content_revision = commands.add_parser(
+        "content-revision",
+        help="authenticate a source-free content revision snapshot",
+    )
+    for option in (
+        "run",
+        "expected-head",
+        "extraction-root",
+        "extraction-receipt",
+        "source-root",
+        "impact",
+        "output",
+    ):
+        content_revision.add_argument("--" + option, required=True)
     profile = commands.add_parser(
         "prepare-profile", help="prepare a new profile from native skill discovery"
     )
@@ -235,6 +255,11 @@ def main(argv=None):
             call.add_argument("--snapshot-sha256", required=True)
         if name == "extract":
             call.add_argument("--raw-proposal", required=True)
+            call.add_argument(
+                "--update-mode",
+                choices=["append", "replace-comparison-unresolved"],
+                default="append",
+            )
         elif name != "judge":
             call.add_argument("--candidate", required=True)
             call.add_argument("--capture", required=True)
@@ -432,6 +457,27 @@ def main(argv=None):
                 expected_packet_sha256=args.expected_packet_sha256,
                 unresolved=_read(args.unresolved) if args.unresolved else None,
             )
+        elif args.command == "prepare-content-revision-input":
+            from .content_revision import prepare_content_revision_input
+
+            result = prepare_content_revision_input(
+                _read(args.packet),
+                args.source_root,
+                _read(args.additions),
+                args.output,
+            )
+        elif args.command == "content-revision":
+            from .content_revision import prepare_content_revision
+
+            result = prepare_content_revision(
+                args.run,
+                args.expected_head,
+                args.extraction_root,
+                args.extraction_receipt,
+                args.source_root,
+                _read(args.impact),
+                args.output,
+            )
         elif args.command == "verify-quality-v3":
             from .v3_replay import verify_quality_v3
 
@@ -569,6 +615,8 @@ def main(argv=None):
                     options["evaluator_home"] = args.evaluator_home
                     if args.command == "extract":
                         raw = Path(args.raw_proposal).read_bytes().decode("utf-8")
+                        if args.update_mode != "append":
+                            options["update_mode"] = args.update_mode
                         result = run_live_extraction(
                             raw,
                             packet,
