@@ -30,13 +30,38 @@ def _utf8(value):
     return value.decode("utf-8") if isinstance(value, bytes) else value
 
 
-def _evaluation_fragment(view):
+def _evaluation_fragment(view, presentation_version="1.0.0"):
     """Embed only the body of our escaped, validated standalone assessment."""
     document = _utf8(render_evaluation_html(view))
     if "<body>" not in document or "</body>" not in document:
         raise Stage2Error("evaluation-delivery-invalid-rendered-body")
     body = document.split("<body>", 1)[1].split("</body>", 1)[0]
+    if (
+        presentation_version == "1.2.0"
+        and view["evaluation_status"] == "audit-required"
+    ):
+        for label in ("score", "status", "rationale"):
+            body = body.replace(
+                f"<dt>Final {label}</dt>", f"<dt>Provisional {label}</dt>"
+            )
     return '<section id="external-evaluation">' + body + "</section>"
+
+
+def _evaluation_markdown_fragment(view, presentation_version="1.0.0"):
+    document = _utf8(render_evaluation_markdown(view))
+    if (
+        presentation_version == "1.2.0"
+        and view["evaluation_status"] == "audit-required"
+    ):
+        lines = document.splitlines(keepends=True)
+        for index, line in enumerate(lines):
+            for label in ("score", "status", "rationale"):
+                prefix = f"- Final {label}:"
+                if line.startswith(prefix):
+                    lines[index] = f"- Provisional {label}:" + line[len(prefix) :]
+                    break
+        document = "".join(lines)
+    return document
 
 
 def _evaluation_overview(view):
@@ -69,7 +94,7 @@ def _evaluation_overview(view):
 
 def _evaluated_html(selection, snapshots, view, presentation_version):
     document = _utf8(render_selection_html(selection, snapshots))
-    if presentation_version == "1.1.0":
+    if presentation_version in {"1.1.0", "1.2.0"}:
         document = document.replace(
             "</section>", "</section>" + _evaluation_overview(view), 1
         ).replace(
@@ -79,7 +104,9 @@ def _evaluated_html(selection, snapshots, view, presentation_version):
         )
     elif presentation_version != "1.0.0":
         raise Stage2Error("evaluation-delivery-presentation-version-invalid")
-    return document.replace("</main>", _evaluation_fragment(view) + "</main>")
+    return document.replace(
+        "</main>", _evaluation_fragment(view, presentation_version) + "</main>"
+    )
 
 
 def _candidate_order_normalized(packet):
@@ -325,7 +352,7 @@ def build_evaluated_delivery(
     view = evaluation_projection(
         bundle, selection, source_root, expected_bundle_sha256=expected_bundle_sha256
     )
-    html = _evaluated_html(selection, source_snapshots, view, "1.1.0")
+    html = _evaluated_html(selection, source_snapshots, view, "1.2.0")
     markdown = render_proposal(
         selection,
         source_snapshots,
@@ -334,7 +361,7 @@ def build_evaluated_delivery(
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
-    markdown += "\n\n" + _utf8(render_evaluation_markdown(view))
+    markdown += "\n\n" + _evaluation_markdown_fragment(view, "1.2.0")
     destination = private_output(output_dir)
     if destination.exists():
         raise Stage2Error("evaluation-delivery-output-already-exists")
@@ -368,7 +395,7 @@ def build_evaluated_delivery(
     manifest = {
         "kind": "Stage2EvaluatedDelivery",
         "schema_version": "3.0.0",
-        "presentation_version": "1.1.0",
+        "presentation_version": "1.2.0",
         "core_selection_sha256": canonical_hash(selection),
         "bundle_sha256": expected_bundle_sha256,
         "event_head": event_head,
@@ -443,7 +470,9 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
-    markdown += "\n\n" + _utf8(render_evaluation_markdown(projection))
+    markdown += "\n\n" + _evaluation_markdown_fragment(
+        projection, manifest.get("presentation_version", "1.0.0")
+    )
     if (root / "selection.html").read_bytes() != html.encode("utf-8") or (
         root / "selection.md"
     ).read_bytes() != markdown.encode("utf-8"):

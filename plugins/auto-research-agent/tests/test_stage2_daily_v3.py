@@ -25,6 +25,7 @@ from stage2_workflow.evaluation_delivery import (
     inspect_evaluated_delivery,
     evaluation_projection,
     _evaluated_html,
+    _evaluation_markdown_fragment,
 )
 from stage2_fixture_helpers import write_stage2_fixture
 from test_stage2_checker import assessment
@@ -137,7 +138,7 @@ class DailyV3Tests(unittest.TestCase):
             html.index('id="evaluation-overview"'), html.index('id="brief"')
         )
         self.assertIn("100% (6/6)", html)
-        self.assertEqual(manifest["presentation_version"], "1.1.0")
+        self.assertEqual(manifest["presentation_version"], "1.2.0")
         self.assertFalse(manifest["stage3_authorized"])
         self.assertFalse(bundle["improvement_demonstrated"])
 
@@ -156,6 +157,70 @@ class DailyV3Tests(unittest.TestCase):
         self.assertFalse(manifest["formal_ready"])
         html = (self.root / "delivery" / "selection.html").read_text(encoding="utf-8")
         self.assertIn("the required named audit is pending", html)
+        self.assertEqual(html.count("<dt>Provisional score</dt>"), 9)
+        self.assertNotIn("<dt>Final score</dt>", html)
+        markdown = (self.root / "delivery" / "selection.md").read_text(encoding="utf-8")
+        self.assertEqual(markdown.count("- Provisional score:"), 9)
+        self.assertNotIn("- Final score:", markdown)
+
+    def test_v11_pending_audit_receipt_replays_without_rescoring(self):
+        bundle = self.run_judges(disagree=True)
+        manifest = self.delivery(bundle)
+        root = self.root / "delivery"
+        snapshots = [
+            {**row, "path": "sources/" + row["path"]} for row in self.packet["sources"]
+        ]
+        view = evaluation_projection(
+            bundle,
+            self.selection,
+            self.sources,
+            expected_bundle_sha256=canonical_hash(bundle),
+        )
+        current_markdown = (root / "selection.md").read_bytes()
+        new_fragment = _evaluation_markdown_fragment(view, "1.2.0").encode()
+        self.assertTrue(current_markdown.endswith(new_fragment))
+        old_markdown = current_markdown[: -len(new_fragment)] + (
+            _evaluation_markdown_fragment(view, "1.1.0").encode()
+        )
+        old_html = _evaluated_html(self.selection, snapshots, view, "1.1.0").encode()
+        self.assertIn(b"<dt>Final score</dt>", old_html)
+        self.assertIn(b"- Final score:", old_markdown)
+        values = {"selection.html": old_html, "selection.md": old_markdown}
+        for name, raw in values.items():
+            (root / name).write_bytes(raw)
+        for row in manifest["artifacts"]:
+            if row["path"] in values:
+                raw = values[row["path"]]
+                row.update(sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
+        manifest["presentation_version"] = "1.1.0"
+        manifest.pop("manifest_sha256")
+        manifest["manifest_sha256"] = canonical_hash(manifest)
+        (root / "evaluation_manifest.json").write_text(json.dumps(manifest))
+        inspect_evaluated_delivery(
+            root, expected_manifest_sha256=manifest["manifest_sha256"]
+        )
+        self.assertEqual(len(self.calls), 6)
+
+    def test_provisional_labels_preserve_quoted_original_comment(self):
+        bundle = self.run_judges(disagree=True)
+        view = evaluation_projection(
+            bundle,
+            self.selection,
+            self.sources,
+            expected_bundle_sha256=canonical_hash(bundle),
+        )
+        quote = (
+            "Original quoted label - Final score: 2; - Final status: assessed; "
+            "- Final rationale: evidence."
+        )
+        view["rows"][0]["judges"]["R1"]["rationale"] = quote
+        old = _evaluation_markdown_fragment(view, "1.1.0")
+        new = _evaluation_markdown_fragment(view, "1.2.0")
+        old_comment = next(line for line in old.splitlines() if quote[:21] in line)
+        self.assertIn(old_comment, new.splitlines())
+        self.assertEqual(
+            sum(line.startswith("- Provisional score:") for line in new.splitlines()), 9
+        )
 
     def test_failure_still_delivers_readable_research_without_zero(self):
         bundle = self.run_judges(fail=True)
