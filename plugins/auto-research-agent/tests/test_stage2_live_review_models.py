@@ -170,6 +170,57 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             "capture_verifier": self.synthetic_verifier,
         }
 
+    def independent_reviews(self, *, disagree_on_opportunity=False):
+        reviews = []
+        for role in ("challenger", "feasibility"):
+            view = review_task(self.packet, "candidate-1", SNAPSHOT, role)
+            capture, receipt, _ = self.capture(
+                f"contract-{role}",
+                "review_view",
+                view,
+                f"Independent {role} reconciliation input.",
+                f"session-contract-{role}",
+            )
+            payload = initial_payload(self.packet)
+            if disagree_on_opportunity and role == "challenger":
+                payload["assessment"]["checks"]["opportunity"]["score"] = 1
+                payload["assessment"]["disposition"] = "revise"
+                payload["assessment"]["next_step"] = (
+                    "Verify the bounded measurement before recommendation."
+                )
+            adapter = StubModel({"initial-review": payload})
+            reviews.append(
+                extract_review(
+                    **self.review_args(
+                        capture,
+                        receipt,
+                        f"contract-out-{role}",
+                        adapter,
+                        role,
+                    )
+                )["review"]
+            )
+        return reviews
+
+    def resolution_args(self, reviews, capture, receipt, output, adapter):
+        return {
+            "packet": self.packet,
+            "source_root": self.sources,
+            "candidate_id": "candidate-1",
+            "snapshot_sha256": SNAPSHOT,
+            "reviews": reviews,
+            "capture_dir": capture,
+            "receipt": receipt,
+            "codex": self.codex,
+            "evaluator_home": self.extractor_home,
+            "model": "test-model",
+            "reasoning": "high",
+            "execution_policy": POLICY,
+            "output_dir": self.root / output,
+            "call_adapter": adapter,
+            "capture_verifier": self.synthetic_verifier,
+        }
+
     def test_schema_uses_canonical_five_axis_assessment_statuses(self):
         schema = _schema(self.packet)
         checks = schema["properties"]["checks"]
@@ -379,6 +430,128 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             result["resolution"]["review_sha256s"],
             [canonical_hash(row) for row in reviews],
         )
+
+    def test_resolution_contract_accepts_exact_categorical_and_substantive_ids(self):
+        reviews = self.independent_reviews(disagree_on_opportunity=True)
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        self.assertEqual(
+            task["pending"]["disagreements"], ["opportunity", "disposition"]
+        )
+        substantive = "The reviews disagree about the measurement boundary."
+        raw = "Evidence verification resolves the opportunity and measurement boundary disagreements."
+        capture, receipt, _ = self.capture(
+            "exact-resolution",
+            "reconciliation_task",
+            task,
+            raw,
+            "session-exact-resolution",
+        )
+        payload = resolution_payload(self.packet)
+        payload.update(
+            method="source-verification",
+            substantive_disagreements=[substantive],
+            addressed=["opportunity", "disposition", substantive],
+            changed_judgment_reason="The source-bound measurement record supports score 2.",
+        )
+        adapter = StubModel({"resolution": payload})
+
+        result = extract_resolution(
+            **self.resolution_args(
+                reviews, capture, receipt, "exact-resolution-out", adapter
+            )
+        )
+
+        self.assertEqual(
+            result["resolution"]["addressed"],
+            ["opportunity", "disposition", substantive],
+        )
+        prompt_payload = json.loads(adapter.calls[0]["prompt"].split("\n", 1)[1])
+        contract = prompt_payload["field_contract"]
+        self.assertEqual(
+            contract,
+            {
+                "contract_id": "stage2-reconciliation-extraction-fields",
+                "schema_version": "1.0.0",
+                "pending_categorical_ids": ["opportunity", "disposition"],
+                "rules": contract["rules"],
+            },
+        )
+        self.assertIn("verbatim", contract["rules"]["addressed"])
+        self.assertIn("reason", contract["rules"]["addressed"])
+        self.assertIn(
+            "existing, source-supported evidence ID",
+            contract["rules"]["assessment_evidence"],
+        )
+        self.assertIn("status unknown", contract["rules"]["assessment_evidence"])
+        self.assertIn("Do not infer", contract["rules"]["resolution"])
+
+    def test_resolution_rejects_prose_in_addressed_instead_of_exact_ids(self):
+        reviews = self.independent_reviews(disagree_on_opportunity=True)
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "prose-addressed",
+            "reconciliation_task",
+            task,
+            "The reviewers discussed and resolved the opportunity disagreement.",
+            "session-prose-addressed",
+        )
+        invalid = resolution_payload(self.packet)
+        invalid.update(
+            method="source-verification",
+            addressed=["The opportunity disagreement was resolved."],
+            changed_judgment_reason="The source-bound record supports score 2.",
+        )
+        adapter = StubModel({"resolution": invalid, "resolution-correction": invalid})
+
+        with self.assertRaisesRegex(Stage2Error, "unresolved-disagreement"):
+            extract_resolution(
+                **self.resolution_args(
+                    reviews, capture, receipt, "prose-addressed-out", adapter
+                )
+            )
+        self.assertEqual(
+            [call["label"] for call in adapter.calls],
+            ["resolution", "resolution-correction"],
+        )
+
+    def test_empty_assessed_evidence_is_corrected_once_to_valid_resolution(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "evidence-correction",
+            "reconciliation_task",
+            task,
+            "The saved reconciliation supports each assessed axis with ev-1.",
+            "session-evidence-correction",
+        )
+        invalid = resolution_payload(self.packet)
+        for axis in ("opportunity", "value"):
+            invalid["assessment"]["checks"][axis]["evidence_ids"] = []
+        valid = resolution_payload(self.packet)
+        adapter = StubModel({"resolution": invalid, "resolution-correction": valid})
+
+        result = extract_resolution(
+            **self.resolution_args(
+                reviews, capture, receipt, "evidence-correction-out", adapter
+            )
+        )
+
+        self.assertEqual(
+            [call["label"] for call in adapter.calls],
+            ["resolution", "resolution-correction"],
+        )
+        self.assertIn(
+            "evidence_ids: [] should be non-empty",
+            result["extraction_provenance"]["correction_reason"],
+        )
+        for axis in ("opportunity", "value"):
+            self.assertEqual(
+                result["resolution"]["assessment"]["checks"][axis]["evidence_ids"],
+                ["ev-1"],
+            )
+        correction_prompt = adapter.calls[1]["prompt"]
+        self.assertIn("stage2-reconciliation-extraction-fields", correction_prompt)
+        self.assertIn('"pending_categorical_ids": []', correction_prompt)
 
 
 if __name__ == "__main__":
