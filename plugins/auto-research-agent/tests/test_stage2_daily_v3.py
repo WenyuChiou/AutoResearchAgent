@@ -65,12 +65,18 @@ class DailyV3Tests(unittest.TestCase):
             self.homes[role].mkdir()
         self.calls = []
 
-    def run_judges(self, *, disagree=False, fail=False, fail_label=None):
+    def run_judges(
+        self, *, disagree=False, fail=False, fail_label=None, source_context_policy=None
+    ):
         self.disagree = disagree
+        self.prompts = {}
 
         def unit(**kwargs):
             self.calls.append(kwargs["label"])
-            payload = json.loads(kwargs["prompt"].split("\n", 1)[1])
+            self.prompts[kwargs["label"]] = kwargs["prompt"]
+            payload, _ = json.JSONDecoder().raw_decode(
+                kwargs["prompt"].split("\n", 1)[1]
+            )
             view = payload["content_view"]
             if kwargs["label"].endswith("content"):
                 result = content_assessment(view)
@@ -101,6 +107,7 @@ class DailyV3Tests(unittest.TestCase):
                 execution_policy={},
                 output_dir=self.root / "judges",
                 call_adapter=lambda: None,
+                source_context_policy=source_context_policy,
             )
 
     def delivery(self, bundle):
