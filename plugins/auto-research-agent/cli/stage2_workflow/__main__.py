@@ -26,6 +26,12 @@ def _read(path):
     return decode_json(Path(path).read_bytes(), str(path))
 
 
+def _save(path, value):
+    with Path(path).open("x", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2))
+        stream.write("\n")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_workflow")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -106,6 +112,13 @@ def main(argv=None):
     deliver = commands.add_parser("deliver", help="build a versioned proposal package")
     for name in ("batch", "reviews", "resolutions"):
         deliver.add_argument("--" + name, required=True)
+    deliver.add_argument(
+        "--source-update-receipt",
+        action="append",
+        nargs=2,
+        metavar=("PATH", "EXPECTED_SHA256"),
+        help="opt into v1.1 provenance using a raw source-update receipt and retained SHA",
+    )
     for command in (plan, reconcile, deliver):
         command.add_argument("--run", required=True)
         command.add_argument("--expected-head", required=True)
@@ -130,6 +143,27 @@ def main(argv=None):
     ):
         human.add_argument("--" + name, required=True)
     human.add_argument("--message-index", type=int, required=True)
+    evaluated = commands.add_parser(
+        "evaluated-deliver-v3",
+        help="build a v3 delivery from a bound workflow and evaluation bundle",
+    )
+    for name in (
+        "run",
+        "expected-head",
+        "selection",
+        "source-snapshots",
+        "source-root",
+        "bundle",
+        "expected-bundle-sha256",
+        "output",
+    ):
+        evaluated.add_argument("--" + name, required=True)
+    evaluated_check = commands.add_parser(
+        "verify-evaluated-delivery",
+        help="replay a v3 delivery using an externally retained manifest receipt",
+    )
+    for name in ("delivery", "expected-manifest-sha256", "output"):
+        evaluated_check.add_argument("--" + name, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "import-stage1":
@@ -212,6 +246,32 @@ def main(argv=None):
                 args.output,
                 args.expected_head,
             )
+        elif args.command == "evaluated-deliver-v3":
+            from .evaluation_delivery import (
+                build_evaluated_delivery,
+                workflow_source_selection_bindings,
+            )
+
+            state = inspect_workflow(args.run, args.expected_head)
+            selection = _read(args.selection)
+            bindings = workflow_source_selection_bindings(state, selection)
+            result = build_evaluated_delivery(
+                selection,
+                _read(args.source_snapshots),
+                args.source_root,
+                _read(args.bundle),
+                args.output,
+                expected_bundle_sha256=args.expected_bundle_sha256,
+                **bindings,
+            )
+        elif args.command == "verify-evaluated-delivery":
+            from .evaluation_delivery import inspect_evaluated_delivery
+
+            result = inspect_evaluated_delivery(
+                args.delivery,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+            )
+            _save(args.output, result)
         elif args.command == "deliver":
             result = build_delivery(
                 args.run,
@@ -220,6 +280,7 @@ def main(argv=None):
                 _read(args.resolutions),
                 args.output,
                 args.expected_head,
+                source_update_receipts=args.source_update_receipt,
             )
         else:
             state = inspect_workflow(args.run, args.expected_head)

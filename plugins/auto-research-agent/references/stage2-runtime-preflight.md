@@ -2,11 +2,18 @@
 
 ## Ordinary use: one research harness run
 
-Use `Stage2ProductionRuntimeProbeSpec` (schema `1.0.0`) when a researcher runs
+Use `Stage2ProductionRuntimeProbeSpec` (schema `1.0.0` or `1.1.0`) when a researcher runs
 the harness alone. It uses the same expected settings and bound executor as
 the older probe, and requires actual read, write, search and child-agent
 evidence. Its `probes` contains exactly those four keys. It does not need an A
 run, six paired runs, judge files, or expected-answer sentinels.
+
+Production v1.1 additionally binds an absolute read `command_path` to the frozen
+workspace plus the relative archived `source_path`. It preserves command, nonce,
+source, shell and path checks; formal isolation probes keep their v1.0 contract.
+When a native tool yields, retain its handle and wait for terminal completion
+within the execution policy before deciding success. Bind search evidence to
+the actual search call; a later page-open event is a different action.
 
 The reconstructed report is `Stage2ProductionRuntimePreflight`, with
 `validation_scope=production-single`. Missing inventory information stays in

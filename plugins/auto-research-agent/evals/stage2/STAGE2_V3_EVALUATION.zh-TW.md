@@ -55,14 +55,34 @@ Stage 1 的 exploratory acceptance 只允許明確啟動 Stage 2 探索；
 只有科學內容變更才需要重評；改版面不改核心 selection，不需重呼叫 judge。
 可恢復單元必須與外部保存的 receipt、來源、設定及原始呼叫一致。
 
-下述日常 CLI 與透明交付功能須待後續 delivery PR 合併後才可使用；本 PR 是評分契約。
+日常 CLI 與透明交付已實作，隨 delivery PR 提供；正式安裝請使用核心組合併後的版本。
+工程測試通過不等於兩個完整研究預演或正式 A/B 已完成。
 具名覆核到達後，使用 `stage2_live finalize-daily-v3` 並提供外部保存的 parent replay receipt 建立另一份結果，
 綁定原 bundle 與 audit 的 hash；不覆寫原結果，也不重呼叫 judge。
 若 R2 失敗，R1 已完成的九項評語仍保留，完整面向分數保持 null。
 
+## 日常執行預檢與失敗恢復
+
+每個實際使用的 profile／workspace 都須有相符的原生呼叫證據。
+日常 production probe v1.1 可保留相對的 `source_path` 作為封包索引，
+同時使用絕對的 `command_path` 讀取檔案。兩者必須指向已固定 workspace 的同一檔案；
+nonce、shell bytes、原生工具結果、來源範圍和路徑別名防護仍全部檢查。
+舊 v1.0 保留，正式隔離 probe 不使用這個日常 v1.1 契約。
+原生讀、寫、搜尋與子 agent 成功，只能證明這些能力；完整 inventory 及檔案隔離
+尚未查核時仍明示 unknown。不能用日常 PASS 宣告 formal-ready。
+
+待解分歧識別字未對齊時，會列出 required／missing／extra 的主張識別字。
+這幫助擷取器知道漏了哪個判斷，不允許只複製識別字就通過：來源、候選版本、
+獨立初評及實質解決理由仍須核對。保留失敗原文與 attempt；只在相關輸入或程式
+已有核實修正時依凍結政策恢復，不重跑已完成的研究或查核。
+
 ## 使用者會拿到什麼
 
 概要先呈現方向、推薦理由、資源、限制與 P4–P6 評估狀態。
+新版 HTML 在方向概要後顯示獨立評分概覽，提供跳到完整九項評語的連結；
+具名覆核待完成時，分數標為 provisional，未知仍顯示 Unknown。
+交付 manifest 的 `presentation_version` 區分新舊排版；舊版封包仍可依原版面重建，
+改版面不改核心 selection 或 rubric，也不重跑 judge。
 九項評語區可展開 R1／R2／ADJ 的分數、理由、信心、未知及覆核狀態；
 證據連結帶到原文位置與版本。候選資料、模型、工具包含網址／版本、
 存取與授權、成本依據、限制與替代方案。取得失敗、零結果、未知和
@@ -72,6 +92,19 @@ Stage 1 的 exploratory acceptance 只允許明確啟動 Stage 2 探索；
 manifest 核對輸出，避免讓 HTML 與 bundle 互相 hash。
 原始評語不會被最終分數覆蓋。來源文字轉義，不把私有原文或憑證放進公開 Git。
 選擇包已準備與使用者已選定方向分開記錄。
+
+## 補查後的修訂如何接到評分
+
+新來源帶來候選修訂時，必須保留原始 `Stage2SourceUpdate`、前後來源快照、
+影響原因及新增的證據 ID。交付 CLI 的 `--source-update-receipt PATH SHA256`
+可重複提供這些原始紀錄；SHA256 必須是呼叫端保存的原檔 hash。
+程式核對相鄰快照、候選版本與來源後，才建立可攜的修訂依據與評分用 action record。
+原 checker 封包及其缺失標示不改寫，不補造過去沒有發生的 checker event。
+新交付 manifest 為 v1.1；未使用此接口的 v1.0 仍依原規則處理。
+
+這些紀錄證明「為何修訂、改了什麼」，不能單獨證明原生 agent 已執行、
+科學內容正確或使用者已同意。缺少其他必要處置紀錄時，外部評分仍保持未完成。
+只有與當前候選及來源相符的完整紀錄，才允許進入独立 judge 評分。
 
 ## 如何驗收
 

@@ -100,6 +100,68 @@ def main(argv=None):
     calibration.add_argument("--resume", action="store_true")
     calibration.add_argument("--replay-receipt")
     calibration.add_argument("--replay-receipt-output", required=True)
+    daily_v3 = commands.add_parser(
+        "daily-v3", help="run ordinary B-only Stage 2 v3 independent scoring"
+    )
+    for option in (
+        "selection",
+        "source-root",
+        "codex",
+        "r1-home",
+        "r2-home",
+        "adj-home",
+        "model",
+        "reasoning",
+        "policy",
+        "output",
+        "replay-receipt-output",
+    ):
+        daily_v3.add_argument("--" + option, required=True)
+    daily_v3.add_argument("--audit")
+    daily_v3.add_argument("--resume", action="store_true")
+    daily_v3.add_argument("--replay-receipt")
+    finalize_daily_v3 = commands.add_parser(
+        "finalize-daily-v3", help="append a named audit to an audit-required v3 run"
+    )
+    for option in (
+        "bundle",
+        "selection",
+        "source-root",
+        "audit",
+        "expected-bundle-sha256",
+        "output",
+    ):
+        finalize_daily_v3.add_argument("--" + option, required=True)
+    finalize_daily_v3.add_argument("--parent-replay-receipt")
+    quality_v3 = commands.add_parser(
+        "calibrate-v3", help="run the fixed 72-presentation Stage 2 v3 calibration"
+    )
+    for option in (
+        "dataset",
+        "reference",
+        "codex",
+        "r1-home",
+        "r2-home",
+        "model",
+        "reasoning",
+        "policy",
+        "output",
+    ):
+        quality_v3.add_argument("--" + option, required=True)
+    source_update = commands.add_parser(
+        "source-update", help="prepare an immutable review-required source update"
+    )
+    for option in (
+        "packet",
+        "source-root",
+        "additions",
+        "revisions",
+        "impact",
+        "output",
+        "expected-packet-sha256",
+    ):
+        source_update.add_argument("--" + option, required=True)
+    source_update.add_argument("--unresolved")
     profile = commands.add_parser(
         "prepare-profile", help="prepare a new profile from native skill discovery"
     )
@@ -107,6 +169,24 @@ def main(argv=None):
     profile.add_argument("--skills-response", required=True)
     profile.add_argument("--skills-sha256", required=True)
     profile.add_argument("--output", required=True)
+    profile.add_argument("--workspace")
+    quality_check_v3 = commands.add_parser(
+        "verify-quality-v3", help="read-only replay of a native v3 calibration"
+    )
+    for option in ("root", "receipt", "dataset", "reference", "config", "output"):
+        quality_check_v3.add_argument("--" + option, required=True)
+    daily_check_v3 = commands.add_parser(
+        "verify-daily-v3", help="read-only replay of a native v3 daily run"
+    )
+    for option in (
+        "run-dir",
+        "receipt",
+        "selection",
+        "source-root",
+        "config",
+        "output",
+    ):
+        daily_check_v3.add_argument("--" + option, required=True)
     preflight = commands.add_parser(
         "preflight", help="verify effective policy, native actions and isolation"
     )
@@ -279,13 +359,116 @@ def main(argv=None):
                 else None,
             )
             _save(args.replay_receipt_output, result["replay_receipt"])
+        elif args.command == "daily-v3":
+            from .daily_v3 import run_daily_evaluation_v3
+
+            if args.resume != bool(args.replay_receipt):
+                raise EvaluationError(
+                    "daily-v3 resume and replay receipt must be supplied together"
+                )
+            receipt_output = Path(args.replay_receipt_output).resolve()
+            if receipt_output.exists():
+                raise EvaluationError("replay receipt output already exists")
+            if receipt_output.is_relative_to(Path(args.output).resolve()):
+                raise EvaluationError("replay receipt must remain outside daily output")
+            result = run_daily_evaluation_v3(
+                _read(args.selection),
+                args.source_root,
+                codex=args.codex,
+                r1_home=args.r1_home,
+                r2_home=args.r2_home,
+                adj_home=args.adj_home,
+                model=args.model,
+                reasoning=args.reasoning,
+                execution_policy=_read(args.policy),
+                output_dir=args.output,
+                resume=args.resume,
+                resume_receipt=(
+                    _read(args.replay_receipt) if args.replay_receipt else None
+                ),
+                audit=_read(args.audit) if args.audit else None,
+            )
+            _save(args.replay_receipt_output, result["replay_receipt"])
+        elif args.command == "finalize-daily-v3":
+            from .daily_v3 import finalize_daily_evaluation_v3
+
+            result = finalize_daily_evaluation_v3(
+                _read(args.bundle),
+                _read(args.selection),
+                args.source_root,
+                _read(args.audit),
+                args.output,
+                expected_bundle_sha256=args.expected_bundle_sha256,
+                parent_replay_receipt=(
+                    _read(args.parent_replay_receipt)
+                    if args.parent_replay_receipt
+                    else None
+                ),
+            )
+        elif args.command == "calibrate-v3":
+            from .rubric_quality_v3 import run_quality_v3
+
+            result = run_quality_v3(
+                _read(args.dataset),
+                _read(args.reference),
+                codex=args.codex,
+                r1_home=args.r1_home,
+                r2_home=args.r2_home,
+                model=args.model,
+                reasoning=args.reasoning,
+                execution_policy=_read(args.policy),
+                output_dir=args.output,
+            )
+        elif args.command == "source-update":
+            from .source_updates import prepare_source_update
+
+            result = prepare_source_update(
+                _read(args.packet),
+                args.source_root,
+                _read(args.additions),
+                _read(args.revisions),
+                _read(args.impact),
+                args.output,
+                expected_packet_sha256=args.expected_packet_sha256,
+                unresolved=_read(args.unresolved) if args.unresolved else None,
+            )
+        elif args.command == "verify-quality-v3":
+            from .v3_replay import verify_quality_v3
+
+            result = verify_quality_v3(
+                args.root,
+                _read(args.receipt),
+                dataset=_read(args.dataset),
+                reference=_read(args.reference),
+                expected_config=_read(args.config),
+            )
+            _save(args.output, result)
+        elif args.command == "verify-daily-v3":
+            from .daily_replay_v3 import verify_daily_v3
+
+            result = verify_daily_v3(
+                args.run_dir,
+                _read(args.receipt),
+                selection=_read(args.selection),
+                source_root=args.source_root,
+                expected_config=_read(args.config),
+            )
+            _save(args.output, result)
         elif args.command in {"prepare-profile", "preflight"}:
             if Path(args.output).exists():
                 raise CaptureError("output already exists")
             if args.command == "prepare-profile":
-                result = prepare_profile(
-                    args.destination, args.skills_response, args.skills_sha256
-                )
+                if args.workspace:
+                    result = prepare_profile(
+                        args.destination,
+                        args.skills_response,
+                        args.skills_sha256,
+                        workspace=args.workspace,
+                    )
+                else:
+                    result = prepare_profile(
+                        args.destination, args.skills_response, args.skills_sha256
+                    )
             else:
                 result = inspect_preflight(
                     args.capture,

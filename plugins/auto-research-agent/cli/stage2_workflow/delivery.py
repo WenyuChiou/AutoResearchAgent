@@ -17,12 +17,18 @@ from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_workflow import inspect_workflow
 from stage2_workflow.orchestration import reconcile_batch
+from stage2_workflow.revision_provenance import (
+    capture_revision_provenance,
+    derive_selection,
+    inspect_revision_provenance,
+)
 
 from stage2_check.report_html import render_selection_html
 from stage2_check.run import build_selection
 from stage2_check.report import render_proposal, _quote_block
 
 VERSION = "1.0.0"
+PROVENANCE_VERSION = "1.1.0"
 MANIFEST = "delivery_manifest.json"
 REVIEW_INPUT_FILES = {
     "batch": "review_batch.json",
@@ -208,9 +214,21 @@ def _root_html(checker, selection, reconciliation):
     return document.replace(b"</main>", appendix.encode("utf-8") + b"</main>")
 
 
-def build_delivery(run_dir, batch, reviews, resolutions, output_dir, expected_head):
+def build_delivery(
+    run_dir,
+    batch,
+    reviews,
+    resolutions,
+    output_dir,
+    expected_head,
+    *,
+    source_update_receipts=None,
+):
     """Build a separate source-bound checker and prehuman delivery package."""
     state = inspect_workflow(run_dir, expected_head=expected_head)
+    provenance, provenance_files = capture_revision_provenance(
+        state, source_update_receipts or []
+    )
     snapshot, snapshot_hash, packet = _current_snapshot(state, batch)
     source_root = _verify_source_map(snapshot, packet)
     reconciliation = reconcile_batch(packet, batch, reviews, resolutions)
@@ -247,8 +265,16 @@ def build_delivery(run_dir, batch, reviews, resolutions, output_dir, expected_he
         assessment_path = output / "resolved_assessments" / f"{index:06d}.json"
         _write_new(assessment_path, assessment)
         apply_assessment(checker_root, assessment_path)
-    selection = export_selection(checker_root)
+    checker_selection = export_selection(checker_root)
     checker = inspect_run(checker_root)
+    selection = (
+        derive_selection(
+            checker_selection,
+            [row for step in provenance["steps"] for row in step["revisions"]],
+        )
+        if provenance is not None
+        else checker_selection
+    )
 
     # Root reports intentionally use the same validated ``sources/...`` links as
     # the checker report, so publish byte-identical snapshot copies at that path.
@@ -258,6 +284,10 @@ def build_delivery(run_dir, batch, reviews, resolutions, output_dir, expected_he
         _write_new(delivery_source, source_path.read_bytes())
 
     _write_new(output / "selection.json", selection)
+    if provenance is not None:
+        for relative, raw in provenance_files.items():
+            _write_new(_safe_package_path(output, relative), raw)
+        _write_new(output / "revision_provenance.json", provenance)
     _write_new(
         output / "selection.md", _root_markdown(checker, selection, reconciliation)
     )
@@ -286,7 +316,7 @@ def build_delivery(run_dir, batch, reviews, resolutions, output_dir, expected_he
     ]
     manifest = {
         "kind": "Stage2DeliveryManifest",
-        "schema_version": VERSION,
+        "schema_version": PROVENANCE_VERSION if provenance is not None else VERSION,
         "delivery_status": ("local-report-ready" if local_ready else "draft-not-ready"),
         "workflow_manifest_sha256": state["manifest"]["manifest_sha256"],
         "workflow_head_sha256": state["head_sha256"],
@@ -310,6 +340,12 @@ def build_delivery(run_dir, batch, reviews, resolutions, output_dir, expected_he
         "readiness_meaning": "local report completeness only; not native execution attestation, human approval, or scientific truth",
         "files": _relative_files(output),
     }
+    if provenance is not None:
+        manifest.update(
+            checker_selection_sha256=canonical_hash(checker_selection),
+            revision_provenance_file="revision_provenance.json",
+            revision_provenance_sha256=canonical_hash(provenance),
+        )
     manifest["manifest_sha256"] = _manifest_hash(manifest)
     _write_new(output / MANIFEST, manifest)
     inspect_delivery(output, manifest["manifest_sha256"])
@@ -350,11 +386,18 @@ def inspect_delivery(directory, expected_manifest_sha256):
         "files",
         "manifest_sha256",
     }
+    version = manifest.get("schema_version") if isinstance(manifest, dict) else None
+    if version == PROVENANCE_VERSION:
+        required |= {
+            "checker_selection_sha256",
+            "revision_provenance_file",
+            "revision_provenance_sha256",
+        }
     if not isinstance(manifest, dict) or set(manifest) != required:
         raise Stage2Error("delivery-manifest-shape")
     if (
         manifest["kind"] != "Stage2DeliveryManifest"
-        or manifest["schema_version"] != VERSION
+        or version not in {VERSION, PROVENANCE_VERSION}
         or manifest["manifest_sha256"] != _manifest_hash(manifest)
     ):
         raise Stage2Error("delivery-manifest-invalid")
@@ -433,9 +476,20 @@ def inspect_delivery(directory, expected_manifest_sha256):
 
     selection = _read_json(root / "selection.json")
     checker_selection = _read_json(root / "checker" / "selection.json")
+    expected_selection = build_selection(checker)
+    if version == PROVENANCE_VERSION:
+        if manifest["revision_provenance_file"] != "revision_provenance.json":
+            raise Stage2Error("delivery-revision-provenance-path-invalid")
+        provenance = _read_json(root / manifest["revision_provenance_file"])
+        if canonical_hash(provenance) != manifest["revision_provenance_sha256"]:
+            raise Stage2Error("delivery-revision-provenance-hash-mismatch")
+        revisions = inspect_revision_provenance(root, provenance, packet, manifest)
+        expected_selection = derive_selection(expected_selection, revisions)
+        if canonical_hash(checker_selection) != manifest["checker_selection_sha256"]:
+            raise Stage2Error("delivery-checker-selection-hash-mismatch")
     if (
-        selection != build_selection(checker)
-        or selection != checker_selection
+        checker_selection != build_selection(checker)
+        or selection != expected_selection
         or canonical_hash(selection) != manifest["selection_sha256"]
     ):
         raise Stage2Error("delivery-selection-mismatch")
@@ -488,4 +542,5 @@ def inspect_delivery(directory, expected_manifest_sha256):
         "reconciliation": reconciliation,
         "checker": checker,
         "input_packet": packet,
+        "checker_selection": checker_selection,
     }

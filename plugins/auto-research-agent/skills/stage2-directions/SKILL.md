@@ -5,6 +5,17 @@ description: This skill applies when the user asks to improve an existing resear
 
 # Stage 2 direction checking
 
+For the current opt-in v3 workflow, read the
+[balanced evaluation and transparent delivery guide](../../evals/stage2/STAGE2_V3_EVALUATION.zh-TW.md).
+After preparing every selection package, run `stage2_live daily-v3` with distinct
+R1/R2/ADJ contexts, then `stage2_workflow evaluated-deliver-v3`. Keep the core
+selection unchanged for purely presentational edits. A judge failure does not
+discard research: publish the readable package with incomplete evaluation.
+Show all nine comments, unknowns, evidence locations and pending audit; the
+internal five-axis checker is separate. Do not invent an audit, user selection,
+formal readiness or scientific improvement. Native search/read/subagents remain
+available for research; only extraction and scoring are tool-free.
+
 Start only when the user requests Stage 2 work. A Stage 1 handoff supplies evidence;
 it does not authorize a new stage. Read the confirmed ResearchBrief and resource
 limits before evaluating candidates. Preserve exploratory questions, simple

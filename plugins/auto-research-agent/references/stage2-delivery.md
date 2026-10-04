@@ -2,7 +2,8 @@
 
 Status: experimental, implementation-only. This interface packages validated
 records. Live source checking, reviewer isolation and research improvement need
-their own execution evidence. The seven frozen P4-P6 criteria do not change.
+their own execution evidence. Historical v2 keeps its seven frozen P4-P6 criteria;
+the current v3 path uses [nine balanced criteria and external scoring](../evals/stage2/STAGE2_V3_EVALUATION.zh-TW.md).
 
 ## From checks to a proposal
 

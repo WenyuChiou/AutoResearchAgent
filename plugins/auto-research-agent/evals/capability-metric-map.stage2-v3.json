@@ -148,7 +148,9 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement",
+            "Source-update raw receipt hashes, consecutive immutable snapshots and added evidence bind portable revision history; legacy checker events remain unchanged",
+            "Summary and full comments agree across Markdown/HTML/wiki; presentation-only replay makes zero new judge calls; unknown and pending audit remain visible"
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         },
@@ -161,7 +163,9 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement",
+            "Source-update raw receipt hashes, consecutive immutable snapshots and added evidence bind portable revision history; legacy checker events remain unchanged",
+            "Summary and full comments agree across Markdown/HTML/wiki; presentation-only replay makes zero new judge calls; unknown and pending audit remain visible"
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         },
@@ -174,7 +178,9 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement"
+            "Nine criteria complete; fixed denominator; source-bound native receipts; replay and projection agreement",
+            "Source-update raw receipt hashes, consecutive immutable snapshots and added evidence bind portable revision history; legacy checker events remain unchanged",
+            "Summary and full comments agree across Markdown/HTML/wiki; presentation-only replay makes zero new judge calls; unknown and pending audit remain visible"
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
