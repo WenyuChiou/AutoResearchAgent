@@ -52,6 +52,10 @@
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
+      ],
+      "source_context_calibration_contract": "12 context cases/24 judgments combined with72/144 via recomputation; mechanics-only until authentic independent native calls exist",
+      "source_context_calibration_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_source_context_quality.py"
       ]
     },
     {
