@@ -159,6 +159,10 @@
         "plugins/auto-research-agent/tests/test_stage2_research_followups.py",
         "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ],
+      "source_context_native_calibration": "Blinded no-tool native supplemental 12-case runner; input/runtime/shared-code bindings, per-attempt evidence, external receipted completed-unit resume, explicit incomplete reviewer; native QA does not establish formal admission.",
+      "source_context_native_calibration_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_context_quality_native.py"
       ]
     },
     {
