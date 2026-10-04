@@ -14,13 +14,14 @@ PLUGIN = HERE.parent
 sys.path.insert(0, str(PLUGIN / "cli"))
 sys.path.insert(0, str(HERE))
 
-from stage1_eval.common import canonical  # noqa: E402
+from stage1_eval.common import EvaluationError, canonical  # noqa: E402
 from stage2_common import Stage2Error, canonical_hash  # noqa: E402
 from stage2_fixture_helpers import write_stage2_fixture  # noqa: E402
 from stage2_live.review_models import (  # noqa: E402
     _schema,
     extract_resolution,
     extract_review,
+    _resolution_extraction_label,
     reconciliation_task,
     review_task,
 )
@@ -92,6 +93,23 @@ class StubModel:
         }
 
 
+class OutputWritingStubModel(StubModel):
+    """Mirror the production adapter's label.json side effect."""
+
+    def __init__(self, values):
+        super().__init__(values)
+        self.raw_outputs = {}
+
+    def __call__(self, prompt, schema_path, output_dir, label, **options):
+        value, provenance = super().__call__(
+            prompt, schema_path, output_dir, label, **options
+        )
+        raw = canonical(value) + b"\n"
+        (Path(output_dir) / f"{label}.json").write_bytes(raw)
+        self.raw_outputs[label] = raw
+        return value, provenance
+
+
 class Stage2LiveReviewModelTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
@@ -158,6 +176,57 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             "candidate_id": "candidate-1",
             "snapshot_sha256": SNAPSHOT,
             "role": role,
+            "capture_dir": capture,
+            "receipt": receipt,
+            "codex": self.codex,
+            "evaluator_home": self.extractor_home,
+            "model": "test-model",
+            "reasoning": "high",
+            "execution_policy": POLICY,
+            "output_dir": self.root / output,
+            "call_adapter": adapter,
+            "capture_verifier": self.synthetic_verifier,
+        }
+
+    def independent_reviews(self, *, disagree_on_opportunity=False):
+        reviews = []
+        for role in ("challenger", "feasibility"):
+            view = review_task(self.packet, "candidate-1", SNAPSHOT, role)
+            capture, receipt, _ = self.capture(
+                f"contract-{role}",
+                "review_view",
+                view,
+                f"Independent {role} reconciliation input.",
+                f"session-contract-{role}",
+            )
+            payload = initial_payload(self.packet)
+            if disagree_on_opportunity and role == "challenger":
+                payload["assessment"]["checks"]["opportunity"]["score"] = 1
+                payload["assessment"]["disposition"] = "revise"
+                payload["assessment"]["next_step"] = (
+                    "Verify the bounded measurement before recommendation."
+                )
+            adapter = StubModel({"initial-review": payload})
+            reviews.append(
+                extract_review(
+                    **self.review_args(
+                        capture,
+                        receipt,
+                        f"contract-out-{role}",
+                        adapter,
+                        role,
+                    )
+                )["review"]
+            )
+        return reviews
+
+    def resolution_args(self, reviews, capture, receipt, output, adapter):
+        return {
+            "packet": self.packet,
+            "source_root": self.sources,
+            "candidate_id": "candidate-1",
+            "snapshot_sha256": SNAPSHOT,
+            "reviews": reviews,
             "capture_dir": capture,
             "receipt": receipt,
             "codex": self.codex,
@@ -354,7 +423,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             "Resolution prose cites ev-1 and preserves the independent records.",
             "session-resolution",
         )
-        adapter = StubModel({"resolution": resolution_payload(self.packet)})
+        adapter = StubModel({"resolution-extraction": resolution_payload(self.packet)})
         result = extract_resolution(
             self.packet,
             self.sources,
@@ -379,6 +448,208 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             result["resolution"]["review_sha256s"],
             [canonical_hash(row) for row in reviews],
         )
+
+    def test_resolution_contract_accepts_exact_categorical_and_substantive_ids(self):
+        reviews = self.independent_reviews(disagree_on_opportunity=True)
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        self.assertEqual(
+            task["pending"]["disagreements"], ["opportunity", "disposition"]
+        )
+        substantive = "The reviews disagree about the measurement boundary."
+        raw = "Evidence verification resolves the opportunity and measurement boundary disagreements."
+        capture, receipt, _ = self.capture(
+            "exact-resolution",
+            "reconciliation_task",
+            task,
+            raw,
+            "session-exact-resolution",
+        )
+        payload = resolution_payload(self.packet)
+        payload.update(
+            method="source-verification",
+            substantive_disagreements=[substantive],
+            addressed=["opportunity", "disposition", substantive],
+            changed_judgment_reason="The source-bound measurement record supports score 2.",
+        )
+        adapter = StubModel({"resolution-extraction": payload})
+
+        result = extract_resolution(
+            **self.resolution_args(
+                reviews, capture, receipt, "exact-resolution-out", adapter
+            )
+        )
+
+        self.assertEqual(
+            result["resolution"]["addressed"],
+            ["opportunity", "disposition", substantive],
+        )
+        prompt_payload = json.loads(adapter.calls[0]["prompt"].split("\n", 1)[1])
+        contract = prompt_payload["field_contract"]
+        self.assertEqual(
+            contract,
+            {
+                "contract_id": "stage2-reconciliation-extraction-fields",
+                "schema_version": "1.0.0",
+                "pending_categorical_ids": ["opportunity", "disposition"],
+                "rules": contract["rules"],
+            },
+        )
+        self.assertIn("verbatim", contract["rules"]["addressed"])
+        self.assertIn("reason", contract["rules"]["addressed"])
+        self.assertIn(
+            "existing, source-supported evidence ID",
+            contract["rules"]["assessment_evidence"],
+        )
+        self.assertIn("status unknown", contract["rules"]["assessment_evidence"])
+        self.assertIn("Do not infer", contract["rules"]["resolution"])
+
+    def test_resolution_rejects_prose_in_addressed_instead_of_exact_ids(self):
+        reviews = self.independent_reviews(disagree_on_opportunity=True)
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "prose-addressed",
+            "reconciliation_task",
+            task,
+            "The reviewers discussed and resolved the opportunity disagreement.",
+            "session-prose-addressed",
+        )
+        invalid = resolution_payload(self.packet)
+        invalid.update(
+            method="source-verification",
+            addressed=["The opportunity disagreement was resolved."],
+            changed_judgment_reason="The source-bound record supports score 2.",
+        )
+        adapter = StubModel(
+            {
+                "resolution-extraction": invalid,
+                "resolution-extraction-correction": invalid,
+            }
+        )
+
+        with self.assertRaisesRegex(Stage2Error, "unresolved-disagreement"):
+            extract_resolution(
+                **self.resolution_args(
+                    reviews, capture, receipt, "prose-addressed-out", adapter
+                )
+            )
+        self.assertEqual(
+            [call["label"] for call in adapter.calls],
+            ["resolution-extraction", "resolution-extraction-correction"],
+        )
+
+    def test_empty_assessed_evidence_is_corrected_once_to_valid_resolution(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "evidence-correction",
+            "reconciliation_task",
+            task,
+            "The saved reconciliation supports each assessed axis with ev-1.",
+            "session-evidence-correction",
+        )
+        invalid = resolution_payload(self.packet)
+        for axis in ("opportunity", "value"):
+            invalid["assessment"]["checks"][axis]["evidence_ids"] = []
+        valid = resolution_payload(self.packet)
+        adapter = StubModel(
+            {
+                "resolution-extraction": invalid,
+                "resolution-extraction-correction": valid,
+            }
+        )
+
+        result = extract_resolution(
+            **self.resolution_args(
+                reviews, capture, receipt, "evidence-correction-out", adapter
+            )
+        )
+
+        self.assertEqual(
+            [call["label"] for call in adapter.calls],
+            ["resolution-extraction", "resolution-extraction-correction"],
+        )
+        self.assertIn(
+            "evidence_ids: [] should be non-empty",
+            result["extraction_provenance"]["correction_reason"],
+        )
+        for axis in ("opportunity", "value"):
+            self.assertEqual(
+                result["resolution"]["assessment"]["checks"][axis]["evidence_ids"],
+                ["ev-1"],
+            )
+        correction_prompt = adapter.calls[1]["prompt"]
+        self.assertIn("stage2-reconciliation-extraction-fields", correction_prompt)
+        self.assertIn('"pending_categorical_ids": []', correction_prompt)
+
+    def test_model_output_and_public_resolution_envelope_use_distinct_paths(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "separate-resolution-paths",
+            "reconciliation_task",
+            task,
+            "The saved reconciliation supports the bounded synthesis.",
+            "session-separate-resolution-paths",
+        )
+        adapter = OutputWritingStubModel(
+            {"resolution-extraction": resolution_payload(self.packet)}
+        )
+        output = "separate-resolution-paths-out"
+
+        result = extract_resolution(
+            **self.resolution_args(reviews, capture, receipt, output, adapter)
+        )
+
+        output_dir = self.root / output
+        raw_path = output_dir / "resolution-extraction.json"
+        envelope_path = output_dir / "resolution.json"
+        self.assertEqual(result["extraction_unit_label"], "resolution-extraction")
+        self.assertEqual(
+            result["replay_receipt"]["unit_receipts"].keys(),
+            {"resolution-extraction"},
+        )
+        self.assertEqual(
+            raw_path.read_bytes(), adapter.raw_outputs["resolution-extraction"]
+        )
+        self.assertNotEqual(raw_path.read_bytes(), envelope_path.read_bytes())
+        envelope = json.loads(envelope_path.read_text(encoding="utf-8"))
+        self.assertEqual(envelope["extraction_unit_label"], "resolution-extraction")
+        self.assertEqual(envelope["resolution"], result["resolution"])
+
+    def test_interrupted_legacy_collision_fails_closed_without_regeneration(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "legacy-collision",
+            "reconciliation_task",
+            task,
+            "The legacy saved reconciliation was accepted before envelope finalization.",
+            "session-legacy-collision",
+        )
+        output = self.root / "legacy-collision-out"
+        output.mkdir()
+        collided_raw = canonical(resolution_payload(self.packet)) + b"\n"
+        (output / "resolution.json").write_bytes(collided_raw)
+        replay_receipt = {
+            "result_sha256": None,
+            "unit_receipts": {"resolution": "a" * 64},
+        }
+        self.assertEqual(
+            _resolution_extraction_label(True, replay_receipt), "resolution"
+        )
+        adapter = StubModel({})
+
+        with self.assertRaisesRegex(EvaluationError, "saved result differs"):
+            extract_resolution(
+                **self.resolution_args(
+                    reviews, capture, receipt, "legacy-collision-out", adapter
+                ),
+                resume=True,
+                resume_receipt=replay_receipt,
+            )
+
+        self.assertEqual(adapter.calls, [])
+        self.assertEqual((output / "resolution.json").read_bytes(), collided_raw)
 
 
 if __name__ == "__main__":

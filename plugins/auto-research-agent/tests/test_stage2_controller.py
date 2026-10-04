@@ -34,6 +34,7 @@ from stage2_live.controller import (
     _replay_model_config,
     _require_saved_unit,
     _run_controller,
+    _saved_resolution_unit_label,
     _validate_spec,
     _verify_action_environments,
     apply_revision,
@@ -351,6 +352,82 @@ class Stage2ControllerTests(unittest.TestCase):
                     },
                 )
             self.assertEqual(list(root.iterdir()), [])
+
+    def test_resolution_unit_label_is_explicit_receipt_bound_and_read_only(self):
+        def saved(label):
+            root = self.root / f"saved-{label}"
+            (root / f"{label}.model-call").mkdir(parents=True, exist_ok=True)
+            (root / f"{label}.model-call" / "request.json").write_text(
+                "{}", encoding="utf-8"
+            )
+            (root / f"{label}.schema.json").write_text("{}", encoding="utf-8")
+            unit = root / f"{label}.unit.json"
+            unit.write_text('{"accepted":true}', encoding="utf-8")
+            envelope = root / "resolution.json"
+            envelope.write_text('{"resolution":"saved"}', encoding="utf-8")
+            receipt = {
+                "result_sha256": digest(envelope),
+                "unit_receipts": {label: digest(unit)},
+            }
+            return root, receipt
+
+        for label, metadata in (
+            ("resolution", {}),
+            (
+                "resolution-extraction",
+                {"extraction_unit_label": "resolution-extraction"},
+            ),
+        ):
+            with self.subTest(label=label):
+                root, receipt = saved(label)
+                value = {**metadata, "replay_receipt": receipt}
+                before = {
+                    path: path.read_bytes()
+                    for path in root.rglob("*")
+                    if path.is_file()
+                }
+                chosen = _saved_resolution_unit_label(value)
+                _require_saved_unit(root, chosen, "resolution.json", receipt)
+                after = {
+                    path: path.read_bytes()
+                    for path in root.rglob("*")
+                    if path.is_file()
+                }
+                self.assertEqual(chosen, label)
+                self.assertEqual(after, before)
+
+        _, legacy_receipt = saved("resolution")
+        for bad in ("../resolution", "resolution.json", "other"):
+            with (
+                self.subTest(bad_label=bad),
+                self.assertRaisesRegex(Stage2Error, "unit-label-invalid"),
+            ):
+                _saved_resolution_unit_label(
+                    {
+                        "extraction_unit_label": bad,
+                        "replay_receipt": legacy_receipt,
+                    }
+                )
+        with self.assertRaisesRegex(Stage2Error, "unit-label-receipt-mismatch"):
+            _saved_resolution_unit_label(
+                {
+                    "extraction_unit_label": "resolution-extraction",
+                    "replay_receipt": legacy_receipt,
+                }
+            )
+        with self.assertRaisesRegex(Stage2Error, "unit-label-receipt-mismatch"):
+            _saved_resolution_unit_label(
+                {
+                    "extraction_unit_label": "resolution-extraction",
+                    "replay_receipt": {
+                        "result_sha256": "a" * 64,
+                        "unit_receipts": {
+                            "resolution": "b" * 64,
+                            "resolution-extraction": "c" * 64,
+                        },
+                    },
+                }
+            )
 
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
