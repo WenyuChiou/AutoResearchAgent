@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Research Workspace | Offline Interaction Reference</title>
+    <style>
+      :root {
+        --paper: #f4eedf;
+        --paper2: #fffaf0;
+        --ink: #14283b;
+        --muted: #64706f;
+        --teal: #2e6865;
+        --ochre: #b47a2a;
+        --line: #c8c0af;
+        --soft: #e8e0cf;
+        --danger: #8f4338;
+        --shadow: 0 14px 34px #263b3b18;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+        font-size: 18px;
+        line-height: 1.55;
+      }
+      button,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .shell {
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 88% 8%, #d7c69d66 0 12%, transparent 34%),
+          linear-gradient(90deg, #223b3b0b 1px, transparent 1px);
+        background-size:
+          auto,
+          32px 32px;
+      }
+      header {
+        padding: 28px clamp(22px, 5vw, 72px) 22px;
+        border-bottom: 1px solid var(--line);
+        background: #f8f2e7e8;
+        backdrop-filter: blur(8px);
+      }
+      .mast {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+      }
+      .eyebrow {
+        margin: 0 0 7px;
+        color: var(--teal);
+        font-family: Aptos, "Segoe UI", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+      }
+      .eyebrow::before {
+        content: "";
+        display: inline-block;
+        width: 28px;
+        border-top: 3px solid var(--ochre);
+        margin: 0 10px 4px 0;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 52px);
+        font-weight: 500;
+        letter-spacing: 0.04em;
+      }
+      .subtitle {
+        max-width: 620px;
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .control {
+        border: 1px solid var(--line);
+        padding: 10px 14px;
+        background: #ede6d8;
+        color: #78766f;
+      }
+      .control:disabled {
+        cursor: not-allowed;
+      }
+      .control-note {
+        display: block;
+        text-align: right;
+        font:
+          13px/1.4 Aptos,
+          sans-serif;
+        color: var(--danger);
+        margin-top: 7px;
+      }
+      .stage-rail {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        border-bottom: 1px solid var(--line);
+        background: var(--ink);
+        padding: 0 clamp(12px, 4vw, 60px);
+      }
+      .stage {
+        position: relative;
+        border: 0;
+        border-left: 1px solid #ffffff25;
+        background: transparent;
+        color: #dce5df;
+        padding: 15px 12px;
+        text-align: left;
+        font-family: Aptos, "Segoe UI", sans-serif;
+      }
+      .stage:last-child {
+        border-right: 1px solid #ffffff25;
+      }
+      .stage b {
+        display: block;
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        color: #bdc9c5;
+      }
+      .stage span {
+        display: block;
+        font-size: 16px;
+        margin-top: 3px;
+      }
+      .stage.active {
+        background: var(--teal);
+        color: white;
+      }
+      .stage.active::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        bottom: -8px;
+        border: 8px solid transparent;
+        border-top-color: var(--teal);
+        border-bottom: 0;
+      }
+      .stage.locked span::after {
+        content: " · Not connected";
+        font-size: 11px;
+        color: #e2c58f;
+      }
+      .view-tabs {
+        display: flex;
+        gap: 24px;
+        padding: 18px clamp(22px, 5vw, 72px) 0;
+        background: var(--paper2);
+      }
+      .view-tab {
+        border: 0;
+        border-bottom: 3px solid transparent;
+        background: none;
+        padding: 7px 1px 10px;
+        font-weight: 700;
+      }
+      .view-tab.active {
+        color: var(--teal);
+        border-color: var(--ochre);
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(230px, 300px) minmax(380px, 1fr) minmax(
+            250px,
+            330px
+          );
+        gap: 18px;
+        padding: 22px clamp(16px, 4vw, 60px) 48px;
+        max-width: 1600px;
+        margin: auto;
+      }
+      .panel {
+        background: var(--paper2);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      .panel-head {
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--line);
+        font:
+          700 13px/1.3 Aptos,
+          sans-serif;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .node-list {
+        padding: 9px;
+      }
+      .node {
+        width: 100%;
+        border: 0;
+        border-bottom: 1px solid var(--soft);
+        background: transparent;
+        padding: 12px 11px;
+        text-align: left;
+      }
+      .node:last-child {
+        border-bottom: 0;
+      }
+      .node small {
+        display: block;
+        color: var(--muted);
+        font:
+          12px/1.4 Aptos,
+          sans-serif;
+      }
+      .node:hover,
+      .node.active {
+        background: #e7eee8;
+      }
+      .node.active {
+        box-shadow: inset 4px 0 var(--teal);
+      }
+      article {
+        padding: clamp(24px, 4vw, 48px);
+        min-height: 590px;
+      }
+      .kicker {
+        font:
+          700 13px/1.3 Aptos,
+          sans-serif;
+        color: var(--ochre);
+        letter-spacing: 0.12em;
+      }
+      h2 {
+        margin: 10px 0 14px;
+        font-size: clamp(28px, 3vw, 42px);
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      .lede {
+        font-size: 20px;
+        color: #344a51;
+        max-width: 780px;
+      }
+      .rule {
+        height: 1px;
+        background: var(--line);
+        margin: 26px 0;
+      }
+      .section-title {
+        font:
+          700 14px/1.3 Aptos,
+          sans-serif;
+        letter-spacing: 0.08em;
+        color: var(--teal);
+        margin: 25px 0 10px;
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .note-card {
+        border: 1px solid var(--line);
+        padding: 15px;
+        background: #faf5e9;
+      }
+      .note-card b {
+        display: block;
+        font-family: Aptos, "Segoe UI", sans-serif;
+      }
+      .note-card p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .tag {
+        display: inline-block;
+        padding: 4px 9px;
+        background: #e3ece6;
+        color: var(--teal);
+        font:
+          700 12px/1.2 Aptos,
+          sans-serif;
+        margin: 0 7px 7px 0;
+      }
+      .read-only {
+        border-left: 4px solid var(--ochre);
+        padding: 12px 15px;
+        background: #f1e5cc;
+        margin: 20px 0;
+        color: #674c25;
+      }
+      .source-link {
+        color: var(--teal);
+        text-decoration-thickness: 2px;
+        text-underline-offset: 3px;
+      }
+      aside {
+        align-self: start;
+      }
+      .detail {
+        padding: 17px;
+      }
+      .detail-block {
+        padding: 15px 0;
+        border-bottom: 1px solid var(--soft);
+      }
+      .detail-block:last-child {
+        border-bottom: 0;
+      }
+      .detail-block h3 {
+        font:
+          700 13px/1.3 Aptos,
+          sans-serif;
+        color: var(--muted);
+        margin: 0 0 7px;
+      }
+      .detail-block p {
+        margin: 0;
+        font-size: 16px;
+      }
+      .history {
+        width: 100%;
+        padding: 9px;
+        border: 1px solid var(--line);
+        background: white;
+      }
+      .history-note {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 7px;
+      }
+      .status {
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        padding: 12px;
+        margin: 9px 0;
+        border: 1px solid var(--line);
+        background: #faf5e9;
+      }
+      .status i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-top: 8px;
+        flex: none;
+      }
+      .unknown i {
+        background: var(--ochre);
+      }
+      .failure i {
+        background: var(--danger);
+      }
+      .low i {
+        background: #466a86;
+      }
+      .status b {
+        font-family: Aptos, "Segoe UI", sans-serif;
+      }
+      .status p {
+        margin: 2px 0 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 15px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        font-family: Aptos, "Segoe UI", sans-serif;
+        color: var(--muted);
+      }
+      .empty-note {
+        padding: 24px;
+        border: 1px dashed var(--line);
+        background: #f9f4e8;
+      }
+      .literature-shell {
+        min-width: 0;
+      }
+      main.literature-layout article,
+      main.literature-layout aside {
+        grid-column: 2/-1;
+      }
+      .lit-toolbar {
+        display: grid;
+        grid-template-columns: minmax(150px, 2fr) repeat(2, minmax(120px, 1fr));
+        gap: 10px;
+        margin: 22px 0 12px;
+      }
+      .lit-field {
+        display: grid;
+        gap: 5px;
+        font:
+          700 12px/1.3 Aptos,
+          "Segoe UI",
+          sans-serif;
+        color: var(--muted);
+      }
+      .lit-field input,
+      .lit-field select {
+        width: 100%;
+        min-width: 0;
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        background: white;
+        font:
+          15px/1.3 Aptos,
+          "Segoe UI",
+          sans-serif;
+      }
+      .lit-actions,
+      .graph-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0;
+      }
+      .lit-button {
+        border: 1px solid var(--teal);
+        padding: 8px 11px;
+        background: #edf2e9;
+        color: var(--teal);
+        font:
+          700 13px/1.2 Aptos,
+          "Segoe UI",
+          sans-serif;
+      }
+      .lit-button:hover,
+      .lit-button:focus-visible {
+        background: var(--teal);
+        color: white;
+      }
+      .graph-frame {
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #faf5e9;
+      }
+      .literature-graph {
+        display: block;
+        width: 100%;
+        min-width: 720px;
+        min-height: 340px;
+      }
+      .graph-edge {
+        stroke: #9b927f;
+        stroke-width: 1.4;
+      }
+      .graph-node text {
+        pointer-events: none;
+        font:
+          600 16px/1 Aptos,
+          "Segoe UI",
+          sans-serif;
+        fill: var(--ink);
+      }
+      .graph-node rect {
+        stroke-width: 2;
+      }
+      .graph-node.paper rect {
+        fill: #fffaf0;
+        stroke: var(--teal);
+      }
+      .graph-node.keyword rect {
+        fill: #e6eee8;
+        stroke: #71918a;
+      }
+      .graph-node.role rect {
+        fill: #f2e3c7;
+        stroke: var(--ochre);
+      }
+      .graph-node.paper {
+        cursor: pointer;
+      }
+      .graph-node.paper.selected rect,
+      .graph-node.paper:focus rect {
+        stroke: var(--danger);
+        stroke-width: 4;
+      }
+      .graph-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        margin: 10px 0 18px;
+        color: var(--muted);
+        font:
+          13px/1.4 Aptos,
+          "Segoe UI",
+          sans-serif;
+      }
+      .legend-key::before {
+        content: "";
+        display: inline-block;
+        width: 14px;
+        height: 9px;
+        margin-right: 6px;
+        border: 2px solid var(--teal);
+        background: white;
+      }
+      .legend-key.keyword::before {
+        border-color: #71918a;
+        background: #e6eee8;
+      }
+      .legend-key.role::before {
+        border-color: var(--ochre);
+        background: #f2e3c7;
+      }
+      .paper-list {
+        display: grid;
+        gap: 8px;
+        margin: 12px 0 20px;
+      }
+      .paper-row {
+        border: 1px solid var(--line);
+        padding: 11px 13px;
+        background: #fffaf0;
+        text-align: left;
+      }
+      .paper-row.selected {
+        border-left: 5px solid var(--teal);
+        background: #e7eee8;
+      }
+      .paper-row small {
+        display: block;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .paper-detail {
+        border-left: 4px solid var(--ochre);
+        padding: 14px 17px;
+        background: #f1e5cc;
+      }
+      .paper-detail dl {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 6px 12px;
+        margin: 10px 0;
+      }
+      .paper-detail dt {
+        font:
+          700 13px/1.4 Aptos,
+          "Segoe UI",
+          sans-serif;
+        color: var(--muted);
+      }
+      .paper-detail dd {
+        margin: 0;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+      .metadata-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        margin-top: 12px;
+      }
+      .metadata-scroll table {
+        min-width: 980px;
+        background: #fffaf0;
+      }
+      .lit-caveat {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .footer-note {
+        padding: 0 clamp(22px, 5vw, 72px) 32px;
+        color: var(--muted);
+        font:
+          13px/1.5 Aptos,
+          sans-serif;
+      }
+      @media (max-width: 1050px) {
+        main {
+          grid-template-columns: 260px 1fr;
+        }
+        aside {
+          grid-column: 1/-1;
+        }
+        .stage-rail {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (max-width: 720px) {
+        body {
+          font-size: 16px;
+        }
+        .mast {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .controls {
+          justify-content: flex-start;
+        }
+        .control-note {
+          text-align: left;
+        }
+        .stage-rail {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        main {
+          grid-template-columns: 1fr;
+        }
+        main.literature-layout article,
+        main.literature-layout aside {
+          grid-column: 1/-1;
+        }
+        .card-grid {
+          grid-template-columns: 1fr;
+        }
+        .lit-toolbar {
+          grid-template-columns: 1fr;
+        }
+        .literature-graph {
+          min-height: 280px;
+        }
+        .paper-detail dl {
+          grid-template-columns: 1fr;
+        }
+        .view-tabs {
+          gap: 13px;
+          overflow: auto;
+        }
+        .panel {
+          min-width: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <div class="mast">
+          <div>
+            <p class="eyebrow">
+              SYNTHETIC DATA · OFFLINE WORKFLOW PROTOTYPE · EXECUTOR NOT
+              CONNECTED
+            </p>
+            <h1>Research Workspace</h1>
+            <p class="subtitle">
+              A readable, traceable editorial desk for research workflows. This
+              page demonstrates information architecture only; every record is
+              synthetic.
+            </p>
+          </div>
+          <div>
+            <div class="controls">
+              <button
+                class="control"
+                disabled
+                title="Local executor is not connected"
+              >
+                Start Research</button
+              ><button
+                class="control"
+                disabled
+                title="Local executor is not connected"
+              >
+                Continue Run
+              </button>
+            </div>
+            <span class="control-note"
+              >Research controls are disabled while the local executor is
+              pending.</span
+            >
+          </div>
+        </div>
+      </header>
+      <nav class="stage-rail" id="stageRail" aria-label="Research stages"></nav>
+      <nav class="view-tabs" aria-label="Content views">
+        <button class="view-tab active" data-view="wiki">Wiki</button
+        ><button class="view-tab" data-view="delivery">
+          Deliverables & Sources</button
+        ><button class="view-tab" data-view="history">
+          Evaluation & History</button
+        ><button class="view-tab" data-view="literature" hidden>
+          Literature
+        </button>
+      </nav>
+      <main>
+        <section class="panel">
+          <div class="panel-head" id="outlineTitle">Stage Nodes</div>
+          <div class="node-list" id="nodeList"></div>
+        </section>
+        <article class="panel" id="article" aria-live="polite"></article>
+        <aside class="panel">
+          <div class="panel-head">Selected Node</div>
+          <div class="detail" id="detail"></div>
+        </aside>
+      </main>
+      <p class="footer-note">
+        Offline interaction reference · Refreshing resets this prototype only.
+        It cannot execute research or modify canonical records; only synthetic
+        bibliography export is available.
+      </p>
+    </div>
+    <script src="./literature-reference.js"></script>
+    <script>
+      const stages = [
+        {
+          n: "Stage 1",
+          title: "Evidence",
+          purpose: "Build a traceable foundation of literature and claims.",
+          nodes: [
+            "Scope & Geography",
+            "Keywords & Concepts",
+            "Search & Reading",
+            "Core, Classic & Closest-Work Roles",
+            "Claim Checks",
+            "Coverage & Stop Decision",
+            "Deliverable Package",
+            "P1–P3 Evaluation",
+          ],
+        },
+        {
+          n: "Stage 2",
+          title: "Comparison & Directions",
+          purpose:
+            "Compare research through a shared evidence view and form viable directions.",
+          nodes: [
+            "Import Stage 1",
+            "Common Comparison",
+            "Open Ideation",
+            "Capture Candidate Records",
+            "Independent Challenge & Feasibility",
+            "Revise, Recheck, Park or Reject",
+            "Selection Package",
+            "P4–P6 Evaluation",
+            "User Decision & Stage 3 Handoff",
+          ],
+        },
+        {
+          n: "Stage 3",
+          title: "Study Design",
+          purpose:
+            "Turn the selected direction into a testable question, design, and validation plan.",
+          nodes: [
+            "Direction Input",
+            "Question & Method Design",
+            "Validation & Delivery Spec",
+          ],
+        },
+        {
+          n: "Stage 4",
+          title: "Execution",
+          purpose:
+            "Run the approved plan while preserving versions, failures, and resource records.",
+          nodes: [
+            "Design Package Input",
+            "Run & Observe",
+            "Reproducible Output",
+          ],
+        },
+        {
+          n: "Stage 5",
+          title: "Analysis",
+          purpose: "Turn execution results into bounded, reviewable analysis.",
+          nodes: [
+            "Results & Quality Input",
+            "Analysis & Robustness",
+            "Findings & Limits",
+          ],
+        },
+        {
+          n: "Stage 6",
+          title: "Writing & Submission",
+          purpose:
+            "Shape the evidence, methods, results, and limits into an editable manuscript.",
+          nodes: [
+            "Approved Materials",
+            "Argument & Citation Writing",
+            "Manuscript & Submission Deliverables",
+          ],
+        },
+      ];
+      let state = {
+        stage: 0,
+        node: 0,
+        view: "wiki",
+        history: "Attempt A · Version v0 (synthetic)",
+      };
+      const $ = (id) => document.getElementById(id);
+      const make = (tag, text, cls) => {
+        const el = document.createElement(tag);
+        if (text !== undefined) el.textContent = text;
+        if (cls) el.className = cls;
+        return el;
+      };
+      function renderStages() {
+        const rail = $("stageRail");
+        rail.replaceChildren();
+        stages.forEach((s, i) => {
+          const b = make("button");
+          b.className =
+            "stage" +
+            (i === state.stage ? " active" : "") +
+            (i > 1 ? " locked" : "");
+          b.setAttribute("aria-pressed", String(i === state.stage));
+          b.append(make("b", s.n), make("span", s.title));
+          b.onclick = () => {
+            state.stage = i;
+            state.node = 0;
+            if (state.view === "literature" && i !== 0) state.view = "wiki";
+            render();
+            rail.children[i].focus();
+          };
+          rail.append(b);
+        });
+      }
+      function renderNodes() {
+        const s = stages[state.stage],
+          list = $("nodeList");
+        $("outlineTitle").textContent = s.n + " · " + s.title;
+        list.replaceChildren();
+        s.nodes.forEach((name, i) => {
+          const b = make("button");
+          b.className = "node" + (i === state.node ? " active" : "");
+          b.setAttribute("aria-pressed", String(i === state.node));
+          b.append(
+            make("small", String(i + 1).padStart(2, "0")),
+            make("span", name),
+          );
+          b.onclick = () => {
+            state.node = i;
+            renderNodes();
+            renderContent();
+            list.children[i].focus();
+          };
+          list.append(b);
+        });
+      }
+      function addSection(root, title, text) {
+        root.append(make("div", title, "section-title"), make("p", text));
+      }
+      function renderWiki(root, s, name) {
+        root.append(
+          make("div", s.n + " / " + s.title, "kicker"),
+          make("h2", name),
+          make("p", s.purpose, "lede"),
+        );
+        if (state.stage > 1)
+          root.append(
+            make(
+              "div",
+              "Execution is not connected: this stage shows expected inputs, purpose, and outputs only. It does not imply a run or results.",
+              "read-only",
+            ),
+          );
+        root.append(make("div", undefined, "rule"));
+        addSection(root, "What this node must complete", nodePurpose(name));
+        const grid = make("div", undefined, "card-grid");
+        [
+          ["Input", nodeInput(name)],
+          ["Output", nodeOutput(name)],
+          [
+            "Evidence boundary",
+            "Every example record is synthetic. No private papers were read, and search results are never promoted automatically into research findings.",
+          ],
+          [
+            "Status",
+            state.stage > 1
+              ? "Read-only specification · Execution not connected"
+              : "Interaction reference · No dispatch or storage",
+          ],
+        ].forEach((x) => {
+          const c = make("div", undefined, "note-card");
+          c.append(make("b", x[0]), make("p", x[1]));
+          grid.append(c);
+        });
+        root.append(grid);
+        addSection(
+          root,
+          "Source reading",
+          "The plugin status is available through a safe, known relative path. Other source controls stay disabled to prevent links to unverified locations.",
+        );
+        const a = make("a", "Open plugin README", "source-link");
+        a.href = "../../README.md";
+        root.append(a);
+      }
+      function renderDelivery(root, s, name) {
+        root.append(
+          make("div", "Deliverables & Sources / Synthetic Example", "kicker"),
+          make("h2", s.n + " Delivery Interface"),
+          make(
+            "p",
+            "This view shows expected deliverables and source bindings. It contains no paper files and cannot download sources or export canonical deliverables.",
+            "lede",
+          ),
+        );
+        root.append(make("div", undefined, "rule"));
+        const grid = make("div", undefined, "card-grid");
+        [
+          ["Node output", nodeOutput(name)],
+          [
+            "Source status",
+            "Synthetic source S-A · metadata-only · never presented as full text",
+          ],
+          ["Version binding", "work-demo / version-demo · synthetic labels"],
+          [
+            "Private boundary",
+            "Private sources stay outside Git; this page embeds no full text or credentials",
+          ],
+        ].forEach((x) => {
+          const c = make("div", undefined, "note-card");
+          c.append(make("b", x[0]), make("p", x[1]));
+          grid.append(c);
+        });
+        root.append(
+          grid,
+          make(
+            "div",
+            "Source control disabled: no verified local deliverable package is bound.",
+            "read-only",
+          ),
+        );
+        const b = make("button", "View Source File", "control");
+        b.disabled = true;
+        b.title = "No local source is bound";
+        root.append(b);
+      }
+      function renderHistory(root, s) {
+        root.append(
+          make("div", "Evaluation & History / Synthetic Example", "kicker"),
+          make("h2", s.n + " Explicit Version View"),
+          make(
+            "p",
+            "The history selector binds an explicit attempt and version independently of the topic name. Switching it never reruns research.",
+            "lede",
+          ),
+        );
+        const label = make(
+            "label",
+            "Select an explicit attempt and version",
+            "section-title",
+          ),
+          select = make("select", undefined, "history");
+        [
+          "Attempt A · Version v0 (synthetic)",
+          "Attempt B · Version v1 (synthetic)",
+          "Attempt C · Version v2 (synthetic)",
+        ].forEach((v) => {
+          const o = make("option", v);
+          o.value = v;
+          o.selected = v === state.history;
+          select.append(o);
+        });
+        select.onchange = (e) => {
+          state.history = e.target.value;
+          renderContent();
+          $("attemptHistory").focus();
+        };
+        select.id = "attemptHistory";
+        label.htmlFor = "attemptHistory";
+        root.append(
+          label,
+          select,
+          make(
+            "p",
+            "Currently bound: " +
+              state.history +
+              ". Switching changes this display only.",
+            "history-note",
+          ),
+        );
+        root.append(make("div", undefined, "rule"));
+        [
+          [
+            "unknown",
+            "Unknown",
+            "Required evidence is unavailable, so no score is assigned.",
+          ],
+          [
+            "failure",
+            "Evaluator failure",
+            "The evaluation process or parser failed. This is not a low score for the research under review.",
+          ],
+          [
+            "low",
+            "Observed low score",
+            "Evidence is sufficient, and a rubric-defined deficiency was observed.",
+          ],
+        ].forEach((x) => {
+          const box = make("div", undefined, "status " + x[0]),
+            dot = make("i"),
+            copy = make("div");
+          copy.append(make("b", x[1]), make("p", x[2]));
+          box.append(dot, copy);
+          root.append(box);
+        });
+        addSection(
+          root,
+          "P-metric status",
+          (state.stage === 0
+            ? "P1–P3"
+            : state.stage === 1
+              ? "P4–P6"
+              : "Reserved evaluation") +
+            ": unscored. This prototype produces no research score and does not treat interface completeness as evidence of quality improvement.",
+        );
+      }
+      function renderDetail() {
+        const s = stages[state.stage],
+          name = s.nodes[state.node],
+          d = $("detail");
+        d.replaceChildren();
+        [
+          ["Current selection", s.n + " · " + name],
+          ["Input", nodeInput(name)],
+          ["Output", nodeOutput(name)],
+          [
+            "Why blocked",
+            state.stage > 1
+              ? "No approved handoff exists from the prior stage, and the local executor is not connected."
+              : "This is an offline prototype with no research executor or real sources bound.",
+          ],
+          [
+            "Next action",
+            state.stage > 1
+              ? "Complete and explicitly approve the versioned handoff from the prior stage."
+              : "Connect the local executor, then let the user start the real workflow.",
+          ],
+        ].forEach((x) => {
+          const b = make("div", undefined, "detail-block");
+          b.append(make("h3", x[0]), make("p", x[1]));
+          d.append(b);
+        });
+      }
+      function renderContent() {
+        const root = $("article"),
+          s = stages[state.stage],
+          name = s.nodes[state.node];
+        root.replaceChildren();
+        document
+          .querySelector("main")
+          .classList.toggle("literature-layout", state.view === "literature");
+        root.classList.remove("literature-shell");
+        if (state.view === "wiki") renderWiki(root, s, name);
+        if (state.view === "delivery") renderDelivery(root, s, name);
+        if (state.view === "history") renderHistory(root, s);
+        if (state.view === "literature") {
+          if (window.LiteratureReference?.render) {
+            window.LiteratureReference.render(root);
+          } else {
+            root.append(
+              make("div", "Stage 1 / Literature", "kicker"),
+              make("h2", "Literature reference unavailable"),
+              make(
+                "p",
+                "The local literature-reference.js helper is missing. This offline view cannot load without its sibling file.",
+                "read-only",
+              ),
+            );
+          }
+        }
+        renderDetail();
+      }
+      function nodePurpose(n) {
+        const map = {
+          "Scope & Geography":
+            "Preserve the original research direction, geographic choice, and open decisions without treating a suggestion as an accepted scope.",
+          "Core, Classic & Closest-Work Roles":
+            "Keep the three roles and their source-based reasons separate; age, prominence, or a similar title establishes none of them automatically.",
+          "Claim Checks":
+            "Classify each claim as supported, partial, contradicted, or unverifiable.",
+          "Coverage & Stop Decision":
+            "Check the recent sweep, closest work, unresolved needs, and stopping rationale without substituting paper counts for sufficiency.",
+          "Independent Challenge & Feasibility":
+            "Independently check closest work, materials, answerability, validation paths, and resource dependencies.",
+          "Revise, Recheck, Park or Reject":
+            "Preserve evidence-based reasons and release conditions for revision, rechecking, parking, or rejection.",
+          "User Decision & Stage 3 Handoff":
+            "Record the human choice and hand the selected direction and unresolved items to the next stage.",
+        };
+        return (
+          map[n] ||
+          "Complete this node with clear inputs, decision reasons, and versioned outputs while preserving unknowns and failures."
+        );
+      }
+      function nodeInput(n) {
+        if (n.includes("Import"))
+          return "Approved Stage 1 deliverable with an external hash";
+        if (n.includes("Evaluation"))
+          return "Versioned evidence view and frozen rubric";
+        if (state.stage > 1)
+          return "Approved, reproducible handoff package from the prior stage";
+        return "Synthetic research brief, example source records, and open questions";
+      }
+      function nodeOutput(n) {
+        if (n.includes("Evaluation"))
+          return "Separate P-metric states: all currently unscored";
+        if (state.stage > 1)
+          return "Read-only output specification; no execution result exists";
+        if (n.includes("Package") || n.includes("Deliverable"))
+          return "Versioned choice or delivery package with source mapping";
+        return "Synthetic node record, rationale, source status, and next action";
+      }
+      document.querySelectorAll(".view-tab").forEach((b) => {
+        b.setAttribute("aria-pressed", String(b.dataset.view === state.view));
+        b.onclick = () => {
+          if (b.dataset.view === "literature" && state.stage !== 0) return;
+          state.view = b.dataset.view;
+          document.querySelectorAll(".view-tab").forEach((x) => {
+            x.classList.toggle("active", x === b);
+            x.setAttribute("aria-pressed", String(x === b));
+          });
+          renderContent();
+        };
+      });
+      function render() {
+        const literatureTab = document.querySelector(
+          '[data-view="literature"]',
+        );
+        literatureTab.hidden = state.stage !== 0;
+        document.querySelectorAll(".view-tab").forEach((x) => {
+          const active = x.dataset.view === state.view;
+          x.classList.toggle("active", active);
+          x.setAttribute("aria-pressed", String(active));
+        });
+        renderStages();
+        renderNodes();
+        renderContent();
+      }
+      render();
+    </script>
+  </body>
+</html>
