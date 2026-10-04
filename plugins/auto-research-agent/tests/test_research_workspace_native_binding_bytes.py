@@ -1,10 +1,12 @@
 """Physical-byte regressions using local synthetic Git objects and no models."""
 
 from pathlib import Path
+import os
 import shlex
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import Mock
 
@@ -92,6 +94,11 @@ class PhysicalDependencyTests(unittest.TestCase):
         (self.repo / ".gitattributes").write_bytes(b"tracked.py filter=mask\n")
         self.commit()
 
+        # Prime the real filter even when Git trusts the unchanged file's stat cache.
+        self.git("add", "--renormalize", "tracked.py")
+        self.assertTrue(self.marker.is_file(), "fixture must exercise the real filter")
+        self.assertTrue(self.marker.read_bytes(), "filter observation cannot be empty")
+
     def test_clean_filter_cannot_hide_post_binding_physical_mutation(self):
         self.mask()
         guard = self.guard()
@@ -159,6 +166,20 @@ class PhysicalDependencyTests(unittest.TestCase):
         self.file.write_bytes(b"different bytes\n")
         with self.assertRaises(BindingError):
             guard()
+
+    def test_nonracy_stat_cache_still_primes_the_real_filter(self):
+        old = time.time() - 60
+        os.utime(self.file, (old, old))
+        self.git("update-index", "--refresh")
+        self.mask()
+        before = self.marker.read_bytes()
+        guard = self.guard()
+        guard()
+        self.assertEqual(self.marker.read_bytes(), before)
+        self.file.write_bytes(b"changed physical code\n")
+        with self.assertRaises(BindingError):
+            guard()
+        self.assertEqual(self.marker.read_bytes(), before)
 
     def test_normalized_crlf_and_encoded_worktrees_fail_closed(self):
         attributes = self.repo / ".gitattributes"
