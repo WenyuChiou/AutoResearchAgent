@@ -11,6 +11,11 @@ Process-held owners exclude other writers; recovery preserves unfinished work as
 `reconcile_thread` exhausts bounded turn/item cursors or fails without a partial result.
 The caller supplies thread ownership and authenticated observations; reads are not an atomic
 snapshot, exactly-once proof or permission to dispatch unknown work.
+`FrameJournal` atomically saves complete validated frames and their state projection.
+Durable typed correlations join out-of-order replies and terminals without guessing;
+semantic conflicts retain raw evidence and quarantine. Ordinary notices stay passive.
+Outgoing frames prove intention, not full writes. Malformed bytes and partial frames,
+authenticated lifecycle and controller admission remain separate requirements.
 Tests use synthetic channels and local storage; no Codex/model runs. Production launch,
 controller wiring, HTTP/UI, scoring and live E2E remain separate slices.
 No research/import/resume authority is granted; existing Engine guards stay unchanged.
@@ -23,4 +28,5 @@ python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p t
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_store.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_journal.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_history.py -v
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_frame_journal.py -v
 ```

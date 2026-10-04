@@ -10,7 +10,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace_native",
       "problem": "A short-lived execution cannot retain interleaved native questions, typed request identities or ambiguous dispatch outcomes for a project session.",
-      "mechanism": "Build a persistent injected JSON-RPC pump with a required durable event sink, mandatory binding checks before every write, exact native request answers and unusable connections after ambiguous dispatch. Store immutable project/index/thread bindings and exclusive process-held owners in SQLite with atomic state events and unknown unfinished recovery. Journal deduplicated intents and native requests; unknown work blocks dispatch, RPC acknowledgements cannot prove turn completion. Exhaust bounded thread/turn/item history cursors and reject incomplete or conflicting observations; history is not an atomic snapshot or dispatch authority. Controller wiring and production launch remain separate, unadmitted work.",
+      "mechanism": "Build a persistent injected JSON-RPC pump with a required durable event sink, mandatory binding checks before every write, exact native request answers and unusable connections after ambiguous dispatch. Store immutable project/index/thread bindings and exclusive process-held owners in SQLite with atomic state events and unknown unfinished recovery. Journal deduplicated intents and native requests; unknown work blocks dispatch, RPC acknowledgements cannot prove turn completion. Exhaust bounded thread/turn/item history cursors and reject incomplete or conflicting observations; history is not an atomic snapshot or dispatch authority. Atomically save complete validated protocol frames and state projections, bind typed RPC correlations before I/O, retain semantic conflicts in quarantine, and join out-of-order replies with exact terminals. Passive notices and outgoing intentions do not grant execution or prove full writes; malformed/partial bytes require a separate recording channel. Controller wiring and production launch remain separate, unadmitted work.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -32,7 +32,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_native_binding.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_store.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_journal.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_history.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_native_history.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_frame_journal.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
