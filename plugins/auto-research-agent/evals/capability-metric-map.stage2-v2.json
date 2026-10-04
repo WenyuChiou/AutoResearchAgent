@@ -10,7 +10,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_common",
       "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
-      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -31,7 +31,8 @@
         "Candidate properties never replace independent judgment"
       ],
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_evaluation.py"
+        "plugins/auto-research-agent/tests/test_stage2_evaluation.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -44,7 +45,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_eval",
       "problem": "Stage2 candidate feasibility and the quality of its assessment were conflated; evidence and histories require version-bound validation.",
-      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target. Versioned formal admission replays actual preflights, pilot controller, calibration, extraction and blinded judge evidence; synthetic seams remain non-admissible.",
+      "mechanism": "Use separate generic Stage2 evidence and independent offline evaluation contracts; preserve unknowns, source versions and old v1 results. Supplied-fact diagnostics separately bind the candidate, claim and screening action, and score the actual disposition target. Versioned formal admission replays actual preflights, pilot controller, calibration, extraction and blinded judge evidence; synthetic seams remain non-admissible. Opt-in diagnostic output 2.1 records the judgment basis and source-bound negative witness IDs for an assessed zero; missing verification remains unknown/null. Legacy 2.0 output and default prompts remain readable without rewriting original results. Fixed-denominator rubric QA separates observed, unavailable and verified-absent records; unknown remains null, significant disagreement and critical errors block acceptance. Readiness1.1 requires read-only replay of native 56-case rubric QA and frozen judge identity; legacy readiness remains readable but cannot bypass the missing native QA evidence. Formal admission explicitly rejects production-single capability reports; passing ordinary runtime proof cannot establish evaluator isolation or formal readiness.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -87,13 +88,17 @@
       "guardrails": [
         "No paper answer list or topic-specific production rules",
         "No live or formal improvement claim from offline mechanics",
-        "Candidate properties never replace independent judgment"
+        "Candidate properties never replace independent judgment",
+        "Negative witness identity is technical evidence only; independent semantic checking must establish actual incompatibility"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_evaluation.py",
         "plugins/auto-research-agent/tests/test_stage2_diagnostics.py",
         "plugins/auto-research-agent/tests/test_stage2_diagnostic_fixtures.py",
-        "plugins/auto-research-agent/tests/test_stage2_formal.py"
+        "plugins/auto-research-agent/tests/test_stage2_formal.py",
+        "plugins/auto-research-agent/tests/test_stage2_rubric_quality.py",
+        "plugins/auto-research-agent/tests/test_stage2_rubric_admission.py",
+        "plugins/auto-research-agent/tests/test_stage2_formal_rubric_gate.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -105,7 +110,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_check",
       "problem": "Research directions can be recommended despite missing evidence or infeasible materials; revision history and useful alternatives can be lost.",
-      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates, retained revisions and a prehuman proposal report with linked excerpts, source snapshots and explicit missing metadata.",
+      "mechanism": "Record external five-axis assessments with source bindings, local disposition gates and retained revisions. Render the final Markdown/HTML proposal from a shared work/version/source-bound bibliography projection, with claim-specific recorded roles, exact excerpts and honest missing legacy metadata. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -137,12 +142,15 @@
         "No autonomous Stage3 authorization",
         "Unknown is not zero or verified",
         "A failed alternative does not erase an eligible recommendation",
-        "Keep native tools and independent evaluation separate"
+        "Keep native tools and independent evaluation separate",
+        "Recorded bibliography roles are not semantic verification; a claim never inherits unrelated work roles or a stronger source evidence level"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_checker.py",
         "plugins/auto-research-agent/tests/test_stage2_report.py",
-        "plugins/auto-research-agent/tests/test_plugin_loading.py"
+        "plugins/auto-research-agent/tests/test_plugin_loading.py",
+        "plugins/auto-research-agent/tests/test_stage2_bibliography.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -208,7 +216,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_workflow",
       "problem": "A fixed evidence packet cannot incorporate newly found counterevidence without breaking prior assessment bindings; Stage 1 evidence can also lose its run, work/version or source provenance before Stage 2. Interrupted actions and missing independent reviews need explicit states.",
-      "mechanism": "Import validated Stage 1 deliverables into a v2 packet that binds run/state, handoff, deliverable, canonical records, brief, resources, structured literature metadata/classification/roles/findings, exact claims, source status, exact source bytes and unresolved coverage without inventing candidates or comparison results. Freeze separate Stage 1 literature/source/evidence projections while allowing separately marked Stage 2 additions. Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions.",
+      "mechanism": "Import validated Stage 1 deliverables into a v2 packet that binds run/state, handoff, deliverable, canonical records, brief, resources, structured literature metadata/classification/roles/findings, exact claims, source status, exact source bytes and unresolved coverage without inventing candidates or comparison results. Freeze separate Stage 1 literature/source/evidence projections while allowing separately marked Stage 2 additions. Wrap immutable checker snapshots with append-only lineage and action receipts; bind independent initial views, explicit synthesis and seeded excluded-candidate audits. No model runner or semantic endorsement is implied. Prepare packet-bound two-role batches, audit excluded candidates with a saved seed, and preserve incomplete review and bounded follow-up states. Reconstruct an immutable Markdown/HTML proposal package and bind real user-message records and candidate versions to the viewed report; preserve pending choices and return-to-Stage2 conditions. Packet2.1 preserves a separately accepted exploratory intake with false Stage1 eligibility, original source projections and external input hashes; legacy sufficient-handoff semantics stay unchanged. Prerequisite records bind seven explicit categories to current candidate versions and source evidence, compute joint resource demands without guessing missing budgets, and retain structural-only verification.",
       "metric_effects": [
         {
           "metric_id": "P5",
@@ -257,7 +265,10 @@
         "plugins/auto-research-agent/tests/test_stage2_orchestration.py",
         "plugins/auto-research-agent/tests/test_stage2_delivery.py",
         "plugins/auto-research-agent/tests/test_stage2_interaction.py",
-        "plugins/auto-research-agent/tests/test_stage2_report_html.py"
+        "plugins/auto-research-agent/tests/test_stage2_report_html.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py",
+        "plugins/auto-research-agent/tests/test_stage2_prerequisites.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -319,7 +330,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage2_live",
       "problem": "Offline records cannot establish that native research, independent review or tool-free extraction executed, and replayed JSON alone can hide changed runtime or source bytes.",
-      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions.",
+      "mechanism": "Capture native calls and session records; extract exact saved spans; bind independent reviews and isolated content-first judges to immutable inputs and verified model archives. Functional preflight separately verifies effective policy, native read/write/search/child results and denied sentinel reads; a fresh profile disables discovered personal skills without changing bundled capabilities. Missing inventory or isolation evidence blocks admission. Calibration selects frozen source IDs and restores exact text in the host; case outputs and actual model calls are counted separately. A sequential controller composes existing snapshots and review steps; readonly verifiers reconstruct calls without resume or dispatch. Common prose-to-action extraction records unresolved omissions rather than inventing actions. Versioned calibration units explicitly bind the diagnostic output contract; default legacy 2.0 prompts and archives remain unchanged, while 2.1 transports the judgment basis and witness IDs. Readonly replay selects the frozen output-version schema and rejects a rehashed version downgrade without executing model calls. Inventory receipt2.0 binds five supported RPC responses and separately captured host model-request tools; unknown offered tools block admission and unsupported tools/list is never required. Versioned opt-in followup2 routes material partial findings and repair next steps while retaining legacy behavior; unknown new-method performance alone does not force proof before research. Tool-free rubric QA archives actual R1/R2 calls and separate immutable-input ADJ; injected adapters cannot attest quality and no QA run grants formal readiness. A private no-model app-server observer records supported config, skills, plugin and MCP replies and optional existing-thread metadata; it never dispatches a model, changes settings or treats metadata as per-execution tool or instruction attestation. Incomplete replies remain partial and failures retain their transport bytes. Strict production witness decoding accepts one constant native shell or web-search wrapper and an unmodified result, binds host terminal bytes and child lineage, and rejects dynamic code, crossed waits, substituted executors and user-only child replies; it executes no recorded JavaScript. Ordinary single-harness admission requires only authentic read/write/search/child probes and matching runtime/profile/workspace/config bytes; missing inventory remains observed unknown, supplied bad inventory fails, and production-only proof cannot establish formal A/B isolation.",
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -380,7 +391,14 @@
         "plugins/auto-research-agent/tests/test_stage2_readonly_replay.py",
         "plugins/auto-research-agent/tests/test_stage2_action_extraction.py",
         "plugins/auto-research-agent/tests/test_stage2_judge_replay.py",
-        "plugins/auto-research-agent/tests/test_stage2_environment.py"
+        "plugins/auto-research-agent/tests/test_stage2_environment.py",
+        "plugins/auto-research-agent/tests/test_stage2_inventory_v2.py",
+        "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
+        "plugins/auto-research-agent/tests/test_stage2_rubric_quality.py",
+        "plugins/auto-research-agent/tests/test_stage2_rubric_adjudication.py",
+        "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py",
+        "plugins/auto-research-agent/tests/test_stage2_codemode_preflight.py",
+        "plugins/auto-research-agent/tests/test_stage2_production_preflight.py"
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false

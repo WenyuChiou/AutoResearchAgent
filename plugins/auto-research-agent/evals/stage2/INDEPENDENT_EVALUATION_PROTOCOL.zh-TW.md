@@ -1,5 +1,8 @@
 # Stage 2 general v2：獨立 P4–P6 與 A/B
 
+這份文件保留 v2 七項尺度。新的 opt-in v3 使用
+[九項平衡評分與透明交付](STAGE2_V3_EVALUATION.zh-TW.md)，不能沿用本頁的 1／2／4 子項配置。
+
 狀態：experimental。第一輪只交付離線評估機制，所有配對結果標成 diagnostic，
 `external_claim_ready=false`。正式 runner、模型呼叫憑證與跨平台隔離仍需後續里程碑。
 舊 aging-bidirectional v1 的分數、validator 與規則維持原樣，不能混算。

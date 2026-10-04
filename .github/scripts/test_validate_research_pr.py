@@ -237,6 +237,35 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             flags=re.MULTILINE,
         )
 
+    def test_stage2_v3_balanced_catalog_and_pr_contract(self):
+        criteria = load_rubrics()["stage2-general-v3"]
+        self.assertEqual(len(criteria), 9)
+        self.assertEqual(
+            {
+                metric: list(criteria.values()).count(metric)
+                for metric in ("P4", "P5", "P6")
+            },
+            {"P4": 3, "P5": 3, "P6": 3},
+        )
+        body = self.stage2_body().replace("stage2-general-v2", "stage2-general-v3")
+        body = body.replace("P5V2.OPPORTUNITY", "P5V3.PRECEDENT").replace(
+            "S2V2_OPPORTUNITY", "S2V3_PRECEDENT"
+        )
+        body = body.replace("cli:stage2-common", "cli:stage2-eval").replace(
+            "contract.validate_packet", "evaluation_v3.prepare_content_view_v3"
+        )
+        self.assertEqual(
+            validate_pr_body(body, known_capabilities=load_capability_metrics()), []
+        )
+        errors = validate_pr_body(
+            body.replace(
+                "Evaluation readiness: implementation-only",
+                "Evaluation readiness: stage-executable",
+            ),
+            known_capabilities=load_capability_metrics(),
+        )
+        self.assertTrue(any("experimental Stage2" in error for error in errors))
+
     def test_stage2_implementation_body_and_registry(self):
         body = self.stage2_body()
         self.assertEqual(validate_pr_body(body, load_capability_metrics()), [])

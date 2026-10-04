@@ -5,6 +5,17 @@ description: This skill applies when the user asks to improve an existing resear
 
 # Stage 2 direction checking
 
+For the current opt-in v3 workflow, read the
+[balanced evaluation and transparent delivery guide](../../evals/stage2/STAGE2_V3_EVALUATION.zh-TW.md).
+After preparing every selection package, run `stage2_live daily-v3` with distinct
+R1/R2/ADJ contexts, then `stage2_workflow evaluated-deliver-v3`. Keep the core
+selection unchanged for purely presentational edits. A judge failure does not
+discard research: publish the readable package with incomplete evaluation.
+Show all nine comments, unknowns, evidence locations and pending audit; the
+internal five-axis checker is separate. Do not invent an audit, user selection,
+formal readiness or scientific improvement. Native search/read/subagents remain
+available for research; only extraction and scoring are tool-free.
+
 Start only when the user requests Stage 2 work. A Stage 1 handoff supplies evidence;
 it does not authorize a new stage. Read the confirmed ResearchBrief and resource
 limits before evaluating candidates. Preserve exploratory questions, simple
@@ -73,6 +84,14 @@ Both routes use the same evidence checks, five axes and user selection gate.
    its parent's approval. Preserve useful options when a different candidate fails.
    For missing evidence, identify a bounded lookup or a scope decision instead
    of claiming the missing fact is verified.
+   When existing source text resolves an error, use the documented
+   `Stage2ContentRevision` path: preserve source bytes and prior evidence, add
+   exact same-source locators only if needed, and extract with
+   `replace-comparison-unresolved`. Authenticate the extraction and adjacent
+   snapshot receipt before delivery, then obtain fresh affected-version reviews.
+   Do not duplicate a source to satisfy revision bookkeeping. Verify disputed
+   judge comments against source context; absent excerpt detail does not prove
+   that the full text lacks it. Retain evaluator errors separately.
 6. Export the choice package before human selection. Read its `selection.md` as
    a proposal report: inspect the opportunity, value, proposed approach, five
    checks, linked excerpts and revision history. Explain each source's actual
@@ -101,8 +120,26 @@ Keep independent evaluation outputs, condition labels and judge feedback outside
 the production choice process. An internal recommendation is not an external
 P4–P6 score. This first slice is experimental and has not demonstrated improvement.
 
+When reviewing enabling requirements or several directions together, read the
+[prerequisite and followup interface](../../evals/stage2/MATERIAL_PREREQUISITES_AND_FOLLOWUP.zh-TW.md).
+Record data, tools, models, licenses, cost, premises and validation paths against
+the current candidate and source versions. Use reasoned not-applicable entries
+for theory; do not invent empirical requirements. Missing per-candidate estimates
+or resource limits leave joint demand or capacity unknown. Count shared work once
+only when its participating candidates and basis are explicit. These records check
+bindings, not scientific truth. Opt-in material followup identifies the decision
+that could change and its next check; it does not authorize a new search engine,
+grant human approval, or require a new method to have proven effectiveness.
+
 For real calls, load the [native execution interface](../../references/stage2-live.md)
 only when needed. Preserve the native research environment, capture prose before
 tool-free extraction, and run independent checks in separate host-isolated contexts.
 Attach native receipts to workflow actions; missing reviewers or required human
 audits remain pending. Separate profile paths alone do not prove isolation.
+
+For ordinary research, read the [functional preflight](../../references/stage2-runtime-preflight.md)
+and use its explicit `production-single` contract before native execution.
+It checks read, write, search and child capabilities; it does not require A/B
+runs or evaluator answer files. Keep independent research checks in the workflow.
+Formal comparisons additionally require the documented denied-read and inventory
+proof; a production pass cannot replace it or establish scientific improvement.

@@ -12,6 +12,7 @@ from .orchestration import prepare_review_batch, reconcile_batch
 from .delivery import build_delivery, inspect_delivery
 from .interaction import record_interaction
 from .import_stage1 import build_stage2_seed
+from .exploratory import build_exploratory_seed
 from .store import (
     add_snapshot,
     finish_action,
@@ -23,6 +24,12 @@ from .store import (
 
 def _read(path):
     return decode_json(Path(path).read_bytes(), str(path))
+
+
+def _save(path, value):
+    with Path(path).open("x", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2))
+        stream.write("\n")
 
 
 def main(argv=None):
@@ -38,6 +45,17 @@ def main(argv=None):
     handoff.add_argument("--brief", required=True)
     handoff.add_argument("--resources", required=True)
     handoff.add_argument("--output", required=True)
+    exploratory = commands.add_parser(
+        "import-stage1-exploratory",
+        help="build a non-sufficient Stage 2 seed from a reviewed Stage 1 deliverable",
+    )
+    exploratory.add_argument("--deliverable", required=True)
+    exploratory.add_argument("--deliverable-manifest-sha256", required=True)
+    exploratory.add_argument("--acceptance", required=True)
+    exploratory.add_argument("--acceptance-sha256", required=True)
+    exploratory.add_argument("--brief", required=True)
+    exploratory.add_argument("--resources", required=True)
+    exploratory.add_argument("--output", required=True)
     init = commands.add_parser(
         "init", help="save the first immutable evidence snapshot"
     )
@@ -94,6 +112,13 @@ def main(argv=None):
     deliver = commands.add_parser("deliver", help="build a versioned proposal package")
     for name in ("batch", "reviews", "resolutions"):
         deliver.add_argument("--" + name, required=True)
+    deliver.add_argument(
+        "--source-update-receipt",
+        action="append",
+        nargs=2,
+        metavar=("PATH", "EXPECTED_SHA256"),
+        help="opt into v1.1 provenance using a raw source-update receipt and retained SHA",
+    )
     for command in (plan, reconcile, deliver):
         command.add_argument("--run", required=True)
         command.add_argument("--expected-head", required=True)
@@ -118,6 +143,27 @@ def main(argv=None):
     ):
         human.add_argument("--" + name, required=True)
     human.add_argument("--message-index", type=int, required=True)
+    evaluated = commands.add_parser(
+        "evaluated-deliver-v3",
+        help="build a v3 delivery from a bound workflow and evaluation bundle",
+    )
+    for name in (
+        "run",
+        "expected-head",
+        "selection",
+        "source-snapshots",
+        "source-root",
+        "bundle",
+        "expected-bundle-sha256",
+        "output",
+    ):
+        evaluated.add_argument("--" + name, required=True)
+    evaluated_check = commands.add_parser(
+        "verify-evaluated-delivery",
+        help="replay a v3 delivery using an externally retained manifest receipt",
+    )
+    for name in ("delivery", "expected-manifest-sha256", "output"):
+        evaluated_check.add_argument("--" + name, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "import-stage1":
@@ -126,6 +172,16 @@ def main(argv=None):
                 args.deliverable_manifest_sha256,
                 args.handoff,
                 args.handoff_sha256,
+                args.brief,
+                args.resources,
+                args.output,
+            )
+        elif args.command == "import-stage1-exploratory":
+            result = build_exploratory_seed(
+                args.deliverable,
+                args.deliverable_manifest_sha256,
+                args.acceptance,
+                args.acceptance_sha256,
                 args.brief,
                 args.resources,
                 args.output,
@@ -190,6 +246,32 @@ def main(argv=None):
                 args.output,
                 args.expected_head,
             )
+        elif args.command == "evaluated-deliver-v3":
+            from .evaluation_delivery import (
+                build_evaluated_delivery,
+                workflow_source_selection_bindings,
+            )
+
+            state = inspect_workflow(args.run, args.expected_head)
+            selection = _read(args.selection)
+            bindings = workflow_source_selection_bindings(state, selection)
+            result = build_evaluated_delivery(
+                selection,
+                _read(args.source_snapshots),
+                args.source_root,
+                _read(args.bundle),
+                args.output,
+                expected_bundle_sha256=args.expected_bundle_sha256,
+                **bindings,
+            )
+        elif args.command == "verify-evaluated-delivery":
+            from .evaluation_delivery import inspect_evaluated_delivery
+
+            result = inspect_evaluated_delivery(
+                args.delivery,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+            )
+            _save(args.output, result)
         elif args.command == "deliver":
             result = build_delivery(
                 args.run,
@@ -198,6 +280,7 @@ def main(argv=None):
                 _read(args.resolutions),
                 args.output,
                 args.expected_head,
+                source_update_receipts=args.source_update_receipt,
             )
         else:
             state = inspect_workflow(args.run, args.expected_head)

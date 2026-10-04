@@ -157,3 +157,10 @@ plan、judge-bundle 與 paired-evaluation validators，從六個 bundles 推導�
 組員 AI 負責實作、測試、synthetic report、修 CI 與列出所有跨 repo PR。Core team
 定義/凍結 rubric 與 holdout、review、決定 audit，並 merge 到本 fork。簡單 baseline
 勝過 LLM 或結果不確定，也要如實保留。
+# Stage 2 目前版本：v3（明確選用）
+
+新 Stage 2 評估採 P4／P5／P6 各三項，保留歷史 v2 與 QA03。
+日常只有 B，選擇包附獨立評分與原始評語；正式 A/B 另外驗收。
+完整流程、九項定義、校準分母、未知與待覆核的處理方式見
+[Stage 2 v3 評估說明](stage2/STAGE2_V3_EVALUATION.zh-TW.md)。
+以下歷史契約不因此改寫；不能把 v2 分数重新標成 v3。

@@ -27,6 +27,7 @@ RESULT_FIELDS = {
     "unsupported_assumptions",
 }
 CHECK_NAMES = ("opportunity", "value", "answerability", "materials", "execution")
+OUTPUT_VERSIONS = {"2.0.0", "2.1.0"}
 
 
 class DiagnosticError(ValueError):
@@ -170,10 +171,13 @@ def _validate_target(target, case):
         )
 
 
-def _validate_check(check, case, name, next_step):
+def _validate_check(check, case, name, next_step, output_version):
+    fields = {"status", "score", "rationale", "evidence_refs"}
+    if output_version == "2.1.0":
+        fields |= {"judgment_basis", "negative_evidence_ids"}
     _exact_fields(
         check,
-        {"status", "score", "rationale", "evidence_refs"},
+        fields,
         f"{name} check",
     )
     _require(
@@ -193,15 +197,53 @@ def _validate_check(check, case, name, next_step):
         _text(next_step, "next check for unknown judgment")
     else:
         _require(check["score"] is None, "not-applicable check needs null score")
+    if output_version == "2.1.0":
+        expected_basis = {
+            ("assessed", 0): "demonstrated-incompatibility",
+            ("assessed", 1): "partial-support",
+            ("assessed", 2): "sufficient-support",
+            ("unknown", None): "evidence-not-established",
+            ("not-applicable", None): "not-applicable",
+        }[(check["status"], check["score"])]
+        _require(
+            check["judgment_basis"] == expected_basis,
+            f"invalid {name} judgment_basis",
+        )
+        witnesses = check["negative_evidence_ids"]
+        _require(
+            isinstance(witnesses, list)
+            and all(isinstance(value, str) and value.strip() for value in witnesses),
+            f"{name} negative_evidence_ids must be nonblank strings",
+        )
+        _require(
+            len(witnesses) == len(set(witnesses)),
+            f"duplicate {name} negative evidence witness",
+        )
+        referenced = {ref["evidence_id"] for ref in check["evidence_refs"]}
+        _require(
+            set(witnesses) <= referenced,
+            f"{name} negative evidence witness must reference that check",
+        )
+        if check["status"] == "assessed" and check["score"] == 0:
+            _require(witnesses, f"{name} zero score needs negative evidence witness")
+        else:
+            _require(
+                not witnesses,
+                f"{name} nonzero or null score forbids negative evidence witness",
+            )
 
 
-def prepare_diagnostic_prompt(cases, *, source_ids=False):
+def prepare_diagnostic_prompt(cases, *, source_ids=False, output_version="2.0.0"):
     """Build a tool-free prompt from validated synthetic diagnostic facts."""
 
     _validate_cases(cases)
+    _require(
+        isinstance(output_version, str) and output_version in OUTPUT_VERSIONS,
+        "unsupported diagnostic output version",
+    )
     schema = {
         "kind": "Stage2DiagnosticOutput",
-        "schema_version": "2.0.0",
+        "schema_version": output_version,
         "results": [
             {
                 "case_id": "...",
@@ -234,6 +276,16 @@ Return JSON with exactly the specified fields and exactly one result per case. K
 A disposition applies only to disposition_target. Rejecting a claim or screening decision does not itself reject the research candidate. Assess opportunity, value, answerability, materials, and execution for the research candidate, separately from the disposition target. Support judgments with the supplied evidence and distinguish facts, unresolved research questions, and unverified prerequisites. Do not assume the initial claim or screening action is correct. The binding table is supplied by the host; copy hashes rather than calculating them.
 
 If cases are presented as variants, use the exact same supplied scientific facts across variants. Do not infer topic answers, hidden keys, expected outcomes, or facts outside the case."""
+    if output_version == "2.1.0":
+        for check in schema["results"][0]["checks"].values():
+            check["judgment_basis"] = (
+                "demonstrated-incompatibility|partial-support|sufficient-support|"
+                "evidence-not-established|not-applicable"
+            )
+            check["negative_evidence_ids"] = ["evidence_id witnessing score 0"]
+        instructions += """
+
+For every check, state its judgment_basis. A score of 0 requires affirmative counterevidence that demonstrates incompatibility and at least one negative_evidence_id selected from that check's evidence_refs. Missing verification, unavailable access, or evidence not yet found does not demonstrate absence; use unknown with score null and judgment_basis evidence-not-established. Scores 1 and 2 and null scores have no negative_evidence_ids. The witness is the model's asserted basis, not a semantic verdict: an independent judge must verify that it actually supports the negative judgment. Keep the research candidate assessment separate from any claim or screening-action disposition. These structural checks establish traceability only, not semantic correctness."""
     if source_ids:
         row = schema["results"][0]
         row["evidence_refs"] = [{"evidence_id": "..."}]
@@ -256,13 +308,19 @@ If cases are presented as variants, use the exact same supplied scientific facts
     )
 
 
-def validate_diagnostic_output(output, cases):
+def validate_diagnostic_output(output, cases, *, output_version=None):
     """Validate only structure, identity, coverage, hashes, and verbatim bindings."""
 
     _validate_cases(cases)
     _exact_fields(output, {"kind", "schema_version", "results"}, "diagnostic output")
     _require(output["kind"] == "Stage2DiagnosticOutput", "wrong diagnostic output kind")
-    _require(output["schema_version"] == "2.0.0", "wrong diagnostic output version")
+    version = output["schema_version"]
+    _require(
+        isinstance(version, str) and version in OUTPUT_VERSIONS,
+        "wrong diagnostic output version",
+    )
+    if output_version is not None:
+        _require(version == output_version, "wrong diagnostic output version")
     rows = output["results"]
     _require(isinstance(rows, list), "diagnostic results must be a list")
     case_by_id = {case["case_id"]: case for case in cases}
@@ -301,7 +359,7 @@ def validate_diagnostic_output(output, cases):
             "checks need all five dimensions exactly once",
         )
         for name in CHECK_NAMES:
-            _validate_check(checks[name], case, name, row["next_step"])
+            _validate_check(checks[name], case, name, row["next_step"], version)
         assumptions = row["unsupported_assumptions"]
         _require(
             isinstance(assumptions, list)
@@ -350,7 +408,7 @@ def prepare_diagnostic_judge_view(output, cases):
         )
     return {
         "kind": "Stage2DiagnosticJudgeView",
-        "schema_version": "2.0.0",
+        "schema_version": output["schema_version"],
         "validation_scope": "technical-validity-only",
         "semantic_correctness_established": False,
         "formal_readiness_established": False,

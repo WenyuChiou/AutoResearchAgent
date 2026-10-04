@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage2-packet.v2_1.schema.json",
+  "title": "Exploratory Stage 2 packet with externally accepted partial evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "packet_id",
+    "brief",
+    "resources",
+    "comparison",
+    "literature",
+    "evidence",
+    "sources",
+    "candidates",
+    "unresolved",
+    "upstream"
+  ],
+  "properties": {
+    "kind": {
+      "const": "Stage2Packet"
+    },
+    "schema_version": {
+      "const": "2.1.0"
+    },
+    "packet_id": {
+      "$ref": "#/$defs/text"
+    },
+    "brief": {
+      "type": "object"
+    },
+    "resources": {
+      "$ref": "#/$defs/text"
+    },
+    "comparison": {
+      "$ref": "#/$defs/text"
+    },
+    "literature": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/literature"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/text"
+      }
+    },
+    "upstream": {
+      "$ref": "#/$defs/upstream"
+    }
+  },
+  "$defs": {
+    "text": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/text"
+    },
+    "id": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/id"
+    },
+    "sha": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/sha"
+    },
+    "origin": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/origin"
+    },
+    "literature": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/literature"
+    },
+    "classification": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/classification"
+    },
+    "findings": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/findings"
+    },
+    "role": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/role"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "source_id",
+        "work_id",
+        "version_id",
+        "path",
+        "sha256",
+        "evidence_level",
+        "access_status",
+        "retrieved_at",
+        "source_url",
+        "final_url",
+        "access_note"
+      ],
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "source_id": {
+          "$ref": "#/$defs/id"
+        },
+        "work_id": {
+          "$ref": "#/$defs/id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/id"
+        },
+        "path": {
+          "$ref": "#/$defs/text"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "evidence_level": {
+          "enum": [
+            "metadata",
+            "abstract",
+            "full-text"
+          ]
+        },
+        "access_status": {
+          "enum": [
+            "available",
+            "abstract-only",
+            "metadata-only",
+            "paywalled",
+            "not-found",
+            "rate-limited",
+            "network-error",
+            "parse-error",
+            "login-page",
+            "identity-mismatch",
+            "stage2-added",
+            "inaccessible"
+          ]
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/text"
+        },
+        "source_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "final_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "access_note": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "evidence": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/evidence"
+    },
+    "candidate": {
+      "$ref": "stage2-packet.v2.schema.json#/$defs/candidate"
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "source_run_id",
+        "source_state_sha256",
+        "stage1_handoff_sha256",
+        "stage1_deliverable_manifest_sha256",
+        "stage1_records_sha256",
+        "research_brief_sha256",
+        "resources_sha256",
+        "stage1_literature_sha256",
+        "stage1_sources_sha256",
+        "stage1_evidence_sha256",
+        "included_work_ids",
+        "eligible_for_stage2",
+        "stage2",
+        "binding_sha256",
+        "intake_mode",
+        "acceptance",
+        "acceptance_sha256",
+        "acceptance_file_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "Stage1Stage2Binding"
+        },
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "source_run_id": {
+          "$ref": "#/$defs/text"
+        },
+        "source_state_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "stage1_handoff_sha256": {
+          "type": "null"
+        },
+        "stage1_deliverable_manifest_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "stage1_records_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "research_brief_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "resources_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "stage1_literature_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "stage1_sources_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "stage1_evidence_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "included_work_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "eligible_for_stage2": {
+          "const": false
+        },
+        "stage2": {
+          "const": {
+            "status": "not-started",
+            "execution_authorized": false
+          }
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "intake_mode": {
+          "const": "exploratory"
+        },
+        "acceptance": {
+          "$ref": "#/$defs/acceptance"
+        },
+        "acceptance_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "acceptance_file_sha256": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "accepted_by",
+        "decision_source_ref",
+        "purpose",
+        "deliverable_manifest_sha256",
+        "stage1_records_sha256",
+        "research_brief_sha256",
+        "resources_sha256",
+        "included_work_ids",
+        "limitations"
+      ],
+      "properties": {
+        "kind": {
+          "const": "Stage2ExploratoryAcceptance"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "accepted_by": {
+          "$ref": "#/$defs/text"
+        },
+        "decision_source_ref": {
+          "$ref": "#/$defs/text"
+        },
+        "purpose": {
+          "const": "exploratory-stage2-planning"
+        },
+        "deliverable_manifest_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "stage1_records_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "research_brief_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "resources_sha256": {
+          "$ref": "#/$defs/sha"
+        },
+        "included_work_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    }
+  }
+}

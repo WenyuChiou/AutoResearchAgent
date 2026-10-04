@@ -34,6 +34,7 @@ from stage2_live.controller import (
     _replay_model_config,
     _require_saved_unit,
     _run_controller,
+    _saved_resolution_unit_label,
     _validate_spec,
     _verify_action_environments,
     apply_revision,
@@ -351,6 +352,82 @@ class Stage2ControllerTests(unittest.TestCase):
                     },
                 )
             self.assertEqual(list(root.iterdir()), [])
+
+    def test_resolution_unit_label_is_explicit_receipt_bound_and_read_only(self):
+        def saved(label):
+            root = self.root / f"saved-{label}"
+            (root / f"{label}.model-call").mkdir(parents=True, exist_ok=True)
+            (root / f"{label}.model-call" / "request.json").write_text(
+                "{}", encoding="utf-8"
+            )
+            (root / f"{label}.schema.json").write_text("{}", encoding="utf-8")
+            unit = root / f"{label}.unit.json"
+            unit.write_text('{"accepted":true}', encoding="utf-8")
+            envelope = root / "resolution.json"
+            envelope.write_text('{"resolution":"saved"}', encoding="utf-8")
+            receipt = {
+                "result_sha256": digest(envelope),
+                "unit_receipts": {label: digest(unit)},
+            }
+            return root, receipt
+
+        for label, metadata in (
+            ("resolution", {}),
+            (
+                "resolution-extraction",
+                {"extraction_unit_label": "resolution-extraction"},
+            ),
+        ):
+            with self.subTest(label=label):
+                root, receipt = saved(label)
+                value = {**metadata, "replay_receipt": receipt}
+                before = {
+                    path: path.read_bytes()
+                    for path in root.rglob("*")
+                    if path.is_file()
+                }
+                chosen = _saved_resolution_unit_label(value)
+                _require_saved_unit(root, chosen, "resolution.json", receipt)
+                after = {
+                    path: path.read_bytes()
+                    for path in root.rglob("*")
+                    if path.is_file()
+                }
+                self.assertEqual(chosen, label)
+                self.assertEqual(after, before)
+
+        _, legacy_receipt = saved("resolution")
+        for bad in ("../resolution", "resolution.json", "other"):
+            with (
+                self.subTest(bad_label=bad),
+                self.assertRaisesRegex(Stage2Error, "unit-label-invalid"),
+            ):
+                _saved_resolution_unit_label(
+                    {
+                        "extraction_unit_label": bad,
+                        "replay_receipt": legacy_receipt,
+                    }
+                )
+        with self.assertRaisesRegex(Stage2Error, "unit-label-receipt-mismatch"):
+            _saved_resolution_unit_label(
+                {
+                    "extraction_unit_label": "resolution-extraction",
+                    "replay_receipt": legacy_receipt,
+                }
+            )
+        with self.assertRaisesRegex(Stage2Error, "unit-label-receipt-mismatch"):
+            _saved_resolution_unit_label(
+                {
+                    "extraction_unit_label": "resolution-extraction",
+                    "replay_receipt": {
+                        "result_sha256": "a" * 64,
+                        "unit_receipts": {
+                            "resolution": "b" * 64,
+                            "resolution-extraction": "c" * 64,
+                        },
+                    },
+                }
+            )
 
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -741,12 +818,17 @@ class Stage2ControllerTests(unittest.TestCase):
             "report": {"bound": "report"},
             "capture_dir": str(self.root / "preflight-capture"),
             "receipt": "9" * 64,
-            "probe_spec": {"bound": "probe"},
+            "probe_spec": {
+                "kind": "Stage2RuntimeProbeSpec",
+                "schema_version": "1.0.0",
+            },
             "inventory_receipt": inventory,
         }
         verified = {
+            "kind": "Stage2RuntimePreflight",
             "runtime_gate": True,
             "status": "passed",
+            "formal_ready": False,
             "actual_runtime": {
                 "model": "synthetic-model",
                 "reasoning": "medium",
@@ -775,6 +857,26 @@ class Stage2ControllerTests(unittest.TestCase):
         ):
             _validate_spec(spec, self.packet, self.base, synthetic=False)
             self.assertIs(preflight.call_args.kwargs["inventory_receipt"], inventory)
+
+            production_spec = copy.deepcopy(spec)
+            production_spec["preflight"]["probe_spec"]["kind"] = (
+                "Stage2ProductionRuntimeProbeSpec"
+            )
+            production_verified = copy.deepcopy(verified)
+            production_verified.update(
+                {
+                    "kind": "Stage2ProductionRuntimePreflight",
+                    "validation_scope": "production-single",
+                    "filesystem_read_isolation": "not-assessed",
+                    "quality_improvement": "not-established",
+                }
+            )
+            preflight.return_value = production_verified
+            _validate_spec(production_spec, self.packet, self.base, synthetic=False)
+
+            preflight.return_value = verified
+            with self.assertRaisesRegex(ValueError, "report/probe contract mismatch"):
+                _validate_spec(production_spec, self.packet, self.base, synthetic=False)
 
             wrong_model = copy.deepcopy(verified)
             wrong_model["actual_runtime"]["model"] = "other-model"
@@ -844,6 +946,38 @@ class Stage2ControllerTests(unittest.TestCase):
                 }
             ],
         )
+        self.assertFalse(self.delivery.exists())
+
+    def test_v3_controller_returns_reconstructable_research_task(self):
+        from test_stage2_research_followups import POLICY as research_policy
+        from stage2_live.research_followups import validate_research_followup_task
+
+        spec = copy.deepcopy(self.spec)
+        spec["followup_policy"] = {
+            "kind": "Stage2FollowupPolicy",
+            "schema_version": "3.0.0",
+            "investigate_material_partial": True,
+            "research_task_policy": research_policy,
+        }
+        result = self.run_controller(
+            SyntheticAdapter(blocking=True),
+            expected_head=self.initial["head_sha256"],
+            spec=spec,
+        )
+        self.assertEqual(result["status"], "follow-up-needed")
+        snapshot = inspect_workflow(self.run)["latest_snapshot"]
+        task = result["research_followup_task"]
+        self.assertEqual(
+            validate_research_followup_task(
+                task,
+                snapshot["packet"],
+                snapshot["event"]["payload"]["snapshot_sha256"],
+                research_policy,
+                expected_followups=result["followups"],
+            ),
+            task,
+        )
+        self.assertFalse(result["formal_ready"])
         self.assertFalse(self.delivery.exists())
 
     def test_external_revision_forces_new_snapshot_and_cannot_carry_old_review(self):
