@@ -118,6 +118,7 @@ def main(argv=None):
     ):
         daily_v3.add_argument("--" + option, required=True)
     daily_v3.add_argument("--audit")
+    daily_v3.add_argument("--source-context-policy")
     daily_v3.add_argument("--resume", action="store_true")
     daily_v3.add_argument("--replay-receipt")
     finalize_daily_v3 = commands.add_parser(
@@ -207,6 +208,7 @@ def main(argv=None):
         "output",
     ):
         daily_check_v3.add_argument("--" + option, required=True)
+    daily_check_v3.add_argument("--source-context-policy")
     preflight = commands.add_parser(
         "preflight", help="verify effective policy, native actions and isolation"
     )
@@ -412,6 +414,11 @@ def main(argv=None):
                     _read(args.replay_receipt) if args.replay_receipt else None
                 ),
                 audit=_read(args.audit) if args.audit else None,
+                source_context_policy=(
+                    _read(args.source_context_policy)
+                    if args.source_context_policy
+                    else None
+                ),
             )
             _save(args.replay_receipt_output, result["replay_receipt"])
         elif args.command == "finalize-daily-v3":
@@ -498,6 +505,11 @@ def main(argv=None):
                 selection=_read(args.selection),
                 source_root=args.source_root,
                 expected_config=_read(args.config),
+                source_context_policy=(
+                    _read(args.source_context_policy)
+                    if args.source_context_policy
+                    else None
+                ),
             )
             _save(args.output, result)
         elif args.command in {"prepare-profile", "preflight"}:
