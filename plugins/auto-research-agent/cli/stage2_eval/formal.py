@@ -172,6 +172,12 @@ def _validate_investment_policy(value):
 def freeze_formal_plan_v1(config, evidence_root):
     """Freeze a six-subject Stage 2 plan after validating all common byte refs."""
 
+    return _freeze_formal_plan(config, evidence_root, RUBRIC_PATH, VERSION)
+
+
+def _freeze_formal_plan(config, evidence_root, rubric_path, version):
+    """Share byte, policy and chronology admission without changing old plans."""
+
     _fields(
         config,
         (
@@ -197,7 +203,10 @@ def freeze_formal_plan_v1(config, evidence_root):
     for name in ("brief", "stage1_source_manifest"):
         _read_ref(evidence_root, config[name], name)
     rubric, _ = _verify_ref(evidence_root, config["rubric"], "rubric")
-    _require(rubric == RUBRIC_PATH.read_bytes(), "rubric differs from Stage2 v2")
+    rubric_label = "v2" if version == VERSION else "v3"
+    _require(
+        rubric == rubric_path.read_bytes(), f"rubric differs from Stage2 {rubric_label}"
+    )
     _verify_ref(evidence_root, config["prompt"], "prompt")
     _require(config["model"] == "gpt-5.6-sol", "formal model must be gpt-5.6-sol")
     _require(config["reasoning"] == "high", "formal reasoning must be high")
@@ -271,7 +280,7 @@ def freeze_formal_plan_v1(config, evidence_root):
         )
     plan = {
         "kind": "Stage2FormalPlan",
-        "schema_version": VERSION,
+        "schema_version": version,
         "status": "frozen",
         **deepcopy(config),
     }

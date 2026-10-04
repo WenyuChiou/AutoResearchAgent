@@ -39,6 +39,10 @@ def main(argv=None):
     formal_plan.add_argument("--config", required=True)
     formal_plan.add_argument("--evidence-root", required=True)
     formal_plan.add_argument("--output", required=True)
+    formal_plan_v3 = sub.add_parser("freeze-formal-plan-v3")
+    formal_plan_v3.add_argument("--config", required=True)
+    formal_plan_v3.add_argument("--evidence-root", required=True)
+    formal_plan_v3.add_argument("--output", required=True)
     for name in ("validate-readiness", "validate-formal-result"):
         entry = sub.add_parser(name)
         for option in ("manifest", "evidence-root", "receipt", "output"):
@@ -154,6 +158,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command in {
         "freeze-formal-plan",
+        "freeze-formal-plan-v3",
         "validate-readiness",
         "validate-formal-result",
     }:
@@ -164,7 +169,11 @@ def main(argv=None):
         )
 
         try:
-            if args.command == "freeze-formal-plan":
+            if args.command == "freeze-formal-plan-v3":
+                from .formal_v3 import freeze_formal_plan_v2
+
+                value = freeze_formal_plan_v2(_read(args.config), args.evidence_root)
+            elif args.command == "freeze-formal-plan":
                 value = freeze_formal_plan_v1(_read(args.config), args.evidence_root)
             elif args.command == "validate-readiness":
                 value = validate_readiness_v1(
