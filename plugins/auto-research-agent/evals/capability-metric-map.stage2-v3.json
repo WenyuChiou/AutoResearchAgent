@@ -145,6 +145,12 @@
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
+      ],
+      "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
+      "research_followup_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_research_followups.py",
+        "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ]
     },
     {
