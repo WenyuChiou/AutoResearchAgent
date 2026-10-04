@@ -20,12 +20,31 @@ def child_owner(path, crash, queue):
         queue.put("blocked")
         journal.close()
         return
+    journal.bind_thread(
+        "alpha", owner, "thread-a", journal.snapshot("alpha")["revision"]
+    )
     journal.record_intent(
         "alpha",
         owner,
         "crashed",
         "turn/start",
-        {},
+        {"threadId": "thread-a"},
+        journal.snapshot("alpha")["revision"],
+    )
+    journal.bind_rpc(
+        "alpha",
+        owner,
+        "connection-a",
+        1,
+        "crashed",
+        journal.snapshot("alpha")["revision"],
+    )
+    journal.transition_intent(
+        "alpha",
+        owner,
+        "crashed",
+        "dispatching",
+        {"before_send": True},
         journal.snapshot("alpha")["revision"],
     )
     if crash:
@@ -66,6 +85,10 @@ class NativeJournalTests(unittest.TestCase):
         self.journal.release_owner("alpha", self.owner)
         self.owner = self.journal.acquire_owner("alpha", "recovery")
 
+    def queued(self, key, rpc_id=1, method="turn/start", **payload):
+        self.call("record_intent", key, method, dict(threadId="thread-a", **payload))
+        self.call("bind_rpc", "connection-a", rpc_id, key)
+
     def test_binding_revision_and_cross_connection_owner(self):
         second = Journal(self.path)
         self.addCleanup(second.close)
@@ -89,9 +112,12 @@ class NativeJournalTests(unittest.TestCase):
             )
 
     def test_durable_intent_idempotency_and_immutable_history(self):
+        self.call("bind_thread", "thread-a")
         revision = self.state()["revision"]
         self.assertFalse(
-            self.call("record_intent", "once", "turn/start", {})["replayed"]
+            self.call("record_intent", "once", "turn/start", {"threadId": "thread-a"})[
+                "replayed"
+            ]
         )
         second = Journal(self.path)
         self.addCleanup(second.close)
@@ -100,7 +126,12 @@ class NativeJournalTests(unittest.TestCase):
         )
         events = self.journal.events("alpha")
         replay = self.journal.record_intent(
-            "alpha", self.owner, "once", "turn/start", {}, revision
+            "alpha",
+            self.owner,
+            "once",
+            "turn/start",
+            {"threadId": "thread-a"},
+            revision,
         )
         self.assertTrue(replay["replayed"])
         self.assertEqual(events, self.journal.events("alpha"))
@@ -148,19 +179,21 @@ class NativeJournalTests(unittest.TestCase):
 
     def test_unknown_intent_requires_explicit_terminal_reconciliation(self):
         self.call("bind_thread", "thread-a")
-        self.call("record_intent", "once", "turn/start", {})
+        self.queued("once")
         self.call("transition_intent", "once", "dispatching", {"before_send": True})
         self.recover()
         self.assertEqual(self.state()["intents"]["once"]["status"], "execution-unknown")
         with self.assertRaisesRegex(JournalError, "forbidden"):
             self.call("transition_intent", "once", "dispatching", {"retry": True})
         with self.assertRaisesRegex(JournalError, "execution-unknown"):
-            self.call("record_intent", "retry", "turn/start", {})
+            self.call("record_intent", "retry", "turn/start", {"threadId": "thread-a"})
         with self.assertRaisesRegex(JournalError, "reconciliation"):
             self.call(
                 "transition_intent", "once", "completed", {"native_turn_id": "turn-a"}
             )
         reconciliation = dict(
+            connection_id="connection-a",
+            rpc_id=1,
             native_turn_id="turn-a",
             thread_id="thread-a",
             intent_record_sha256=self.state()["intents"]["once"]["record_sha256"],
@@ -206,6 +239,7 @@ class NativeJournalTests(unittest.TestCase):
 
     def test_unknown_thread_start_cannot_create_or_bind_a_replacement(self):
         self.call("record_intent", "start", "thread/start", {})
+        self.call("transition_intent", "start", "dispatching", {"before_send": True})
         self.recover()
         with self.assertRaisesRegex(JournalError, "needs reconciliation"):
             self.call("bind_thread", "guessed-thread")
@@ -231,7 +265,7 @@ class NativeJournalTests(unittest.TestCase):
         self.recover()
         self.assertEqual(self.state()["intents"], {})
         with self.assertRaisesRegex(JournalError, "execution-unknown"):
-            self.call("record_intent", "new", "turn/start", {})
+            self.call("record_intent", "new", "turn/start", {"threadId": "thread-a"})
         self.call(
             "update_request",
             self.identity(),
@@ -244,19 +278,24 @@ class NativeJournalTests(unittest.TestCase):
         self.call("bind_thread", "thread-a")
         for method in ("turn/start", "turn/interrupt"):
             turn = method.replace("/", "-")
-            self.call("record_intent", method, method, {"turnId": turn})
+            rpc_id = -(2**63) if method == "turn/start" else 2**63 - 1
+            self.queued(method, rpc_id, method, turnId=turn)
             self.call("transition_intent", method, "dispatching", {"before_send": True})
             ack = dict(
+                connection_id="connection-a",
                 native_turn_id=turn,
                 rpc_receipt={
-                    "id": -(2**63) if method == "turn/start" else 2**63 - 1,
+                    "id": rpc_id,
                     "result": {"turn": {"id": turn}},
                 },
             )
             with self.assertRaisesRegex(JournalError, "terminal required"):
                 self.call("transition_intent", method, "completed", ack)
             if method == "turn/start":
-                malformed = {**ack, "rpc_receipt": {"id": 1, "result": {"turn": None}}}
+                malformed = {
+                    **ack,
+                    "rpc_receipt": {"id": rpc_id, "result": {"turn": None}},
+                }
                 with self.assertRaisesRegex(JournalError, "turn must be an object"):
                     self.call("transition_intent", method, "dispatched", malformed)
             before = self.state()
@@ -308,7 +347,7 @@ class NativeJournalTests(unittest.TestCase):
 
     def test_queued_intent_cannot_dispatch_during_unknown_request_or_intent(self):
         self.call("bind_thread", "thread-a")
-        self.call("record_intent", "queued", "turn/start", {})
+        self.queued("queued")
         self.call("record_request", self.identity(), "item/tool/requestUserInput", {})
         self.call(
             "update_request", self.identity(), "execution-unknown", {"lost": True}
@@ -320,7 +359,7 @@ class NativeJournalTests(unittest.TestCase):
         self.call(
             "update_request", self.identity(), "request-resolved", {"resolved": True}
         )
-        self.call("record_intent", "displaced", "turn/start", {})
+        self.queued("displaced", 2)
         self.call("transition_intent", "displaced", "dispatching", {"send": True})
         self.call("transition_intent", "displaced", "execution-unknown", {"lost": True})
         before = self.state()

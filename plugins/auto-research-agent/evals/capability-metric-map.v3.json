@@ -10,14 +10,15 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace_native",
       "problem": "A short-lived execution cannot retain interleaved native questions, typed request identities or ambiguous dispatch outcomes for a project session.",
-      "mechanism": "Build a persistent injected JSON-RPC pump with a required durable event sink, mandatory binding checks before every write, exact native request answers and unusable connections after ambiguous dispatch. Store immutable project/index/thread bindings and exclusive process-held owners in SQLite with atomic state events and unknown unfinished recovery. Journal deduplicated intents and native requests; unknown work blocks dispatch, RPC acknowledgements cannot prove turn completion. Exhaust bounded thread/turn/item history cursors and reject incomplete or conflicting observations; history is not an atomic snapshot or dispatch authority. Atomically save complete validated protocol frames and state projections, bind typed RPC correlations before I/O, retain semantic conflicts in quarantine, and join out-of-order replies with exact terminals. Passive notices and outgoing intentions do not grant execution or prove full writes; malformed/partial bytes require a separate recording channel. Controller wiring and production launch remain separate, unadmitted work.",
+      "mechanism": "Build a persistent injected JSON-RPC pump with a required durable event sink, mandatory binding checks before every write, exact native request answers and unusable connections after ambiguous dispatch. Store immutable project/index/thread bindings and exclusive process-held owners in SQLite with atomic state events; recovery preserves known-unsent queues and retired answers while uncertain work becomes unknown. Journal deduplicated intents and native requests; exact owner/epoch, typed RPC ID, thread and intent-hash claims precede dispatch, one native turn can belong to only one start, and resolved queued answers retire atomically. Unknown work blocks dispatch, and RPC acknowledgements cannot prove turn completion. Exhaust bounded thread/turn/item history cursors and reject incomplete or conflicting observations; history is not an atomic snapshot or dispatch authority. Atomically save complete validated protocol frames and state projections, retain semantic conflicts in quarantine, and join out-of-order replies with exactly bound terminals. Passive notices and outgoing intentions do not grant execution or prove full writes; malformed/partial bytes require a separate recording channel. Controller wiring and production launch remain separate, unadmitted work.",
       "metric_effects": [
         {
           "metric_id": "P3",
           "rubric_criteria": ["P3V3.DECISION_TRACE"],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "typed IDs, connection epochs, raw messages and failures remain distinct; source bytes, source caches, dependency SHA/index and physical tracked bytes versus verified retained raw Git blobs are checked before dispatch without clean-filter normalization"
+            "typed IDs, connection epochs, raw messages and failures remain distinct; source bytes, source caches, dependency SHA/index and physical tracked bytes versus verified retained raw Git blobs are checked before dispatch without clean-filter normalization",
+            "cross-thread and mismatched RPC receipts are rejected; start-turn claims are unique, known-unsent queues survive recovery, and stale answers persist as retired with requested/applied transition evidence before any I/O"
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         }
@@ -34,7 +35,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_native_journal.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_history.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_frame_journal.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_binding_bytes.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_native_binding_bytes.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_review.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

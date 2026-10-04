@@ -60,8 +60,8 @@ class FrameJournalTests(unittest.TestCase):
         if method == "turn/interrupt":
             params["turnId"] = key
         self.call("record_intent", key, method, params)
-        self.call("transition_intent", key, "dispatching", {"persisted": True})
         self.call("correlate", "epoch-a", rpc_id, key)
+        self.call("transition_intent", key, "dispatching", {"persisted": True})
         return dict(id=rpc_id, method=method, params=params)
 
     def terminal(self, turn_id):

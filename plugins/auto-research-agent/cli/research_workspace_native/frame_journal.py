@@ -9,14 +9,9 @@ from copy import deepcopy
 import json
 
 from stage1_deliverable.common import canonical, sha
-from .journal import Journal, JournalError, _identity, _native_id
-from .store import _require
+from .journal import Journal, JournalError, _identity, _native_id, _rpc_key, _thread
+from .store import _require, _invalidate
 from .transport import SERVER_METHODS, _decode, _encode
-
-
-def _rpc_key(connection_id, native_id):
-    _native_id(native_id)
-    return sha(canonical([connection_id, type(native_id).__name__, native_id]))
 
 
 def _record(key, method, payload, identity, status, evidence):
@@ -32,13 +27,6 @@ def _unknown(state):
         for name in ("intents", "requests")
         for row in state[name].values()
     )
-
-
-def _invalidate(state):
-    for name, terminal in (("intents", "completed"), ("requests", "request-resolved")):
-        for row in state[name].values():
-            if row["status"] != terminal:
-                row["status"] = "execution-unknown"
 
 
 def _validated(event):
@@ -117,12 +105,19 @@ class FrameJournal(Journal):
         ) as state:
             _require(state["thread_id"] is not None, "existing thread binding required")
             for row in self.db.execute("SELECT state FROM projects"):
-                used = json.loads(row[0]).get("protocol", {}).get("connections", [])
-                _require(connection_id not in used, "connection ID already bound")
+                used = json.loads(row[0]).get("protocol", {})
+                _require(
+                    connection_id not in used.get("connections", [])
+                    and all(
+                        c["binding"]["connection_id"] != connection_id
+                        for c in used.get("correlations", {}).values()
+                    ),
+                    "connection ID already bound",
+                )
             protocol = state.setdefault(
                 "protocol", dict(frame_seq=0, connections=[], correlations={})
             )
-            if protocol["connections"]:
+            if protocol["connections"] or protocol["correlations"]:
                 _invalidate(state)
             protocol["connections"].append(connection_id)
             protocol["quarantine"] = None
@@ -149,50 +144,11 @@ class FrameJournal(Journal):
                 "intent_key": intent_key,
             },
         ) as state:
-            protocol = self._context(state, owner, connection_id)
+            self._context(state, owner, connection_id)
             _require(
                 not _unknown(state), "reconcile execution-unknown before correlation"
             )
-            item = state["intents"].get(intent_key)
-            _require(
-                item is not None and item["status"] == "dispatching",
-                "dispatching intent required",
-            )
-            _require(
-                item["method"] in {"turn/start", "turn/interrupt"},
-                "unsupported client RPC",
-            )
-            _require(
-                item["payload"].get("threadId") == state["thread_id"],
-                "intent thread differs",
-            )
-            if item["method"] == "turn/interrupt":
-                _require(
-                    isinstance(item["payload"].get("turnId"), str)
-                    and item["payload"]["turnId"],
-                    "interrupt turn required",
-                )
-            request = dict(id=rpc_id, method=item["method"], params=item["payload"])
-            binding = dict(
-                connection_id=connection_id,
-                intent_key=intent_key,
-                intent_sha256=item["record_sha256"],
-                request=request,
-            )
-            saved = protocol["correlations"].get(key)
-            if saved:
-                _require(saved["binding"] == binding, "RPC correlation differs")
-            else:
-                _require(
-                    not any(
-                        row["binding"]["intent_key"] == intent_key
-                        for row in protocol["correlations"].values()
-                    ),
-                    "intent already correlated; resend forbidden",
-                )
-                protocol["correlations"][key] = dict(
-                    binding=binding, outgoing=False, response=None
-                )
+            self._bind_rpc(state, owner, connection_id, rpc_id, intent_key)
         return self.snapshot(project_id)["protocol"]["correlations"][key]
 
     def ingest_frame(self, project_id, owner, event):
@@ -256,6 +212,7 @@ class FrameJournal(Journal):
                 "outgoing RPC differs",
             )
             item = state["intents"][row["binding"]["intent_key"]]
+            self._bound_rpc(state, item, dispatch=True)
             _require(
                 item["status"] == "dispatching" and not _unknown(state),
                 "dispatch blocked",
@@ -353,6 +310,7 @@ class FrameJournal(Journal):
             if request["status"] != "request-resolved":
                 request.update(status="request-resolved", evidence=evidence)
         elif method == "turn/completed":
+            _thread(state, params)
             turn = params.get("turn")
             _require(
                 isinstance(turn, dict)
@@ -403,7 +361,12 @@ class FrameJournal(Journal):
         if item["method"] == "turn/start":
             _require(isinstance(result.get("turn"), dict), "response turn required")
             turn_id = result["turn"].get("id")
-        receipt = dict(evidence, native_turn_id=turn_id, rpc_receipt=message)
+        receipt = dict(
+            evidence,
+            connection_id=connection_id,
+            native_turn_id=turn_id,
+            rpc_receipt=message,
+        )
         self._completion_binding(state, item, "dispatched", receipt)
         item.update(status="dispatched", evidence=receipt)
         row["response"] = message

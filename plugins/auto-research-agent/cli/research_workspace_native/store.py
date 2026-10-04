@@ -27,6 +27,19 @@ def _require(condition, message):
         raise JournalError(message)
 
 
+def _invalidate(state):
+    changed = []
+    for name, preserved in (
+        ("intents", {"intent-recorded", "retired", "completed"}),
+        ("requests", {"request-resolved"}),
+    ):
+        for key, row in state[name].items():
+            if row["status"] not in preserved:
+                row["status"] = "execution-unknown"
+                changed.append([name, key])
+    return changed
+
+
 class ProjectStore:
     def __init__(self, path):
         self.path = private_output(path)
@@ -179,14 +192,7 @@ class ProjectStore:
                     recovered,
                     acquiring=True,
                 ) as state:
-                    for collection, terminal in (
-                        ("intents", "completed"),
-                        ("requests", "request-resolved"),
-                    ):
-                        for key, item in state[collection].items():
-                            if item["status"] != terminal:
-                                item["status"] = "execution-unknown"
-                                recovered["execution_unknown"].append([collection, key])
+                    recovered["execution_unknown"] = _invalidate(state)
                     state["owner"] = {
                         "owner_id": owner_id,
                         "token": token,
