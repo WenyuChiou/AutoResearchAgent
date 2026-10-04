@@ -163,6 +163,10 @@
       "source_context_native_calibration": "Blinded no-tool native supplemental 12-case runner; input/runtime/shared-code bindings, per-attempt evidence, external receipted completed-unit resume, explicit incomplete reviewer; native QA does not establish formal admission.",
       "source_context_native_calibration_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_context_quality_native.py"
+      ],
+      "native_trace_file_integrity": "Bounded raw native trace byte reader authenticates caller-retained inventory receipt; file identity, traversal/reparse, file count and finite-read guards. Offline observation primitive; no execution or formal promotion.",
+      "native_trace_file_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_files.py"
       ]
     },
     {
