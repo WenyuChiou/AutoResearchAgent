@@ -70,3 +70,10 @@ An existing-thread injected controller joins the journals and recording pump wit
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_controller.py -v
 ```
+
+Injected controller fault and ownership regressions.
+Synthetic safety fixtures cover stale answers, existing intent non-adoption, active epoch ownership, unknown recovery, malformed bytes, partial writes and binding rejection; these checks do not prove browser/service E2E or native execution.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_controller_safety.py -v
+```
