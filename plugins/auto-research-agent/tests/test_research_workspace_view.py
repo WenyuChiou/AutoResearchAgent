@@ -92,15 +92,38 @@ def fixture_index():
 class WorkspaceViewTests(unittest.TestCase):
     def test_existing_output_is_rejected_before_reading_assets(self):
         with tempfile.TemporaryDirectory() as folder:
+            # Test-owned roots use their physical location on macOS (/var alias).
+            folder = Path(folder).resolve()
             with self.assertRaisesRegex(DeliverableError, "new directory"):
                 write_workspace(fixture_index(), ".", folder)
 
     def test_git_output_is_rejected_before_reading_assets(self):
         with tempfile.TemporaryDirectory() as folder:
+            # Test-owned roots use their physical location on macOS (/var alias).
+            folder = Path(folder).resolve()
             (Path(folder) / ".git").mkdir()
             with self.assertRaisesRegex(DeliverableError, "Git"):
                 write_workspace(fixture_index(), ".", Path(folder) / "view")
             self.assertFalse((Path(folder) / "view").exists())
+
+    def test_linked_output_is_rejected_before_reading_assets(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            target = root / "physical"
+            target.mkdir()
+            link = root / "linked"
+            try:
+                link.symlink_to(target, target_is_directory=True)
+            except (OSError, NotImplementedError) as error:
+                self.skipTest(f"directory symlinks are unavailable: {error}")
+            index = canonical(fixture_index())
+            (target / "index.json").write_bytes(index)
+            with self.assertRaisesRegex(DeliverableError, "linked artifact"):
+                write_workspace(fixture_index(), ".", link / "view")
+            with self.assertRaisesRegex(DeliverableError, "linked artifact"):
+                render_view(link / "index.json", root / "view", ".", sha(index))
+            self.assertFalse((target / "view").exists())
+            self.assertFalse((root / "view").exists())
 
     def test_execution_enabled_index_is_rejected(self):
         index = fixture_index()
@@ -110,6 +133,8 @@ class WorkspaceViewTests(unittest.TestCase):
 
     def test_external_index_hash_rejects_changed_bytes(self):
         with tempfile.TemporaryDirectory() as folder:
+            # Test-owned roots use their physical location on macOS (/var alias).
+            folder = Path(folder).resolve()
             path = Path(folder) / "index.json"
             original = canonical(fixture_index())
             path.write_bytes(original + b" ")
@@ -119,6 +144,8 @@ class WorkspaceViewTests(unittest.TestCase):
 
     def test_template_drift_rejected_before_private_output(self):
         with tempfile.TemporaryDirectory() as folder:
+            # Test-owned roots use their physical location on macOS (/var alias).
+            folder = Path(folder).resolve()
             (Path(folder) / "prototype.html").write_text("unreviewed template")
             with self.assertRaisesRegex(
                 DeliverableError, "reference asset hash differs"
