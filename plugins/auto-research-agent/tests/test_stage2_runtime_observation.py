@@ -4,21 +4,51 @@ import copy
 import json
 import io
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 CLI = Path(__file__).resolve().parents[1] / "cli"
 sys.path.insert(0, str(CLI))
 
 from stage2_live.native import CaptureError  # noqa: E402
 from stage2_live.native import sha256  # noqa: E402
+from stage2_live import observation  # noqa: E402
 from stage2_live.observation import (  # noqa: E402
     collect_runtime_observation,
     verify_runtime_observation,
     _rpc_exchange,
 )
+
+
+class TrackingBytesIO(io.BytesIO):
+    def __init__(self, value):
+        super().__init__(value)
+        self.readline_sizes = []
+
+    def readline(self, size=-1):
+        self.readline_sizes.append(size)
+        return super().readline(size)
+
+
+def mock_process(stdout):
+    process = MagicMock()
+    process.stdin = io.BytesIO()
+    process.stdout = stdout
+    return process
+
+
+def rpc_wire(trailing=b""):
+    responses = (
+        {"id": 0, "result": {}},
+        {"id": 1, "result": {"config": {}}},
+        {"id": 2, "result": {"data": []}},
+        {"id": 3, "result": {"marketplaces": [], "marketplaceLoadErrors": []}},
+        {"id": 4, "result": {"data": [], "nextCursor": None}},
+    )
+    return b"".join((json.dumps(row) + "\n").encode() for row in responses) + trailing
 
 
 class RuntimeObservationTests(unittest.TestCase):
@@ -39,13 +69,14 @@ class RuntimeObservationTests(unittest.TestCase):
             output_dir=self.root / "observed",
         )
         self.requests = []
+        self.expected_timeout = 120
 
     def transport(self, command, home, workspace, requests, timeout):
         self.requests = copy.deepcopy(requests)
         self.assertEqual(command[1:], ["app-server", "--stdio"])
         self.assertEqual(home, self.home)
         self.assertEqual(workspace, self.work)
-        self.assertEqual(timeout, 30)
+        self.assertEqual(timeout, self.expected_timeout)
         result_by_method = {
             "config/read": {"config": {}},
             "skills/list": {"data": []},
@@ -98,6 +129,88 @@ class RuntimeObservationTests(unittest.TestCase):
             )["status"],
             "observed",
         )
+
+    def test_nondefault_rpc_deadline_reaches_transport_record_and_replay(self):
+        self.expected_timeout = 245.5
+        result = collect_runtime_observation(
+            **self.args,
+            rpc_transport=self.transport,
+            rpc_timeout_seconds=self.expected_timeout,
+        )
+        self.assertEqual(result["schema_version"], "2.0.0")
+        self.assertEqual(result["rpc_timeout_seconds"], self.expected_timeout)
+        verified = verify_runtime_observation(
+            self.args["output_dir"],
+            result["record_sha256_receipt"],
+            allow_synthetic=True,
+        )
+        self.assertEqual(verified["rpc_timeout_seconds"], self.expected_timeout)
+
+    def test_invalid_rpc_deadlines_reject_before_transport_or_output(self):
+        calls = []
+
+        def forbidden(*args):
+            calls.append(args)
+            raise AssertionError("invalid deadline must not reach transport")
+
+        for value in (
+            True,
+            False,
+            None,
+            "120",
+            0,
+            -1,
+            601,
+            10**1000,
+            float("inf"),
+            float("nan"),
+        ):
+            with (
+                self.subTest(value=value),
+                self.assertRaisesRegex(CaptureError, "rpc_timeout_seconds"),
+            ):
+                collect_runtime_observation(
+                    **self.args,
+                    rpc_transport=forbidden,
+                    rpc_timeout_seconds=value,
+                )
+            self.assertFalse(self.args["output_dir"].exists())
+        self.assertEqual(calls, [])
+
+    def test_legacy_and_versioned_deadline_contracts_fail_closed(self):
+        collect_runtime_observation(**self.args, rpc_transport=self.transport)
+        path = self.args["output_dir"] / "observation.json"
+        current = json.loads(path.read_bytes())
+
+        legacy = dict(current)
+        legacy["schema_version"] = "1.0.0"
+        legacy.pop("rpc_timeout_seconds")
+        raw = json.dumps(legacy).encode()
+        path.write_bytes(raw)
+        self.assertEqual(
+            verify_runtime_observation(path.parent, sha256(raw), allow_synthetic=True)[
+                "schema_version"
+            ],
+            "1.0.0",
+        )
+
+        invalid = (
+            ("legacy-field", {**current, "schema_version": "1.0.0"}),
+            (
+                "missing",
+                {k: v for k, v in current.items() if k != "rpc_timeout_seconds"},
+            ),
+            ("boolean", {**current, "rpc_timeout_seconds": True}),
+            ("too-large", {**current, "rpc_timeout_seconds": 601}),
+        )
+        for label, value in invalid:
+            with self.subTest(label=label):
+                raw = json.dumps(value).encode()
+                path.write_bytes(raw)
+                with self.assertRaisesRegex(CaptureError, "contract differs"):
+                    verify_runtime_observation(
+                        path.parent, sha256(raw), allow_synthetic=True
+                    )
 
     def test_optional_thread_reads_actual_thread_without_starting_one(self):
         collect_runtime_observation(
@@ -253,16 +366,207 @@ class RuntimeObservationTests(unittest.TestCase):
             self.assertFalse((self.home / "config.toml").exists())
 
     def test_rpc_deadline_is_checked_even_with_queued_replies(self):
-        process = MagicMock()
-        process.stdin = io.StringIO()
-        process.stdout = io.StringIO('{"id":0,"result":{}}\n')
+        process = mock_process(io.BytesIO(b'{"id":0,"result":{}}\n'))
         with (
             patch("stage2_live.observation.subprocess.Popen", return_value=process),
-            patch("stage2_live.observation.time.monotonic", side_effect=[0, 100]),
+            patch("stage2_live.observation.time.monotonic", side_effect=[0, 121]),
         ):
             with self.assertRaisesRegex(CaptureError, "initialization failed"):
-                _rpc_exchange(["synthetic"], self.home, self.work, [], 30)
+                _rpc_exchange(["synthetic"], self.home, self.work, [], 120)
         process.wait.assert_called_once_with(timeout=5)
+
+    def test_rpc_accepts_five_megabyte_json_with_bounded_readline(self):
+        raw = (
+            json.dumps({"id": 0, "result": {"payload": "x" * (5 * 1024 * 1024)}}) + "\n"
+        ).encode()
+        stdout = TrackingBytesIO(raw)
+        process = mock_process(stdout)
+        with patch("stage2_live.observation.subprocess.Popen", return_value=process):
+            responses, events, stderr = _rpc_exchange(
+                ["synthetic"], self.home, self.work, [], 120
+            )
+        self.assertEqual(responses, [])
+        self.assertEqual(
+            len(events[1]["payload"]["result"]["payload"]), 5 * 1024 * 1024
+        )
+        self.assertEqual(stderr, b"")
+        self.assertTrue(stdout.readline_sizes)
+        self.assertEqual(
+            set(stdout.readline_sizes), {observation.MAX_RPC_FRAME_BYTES + 2}
+        )
+
+    def test_five_megabyte_response_is_persisted_and_replayed(self):
+        def large(*args):
+            responses, events, stderr = self.transport(*args)
+            result = {
+                "marketplaces": [{"description": "x" * (5 * 1024 * 1024)}],
+                "marketplaceLoadErrors": [],
+            }
+            responses[2]["result"] = result
+            events[-3]["payload"]["result"] = copy.deepcopy(result)
+            return responses, events, stderr
+
+        result = collect_runtime_observation(**self.args, rpc_transport=large)
+        verified = verify_runtime_observation(
+            self.args["output_dir"],
+            result["record_sha256_receipt"],
+            allow_synthetic=True,
+        )
+        self.assertEqual(verified["status"], "observed")
+        self.assertGreater(
+            (self.args["output_dir"] / "transport.json").stat().st_size,
+            5 * 1024 * 1024,
+        )
+
+    def test_rpc_reader_failures_are_distinct_finite_and_terminate(self):
+        cases = (
+            ("utf8", b"\xff\n", {}, "invalid UTF-8", "invalid-utf8"),
+            ("json", b"{nope}\n", {}, "malformed JSON", "malformed-json"),
+            (
+                "frame",
+                b"x" * 18,
+                {"MAX_RPC_FRAME_BYTES": 16, "MAX_RPC_STREAM_BYTES": 64},
+                "frame exceeded 16 bytes.*18-byte prefix",
+                "frame-limit",
+            ),
+        )
+        for label, raw, limits, message, kind in cases:
+            with self.subTest(label=label):
+                process = mock_process(TrackingBytesIO(raw))
+                patches = [
+                    patch.object(observation, name, value)
+                    for name, value in limits.items()
+                ]
+                with patch.object(
+                    observation.subprocess, "Popen", return_value=process
+                ):
+                    for active in patches:
+                        active.start()
+                    try:
+                        with self.assertRaisesRegex(CaptureError, message) as caught:
+                            _rpc_exchange(["synthetic"], self.home, self.work, [], 120)
+                    finally:
+                        for active in reversed(patches):
+                            active.stop()
+                detail = caught.exception.observation_events[1]["payload"][
+                    "reader_error"
+                ]
+                self.assertEqual(detail["kind"], kind)
+                self.assertLessEqual(
+                    detail["observed_prefix_bytes"],
+                    limits.get("MAX_RPC_FRAME_BYTES", len(raw)) + 2,
+                )
+                process.wait.assert_called_once_with(timeout=5)
+
+    def test_rpc_cumulative_stream_limit_is_distinct(self):
+        hello = b'{"id":0,"result":{}}\n'
+        notice = b'{"method":"notice","params":{"value":"abcdefgh"}}\n'
+        reply = b'{"id":1,"result":{}}\n'
+        process = mock_process(TrackingBytesIO(hello + notice + reply))
+        request = {"id": 1, "method": "config/read", "params": {}}
+        limit = len(hello) + len(notice) - 1
+        with (
+            patch.object(observation.subprocess, "Popen", return_value=process),
+            patch.object(observation, "MAX_RPC_FRAME_BYTES", 64),
+            patch.object(observation, "MAX_RPC_STREAM_BYTES", limit),
+        ):
+            with self.assertRaisesRegex(
+                CaptureError,
+                rf"stream exceeded {limit} bytes.*{len(hello) + len(notice)}-byte prefix",
+            ) as caught:
+                _rpc_exchange(["synthetic"], self.home, self.work, [request], 120)
+        detail = caught.exception.observation_events[-1]["payload"]["reader_error"]
+        self.assertEqual(
+            detail,
+            {
+                "kind": "stream-limit",
+                "limit_bytes": limit,
+                "observed_prefix_bytes": len(hello) + len(notice),
+            },
+        )
+
+    def test_rpc_reader_exception_is_preserved_and_process_is_cleaned_up(self):
+        class BrokenReader:
+            def readline(self, _size):
+                raise OSError("sensitive source content")
+
+            def close(self):
+                pass
+
+        process = mock_process(BrokenReader())
+        process.wait.side_effect = [
+            subprocess.TimeoutExpired("synthetic", 5),
+            None,
+        ]
+        with patch.object(observation.subprocess, "Popen", return_value=process):
+            with self.assertRaisesRegex(
+                CaptureError, "response reader failed: OSError"
+            ) as caught:
+                _rpc_exchange(["synthetic"], self.home, self.work, [], 120)
+        detail = caught.exception.observation_events[1]["payload"]["reader_error"]
+        self.assertEqual(detail, {"kind": "reader-exception", "error_type": "OSError"})
+        self.assertEqual(process.wait.call_count, 2)
+        process.terminate.assert_called_once_with()
+
+    def test_late_invalid_utf8_fails_collection_and_is_saved_once(self):
+        process = mock_process(TrackingBytesIO(rpc_wire(b"\xff\n")))
+
+        def late_transport(*args):
+            with patch.object(observation.subprocess, "Popen", return_value=process):
+                return _rpc_exchange(*args)
+
+        with self.assertRaisesRegex(CaptureError, "invalid UTF-8"):
+            collect_runtime_observation(**self.args, rpc_transport=late_transport)
+        events = json.loads(
+            (self.args["output_dir"] / "failed-transport.json").read_bytes()
+        )
+        failures = [
+            event["payload"]["reader_error"]
+            for event in events
+            if isinstance(event.get("payload"), dict)
+            and "reader_error" in event["payload"]
+        ]
+        self.assertEqual(
+            failures,
+            [{"kind": "invalid-utf8", "observed_prefix_bytes": 2, "byte_offset": 0}],
+        )
+        self.assertFalse((self.args["output_dir"] / "observation.json").exists())
+
+    def test_late_oversized_frame_fails_collection_and_is_saved_once(self):
+        process = mock_process(TrackingBytesIO(rpc_wire(b"x" * 130)))
+
+        def late_transport(*args):
+            with patch.object(observation.subprocess, "Popen", return_value=process):
+                return _rpc_exchange(*args)
+
+        with (
+            patch.object(observation, "MAX_RPC_FRAME_BYTES", 128),
+            patch.object(observation, "MAX_RPC_STREAM_BYTES", 4096),
+            self.assertRaisesRegex(
+                CaptureError, "frame exceeded 128 bytes.*130-byte prefix"
+            ),
+        ):
+            collect_runtime_observation(**self.args, rpc_transport=late_transport)
+        events = json.loads(
+            (self.args["output_dir"] / "failed-transport.json").read_bytes()
+        )
+        failures = [
+            event["payload"]["reader_error"]
+            for event in events
+            if isinstance(event.get("payload"), dict)
+            and "reader_error" in event["payload"]
+        ]
+        self.assertEqual(
+            failures,
+            [
+                {
+                    "kind": "frame-limit",
+                    "limit_bytes": 128,
+                    "observed_prefix_bytes": 130,
+                }
+            ],
+        )
+        self.assertFalse((self.args["output_dir"] / "observation.json").exists())
 
 
 if __name__ == "__main__":
