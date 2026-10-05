@@ -15,6 +15,7 @@ import time
 
 from stage1_deliverable.common import DeliverableError, private_output
 from .native import CaptureError, codex_runtime_sha, sha256, _utc_now
+from .trace_seal_io import SealDirectory
 
 
 def _response_observed(item, reply):
@@ -208,14 +209,34 @@ def _rpc_exchange(command, home, workspace, requests, timeout):
         return responses, events, stderr_bytes
 
 
+def _write_observation(output, name, raw, handle):
+    if handle is None:
+        (output / name).write_bytes(raw)
+    else:
+        handle.write(name, raw)
+
+
 def collect_runtime_observation(
-    *, codex, codex_home, workspace, output_dir, thread_id=None, rpc_transport=None
+    *,
+    codex,
+    codex_home,
+    workspace,
+    output_dir,
+    thread_id=None,
+    rpc_transport=None,
+    _output_handle=None,
 ):
     """Collect private metadata; never dispatch turn/start or change settings."""
     try:
         output = private_output(output_dir)
     except DeliverableError as error:
         raise CaptureError(str(error)) from error
+    if _output_handle is not None and (
+        not isinstance(_output_handle, SealDirectory)
+        or not _output_handle.active
+        or _output_handle.path.absolute() != output
+    ):
+        raise CaptureError("observation output handle differs from declared directory")
     home, work = Path(codex_home).resolve(), Path(workspace).resolve()
     if not home.is_dir() or not work.is_dir() or home == work:
         raise CaptureError("existing distinct profile and workspace are required")
@@ -254,40 +275,57 @@ def collect_runtime_observation(
                 },
             }
         )
-    output.mkdir(parents=True, exist_ok=False)
+    if _output_handle is None:
+        output.mkdir(parents=True, exist_ok=False)
     command = [str(Path(codex).resolve()), "app-server", "--stdio"]
     started = _utc_now()
     transport = rpc_transport or _rpc_exchange
     try:
         responses, events, stderr = transport(command, home, work, requests, 30)
     except Exception as error:
-        (output / "failed-transport.json").write_text(
-            json.dumps(getattr(error, "observation_events", [])) + "\n",
-            encoding="utf-8",
+        _write_observation(
+            output,
+            "failed-transport.json",
+            (json.dumps(getattr(error, "observation_events", [])) + "\n").encode(),
+            _output_handle,
         )
-        (output / "stderr.txt").write_bytes(getattr(error, "observation_stderr", b""))
-        (output / "failure.json").write_text(
-            json.dumps(
-                {
-                    "status": "failed",
-                    "error_type": type(error).__name__,
-                    "started_at": started,
-                    "formal_ready": False,
-                }
-            )
-            + "\n",
-            encoding="utf-8",
+        _write_observation(
+            output,
+            "stderr.txt",
+            getattr(error, "observation_stderr", b""),
+            _output_handle,
+        )
+        _write_observation(
+            output,
+            "failure.json",
+            (
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "error_type": type(error).__name__,
+                        "started_at": started,
+                        "formal_ready": False,
+                    }
+                )
+                + "\n"
+            ).encode(),
+            _output_handle,
         )
         raise
     # Preserve completed transport bytes before any semantic validation fails.
-    (output / "transport.json").write_text(
-        json.dumps(events, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8"
+    _write_observation(
+        output,
+        "transport.json",
+        (json.dumps(events, ensure_ascii=False, sort_keys=True) + "\n").encode(),
+        _output_handle,
     )
-    (output / "rpc-responses.json").write_text(
-        json.dumps(responses, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
+    _write_observation(
+        output,
+        "rpc-responses.json",
+        (json.dumps(responses, ensure_ascii=False, sort_keys=True) + "\n").encode(),
+        _output_handle,
     )
-    (output / "stderr.txt").write_bytes(stderr)
+    _write_observation(output, "stderr.txt", stderr, _output_handle)
     if len(responses) != len(requests):
         raise CaptureError("RPC response count differs from dispatched requests")
     rows = []
@@ -316,9 +354,9 @@ def collect_runtime_observation(
     artifacts = {}
     for name, value in payloads.items():
         raw = (json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n").encode()
-        (output / name).write_bytes(raw)
+        if name == "rpc.json":
+            _write_observation(output, name, raw, _output_handle)
         artifacts[name] = sha256(raw)
-    (output / "stderr.txt").write_bytes(stderr)
     artifacts["stderr.txt"] = sha256(stderr)
     record = {
         "kind": "Stage2RuntimeObservation",
@@ -347,7 +385,7 @@ def collect_runtime_observation(
         "formal_ready": False,
     }
     raw = (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode()
-    (output / "observation.json").write_bytes(raw)
+    _write_observation(output, "observation.json", raw, _output_handle)
     return {**record, "record_sha256_receipt": sha256(raw)}
 
 
