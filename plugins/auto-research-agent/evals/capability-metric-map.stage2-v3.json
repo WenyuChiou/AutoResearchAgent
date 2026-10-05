@@ -233,6 +233,14 @@
       "assessment_target_policy_contract": "Opt-in3.1 prompt framing scores the actual submitted content, not external facts or the judge's critique; each criterion and temporal version remains separate. Legacy producers/replay and v3 rubric stay unchanged. Host bindings pin actual policy bytes; no native admission, formal readiness or quality claim is inferred.",
       "assessment_target_policy_tests": [
         "plugins/auto-research-agent/tests/test_stage2_assessment_target_policy.py"
+      ],
+      "native_judge_trace_replay": "Strict original-seal replay joins every native judge attempt root to its exact trace, recomputes offered tools and usage, rejects missing/foreign/tampered evidence, and dispatches no model. Namespace isolation and scientific/formal acceptance remain external.",
+      "native_judge_trace_replay_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_judge_trace_replay.py"
+      ],
+      "daily_assessment_target_policy": "Explicit opt-in3.1 framing binds actual submitted-content policy bytes before independent native daily scoring; request/config/result/resume reflect the choice. Legacy prompt/field semantics remain unchanged, actual code-byte changes still invalidate prior runtime bindings. No formal promotion.",
+      "daily_assessment_target_policy_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
       ]
     },
     {
