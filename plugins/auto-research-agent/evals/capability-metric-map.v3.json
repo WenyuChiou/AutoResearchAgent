@@ -14,7 +14,9 @@
       "metric_effects": [
         {
           "metric_id": "P3",
-          "rubric_criteria": ["P3V3.DECISION_TRACE"],
+          "rubric_criteria": [
+            "P3V3.DECISION_TRACE"
+          ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "construction fails before binding on invalid channel, epoch or sink; post-binding failures preserve fault or explicit unobserved fault plus separate close evidence, and SQLite reopen does not reuse an old epoch",
@@ -43,6 +45,44 @@
         "plugins/auto-research-agent/tests/test_research_workspace_native_binding_bytes.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_review.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_recording.py"
+      ],
+      "live_ab_required_at": "stage1-general-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:research-workspace",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": false,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/research_workspace",
+      "problem": "The Wiki reference displays synthetic papers and cannot reconcile a real partial Stage 1 package across its graph, notes, catalog and bibliography.",
+      "mechanism": "Wrap saved Stage 1 records with a deterministic, externally hash-bound read-only WorkspaceIndex and English HTML view. Reuse record validation, safe file boundaries and the existing bibliography producer; retain source levels, claim relations, coverage, input identities and failed attempts without launching research or scoring.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.DECISION_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "one work/version identity reconciles graph, list, detail, notes and bibliography",
+            "input manifests, source hashes, limitations and retained failures are inspectable separately from validation and scientific support"
+          ],
+          "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
+        }
+      ],
+      "guardrails": [
+        "byte inventory and record-schema validation do not attest original source-runtime replay or scientific adequacy",
+        "review-only, partial and Unknown inputs never become sufficient or authorize Stage 2",
+        "opening, rebuilding, filtering and exporting perform no research or model calls",
+        "source text and actual project outputs stay outside Git",
+        "old Draft findings and native Windows acceptance remain separate obligations"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_research_workspace.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_view.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_wiki.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
