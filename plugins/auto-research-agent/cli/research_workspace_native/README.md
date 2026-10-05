@@ -117,3 +117,15 @@ ScopeWikiSessionServer adds same-origin scope history/version reads and explicit
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_http.py -v
 ```
+
+Run the original Wiki interaction fixture in an already installed Chromium browser.
+The driver requires explicit paths and never installs a browser or starts Codex.
+It binds a temporary loopback server, real SQLite journals and a fake native channel;
+no research result, score or authenticated session is produced. The accepted reference
+root must contain the four pinned #88 assets and its original public plugin README.
+Use a new output path each time; receipts and control files are created exclusively.
+Fixture cleanup is bounded and a control lease stops orphaned test servers.
+
+```powershell
+node plugins/auto-research-agent/tests/browser/native-session/browser_driver.cjs --repo <repository> --reference <accepted-reference-root> --overlay <repository> --python <installed-python-with-test-dependencies> --browser <installed-chromium-executable> --playwright <installed-playwright-package> --temp <short-writable-directory-outside-git> --output <new-receipt.json> --scope true
+```

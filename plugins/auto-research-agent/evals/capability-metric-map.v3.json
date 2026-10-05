@@ -17,6 +17,7 @@
           "rubric_criteria": ["P3V3.DECISION_TRACE"],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+            "A manually invoked installed Chromium fixture proves session/scope browser recovery against real loopback HTTP and SQLite with injected fake native channels; it grants no native/model or research authority.",
             "scope HTTP history and exact-version reads are isolated by project/principal/source; explicit scope/version reviews do not activate input, and stale or oversized browser decisions make no POST or local intent",
             "scope versions and review intents commit atomically with exact original/source/parent bindings; same-key concurrent or recovered replay adds no version and native write counts remain unchanged",
             "accepted Wiki assets retain their original hashes; a separate same-origin panel exposes only opaque session targets, holds uncertain submissions and reads durable action keys without native I/O",
@@ -39,6 +40,7 @@
         "no production launcher, frozen input access, model calls or scientific score changes"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/browser/native-session/browser_driver.cjs",
         "plugins/auto-research-agent/tests/test_research_workspace_native_scope_http.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_scope_api.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_wiki_http.py",
