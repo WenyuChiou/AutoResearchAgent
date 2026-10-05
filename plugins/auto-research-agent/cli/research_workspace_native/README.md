@@ -40,7 +40,7 @@ even if recording fails. A read-to-commit crash can lose bytes; unmatched intent
 remain unknown and old connection epochs cannot reopen. Authenticated lifecycle and
 controller admission remain separate requirements; recorded bytes grant no authority.
 Tests use synthetic channels and local storage; no Codex/model runs. Production launch,
-authenticated lifecycle, HTTP/UI, scoring and live E2E remain separate slices.
+authenticated lifecycle, browser UI, scoring and live native E2E remain separate slices.
 No research/import/resume authority is granted; existing Engine guards stay unchanged.
 
 Run these offline checks from the repository root with an installed Python interpreter
@@ -65,7 +65,7 @@ python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p t
 ```
 
 Existing-thread injected durable controller.
-An existing-thread injected controller joins the journals and recording pump with mandatory caller admission and write-time checks. Local action intents precede native intents; same-key replay never writes, unknown work stays blocked and request resolution remains distinct from turn completion. This is not authenticated lifecycle, HTTP/UI or native acceptance.
+An existing-thread injected controller joins the journals and recording pump with mandatory caller admission and write-time checks. Local action intents precede native intents; same-key replay never writes, unknown work stays blocked and request resolution remains distinct from turn completion. This does not establish authenticated lifecycle, browser UI or native acceptance.
 
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_controller.py -v
@@ -86,8 +86,15 @@ python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p t
 ```
 
 Keep project authority and native request targets inside a server-owned session facade.
-SessionApi exposes opaque project/request/action references over an existing injected controller. Trusted callbacks check principal and source binding; they do not attest native authentication or lifecycle. API intents persist before controller calls, and replay/history never resends. HTTP, browser UI and native execution are not supplied by this slice.
+SessionApi exposes opaque project/request/action references over an existing injected controller. Trusted callbacks check principal and source binding; they do not attest native authentication or lifecycle. API intents persist before controller calls, and replay/history never resends. This facade does not supply its own HTTP transport, browser UI or native execution.
 
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_session_api.py -v
+```
+
+Expose the existing session facade through a bounded loopback HTTP adapter.
+SessionHttpServer is an explicit 127.0.0.1 listener over a supplied SessionApi. It requires exact Host/Origin and bearer credentials, rejects malformed or oversized requests, and preserves durable action outcomes when an HTTP client disconnects. Tests use real temporary loopback HTTP with fake native channels; browser UI, public deployment, native authentication and model execution remain unverified.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_http.py -v
 ```
