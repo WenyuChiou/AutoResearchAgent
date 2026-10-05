@@ -185,6 +185,10 @@
       "native_trace_observation": "Offline receipt-bound native event inspector links inferences, offered tools, child edges, failures and token totals. Missing terminals and unaccounted compaction stay explicit blockers; this is content observation, not execution attestation or formal admission.",
       "native_trace_observation_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_observation.py"
+      ],
+      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. This primitive has no execution or formal admission authority.",
+      "native_seal_io_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_seal_io.py"
       ]
     },
     {

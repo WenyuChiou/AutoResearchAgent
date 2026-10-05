@@ -144,7 +144,7 @@ class _WindowsHandles:
         # No SHARE_DELETE: retained directories cannot be renamed/replaced.
         handle = self.api.CreateFileW(
             str(path),
-            0x80 if directory else 0x80000000,
+            0x81 if directory else 0x80000000,  # LIST_DIRECTORY + READ_ATTRIBUTES
             3 if directory else 1,
             None,
             3,
