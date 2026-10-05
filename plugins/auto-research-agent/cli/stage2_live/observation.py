@@ -5,6 +5,7 @@ Keep that distinction explicit, including when every RPC succeeds.
 """
 
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -16,6 +17,15 @@ import time
 from stage1_deliverable.common import DeliverableError, private_output
 from .native import CaptureError, codex_runtime_sha, sha256, _utc_now
 from .trace_seal_io import SealDirectory
+
+
+MAX_RPC_FRAME_BYTES = 64 * 1024 * 1024
+MAX_RPC_STREAM_BYTES = 128 * 1024 * 1024
+MAX_RPC_EVENTS = 2048
+
+
+def _valid_rpc_timeout(value):
+    return type(value) in {int, float} and 0 < value <= 600 and math.isfinite(value)
 
 
 def _response_observed(item, reply):
@@ -99,6 +109,7 @@ def _verify_transport(rows, events, raw_responses=None):
 def _rpc_exchange(command, home, workspace, requests, timeout):
     replies = queue.Queue(maxsize=256)
     events = []
+    terminal_reader_failure = []
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     with tempfile.TemporaryFile() as stderr:
         process = subprocess.Popen(
@@ -108,25 +119,102 @@ def _rpc_exchange(command, home, workspace, requests, timeout):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=stderr,
-            text=True,
-            encoding="utf-8",
             creationflags=flags,
         )
 
+        def publish(value):
+            replies.put(value, timeout=1)
+
+        def reader_error(
+            kind, limit=None, observed=None, error_type=None, byte_offset=None
+        ):
+            detail = {"kind": kind}
+            if limit is not None:
+                detail["limit_bytes"] = limit
+            if observed is not None:
+                detail["observed_prefix_bytes"] = observed
+            if error_type is not None:
+                detail["error_type"] = error_type
+            if byte_offset is not None:
+                detail["byte_offset"] = byte_offset
+            if not terminal_reader_failure:
+                terminal_reader_failure.append(detail)
+            publish({"reader_error": detail})
+
+        def reader_capture_error(detail):
+            kind = detail.get("kind")
+            observed = detail.get("observed_prefix_bytes")
+            limit = detail.get("limit_bytes")
+            if kind == "frame-limit":
+                return CaptureError(
+                    f"app-server response frame exceeded {limit} bytes "
+                    f"after reading {observed}-byte prefix"
+                )
+            if kind == "stream-limit":
+                return CaptureError(
+                    f"app-server response stream exceeded {limit} bytes "
+                    f"after reading {observed}-byte prefix"
+                )
+            if kind == "invalid-utf8":
+                return CaptureError(
+                    "app-server response contained invalid UTF-8 "
+                    f"in {observed}-byte prefix"
+                )
+            if kind == "malformed-json":
+                return CaptureError(
+                    f"app-server emitted malformed JSON in {observed}-byte frame"
+                )
+            if kind == "reader-exception":
+                return CaptureError(
+                    f"app-server response reader failed: {detail.get('error_type')}"
+                )
+            if kind == "event-limit":
+                return CaptureError("app-server observation event bound exceeded")
+            return CaptureError("app-server response reader failed")
+
         def read():
+            total = 0
             try:
-                for number, line in enumerate(process.stdout, 1):
-                    if number > 2048 or len(line) > 4 * 1024 * 1024:
-                        replies.put(
-                            {"invalid_json": "bounded output exceeded"}, timeout=1
+                for number in range(1, MAX_RPC_EVENTS + 2):
+                    line = process.stdout.readline(
+                        min(MAX_RPC_FRAME_BYTES + 2, MAX_RPC_STREAM_BYTES - total + 1)
+                    )
+                    if not line:
+                        break
+                    total += len(line)
+                    if total > MAX_RPC_STREAM_BYTES:
+                        reader_error("stream-limit", MAX_RPC_STREAM_BYTES, total)
+                        break
+                    if number > MAX_RPC_EVENTS:
+                        reader_error("event-limit")
+                        break
+                    payload = line[:-1] if line.endswith(b"\n") else line
+                    if payload.endswith(b"\r"):
+                        payload = payload[:-1]
+                    if len(payload) > MAX_RPC_FRAME_BYTES:
+                        reader_error("frame-limit", MAX_RPC_FRAME_BYTES, len(line))
+                        break
+                    try:
+                        text = payload.decode("utf-8")
+                    except UnicodeDecodeError as error:
+                        reader_error(
+                            "invalid-utf8",
+                            observed=len(line),
+                            byte_offset=error.start,
                         )
                         break
                     try:
-                        replies.put(json.loads(line), timeout=1)
+                        publish(json.loads(text))
                     except json.JSONDecodeError:
-                        replies.put({"invalid_json": line}, timeout=1)
+                        reader_error("malformed-json", observed=len(line))
+                        break
             except queue.Full:
                 pass  # The finite request deadline terminates a stalled producer.
+            except BaseException as error:
+                try:
+                    reader_error("reader-exception", error_type=type(error).__name__)
+                except queue.Full:
+                    pass
             finally:
                 try:
                     replies.put(None, timeout=1)
@@ -138,7 +226,7 @@ def _rpc_exchange(command, home, workspace, requests, timeout):
 
         def request(item):
             events.append({"direction": "request", "payload": item})
-            process.stdin.write(json.dumps(item) + "\n")
+            process.stdin.write((json.dumps(item) + "\n").encode())
             process.stdin.flush()
             deadline = time.monotonic() + timeout
             while True:
@@ -149,12 +237,15 @@ def _rpc_exchange(command, home, workspace, requests, timeout):
                 except queue.Empty:
                     return {"id": item["id"], "host_error": "rpc-timeout"}
                 events.append({"direction": "response", "payload": value})
-                if len(events) > 2048:
+                if len(events) > MAX_RPC_EVENTS:
                     raise CaptureError("app-server observation event bound exceeded")
                 if value is None:
                     raise CaptureError("app-server closed its output before replying")
-                if not isinstance(value, dict) or "invalid_json" in value:
-                    raise CaptureError("app-server emitted malformed JSON")
+                if not isinstance(value, dict):
+                    raise CaptureError("app-server emitted a non-object JSON response")
+                detail = value.get("reader_error")
+                if isinstance(detail, dict):
+                    raise reader_capture_error(detail)
                 if value.get("id") == item["id"]:
                     return value
 
@@ -178,7 +269,7 @@ def _rpc_exchange(command, home, workspace, requests, timeout):
                 raise CaptureError("app-server initialization failed")
             notification = {"method": "initialized"}
             events.append({"direction": "request", "payload": notification})
-            process.stdin.write(json.dumps(notification) + "\n")
+            process.stdin.write((json.dumps(notification) + "\n").encode())
             process.stdin.flush()
             for item in requests:
                 responses.append(request(item))
@@ -200,6 +291,15 @@ def _rpc_exchange(command, home, workspace, requests, timeout):
                     process.wait(timeout=5)
             reader.join(timeout=5)
             process.stdout.close()
+        if terminal_reader_failure:
+            marker = {"reader_error": terminal_reader_failure[0]}
+            if not any(
+                event.get("direction") == "response" and event.get("payload") == marker
+                for event in events
+            ):
+                events.append({"direction": "response", "payload": marker})
+            if failure is None:
+                failure = reader_capture_error(terminal_reader_failure[0])
         stderr.seek(0)
         stderr_bytes = stderr.read()
         if failure is not None:
@@ -224,9 +324,12 @@ def collect_runtime_observation(
     output_dir,
     thread_id=None,
     rpc_transport=None,
+    rpc_timeout_seconds=120,
     _output_handle=None,
 ):
     """Collect private metadata; never dispatch turn/start or change settings."""
+    if not _valid_rpc_timeout(rpc_timeout_seconds):
+        raise CaptureError("rpc_timeout_seconds must be finite and within (0, 600]")
     try:
         output = private_output(output_dir)
     except DeliverableError as error:
@@ -281,7 +384,9 @@ def collect_runtime_observation(
     started = _utc_now()
     transport = rpc_transport or _rpc_exchange
     try:
-        responses, events, stderr = transport(command, home, work, requests, 30)
+        responses, events, stderr = transport(
+            command, home, work, requests, rpc_timeout_seconds
+        )
     except Exception as error:
         _write_observation(
             output,
@@ -360,7 +465,8 @@ def collect_runtime_observation(
     artifacts["stderr.txt"] = sha256(stderr)
     record = {
         "kind": "Stage2RuntimeObservation",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
+        "rpc_timeout_seconds": rpc_timeout_seconds,
         "status": "observed"
         if all(r["status"] == "observed" for r in rows)
         else "partial",
@@ -397,9 +503,17 @@ def verify_runtime_observation(output_dir, receipt, *, allow_synthetic=False):
         if sha256(raw) != receipt:
             raise CaptureError("observation receipt differs")
         record = json.loads(raw)
+        schema = record.get("schema_version") if isinstance(record, dict) else None
+        timeout_contract = (
+            schema == "1.0.0" and "rpc_timeout_seconds" not in record
+        ) or (
+            schema == "2.0.0"
+            and "rpc_timeout_seconds" in record
+            and _valid_rpc_timeout(record["rpc_timeout_seconds"])
+        )
         if not isinstance(record, dict) or (
             record.get("kind") != "Stage2RuntimeObservation"
-            or record.get("schema_version") != "1.0.0"
+            or not timeout_contract
             or record.get("formal_ready") is not False
             or record.get("model_turns_dispatched") != 0
             or record.get("offered_tool_inventory") != "unknown"
