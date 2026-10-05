@@ -217,6 +217,10 @@
       "source_context_native_replay": "Read-only current-format verifier rebuilds supplemental 12-case/24-judgment native requests, replays every original/correction archive, binds display sidecars and recomputes outcomes; attempted root calls exclude nested inference inventory, cost stays unknown and formal-ready false.",
       "source_context_native_replay_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_context_quality_replay.py"
+      ],
+      "native_judge_worker": "One frozen role-owned prompt/schema calls unchanged native v3.1 capture; strict read-only replay binds raw generations, display copies, complete archive inventory and worker/runtime bytes. Host semantic checks, namespace attestation, nested usage, calibration and formal admission remain separate.",
+      "native_judge_worker_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_judge_worker.py"
       ]
     },
     {
