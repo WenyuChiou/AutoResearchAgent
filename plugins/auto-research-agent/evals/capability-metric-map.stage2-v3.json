@@ -177,6 +177,10 @@
         "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
         "plugins/auto-research-agent/tests/test_stage2_live_native.py",
         "plugins/auto-research-agent/tests/test_stage2_preflight.py"
+      ],
+      "native_compaction_accounting": "Private per-request compaction accounting binds native request/response payloads and distinct retry identities. Duplicate terminals are idempotent only when identical; missing native token usage remains unknown and overlapping inference identity cannot establish complete totals.",
+      "native_compaction_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_compaction.py"
       ]
     },
     {
