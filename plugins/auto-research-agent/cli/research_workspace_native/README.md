@@ -129,3 +129,15 @@ imports require a fresh process; no reusable Python-environment recovery is clai
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_browser_source.py -v
 ```
+
+Run the corrected fixture from the same candidate checkout's standard script path.
+The sole --repo must contain all native API/UI modules and required test helpers;
+--scope true also requires scope sources. --overlay is rejected. Actual imported
+paths/hashes and fixture, loader and driver paths/hashes are saved separately from
+the pinned original Wiki asset hashes. Source files are checked before each control
+command. Existing R9 receipts remain historical evidence, not this correction.
+Use a new output path; files are created exclusively and cleanup remains bounded.
+
+```powershell
+node plugins/auto-research-agent/tests/browser/native-session/browser_driver.cjs --repo <complete-candidate-repository> --reference <accepted-reference-root> --python <installed-python-with-test-dependencies> --browser <installed-chromium-executable> --playwright <installed-playwright-package> --temp <short-writable-directory-outside-git> --output <new-receipt.json> --scope true
+```
