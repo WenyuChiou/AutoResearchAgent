@@ -39,11 +39,20 @@ def main(argv=None):
     formal_plan.add_argument("--config", required=True)
     formal_plan.add_argument("--evidence-root", required=True)
     formal_plan.add_argument("--output", required=True)
-    for name in ("validate-readiness", "validate-formal-result"):
+    formal_plan_v3 = sub.add_parser("freeze-formal-plan-v3")
+    formal_plan_v3.add_argument("--config", required=True)
+    formal_plan_v3.add_argument("--evidence-root", required=True)
+    formal_plan_v3.add_argument("--output", required=True)
+    for name in (
+        "validate-readiness",
+        "validate-formal-result",
+        "validate-readiness-v3",
+        "validate-formal-result-v3",
+    ):
         entry = sub.add_parser(name)
         for option in ("manifest", "evidence-root", "receipt", "output"):
             entry.add_argument("--" + option, required=True)
-        if name == "validate-formal-result":
+        if name in {"validate-formal-result", "validate-formal-result-v3"}:
             entry.add_argument("--plan", required=True)
     diagnostics = sub.add_parser("prepare-diagnostics")
     diagnostics.add_argument("--cases", required=True)
@@ -154,8 +163,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command in {
         "freeze-formal-plan",
+        "freeze-formal-plan-v3",
         "validate-readiness",
         "validate-formal-result",
+        "validate-readiness-v3",
+        "validate-formal-result-v3",
     }:
         from .formal import (
             freeze_formal_plan_v1,
@@ -164,8 +176,29 @@ def main(argv=None):
         )
 
         try:
-            if args.command == "freeze-formal-plan":
+            if args.command == "freeze-formal-plan-v3":
+                from .formal_v3 import freeze_formal_plan_v2
+
+                value = freeze_formal_plan_v2(_read(args.config), args.evidence_root)
+            elif args.command == "freeze-formal-plan":
                 value = freeze_formal_plan_v1(_read(args.config), args.evidence_root)
+            elif args.command in {"validate-readiness-v3", "validate-formal-result-v3"}:
+                from .formal_admission_v3 import (
+                    validate_readiness_v2,
+                    validate_formal_result_v2,
+                )
+
+                if args.command == "validate-readiness-v3":
+                    value = validate_readiness_v2(
+                        args.manifest, args.evidence_root, args.receipt
+                    )
+                else:
+                    value = validate_formal_result_v2(
+                        args.manifest,
+                        args.evidence_root,
+                        args.receipt,
+                        _read(args.plan),
+                    )
             elif args.command == "validate-readiness":
                 value = validate_readiness_v1(
                     args.manifest, args.evidence_root, args.receipt

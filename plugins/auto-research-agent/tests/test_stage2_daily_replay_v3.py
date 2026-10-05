@@ -33,8 +33,10 @@ class DailyReplayV3Tests(unittest.TestCase):
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
 
-    def _archive(self, *, disagree=False, failed=False):
-        self.fixture.run_judges(disagree=disagree, fail=failed)
+    def _archive(self, *, disagree=False, failed=False, context_policy=None):
+        self.fixture.run_judges(
+            disagree=disagree, fail=failed, source_context_policy=context_policy
+        )
         run = self.fixture.root / "judges"
         request = json.loads((run / "request.json").read_bytes())
         request["adapter_mode"] = "native"
@@ -68,6 +70,9 @@ class DailyReplayV3Tests(unittest.TestCase):
             "policy": {},
             "code_sha256": request["code_sha256"],
         }
+        if context_policy is not None:
+            for key in ("source_context_policy_sha256", "source_context_sha256"):
+                config[key] = request[key]
         return run, result, receipt, config
 
     @staticmethod
@@ -106,7 +111,17 @@ class DailyReplayV3Tests(unittest.TestCase):
 
         return replay
 
-    def _verify(self, run, result, receipt, config, *, calls=1, selection=None):
+    def _verify(
+        self,
+        run,
+        result,
+        receipt,
+        config,
+        *,
+        calls=1,
+        selection=None,
+        context_policy=None,
+    ):
         with (
             patch(
                 "stage2_live.daily_replay_v3.codex_runtime_sha", return_value="a" * 64
@@ -125,7 +140,71 @@ class DailyReplayV3Tests(unittest.TestCase):
                 selection=selection or self.fixture.selection,
                 source_root=self.fixture.sources,
                 expected_config=config,
+                source_context_policy=context_policy,
             )
+
+    def test_opt_in_replay_matches_live_prompts_and_rejects_tampering(self):
+        packet = self.fixture.packet
+        source, evidence = packet["sources"][0], packet["evidence"][0]
+        text = (self.fixture.sources / source["path"]).read_text(encoding="utf-8")
+        policy = {
+            "kind": "Stage2SourceContextPolicy",
+            "schema_version": "1.0.0",
+            "max_adjacent_paragraphs": 1,
+            "max_characters_per_context": 1000,
+            "entries": [
+                {
+                    "evidence_id": evidence["evidence_id"],
+                    "source_id": source["source_id"],
+                    "work_id": source["work_id"],
+                    "version_id": source["version_id"],
+                    "source_sha256": source["sha256"],
+                    "quote_start": text.index(evidence["quote"]),
+                    "semantic_role": "current-study",
+                    "claim_type": "finding",
+                    "checked_scope": None,
+                    "policy_exceptions": [],
+                }
+            ],
+        }
+        run, result, receipt, config = self._archive(context_policy=policy)
+        before = self._files(run)
+        original = self._replay(result)
+
+        def check_prompt(root, label, digest, **kwargs):
+            self.assertEqual(kwargs["prompt"], self.fixture.prompts[label])
+            return original(root, label, digest, **kwargs)
+
+        with patch.object(self, "_replay", return_value=check_prompt):
+            self.assertTrue(
+                self._verify(run, result, receipt, config, context_policy=policy)[
+                    "authenticated"
+                ]
+            )
+        self.assertEqual(self._files(run), before)
+        changed = copy.deepcopy(policy)
+        changed["entries"][0]["semantic_role"] = "cited-work"
+        with self.assertRaises(Stage2Error):
+            self._verify(run, result, receipt, config, context_policy=changed)
+        for key in ("source_context_policy_sha256", "source_context_sha256"):
+            with self.subTest(key=key), self.assertRaises(Stage2Error):
+                self._verify(
+                    run,
+                    result,
+                    receipt,
+                    {**config, key: "0" * 64},
+                    context_policy=policy,
+                )
+        changed_result = copy.deepcopy(result)
+        changed_result["source_context"]["contexts"][0]["semantic_role"] = "cited-work"
+        result_path = run / "result.json"
+        result_path.write_bytes(canonical(changed_result) + b"\n")
+        changed_receipt = {
+            **receipt,
+            "result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
+        }
+        with self.assertRaises(Stage2Error):
+            self._verify(run, result, changed_receipt, config, context_policy=policy)
 
     def test_replays_audit_required_archive_without_writes_or_isolation_claim(self):
         run, result, receipt, config = self._archive(disagree=True)

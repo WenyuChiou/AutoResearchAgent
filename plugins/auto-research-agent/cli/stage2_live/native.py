@@ -13,6 +13,8 @@ import re
 import shutil
 import subprocess
 
+from .native_policy import NAMED_POLICY_KIND, NamedPolicyError, named_policy_args
+
 
 SUBJECT_EXECUTION_POLICY = {"sandbox": "workspace-write", "network_access": True}
 SUBJECT_SANDBOX_ARGS = [
@@ -332,10 +334,18 @@ def _archive_start(output, binding, prompt_bytes):
 
 def _expected_command(record, output):
     stable = record["stable_request_binding"]
+    sandbox_args = SUBJECT_SANDBOX_ARGS
+    if stable["policy_bindings"] != SUBJECT_EXECUTION_POLICY:
+        try:
+            sandbox_args = named_policy_args(
+                stable, (output / "archive/profile-config.toml").read_bytes(), output
+            )
+        except (NamedPolicyError, OSError) as error:
+            raise CaptureError(str(error)) from error
     return [
         stable["codex"],
         "exec",
-        *SUBJECT_SANDBOX_ARGS,
+        *sandbox_args,
         "--json",
         "-m",
         stable["model"],
@@ -405,6 +415,14 @@ def verify_capture(
     if _record_receipt(record_path) != record_sha256_receipt:
         raise CaptureError("run-record SHA-256 receipt differs")
     record = _read_json(record_path)
+    stable = record.get("stable_request_binding")
+    if not isinstance(stable, dict) or not isinstance(
+        stable.get("policy_bindings"), dict
+    ):
+        raise CaptureError("capture permission binding is malformed")
+    named = stable["policy_bindings"].get("kind") == NAMED_POLICY_KIND
+    if record.get("schema_version") != ("2.0.0" if named else "1.0.0"):
+        raise CaptureError("capture schema differs from permission policy")
     if (
         record.get("status") != "complete"
         or record.get("exit_code") != 0
@@ -467,7 +485,10 @@ def capture_native(
     _assert_separate(codex_home, workspace, output)
     if not codex_home.is_dir() or not workspace.is_dir():
         raise CaptureError("isolated CODEX_HOME and workspace must already exist")
-    if policy_bindings != SUBJECT_EXECUTION_POLICY:
+    if policy_bindings != SUBJECT_EXECUTION_POLICY and (
+        not isinstance(policy_bindings, dict)
+        or policy_bindings.get("kind") != NAMED_POLICY_KIND
+    ):
         raise CaptureError(
             "Stage 2 subject policy must preserve workspace-write/network access"
         )
@@ -490,6 +511,13 @@ def capture_native(
         config_bindings,
         policy_bindings,
     )
+    if policy_bindings != SUBJECT_EXECUTION_POLICY:
+        try:
+            named_policy_args(
+                current, (codex_home / "config.toml").read_bytes(), output
+            )
+        except (NamedPolicyError, OSError) as error:
+            raise CaptureError(str(error)) from error
     if output.exists():
         if not resume:
             raise CaptureError("capture output already exists")
@@ -616,7 +644,9 @@ def capture_native(
                 exception = {"type": type(error).__name__, "message": str(error)}
     record = {
         "kind": "Stage2NativeCapture",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0"
+        if policy_bindings != SUBJECT_EXECUTION_POLICY
+        else "1.0.0",
         "status": status,
         "command": command,
         "started_at": started,

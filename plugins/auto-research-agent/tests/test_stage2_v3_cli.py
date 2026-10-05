@@ -69,6 +69,7 @@ class Stage2V3CliTests(unittest.TestCase):
     def test_daily_v3_dispatches_with_external_replay_receipt(self):
         selection = self.save("selection.json", {"selection": "synthetic"})
         policy = self.save("policy.json", {"policy": "synthetic"})
+        context_policy = self.save("context-policy.json", {"context": "synthetic"})
         receipt = self.root / "receipts" / "daily.json"
         with patch(
             "stage2_live.daily_v3.run_daily_evaluation_v3",
@@ -102,6 +103,8 @@ class Stage2V3CliTests(unittest.TestCase):
                     "high",
                     "--policy",
                     str(policy),
+                    "--source-context-policy",
+                    str(context_policy),
                     "--output",
                     str(self.root / "daily-output"),
                     "--replay-receipt-output",
@@ -114,6 +117,9 @@ class Stage2V3CliTests(unittest.TestCase):
             ({"selection": "synthetic"}, str(self.root / "sources")),
         )
         self.assertFalse(run.call_args.kwargs["resume"])
+        self.assertEqual(
+            run.call_args.kwargs["source_context_policy"], {"context": "synthetic"}
+        )
         self.assertEqual(json.loads(receipt.read_text())["result_sha256"], "a" * 64)
 
     def test_daily_v3_resume_requires_external_receipt(self):
@@ -150,6 +156,42 @@ class Stage2V3CliTests(unittest.TestCase):
             )
         self.assertEqual(code, 2)
         run.assert_not_called()
+
+    def test_verify_daily_v3_forwards_optional_context_policy_without_model_calls(self):
+        paths = {
+            name: self.save(name + ".json", {name: True})
+            for name in ("receipt", "selection", "config", "context-policy")
+        }
+        for enabled in (False, True):
+            with (
+                self.subTest(enabled=enabled),
+                patch(
+                    "stage2_live.daily_replay_v3.verify_daily_v3",
+                    return_value={"authenticated": True, "formal_ready": False},
+                ) as verify,
+                patch("stage1_eval.model_calls.call_model_v31") as model,
+            ):
+                args = [
+                    "verify-daily-v3",
+                    "--run-dir",
+                    str(self.root / "run"),
+                    "--source-root",
+                    str(self.root / "sources"),
+                    "--output",
+                    str(self.root / f"verified-{enabled}.json"),
+                ]
+                for name in ("receipt", "selection", "config"):
+                    args.extend(["--" + name, str(paths[name])])
+                if enabled:
+                    args.extend(
+                        ["--source-context-policy", str(paths["context-policy"])]
+                    )
+                self.assertEqual(live_main(args), 0)
+                self.assertEqual(
+                    verify.call_args.kwargs["source_context_policy"],
+                    {"context-policy": True} if enabled else None,
+                )
+                model.assert_not_called()
 
     def test_calibrate_v3_and_source_update_dispatch_exact_signatures(self):
         dataset = self.save("dataset.json", {"cases": []})

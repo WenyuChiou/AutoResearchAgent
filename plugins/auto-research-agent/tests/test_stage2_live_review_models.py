@@ -15,6 +15,7 @@ sys.path.insert(0, str(PLUGIN / "cli"))
 sys.path.insert(0, str(HERE))
 
 from stage1_eval.common import EvaluationError, canonical  # noqa: E402
+from stage1_eval.model_calls import _completed_agent_json  # noqa: E402
 from stage2_common import Stage2Error, canonical_hash  # noqa: E402
 from stage2_fixture_helpers import write_stage2_fixture  # noqa: E402
 from stage2_live.review_models import (  # noqa: E402
@@ -403,6 +404,14 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             self.assertIsNone(result["native_capture_verified"])
             self.assertFalse(result["scientific_truth_attested"])
             self.assertIn(raw, adapter.calls[0]["prompt"])
+            self.assertIn(
+                "emit exactly one complete final JSON message",
+                adapter.calls[0]["prompt"],
+            )
+            self.assertIn(
+                "Do not emit intermediate, draft, progress, or example messages",
+                adapter.calls[0]["prompt"],
+            )
             self.assertNotIn(
                 "Independent feasibility",
                 adapter.calls[0]["prompt"] if role == "challenger" else "",
@@ -444,10 +453,37 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
         self.assertEqual(result["adapter_mode"], "injected-test")
         self.assertIsNone(result["native_capture_verified"])
         self.assertEqual(result["resolution"]["evidence_ids"], ["ev-1"])
+        self.assertIn(
+            "emit exactly one complete final JSON message",
+            adapter.calls[0]["prompt"],
+        )
+        self.assertIn(
+            "Do not emit intermediate, draft, progress, or example messages",
+            adapter.calls[0]["prompt"],
+        )
         self.assertEqual(
             result["resolution"]["review_sha256s"],
             [canonical_hash(row) for row in reviews],
         )
+
+    def test_multiple_agent_messages_remain_invalid_evaluator_output(self):
+        stdout = b"\n".join(
+            canonical(row)
+            for row in (
+                {
+                    "type": "item.completed",
+                    "item": {"type": "agent_message", "text": '{"draft": true}'},
+                },
+                {
+                    "type": "item.completed",
+                    "item": {"type": "agent_message", "text": '{"final": true}'},
+                },
+                {"type": "turn.completed"},
+            )
+        )
+
+        with self.assertRaisesRegex(EvaluationError, "unique final JSON message"):
+            _completed_agent_json(stdout)
 
     def test_resolution_contract_accepts_exact_categorical_and_substantive_ids(self):
         reviews = self.independent_reviews(disagree_on_opportunity=True)

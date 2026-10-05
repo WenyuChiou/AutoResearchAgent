@@ -948,6 +948,38 @@ class Stage2ControllerTests(unittest.TestCase):
         )
         self.assertFalse(self.delivery.exists())
 
+    def test_v3_controller_returns_reconstructable_research_task(self):
+        from test_stage2_research_followups import POLICY as research_policy
+        from stage2_live.research_followups import validate_research_followup_task
+
+        spec = copy.deepcopy(self.spec)
+        spec["followup_policy"] = {
+            "kind": "Stage2FollowupPolicy",
+            "schema_version": "3.0.0",
+            "investigate_material_partial": True,
+            "research_task_policy": research_policy,
+        }
+        result = self.run_controller(
+            SyntheticAdapter(blocking=True),
+            expected_head=self.initial["head_sha256"],
+            spec=spec,
+        )
+        self.assertEqual(result["status"], "follow-up-needed")
+        snapshot = inspect_workflow(self.run)["latest_snapshot"]
+        task = result["research_followup_task"]
+        self.assertEqual(
+            validate_research_followup_task(
+                task,
+                snapshot["packet"],
+                snapshot["event"]["payload"]["snapshot_sha256"],
+                research_policy,
+                expected_followups=result["followups"],
+            ),
+            task,
+        )
+        self.assertFalse(result["formal_ready"])
+        self.assertFalse(self.delivery.exists())
+
     def test_external_revision_forces_new_snapshot_and_cannot_carry_old_review(self):
         first = self.run_controller(
             SyntheticAdapter(), expected_head=self.initial["head_sha256"]

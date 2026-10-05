@@ -25,6 +25,12 @@ from stage2_workflow.store import (
     start_action,
 )
 
+from stage2_live import review_models
+from stage2_live.environment import (
+    preflight_for_environment,
+    verify_environment_capture,
+    verify_environment_start,
+)
 from stage2_live.extraction import run_live_extraction
 from stage2_live.native import (
     SUBJECT_EXECUTION_POLICY,
@@ -32,15 +38,13 @@ from stage2_live.native import (
     codex_runtime_sha,
     verify_capture,
 )
-from stage2_live.preflight import verify_preflight, require_matching_preflight_contract
-from stage2_live.environment import (
-    preflight_for_environment,
-    verify_environment_start,
-    verify_environment_capture,
-)
-from stage2_live.replay import replay_unit, verify_extraction
 from stage2_live.native_proposal import choose_captured_proposal
-import stage2_live.review_models as review_models
+from stage2_live.preflight import require_matching_preflight_contract, verify_preflight
+from stage2_live.replay import replay_unit, verify_extraction
+from stage2_live.research_followups import (
+    build_research_followup_task,
+    validate_research_followup_policy,
+)
 from stage2_live.review_models import (
     extract_resolution,
     extract_review,
@@ -552,18 +556,40 @@ class _ProductionAdapter:
 def _material_followup_policy(policy):
     if policy is None:
         return False
+    legacy = {
+        "kind": "Stage2FollowupPolicy",
+        "schema_version": "2.0.0",
+        "investigate_material_partial": True,
+    }
+    research = (
+        isinstance(policy, dict)
+        and policy.get("kind") == "Stage2FollowupPolicy"
+        and policy.get("schema_version") == "3.0.0"
+        and policy.get("investigate_material_partial") is True
+        and set(policy)
+        == {
+            "kind",
+            "schema_version",
+            "investigate_material_partial",
+            "research_task_policy",
+        }
+        and isinstance(policy.get("research_task_policy"), dict)
+    )
     if (
         not isinstance(policy, dict)
         or policy.get("investigate_material_partial") is not True
-        or policy
-        != {
-            "kind": "Stage2FollowupPolicy",
-            "schema_version": "2.0.0",
-            "investigate_material_partial": True,
-        }
+        or (policy != legacy and not research)
     ):
         raise Stage2Error("unsupported-controller-followup-policy")
+    if research:
+        validate_research_followup_policy(policy["research_task_policy"])
     return True
+
+
+def _research_followup_policy(policy):
+    if isinstance(policy, dict) and policy.get("schema_version") == "3.0.0":
+        return policy["research_task_policy"]
+    return None
 
 
 def _followups(reconciliation, policy=None):
@@ -934,6 +960,17 @@ def _run_controller_impl(
     reconciliation = reconcile_batch(packet, batch, reviews, resolution_input)
     followups = _followups(reconciliation, spec.get("followup_policy"))
     if followups:
+        research_policy = _research_followup_policy(spec.get("followup_policy"))
+        research_task = (
+            build_research_followup_task(
+                packet,
+                snapshot_sha256,
+                followups,
+                research_policy,
+            )
+            if research_policy is not None
+            else None
+        )
         return _terminal(
             "follow-up-needed",
             inspect_workflow(run_dir),
@@ -942,6 +979,7 @@ def _run_controller_impl(
             batch=batch,
             reconciliation=reconciliation,
             followups=followups,
+            research_followup_task=research_task,
         )
 
     state = inspect_workflow(run_dir)
