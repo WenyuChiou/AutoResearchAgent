@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from pathlib import Path
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -13,7 +14,7 @@ from research_workspace.stage2_import import (
     import_evaluated_delivery,
     prepare_stage2_bridge,
 )
-from research_workspace.view import write_workspace
+from research_workspace.view import REFERENCE_HASHES, write_workspace
 
 
 class WorkspaceStage2ImportTests(unittest.TestCase):
@@ -153,7 +154,13 @@ class WorkspaceStage2ImportTests(unittest.TestCase):
     def test_workspace_import_copies_verified_proposal_and_notes_with_bound_receipt(
         self,
     ):
-        reference = Path(__file__).parents[1] / "references/research-workspace"
+        checkout = self.fixture.root / "checkout"
+        command = ["git", "-c", "core.autocrlf=true", "checkout-index"]
+        command.extend([f"--prefix={checkout.as_posix()}/", "--"])
+        asset_dir = "plugins/auto-research-agent/references/research-workspace"
+        command.extend(f"{asset_dir}/{name}" for name in REFERENCE_HASHES)
+        subprocess.run(command, cwd=Path(__file__).parents[3], check=True)
+        reference = checkout / asset_dir
         destination = self.fixture.root / "workspace"
         receipt = write_workspace(
             self.index,

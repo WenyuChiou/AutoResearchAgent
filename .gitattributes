@@ -21,3 +21,7 @@ plugins/auto-research-agent/**/*.jsonl text eol=lf
 plugins/auto-research-agent/**/*.md text eol=lf
 plugins/auto-research-agent/**/*.py text eol=lf
 plugins/auto-research-agent/**/*.txt text eol=lf
+plugins/auto-research-agent/references/research-workspace/prototype.html text eol=lf
+plugins/auto-research-agent/references/research-workspace/literature-reference.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/workspace-i18n.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/workspace.css text eol=lf
