@@ -12,6 +12,28 @@ from stage2_live.trace_seal_io import SealDirectory  # noqa: E402
 
 
 class SealIOTests(unittest.TestCase):
+    def test_closed_handle_rejects_operations_without_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            bound = SealDirectory(root)
+            with self.assertRaisesRegex(Stage2Error, "closed"):
+                bound.write("before", b"no")
+            with bound:
+                child = bound.make_dir("child")
+            for operation in (
+                lambda: bound.write("after", b"no"),
+                lambda: bound.reader("after"),
+                lambda: bound.make_dir("other"),
+                lambda: bound.status("after"),
+                child.__enter__,
+            ):
+                with (
+                    self.subTest(operation=operation),
+                    self.assertRaisesRegex(Stage2Error, "closed"),
+                ):
+                    operation()
+            self.assertEqual({item.name for item in root.iterdir()}, {"child"})
+
     def test_invalid_leaf_never_creates_files(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
