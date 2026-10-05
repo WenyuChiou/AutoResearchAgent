@@ -221,6 +221,14 @@
       "native_judge_worker": "One frozen role-owned prompt/schema calls unchanged native v3.1 capture; strict read-only replay binds raw generations, display copies, complete archive inventory and worker/runtime bytes. Host semantic checks, namespace attestation, nested usage, calibration and formal admission remain separate.",
       "native_judge_worker_tests": [
         "plugins/auto-research-agent/tests/test_stage2_judge_worker.py"
+      ],
+      "role_policy_controller_contract": "Opt-in controller1.1 resolves SHA-bound named policy1.1 per home/workspace; denied capture_root contains every fresh output; both observed restricted filesystem representations and active profile must match. Legacy contracts remain separate; no formal isolation or quality promotion.",
+      "role_policy_controller_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_role_policy_controller.py",
+        "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
+        "plugins/auto-research-agent/tests/test_stage2_environment.py",
+        "plugins/auto-research-agent/tests/test_stage2_preflight.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ]
     },
     {

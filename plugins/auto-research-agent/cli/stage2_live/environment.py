@@ -1,6 +1,7 @@
 """Bind each native execution to its own authenticated functional preflight."""
 
 import json
+import copy
 from pathlib import Path
 from datetime import datetime
 
@@ -16,12 +17,53 @@ from .preflight import (
     _turn_context,
     _inventory,
 )
+from .native_policy import (
+    CAPTURE_ROOT_POLICY_VERSION,
+    NAMED_POLICY_KIND,
+    NamedPolicyError,
+    named_policy_args,
+    verify_named_runtime,
+)
+
+
+def environment_key(home, workspace):
+    return canonical_hash(
+        {"home": str(Path(home).resolve()), "workspace": str(Path(workspace).resolve())}
+    )
+
+
+def native_for_environment(spec, home, workspace):
+    """Resolve a frozen per-role policy only in explicit controller v1.1."""
+    native = copy.deepcopy(spec["native"])
+    if spec.get("schema_version") != "1.1.0":
+        return native
+    policy = spec.get("execution_policies", {}).get(environment_key(home, workspace))
+    if (
+        not isinstance(policy, dict)
+        or policy.get("kind") != NAMED_POLICY_KIND
+        or policy.get("schema_version") != CAPTURE_ROOT_POLICY_VERSION
+    ):
+        raise Stage2Error("execution-specific-named-policy-required")
+    native["policy_bindings"] = copy.deepcopy(policy)
+    binding = {
+        **native,
+        "codex_home": str(Path(home).resolve()),
+        "workspace": str(Path(workspace).resolve()),
+        "codex_profile_config": _path_binding(Path(home) / "config.toml"),
+    }
+    try:
+        named_policy_args(
+            binding,
+            (Path(home) / "config.toml").read_bytes(),
+            Path(policy["capture_root"]) / "contract-check",
+        )
+    except (NamedPolicyError, OSError, KeyError) as error:
+        raise Stage2Error(f"execution-named-policy-invalid: {error}") from error
+    return native
 
 
 def preflight_for_environment(spec, home, workspace):
-    key = canonical_hash(
-        {"home": str(Path(home).resolve()), "workspace": str(Path(workspace).resolve())}
-    )
+    key = environment_key(home, workspace)
     row = spec.get("execution_preflights", {}).get(key)
     if not isinstance(row, dict):
         raise Stage2Error("execution-specific-preflight-required")
@@ -122,6 +164,12 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
     if len(primary) != 1:
         raise Stage2Error("execution-primary-session-not-unique")
     context = _turn_context(primary[0])
+    try:
+        verify_named_runtime(stable, context or {})
+    except NamedPolicyError as error:
+        raise Stage2Error(
+            f"execution-effective-named-policy-invalid: {error}"
+        ) from error
     if (
         not context
         or _actual_runtime(context, stable["workspace"]) != report["actual_runtime"]
