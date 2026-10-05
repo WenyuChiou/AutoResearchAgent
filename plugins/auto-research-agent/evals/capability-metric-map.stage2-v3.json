@@ -194,6 +194,10 @@
       "native_observation_io_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_observation_io.py"
       ],
+      "native_observation_deadlines": "Schema2.0.0 records an explicit finite metadata RPC deadline; legacy1.0.0 remains replayable. Invalid limits fail before output/RPC. Timeouts remain partial; a longer deadline is not evidence of successful inventory or formal readiness.",
+      "native_observation_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py"
+      ],
       "native_trace_capture_seal": "Opt-in immutable capture/trace content seal binds verified native capture identity, every raw trace byte and recomputed observation; bounded no-follow reads and checked resume preserve synthetic markers and unknowns. Content linkage does not attest genuine acquisition or formal readiness.",
       "native_trace_capture_seal_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_capture.py"

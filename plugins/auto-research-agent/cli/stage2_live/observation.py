@@ -5,6 +5,7 @@ Keep that distinction explicit, including when every RPC succeeds.
 """
 
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -16,6 +17,10 @@ import time
 from stage1_deliverable.common import DeliverableError, private_output
 from .native import CaptureError, codex_runtime_sha, sha256, _utc_now
 from .trace_seal_io import SealDirectory
+
+
+def _valid_rpc_timeout(value):
+    return type(value) in {int, float} and 0 < value <= 600 and math.isfinite(value)
 
 
 def _response_observed(item, reply):
@@ -224,9 +229,12 @@ def collect_runtime_observation(
     output_dir,
     thread_id=None,
     rpc_transport=None,
+    rpc_timeout_seconds=120,
     _output_handle=None,
 ):
     """Collect private metadata; never dispatch turn/start or change settings."""
+    if not _valid_rpc_timeout(rpc_timeout_seconds):
+        raise CaptureError("rpc_timeout_seconds must be finite and within (0, 600]")
     try:
         output = private_output(output_dir)
     except DeliverableError as error:
@@ -281,7 +289,9 @@ def collect_runtime_observation(
     started = _utc_now()
     transport = rpc_transport or _rpc_exchange
     try:
-        responses, events, stderr = transport(command, home, work, requests, 30)
+        responses, events, stderr = transport(
+            command, home, work, requests, rpc_timeout_seconds
+        )
     except Exception as error:
         _write_observation(
             output,
@@ -360,7 +370,8 @@ def collect_runtime_observation(
     artifacts["stderr.txt"] = sha256(stderr)
     record = {
         "kind": "Stage2RuntimeObservation",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
+        "rpc_timeout_seconds": rpc_timeout_seconds,
         "status": "observed"
         if all(r["status"] == "observed" for r in rows)
         else "partial",
@@ -397,9 +408,17 @@ def verify_runtime_observation(output_dir, receipt, *, allow_synthetic=False):
         if sha256(raw) != receipt:
             raise CaptureError("observation receipt differs")
         record = json.loads(raw)
+        schema = record.get("schema_version") if isinstance(record, dict) else None
+        timeout_contract = (
+            schema == "1.0.0" and "rpc_timeout_seconds" not in record
+        ) or (
+            schema == "2.0.0"
+            and "rpc_timeout_seconds" in record
+            and _valid_rpc_timeout(record["rpc_timeout_seconds"])
+        )
         if not isinstance(record, dict) or (
             record.get("kind") != "Stage2RuntimeObservation"
-            or record.get("schema_version") != "1.0.0"
+            or not timeout_contract
             or record.get("formal_ready") is not False
             or record.get("model_turns_dispatched") != 0
             or record.get("offered_tool_inventory") != "unknown"

@@ -39,13 +39,14 @@ class RuntimeObservationTests(unittest.TestCase):
             output_dir=self.root / "observed",
         )
         self.requests = []
+        self.expected_timeout = 120
 
     def transport(self, command, home, workspace, requests, timeout):
         self.requests = copy.deepcopy(requests)
         self.assertEqual(command[1:], ["app-server", "--stdio"])
         self.assertEqual(home, self.home)
         self.assertEqual(workspace, self.work)
-        self.assertEqual(timeout, 30)
+        self.assertEqual(timeout, self.expected_timeout)
         result_by_method = {
             "config/read": {"config": {}},
             "skills/list": {"data": []},
@@ -98,6 +99,88 @@ class RuntimeObservationTests(unittest.TestCase):
             )["status"],
             "observed",
         )
+
+    def test_nondefault_rpc_deadline_reaches_transport_record_and_replay(self):
+        self.expected_timeout = 245.5
+        result = collect_runtime_observation(
+            **self.args,
+            rpc_transport=self.transport,
+            rpc_timeout_seconds=self.expected_timeout,
+        )
+        self.assertEqual(result["schema_version"], "2.0.0")
+        self.assertEqual(result["rpc_timeout_seconds"], self.expected_timeout)
+        verified = verify_runtime_observation(
+            self.args["output_dir"],
+            result["record_sha256_receipt"],
+            allow_synthetic=True,
+        )
+        self.assertEqual(verified["rpc_timeout_seconds"], self.expected_timeout)
+
+    def test_invalid_rpc_deadlines_reject_before_transport_or_output(self):
+        calls = []
+
+        def forbidden(*args):
+            calls.append(args)
+            raise AssertionError("invalid deadline must not reach transport")
+
+        for value in (
+            True,
+            False,
+            None,
+            "120",
+            0,
+            -1,
+            601,
+            10**1000,
+            float("inf"),
+            float("nan"),
+        ):
+            with (
+                self.subTest(value=value),
+                self.assertRaisesRegex(CaptureError, "rpc_timeout_seconds"),
+            ):
+                collect_runtime_observation(
+                    **self.args,
+                    rpc_transport=forbidden,
+                    rpc_timeout_seconds=value,
+                )
+            self.assertFalse(self.args["output_dir"].exists())
+        self.assertEqual(calls, [])
+
+    def test_legacy_and_versioned_deadline_contracts_fail_closed(self):
+        collect_runtime_observation(**self.args, rpc_transport=self.transport)
+        path = self.args["output_dir"] / "observation.json"
+        current = json.loads(path.read_bytes())
+
+        legacy = dict(current)
+        legacy["schema_version"] = "1.0.0"
+        legacy.pop("rpc_timeout_seconds")
+        raw = json.dumps(legacy).encode()
+        path.write_bytes(raw)
+        self.assertEqual(
+            verify_runtime_observation(path.parent, sha256(raw), allow_synthetic=True)[
+                "schema_version"
+            ],
+            "1.0.0",
+        )
+
+        invalid = (
+            ("legacy-field", {**current, "schema_version": "1.0.0"}),
+            (
+                "missing",
+                {k: v for k, v in current.items() if k != "rpc_timeout_seconds"},
+            ),
+            ("boolean", {**current, "rpc_timeout_seconds": True}),
+            ("too-large", {**current, "rpc_timeout_seconds": 601}),
+        )
+        for label, value in invalid:
+            with self.subTest(label=label):
+                raw = json.dumps(value).encode()
+                path.write_bytes(raw)
+                with self.assertRaisesRegex(CaptureError, "contract differs"):
+                    verify_runtime_observation(
+                        path.parent, sha256(raw), allow_synthetic=True
+                    )
 
     def test_optional_thread_reads_actual_thread_without_starting_one(self):
         collect_runtime_observation(
@@ -258,10 +341,10 @@ class RuntimeObservationTests(unittest.TestCase):
         process.stdout = io.StringIO('{"id":0,"result":{}}\n')
         with (
             patch("stage2_live.observation.subprocess.Popen", return_value=process),
-            patch("stage2_live.observation.time.monotonic", side_effect=[0, 100]),
+            patch("stage2_live.observation.time.monotonic", side_effect=[0, 121]),
         ):
             with self.assertRaisesRegex(CaptureError, "initialization failed"):
-                _rpc_exchange(["synthetic"], self.home, self.work, [], 30)
+                _rpc_exchange(["synthetic"], self.home, self.work, [], 120)
         process.wait.assert_called_once_with(timeout=5)
 
 
