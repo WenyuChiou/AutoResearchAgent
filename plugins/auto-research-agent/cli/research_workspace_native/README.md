@@ -77,3 +77,10 @@ Synthetic safety fixtures cover stale answers, existing intent non-adoption, act
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_controller_safety.py -v
 ```
+
+Preserve failed controller construction without poisoning a healthy retry.
+Construction rejects invalid channels and epoch IDs before binding. A later failure retains the used epoch and fault evidence; an established recording channel closes once. Missing fault persistence remains blocked, with no native I/O.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_controller_construction.py -v
+```

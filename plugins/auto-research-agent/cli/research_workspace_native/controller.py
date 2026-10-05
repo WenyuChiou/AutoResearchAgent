@@ -43,6 +43,18 @@ class InjectedSessionController:
     ):
         _require(isinstance(store, FrameJournal), "frame journal required")
         _require(callable(admit_action) and callable(verify_binding), "gates required")
+        _require(
+            isinstance(connection_id, str) and 0 < len(connection_id) <= 128,
+            "connection ID required",
+        )
+        _require(
+            all(
+                callable(getattr(channel, name, None))
+                for name in ("read", "write", "close")
+            ),
+            "binary channel required",
+        )
+        self.channel = None
         self.store, self.project_id, self.owner = store, project_id, owner
         self.connection_id, self.index_sha256, self.thread_id = (
             connection_id,
@@ -72,27 +84,77 @@ class InjectedSessionController:
             )
             _require(
                 old.get("owner") != owner
-                or channels.get(old.get("connection_id"), {}).get("fault"),
+                or channels.get(old.get("connection_id"), {}).get("fault")
+                or state.get("controller_initialization_failures", {})
+                .get(old.get("connection_id"), {})
+                .get("owner")
+                == owner,
                 "existing protocol epoch must be closed",
             )
-            store.bind_connection(project_id, owner, connection_id, state["revision"])
-            with store._edit(
-                project_id, owner, None, "controller-recovery-projection", {}
-            ) as current:
-                _mirror_unknown(current)
-            self.channel = RecordingChannel(
-                channel,
-                store=store,
-                project_id=project_id,
-                owner=owner,
-                connection_id=connection_id,
+            _require(
+                len(state.get("protocol", {}).get("connections", [])) < 128,
+                "controller epoch history bound exceeded",
             )
-            self.transport = JsonRpcTransport(
-                self.channel,
-                connection_id=connection_id,
-                verify_binding=verify_binding,
-                on_event=self._event,
-            )
+            try:
+                store.bind_connection(
+                    project_id, owner, connection_id, state["revision"]
+                )
+                with store._edit(
+                    project_id, owner, None, "controller-recovery-projection", {}
+                ) as current:
+                    _mirror_unknown(current)
+                self.channel = RecordingChannel(
+                    channel,
+                    store=store,
+                    project_id=project_id,
+                    owner=owner,
+                    connection_id=connection_id,
+                )
+                self.transport = JsonRpcTransport(
+                    self.channel,
+                    connection_id=connection_id,
+                    verify_binding=verify_binding,
+                    on_event=self._event,
+                )
+            except BaseException as error:
+                self._initialization_failed(error)
+
+    def _initialization_failed(self, error):
+        self.failure = "controller initialization failed; no automatic reconnect"
+        try:
+            with self.store._edit(
+                self.project_id,
+                self.owner,
+                None,
+                "controller-initialization-failed",
+                dict(
+                    connection_id=self.connection_id,
+                    exception_type=type(error).__name__,
+                ),
+            ) as state:
+                binding = state.get("protocol", {}).get("binding", {})
+                if binding.get(
+                    "connection_id"
+                ) == self.connection_id and self.connection_id not in state.get(
+                    "controller_initialization_failures", {}
+                ):
+                    _invalidate(state)
+                    _mirror_unknown(state)
+                    state.setdefault("controller_initialization_failures", {})[
+                        self.connection_id
+                    ] = dict(owner=self.owner, exception_type=type(error).__name__)
+                    channel = state.get("byte_channels", {}).get(self.connection_id)
+                    if channel is not None:
+                        channel["fault"] = self.failure
+        except BaseException:
+            self.failure += "; fault persistence unobserved"
+        finally:
+            if self.channel is not None:
+                try:
+                    self.channel.close()
+                except BaseException:
+                    self.failure += "; cleanup persistence unobserved"
+        raise ControllerError(self.failure) from error
 
     def _context(self):
         state = self.store.snapshot(self.project_id)
