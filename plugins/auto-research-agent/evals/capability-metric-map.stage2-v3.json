@@ -229,6 +229,10 @@
         "plugins/auto-research-agent/tests/test_stage2_environment.py",
         "plugins/auto-research-agent/tests/test_stage2_preflight.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ],
+      "assessment_target_policy_contract": "Opt-in3.1 prompt framing scores the actual submitted content, not external facts or the judge's critique; each criterion and temporal version remains separate. Legacy producers/replay and v3 rubric stay unchanged. Host bindings pin actual policy bytes; no native admission, formal readiness or quality claim is inferred.",
+      "assessment_target_policy_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_assessment_target_policy.py"
       ]
     },
     {
