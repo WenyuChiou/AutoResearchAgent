@@ -56,6 +56,10 @@
       "source_context_calibration_contract": "12 context cases/24 judgments combined with72/144 via recomputation; mechanics-only until authentic independent native calls exist",
       "source_context_calibration_tests": [
         "plugins/auto-research-agent/tests/test_stage2_source_context_quality.py"
+      ],
+      "formal_admission_bridge": "Schema2.0.0 binds v3 plan/readiness/result artifact receipts and replays six v3 judge bundles; unsupported native inventory, nested usage, quality and preflight/controller replay remain explicit blockers. No formal promotion.",
+      "formal_admission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_formal_admission_v3.py"
       ]
     },
     {
@@ -154,6 +158,76 @@
       "research_followup_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_research_followups.py",
         "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ],
+      "source_context_native_calibration": "Blinded no-tool native supplemental 12-case runner; input/runtime/shared-code bindings, per-attempt evidence, external receipted completed-unit resume, explicit incomplete reviewer; native QA does not establish formal admission.",
+      "source_context_native_calibration_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_context_quality_native.py"
+      ],
+      "native_trace_file_integrity": "Bounded raw native trace byte reader authenticates caller-retained inventory receipt; file identity, traversal/reparse, file count and finite-read guards. Offline observation primitive; no execution or formal promotion.",
+      "native_trace_file_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_files.py"
+      ],
+      "native_trace_inference_parsing": "Receipt-reader-dependent private inference helpers resolve tool definitions and same-thread deltas; typed token subsets and complete compaction accounting remain explicit. Parsing cannot attest execution or formal readiness.",
+      "native_trace_inference_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_parsing.py"
+      ],
+      "named_native_capture": "Opt-in capture v2 binds exact restrictive named permission config, native managed network proxy and protected role directories; reconstructs dispatch without overriding named permissions with legacy sandbox arguments. Functional preflight and role isolation remain separately required.",
+      "named_native_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_native.py",
+        "plugins/auto-research-agent/tests/test_stage2_preflight.py"
+      ],
+      "native_compaction_accounting": "Private per-request compaction accounting binds native request/response payloads and distinct retry identities. Duplicate terminals are idempotent only when identical; missing native token usage remains unknown and overlapping inference identity cannot establish complete totals.",
+      "native_compaction_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_compaction.py"
+      ],
+      "native_trace_observation": "Offline receipt-bound native event inspector links inferences, offered tools, child edges, failures and token totals. Missing terminals and unaccounted compaction stay explicit blockers; this is content observation, not execution attestation or formal admission.",
+      "native_trace_observation_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_observation.py"
+      ],
+      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. This primitive has no execution or formal admission authority.",
+      "native_seal_io_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_seal_io.py"
+      ],
+      "native_observation_io": "Producer-supplied retained directory handles anchor every metadata/failure write with exclusive leaves; legacy collector remains compatible. No model dispatch, isolation proof or formal promotion.",
+      "native_observation_io_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_observation_io.py"
+      ],
+      "native_observation_deadlines": "Schema2.0.0 records an explicit finite metadata RPC deadline; legacy1.0.0 remains replayable. Invalid limits fail before output/RPC. Timeouts remain partial; a longer deadline is not evidence of successful inventory or formal readiness.",
+      "native_observation_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py"
+      ],
+      "native_observation_response_bounds": "Binary bounded readline supports large valid private metadata frames while enforcing64MiB frame/128MiB stream ceilings; finite distinct JSON, UTF8, reader and limit failures remain non-formal. No native feature or permission reduction.",
+      "native_observation_response_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py"
+      ],
+      "native_producer_public_replay": "Strict read-only frozen-request/external-receipt replay projects verified attempted model/tool/child counts separately from unknown token usage and partial API metadata. Synthetic producers reject; no environment mutation, dispatch or formal promotion.",
+      "native_producer_public_replay_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_producer_replay.py"
+      ],
+      "native_trace_capture_seal": "Opt-in immutable capture/trace content seal binds verified native capture identity, every raw trace byte and recomputed observation; bounded no-follow reads and checked resume preserve synthetic markers and unknowns. Content linkage does not attest genuine acquisition or formal readiness.",
+      "native_trace_capture_seal_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_capture.py"
+      ],
+      "native_trace_producer": "Named-policy host wrapper binds one native capture, pre-turn API inventory and immutable raw-trace sealing; receipt-verified resume never re-executes. Host observation is not provider attestation or formal admission.",
+      "native_trace_producer_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_producer.py"
+      ],
+      "source_context_native_replay": "Read-only current-format verifier rebuilds supplemental 12-case/24-judgment native requests, replays every original/correction archive, binds display sidecars and recomputes outcomes; attempted root calls exclude nested inference inventory, cost stays unknown and formal-ready false.",
+      "source_context_native_replay_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_context_quality_replay.py"
+      ],
+      "native_judge_worker": "One frozen role-owned prompt/schema calls unchanged native v3.1 capture; strict read-only replay binds raw generations, display copies, complete archive inventory and worker/runtime bytes. Host semantic checks, namespace attestation, nested usage, calibration and formal admission remain separate.",
+      "native_judge_worker_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_judge_worker.py"
+      ],
+      "role_policy_controller_contract": "Opt-in controller1.1 resolves SHA-bound named policy1.1 per home/workspace; denied capture_root contains every fresh output; both observed restricted filesystem representations and active profile must match. Legacy contracts remain separate; no formal isolation or quality promotion.",
+      "role_policy_controller_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_role_policy_controller.py",
+        "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
+        "plugins/auto-research-agent/tests/test_stage2_environment.py",
+        "plugins/auto-research-agent/tests/test_stage2_preflight.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ]
     },
