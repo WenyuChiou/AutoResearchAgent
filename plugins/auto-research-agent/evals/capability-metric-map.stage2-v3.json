@@ -407,6 +407,26 @@
           "human_judgment": "Fresh affected-version review establishes assessment support; no formal improvement claim."
         }
       ]
+    },
+    {
+      "capability_id": "cli:research-workspace",
+      "metric_effects": [
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Exact evaluated-delivery bytes and nine judgment rows preserve unknown, audit-required and failed states; external receipt binds project/index/delivery versions without promoting research authority."
+          ],
+          "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
+        }
+      ],
+      "mechanism": "Verified read-only evaluated-delivery importer with explicit operator-selected association, external receipt hash and unchanged frozen WorkspaceIndex v1. Wiki rendering is a separate integration.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py"
+      ]
     }
   ]
 }
