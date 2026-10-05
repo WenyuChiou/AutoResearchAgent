@@ -193,6 +193,10 @@
       "native_observation_io": "Producer-supplied retained directory handles anchor every metadata/failure write with exclusive leaves; legacy collector remains compatible. No model dispatch, isolation proof or formal promotion.",
       "native_observation_io_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_observation_io.py"
+      ],
+      "native_trace_capture_seal": "Opt-in immutable capture/trace content seal binds verified native capture identity, every raw trace byte and recomputed observation; bounded no-follow reads and checked resume preserve synthetic markers and unknowns. Content linkage does not attest genuine acquisition or formal readiness.",
+      "native_trace_capture_seal_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_capture.py"
       ]
     },
     {
