@@ -198,6 +198,14 @@
       "native_observation_deadline_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py"
       ],
+      "native_observation_response_bounds": "Binary bounded readline supports large valid private metadata frames while enforcing64MiB frame/128MiB stream ceilings; finite distinct JSON, UTF8, reader and limit failures remain non-formal. No native feature or permission reduction.",
+      "native_observation_response_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py"
+      ],
+      "native_producer_public_replay": "Strict read-only frozen-request/external-receipt replay projects verified attempted model/tool/child counts separately from unknown token usage and partial API metadata. Synthetic producers reject; no environment mutation, dispatch or formal promotion.",
+      "native_producer_public_replay_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_producer_replay.py"
+      ],
       "native_trace_capture_seal": "Opt-in immutable capture/trace content seal binds verified native capture identity, every raw trace byte and recomputed observation; bounded no-follow reads and checked resume preserve synthetic markers and unknowns. Content linkage does not attest genuine acquisition or formal readiness.",
       "native_trace_capture_seal_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_capture.py"
