@@ -66,6 +66,45 @@ def _decode(raw):
     return value
 
 
+def validate_answer(request, result):
+    """Validate a response without dispatch or recording; return detached JSON."""
+    method = request["method"]
+    _require(
+        method in SERVER_METHODS and isinstance(result, dict),
+        "unsupported server response",
+    )
+    if method == "item/tool/requestUserInput":
+        questions = [row["id"] for row in request["params"]["questions"]]
+        _require(
+            all(isinstance(value, str) and value for value in questions)
+            and len(set(questions)) == len(questions),
+            "invalid question IDs",
+        )
+        _require(
+            set(result) == {"answers"} and isinstance(result["answers"], dict),
+            "invalid answers",
+        )
+        _require(set(result["answers"]) == set(questions), "question IDs differ")
+        for answer in result["answers"].values():
+            _require(
+                isinstance(answer, dict) and set(answer) == {"answers"},
+                "invalid answer shape",
+            )
+            _require(
+                isinstance(answer["answers"], list)
+                and all(isinstance(value, str) for value in answer["answers"]),
+                "answers must be strings",
+            )
+    else:
+        _require(
+            set(result) == {"decision"}
+            and result["decision"] in ("accept", "decline", "cancel"),
+            "only explicit one-request decisions are supported",
+        )
+    _encode(result)
+    return deepcopy(result)
+
+
 class JsonRpcTransport:
     """Single-owner pump over a deadline-aware binary channel.
 
@@ -361,39 +400,7 @@ class JsonRpcTransport:
         _require(
             _encode(binding) == _encode(expected), "stale or altered request binding"
         )
-        method = request["method"]
-        _require(
-            method in SERVER_METHODS and isinstance(result, dict),
-            "unsupported server response",
-        )
-        if method == "item/tool/requestUserInput":
-            questions = [row["id"] for row in request["params"]["questions"]]
-            _require(
-                all(isinstance(value, str) and value for value in questions)
-                and len(set(questions)) == len(questions),
-                "invalid question IDs",
-            )
-            _require(
-                set(result) == {"answers"} and isinstance(result["answers"], dict),
-                "invalid answers",
-            )
-            _require(set(result["answers"]) == set(questions), "question IDs differ")
-            for answer in result["answers"].values():
-                _require(
-                    isinstance(answer, dict) and set(answer) == {"answers"},
-                    "invalid answer shape",
-                )
-                _require(
-                    isinstance(answer["answers"], list)
-                    and all(isinstance(value, str) for value in answer["answers"]),
-                    "answers must be strings",
-                )
-        else:
-            _require(
-                set(result) == {"decision"}
-                and result["decision"] in ("accept", "decline", "cancel"),
-                "only explicit one-request decisions are supported",
-            )
+        result = validate_answer(request, result)
         self._send({"id": request_id, "result": result}, "response", timeout)
         self.answered.add(key)
 
