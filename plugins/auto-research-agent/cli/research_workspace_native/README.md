@@ -63,3 +63,17 @@ A read-only bridge joins a saved outgoing frame to contiguous intent/result suff
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_write_observation.py -v
 ```
+
+An independently testable existing-thread construction context.
+BoundControllerContext requires explicit binding/admission callbacks and a durable
+frame sink. Invalid construction changes no epoch; later failures preserve used
+epochs and fault or unobserved-fault evidence. A recording channel closes once,
+even when the separate failure event cannot persist. SQLite reopen preserves old
+epochs and unknown requests; a new owner supplies a new explicit injected epoch.
+The context has no answer, start, interrupt, pump, reconnect or launcher method.
+Callbacks and recorded cleanup do not authenticate a native process or grant
+execution authority. The corrected controller is a subsequent independent slice.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_construction.py -v
+```
