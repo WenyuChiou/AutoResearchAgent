@@ -642,9 +642,17 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="./workspace.css" />
   </head>
   <body>
     <div class="shell">
+      <aside class="studio-sidebar">
+        <div class="studio-brand"><span class="brand-mark">h</span><div><strong>harness</strong><small>RESEARCH STUDIO</small></div></div>
+        <div class="sidebar-workspace">Workspace</div>
+        <div class="sidebar-title">Research pipeline</div>
+        <nav class="stage-rail" id="stageRail" aria-label="Research stages"></nav>
+        <div class="sidebar-footer">Wiki · Research Studio<br />Offline interaction reference</div>
+      </aside>
       <header>
         <div class="mast">
           <div>
@@ -660,6 +668,7 @@
             </p>
           </div>
           <div>
+            <label class="language-control"><span>Language</span><select id="workspaceLanguage" aria-label="Language"><option value="zh-Hans">简体中文</option><option value="en">English</option><option value="zh-Hant">繁體中文</option></select></label>
             <div class="controls">
               <button
                 class="control"
@@ -682,13 +691,13 @@
           </div>
         </div>
       </header>
-      <nav class="stage-rail" id="stageRail" aria-label="Research stages"></nav>
       <nav class="view-tabs" aria-label="Content views">
         <button class="view-tab active" data-view="wiki">Wiki</button
         ><button class="view-tab" data-view="delivery">
           Deliverables & Sources</button
         ><button class="view-tab" data-view="history">
           Evaluation & History</button
+        ><button class="view-tab" data-view="discussion">Discussion & Review</button
         ><button class="view-tab" data-view="literature" hidden>
           Literature
         </button>
@@ -710,6 +719,7 @@
         bibliography export is available.
       </p>
     </div>
+    <script src="./workspace-i18n.js"></script>
     <script src="./literature-reference.js"></script>
     <script>
       const stages = [
@@ -794,6 +804,7 @@
         node: 0,
         view: "wiki",
         history: "Attempt A · Version v0 (synthetic)",
+        drafts: {},
       };
       const $ = (id) => document.getElementById(id);
       const make = (tag, text, cls) => {
@@ -1041,6 +1052,31 @@
           d.append(b);
         });
       }
+      function renderDiscussion(root, s) {
+        const draft = state.drafts[state.stage] ||= {};
+        root.append(make("div", s.n + " / Discussion & Review", "kicker"), make("h2", "Your answers and decisions"));
+        root.append(make("p", "This is the place to answer Codex, confirm scope, and review an exact output version. The native session is not connected; text entered here is a page-only draft and disappears on refresh.", "read-only"));
+        addSection(root, "Question from Codex (synthetic)", "Which geography and time range should this research cover? What should be excluded?");
+        [["answer", "Reply to Codex"], ["scope", "Scope to confirm"], ["review", "Review notes"]].forEach(([key, title]) => {
+          const label = make("label", title, "section-title");
+          const field = make("textarea");
+          field.id = "draft-" + key;
+          field.rows = 3;
+          field.value = draft[key] || "";
+          field.oninput = () => { draft[key] = field.value; };
+          label.htmlFor = field.id;
+          root.append(label, field);
+        });
+        root.append(make("p", "Review target: no run, attempt, request ID, or output hash is bound.", "control-note"));
+        const actions = make("div", undefined, "discussion-actions");
+        ["Send answer", "Confirm scope", "Accept reviewed version", "Request changes"].forEach(title => {
+          const button = make("button", title, "control");
+          button.disabled = true;
+          button.title = "Local executor is not connected";
+          actions.append(button);
+        });
+        root.append(actions, make("p", "Connecting the native adapter must bind each answer or approval to the displayed request and version. Confirming scope must never silently start a run or the next stage.", "control-note"));
+      }
       function renderContent() {
         const root = $("article"),
           s = stages[state.stage],
@@ -1053,6 +1089,7 @@
         if (state.view === "wiki") renderWiki(root, s, name);
         if (state.view === "delivery") renderDelivery(root, s, name);
         if (state.view === "history") renderHistory(root, s);
+        if (state.view === "discussion") renderDiscussion(root, s);
         if (state.view === "literature") {
           if (window.LiteratureReference?.render) {
             window.LiteratureReference.render(root);
@@ -1069,6 +1106,7 @@
           }
         }
         renderDetail();
+        window.WorkspaceI18n.apply();
       }
       function nodePurpose(n) {
         const map = {
@@ -1136,6 +1174,8 @@
         renderNodes();
         renderContent();
       }
+      $("workspaceLanguage").value = window.WorkspaceI18n.locale;
+      $("workspaceLanguage").onchange = (event) => window.WorkspaceI18n.set(event.target.value);
       render();
     </script>
   </body>
