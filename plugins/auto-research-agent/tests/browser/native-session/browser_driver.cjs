@@ -344,6 +344,7 @@ async function bounded(promise, label) {
 async function finish(meta) {
   if (finishing) return;
   finishing = true;
+  process.exitCode = 1;
   const cleanup = [];
   try {if (browser) await bounded(browser.close(), 'browser close');}
   catch (error) {cleanup.push(error.message);}
@@ -359,7 +360,8 @@ async function finish(meta) {
   if (cleanup.length) meta = {...meta, status: 'failed', cleanup};
   const receipt = {...meta, source_sha256: sourceHashes, served_sha256: servedHashes,
     results, page_errors: errors, diagnostics, stderr};
-  fs.writeFileSync(options.output, JSON.stringify(receipt, null, 2) + '\n', {flag: 'wx'});
+  try {fs.writeFileSync(options.output, JSON.stringify(receipt, null, 2) + '\n', {flag: 'wx'});}
+  catch (error) {console.error('receipt persistence failed: ' + error.message); return;}
   console.log(JSON.stringify({status: receipt.status, tests: results.length, passed: results.filter(r => r.status === 'passed').length, output: options.output}));
   process.exitCode = receipt.status === 'passed' ? 0 : 1;
 }
