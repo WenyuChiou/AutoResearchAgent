@@ -137,6 +137,7 @@ def run_daily_evaluation_v3(
     audit=None,
     call_adapter=None,
     source_context_policy=None,
+    assessment_target_policy=None,
 ):
     """Score a core selection before rendering, with independent content-first calls.
 
@@ -146,6 +147,11 @@ def run_daily_evaluation_v3(
     Pure presentation changes do not enter this selection input or call request.
     """
     packet, action = selection["evaluation_packet"], selection["action_record"]
+    target_policy = None
+    if assessment_target_policy is not None:
+        from .assessment_target_policy import validate_target_policy_binding
+
+        target_policy = validate_target_policy_binding(assessment_target_policy)
     validate_packet(packet, source_root)
     validate_action_record(action, packet)
     source_context_record = (
@@ -167,6 +173,10 @@ def run_daily_evaluation_v3(
         import stage2_eval.source_context as source_context_module
 
         files.append(Path(source_context_module.__file__))
+    if target_policy is not None:
+        from . import assessment_target_policy as target_policy_module
+
+        files.append(Path(target_policy_module.__file__))
     code_sha = canonical_hash(
         {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     )
@@ -186,6 +196,8 @@ def run_daily_evaluation_v3(
             source_context_policy_sha256=canonical_hash(source_context_policy),
             source_context_sha256=canonical_hash(source_context_record),
         )
+    if target_policy is not None:
+        config_binding["assessment_target_policy"] = deepcopy(target_policy)
     config_sha = canonical_hash(config_binding)
     output = Path(output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -205,6 +217,8 @@ def run_daily_evaluation_v3(
             source_context_policy_sha256=canonical_hash(source_context_policy),
             source_context_sha256=canonical_hash(source_context_record),
         )
+    if target_policy is not None:
+        request["assessment_target_policy"] = deepcopy(target_policy)
     request_path = output / "request.json"
     if request_path.exists():
         if not resume or read_json(request_path) != request:
@@ -258,6 +272,12 @@ def run_daily_evaluation_v3(
                 content_prompt += json.dumps(
                     source_context_record, ensure_ascii=False, sort_keys=True
                 )
+            if target_policy is not None:
+                from .assessment_target_policy import apply_target_policy
+
+                content_prompt = apply_target_policy(
+                    content_prompt, version=target_policy["schema_version"]
+                )
             assessment, _ = _run_unit(
                 call_adapter=adapter,
                 prompt=content_prompt,
@@ -299,6 +319,12 @@ def run_daily_evaluation_v3(
                 prompt += source_context_prompt_suffix(source_context_record)
                 prompt += json.dumps(
                     source_context_record, ensure_ascii=False, sort_keys=True
+                )
+            if target_policy is not None:
+                from .assessment_target_policy import apply_target_policy
+
+                prompt = apply_target_policy(
+                    prompt, version=target_policy["schema_version"]
                 )
             judgment, _ = _run_unit(
                 call_adapter=adapter,
@@ -368,4 +394,6 @@ def run_daily_evaluation_v3(
     }
     if source_context_record is not None:
         result["source_context"] = source_context_record
+    if target_policy is not None:
+        result["assessment_target_policy"] = deepcopy(target_policy)
     return _finish_result(output, "result.json", result, collected)
