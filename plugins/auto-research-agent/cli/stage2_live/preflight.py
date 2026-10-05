@@ -56,7 +56,7 @@ from .codemode import (
     inspect_production_wrapper,
 )
 from .native import CaptureError, verify_capture
-from .native_policy import NAMED_POLICY_KIND
+from .native_policy import NAMED_POLICY_KIND, NamedPolicyError, verify_named_runtime
 
 
 class PreflightError(ValueError):
@@ -1152,6 +1152,7 @@ def inspect_preflight(
     if stdout_path.is_file():
         archive_files.append(_archive_hash(stdout_path, capture))
     blockers = []
+    context = None
     primary_matches = [
         (path, events)
         for path, events in session_rows
@@ -1675,6 +1676,10 @@ def inspect_preflight(
             blockers.append("requested-sandbox-mismatch")
         if semantics.get("network_access") is not expected["network_access"]:
             blockers.append("requested-network-mismatch")
+    try:
+        verify_named_runtime(record["stable_request_binding"], context or {})
+    except NamedPolicyError as error:
+        blockers.append(f"effective-named-policy-invalid:{error}")
     if actual["model"] is None:
         blockers.append("actual-model-unknown")
     elif actual["model"] != expected["model"]:

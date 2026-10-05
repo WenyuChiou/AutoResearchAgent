@@ -27,6 +27,8 @@ from stage2_workflow.store import (
 
 from stage2_live import review_models
 from stage2_live.environment import (
+    environment_key,
+    native_for_environment,
     preflight_for_environment,
     verify_environment_capture,
     verify_environment_start,
@@ -52,6 +54,7 @@ from stage2_live.review_models import (
 )
 
 VERSION = "1.0.0"
+ROLE_POLICY_VERSION = "1.1.0"
 ROLES = ("challenger", "feasibility")
 
 
@@ -147,6 +150,16 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
         "workspaces",
     }
     allowed = {"execution_preflights", "execution_inventories", "followup_policy"}
+    role_policy = spec.get("schema_version") == ROLE_POLICY_VERSION
+    if "schema_version" in spec and not role_policy:
+        raise Stage2Error("controller-spec-version-unsupported")
+    if role_policy:
+        required |= {
+            "schema_version",
+            "execution_policies",
+            "execution_preflights",
+            "execution_inventories",
+        }
     extras = set(spec) - required
     if (
         not required.issubset(spec)
@@ -178,6 +191,30 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
         raise Stage2Error("controller-config-bindings-must-be-object")
     if not isinstance(spec["workspaces"], dict):
         raise Stage2Error("controller-workspaces-must-be-object")
+    if role_policy:
+        _assert_workspace_isolation(spec)
+        policies = spec["execution_policies"]
+        expected_keys = {
+            environment_key(row["home"], row["workspace"])
+            for row in spec["workspaces"].values()
+        }
+        if (
+            not isinstance(policies, dict)
+            or not isinstance(spec["execution_preflights"], dict)
+            or not isinstance(spec["execution_inventories"], dict)
+            or set(policies) != expected_keys
+            or set(spec["execution_preflights"]) != expected_keys
+        ):
+            raise Stage2Error("controller-execution-policy-environments-mismatch")
+        for row in spec["workspaces"].values():
+            resolved = native_for_environment(spec, row["home"], row["workspace"])
+            if not synthetic:
+                verify_environment_start(
+                    preflight_for_environment(spec, row["home"], row["workspace"]),
+                    resolved,
+                    row["home"],
+                    row["workspace"],
+                )
     if synthetic:
         return
     preflight = spec["preflight"]
@@ -210,6 +247,8 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
         raise Stage2Error("controller-preflight-model-reasoning-mismatch")
     record, _ = verify_capture(preflight["capture_dir"], preflight["receipt"])
     stable = record.get("stable_request_binding", {})
+    if role_policy:
+        native = native_for_environment(spec, stable["codex_home"], stable["workspace"])
     if (
         stable.get("codex_runtime_sha256") != codex_runtime_sha(native["codex"])
         or stable.get("policy_bindings") != native["policy_bindings"]
@@ -234,13 +273,19 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
 
 def _settings_binding(spec, adapter):
     if adapter.synthetic:
-        return {
+        settings = {
             "mode": "synthetic-test-only",
             "formal_ready": False,
             "adapter_identity": adapter.identity,
             "declared_native_sha256": canonical_hash(spec["native"]),
             "declared_preflight_sha256": canonical_hash(spec["preflight"]),
         }
+        if spec.get("schema_version") == ROLE_POLICY_VERSION:
+            settings["execution_policies_sha256"] = canonical_hash(
+                spec["execution_policies"]
+            )
+            settings["workspaces_sha256"] = canonical_hash(spec["workspaces"])
+        return settings
     native = spec["native"]
     bindings = {
         "codex": _tree_binding(native["codex"]),
@@ -265,6 +310,11 @@ def _settings_binding(spec, adapter):
             spec.get("execution_inventories", {})
         ),
     }
+    if spec.get("schema_version") == ROLE_POLICY_VERSION:
+        bindings["execution_policies_sha256"] = canonical_hash(
+            spec["execution_policies"]
+        )
+        bindings["workspaces_sha256"] = canonical_hash(spec["workspaces"])
     return {"mode": "native", "formal_ready": False, "bindings": bindings}
 
 
@@ -422,7 +472,8 @@ class _ProductionAdapter:
         if not workspace.is_dir() or not home.is_dir():
             raise Stage2Error("controller-caller-workspace-home-required")
         preflight = preflight_for_environment(spec, home, workspace)
-        verify_environment_start(preflight, spec["native"], home, workspace)
+        native = native_for_environment(spec, home, workspace)
+        verify_environment_start(preflight, native, home, workspace)
         if any(path.name != ".git" for path in workspace.iterdir()):
             raise Stage2Error("controller-subject-workspace-must-start-empty")
         task_path = workspace / "input.json"
@@ -437,7 +488,6 @@ class _ProductionAdapter:
                 target = staged_sources / source.relative_to(source_root)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, target)
-        native = spec["native"]
         capture = capture_native(
             codex=native["codex"],
             codex_home=paths["home"],
@@ -655,7 +705,11 @@ def _run_controller(
     manifest = _persist_controller_manifest(
         run_dir, controller_dir, delivery_dir, spec, adapter, result
     )
-    return {**result, "controller_manifest_sha256": manifest["manifest_sha256"]}
+    return {
+        **result,
+        "schema_version": spec.get("schema_version", VERSION),
+        "controller_manifest_sha256": manifest["manifest_sha256"],
+    }
 
 
 def _run_controller_impl(
@@ -1073,7 +1127,7 @@ def _persist_controller_manifest(
         _write_new(legacy_spec, spec)
     manifest = {
         "kind": "Stage2ControllerManifest",
-        "schema_version": VERSION,
+        "schema_version": spec.get("schema_version", VERSION),
         "status": result["status"],
         "workflow_root": str(Path(run_dir).resolve()),
         "workflow_head_sha256": result["workflow_head_sha256"],
@@ -1198,7 +1252,7 @@ def _resolution_replay_schema(packet):
     )
 
 
-def _verify_referenced_environment(spec, capture_dir, receipt):
+def _verify_referenced_environment(spec, capture_dir, receipt, expected_paths=None):
     """Verify the capture actually referenced by an authenticated action.
 
     Archives may reside outside the controller directory. Never infer coverage
@@ -1209,6 +1263,17 @@ def _verify_referenced_environment(spec, capture_dir, receipt):
     own_preflight = preflight_for_environment(
         spec, stable["codex_home"], stable["workspace"]
     )
+    if spec.get("schema_version") == ROLE_POLICY_VERSION:
+        if expected_paths is None or any(
+            stable.get(field) != expected_paths[name]
+            for field, name in (("codex_home", "home"), ("workspace", "workspace"))
+        ):
+            raise Stage2Error("controller-capture-role-allocation-mismatch")
+        resolved = native_for_environment(
+            spec, stable["codex_home"], stable["workspace"]
+        )
+        if stable["policy_bindings"] != resolved["policy_bindings"]:
+            raise Stage2Error("controller-replayed-role-policy-mismatch")
     return verify_environment_capture(
         capture_dir,
         receipt,
@@ -1220,7 +1285,8 @@ def _verify_referenced_environment(spec, capture_dir, receipt):
 def _verify_action_environments(spec, state, values):
     """Cover every retained native action, including captures outside the bundle."""
     for action_id, value in values.items():
-        kind = state["actions"][action_id]["request"]["action_kind"]
+        request = state["actions"][action_id]["request"]
+        kind = request["action_kind"]
         if kind == "stage2-ideation-native":
             capture_dir, receipt = value["capture_dir"], value["record_sha256_receipt"]
         elif kind == "stage2-independent-review":
@@ -1236,7 +1302,45 @@ def _verify_action_environments(spec, state, values):
             continue
         else:
             raise Stage2Error(f"controller-unrecognized-capture-action: {kind}")
-        _verify_referenced_environment(spec, capture_dir, receipt)
+        expected_paths = None
+        if spec.get("schema_version") == ROLE_POLICY_VERSION:
+            if kind == "stage2-ideation-native":
+                key = "research"
+            else:
+                review = (
+                    value["review"]
+                    if kind == "stage2-independent-review"
+                    else value["resolution"]["assessment"]
+                )
+                candidate_id = review["candidate_id"]
+                role = (
+                    review.get("role") if kind == "stage2-independent-review" else None
+                )
+                if (
+                    kind == "stage2-independent-review"
+                    and role != request["inputs"]["role"]
+                ):
+                    raise Stage2Error("controller-capture-review-role-mismatch")
+                snapshot = next(
+                    (
+                        row
+                        for row in state["snapshots"]
+                        if _snapshot_hash(row) == request["snapshot_sha256"]
+                    ),
+                    None,
+                )
+                candidates = (
+                    sorted(_latest_map(snapshot["packet"]))
+                    if snapshot is not None
+                    else []
+                )
+                if candidate_id not in candidates:
+                    raise Stage2Error("controller-capture-role-candidate-mismatch")
+                key = _allocated_workspace_key(
+                    spec, candidates.index(candidate_id), candidate_id, role
+                )
+            expected_paths = _isolated_paths(spec, key)
+        _verify_referenced_environment(spec, capture_dir, receipt, expected_paths)
 
 
 def _verify_saved_review(output, value, packet, snapshot_sha256, config, policy):
@@ -1395,7 +1499,7 @@ def verify_controller(output_dir, externally_retained_receipt):
         not isinstance(manifest, dict)
         or set(manifest) != required
         or manifest["kind"] != "Stage2ControllerManifest"
-        or manifest["schema_version"] != VERSION
+        or manifest["schema_version"] not in {VERSION, ROLE_POLICY_VERSION}
         or manifest["manifest_sha256"]
         != canonical_hash(
             {key: value for key, value in manifest.items() if key != "manifest_sha256"}
@@ -1422,6 +1526,8 @@ def verify_controller(output_dir, externally_retained_receipt):
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
     if canonical_hash(spec) != manifest["controller_spec_sha256"]:
         raise Stage2Error("controller-saved-spec-hash-mismatch")
+    if manifest["schema_version"] != spec.get("schema_version", VERSION):
+        raise Stage2Error("controller-saved-spec-version-mismatch")
     base = next(
         (
             row
