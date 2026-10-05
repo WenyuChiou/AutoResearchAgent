@@ -111,3 +111,9 @@ ScopeApi wraps the existing facade. Trusted bootstrap binds an original Research
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_api.py -v
 ```
+
+ScopeWikiSessionServer adds same-origin scope history/version reads and explicit append/review routes over that facade. The separate three-language scope panel requires confirmation of the displayed exact version; a version switch disables old forms. Local non-secret intent keys hold uncertain writes and recover through GET only. A saved review is not core PR approval, a search permit or native input activation.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_http.py -v
+```
