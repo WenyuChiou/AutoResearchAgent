@@ -3,6 +3,41 @@
   "extends": "capability-metric-map-v1",
   "capabilities": [
     {
+      "capability_id": "cli:research-workspace-native",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": true,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/research_workspace_native",
+      "problem": "Native workspace prerequisites need inspectable byte, identity and failure boundaries before an executable controller can be admitted.",
+      "mechanism": "Compare supplied runtime pins and physical regular tracked files with retained verified Git object bytes, without clean filters. Reject source caches, changed HEAD/index, unsafe modes and normalized physical drift. This callable guard neither launches nor resumes native execution. Production launcher, controller/API/UI and research execution remain unadmitted.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.DECISION_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "physical tracked bytes are checked against retained accepted Git blobs; normalization-hidden changes, source caches and changed dependency bindings fail closed"
+          ],
+          "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
+        }
+      ],
+      "guardrails": [
+        "no implicit reconnect, turn creation, retries or default approvals",
+        "caller owns durable persistence, project authority and admitted process lifecycle",
+        "no production launcher, frozen input access, model calls or scientific score changes"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_research_workspace_native_binding.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_binding_bytes.py",
+        "plugins/auto-research-agent/tests/test_retrieval_execution.py"
+      ],
+      "live_ab_required_at": "stage1-general-formal-milestone",
+      "quality_improvement_claimed": false
+    },
+    {
       "capability_id": "cli:research-workspace",
       "kind": "cli",
       "status": "experimental",
