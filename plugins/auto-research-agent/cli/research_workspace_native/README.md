@@ -15,7 +15,7 @@ Process-held owners exclude other writers. Recovery preserves known-unsent
 otherwise uncertain operations become unknown and cannot be resent.
 `Journal` retains exact requests, idempotent intents, unknown outcomes and bound terminals.
 Record a turn intent against the project's existing thread, then call `bind_rpc`
-before requesting `dispatching`.
+(`FrameJournal.correlate` for a frame-bound connection) before requesting `dispatching`.
 Callers must inspect the value returned by `transition_intent`: only `dispatching`
 permits the next I/O step; a resolved request returns an atomically persisted
 `retired` answer with resolution evidence and must not be sent.
@@ -27,6 +27,9 @@ consistency with saved identities, not authenticity or execution permission.
 `reconcile_thread` exhausts bounded turn/item cursors or fails without a partial result.
 The caller supplies thread ownership and authenticated observations; reads are not an atomic
 snapshot, exactly-once proof or permission to dispatch unknown work.
+`FrameJournal` atomically saves complete validated frames and their state projection.
+Durable typed correlations join out-of-order replies and terminals without guessing;
+semantic conflicts retain raw evidence and quarantine. Ordinary notices stay passive.
 Tests use synthetic channels and local storage; no Codex/model runs. Production launch,
 controller wiring, HTTP/UI, scoring and live E2E remain separate slices.
 No research/import/resume authority is granted; existing Engine guards stay unchanged.
@@ -41,4 +44,5 @@ python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p t
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_review.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_history.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_journal.py -v
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_frame_journal.py -v
 ```

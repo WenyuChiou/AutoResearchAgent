@@ -10,7 +10,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace_native",
       "problem": "Native workspace prerequisites need inspectable byte, identity and failure boundaries before an executable controller can be admitted.",
-      "mechanism": "Compare supplied runtime pins and physical regular tracked files with retained verified Git object bytes, without clean filters. Reject source caches, changed HEAD/index, unsafe modes and normalized physical drift. This callable guard neither launches nor resumes native execution. Add a persistent injected JSON-RPC pump with required durable frame callbacks and binding checks before every write. Preserve typed IDs and interleaved native questions; ambiguous dispatch makes the connection unusable without reconnect or resend. Add private SQLite project/index/thread state, process-held exclusive owners and atomic immutable state events. Recovery preserves known-unsent queues and retired records while uncertain operations remain unknown. Journal idempotent intents and native requests. Bind the existing project thread, exact original owner/epoch, typed RPC ID and intent hash before dispatch; accept only matching receipts/reconciliation and one start owner per native turn. Retire resolved queued answers atomically and return their actual applied status. Exhaust bounded native thread/turn/item history cursors or reject partial/conflicting observations. Reads do not authorize retry and are not an atomic native snapshot. Exercise the corrected Journal lifecycle and crash paths separately from history observations. Production launcher, controller/API/UI and research execution remain unadmitted.",
+      "mechanism": "Compare supplied runtime pins and physical regular tracked files with retained verified Git object bytes, without clean filters. Reject source caches, changed HEAD/index, unsafe modes and normalized physical drift. This callable guard neither launches nor resumes native execution. Add a persistent injected JSON-RPC pump with required durable frame callbacks and binding checks before every write. Preserve typed IDs and interleaved native questions; ambiguous dispatch makes the connection unusable without reconnect or resend. Add private SQLite project/index/thread state, process-held exclusive owners and atomic immutable state events. Recovery preserves known-unsent queues and retired records while uncertain operations remain unknown. Journal idempotent intents and native requests. Bind the existing project thread, exact original owner/epoch, typed RPC ID and intent hash before dispatch; accept only matching receipts/reconciliation and one start owner per native turn. Retire resolved queued answers atomically and return their actual applied status. Exhaust bounded native thread/turn/item history cursors or reject partial/conflicting observations. Reads do not authorize retry and are not an atomic native snapshot. Exercise the corrected Journal lifecycle and crash paths separately from history observations. Atomically retain complete validated frames and project only exact correlated replies/terminals through the shared Journal rules. Retain semantic conflicts in quarantine, preserve unsent/retired records, and keep passive notices separate from execution authority. Production launcher, controller/API/UI and research execution remain unadmitted.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -23,7 +23,8 @@
             "typed native IDs and directions remain distinct; rejected bindings cause zero channel writes and ambiguous connections cannot resend",
             "project/index/thread bindings and process-held owner exclusion survive SQLite reopen and synthetic process crashes",
             "mismatched RPC/thread evidence and duplicate start-turn claims are rejected; unsent queues survive recovery and stale answers retire with requested/applied status evidence",
-            "bounded history cursors exhaust fully or fail without partial success; Journal uncertainty and no-resend lifecycle checks remain separate from read-only observations"
+            "bounded history cursors exhaust fully or fail without partial success; Journal uncertainty and no-resend lifecycle checks remain separate from read-only observations",
+            "complete raw frame evidence and projected state commit together or roll back; semantic conflicts remain recorded and quarantined"
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         }
@@ -40,7 +41,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_native_store.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_review.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_history.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_journal.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_native_journal.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_frame_journal.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
