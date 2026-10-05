@@ -416,6 +416,29 @@ class Stage2PreflightTests(unittest.TestCase):
             ["active", "disabled"],
         )
 
+    def test_verified_named_request_keeps_raw_policy_and_checks_actual_permissions(
+        self,
+    ):
+        # This fixture starts after the separately tested capture verifier seam.
+        policy = {
+            "kind": "Stage2NamedPermissionsPolicy",
+            "schema_version": "1.0.0",
+            "name": "stage2",
+            "config_sha256": "b" * 64,
+            "telemetry_path": str(self.capture.parent / "telemetry"),
+        }
+        self.record["stable_request_binding"]["policy_bindings"] = policy
+        report = self.inspect()
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(report["requested_runtime"]["policy_bindings"], policy)
+        changed = copy.deepcopy(self.context)
+        changed["sandbox_policy"] = {"type": "read-only"}
+        self.write_sessions(context=changed)
+        report = self.inspect()
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("sandbox-not-workspace-write", report["blockers"])
+        self.assertFalse(report["formal_ready"])
+
     def test_verify_recomputes_exact_report_and_rejects_tampering(self):
         report = self.inspect()
         with patch.object(
