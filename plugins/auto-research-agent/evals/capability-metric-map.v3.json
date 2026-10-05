@@ -9,22 +9,17 @@
       "runtime_integrity_required": true,
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace_native",
-      "problem": "Native workspace prerequisites need inspectable byte, identity and failure boundaries before an executable controller can be admitted.",
-      "mechanism": "Compare supplied runtime pins and physical regular tracked files with retained verified Git object bytes, without clean filters. Reject source caches, changed HEAD/index, unsafe modes and normalized physical drift. This callable guard neither launches nor resumes native execution. Add a persistent injected JSON-RPC pump with required durable frame callbacks and binding checks before every write. Preserve typed IDs and interleaved native questions; ambiguous dispatch makes the connection unusable without reconnect or resend. Add private SQLite project/index/thread state, process-held exclusive owners and atomic immutable state events. Recovery preserves known-unsent queues and retired records while uncertain operations remain unknown. Journal idempotent intents and native requests. Bind the existing project thread, exact original owner/epoch, typed RPC ID and intent hash before dispatch; accept only matching receipts/reconciliation and one start owner per native turn. Retire resolved queued answers atomically and return their actual applied status. Exhaust bounded native thread/turn/item history cursors or reject partial/conflicting observations. Reads do not authorize retry and are not an atomic native snapshot. Exercise the corrected Journal lifecycle and crash paths separately from history observations. Atomically retain complete validated frames and project only exact correlated replies/terminals through the shared Journal rules. Retain semantic conflicts in quarantine, preserve unsent/retired records, and keep passive notices separate from execution authority. Production launcher, controller/API/UI and research execution remain unadmitted.",
+      "problem": "A short-lived execution cannot retain interleaved native questions, typed request identities or ambiguous dispatch outcomes for a project session.",
+      "mechanism": "Build a persistent injected JSON-RPC pump with a required durable event sink, mandatory binding checks before every write, exact native request answers and unusable connections after ambiguous dispatch. Store immutable project/index/thread bindings and exclusive process-held owners in SQLite with atomic state events; recovery preserves known-unsent queues and retired answers while uncertain work becomes unknown. Journal deduplicated intents and native requests; exact owner/epoch, typed RPC ID, thread and intent-hash claims precede dispatch, one native turn can belong to only one start, and resolved queued answers retire atomically. Unknown work blocks dispatch, and RPC acknowledgements cannot prove turn completion. Exhaust bounded thread/turn/item history cursors and reject incomplete or conflicting observations; history is not an atomic snapshot or dispatch authority. Atomically save complete validated protocol frames and state projections, retain semantic conflicts in quarantine, and join out-of-order replies with exactly bound terminals. A separate recording channel now saves raw BLOBs and paired I/O intent/result observations, including malformed or partial bytes, with bounded storage and single-use epochs. Persistence failures stop read/write while close still attempts cleanup; oversized reads retain explicit incomplete prefixes and an I/O-to-commit crash may lose bytes. Passive notices, write counts and outgoing intentions do not prove native delivery or execution. Controller wiring and production launch remain separate, unadmitted work.",
       "metric_effects": [
         {
           "metric_id": "P3",
-          "rubric_criteria": [
-            "P3V3.DECISION_TRACE"
-          ],
+          "rubric_criteria": ["P3V3.DECISION_TRACE"],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "physical tracked bytes are checked against retained accepted Git blobs; normalization-hidden changes, source caches and changed dependency bindings fail closed",
-            "typed native IDs and directions remain distinct; rejected bindings cause zero channel writes and ambiguous connections cannot resend",
-            "project/index/thread bindings and process-held owner exclusion survive SQLite reopen and synthetic process crashes",
-            "mismatched RPC/thread evidence and duplicate start-turn claims are rejected; unsent queues survive recovery and stale answers retire with requested/applied status evidence",
-            "bounded history cursors exhaust fully or fail without partial success; Journal uncertainty and no-resend lifecycle checks remain separate from read-only observations",
-            "complete raw frame evidence and projected state commit together or roll back; semantic conflicts remain recorded and quarantined"
+            "typed IDs, connection epochs, raw messages and failures remain distinct; source bytes, source caches, dependency SHA/index and physical tracked bytes versus verified retained raw Git blobs are checked before dispatch without clean-filter normalization",
+            "cross-thread and mismatched RPC receipts are rejected; start-turn claims are unique, known-unsent queues survive recovery, and stale answers persist as retired with requested/applied transition evidence before any I/O",
+            "raw read bytes, write intents and observed counts have append-only owner/epoch/sequence evidence; failed result persistence retains unmatched intents, rejects later read/write and never reopens a used epoch"
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         }
@@ -35,14 +30,15 @@
         "no production launcher, frozen input access, model calls or scientific score changes"
       ],
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_research_workspace_native_binding.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_binding_bytes.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_transport.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_binding.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_store.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_review.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_history.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_journal.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_native_frame_journal.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_native_history.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_frame_journal.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_binding_bytes.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_review.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_recording.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

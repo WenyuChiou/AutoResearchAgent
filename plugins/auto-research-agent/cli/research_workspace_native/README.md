@@ -30,19 +30,29 @@ snapshot, exactly-once proof or permission to dispatch unknown work.
 `FrameJournal` atomically saves complete validated frames and their state projection.
 Durable typed correlations join out-of-order replies and terminals without guessing;
 semantic conflicts retain raw evidence and quarantine. Ordinary notices stay passive.
+Outgoing frames prove intention, not full writes. `RecordingChannel` separately wraps
+injected read/write/close with append-only SQLite BLOBs and durable intent/result pairs.
+Valid read bytes, including malformed UTF-8/JSON and partial frames, are saved before
+return; oversized invalid reads retain a prefix with `capture_complete=false` and its
+prefix SHA. Write results record one observed count, not full-frame/native delivery.
+Read/write recording failure blocks further I/O; `close` still attempts cleanup once
+even if recording fails. A read-to-commit crash can lose bytes; unmatched intents
+remain unknown and old connection epochs cannot reopen. Authenticated lifecycle and
+controller admission remain separate requirements; recorded bytes grant no authority.
 Tests use synthetic channels and local storage; no Codex/model runs. Production launch,
 controller wiring, HTTP/UI, scoring and live E2E remain separate slices.
 No research/import/resume authority is granted; existing Engine guards stay unchanged.
 
-Run the introduced offline tests with a writable TEMP/TMP/TMPDIR outside Git:
+Run these offline checks from the repository root with an installed Python interpreter
+and a writable TEMP/TMP/TMPDIR outside Git:
 
 ```powershell
-python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_binding.py -v
-python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_binding_bytes.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_transport.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_store.py -v
-python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_review.py -v
-python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_history.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_journal.py -v
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_history.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_frame_journal.py -v
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_binding_bytes.py -v
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_review.py -v
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_recording.py -v
 ```
