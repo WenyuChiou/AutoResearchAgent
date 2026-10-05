@@ -418,14 +418,15 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "Exact evaluated-delivery bytes and nine judgment rows preserve unknown, audit-required and failed states; external receipt binds project/index/delivery versions without promoting research authority."
+            "Verified Stage 2 proposal, nine original judgment comments and null/audit states are visible from the Wiki; external bridge binds exact project/index/delivery versions; no model calls or permission promotion."
           ],
           "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
         }
       ],
-      "mechanism": "Verified read-only evaluated-delivery importer with explicit operator-selected association, external receipt hash and unchanged frozen WorkspaceIndex v1. Wiki rendering is a separate integration.",
+      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research.",
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py"
       ]
     }
   ]

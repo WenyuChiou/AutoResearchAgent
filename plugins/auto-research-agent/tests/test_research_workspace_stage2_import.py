@@ -1,7 +1,9 @@
 """Verified Stage 2 reading imports; synthetic calls cannot prove research quality."""
 
 from copy import deepcopy
+from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 import test_stage2_daily_v3 as daily_fixture
 from test_research_workspace_view import fixture_index
@@ -11,6 +13,7 @@ from research_workspace.stage2_import import (
     import_evaluated_delivery,
     prepare_stage2_bridge,
 )
+from research_workspace.view import write_workspace
 
 
 class WorkspaceStage2ImportTests(unittest.TestCase):
@@ -84,6 +87,16 @@ class WorkspaceStage2ImportTests(unittest.TestCase):
         with self.assertRaises(Stage2Error):
             self.import_delivery()
 
+    def test_partial_import_parameters_fail_before_any_output_or_asset_read(self):
+        destination = self.fixture.root / "workspace"
+        with patch("research_workspace.view.safe_path") as path_read:
+            with self.assertRaisesRegex(DeliverableError, "receipt hash are required"):
+                write_workspace(
+                    self.index, ".", destination, stage2_delivery=self.delivery
+                )
+        path_read.assert_not_called()
+        self.assertFalse(destination.exists())
+
     def test_pending_audit_and_failed_judging_stay_unresolved_in_real_import(self):
         for options, status in (
             ({"disagree": True}, "audit-required"),
@@ -111,6 +124,15 @@ class WorkspaceStage2ImportTests(unittest.TestCase):
                 self.assertEqual(len(evaluation["rows"]), 9)
                 self.assertFalse(attachment["bridge_receipt"]["formal_ready"])
                 if status == "failed":
+                    from research_workspace.stage2_presentation import (
+                        render_stage2_card,
+                    )
+
+                    rendered = render_stage2_card(attachment)
+                    self.assertIn("Incomplete assessment", rendered)
+                    self.assertNotIn("Final recorded evaluation", rendered)
+                    for row in evaluation["rows"]:
+                        self.assertIn(row["judges"]["R1"]["rationale"], rendered)
                     self.assertIsNone(evaluation["dimensions"]["P4"]["score"])
                     self.assertTrue(
                         all(
@@ -127,3 +149,31 @@ class WorkspaceStage2ImportTests(unittest.TestCase):
                             for row in evaluation["rows"]
                         )
                     )
+
+    def test_workspace_import_copies_verified_proposal_and_notes_with_bound_receipt(
+        self,
+    ):
+        reference = Path(__file__).parents[1] / "references/research-workspace"
+        destination = self.fixture.root / "workspace"
+        receipt = write_workspace(
+            self.index,
+            reference,
+            destination,
+            stage2_delivery=self.delivery,
+            stage2_bridge=self.bridge,
+            expected_stage2_bridge_sha256=self.bridge_sha,
+        )
+        html = (destination / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="stage2-delivery"', html)
+        self.assertIn("stage2/report-reader.html", html)
+        self.assertIn("R1 source-bound comment", html)
+        self.assertEqual(
+            (destination / "stage2/selection.html").read_bytes(),
+            (self.delivery / "selection.html").read_bytes(),
+        )
+        self.assertEqual(
+            receipt["stage2_attachment"]["bridge_receipt_sha256"], self.bridge_sha
+        )
+        self.assertFalse(receipt["stage2_attachment"]["stage3_authorized"])
+        for name, digest in receipt["files"].items():
+            self.assertEqual(sha((destination / name).read_bytes()), digest)

@@ -81,13 +81,55 @@ def render_view(index_path, output, reference_root, expected_index_sha256):
     return _write_view(index, raw, reference_root, output)
 
 
-def write_workspace(index, reference_root, output_dir):
+def write_workspace(
+    index,
+    reference_root,
+    output_dir,
+    *,
+    stage2_delivery=None,
+    stage2_bridge=None,
+    expected_stage2_bridge_sha256=None,
+):
     """Write a freshly projected index with its canonical-byte receipt."""
-    return _write_view(index, canonical(index), reference_root, output_dir)
+    return _write_view(
+        index,
+        canonical(index),
+        reference_root,
+        output_dir,
+        stage2_delivery=stage2_delivery,
+        stage2_bridge=stage2_bridge,
+        expected_stage2_bridge_sha256=expected_stage2_bridge_sha256,
+    )
 
 
-def _write_view(index, raw, reference_root, output):
+def _write_view(
+    index,
+    raw,
+    reference_root,
+    output,
+    *,
+    stage2_delivery=None,
+    stage2_bridge=None,
+    expected_stage2_bridge_sha256=None,
+):
     validate_index(index)
+    stage2_attachment, stage2_files = None, {}
+    supplied = (stage2_delivery, stage2_bridge, expected_stage2_bridge_sha256)
+    if any(value is not None for value in supplied):
+        if not all(value is not None for value in supplied):
+            raise DeliverableError(
+                "Stage 2 delivery, bridge and receipt hash are required"
+            )
+        from .stage2_import import import_evaluated_delivery
+        from .stage2_presentation import render_stage2_card, stage2_wiki_notes
+
+        stage2_attachment, stage2_files = import_evaluated_delivery(
+            index,
+            stage2_delivery,
+            stage2_bridge,
+            expected_bridge_sha256=expected_stage2_bridge_sha256,
+        )
+        stage2_files.update(stage2_wiki_notes(stage2_attachment))
     expected_index_sha256 = sha(raw)
     if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") != "1.0.0":
         raise DeliverableError("unsupported WorkspaceIndex")
@@ -125,6 +167,10 @@ def _write_view(index, raw, reference_root, output):
         "Read-only projection of the original package. Source access and claim judgments remain unchanged.",
     )
     html = html.replace("Offline interaction reference", "Read-only package view")
+    if stage2_attachment is not None:
+        html = _replace(
+            html, "</header>", "</header>" + render_stage2_card(stage2_attachment)
+        )
     html = html.replace(
         "<head>",
         "<head>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">",
@@ -160,6 +206,8 @@ def _write_view(index, raw, reference_root, output):
             for paper in index["papers"]
         ],
     }
+    if stage2_attachment is not None:
+        payload["stage2"] = stage2_attachment
     encoded = (
         json.dumps(payload, ensure_ascii=True)
         .replace("<", "\\u003c")
@@ -173,6 +221,17 @@ def _write_view(index, raw, reference_root, output):
         assets["workspace.css"]
         + "\npre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto} details{margin:12px 0} .node-list p,.detail p{overflow-wrap:anywhere}\n"
     )
+    if stage2_attachment is not None:
+        css += (
+            "\n#stage2-delivery{margin:24px;padding:24px;background:#fff;"
+            "border:1px solid #d4dce6;border-radius:12px;overflow-wrap:anywhere}"
+            "#stage2-delivery h2{margin-top:0}"
+            "#stage2-delivery li{margin-bottom:16px}"
+            "#stage2-delivery dd{margin:4px 0 12px 16px}"
+            "#stage2-delivery summary{cursor:pointer;padding:12px;background:#eef3f9}"
+            "#stage2-delivery .stage2-audit{padding:12px;background:#fff5db}"
+            "@media(max-width:600px){#stage2-delivery{margin:12px;padding:16px}}\n"
+        )
     files = {
         "index.html": html.encode(),
         "workspace.css": css.encode(),
@@ -185,7 +244,15 @@ def _write_view(index, raw, reference_root, output):
         "workspace-index.json": raw,
         "references.bib": index["bibliography"]["all_bibtex"].encode("utf-8"),
         **wiki_files(index),
+        **stage2_files,
     }
+    if stage2_attachment is not None:
+        files["wiki/README.md"] += (
+            b"\n## Stage 2 direction proposal and independent assessment\n\n"
+            b"[Read the Stage 2 notes](../stage2/README.md). "
+            b"[Open the proposal](../stage2/report-reader.html). "
+            b"Unknowns and pending audits remain unresolved.\n"
+        )
     manifest = {
         "kind": "WorkspaceReadOnlyView",
         "index_sha256": expected_index_sha256,
@@ -215,6 +282,24 @@ def _write_view(index, raw, reference_root, output):
             )
         },
     }
+    if stage2_attachment is not None:
+        manifest["stage2_attachment"] = {
+            "schema_version": "1.0.0",
+            "attachment_sha256": sha(canonical(stage2_attachment)),
+            "bridge_receipt_sha256": expected_stage2_bridge_sha256,
+            "stage2_manifest_sha256": stage2_bridge["stage2_manifest_sha256"],
+            "evaluation_status": stage2_attachment["evaluation"]["evaluation_status"],
+            "original_stage1_lineage_attested": False,
+            "stage3_authorized": False,
+            "formal_ready": False,
+            "improvement_demonstrated": False,
+        }
+        manifest["adapter_sources"].update(
+            {
+                name: sha(Path(__file__).with_name(name).read_bytes())
+                for name in ("stage2_import.py", "stage2_presentation.py")
+            }
+        )
     destination.mkdir(parents=True)
     for name, data in files.items():
         target = safe_path(destination, name)
