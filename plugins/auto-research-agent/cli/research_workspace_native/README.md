@@ -13,6 +13,17 @@ that differ from retained blobs fail closed. Checks do not lock concurrent edits
 Process-held owners exclude other writers. Recovery preserves known-unsent
 `intent-recorded` queues, `retired` answers and completed records; dispatched or
 otherwise uncertain operations become unknown and cannot be resent.
+`Journal` retains exact requests, idempotent intents, unknown outcomes and bound terminals.
+Record a turn intent against the project's existing thread, then call `bind_rpc`
+before requesting `dispatching`.
+Callers must inspect the value returned by `transition_intent`: only `dispatching`
+permits the next I/O step; a resolved request returns an atomically persisted
+`retired` answer with resolution evidence and must not be sent.
+RPC claims bind the exact epoch, typed RPC ID, thread, intent hash and original owner.
+Old owner/epoch claims cannot authorize a new dispatch. Receipts and reconciliation
+must match the original claim; each native turn belongs to at most one start intent,
+while an interrupt may reference that turn. Caller-supplied receipts establish
+consistency with saved identities, not authenticity or execution permission.
 Tests use synthetic channels and local storage; no Codex/model runs. Production launch,
 controller wiring, HTTP/UI, scoring and live E2E remain separate slices.
 No research/import/resume authority is granted; existing Engine guards stay unchanged.
@@ -24,4 +35,5 @@ python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p t
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_binding_bytes.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_transport.py -v
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_store.py -v
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_review.py -v
 ```
