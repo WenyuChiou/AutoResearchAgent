@@ -217,7 +217,10 @@ class SessionHttpTests(unittest.TestCase):
         self.assertEqual(
             self.call("GET", f"/api/native/projects/{p.ref}?token=x")[0], 404
         )
-        self.assertEqual(self.call("POST", path, b"x" * (256 * 1024 + 1))[0], 413)
+        self.assertEqual(
+            self.call("POST", path, headers={"Content-Length": str(256 * 1024 + 1)})[0],
+            413,
+        )
         for field in ("Host", "Authorization", "Origin", "Content-Length"):
             connection = http.client.HTTPConnection(
                 "127.0.0.1", self.server.server_port, timeout=3
