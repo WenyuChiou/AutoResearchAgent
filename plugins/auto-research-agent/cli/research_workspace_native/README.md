@@ -105,3 +105,9 @@ WikiSessionServer requires the four exact accepted reference asset byte strings 
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_wiki_http.py -v
 ```
+
+ScopeApi wraps the existing facade. Trusted bootstrap binds an original ResearchBrief path and expected hash. Exact original bytes, parent hashes, new decision versions and reviews are persisted atomically in SQLite; replay is idempotent. Scope history does not change WorkspaceIndex/input binding, compile searches, approve runtime execution or start a turn. Source/operator provenance is an attestation, not independent proof of human identity.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_api.py -v
+```
