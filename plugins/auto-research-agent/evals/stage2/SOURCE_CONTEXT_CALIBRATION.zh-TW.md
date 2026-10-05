@@ -40,3 +40,21 @@ context 分離也不是檔案隔離證明。R1/R2 不得看到對方輸出或參
 目前的 combined acceptance 明確標成 deterministic-mechanics-only。
 合成測試通過不代表真實 judge 品質已通過，不建立 formal-ready 或
 改善聲明。舊 QA03、原始失敗與 rubric v3 不覆寫。
+
+## 原生呼叫入口
+
+`python -m stage2_live calibrate-context-v3` 接受私有 dataset/reference、
+`codex`、分開的 `r1-home`／`r2-home`、model、reasoning、policy、output
+及外部 `replay-receipt-output`。參考答案只留在 host；模型收到匿名內容與
+來源事實，不收到 family、polarity、critical 或參考分數。每個實際
+prompt 最多 12,000 字元；按 criterion 分組，案例數不是呼叫數。
+
+保存 request、schema、每次 attempt、完成單元及原始評語。缺席 reviewer
+保持 incomplete。使用 `--resume --resume-receipt` 只重用外部回執核對過的
+完成單元；來源、runtime、設定、prompt 或共用執行程式改變時拒絕重用。
+失敗原生 archive 不會被盲目重跑，須先保存失敗並釐清後另建執行。
+CLI 在呼叫前拒絕已存在或放在結果／profile 內的回執輸出位置。
+
+`native_qa_pass` 只表示這 12 個案例的真實 no-tool judge 判斷通過。
+注入 adapter 的測試永遠不是 native；完整 84 份驗收仍須另外重算
+72 份與 12 份的證據，且正式 readiness、隔離及 A/B 尚有各自門檻。
