@@ -56,6 +56,7 @@ from .codemode import (
     inspect_production_wrapper,
 )
 from .native import CaptureError, verify_capture
+from .native_policy import NAMED_POLICY_KIND
 
 
 class PreflightError(ValueError):
@@ -1663,9 +1664,16 @@ def inspect_preflight(
     if not isinstance(requested_policy, dict):
         blockers.append("requested-policy-unknown")
     else:
-        if requested_policy.get("sandbox") != expected["sandbox"]:
+        # verify_capture already checked the exact named restrictive config.
+        # Preserve raw requested bindings; only interpret their policy semantics.
+        semantics = (
+            {"sandbox": "workspace-write", "network_access": True}
+            if requested_policy.get("kind") == NAMED_POLICY_KIND
+            else requested_policy
+        )
+        if semantics.get("sandbox") != expected["sandbox"]:
             blockers.append("requested-sandbox-mismatch")
-        if requested_policy.get("network_access") is not expected["network_access"]:
+        if semantics.get("network_access") is not expected["network_access"]:
             blockers.append("requested-network-mismatch")
     if actual["model"] is None:
         blockers.append("actual-model-unknown")
