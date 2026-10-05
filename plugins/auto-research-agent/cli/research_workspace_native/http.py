@@ -62,7 +62,10 @@ class SessionHttpServer(ThreadingHTTPServer):
             raise ValueError("bounded timeout required")
         self.api, self.timeout_seconds = api, timeout
         super().__init__((host, port), SessionHandler)
-        self.expected_host = f"127.0.0.1:{self.server_address[1]}"
+        bound_port = self.server_address[1]
+        self.expected_host = (
+            "127.0.0.1" if bound_port == 80 else f"127.0.0.1:{bound_port}"
+        )
         self.expected_origin = "http://" + self.expected_host
 
 
@@ -95,14 +98,14 @@ class SessionHandler(BaseHTTPRequestHandler):
         try:
             self.end_headers()
             self.wfile.write(raw)
-        except ConnectionError:
+        except (ConnectionError, TimeoutError):
             # A disconnected HTTP client never changes the durable action outcome.
             return
 
     def send_error(self, code, message=None, explain=None):
         self._reply(code, {"error": "http-rejected"})
 
-    def _headers(self):
+    def _headers(self, method):
         for name in (
             "Host",
             "Origin",
@@ -115,9 +118,10 @@ class SessionHandler(BaseHTTPRequestHandler):
                 raise SessionApiError("duplicate-safety-header", 400)
         if self.headers.get("Transfer-Encoding") is not None:
             raise SessionApiError("transfer-encoding-rejected", 400)
-        if (
-            self.headers.get("Host") != self.server.expected_host
-            or self.headers.get("Origin") != self.server.expected_origin
+        origin = self.headers.get("Origin")
+        if self.headers.get("Host") != self.server.expected_host or (
+            origin != self.server.expected_origin
+            and not (method == "GET" and origin is None)
         ):
             raise SessionApiError("origin-or-host-rejected", 403)
         authorization = self.headers.get("Authorization", "")
@@ -136,7 +140,7 @@ class SessionHandler(BaseHTTPRequestHandler):
 
     def _handle(self, method):
         try:
-            credential, length = self._headers()
+            credential, length = self._headers(method)
             match = ROUTE.fullmatch(self.path)
             if not match:
                 raise SessionApiError("unknown-route", 404)

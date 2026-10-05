@@ -9,10 +9,15 @@ import sys
 import threading
 import time
 import unittest
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 import test_research_workspace_native_session_api as fixtures
-from research_workspace_native.http import SessionHttpServer, token_authenticator
+from research_workspace_native.http import (
+    SessionHandler,
+    SessionHttpServer,
+    token_authenticator,
+)
 from research_workspace_native.session_api import SessionApi
 
 
@@ -80,7 +85,9 @@ class SessionHttpTests(unittest.TestCase):
         body.update(changes)
         return body
 
-    def call(self, method, path, body=None, headers=None, token=None):
+    def call(
+        self, method, path, body=None, headers=None, token=None, omit_origin=False
+    ):
         connection = http.client.HTTPConnection(
             "127.0.0.1", self.server.server_port, timeout=3
         )
@@ -93,6 +100,8 @@ class SessionHttpTests(unittest.TestCase):
             supplied["Content-Type"] = "application/json"
             body = json.dumps(body).encode() if isinstance(body, dict) else body
         supplied.update(headers or {})
+        if omit_origin:
+            supplied.pop("Origin", None)
         try:
             connection.request(method, path, body=body, headers=supplied)
             response = connection.getresponse()
@@ -148,6 +157,28 @@ class SessionHttpTests(unittest.TestCase):
         self.call("GET", f"/api/native/projects/{p.ref}")
         changed = dict(body, result={"answers": {"q": {"answers": ["other"]}}})
         self.assertEqual(self.call("POST", path, changed)[0], 409)
+        self.assertEqual(p.channel.calls, before)
+
+    def test_same_origin_get_without_origin_and_mutations_stay_guarded(self):
+        p = self.project()
+        body = self.body(p, self.request(p))
+        path = f"/api/native/projects/{p.ref}"
+        before = list(p.channel.calls)
+        self.assertEqual(self.call("GET", path, omit_origin=True)[0], 200)
+        self.assertEqual(
+            self.call("POST", path + "/answers", body, omit_origin=True)[0], 403
+        )
+        for origin in ("null", "https://evil.example"):
+            self.assertEqual(self.call("GET", path, headers={"Origin": origin})[0], 403)
+        self.assertEqual(p.channel.calls, before)
+        status, receipt, _ = self.call("POST", path + "/answers", body)
+        self.assertEqual(status, 200)
+        before = list(p.channel.calls)
+        history = self.call(
+            "GET", path + "/actions/" + receipt["action_ref"], omit_origin=True
+        )
+        self.assertEqual(history[0], 200)
+        self.assertEqual(history[1]["action_ref"], receipt["action_ref"])
         self.assertEqual(p.channel.calls, before)
 
     def test_stale_and_untrusted_fields_reject_without_dispatch(self):
@@ -314,6 +345,28 @@ class SessionHttpTests(unittest.TestCase):
         self.assertEqual(check("x" * 40), "p")
         self.assertIsNone(check("y" * 40))
         self.assertIsNone(check(None))
+        with (
+            patch.object(SessionHttpServer, "server_bind"),
+            patch.object(SessionHttpServer, "server_activate"),
+        ):
+            server = SessionHttpServer(self.api, port=80)
+            try:
+                self.assertEqual(server.expected_host, "127.0.0.1")
+                self.assertEqual(server.expected_origin, "http://127.0.0.1")
+            finally:
+                server.server_close()
+
+    def test_response_timeout_does_not_issue_a_second_response(self):
+        # Inject a response writer fault; no socket/process/native lifecycle.
+        handler = SessionHandler.__new__(SessionHandler)
+        handler.send_response = Mock()
+        handler.send_header = Mock()
+        handler.end_headers = Mock(side_effect=TimeoutError("slow client"))
+        handler.wfile = Mock()
+        handler._reply(200, {"status": "saved"})
+        handler.send_response.assert_called_once_with(200)
+        handler.wfile.write.assert_not_called()
+        self.assertTrue(handler.close_connection)
 
 
 if __name__ == "__main__":

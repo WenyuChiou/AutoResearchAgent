@@ -93,7 +93,7 @@ python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p t
 ```
 
 Expose the existing session facade through a bounded loopback HTTP adapter.
-SessionHttpServer is an explicit 127.0.0.1 listener over a supplied SessionApi. It requires exact Host/Origin and bearer credentials, rejects malformed or oversized requests, and preserves durable action outcomes when an HTTP client disconnects. Tests use real temporary loopback HTTP with fake native channels; browser UI, public deployment, native authentication and model execution remain unverified.
+SessionHttpServer is an explicit 127.0.0.1 listener over a supplied SessionApi. GET may omit Origin; if supplied it must match exactly, and POST always requires exact Origin. Exact Host, bearer authentication and project authorization remain required. Port 80 uses canonical authority/origin, and a response timeout stops further replies. Malformed or oversized requests are rejected, and disconnected clients can read durable outcomes without resending. Tests use real temporary loopback HTTP with fake native channels; browser UI, public deployment, native authentication and model execution remain unverified.
 
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_http.py -v
