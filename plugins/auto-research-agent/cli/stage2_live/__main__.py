@@ -194,6 +194,24 @@ def main(argv=None):
     quality_check_v3 = commands.add_parser(
         "verify-quality-v3", help="read-only replay of a native v3 calibration"
     )
+    context_quality_v3 = commands.add_parser(
+        "calibrate-context-v3", help="native blinded supplemental 12-case calibration"
+    )
+    for option in (
+        "dataset",
+        "reference",
+        "codex",
+        "r1-home",
+        "r2-home",
+        "model",
+        "reasoning",
+        "policy",
+        "output",
+        "replay-receipt-output",
+    ):
+        context_quality_v3.add_argument("--" + option, required=True)
+    context_quality_v3.add_argument("--resume", action="store_true")
+    context_quality_v3.add_argument("--resume-receipt")
     for option in ("root", "receipt", "dataset", "reference", "config", "output"):
         quality_check_v3.add_argument("--" + option, required=True)
     daily_check_v3 = commands.add_parser(
@@ -451,6 +469,36 @@ def main(argv=None):
                 execution_policy=_read(args.policy),
                 output_dir=args.output,
             )
+        elif args.command == "calibrate-context-v3":
+            from .context_quality_v3 import run_context_quality_v3
+
+            receipt = Path(args.replay_receipt_output).resolve()
+            roots = [
+                Path(p).resolve() for p in (args.output, args.r1_home, args.r2_home)
+            ]
+            if receipt.exists() or any(
+                receipt == root or root in receipt.parents or receipt in root.parents
+                for root in roots
+            ):
+                raise EvaluationError("new external replay receipt path required")
+            if args.resume != bool(args.resume_receipt):
+                raise EvaluationError("resume requires its external replay receipt")
+            result = run_context_quality_v3(
+                _read(args.dataset),
+                _read(args.reference),
+                codex=args.codex,
+                r1_home=args.r1_home,
+                r2_home=args.r2_home,
+                model=args.model,
+                reasoning=args.reasoning,
+                execution_policy=_read(args.policy),
+                output_dir=args.output,
+                resume=args.resume,
+                resume_receipt=_read(args.resume_receipt)
+                if args.resume_receipt
+                else None,
+            )
+            _save(receipt, result["replay_receipt"])
         elif args.command == "source-update":
             from .source_updates import prepare_source_update
 

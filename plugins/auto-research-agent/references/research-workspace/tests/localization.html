@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Workspace source localization regression</title>
+<h1>Workspace source localization regression</h1>
+<p>Offline synthetic fixture. Open through a local static server. Tests run automatically.</p>
+<pre id="result" translate="no">RUNNING</pre>
+<div id="ui-label">Evidence</div>
+<blockquote translate="no" title="Evidence"><span aria-label="Authors">Evidence</span></blockquote>
+<div id="literature"></div>
+<script>
+  // Restore the visitor's preference after this isolated test, including on failure.
+  const savedLanguage = localStorage.getItem("research-workspace-language");
+  localStorage.removeItem("research-workspace-language");
+</script>
+<script src="../workspace-i18n.js"></script>
+<script src="../literature-reference.js"></script>
+<script>
+  const result = document.getElementById("result");
+  let assertions = 0;
+  function equal(actual, expected, name) {
+    assertions++;
+    if (actual !== expected) throw new Error(`${name}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)}`);
+  }
+  try {
+    equal(WorkspaceI18n.locale, "en", "first-load English");
+    const paper = {...LiteratureReference.demoRecords[0], title: "Evidence", shortTitle: "Input",
+      authors: ["Authors"], journal: "Output", keywords: ["Evidence"],
+      roles: [{name: "Evidence", basis: "Authors"}]};
+    const records = [paper], original = JSON.stringify(records);
+    const bib = LiteratureReference.toBibTeX(records);
+    const root = document.getElementById("literature");
+    LiteratureReference.render(root, records);
+    const sourceValues = () => JSON.stringify([...document.querySelectorAll("[translate='no']")]
+      .filter(el => el !== result).map(el => [el.textContent, el.getAttribute("title"), el.getAttribute("aria-label"),
+        [...el.querySelectorAll("[title], [aria-label]")].map(child => [child.getAttribute("title"), child.getAttribute("aria-label")])]));
+    const originalDisplay = sourceValues();
+    for (const language of ["zh-Hans", "zh-Hant", "en", "zh-Hans", "en"]) {
+      WorkspaceI18n.set(language);
+      equal(document.documentElement.lang, language, "document language");
+      equal(localStorage.getItem("research-workspace-language"), language, "saved preference");
+      equal(sourceValues(), originalDisplay, "source text and attributes preserved");
+      equal(root.querySelector(".paper-row strong").textContent, "Evidence", "literal title collision");
+      equal(JSON.stringify(records), original, "input records preserved");
+      equal(LiteratureReference.toBibTeX(records), bib, "BibTeX preserved");
+      equal(document.getElementById("ui-label").textContent, WorkspaceI18n.t("Evidence"), "UI translated");
+      if (language !== "en") equal(document.getElementById("ui-label").textContent === "Evidence", false, "translation is nontrivial");
+      // Selection rerenders the list, graph, metadata and roles in the selected locale.
+      root.querySelector(".paper-row").click();
+      equal(sourceValues(), originalDisplay, "rerender preserves sources");
+    }
+    result.textContent = `PASS: ${assertions} assertions; titles/authors/quotes/role reasons/attributes/BibTeX preserved.`;
+  } catch (error) {
+    result.textContent = `FAIL after ${assertions} assertions: ${error.stack}`;
+    throw error;
+  } finally {
+    if (savedLanguage === null) localStorage.removeItem("research-workspace-language");
+    else localStorage.setItem("research-workspace-language", savedLanguage);
+  }
+</script>
