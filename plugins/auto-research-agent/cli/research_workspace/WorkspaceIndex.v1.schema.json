@@ -1,0 +1,481 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceIndex v1 read-only Stage 1 projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "project_id",
+    "status",
+    "topic",
+    "as_of",
+    "papers",
+    "sources",
+    "claims",
+    "screening",
+    "coverage",
+    "edges",
+    "missing_fields",
+    "search",
+    "coverage_documents",
+    "audit_documents",
+    "readiness",
+    "supplement",
+    "stages",
+    "native_session",
+    "evaluations",
+    "bibliography",
+    "provenance"
+  ],
+  "properties": {
+    "kind": {
+      "const": "WorkspaceIndex"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+    },
+    "status": {
+      "const": "partial-review-only"
+    },
+    "topic": {
+      "type": "string"
+    },
+    "as_of": {
+      "type": "string"
+    },
+    "papers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/paper"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "screening": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "work_id",
+          "version_id",
+          "provenance"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "claim-source",
+              "role-claim"
+            ]
+          },
+          "provenance": {
+            "$ref": "#/$defs/recordOrigin"
+          }
+        }
+      }
+    },
+    "missing_fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "pointer",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "pointer": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "not-recorded",
+              "stated-unknown"
+            ]
+          }
+        }
+      }
+    },
+    "search": {
+      "$ref": "#/$defs/documents"
+    },
+    "coverage_documents": {
+      "$ref": "#/$defs/documents"
+    },
+    "audit_documents": {
+      "$ref": "#/$defs/documents"
+    },
+    "readiness": {
+      "type": "object"
+    },
+    "supplement": {
+      "const": {
+        "status": "not-provided",
+        "top3_status": "pending"
+      }
+    },
+    "native_session": {
+      "const": {
+        "status": "not-connected",
+        "thread_id": null
+      }
+    },
+    "evaluations": {
+      "const": {
+        "status": "not-provided",
+        "items": []
+      }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stage",
+          "label",
+          "purpose",
+          "required_inputs",
+          "expected_deliverables",
+          "validator",
+          "adapter",
+          "support_status",
+          "node_flow",
+          "execution_enabled",
+          "allowed_execution_actions"
+        ],
+        "properties": {
+          "stage": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required_inputs": {
+            "$ref": "#/$defs/labels"
+          },
+          "expected_deliverables": {
+            "$ref": "#/$defs/labels"
+          },
+          "validator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "adapter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "support_status": {
+            "enum": [
+              "read-only-adapter",
+              "core-available-not-connected",
+              "reserved"
+            ]
+          },
+          "node_flow": {
+            "const": [
+              "plan",
+              "execute",
+              "extract",
+              "validate",
+              "gate",
+              "checkpoint"
+            ]
+          },
+          "execution_enabled": {
+            "const": false
+          },
+          "allowed_execution_actions": {
+            "const": []
+          }
+        }
+      }
+    },
+    "bibliography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer",
+        "records_sha256",
+        "all_bibtex",
+        "entries"
+      ],
+      "properties": {
+        "producer": {
+          "const": "stage1_deliverable.views.bibtex"
+        },
+        "records_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "all_bibtex": {
+          "type": "string"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "work_id",
+              "version_id",
+              "bibtex"
+            ],
+            "properties": {
+              "work_id": {
+                "type": "string"
+              },
+              "version_id": {
+                "type": "string"
+              },
+              "bibtex": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_manifest_sha256",
+        "deliverable_manifest_sha256",
+        "records_sha256",
+        "files",
+        "validation"
+      ],
+      "properties": {
+        "package_manifest_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "deliverable_manifest_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "records_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "files": {
+          "type": "object"
+        },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "byte_inventory",
+            "canonical_bindings",
+            "semantic_replay",
+            "scientific_quality_scored"
+          ],
+          "properties": {
+            "mode": {
+              "const": "byte-inventory"
+            },
+            "byte_inventory": {
+              "const": "passed"
+            },
+            "canonical_bindings": {
+              "const": "passed"
+            },
+            "semantic_replay": {
+              "const": "not-performed"
+            },
+            "scientific_quality_scored": {
+              "const": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "labels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "recordOrigin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "pointer"
+      ],
+      "properties": {
+        "path": {
+          "const": "deliverable/records.original.json"
+        },
+        "sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "pointer": {
+          "type": "string"
+        }
+      }
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256",
+          "text"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "paper": {
+      "type": "object",
+      "required": [
+        "work_id",
+        "version_id",
+        "title",
+        "authors",
+        "year",
+        "venue",
+        "doi",
+        "url",
+        "evidence_level",
+        "classification",
+        "roles",
+        "source_ids",
+        "claim_ids",
+        "findings"
+      ],
+      "properties": {
+        "work_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "year": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "venue": {
+          "type": "string"
+        },
+        "doi": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_level": {
+          "type": "string"
+        },
+        "classification": {
+          "type": "object"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "findings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,252 @@
+"""Build a private read-only view; canonical research records remain unchanged."""
+
+import argparse
+import json
+from pathlib import Path
+
+from stage1_deliverable.common import (
+    DeliverableError,
+    canonical,
+    private_output,
+    safe_path,
+    sha,
+)
+from .projection import validate_index
+from .wiki import wiki_files
+from .json_bytes import decode_json
+
+REFERENCE_COMMIT = "085f363179a79375fc8e3590dda9725e25eda71a"
+REFERENCE_HASHES = {
+    "prototype.html": "dfd49e7d0baf5cbf1645a08c34dafb48bba7b3db9d867adf313e91b1a810298e",
+    "literature-reference.js": "73e24c4a8e1c38ee66ca259391ed5c2bd04412dd8cd7d1f97875bbde7ed81323",
+    "workspace-i18n.js": "d24fadd875728abfdd9d6a1734f430d82abf80ecf4538cf959d91245ce1bc24d",
+    "workspace.css": "c8be8874b682171e83463bb5c00b379eb75581dac125b275e4878f1cccbd101b",
+}
+
+
+def _replace(value, old, new):
+    if old not in value:
+        raise DeliverableError("reference template contract changed")
+    return value.replace(old, new)
+
+
+def _literature(source):
+    source = (
+        source[: source.index("  const freezeRecord")]
+        + source[source.index("  const svgNS") :]
+    )
+    start, end = source.index("  function bibEscape"), source.index("  function render")
+    source = source[:start] + source[end:]
+    changes = {
+        "function render(root, records = demoRecords)": "function render(root, records, hooks)",
+        "let selectedId = records[0]?.workId || null;": "let selectedId = hooks.selectedId || records[0]?.workId || null;",
+        'const filters = { text: "", keyword: "", role: "" };': 'const filters = { text: "", keyword: "", role: "", ...hooks.filters };',
+        "root.append(toolbar);": "textFilter.value = filters.text; keywordFilter.value = filters.keyword; roleFilter.value = filters.role; root.append(toolbar);",
+        "Stage 1 / Synthetic Literature Reference": "Stage 1 / Bound literature records",
+        "Export visible .bib (synthetic)": "Export canonical .bib",
+        "Synthetic literature graph of papers, keywords, and recorded roles": "Recorded paper-to-keyword and paper-to-role assignments",
+        "Synthetic UI demo only. Every source is metadata-only; no record represents full-text access. BibTeX export is separate from the canonical research deliverable exporter.": "Read-only projection of the original package. Source access and claim judgments remain unchanged.",
+        "No synthetic records match these filters.": "No records match these filters.",
+        "synthetic records visible": "records visible",
+        "keywords": "classifications",
+        "Keyword": "Classification",
+        "keyword assignment": "classification assignment",
+        '["Work ID", paper.workId]': '["Work ID", paper.identity]',
+        "          paper.workId,\n          paper.title,": "          paper.identity,\n          paper.title,",
+        '      detail.append(source("strong", paper.title));': '      hooks.select(paper.workId);\n      detail.append(source("strong", paper.title));',
+        '      paper.roles.forEach((role) => detail.append(source("p", `${role.name}: ${role.basis}`)));': '      paper.roles.forEach((role) => detail.append(source("p", `${role.name}: ${role.basis}`)));\n      hooks.detail(detail, paper);',
+        '        const row = create("tr");': '        const row = create("tr"); row.tabIndex = 0; row.dataset.paperId = paper.workId; row.onclick = () => setSelection(paper.workId); row.onkeydown = (event) => { if (event.key === "Enter") setSelection(paper.workId); };',
+        "    toBibTeX,\n    demoRecords,\n": "",
+    }
+    for old, new in changes.items():
+        source = _replace(source, old, new)
+    start, end = (
+        source.index("    exportButton.onclick ="),
+        source.index("    updateAll();\n  }"),
+    )
+    return (
+        source[:start]
+        + "    exportButton.onclick = () => hooks.export(visible());\n"
+        + source[end:]
+    )
+
+
+def render_view(index_path, output, reference_root, expected_index_sha256):
+    """Bind an externally approved index and pinned presentation assets to a new view."""
+    index_path = private_output(index_path)
+    raw = Path(index_path).read_bytes()
+    if sha(raw) != expected_index_sha256:
+        raise DeliverableError("WorkspaceIndex hash differs")
+    index = decode_json(raw)
+    return _write_view(index, raw, reference_root, output)
+
+
+def write_workspace(index, reference_root, output_dir):
+    """Write a freshly projected index with its canonical-byte receipt."""
+    return _write_view(index, canonical(index), reference_root, output_dir)
+
+
+def _write_view(index, raw, reference_root, output):
+    validate_index(index)
+    expected_index_sha256 = sha(raw)
+    if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") != "1.0.0":
+        raise DeliverableError("unsupported WorkspaceIndex")
+    identities = [(p["work_id"], p["version_id"]) for p in index["papers"]]
+    if len(set(identities)) != len(identities):
+        raise DeliverableError("duplicate work/version identity")
+    destination = private_output(output)
+    if destination.exists():
+        raise DeliverableError("view output must be a new directory")
+    assets = {}
+    for name, expected in REFERENCE_HASHES.items():
+        raw_asset = safe_path(reference_root, name).read_bytes()
+        if sha(raw_asset) != expected:
+            raise DeliverableError("reference asset hash differs: " + name)
+        assets[name] = raw_asset.decode("utf-8").replace("\r\n", "\n")
+    html = assets["prototype.html"].split('    <script src="./workspace-i18n.js">')[0]
+    html = _replace(
+        html,
+        "<title>Research Workspace | Offline Interaction Reference</title>",
+        "<title>Research Workspace | Read-only package view</title>",
+    )
+    html = _replace(
+        html,
+        "SYNTHETIC DATA · OFFLINE WORKFLOW PROTOTYPE · EXECUTOR NOT\n              CONNECTED",
+        "BOUND SOURCE RECORDS · READ-ONLY · EXECUTOR NOT CONNECTED",
+    )
+    html = _replace(
+        html,
+        "A readable, traceable editorial desk for research workflows. This\n              page demonstrates information architecture only; every record is\n              synthetic.",
+        "Read the original package without changing its evidence, judgments or execution state.",
+    )
+    html = _replace(
+        html,
+        "Offline interaction reference · Refreshing resets this prototype only.\n        It cannot execute research or modify canonical records; only synthetic\n        bibliography export is available.",
+        "Read-only projection of the original package. Source access and claim judgments remain unchanged.",
+    )
+    html = html.replace("Offline interaction reference", "Read-only package view")
+    html = html.replace(
+        "<head>",
+        "<head>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">",
+    )
+    html += (
+        "".join(
+            f'<script src="./{name}"></script>\n'
+            for name in (
+                "workspace-i18n.js",
+                "literature-reference.js",
+                "workspace-data.js",
+                "workspace-records.js",
+            )
+        )
+        + "</body></html>\n"
+    )
+    i18n = _replace(
+        assets["workspace-i18n.js"],
+        "window.WorkspaceI18n = { apply, t,",
+        "window.WorkspaceI18n = { extend(rows) { rows.forEach(([key, ...values]) => catalog.set(key, values)); }, apply, t,",
+    )
+    payload = {
+        "index": index,
+        "index_sha256": expected_index_sha256,
+        "note_paths": [
+            {
+                "work_id": paper["work_id"],
+                "version_id": paper["version_id"],
+                "path": "wiki/"
+                + sha(canonical([paper["work_id"], paper["version_id"]]))
+                + ".md",
+            }
+            for paper in index["papers"]
+        ],
+    }
+    encoded = (
+        json.dumps(payload, ensure_ascii=True)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
+    adapter = (
+        Path(__file__).parents[2] / "references/research-workspace/workspace-records.js"
+    )
+    css = (
+        assets["workspace.css"]
+        + "\npre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto} details{margin:12px 0} .node-list p,.detail p{overflow-wrap:anywhere}\n"
+    )
+    files = {
+        "index.html": html.encode(),
+        "workspace.css": css.encode(),
+        "workspace-i18n.js": i18n.encode(),
+        "literature-reference.js": _literature(
+            assets["literature-reference.js"]
+        ).encode(),
+        "workspace-data.js": ("window.WORKSPACE_VIEW = " + encoded + ";\n").encode(),
+        "workspace-records.js": adapter.read_bytes(),
+        "workspace-index.json": raw,
+        "references.bib": index["bibliography"]["all_bibtex"].encode("utf-8"),
+        **wiki_files(index),
+    }
+    manifest = {
+        "kind": "WorkspaceReadOnlyView",
+        "index_sha256": expected_index_sha256,
+        "reference_commit": REFERENCE_COMMIT,
+        "reference_assets": REFERENCE_HASHES,
+        "bibtex_producer": index["bibliography"]["producer"],
+        "files": {name: sha(data) for name, data in files.items()},
+        "research_execution": "not-performed",
+        "rebuild": {
+            "entrypoint": "python -m research_workspace",
+            "project_id": index["project_id"],
+            "expected_manifest_sha256": index["provenance"]["package_manifest_sha256"],
+            "reference_commit": REFERENCE_COMMIT,
+            "output_policy": "new directory outside Git",
+            "validation_mode": "byte-inventory",
+        },
+        "adapter_sources": {
+            name: sha(Path(__file__).with_name(name).read_bytes())
+            for name in (
+                "__main__.py",
+                "projection.py",
+                "stages.py",
+                "view.py",
+                "wiki.py",
+                "json_bytes.py",
+                "WorkspaceIndex.v1.schema.json",
+            )
+        },
+    }
+    destination.mkdir(parents=True)
+    for name, data in files.items():
+        target = safe_path(destination, name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        safe_path(destination, name).write_bytes(data)
+    safe_path(destination, "view-manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
+    return manifest
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--index", required=True)
+    parser.add_argument("--expected-index-sha256", required=True)
+    parser.add_argument(
+        "--reference-root",
+        required=True,
+        help="Pinned #88 reference assets; never fetched automatically",
+    )
+    parser.add_argument(
+        "--output", required=True, help="New directory outside every Git checkout"
+    )
+    args = parser.parse_args()
+    print(
+        json.dumps(
+            render_view(
+                args.index, args.output, args.reference_root, args.expected_index_sha256
+            )
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
