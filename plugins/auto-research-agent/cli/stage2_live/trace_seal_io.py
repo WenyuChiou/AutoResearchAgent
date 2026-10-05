@@ -12,8 +12,10 @@ from .trace_handles import _WindowsHandles
 class SealDirectory:
     def __init__(self, path, parent=None):
         self.path, self.parent, self.stack = Path(path), parent, ExitStack()
+        self.active = False
 
     def __enter__(self):
+        _require(self.parent is None or self.parent.active, "seal-parent-closed")
         try:
             if os.name == "nt":
                 self.windows = _WindowsHandles()
@@ -38,15 +40,18 @@ class SealDirectory:
                         current = os.open(part, flags, dir_fd=current)
                         self.stack.callback(os.close, current)
                 self.target = current
+            self.active = True
             return self
         except BaseException:
             self.stack.close()
             raise
 
     def __exit__(self, *error):
+        self.active = False
         return self.stack.__exit__(*error)
 
     def _name(self, name):
+        _require(self.active, "seal-directory-closed")
         _require(
             isinstance(name, str)
             and name not in {"", ".", ".."}
