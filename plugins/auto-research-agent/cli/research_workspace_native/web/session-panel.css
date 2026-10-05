@@ -1,0 +1,12 @@
+.native-panel { margin:24px 30px; padding:24px; }
+.native-panel h2 { margin-top:0; font-size:22px; }
+.native-connect { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin:18px 0; }
+.native-connect label { display:grid; gap:5px; }
+.native-panel input { max-width:100%; font:inherit; padding:8px; border:1px solid var(--line); border-radius:6px; }
+.native-panel button { font:inherit; border:1px solid var(--line); border-radius:6px; padding:7px 12px; background:#edf2fa; margin:4px; }
+.native-panel button:disabled { color:#8591a3; cursor:not-allowed; }
+.native-panel pre,.native-panel code { display:block; white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.65 Consolas,monospace; }
+.native-panel pre { background:#f4f6fa; padding:12px; border-radius:6px; }
+.native-request { margin:16px 0; padding:16px; border:1px solid var(--line); border-radius:8px; }
+#native-notice { color:#775619; }
+@media(max-width:640px) { .native-panel { margin:16px; padding:16px; } .native-connect { display:grid; } }
