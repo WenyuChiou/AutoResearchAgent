@@ -171,6 +171,12 @@
       "native_trace_inference_parsing": "Receipt-reader-dependent private inference helpers resolve tool definitions and same-thread deltas; typed token subsets and complete compaction accounting remain explicit. Parsing cannot attest execution or formal readiness.",
       "native_trace_inference_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_parsing.py"
+      ],
+      "named_native_capture": "Opt-in capture v2 binds exact restrictive named permission config, native managed network proxy and protected role directories; reconstructs dispatch without overriding named permissions with legacy sandbox arguments. Functional preflight and role isolation remain separately required.",
+      "named_native_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_native.py",
+        "plugins/auto-research-agent/tests/test_stage2_preflight.py"
       ]
     },
     {
