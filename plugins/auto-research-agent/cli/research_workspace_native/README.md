@@ -40,7 +40,7 @@ even if recording fails. A read-to-commit crash can lose bytes; unmatched intent
 remain unknown and old connection epochs cannot reopen. Authenticated lifecycle and
 controller admission remain separate requirements; recorded bytes grant no authority.
 Tests use synthetic channels and local storage; no Codex/model runs. Production launch,
-controller wiring, HTTP/UI, scoring and live E2E remain separate slices.
+HTTP/UI, scoring and live E2E remain separate slices.
 No research/import/resume authority is granted; existing Engine guards stay unchanged.
 
 Run these offline checks from the repository root with an installed Python interpreter
@@ -72,8 +72,15 @@ even when the separate failure event cannot persist. SQLite reopen preserves old
 epochs and unknown requests; a new owner supplies a new explicit injected epoch.
 The context has no answer, start, interrupt, pump, reconnect or launcher method.
 Callbacks and recorded cleanup do not authenticate a native process or grant
-execution authority. The corrected controller is a subsequent independent slice.
+execution authority. The corrected controller below reuses this context.
 
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_construction.py -v
+```
+
+The injected controller preserves action intents before I/O, same-key replay without
+writes, unknown outcomes and request-resolution/turn-terminal separation. It adds no launcher.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p 'test_research_workspace_native_controller*.py' -v
 ```
