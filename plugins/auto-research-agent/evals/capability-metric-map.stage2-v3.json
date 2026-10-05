@@ -197,6 +197,10 @@
       "native_trace_capture_seal": "Opt-in immutable capture/trace content seal binds verified native capture identity, every raw trace byte and recomputed observation; bounded no-follow reads and checked resume preserve synthetic markers and unknowns. Content linkage does not attest genuine acquisition or formal readiness.",
       "native_trace_capture_seal_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_capture.py"
+      ],
+      "native_trace_producer": "Named-policy host wrapper binds one native capture, pre-turn API inventory and immutable raw-trace sealing; receipt-verified resume never re-executes. Host observation is not provider attestation or formal admission.",
+      "native_trace_producer_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_producer.py"
       ]
     },
     {
