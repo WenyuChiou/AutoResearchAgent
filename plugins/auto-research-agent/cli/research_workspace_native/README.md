@@ -117,3 +117,15 @@ ScopeWikiSessionServer adds same-origin scope history/version reads and explicit
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_http.py -v
 ```
+
+Bind synthetic fixture imports to one complete candidate checkout.
+CandidateSources compiles captured Python source bytes from one absolute repository
+root. It rejects missing, partial, preloaded, linked or mixed owned modules and
+checks actual origins, package search paths and hashes again. Cached bytecode
+cannot substitute for captured source. It is a test-only source boundary, not
+native-process authentication or an external-dependency attestation. Failed
+imports require a fresh process; no reusable Python-environment recovery is claimed.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_browser_source.py -v
+```
