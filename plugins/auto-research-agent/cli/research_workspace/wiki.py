@@ -7,7 +7,6 @@ from stage1_deliverable.common import DeliverableError, canonical, sha
 
 from .projection import validate_index
 
-
 FINDINGS = (
     ("question", "Question"),
     ("data", "Data"),
@@ -46,6 +45,16 @@ def wiki_files(index) -> dict[str, bytes]:
         + _fence(
             {
                 name: index[name]
+                if name != "supplement" or index["schema_version"] == "1.0.0"
+                else {
+                    key: index["supplement"][key]
+                    for key in (
+                        "status",
+                        "manifest_sha256",
+                        "review_sha256",
+                        "acceptance",
+                    )
+                }
                 for name in (
                     "project_id",
                     "topic",
@@ -60,6 +69,10 @@ def wiki_files(index) -> dict[str, bytes]:
         )
         + "## Records\n\n"
     )
+    if index["schema_version"] == "2.0.0":
+        readme += (
+            "[Accepted repairs and core findings](../closeout/core-findings.md)\n\n"
+        )
     for ordinal, paper in enumerate(index["papers"]):
         identity = [paper["work_id"], paper["version_id"]]
         filename = sha(canonical(identity)) + ".md"
@@ -104,6 +117,10 @@ def wiki_files(index) -> dict[str, bytes]:
                 if related:
                     rows.append(row)
             note += f"## {label}\n\n" + _fence(rows)
+        if index["schema_version"] == "2.0.0":
+            from .closeout import repair_note
+
+            note += repair_note(index, paper)
         files[path] = note.encode("utf-8")
     readme += "\n## Original audit snapshots\n\n"
     for document in index["audit_documents"]:

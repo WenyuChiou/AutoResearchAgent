@@ -44,6 +44,7 @@
   const rawSection = (root, title, value) => { const section = make("details"); section.append(make("summary", title), source("pre", value)); root.append(section); };
   const stages = index.stages;
   const views = [["graph", "Graph & list"], ["catalog", "Catalog"], ["notes", "Notes"], ["sources", "Sources & provenance"], ["coverage", "Coverage & screening"]];
+  if (window.WorkspaceRepair) views.push(["repairs", "Accepted repairs & core findings"]);
   const records = index.papers.map(p => ({workId: identity(p), identity: `${p.work_id} / ${p.version_id}`, shortTitle: p.work_id, title: displayMetadata(p.title), authors: p.authors.length ? p.authors.map(displayMetadata) : ["Not recorded"], year: displayMetadata(p.year), journal: displayMetadata(p.venue), volume: p.volume ?? null, issue: p.issue ?? null, pages: p.pages ?? null, doi: p.doi, sourceStatus: `${p.evidence_level} · ${p.source_ids.map(id => index.sources.find(s => s.source_id === id)?.receipt?.status ?? "unknown").join(", ") || "unknown"}`, classifications: p.classification?.topic_cluster ? [p.classification.topic_cluster] : [], roles: (p.roles || []).map(r => ({name: r.role, basis: r.reason})), original: p}));
   const state = {stage: 1, view: "graph", selected: records[0]?.workId || null, filters: {text:"",keyword:"",role:""}, scope:"filtered"};
   function bibliography(visible, scope) {
@@ -69,10 +70,12 @@
     const fields = make("dl"); fields.dataset.workId = paper.work_id; fields.dataset.versionId = paper.version_id;
     for (const [key, label] of [["question","Question"],["data","Data"],["method","Method"],["main_findings","Main findings"],["limitations","Limitations"],["relevance","Relevance"],["transferability","Transferability"]]) fields.append(make("dt", label), source("dd", paper.findings?.[key]));
     root.append(fields);
+    window.WorkspaceRepair?.note(root, paper);
     const saved = payload.note_paths?.find(row => row.work_id === paper.work_id && row.version_id === paper.version_id);
     if (saved && /^wiki\/[a-f0-9]{64}\.md$/.test(saved.path)) {
       const link = make("a", "Save Markdown note"); link.href = "./" + saved.path; link.download = saved.path.split("/")[1];
       link.dataset.noteWork = paper.work_id; link.dataset.noteVersion = paper.version_id; root.append(link);
+      if (typeof saved.text === "string") link.onclick = event => { event.preventDefault(); const url = URL.createObjectURL(new Blob([saved.text], {type:"text/markdown;charset=utf-8"})); const copy = make("a"); copy.href = url; copy.download = link.download; copy.click(); setTimeout(() => URL.revokeObjectURL(url), 0); };
     }
   }
   function library(root) {
@@ -82,6 +85,7 @@
     scope.value = state.scope; scope.onchange = () => {state.scope = scope.value;}; root.querySelector(".lit-actions").prepend(scope);
     root.querySelectorAll("[data-literature-filter]").forEach(control => { const save = () => {state.filters[control.dataset.literatureFilter] = control.value;}; control.addEventListener("input", save); control.addEventListener("change", save); });
     if (state.view === "catalog") { root.querySelectorAll(".graph-actions,.graph-frame,.graph-legend,.paper-list").forEach(el => {el.hidden = true;}); root.querySelectorAll(":scope > .section-title").forEach(el => {el.hidden = !el.nextElementSibling?.matches(".paper-detail,.metadata-scroll");}); }
+    if (state.view === "graph") window.WorkspaceRepair?.graph(root);
   }
   function render() {
     $("stageRail").replaceChildren();
@@ -93,7 +97,8 @@
     const root = $("article"); root.replaceChildren(); root.classList.remove("literature-shell");
     if (state.stage !== 1) { const stage = stages.find(s => s.stage === state.stage); root.append(make("h2", stage.label), make("p", stage.purpose), make("p", "Blocked · execution disconnected", "status blocked"), source("p", stage.support_status), make("h3", "Inputs"), ...stage.required_inputs.map(value => make("p", value)), make("h3", "Expected outputs"), ...stage.expected_deliverables.map(value => make("p", value)), make("p", "No new research deliverable is created by this view.")); }
     else if (["graph", "catalog"].includes(state.view)) library(root);
-    else if (state.view === "notes") { root.append(make("h2", "Notes"), make("p", "Top-3 supplement is pending.")); for (const record of records) { const section = make("section", undefined, "note-card"); section.append(source("h3", record.title), source("p", record.identity)); note(section, record.original); rawSection(section, "Complete metadata", record.original); root.append(section); } }
+    else if (state.view === "repairs" && window.WorkspaceRepair) window.WorkspaceRepair.render(root);
+    else if (state.view === "notes") { root.append(make("h2", "Notes"), make("p", window.WorkspaceRepair ? "Accepted repairs & core findings" : "Top-3 supplement is pending.")); for (const record of records) { const section = make("section", undefined, "note-card"); section.append(source("h3", record.title), source("p", record.identity)); note(section, record.original); rawSection(section, "Complete metadata", record.original); root.append(section); } }
     else if (state.view === "sources") { root.append(make("h2", "Sources & provenance")); rawSection(root, "Index binding", {index_sha256:payload.index_sha256, ...index.provenance}); for (const row of index.sources) { root.append(source("h3", row.source_id)); rawSection(root, "Source records", row); } rawSection(root, "Sources & provenance", index.edges); }
     else { root.append(make("h2", "Coverage & screening")); rawSection(root, "Coverage & Stop Decision", index.coverage); rawSection(root, "Coverage & screening", index.screening); rawSection(root, "Search & Reading", index.search); rawSection(root, "Original audit documents", index.audit_documents); rawSection(root, "Coverage & Stop Decision", index.coverage_documents); rawSection(root, "Unknown", index.missing_fields); rawSection(root, "Import Stage 1", index.readiness); }
     $("detail").replaceChildren(make("p", "Read-only projection of the original package. Source access and claim judgments remain unchanged."), source("p", payload.index_sha256), make("p", "No new research deliverable is created by this view."));

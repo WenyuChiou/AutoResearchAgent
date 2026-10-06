@@ -72,5 +72,11 @@ The overlay retains original claims, compound judgments, unknown coverage,
 failed attempts and the original rejected review. Atomic revisions and core
 findings keep separate denominators and typed provenance. Recovered abstract
 content does not establish full-method access; presentation grants no Stage 2
-import, execution or scientific-quality upgrade. This API slice does not yet
-render v2 views; the following view/export slice connects that presentation.
+import, execution or scientific-quality upgrade.
+
+The CLI accepts the same three optional repair arguments and emits English
+HTML, version-bound notes, a complete bibliography and editable Excel/CSV.
+`closeout/` contains the accepted atomic mapping, core findings, input/runtime
+bindings and Traditional Chinese status summary. `repair/` retains the checked
+acceptance and source-evidence snapshots. All outputs remain outside Git.
+Opening, exporting or rebuilding this view performs no research or scoring.
