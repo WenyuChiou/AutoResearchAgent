@@ -84,3 +84,10 @@ writes, unknown outcomes and request-resolution/turn-terminal separation. It add
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p 'test_research_workspace_native_controller*.py' -v
 ```
+
+Keep project authority and native request targets inside a server-owned session facade.
+SessionApi exposes opaque project/request/action references over an existing injected controller. Trusted callbacks check principal and source binding; they do not attest native authentication or lifecycle. API intents persist before controller calls, and replay/history never resends. HTTP, browser UI and native execution are not supplied by this slice.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_session_api.py -v
+```
