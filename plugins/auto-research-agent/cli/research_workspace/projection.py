@@ -29,6 +29,15 @@ def _require(condition, message):
 
 def validate_index(index):
     """Validate the presentation contract, never scientific correctness."""
+    if index.get("schema_version") == "2.0.0":
+        from .repair import validate_repair_projection
+
+        original = deepcopy(index)
+        original["schema_version"] = "1.0.0"
+        original["supplement"] = {"status": "not-provided", "top3_status": "pending"}
+        validate_index(original)
+        validate_repair_projection(index)
+        return index
     schema = read_json(Path(__file__).with_name("WorkspaceIndex.v1.schema.json"))
     try:
         Draft202012Validator(schema).validate(index)
@@ -255,6 +264,9 @@ def project_package(
     expected_manifest_sha256,
     *,
     validation_mode="byte-inventory",
+    repair_root=None,
+    expected_repair_manifest_sha256=None,
+    expected_repair_review_sha256=None,
 ):
     """Return deterministic records; byte checks are not exporter semantic replay."""
     identifier(project_id)
@@ -397,4 +409,18 @@ def project_package(
         "package changed during projection",
     )
     canonical(result)  # Reject unserializable output before the caller writes it.
+    validate_index(result)
+    supplied = (
+        repair_root,
+        expected_repair_manifest_sha256,
+        expected_repair_review_sha256,
+    )
+    if any(value is not None for value in supplied):
+        _require(
+            all(value is not None for value in supplied),
+            "all repair arguments are required",
+        )
+        from .repair import apply_repair
+
+        result = apply_repair(result, *supplied)
     return validate_index(result)
