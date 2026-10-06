@@ -422,6 +422,18 @@
       "capability_id": "cli:research-workspace",
       "metric_effects": [
         {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Per-work/version recorded data, method, findings and limits remain exact; absent cells stay null; evidence association excludes foreign works or source versions."
+          ],
+          "human_judgment": "Readable comparisons expose source limits; table completeness is not scientific fidelity proof."
+        },
+        {
           "metric_id": "P6",
           "rubric_criteria": [
             "P6V3.CHOICE"
@@ -433,10 +445,12 @@
           "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
         }
       ],
-      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged.",
+      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged. Comparison workbench preserves paper-level fields separately from recorded synthesis; local selection, filters and evidence panels do not alter canonical records, evaluator scores or permission state.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_view.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_html.py"
       ]
     }
   ]

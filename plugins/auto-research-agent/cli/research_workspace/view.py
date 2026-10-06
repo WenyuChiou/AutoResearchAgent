@@ -192,6 +192,17 @@ def _write_view(
         )
         script_names.append("workspace-repairs.js")
     script_names.append("workspace-records.js")
+    if stage2_attachment is not None:
+        html = html.replace("<body>", '<body class="stage2-workspace">').replace(
+            '<body class="stage1-closeout">',
+            '<body class="stage1-closeout stage2-workspace">',
+        )
+        html = _replace(
+            html,
+            "</head>",
+            '<link rel="stylesheet" href="./workspace-stage2.css">\n</head>',
+        )
+        script_names.append("workspace-stage2.js")
     html += (
         "".join(f'<script src="./{name}"></script>\n' for name in script_names)
         + "</body></html>\n"
@@ -270,6 +281,13 @@ def _write_view(
             "workspace-closeout.css"
         ).read_bytes()
     if stage2_attachment is not None:
+        from .stage2_comparison import build_comparison_view
+
+        files["stage2/comparison-view.json"] = canonical(
+            build_comparison_view(stage2_attachment)
+        )
+        for asset_name in ("workspace-stage2.js", "workspace-stage2.css"):
+            files[asset_name] = adapter.with_name(asset_name).read_bytes()
         files["wiki/README.md"] += (
             b"\n## Stage 2 direction proposal and independent assessment\n\n"
             b"[Read the Stage 2 notes](../stage2/README.md). "
@@ -355,7 +373,12 @@ def _write_view(
         manifest["adapter_sources"].update(
             {
                 name: sha(Path(__file__).with_name(name).read_bytes())
-                for name in ("stage2_import.py", "stage2_presentation.py")
+                for name in (
+                    "stage2_import.py",
+                    "stage2_presentation.py",
+                    "stage2_comparison.py",
+                    "stage2_comparison_html.py",
+                )
             }
         )
     destination.mkdir(parents=True)

@@ -310,6 +310,9 @@ def _criterion_details(evaluation, *, provisional):
 
 def render_stage2_card(attachment) -> str:
     """Render one self-contained Stage 2 card without mutating its attachment."""
+    from .stage2_comparison import build_comparison_view
+    from .stage2_comparison_html import render_comparison_workbench
+
     selection = attachment["selection"]
     evaluation = attachment["evaluation"]
     status = evaluation["evaluation_status"]
@@ -363,9 +366,12 @@ def render_stage2_card(attachment) -> str:
     <p><strong>Human choice:</strong> {_html(bridge.get("human_selection"))}</p>
     <p><strong>Stage 3 authorization:</strong> {_html(bridge.get("stage3_authorized"))}</p>
   </section>
+  {render_comparison_workbench(build_comparison_view(attachment))}
+  <details class="stage2-full-checks"><summary>Full candidate checks and recorded dispositions</summary>
   <h3>Directions</h3>
   <p>Each card shows recorded proposal fields and checks. A recommendation still requires human choice, and a high external score does not establish material readiness.</p>
   {_direction_cards(selection)}
+  </details>
   <h3>External evaluation</h3>
   <table><thead><tr><th>Dimension</th><th>Score</th></tr></thead><tbody>{"".join(score_rows)}</tbody></table>
   <p>Each dimension has a fixed maximum of 6. Unknown stays null; assessed counts show completeness. Scores do not establish that required materials are ready.</p>
