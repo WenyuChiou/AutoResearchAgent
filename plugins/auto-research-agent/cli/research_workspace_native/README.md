@@ -114,3 +114,21 @@ WikiSessionServer requires the four exact accepted reference asset byte strings 
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_wiki_http.py -v
 ```
+
+Opt-in real browser/local-service check, with two synthetic projects and injected
+channels: run `tests/research_workspace_native_browser/core_panel_fixture.py` from
+the declared checkout. Supply absolute `--repo`, exact `--head`, installed `--node`,
+Playwright skill `--executor` (`run.js`), installed `--node-modules`, and a new
+Git-external `--output` directory. It performs no installs, native research or model
+calls. Chromium opens visibly, only the owned loopback origin is allowed, and the
+driver has one 120-second deadline. The caller's credentials are never requested.
+The default requires a clean checkout without bytecode caches. Precommit checks may
+explicitly supply `--staged-sha256` for the full-index staged binary diff; unstaged,
+untracked, stale-head, partial-checkout or mixed-origin candidates are rejected.
+Actual imported origins, source/asset/runtime hashes, project/input bindings,
+browser checks and service results are saved. Double click, lost response, refresh,
+project switch, reload and reconnect must produce one injected write for project-a
+and zero for project-b. `dispatched` / `answer-sent` remain distinct from native
+resolution or turn completion. Ordinary CI runs source guards without a browser.
+This bounded panel check does not attest real Stage1, native authentication,
+research-topic isolation, full workspace acceptance or the real-package projection.
