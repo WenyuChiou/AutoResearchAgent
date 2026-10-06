@@ -1,6 +1,7 @@
 """Export a source-bound draft without changing workflow or selection state."""
 
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -8,6 +9,7 @@ import sys
 
 from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, canonical_hash, validate_packet
+from stage1_deliverable.common import private_output
 
 from .extraction import validate_extraction
 
@@ -22,9 +24,44 @@ def _read(path):
     return decode_json(Path(path).read_bytes(), str(path))
 
 
+def _enable_tables(args):
+    """Prepare a new opt-in run seed without rewriting or promoting its parent."""
+    original = _read(args.packet)
+    validate_packet(original, args.source_root)
+    if original["schema_version"] not in {"2.0.0", "2.1.0"}:
+        raise Stage2Error("topic tables require a v2 or exploratory v2.1 input seed")
+    packet = copy.deepcopy(original)
+    packet["schema_version"] = "2.2.0"
+    packet["research_tables"] = None
+    validate_packet(packet, args.source_root)
+    output = Path(args.output).absolute()
+    private_output(output.parent)
+    raw = (json.dumps(packet, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    with output.open("xb") as stream:
+        stream.write(raw)
+    print(
+        json.dumps(
+            {
+                "packet": str(output),
+                "parent_packet_sha256": canonical_hash(original),
+                "packet_sha256": canonical_hash(packet),
+                "requires_new_run": True,
+                "research_tables_prepared": False,
+                "scientific_quality_verified": False,
+                "stage3_authorized": False,
+            }
+        )
+    )
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_ideation")
     commands = parser.add_subparsers(dest="command", required=True)
+    enable = commands.add_parser(
+        "enable-tables", help="prepare a new topic-table workflow seed"
+    )
+    for name in ("packet", "source-root", "output"):
+        enable.add_argument("--" + name, required=True)
     report = commands.add_parser("report", help="export an unassessed ideation draft")
     for name in (
         "packet",
@@ -39,6 +76,9 @@ def main(argv=None):
     report.add_argument("--expected-completeness-sha256")
     args = parser.parse_args(argv)
     try:
+        if args.command == "enable-tables":
+            _enable_tables(args)
+            return 0
         if bool(args.completeness_record) != bool(args.expected_completeness_sha256):
             raise Stage2Error(
                 "completeness record and external hash must be supplied together"
