@@ -19,6 +19,7 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+        "fresh SQLite writer, new owner and connection epoch preserve API crash gaps without resending; a failed post-recording fault event remains distinct from durable close evidence",
         "project/principal/version checks precede dispatch; exact saved request and turn targets stay server-side; concurrent or reconstructed API replay and history reads produce no duplicate write",
             "bound answers, explicit decisions and interrupts preserve exact request identity, durable admission and no-resend recovery; stale, partial, malformed and owner-loss observations never become terminal proof",
             "construction fails before binding on invalid channel, epoch or sink; post-binding failures preserve fault or explicit unobserved fault plus separate close evidence, and SQLite reopen does not reuse an old epoch",
@@ -36,6 +37,7 @@
         "no production launcher, frozen input access, model calls or scientific score changes"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_research_workspace_native_api_recovery.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_session_api.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_controller.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_controller_safety.py",
