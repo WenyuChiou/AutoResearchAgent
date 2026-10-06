@@ -45,7 +45,8 @@ def wiki_files(index) -> dict[str, bytes]:
         + _fence(
             {
                 name: index[name]
-                if name != "supplement" or index["schema_version"] == "1.0.0"
+                if name != "supplement"
+                or index["supplement"]["status"] == "not-provided"
                 else {
                     key: index["supplement"][key]
                     for key in (
@@ -69,7 +70,10 @@ def wiki_files(index) -> dict[str, bytes]:
         )
         + "## Records\n\n"
     )
-    if index["schema_version"] == "2.0.0":
+    if (
+        index["schema_version"] in {"2.0.0", "3.0.0"}
+        and index["supplement"]["status"] != "not-provided"
+    ):
         readme += (
             "[Accepted repairs and core findings](../closeout/core-findings.md)\n\n"
         )
@@ -117,10 +121,23 @@ def wiki_files(index) -> dict[str, bytes]:
                 if related:
                     rows.append(row)
             note += f"## {label}\n\n" + _fence(rows)
-        if index["schema_version"] == "2.0.0":
+        if (
+            index["schema_version"] in {"2.0.0", "3.0.0"}
+            and index["supplement"]["status"] != "not-provided"
+        ):
             from .closeout import repair_note
 
             note += repair_note(index, paper)
+        if index["schema_version"] == "3.0.0":
+            row = next(
+                r
+                for r in index["source_rerun"]["data"]["rows"]
+                if (r["work_id"], r["version_id"]) == tuple(identity)
+            )
+            note += (
+                "## New saved-source read attempt\n\nOriginal judgments above remain historical. Extraction does not establish claim support.\n\n"
+                + _fence(row)
+            )
         files[path] = note.encode("utf-8")
     readme += "\n## Original audit snapshots\n\n"
     for document in index["audit_documents"]:

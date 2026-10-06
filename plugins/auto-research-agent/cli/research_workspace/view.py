@@ -79,7 +79,10 @@ def render_view(index_path, output, reference_root, expected_index_sha256):
     if sha(raw) != expected_index_sha256:
         raise DeliverableError("WorkspaceIndex hash differs")
     index = decode_json(raw)
-    return _write_view(index, raw, reference_root, output)
+    options = {}
+    if index.get("schema_version") == "3.0.0":
+        options["source_rerun_root"] = Path(index_path).parent / "source-rerun"
+    return _write_view(index, raw, reference_root, output, **options)
 
 
 def write_workspace(
@@ -90,6 +93,7 @@ def write_workspace(
     stage2_delivery=None,
     stage2_bridge=None,
     expected_stage2_bridge_sha256=None,
+    source_rerun_root=None,
 ):
     """Write a freshly projected index with its canonical-byte receipt."""
     return _write_view(
@@ -100,6 +104,7 @@ def write_workspace(
         stage2_delivery=stage2_delivery,
         stage2_bridge=stage2_bridge,
         expected_stage2_bridge_sha256=expected_stage2_bridge_sha256,
+        source_rerun_root=source_rerun_root,
     )
 
 
@@ -112,9 +117,10 @@ def _write_view(
     stage2_delivery=None,
     stage2_bridge=None,
     expected_stage2_bridge_sha256=None,
+    source_rerun_root=None,
 ):
     validate_index(index)
-    if index["schema_version"] == "2.0.0":
+    if index["schema_version"] in {"2.0.0", "3.0.0"}:
         index = decode_json(canonical(index))
     stage2_attachment, stage2_files = None, {}
     supplied = (stage2_delivery, stage2_bridge, expected_stage2_bridge_sha256)
@@ -137,6 +143,7 @@ def _write_view(
     if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") not in {
         "1.0.0",
         "2.0.0",
+        "3.0.0",
     }:
         raise DeliverableError("unsupported WorkspaceIndex")
     identities = [(p["work_id"], p["version_id"]) for p in index["papers"]]
@@ -182,7 +189,11 @@ def _write_view(
         "<head>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">",
     )
     script_names = ["workspace-i18n.js", "literature-reference.js", "workspace-data.js"]
-    repaired = index["schema_version"] == "2.0.0"
+    repaired = (
+        index["schema_version"] in {"2.0.0", "3.0.0"}
+        and index["supplement"]["status"] != "not-provided"
+    )
+    rerun = index["schema_version"] == "3.0.0"
     if repaired:
         html = _replace(html, "<body>", '<body class="stage1-closeout">')
         html = _replace(
@@ -191,6 +202,13 @@ def _write_view(
             '<link rel="stylesheet" href="./workspace-closeout.css">\n</head>',
         )
         script_names.append("workspace-repairs.js")
+    if rerun:
+        html = _replace(
+            html,
+            "</head>",
+            '<link rel="stylesheet" href="./workspace-source-rerun.css">\n</head>',
+        )
+        script_names.append("workspace-source-rerun.js")
     script_names.append("workspace-records.js")
     if stage2_attachment is not None:
         html = html.replace("<body>", '<body class="stage2-workspace">').replace(
@@ -266,7 +284,9 @@ def _write_view(
         "workspace-data.js": ("window.WORKSPACE_VIEW = " + encoded + ";\n").encode(),
         "workspace-records.js": adapter.read_bytes(),
         "workspace-index.json": raw,
-        "references.bib": index["bibliography"]["all_bibtex"].encode("utf-8"),
+        "references.bib": (
+            index["source_rerun"]["bibliography"] if rerun else index["bibliography"]
+        )["all_bibtex"].encode("utf-8"),
         **notes,
         **stage2_files,
     }
@@ -280,6 +300,14 @@ def _write_view(
         files["workspace-closeout.css"] = adapter.with_name(
             "workspace-closeout.css"
         ).read_bytes()
+    if rerun:
+        from .source_rerun import rerun_files
+
+        if source_rerun_root is None:
+            raise DeliverableError("source rerun artifacts are required")
+        files.update(rerun_files(index, source_rerun_root))
+        for name in ("workspace-source-rerun.js", "workspace-source-rerun.css"):
+            files[name] = adapter.with_name(name).read_bytes()
     if stage2_attachment is not None:
         from .stage2_comparison import build_comparison_view
 
@@ -342,6 +370,17 @@ def _write_view(
                 )
             }
         )
+    if rerun:
+        manifest["source_rerun_binding"] = {
+            "manifest_sha256": index["source_rerun"]["manifest_sha256"],
+            "parser_runtime": index["source_rerun"]["data"]["parser_runtime"],
+            "original_claims_changed": False,
+            "scientific_quality_scored": False,
+        }
+        manifest["adapter_sources"]["source_rerun.py"] = sha(
+            Path(__file__).with_name("source_rerun.py").read_bytes()
+        )
+    if repaired or rerun:
         manifest["adapter_sources"].update(
             {
                 "stage1_deliverable/" + name: sha(
