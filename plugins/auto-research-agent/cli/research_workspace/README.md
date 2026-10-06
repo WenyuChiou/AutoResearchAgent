@@ -80,3 +80,5 @@ HTML, version-bound notes, a complete bibliography and editable Excel/CSV.
 bindings and Traditional Chinese status summary. `repair/` retains the checked
 acceptance and source-evidence snapshots. All outputs remain outside Git.
 Opening, exporting or rebuilding this view performs no research or scoring.
+
+Saved-source reading is an explicit offline API: `source_rerun.build_rerun` accepts an original v1/v2 index, saved-source root, new private output and exact local parser hash. It preserves source bytes and historical attempts, records new extraction/access failures, and binds runtime versions. It performs no acquisition or judgment. This reader slice does not activate v3 attachment, UI or formal Stage 2 import.
