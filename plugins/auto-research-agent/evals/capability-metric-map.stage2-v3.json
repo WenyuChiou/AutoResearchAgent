@@ -490,6 +490,40 @@
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
       ]
+    },
+    {
+      "capability_id": "cli:stage2-common",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Opt-in packet2.2 validates source-bound topic cells and complete declared work/dimension grids while preserving full versus exploratory intake restrictions."
+          ],
+          "human_judgment": "Binding and grid completeness do not establish correct scientific interpretation."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Resources bind exact candidate versions; known access requires source evidence and check time; unknown access/license/cost/version remain explicit."
+          ],
+          "human_judgment": "Source-bound resource records do not establish whole-direction feasibility or scientific improvement."
+        }
+      ],
+      "mechanism": "Shared packet validation dispatches opt-in topic/resource validation without changing legacy schemas, scientific anchors or human authority.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
+      ]
     }
   ]
 }
