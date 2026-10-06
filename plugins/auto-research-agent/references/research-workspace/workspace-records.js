@@ -89,9 +89,14 @@
     if (state.view === "graph") window.WorkspaceRepair?.graph(root);
   }
   function render() {
+    const stage2 = $("stage2-delivery");
+    const showDelivery = state.stage === 2 && Boolean(stage2 && payload.stage2);
+    if (stage2) stage2.hidden = !showDelivery;
+    const main = document.querySelector("main");
+    if (main) main.hidden = showDelivery;
     $("stageRail").replaceChildren();
     stages.forEach(stage => { const button = make("button", undefined, `stage ${state.stage === stage.stage ? "active" : "locked"}`); button.append(make("b", `STAGE ${stage.stage}`), make("span", stage.label)); button.setAttribute("aria-pressed", String(state.stage === stage.stage)); button.onclick = () => {state.stage = stage.stage; render();}; $("stageRail").append(button); });
-    const tabs = document.querySelector(".view-tabs"); tabs.replaceChildren(); $("nodeList").replaceChildren();
+    const tabs = document.querySelector(".view-tabs"); tabs.hidden = showDelivery; tabs.replaceChildren(); $("nodeList").replaceChildren();
     for (const [value, label] of views) { const button = make("button", label, `view-tab${state.view === value ? " active" : ""}`); button.dataset.workspaceView = value; button.disabled = state.stage !== 1; button.onclick = () => {state.view = value; render();}; tabs.append(button); }
     $("outlineTitle").textContent = "Index binding";
     if (window.WorkspaceRepair) {
