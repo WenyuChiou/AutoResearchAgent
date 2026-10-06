@@ -302,7 +302,7 @@ def _bibliography(index, rows):
                 )
         if additions:
             additions.append(
-                "  annote = {Additional metadata bound to the saved-source rerun; original judgments retained}"
+                "  annotation = {Additional metadata bound to the saved-source rerun; original judgments retained}"
             )
             base = (
                 base.rstrip().removesuffix("}").rstrip()
