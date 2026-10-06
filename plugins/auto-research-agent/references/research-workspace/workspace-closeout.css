@@ -1,55 +1,107 @@
-/* Optional closeout layer. Source records and the surrounding studio stay intact. */
-.repair-closeout, .repair-panel, .repair-graph { --repair-line:#dce3ed; --repair-muted:#5c6d83; --repair-accent:#2f537d; color:#203047; font-size:14px; line-height:1.65; min-width:0; overflow-wrap:anywhere; }
-.repair-closeout { display:grid; gap:28px; max-width:1240px; margin:0 auto; }
+/* Optional v2 closeout layer; the frozen v1 studio assets stay unchanged. */
+body.stage1-closeout { --studio-rail:206px; font-size:16px; line-height:1.65; }
+.stage1-closeout .shell { padding-left:var(--studio-rail); }
+.stage1-closeout .studio-sidebar { width:var(--studio-rail); font-size:14px; }
+.stage1-closeout .stage span, .stage1-closeout .sidebar-workspace { font-size:14px; }
+.stage1-closeout .stage b, .stage1-closeout .sidebar-title, .stage1-closeout .sidebar-footer { font-size:13px; }
+.stage1-closeout .stage { min-height:44px; }
+.stage1-closeout header { padding:28px 32px 24px; }
+.stage1-closeout h1 { font-size:32px; line-height:1.25; }
+.stage1-closeout h2 { font-size:28px; line-height:1.3; }
+.stage1-closeout h3 { font-size:20px; line-height:1.4; }
+.stage1-closeout h4 { font-size:18px; line-height:1.45; }
+.stage1-closeout h5 { font-size:16px; line-height:1.5; }
+.stage1-closeout .eyebrow, .stage1-closeout .kicker { font-size:13px; }
+.stage1-closeout .subtitle, .stage1-closeout .lede { font-size:16px; max-width:78ch; }
+.stage1-closeout .mast { display:flex; flex-wrap:wrap; align-items:flex-start; gap:24px; }
+.stage1-closeout .mast > *, .stage1-closeout .controls { min-width:0; }
+.stage1-closeout .view-tabs { padding:0 32px; gap:24px; }
+.stage1-closeout .view-tab { font-size:14px; min-height:44px; }
+.stage1-closeout .control, .stage1-closeout select, .stage1-closeout input, .stage1-closeout textarea, .stage1-closeout .lit-button { font-size:14px; min-height:40px; max-width:100%; }
+.stage1-closeout .language-control { font-size:14px; }
+.stage1-closeout .control-note, .stage1-closeout .footer-note { font-size:13px; }
+.stage1-closeout main { display:grid; grid-template-columns:minmax(0,1fr); max-width:none; margin:0; padding:24px 32px 32px; gap:16px; align-items:start; }
+.stage1-closeout main > section { display:block; grid-column:1; grid-row:1; }
+.stage1-closeout main > article { grid-column:1; grid-row:2; min-width:0; min-height:0; padding:28px; }
+.stage1-closeout main > aside { display:block; grid-column:1; grid-row:3; }
+.stage1-closeout main > section > .panel-head, .stage1-closeout main > aside > .panel-head { display:none; }
+.stage1-closeout #nodeList, .stage1-closeout #detail { display:block; padding:0; }
+.stage1-closeout .project-binding, .stage1-closeout .view-binding { margin:0; padding:0 20px; font-size:14px; }
+.stage1-closeout .project-binding > summary, .stage1-closeout .view-binding > summary { min-height:44px; padding:10px 0; cursor:pointer; font-weight:600; overflow-wrap:anywhere; }
+.stage1-closeout .binding-status { margin-left:16px; font-size:14px; color:#5c6d83; }
+.stage1-closeout .binding-execution { margin:0; padding:10px 20px; border-top:1px solid #e2e7ee; font-size:14px; color:#795719; }
+.stage1-closeout .original-findings-label { color:#5c6d83; }
+.stage1-closeout .project-binding p, .stage1-closeout .view-binding p { font-size:14px; max-width:90ch; margin:6px 0 12px; }
+.stage1-closeout article p, .stage1-closeout article dd { font-size:16px; }
+.stage1-closeout article p { max-width:82ch; }
+.stage1-closeout article :is(p, dd, pre, summary, td, th) { overflow-wrap:anywhere; }
+.stage1-closeout article pre { max-width:100%; white-space:pre-wrap; font-size:14px; }
+.stage1-closeout article summary { cursor:pointer; font-size:14px; min-height:40px; }
+.stage1-closeout .note-card p, .stage1-closeout .read-only { font-size:16px; }
+.stage1-closeout .section-title, .stage1-closeout .lit-field, .stage1-closeout .graph-legend, .stage1-closeout .lit-caveat { font-size:14px; }
+.stage1-closeout .lit-toolbar { grid-template-columns:minmax(180px,2fr) repeat(2,minmax(140px,1fr)); }
+.stage1-closeout .paper-row { font-size:16px; padding:14px 16px; }
+.stage1-closeout .paper-row small, .stage1-closeout .paper-detail dt { font-size:14px; }
+.stage1-closeout .paper-detail { padding:20px; }
+.stage1-closeout .paper-detail dl { grid-template-columns:180px minmax(0,1fr); gap:8px 18px; }
+.stage1-closeout .metadata-scroll, .stage1-closeout .graph-frame { max-width:100%; min-width:0; }
+.stage1-closeout .metadata-scroll table { width:100%; font-size:14px; }
+.stage1-closeout .metadata-scroll th, .stage1-closeout .metadata-scroll td { padding:12px; }
+.stage1-closeout summary:focus-visible { outline:3px solid #82abe5; outline-offset:3px; border-radius:3px; }
+.repair-closeout, .repair-panel, .repair-graph { --repair-line:#dce3ed; --repair-muted:#5c6d83; --repair-accent:#2f537d; color:#203047; font-size:16px; line-height:1.65; min-width:0; overflow-wrap:anywhere; }
+.repair-closeout { display:grid; gap:30px; max-width:none; margin:0; }
 .repair-closeout *, .repair-panel *, .repair-graph * { box-sizing:border-box; min-width:0; }
-.repair-closeout h2 { font:600 25px/1.3 Georgia,"Times New Roman",serif; margin:0 0 8px; letter-spacing:-.015em; }
-.repair-closeout h3 { font-size:17px; line-height:1.4; margin:0 0 14px; }
-.repair-closeout h4, .repair-panel h4 { font-size:16px; line-height:1.45; margin:0; }
-.repair-closeout h5, .repair-panel h5 { font-size:13px; color:var(--repair-muted); margin:18px 0 5px; text-transform:capitalize; }
-.repair-closeout p, .repair-panel p { font-size:14px; margin:8px 0; }
+.repair-closeout h2 { font:600 28px/1.3 Georgia,"Times New Roman",serif; margin:0 0 8px; letter-spacing:-.015em; }
+.repair-closeout h3 { font-size:20px; line-height:1.4; margin:0 0 16px; }
+.repair-closeout h4, .repair-panel h4 { font-size:18px; line-height:1.45; margin:0; }
+.repair-closeout h5, .repair-panel h5 { font-size:14px; color:var(--repair-muted); margin:18px 0 5px; text-transform:capitalize; }
+.repair-closeout p, .repair-panel p { font-size:16px; margin:10px 0; }
 .repair-eyebrow { color:var(--repair-muted); font-size:13px!important; margin:0 0 8px!important; }
 .repair-intro { color:var(--repair-muted); max-width:65ch; }
 .repair-overview { padding-bottom:20px; border-bottom:1px solid var(--repair-line); }
 .repair-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:20px 0 14px; }
 .repair-metrics > div { border-left:2px solid #c7d4e5; padding-left:12px; }
-.repair-metrics dd { margin:0; font-size:23px; font-weight:600; line-height:1.3; }
-.repair-metrics dt { font-size:13px; color:var(--repair-muted); margin-top:4px; }
-.repair-historical-counts { font-size:13px!important; padding:9px 12px; border-radius:5px; background:#f4f6fa; }
-.repair-states { display:grid; grid-template-columns:minmax(140px,1fr) minmax(0,2fr); gap:5px 18px; margin:12px 0; font-size:13px; }
+.repair-metrics dd { margin:0; font-size:28px; font-weight:600; line-height:1.3; }
+.stage1-closeout .repair-metrics dd { font-size:28px; }
+.repair-metrics dt { font-size:14px; color:var(--repair-muted); margin-top:4px; }
+.repair-historical-counts { font-size:14px!important; padding:10px 14px; border-radius:5px; background:#f4f6fa; }
+.repair-states { display:grid; grid-template-columns:minmax(180px,1fr) minmax(0,3fr); gap:6px 20px; margin:14px 0; font-size:14px; }
 .repair-states dt { color:var(--repair-muted); }
 .repair-states dd { margin:0; white-space:pre-wrap; }
+.stage1-closeout .repair-states dd { font-size:14px; }
 .repair-caution { color:#795719; }
 .repair-recorded-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 20px; margin-top:16px; }
 .repair-disclosure { border-top:1px solid var(--repair-line); margin:10px 0 0; padding:0; }
-.repair-disclosure > summary { cursor:pointer; padding:11px 0; font-size:13px; font-weight:600; color:var(--repair-accent); }
+.repair-disclosure > summary { cursor:pointer; min-height:40px; padding:11px 0; font-size:14px; font-weight:600; color:var(--repair-accent); }
 .repair-disclosure[open] > summary { margin-bottom:4px; }
-.repair-disclosure pre, .repair-atoms-group pre { max-width:100%; font:13px/1.65 Consolas,"Courier New",monospace; white-space:pre-wrap; overflow-wrap:anywhere; padding:12px; margin:0 0 12px; border-radius:5px; background:#f4f6fa; }
-.repair-findings-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:start; }
-.repair-finding.note-card { background:#fff; border:1px solid var(--repair-line); border-top:3px solid #8aa2bf; border-radius:6px; padding:18px; margin:0; }
+.repair-disclosure pre, .repair-atoms-group pre { max-width:100%; font:14px/1.65 Consolas,"Courier New",monospace; white-space:pre-wrap; overflow-wrap:anywhere; padding:14px; margin:0 0 14px; border-radius:5px; background:#f4f6fa; }
+.repair-findings-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; align-items:start; }
+.repair-finding.note-card { background:#fff; border:1px solid var(--repair-line); border-top:3px solid #8aa2bf; border-radius:6px; padding:22px; margin:0; }
 .repair-finding-preview { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:6; overflow:hidden; line-height:1.7; }
-.repair-lineage, .repair-kind { font-size:13px!important; color:var(--repair-muted); }
+.repair-lineage, .repair-kind { font-size:14px!important; color:var(--repair-muted); }
 .repair-finding-full p { white-space:pre-wrap; }
 .repair-finding .repair-states { display:block; }
 .repair-finding .repair-states dt { margin-top:8px; }
 .repair-atoms-groups { display:grid; gap:10px; }
 .repair-atoms-group { border:1px solid var(--repair-line); border-radius:6px; background:#fff; }
-.repair-atoms-group > summary { cursor:pointer; padding:15px 18px; font-size:14px; }
+.repair-atoms-group > summary { cursor:pointer; padding:16px 20px; font-size:16px; }
+.stage1-closeout .repair-atoms-group > summary, .stage1-closeout .repair-graph > summary { font-size:16px; }
 .repair-atoms-group > summary strong { font-weight:600; }
-.repair-group-count { color:var(--repair-muted); margin-left:14px; font-size:13px; }
-.repair-group-states { display:block; color:var(--repair-muted); font-size:13px!important; margin:5px 0 0 18px; }
+.repair-group-count { color:var(--repair-muted); margin-left:14px; font-size:14px; }
+.repair-group-states { display:block; color:var(--repair-muted); font-size:14px!important; margin:5px 0 0 18px; }
 .repair-atoms-list { display:grid; gap:0; padding:0 18px 8px; }
 .repair-atom.note-card { border-radius:0; border-top:1px solid var(--repair-line); background:transparent; padding:16px 0; margin:0; }
 .repair-atom-head { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:baseline; justify-content:space-between; }
-.repair-atom-head h4 { font-size:14px; }
-.repair-badge { font-size:13px; border-radius:4px; padding:2px 8px; background:#f0f3f7; }
+.repair-atom-head h4 { font-size:16px; }
+.repair-badge { font-size:14px; border-radius:4px; padding:2px 8px; background:#f0f3f7; }
 .repair-atom-text { max-width:78ch; white-space:pre-wrap; }
 .repair-expand-controls { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
-.repair-button { border:1px solid var(--repair-line); background:#fff; color:var(--repair-accent); border-radius:5px; padding:8px 12px; font:600 13px/1.4 "Segoe UI",sans-serif; cursor:pointer; }
+.repair-button { border:1px solid var(--repair-line); background:#fff; color:var(--repair-accent); border-radius:5px; min-height:40px; padding:9px 14px; font:600 14px/1.4 "Segoe UI",sans-serif; cursor:pointer; }
 .repair-button:hover { border-color:#8aa2bf; background:#f4f7fc; }
 .repair-closeout summary:focus-visible, .repair-panel summary:focus-visible, .repair-graph summary:focus-visible, .repair-button:focus-visible, .repair-exports a:focus-visible, .repair-graph-frame:focus-visible { outline:3px solid #82abe5; outline-offset:3px; border-radius:3px; }
-.repair-hint { position:relative; margin:4px 0 8px; color:var(--repair-muted); font-size:13px; }
+.repair-hint { position:relative; margin:4px 0 8px; color:var(--repair-muted); font-size:14px; }
 .repair-hint > summary { position:relative; cursor:pointer; width:fit-content; color:var(--repair-accent); text-decoration:underline; text-decoration-style:dotted; text-underline-offset:4px; }
-.repair-hint > p { margin:8px 0; padding:10px 12px; background:#f4f6fa; border-left:2px solid #8aa2bf; max-width:75ch; font-size:13px; }
+.repair-hint > p { margin:8px 0; padding:10px 12px; background:#f4f6fa; border-left:2px solid #8aa2bf; max-width:75ch; font-size:14px; }
 .repair-hint-tooltip { display:none; position:absolute; z-index:5; left:0; top:100%; width:min(520px,calc(100vw - 80px)); margin-top:6px; padding:10px 12px; color:var(--repair-muted); background:#f4f6fa; border-left:2px solid #8aa2bf; box-shadow:0 6px 18px #20304718; font-weight:400; text-decoration:none; }
 .repair-hint:not([open]) > summary:focus-visible .repair-hint-tooltip { display:block; }
 @media (hover:hover) { .repair-hint:not([open]) > summary:hover .repair-hint-tooltip { display:block; } }
@@ -57,10 +109,36 @@
 .repair-panel .repair-findings-grid { grid-template-columns:1fr; margin:14px 0; }
 .repair-panel > .repair-group-states { margin:0 0 12px; }
 .repair-graph { margin:24px 0 0; padding:0 16px; border:1px solid var(--repair-line); border-radius:6px; background:#fff; }
-.repair-graph > summary { font-size:14px; }
+.repair-graph > summary { font-size:16px; }
 .repair-graph-frame { overflow:auto; max-width:100%; margin:12px 0; }
 .repair-graph svg { display:block; width:100%; min-width:960px; fill:#203047; }
 .repair-exports { display:flex; flex-wrap:wrap; gap:10px 18px; padding-top:18px; border-top:1px solid var(--repair-line); }
-.repair-exports a { color:var(--repair-accent); font-size:13px; text-underline-offset:3px; }
+.repair-exports a { color:var(--repair-accent); font-size:14px; text-underline-offset:3px; }
 @media (max-width:1100px) { .repair-findings-grid { grid-template-columns:1fr; } .repair-finding-preview { -webkit-line-clamp:4; } }
-@media (max-width:640px) { .repair-closeout { gap:24px; } .repair-closeout h2 { font-size:23px; } .repair-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 12px; } .repair-recorded-details { grid-template-columns:1fr; } .repair-states { grid-template-columns:1fr; gap:2px; } .repair-states dd { margin-bottom:8px; } .repair-atoms-group > summary { padding:13px; } .repair-group-count { display:block; margin:4px 0 0 18px; } .repair-atoms-list { padding:0 13px 5px; } .repair-finding.note-card { padding:15px; } .repair-panel { padding:0 10px; } }
+@media (max-width:1100px) { .stage1-closeout .lit-toolbar { grid-template-columns:1fr; } }
+@media (max-width:1000px) { body.stage1-closeout { --studio-rail:190px; } .stage1-closeout header { padding:24px; } .stage1-closeout .view-tabs { padding:0 24px; } .stage1-closeout main { padding:20px 24px 28px; } .stage1-closeout main > article { padding:24px; } .stage1-closeout .controls, .stage1-closeout .language-control { justify-content:flex-start; } .repair-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:640px) {
+  .stage1-closeout .shell { padding-left:0; }
+  .stage1-closeout .studio-sidebar { position:static; width:auto; padding:16px; }
+  .stage1-closeout header { padding:22px 18px; }
+  .stage1-closeout h1 { font-size:30px; }
+  .stage1-closeout h2, .repair-closeout h2 { font-size:26px; }
+  .stage1-closeout .mast { gap:18px; }
+  .stage1-closeout .view-tabs { padding:0 18px; gap:18px; }
+  .stage1-closeout main { padding:16px 12px 24px; gap:12px; }
+  .stage1-closeout main > article { padding:20px 16px; }
+  .stage1-closeout .project-binding, .stage1-closeout .view-binding { padding:0 16px; }
+  .stage1-closeout .paper-detail { padding:16px; }
+  .stage1-closeout .paper-detail dl { grid-template-columns:1fr; gap:4px; }
+  .stage1-closeout .paper-detail dd { margin-bottom:10px; }
+  .repair-closeout { gap:24px; }
+  .repair-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 12px; }
+  .repair-recorded-details { grid-template-columns:1fr; }
+  .repair-states { grid-template-columns:1fr; gap:2px; }
+  .repair-states dd { margin-bottom:8px; }
+  .repair-atoms-group > summary { padding:14px; }
+  .repair-group-count { display:block; margin:4px 0 0 18px; }
+  .repair-atoms-list { padding:0 14px 5px; }
+  .repair-finding.note-card { padding:18px; }
+  .repair-panel { padding:0 12px; }
+}

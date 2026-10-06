@@ -67,6 +67,7 @@
     rawSection(root, "Sources & provenance", index.edges.filter(matching));
   }
   function note(root, paper) {
+    if (window.WorkspaceRepair) root.append(make("p", "Original package findings (historical). Accepted repairs appear below where available.", "original-findings-label"));
     const fields = make("dl"); fields.dataset.workId = paper.work_id; fields.dataset.versionId = paper.version_id;
     for (const [key, label] of [["question","Question"],["data","Data"],["method","Method"],["main_findings","Main findings"],["limitations","Limitations"],["relevance","Relevance"],["transferability","Transferability"]]) fields.append(make("dt", label), source("dd", paper.findings?.[key]));
     root.append(fields);
@@ -93,7 +94,12 @@
     const tabs = document.querySelector(".view-tabs"); tabs.replaceChildren(); $("nodeList").replaceChildren();
     for (const [value, label] of views) { const button = make("button", label, `view-tab${state.view === value ? " active" : ""}`); button.dataset.workspaceView = value; button.disabled = state.stage !== 1; button.onclick = () => {state.view = value; render();}; tabs.append(button); }
     $("outlineTitle").textContent = "Index binding";
-    $("nodeList").append(source("p", index.project_id), source("p", index.topic), source("small", index.status), make("p", "Blocked · execution disconnected"));
+    if (window.WorkspaceRepair) {
+      const binding = make("details", undefined, "project-binding"), summary = make("summary");
+      summary.append(make("span", "Project & version"), source("small", index.status, "binding-status"));
+      binding.append(summary, source("p", index.project_id), source("p", index.topic));
+      $("nodeList").append(binding, make("p", "Blocked · execution disconnected", "binding-execution"));
+    } else $("nodeList").append(source("p", index.project_id), source("p", index.topic), source("small", index.status), make("p", "Blocked · execution disconnected"));
     const root = $("article"); root.replaceChildren(); root.classList.remove("literature-shell");
     if (state.stage !== 1) { const stage = stages.find(s => s.stage === state.stage); root.append(make("h2", stage.label), make("p", stage.purpose), make("p", "Blocked · execution disconnected", "status blocked"), source("p", stage.support_status), make("h3", "Inputs"), ...stage.required_inputs.map(value => make("p", value)), make("h3", "Expected outputs"), ...stage.expected_deliverables.map(value => make("p", value)), make("p", "No new research deliverable is created by this view.")); }
     else if (["graph", "catalog"].includes(state.view)) library(root);
@@ -101,7 +107,11 @@
     else if (state.view === "notes") { root.append(make("h2", "Notes"), make("p", window.WorkspaceRepair ? "Accepted repairs & core findings" : "Top-3 supplement is pending.")); for (const record of records) { const section = make("section", undefined, "note-card"); section.append(source("h3", record.title), source("p", record.identity)); note(section, record.original); rawSection(section, "Complete metadata", record.original); root.append(section); } }
     else if (state.view === "sources") { root.append(make("h2", "Sources & provenance")); rawSection(root, "Index binding", {index_sha256:payload.index_sha256, ...index.provenance}); for (const row of index.sources) { root.append(source("h3", row.source_id)); rawSection(root, "Source records", row); } rawSection(root, "Sources & provenance", index.edges); }
     else { root.append(make("h2", "Coverage & screening")); rawSection(root, "Coverage & Stop Decision", index.coverage); rawSection(root, "Coverage & screening", index.screening); rawSection(root, "Search & Reading", index.search); rawSection(root, "Original audit documents", index.audit_documents); rawSection(root, "Coverage & Stop Decision", index.coverage_documents); rawSection(root, "Unknown", index.missing_fields); rawSection(root, "Import Stage 1", index.readiness); }
-    $("detail").replaceChildren(make("p", "Read-only projection of the original package. Source access and claim judgments remain unchanged."), source("p", payload.index_sha256), make("p", "No new research deliverable is created by this view."));
+    if (window.WorkspaceRepair) {
+      const binding = make("details", undefined, "view-binding");
+      binding.append(make("summary", "View & rebuild binding"), make("p", "Read-only projection of the original package. Source access and claim judgments remain unchanged."), source("p", payload.index_sha256), make("p", "No new research deliverable is created by this view."));
+      $("detail").replaceChildren(binding);
+    } else $("detail").replaceChildren(make("p", "Read-only projection of the original package. Source access and claim judgments remain unchanged."), source("p", payload.index_sha256), make("p", "No new research deliverable is created by this view."));
     $("workspaceLanguage").value = i18n.locale; i18n.apply(); updateTitle();
   }
   $("workspaceLanguage").onchange = event => { i18n.set(event.target.value); updateTitle(); };

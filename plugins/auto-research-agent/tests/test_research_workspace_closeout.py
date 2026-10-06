@@ -121,6 +121,7 @@ class CloseoutTests(unittest.TestCase):
         html = (root / "view-one/index.html").read_text(encoding="utf-8")
         self.assertIn("connect-src 'none'", html)
         self.assertIn('href="./workspace-closeout.css"', html)
+        self.assertIn('<body class="stage1-closeout">', html)
         self.assertIn("workspace-closeout.css", first["files"])
         self.assertLess(
             html.index("workspace-repairs.js"), html.index("workspace-records.js")
@@ -161,6 +162,10 @@ class CloseoutTests(unittest.TestCase):
         self.assertNotIn("workspace-closeout.css", receipt["files"])
         self.assertNotIn(
             "workspace-closeout.css",
+            (root / "legacy/index.html").read_text(encoding="utf-8"),
+        )
+        self.assertNotIn(
+            'class="stage1-closeout"',
             (root / "legacy/index.html").read_text(encoding="utf-8"),
         )
         self.assertEqual(

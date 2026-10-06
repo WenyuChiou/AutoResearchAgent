@@ -184,6 +184,7 @@ def _write_view(
     script_names = ["workspace-i18n.js", "literature-reference.js", "workspace-data.js"]
     repaired = index["schema_version"] == "2.0.0"
     if repaired:
+        html = _replace(html, "<body>", '<body class="stage1-closeout">')
         html = _replace(
             html,
             "</head>",
