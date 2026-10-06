@@ -107,3 +107,10 @@ This slice provides no process launcher, browser UI or native research authority
 ```powershell
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_http.py -v
 ```
+
+Serve the accepted original Wiki with a separate session interaction overlay.
+WikiSessionServer requires the four exact accepted reference asset byte strings and their separately pinned public plugin README at trusted bootstrap. This composes the #88 synthetic reference with an injected session overlay; it does not load or relabel the #104 real-package projection. It publishes only a static allowlist and no private files. The panel uses a credential only in memory, stores non-secret intent keys before POST, and recovers with GET without resending. Native authentication and live research remain unverified; historical WorkspaceIndex status and research evidence are unchanged.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_wiki_http.py -v
+```
