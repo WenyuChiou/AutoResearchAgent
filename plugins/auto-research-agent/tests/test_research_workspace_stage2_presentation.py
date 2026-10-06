@@ -41,7 +41,11 @@ def attachment():
         "schema_version": "1.0.0",
         "project_id": "project-1",
         "stage1_index_sha256": "a" * 64,
-        "bridge_receipt": {"receipt_id": "bridge-1"},
+        "bridge_receipt": {
+            "receipt_id": "bridge-1",
+            "human_selection": "pending",
+            "stage3_authorized": False,
+        },
         "selection": {
             "current_options": [
                 {
@@ -49,6 +53,7 @@ def attachment():
                         "candidate_id": "direction-1",
                         "version": 4,
                         "question": "Can the bounded direction be answered with the recorded materials?",
+                        "value": "It could resolve the recorded bounded measurement decision.",
                     },
                     "assessment": {
                         "disposition": "park",
@@ -66,6 +71,7 @@ def attachment():
                     },
                 }
             ],
+            "recommendations": [],
             "evaluation_packet": {
                 "resources": "Use fixed compute; licensed data access is unknown."
             },
@@ -81,7 +87,19 @@ class Stage2PresentationTests(unittest.TestCase):
         self.assertIn('<section id="stage2-delivery">', rendered)
         question = "Can the bounded direction be answered with the recorded materials?"
         self.assertIn(question, rendered)
-        self.assertLess(rendered.index(question), rendered.index("direction-1 v4"))
+        self.assertIn("Why worthwhile", rendered)
+        self.assertIn(
+            "It could resolve the recorded bounded measurement decision.", rendered
+        )
+        self.assertIn("What blocks or remains unknown?", rendered)
+        self.assertIn("What is the next check?", rendered)
+        self.assertIn("Candidate version</dt><dd>v4", rendered)
+        self.assertLess(
+            rendered.index("Named audit pending"), rendered.index("Direction 1")
+        )
+        self.assertIn("Recorded proposal-ready recommendations:</strong> 0", rendered)
+        self.assertIn("Human choice:</strong> pending", rendered)
+        self.assertIn("Stage 3 authorization:</strong> False", rendered)
         self.assertIn("Parked pending more evidence or resources", rendered)
         self.assertIn("Dataset access remains unknown.", rendered)
         self.assertIn(
@@ -90,8 +108,15 @@ class Stage2PresentationTests(unittest.TestCase):
         self.assertNotIn('class="stage2-resources"', rendered)
         self.assertIn("Named audit pending", rendered)
         self.assertIn("provisional", rendered)
-        self.assertIn("P4</th><td>Unknown (2/3 criteria assessed)", rendered)
-        self.assertIn("P5</th><td>50.0% (3/6) (provisional)", rendered)
+        self.assertIn(
+            "P4 — Literature comparison</th><td>Unknown/6 (2/3 criteria assessed) (provisional)",
+            rendered,
+        )
+        self.assertIn(
+            "P5 — Research opportunity</th><td>3/6 (3/3 criteria assessed) (provisional)",
+            rendered,
+        )
+        self.assertIn("P6 — Decision quality", rendered)
         self.assertIn("Provisional recorded evaluation", rendered)
         self.assertNotIn("Final recorded evaluation", rendered)
         self.assertNotIn("Total", rendered)
@@ -103,6 +128,62 @@ class Stage2PresentationTests(unittest.TestCase):
         self.assertIn(f"ADJ reason for {evaluation_fixture.CRITERIA[0]}", rendered)
         self.assertIn("evidence unavailable", rendered)
         self.assertIn('href="stage2/report-reader.html#source-ev-1"', rendered)
+
+    def test_high_external_score_does_not_hide_blocked_materials(self):
+        value = attachment()
+        for dimension in value["evaluation"]["dimensions"].values():
+            dimension.update(score=100.0, sum=6, assessed=3, required=3)
+        rendered = unescape(render_stage2_card(value))
+        self.assertIn("6/6 (3/3 criteria assessed) (provisional)", rendered)
+        self.assertIn("materials (blocking, unknown)", rendered)
+        self.assertIn("Dataset access remains unknown.", rendered)
+        self.assertIn(
+            "high external score does not establish material readiness", rendered
+        )
+
+    def test_unassessed_direction_stays_unknown_without_zero_or_fake_next_check(self):
+        value = attachment()
+        value["selection"]["current_options"][0]["assessment"] = None
+        rendered = unescape(render_stage2_card(value))
+        self.assertIn("Assessment pending", rendered)
+        self.assertIn("Unknown — no current assessment is recorded", rendered)
+        self.assertIn(
+            "What is the next check?</dt><dd><ul><li>None recorded.", rendered
+        )
+        direction = rendered.split('<article class="stage2-direction">', 1)[1].split(
+            "</article>", 1
+        )[0]
+        self.assertNotIn("0/2", direction)
+
+    def test_long_question_and_full_hex_identity_are_collapsed(self):
+        value = attachment()
+        candidate = value["selection"]["current_options"][0]["candidate"]
+        candidate["candidate_id"] = "abcdef0123456789" * 4
+        candidate["question"] = "Can this long research question remain readable? " * 8
+        rendered = render_stage2_card(value)
+        article = rendered.split('<article class="stage2-direction">', 1)[1].split(
+            "</article>", 1
+        )[0]
+        identity = article.split('<details class="stage2-identity">', 1)[1]
+        headline = article.split('<details class="stage2-identity">', 1)[0]
+        self.assertIn('<details class="stage2-question">', headline)
+        self.assertNotIn(candidate["candidate_id"], headline)
+        self.assertIn(candidate["candidate_id"], identity)
+        self.assertIn("Candidate version</dt><dd>v4", headline)
+
+    def test_recorded_recommendation_does_not_infer_human_choice_or_authorization(self):
+        value = attachment()
+        option = value["selection"]["current_options"][0]
+        option["assessment"].update(disposition="recommend", reason="Recorded ready.")
+        option["assessment"]["checks"]["materials"].update(
+            status="assessed", score=2, blocking=False, next_check=None
+        )
+        value["selection"]["recommendations"] = [copy.deepcopy(option["candidate"])]
+        rendered = unescape(render_stage2_card(value))
+        self.assertIn("Recorded proposal-ready recommendations:</strong> 1", rendered)
+        self.assertIn("Recorded proposal-ready recommendation", rendered)
+        self.assertIn("Human choice:</strong> pending", rendered)
+        self.assertIn("Stage 3 authorization:</strong> False", rendered)
 
     def test_zero_materials_score_stays_blocking_without_availability_claim(self):
         value = attachment()
@@ -154,6 +235,7 @@ class Stage2PresentationTests(unittest.TestCase):
         attack = '<script>alert("owned")</script><a href="https://bad">bad</a>'
         value["selection"]["current_options"][0]["assessment"]["reason"] = attack
         value["selection"]["current_options"][0]["candidate"]["question"] = attack
+        value["selection"]["current_options"][0]["candidate"]["value"] = attack
         value["selection"]["evaluation_packet"]["resources"] = attack
         value["evaluation"]["rows"][0]["judges"]["R1"]["rationale"] = attack
         value["evaluation"]["rows"][0]["judges"]["R1"]["evidence_refs"][0]["href"] = (
@@ -175,6 +257,14 @@ class Stage2PresentationTests(unittest.TestCase):
         )
         self.assertIn('href="stage2/report-reader.html"', rendered)
         self.assertIn('href="stage2/selection.md"', rendered)
+
+    def test_v1_attachment_projection_needs_no_new_manifest_fields(self):
+        value = attachment()
+        self.assertEqual(value["schema_version"], "1.0.0")
+        self.assertNotIn("presentation_version", value)
+        rendered = render_stage2_card(value)
+        self.assertIn('id="stage2-delivery"', rendered)
+        self.assertIn("Candidate version</dt><dd>v4", rendered)
 
     def test_notes_are_deterministic_canonical_and_do_not_mutate_attachment(self):
         value = attachment()

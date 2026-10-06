@@ -59,3 +59,24 @@ python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p "
 Private papers, source text, actual indexes and snapshots never belong in Git.
 Public fixtures are synthetic. Rendering success and byte checks do not prove
 P1-P3 quality improvement or actual native execution.
+
+### Accepted private repair overlay API
+
+`project_package` accepts `repair_root`, `expected_repair_manifest_sha256` and
+`expected_repair_review_sha256` together. External hashes bind the private
+candidate manifest and independent delta review. Every listed member and exact
+source passage is checked before a copied WorkspaceIndex v2 is returned. The
+unchanged v1 schema and default projection remain supported.
+
+The overlay retains original claims, compound judgments, unknown coverage,
+failed attempts and the original rejected review. Atomic revisions and core
+findings keep separate denominators and typed provenance. Recovered abstract
+content does not establish full-method access; presentation grants no Stage 2
+import, execution or scientific-quality upgrade.
+
+The CLI accepts the same three optional repair arguments and emits English
+HTML, version-bound notes, a complete bibliography and editable Excel/CSV.
+`closeout/` contains the accepted atomic mapping, core findings, input/runtime
+bindings and Traditional Chinese status summary. `repair/` retains the checked
+acceptance and source-evidence snapshots. All outputs remain outside Git.
+Opening, exporting or rebuilding this view performs no research or scoring.

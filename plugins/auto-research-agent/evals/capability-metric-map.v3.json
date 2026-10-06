@@ -20,8 +20,8 @@
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "HTTP rejects cross-origin/host, duplicate safety headers, invalid JSON and oversized bodies before dispatch; excess sockets create no handler, trickled line/header/body expires at the absolute deadline, and lost responses recover from read-only action history without resend",
-        "fresh SQLite writer, new owner and connection epoch preserve API crash gaps without resending; a failed post-recording fault event remains distinct from durable close evidence",
-        "project/principal/version checks precede dispatch; exact saved request and turn targets stay server-side; concurrent or reconstructed API replay and history reads produce no duplicate write",
+            "fresh SQLite writer, new owner and connection epoch preserve API crash gaps without resending; a failed post-recording fault event remains distinct from durable close evidence",
+            "project/principal/version checks precede dispatch; exact saved request and turn targets stay server-side; concurrent or reconstructed API replay and history reads produce no duplicate write",
             "bound answers, explicit decisions and interrupts preserve exact request identity, durable admission and no-resend recovery; stale, partial, malformed and owner-loss observations never become terminal proof",
             "construction fails before binding on invalid channel, epoch or sink; post-binding failures preserve fault or explicit unobserved fault plus separate close evidence, and SQLite reopen does not reuse an old epoch",
             "a full-frame observation requires exact persisted outgoing bytes, current owner/project/epoch and contiguous positive counted suffix writes; incomplete, changed or incoming-only evidence is rejected",
@@ -66,7 +66,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace",
       "problem": "The Wiki reference displays synthetic papers and cannot reconcile a real partial Stage 1 package across its graph, notes, catalog and bibliography.",
-      "mechanism": "Wrap saved Stage 1 records with a deterministic, externally hash-bound read-only WorkspaceIndex and English HTML view. Reuse record validation, safe file boundaries and the existing bibliography producer; retain source levels, claim relations, coverage, input identities and failed attempts without launching research or scoring.",
+      "mechanism": "Wrap saved Stage 1 records with a deterministic, externally hash-bound read-only WorkspaceIndex and English HTML view. Reuse record validation, safe file boundaries and the existing bibliography producer; retain source levels, claim relations, coverage, input identities and failed attempts without launching research or scoring. Optionally attach an externally accepted private repair overlay with exact source passages, original-to-atomic mappings, preserved failures and separate core findings; v1 inputs and scientific states remain unchanged. The optional accepted repair overlay is projected into English HTML, version-bound Markdown, Excel/CSV, core findings and a complete bibliography with independent source, assertion and unresolved states.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -76,7 +76,8 @@
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "one work/version identity reconciles graph, list, detail, notes and bibliography",
-            "input manifests, source hashes, limitations and retained failures are inspectable separately from validation and scientific support"
+            "input manifests, source hashes, limitations and retained failures are inspectable separately from validation and scientific support",
+            "all closeout formats retain original work/version identities and Unknowns, accepted atomic mappings, source hashes and separately bound exporter runtime"
           ],
           "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
         }
@@ -91,7 +92,9 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace.py",
         "plugins/auto-research-agent/tests/test_research_workspace_view.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_wiki.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_wiki.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_repair.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_closeout.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

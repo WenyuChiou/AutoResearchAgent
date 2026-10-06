@@ -11,9 +11,10 @@ from stage1_deliverable.common import (
     safe_path,
     sha,
 )
+
+from .json_bytes import decode_json
 from .projection import validate_index
 from .wiki import wiki_files
-from .json_bytes import decode_json
 
 REFERENCE_COMMIT = "085f363179a79375fc8e3590dda9725e25eda71a"
 REFERENCE_HASHES = {
@@ -113,6 +114,8 @@ def _write_view(
     expected_stage2_bridge_sha256=None,
 ):
     validate_index(index)
+    if index["schema_version"] == "2.0.0":
+        index = decode_json(canonical(index))
     stage2_attachment, stage2_files = None, {}
     supplied = (stage2_delivery, stage2_bridge, expected_stage2_bridge_sha256)
     if any(value is not None for value in supplied):
@@ -131,7 +134,10 @@ def _write_view(
         )
         stage2_files.update(stage2_wiki_notes(stage2_attachment))
     expected_index_sha256 = sha(raw)
-    if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") != "1.0.0":
+    if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") not in {
+        "1.0.0",
+        "2.0.0",
+    }:
         raise DeliverableError("unsupported WorkspaceIndex")
     identities = [(p["work_id"], p["version_id"]) for p in index["papers"]]
     if len(set(identities)) != len(identities):
@@ -175,16 +181,30 @@ def _write_view(
         "<head>",
         "<head>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">",
     )
-    html += (
-        "".join(
-            f'<script src="./{name}"></script>\n'
-            for name in (
-                "workspace-i18n.js",
-                "literature-reference.js",
-                "workspace-data.js",
-                "workspace-records.js",
-            )
+    script_names = ["workspace-i18n.js", "literature-reference.js", "workspace-data.js"]
+    repaired = index["schema_version"] == "2.0.0"
+    if repaired:
+        html = _replace(html, "<body>", '<body class="stage1-closeout">')
+        html = _replace(
+            html,
+            "</head>",
+            '<link rel="stylesheet" href="./workspace-closeout.css">\n</head>',
         )
+        script_names.append("workspace-repairs.js")
+    script_names.append("workspace-records.js")
+    if stage2_attachment is not None:
+        html = html.replace("<body>", '<body class="stage2-workspace">').replace(
+            '<body class="stage1-closeout">',
+            '<body class="stage1-closeout stage2-workspace">',
+        )
+        html = _replace(
+            html,
+            "</head>",
+            '<link rel="stylesheet" href="./workspace-stage2.css">\n</head>',
+        )
+        script_names.append("workspace-stage2.js")
+    html += (
+        "".join(f'<script src="./{name}"></script>\n' for name in script_names)
         + "</body></html>\n"
     )
     i18n = _replace(
@@ -192,6 +212,7 @@ def _write_view(
         "window.WorkspaceI18n = { apply, t,",
         "window.WorkspaceI18n = { extend(rows) { rows.forEach(([key, ...values]) => catalog.set(key, values)); }, apply, t,",
     )
+    notes = wiki_files(index)
     payload = {
         "index": index,
         "index_sha256": expected_index_sha256,
@@ -206,6 +227,9 @@ def _write_view(
             for paper in index["papers"]
         ],
     }
+    if repaired:
+        for row in payload["note_paths"]:
+            row["text"] = notes[row["path"]].decode("utf-8")
     if stage2_attachment is not None:
         payload["stage2"] = stage2_attachment
     encoded = (
@@ -243,10 +267,27 @@ def _write_view(
         "workspace-records.js": adapter.read_bytes(),
         "workspace-index.json": raw,
         "references.bib": index["bibliography"]["all_bibtex"].encode("utf-8"),
-        **wiki_files(index),
+        **notes,
         **stage2_files,
     }
+    if repaired:
+        from .closeout import closeout_files
+
+        files.update(closeout_files(index))
+        files["workspace-repairs.js"] = adapter.with_name(
+            "workspace-repairs.js"
+        ).read_bytes()
+        files["workspace-closeout.css"] = adapter.with_name(
+            "workspace-closeout.css"
+        ).read_bytes()
     if stage2_attachment is not None:
+        from .stage2_comparison import build_comparison_view
+
+        files["stage2/comparison-view.json"] = canonical(
+            build_comparison_view(stage2_attachment)
+        )
+        for asset_name in ("workspace-stage2.js", "workspace-stage2.css"):
+            files[asset_name] = adapter.with_name(asset_name).read_bytes()
         files["wiki/README.md"] += (
             b"\n## Stage 2 direction proposal and independent assessment\n\n"
             b"[Read the Stage 2 notes](../stage2/README.md). "
@@ -282,6 +323,41 @@ def _write_view(
             )
         },
     }
+    if repaired:
+        from .closeout import runtime_binding
+
+        manifest["repair_binding"] = {
+            "manifest_sha256": index["supplement"]["manifest_sha256"],
+            "review_sha256": index["supplement"]["review_sha256"],
+            "runtime": runtime_binding(),
+            "original_replay_upgraded": False,
+        }
+        manifest["adapter_sources"].update(
+            {
+                name: sha(Path(__file__).with_name(name).read_bytes())
+                for name in (
+                    "repair.py",
+                    "closeout.py",
+                    "WorkspaceIndex.v2.schema.json",
+                )
+            }
+        )
+        manifest["adapter_sources"].update(
+            {
+                "stage1_deliverable/" + name: sha(
+                    (
+                        Path(__file__).parent.parent / "stage1_deliverable" / name
+                    ).read_bytes()
+                )
+                for name in (
+                    "views.py",
+                    "common.py",
+                    "records.py",
+                    "sources.py",
+                    "package.py",
+                )
+            }
+        )
     if stage2_attachment is not None:
         manifest["stage2_attachment"] = {
             "schema_version": "1.0.0",
@@ -297,7 +373,12 @@ def _write_view(
         manifest["adapter_sources"].update(
             {
                 name: sha(Path(__file__).with_name(name).read_bytes())
-                for name in ("stage2_import.py", "stage2_presentation.py")
+                for name in (
+                    "stage2_import.py",
+                    "stage2_presentation.py",
+                    "stage2_comparison.py",
+                    "stage2_comparison_html.py",
+                )
             }
         )
     destination.mkdir(parents=True)
