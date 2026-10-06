@@ -131,7 +131,15 @@ def validate_review(review, view, packet):
     return copy.deepcopy(review)
 
 
-def reconcile_reviews(packet, candidate_id, snapshot_sha256, reviews, resolution=None):
+def reconcile_reviews(
+    packet,
+    candidate_id,
+    snapshot_sha256,
+    reviews,
+    resolution=None,
+    *,
+    guard_bundle=None,
+):
     """Identify material disagreements, never resolve them by majority vote.
 
     Native artifact bytes and isolated execution must additionally be checked by
@@ -264,11 +272,18 @@ def reconcile_reviews(packet, candidate_id, snapshot_sha256, reviews, resolution
             and resolution["changed_judgment_reason"].strip(),
             "changed-judgment-needs-new-evidence-or-specific-error",
         )
+    recommendation_eligible = assessment["disposition"] == "recommend"
+    if guard_bundle is not None:
+        from stage2_workflow.quality_guards import validate_guard_bundle
+
+        recommendation_eligible = recommendation_eligible and validate_guard_bundle(
+            guard_bundle, packet, candidate_id, snapshot_sha256
+        )
     return {
         "status": "resolved",
         "missing_roles": [],
         "disagreements": sorted(all_disagreements),
-        "recommendation_eligible": assessment["disposition"] == "recommend",
+        "recommendation_eligible": recommendation_eligible,
         "assessment": copy.deepcopy(assessment),
         "resolution_sha256": canonical_hash(resolution),
         "native_execution_verified": False,

@@ -7,7 +7,9 @@ from pathlib import Path
 import sys
 
 from stage2_check.contracts import decode_json
-from stage2_common import Stage2Error
+from stage2_common import Stage2Error, canonical_hash, validate_packet
+
+from .extraction import validate_extraction
 
 from .report import (
     build_proposal_view,
@@ -33,13 +35,35 @@ def main(argv=None):
         "output",
     ):
         report.add_argument("--" + name, required=True)
+    report.add_argument("--completeness-record")
+    report.add_argument("--expected-completeness-sha256")
     args = parser.parse_args(argv)
     try:
+        if bool(args.completeness_record) != bool(args.expected_completeness_sha256):
+            raise Stage2Error(
+                "completeness record and external hash must be supplied together"
+            )
+        packet = _read(args.packet)
+        raw_proposal = Path(args.raw_proposal).read_bytes().decode("utf-8")
+        extraction = _read(args.extraction)
+        completeness = (
+            _read(args.completeness_record) if args.completeness_record else None
+        )
+        if completeness is not None:
+            validate_packet(packet, args.source_root)
+            validate_extraction(
+                raw_proposal,
+                extraction,
+                packet,
+                args.snapshot_sha256,
+                completeness_record=completeness,
+                expected_completeness_sha256=args.expected_completeness_sha256,
+            )
         view = build_proposal_view(
-            _read(args.packet),
+            packet,
             args.source_root,
-            Path(args.raw_proposal).read_bytes().decode("utf-8"),
-            _read(args.extraction),
+            raw_proposal,
+            extraction,
             args.snapshot_sha256,
         )
         files = {
@@ -61,6 +85,19 @@ def main(argv=None):
             "scientific_quality_verified": False,
             "user_selection_recorded": False,
         }
+        if completeness is not None:
+            files["idea_completeness.json"] = (
+                json.dumps(completeness, ensure_ascii=False, indent=2) + "\n"
+            ).encode("utf-8")
+            manifest.update(
+                schema_version="1.1.0",
+                completeness_sha256=canonical_hash(completeness),
+                completeness_scope="caller-supplied-spans-only",
+            )
+            manifest["files"]["idea_completeness.json"] = {
+                "sha256": hashlib.sha256(files["idea_completeness.json"]).hexdigest(),
+                "bytes": len(files["idea_completeness.json"]),
+            }
         output = Path(args.output)
         # Validate and render before creating a fresh export. Never replace edits.
         output.mkdir(parents=True, exist_ok=False)

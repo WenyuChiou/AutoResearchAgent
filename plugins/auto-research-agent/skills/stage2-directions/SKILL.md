@@ -5,6 +5,22 @@ description: This skill applies when the user asks to improve an existing resear
 
 # Stage 2 direction checking
 
+Before final recommendations, use the opt-in
+[research-quality guards](../../evals/stage2/RESEARCH_QUALITY_GUARDS.zh-TW.md).
+Prepare `stage2_workflow quality-task` from the current snapshot; independently
+check comparability, shared-study dependencies, distinguishable mechanisms and
+each critical premise. Preserve exact reasoning and source-bound records, not
+just reviewer agreement. Unknown effectiveness may motivate research; unknown
+enabling materials or verification paths cannot establish feasibility.
+Account for supplied idea spans as extracted, retained-unformed or excluded;
+this is not a claim of exhaustive semantic discovery. Keep original prose.
+Save the candidate guard map and its separate canonical receipt, then use the
+paired `--guard-bundles` and `--expected-guard-bundles-sha256` arguments on
+`reconcile` and `deliver`. An ineligible raw recommendation must be explicitly
+rechecked or revised before guarded delivery; never silently change its record.
+Treat alternatives individually and simultaneous portfolios jointly. A guarded
+report still requires independent external scoring and actual human selection.
+
 For the current opt-in v3 workflow, read the
 [balanced evaluation and transparent delivery guide](../../evals/stage2/STAGE2_V3_EVALUATION.zh-TW.md).
 After preparing every selection package, run `stage2_live daily-v3` with distinct
