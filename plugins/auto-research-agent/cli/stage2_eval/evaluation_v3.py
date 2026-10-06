@@ -112,7 +112,7 @@ def prepare_content_view_v3(
             }
         )
     brief = packet["brief"]
-    return {
+    view = {
         "kind": "Stage2ContentView",
         "schema_version": "1.0.0",
         **_bindings_v3(packet, subject_id, input_sha256, config_sha256, rubric_path),
@@ -147,6 +147,40 @@ def prepare_content_view_v3(
             "candidates": candidates,
         },
     }
+    if packet.get("schema_version") == "2.2.0":
+        tables = packet.get("research_tables")
+        if tables is not None:
+            from stage2_ideation.topic_tables import validate_research_tables
+
+            tables = validate_research_tables(tables, packet)
+        content = view["scientific_content"]
+        content["literature"] = deepcopy(packet["literature"])
+        content["topic_comparison"] = (
+            {
+                "dimensions": [
+                    {k: deepcopy(v) for k, v in row.items() if k != "spans"}
+                    for row in tables["dimensions"]
+                ],
+                "work_refs": deepcopy(tables["work_refs"]),
+                "cells": [
+                    {k: deepcopy(v) for k, v in row.items() if k != "spans"}
+                    for row in tables["cells"]
+                ],
+            }
+            if tables is not None
+            else None
+        )
+        current = {(row["candidate_id"], row["version"]) for row in candidates}
+        content["direction_resources"] = (
+            [
+                {k: deepcopy(v) for k, v in row.items() if k != "spans"}
+                for row in tables["direction_resources"]
+                if (row["candidate_id"], row["candidate_version"]) in current
+            ]
+            if tables is not None
+            else None
+        )
+    return view
 
 
 def _validate_content_assessment_v3(assessment, view, packet):
