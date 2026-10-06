@@ -5,6 +5,7 @@ import copy
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 
 from .extraction import validate_extraction
+from .topic_tables import materialize_research_tables, validate_research_tables
 
 
 UPDATE_MODES = {"append", "replace-comparison-unresolved"}
@@ -118,6 +119,18 @@ def build_next_packet(
         for unknown in result["unresolved"]:
             if unknown not in next_packet["unresolved"]:
                 next_packet["unresolved"].append(unknown)
+    if (
+        result.get("schema_version") == "1.1.0"
+        and result["research_tables"] is not None
+    ):
+        next_packet["research_tables"] = materialize_research_tables(
+            result["research_tables"],
+            result["candidates"],
+            packet,
+            raw_proposal,
+            snapshot_sha256,
+        )
+        validate_research_tables(next_packet["research_tables"], next_packet)
     next_packet["packet_id"] = (
         "ideation-" + canonical_hash({"parent": packet, "extraction": result})[:24]
     )

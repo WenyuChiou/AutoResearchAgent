@@ -173,4 +173,5 @@ def build_comparison_view(attachment):
         "comparison": _field(packet, "comparison"),
         "evidence": _project_evidence(packet),
         "resources": _field(packet, "resources"),
+        "research_tables": _field(packet, "research_tables"),
     }
