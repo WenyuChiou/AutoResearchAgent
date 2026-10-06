@@ -17,6 +17,9 @@ def main():
     parser.add_argument("--project-id", required=True)
     parser.add_argument("--expected-manifest-sha256", required=True)
     parser.add_argument("--reference-root", required=True)
+    parser.add_argument("--repair-root")
+    parser.add_argument("--expected-repair-manifest-sha256")
+    parser.add_argument("--expected-repair-review-sha256")
     parser.add_argument("--stage2-delivery")
     parser.add_argument("--stage2-bridge")
     parser.add_argument("--expected-stage2-bridge-sha256")
@@ -26,6 +29,9 @@ def main():
             args.package_root,
             args.project_id,
             args.expected_manifest_sha256,
+            repair_root=args.repair_root,
+            expected_repair_manifest_sha256=args.expected_repair_manifest_sha256,
+            expected_repair_review_sha256=args.expected_repair_review_sha256,
         )
         options = {}
         supplied = (
