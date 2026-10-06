@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 from stage2_check.contracts import decode_json
-from stage2_common import Stage2Error
+from stage2_common import Stage2Error, canonical_hash
 
 from .orchestration import prepare_review_batch, reconcile_batch
 from .delivery import build_delivery, inspect_delivery
@@ -123,6 +123,15 @@ def main(argv=None):
         command.add_argument("--run", required=True)
         command.add_argument("--expected-head", required=True)
         command.add_argument("--output", required=True)
+    for command in (reconcile, deliver):
+        command.add_argument("--guard-bundles")
+        command.add_argument("--expected-guard-bundles-sha256")
+    quality = commands.add_parser(
+        "quality-task",
+        help="prepare a current-source quality review task, not a judgment",
+    )
+    for name in ("run", "expected-head", "candidate", "output"):
+        quality.add_argument("--" + name, required=True)
     delivery_check = commands.add_parser(
         "inspect-delivery", help="verify a retained proposal receipt"
     )
@@ -166,6 +175,12 @@ def main(argv=None):
         evaluated_check.add_argument("--" + name, required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command in {"reconcile", "deliver"} and bool(
+            args.guard_bundles
+        ) != bool(args.expected_guard_bundles_sha256):
+            raise Stage2Error(
+                "guard bundles and external hash must be supplied together"
+            )
         if args.command == "import-stage1":
             result = build_stage2_seed(
                 args.deliverable,
@@ -281,13 +296,20 @@ def main(argv=None):
                 args.output,
                 args.expected_head,
                 source_update_receipts=args.source_update_receipt,
+                guard_bundles=_read(args.guard_bundles) if args.guard_bundles else None,
+                expected_guard_bundles_sha256=args.expected_guard_bundles_sha256,
             )
         else:
             state = inspect_workflow(args.run, args.expected_head)
             snapshot = state["latest_snapshot"]
             packet = snapshot["packet"]
             snapshot_hash = snapshot["event"]["payload"]["snapshot_sha256"]
-            if args.command == "review-plan":
+            if args.command == "quality-task":
+                from .quality_guards import prepare_quality_task
+
+                result = prepare_quality_task(packet, args.candidate, snapshot_hash)
+                result["task_sha256"] = canonical_hash(result)
+            elif args.command == "review-plan":
                 result = prepare_review_batch(
                     packet, snapshot_hash, _read(args.screening), args.seed
                 )
@@ -299,7 +321,14 @@ def main(argv=None):
                 ):
                     raise Stage2Error("review-batch-current-snapshot-mismatch")
                 result = reconcile_batch(
-                    packet, batch, _read(args.reviews), _read(args.resolutions)
+                    packet,
+                    batch,
+                    _read(args.reviews),
+                    _read(args.resolutions),
+                    guard_bundles=_read(args.guard_bundles)
+                    if args.guard_bundles
+                    else None,
+                    expected_guard_bundles_sha256=args.expected_guard_bundles_sha256,
                 )
             # Never overwrite a reviewed plan/result; bind it as an action artifact.
             with Path(args.output).open("x", encoding="utf-8", newline="\n") as stream:

@@ -291,6 +291,11 @@
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
+      ],
+      "research_quality_guards": "Opt-in source/candidate/snapshot-bound checks for comparability, evidence dependency, distinguishable mechanisms and critical premises; exact guard map with external receipt; guarded schema1.2 export rejects ineligible raw recommendations. Alternative and simultaneous resource claims differ. No semantic truth or formal promotion inferred.",
+      "research_quality_guard_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_quality_guards.py",
+        "plugins/auto-research-agent/tests/test_stage2_guarded_delivery.py"
       ]
     },
     {
@@ -379,7 +384,8 @@
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
-      ]
+      ],
+      "research_quality_guards": "Requires independent source-based quality and prerequisite checking before final guarded recommendations; effects unknown until live evaluation."
     },
     {
       "capability_id": "cli:stage2-ideation",
@@ -406,6 +412,10 @@
           ],
           "human_judgment": "Fresh affected-version review establishes assessment support; no formal improvement claim."
         }
+      ],
+      "idea_completeness": "Opt-in source-bound caller-supplied idea spans with extracted/retained-unformed/excluded reasons; original prose retained; CLI rejects external receipt mismatch before export. Does not claim exhaustive discovery.",
+      "idea_completeness_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_quality_guards.py"
       ]
     },
     {
@@ -423,7 +433,7 @@
           "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
         }
       ],
-      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research.",
+      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py",
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py"

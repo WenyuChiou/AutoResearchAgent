@@ -142,7 +142,13 @@ def _validate_candidate_lineage(packet, extracted_candidates):
 
 
 def validate_extraction(
-    raw_proposal: str, extraction: dict, packet: dict, snapshot_sha256: str
+    raw_proposal: str,
+    extraction: dict,
+    packet: dict,
+    snapshot_sha256: str,
+    *,
+    completeness_record=None,
+    expected_completeness_sha256=None,
 ) -> dict:
     """Validate extraction bindings and return an order-preserving deep copy.
 
@@ -317,4 +323,89 @@ def validate_extraction(
             _text(claim["text"], "candidate claim")
             _evidence_ids(claim["evidence_ids"], known_evidence, "candidate claim")
     _validate_candidate_lineage(packet, candidates)
+    if completeness_record is not None or expected_completeness_sha256 is not None:
+        _validate_completeness(
+            raw_proposal,
+            result,
+            packet,
+            snapshot_sha256,
+            completeness_record,
+            expected_completeness_sha256,
+        )
     return result
+
+
+def prepare_completeness_record(
+    raw_proposal, extraction, packet, snapshot_sha256, ideas
+):
+    """Bind only caller-supplied idea spans; this is not semantic discovery."""
+    _require(isinstance(ideas, list), "idea completeness entries must be an array")
+    candidate_spans = {
+        row["candidate"]["candidate_id"]: row["spans"]
+        for row in extraction["candidates"]
+    }
+    candidate_ids = set(candidate_spans)
+    mapped = set()
+    span_keys = []
+    for row in ideas:
+        _require(
+            isinstance(row, dict)
+            and set(row) == {"idea_id", "span", "outcome", "candidate_id", "reason"},
+            "idea completeness entry shape",
+        )
+        _text(row["idea_id"], "idea_id")
+        _span(row["span"], raw_proposal, "idea completeness")
+        span_keys.append((row["span"]["start"], row["span"]["end"]))
+        _require(
+            isinstance(row["outcome"], str)
+            and row["outcome"] in {"extracted", "retained-unformed", "excluded"},
+            "idea outcome",
+        )
+        _text(row["reason"], "idea completeness reason")
+        if row["outcome"] == "extracted":
+            _require(
+                row["candidate_id"] in candidate_ids, "idea maps unknown candidate"
+            )
+            _require(
+                row["span"] in candidate_spans[row["candidate_id"]],
+                "idea span does not bind mapped candidate",
+            )
+            mapped.add(row["candidate_id"])
+        else:
+            _require(
+                row["candidate_id"] is None,
+                "unformed/excluded idea cannot map candidate",
+            )
+    _unique([row["idea_id"] for row in ideas], "idea ID")
+    _unique(span_keys, "idea span")
+    _require(
+        mapped == candidate_ids,
+        "formed extracted idea omitted from completeness record",
+    )
+    payload = {
+        "kind": "Stage2IdeationCompleteness",
+        "schema_version": "1.0.0",
+        "scope": "caller-supplied-spans-only",
+        "packet_sha256": canonical_hash(packet),
+        "snapshot_sha256": snapshot_sha256,
+        "raw_proposal_sha256": hashlib.sha256(raw_proposal.encode("utf-8")).hexdigest(),
+        "extraction_sha256": canonical_hash(extraction),
+        "ideas": copy.deepcopy(ideas),
+    }
+    return {**payload, "record_sha256": canonical_hash(payload)}
+
+
+def _validate_completeness(
+    raw_proposal, extraction, packet, snapshot_sha256, record, expected_sha256
+):
+    _require(
+        isinstance(record, dict) and isinstance(expected_sha256, str),
+        "opt-in completeness record and expected hash required",
+    )
+    _require(
+        canonical_hash(record) == expected_sha256, "external completeness hash mismatch"
+    )
+    rebuilt = prepare_completeness_record(
+        raw_proposal, extraction, packet, snapshot_sha256, record.get("ideas")
+    )
+    _require(record == rebuilt, "completeness record reconstruction mismatch")
