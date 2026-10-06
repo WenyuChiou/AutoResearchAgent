@@ -29,6 +29,10 @@ def _require(condition, message):
 
 def validate_index(index):
     """Validate the presentation contract, never scientific correctness."""
+    if index.get("schema_version") == "3.0.0":
+        from .source_rerun import validate_rerun_index
+
+        return validate_rerun_index(index)
     if index.get("schema_version") == "2.0.0":
         from .repair import validate_repair_projection
 
