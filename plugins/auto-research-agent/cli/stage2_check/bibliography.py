@@ -11,7 +11,7 @@ from stage2_ideation.report import _source_url
 
 def build_bibliography(packet, snapshots, evidence):
     """Validate and project packet literature without inventing metadata."""
-    if packet.get("schema_version") not in {"2.0.0", "2.1.0"}:
+    if packet.get("schema_version") not in {"2.0.0", "2.1.0", "2.2.0"}:
         return {
             "available": False,
             "message": (

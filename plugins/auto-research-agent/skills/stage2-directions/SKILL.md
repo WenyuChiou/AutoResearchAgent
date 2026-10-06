@@ -74,6 +74,21 @@ Both routes use the same evidence checks, five axes and user selection gate.
 1. Read the actual evidence and compare studies on meaningful shared dimensions.
    Distinguish source findings from inferences and missing evidence. Check the
    closest work, the remaining opportunity and evidence that could weaken it.
+   For opt-in packet 2.2, read the [topic comparison interface](../../references/stage2-topic-comparison.zh-TW.md).
+   Derive dimensions from the confirmed brief: explain the research need, why
+   the dimension matters, its assessment rule and comparability conditions.
+   Preserve a general data/object/question/method/findings overview alongside
+   topic-specific feature, text or quantity cells. Do not copy fixed axes from
+   an unrelated field. Bind each assessed cell to the exact work/version/source
+   and saved proposal spans; unknown is not absence. Use a cross only for a
+   supported explicit absence or documented bounded full-design inspection.
+   For each proposed direction, record datasets, reports, references, models
+   and tools with purpose, access, license, version, costs, limits, alternatives
+   and check time. Preserve unknown prerequisites and reasoned not-applicable
+   entries; resource availability does not establish whole-direction feasibility.
+   Save prose first and use the same no-tool extraction, immutable snapshots,
+   independent checks and editable proposal/Wiki projection. A prepared table
+   is not a scientific score, permission grant or formal improvement result.
 2. Discuss the candidates naturally before structuring records. Assess opportunity,
    value, answerability, materials and execution. Keep unknown separate from a
    demonstrated failure. Judge value by the useful knowledge or decision it can
