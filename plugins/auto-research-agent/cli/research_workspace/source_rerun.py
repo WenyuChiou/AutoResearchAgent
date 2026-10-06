@@ -600,8 +600,27 @@ def validate_rerun_index(index):
 
 def rerun_files(index, rerun_root):
     validate_rerun_index(index)
+    import json
+
+    from .source_availability import derive_source_availability
+
     extension = index["source_rerun"]
     rows = extension["data"]["rows"]
+    availability = derive_source_availability(index)
+
+    def tabular(values):
+        return [
+            {
+                key: (
+                    json.dumps(value, ensure_ascii=False, sort_keys=True)
+                    if isinstance(value, (dict, list))
+                    else value
+                )
+                for key, value in row.items()
+            }
+            for row in values
+        ]
+
     flattened = [
         {
             "work_id": r["work_id"],
@@ -625,9 +644,21 @@ def rerun_files(index, rerun_root):
         else {"Papers": index["papers"]}
     )
     tables["SourceRerun"] = flattened
+    tables["SourceAvailability"] = tabular(availability["source_rows"])
+    tables["ClaimAvailability"] = tabular(availability["claim_rows"])
+    availability_markdown = (
+        "# Saved-source availability\n\n"
+        "Availability records whether a readable saved body is present. It does not change or explain the historical claim assessment.\n\n"
+        + fence(availability)
+    )
     files = {
         "source-rerun/catalog.xlsx": workbook_bytes(tables),
         "source-rerun/catalog.csv": csv_bytes("SourceRerun", flattened),
+        "source-rerun/source-availability.json": canonical(availability),
+        "source-rerun/source-availability.csv": csv_bytes(
+            "SourceAvailability", tabular(availability["source_rows"])
+        ),
+        "source-rerun/source-availability.md": availability_markdown.encode("utf-8"),
         "source-rerun/manifest.json": canonical(extension),
         "source-rerun/references.bib": extension["bibliography"]["all_bibtex"].encode(
             "utf-8"
@@ -636,9 +667,24 @@ def rerun_files(index, rerun_root):
             "# Saved-source Stage 1 rerun\n\n"
             "Original claims, failures, compound counts and coverage remain historical and unchanged. "
             "New read attempts and bibliography fields are separate; extraction is not claim support.\n\n"
+            + "## Source availability\n\n"
+            + fence(availability["counts"])
             + fence(extension["data"])
         ).encode("utf-8"),
     }
+    for row in availability["source_rows"]:
+        identity = [row["work_id"], row["version_id"]]
+        claims = [
+            claim
+            for claim in availability["claim_rows"]
+            if (claim["work_id"], claim["version_id"])
+            == (row["work_id"], row["version_id"])
+        ]
+        files["source-rerun/notes/" + sha(canonical(identity)) + ".md"] = (
+            "# Source availability note\n\n"
+            "Readable-source status and historical claim assessment are separate.\n\n"
+            + fence({"source_availability": row, "claims": claims})
+        ).encode("utf-8")
     root = private_output(rerun_root)
     for name, row in extension["artifact_hashes"].items():
         raw = safe_path(root, name).read_bytes()

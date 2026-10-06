@@ -248,6 +248,10 @@ def _write_view(
     if repaired:
         for row in payload["note_paths"]:
             row["text"] = notes[row["path"]].decode("utf-8")
+    if rerun:
+        from .source_availability import derive_source_availability
+
+        payload["source_availability"] = derive_source_availability(index)
     if stage2_attachment is not None:
         payload["stage2"] = stage2_attachment
     encoded = (
@@ -379,6 +383,9 @@ def _write_view(
         }
         manifest["adapter_sources"]["source_rerun.py"] = sha(
             Path(__file__).with_name("source_rerun.py").read_bytes()
+        )
+        manifest["adapter_sources"]["source_availability.py"] = sha(
+            Path(__file__).with_name("source_availability.py").read_bytes()
         )
     if repaired or rerun:
         manifest["adapter_sources"].update(

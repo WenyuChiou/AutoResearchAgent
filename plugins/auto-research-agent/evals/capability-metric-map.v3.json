@@ -98,7 +98,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_closeout.py",
         "plugins/auto-research-agent/tests/test_research_workspace_saved_reader.py",
         "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_binding.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_exports.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_exports.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_source_availability.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
