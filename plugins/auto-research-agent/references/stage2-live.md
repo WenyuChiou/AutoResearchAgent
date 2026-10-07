@@ -117,6 +117,11 @@ tool provenance. Authentication files are never included in the session archive.
 
 ## What remains before formal A/B
 
+Content replacement preserves the immutable limitations accepted at exploratory
+Stage 1 intake. New unresolved issues may replace superseded transient issues;
+they cannot erase the accepted scope, promote evidence or rewrite acceptance.
+Retaining those limitations alone is not a substantive scientific revision.
+
 Known resource access requires non-metadata evidence and an exact UTC check time.
 A recorded source retrieval time supports only the inspection it documents;
 saved-source possession does not establish current access, licensing or direction
