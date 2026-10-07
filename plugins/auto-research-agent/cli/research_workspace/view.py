@@ -174,9 +174,12 @@ def _write_view(
     )
     html = html.replace("Offline interaction reference", "Read-only package view")
     if stage2_attachment is not None:
-        html = _replace(
-            html, "</header>", "</header>" + render_stage2_card(stage2_attachment)
+        stage2_card = render_stage2_card(stage2_attachment).replace(
+            '<section id="stage2-delivery">',
+            '<section id="stage2-delivery" hidden>',
+            1,
         )
+        html = _replace(html, "</header>", "</header>" + stage2_card)
     html = html.replace(
         "<head>",
         "<head>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">",
