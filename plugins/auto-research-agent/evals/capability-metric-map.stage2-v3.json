@@ -47,9 +47,10 @@
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
       ],
-      "mechanism": "Opt-in source-context v1 binds exact source bytes, adjacent context, evidence levels and unverified semantic declarations; bounded context and independent review prevent location binding from being misread as semantic verification.",
+      "mechanism": "Opt-in source-context v1 binds exact source bytes, adjacent context, evidence levels and unverified semantic declarations. Policy1.1 accepts complete verbatim multi-paragraph quotes, preferring complete paragraphs and otherwise labelling a bounded raw window as partial. Legacy1.0 output and rejection behavior remain reconstructible; unchanged aggregate bounds and independent review prevent location binding from being misread as semantic verification or full-source absence.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
+        "plugins/auto-research-agent/tests/test_stage2_source_context_multispan.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
       ],
