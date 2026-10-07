@@ -75,6 +75,80 @@ def _evidence_ids(value, evidence_by_id, label):
         _require(evidence_id in evidence_by_id, f"{label} references unknown evidence")
 
 
+def _validate_cell_format(row, value_kind):
+    status = row["status"]
+    _require(
+        status
+        in {
+            "present",
+            "absent",
+            "partial",
+            "described",
+            "unknown",
+            "not-applicable",
+        },
+        "invalid cell status",
+    )
+    if value_kind == "feature":
+        _require(status != "described", "feature cells cannot use described")
+        if status == "present":
+            _require(
+                row["value"] is None or row["value"] is True,
+                "present feature value must be true or null",
+            )
+        if status == "absent":
+            _require(
+                row["value"] is None or row["value"] is False,
+                "absent feature value must be false or null",
+            )
+    else:
+        _require(
+            status not in {"present", "absent"},
+            "text and quantity cells cannot use present or absent",
+        )
+    if status in {"unknown", "not-applicable"}:
+        _require(row["value"] is None, f"{status} cell value must be null")
+    if status == "unknown":
+        _require(row["negative_basis"] is None, "unknown cannot claim a negative basis")
+    _require(
+        row["negative_basis"]
+        in {None, "explicit-statement", "bounded-design-inspection"},
+        "invalid negative_basis",
+    )
+    if status != "absent":
+        _require(
+            row["negative_basis"] is None,
+            "negative_basis is allowed only for absent",
+        )
+    else:
+        _require(
+            row["negative_basis"]
+            in {"explicit-statement", "bounded-design-inspection"},
+            "absent requires negative_basis",
+        )
+    if status in _KNOWN_CELL_STATUSES and value_kind in {"text", "quantity"}:
+        _require(
+            row["value"] is not None,
+            "described or partial text/quantity cell requires a value",
+        )
+        if value_kind == "text":
+            _text(row["value"], "text cell value")
+        if value_kind == "quantity":
+            _require(
+                isinstance(row["value"], (int, float))
+                and not isinstance(row["value"], bool)
+                and math.isfinite(row["value"]),
+                "quantity cell value must be a finite number",
+            )
+
+
+def _cell_context(index, row):
+    return (
+        f"cell[{index}] (dimension_id={row.get('dimension_id')!r}, "
+        f"work_id={row.get('work_id')!r}, version_id={row.get('version_id')!r})"
+    )
+
+
 def validate_research_tables(research_tables: dict, packet: dict) -> dict:
     """Return a validated copy of tables bound to ``packet``.
 
@@ -220,85 +294,56 @@ def validate_research_tables(research_tables: dict, packet: dict) -> dict:
 
     cells = result["cells"]
     _require(isinstance(cells, list), "cells must be an array")
+    expected_cell_fields = {
+        "dimension_id",
+        "work_id",
+        "version_id",
+        "status",
+        "value",
+        "reason",
+        "inspection_scope",
+        "negative_basis",
+        "evidence_ids",
+        "spans",
+    }
+    cell_format_errors = []
+    for index, row in enumerate(cells):
+        context = (
+            _cell_context(index, row) if isinstance(row, dict) else f"cell[{index}]"
+        )
+        _require(
+            isinstance(row, dict) and set(row) == expected_cell_fields,
+            f"{context}: invalid research table cell",
+        )
+        _require(
+            row["dimension_id"] in dimension_by_id,
+            f"{context}: cell references unknown dimension",
+        )
+        try:
+            _validate_cell_format(
+                row, dimension_by_id[row["dimension_id"]]["value_kind"]
+            )
+        except TopicTableError as error:
+            cell_format_errors.append(f"{context}: {error}")
+    if cell_format_errors:
+        raise TopicTableError(
+            "invalid research table cell formats: " + "; ".join(cell_format_errors)
+        )
+
     seen_cells = set()
     for row in cells:
-        _require(
-            isinstance(row, dict)
-            and set(row)
-            == {
-                "dimension_id",
-                "work_id",
-                "version_id",
-                "status",
-                "value",
-                "reason",
-                "inspection_scope",
-                "negative_basis",
-                "evidence_ids",
-                "spans",
-            },
-            "invalid research table cell",
-        )
         key = (row["work_id"], row["version_id"])
         cell_key = (row["dimension_id"], *key)
-        _require(
-            row["dimension_id"] in dimension_by_id, "cell references unknown dimension"
-        )
         _require(key in set(work_keys), "cell references undeclared work version")
         _require(cell_key not in seen_cells, "duplicate work-dimension cell")
         seen_cells.add(cell_key)
         status = row["status"]
-        _require(
-            status
-            in {
-                "present",
-                "absent",
-                "partial",
-                "described",
-                "unknown",
-                "not-applicable",
-            },
-            "invalid cell status",
-        )
-        value_kind = dimension_by_id[row["dimension_id"]]["value_kind"]
-        if value_kind == "feature":
-            _require(status != "described", "feature cells cannot use described")
-            if status == "present":
-                _require(
-                    row["value"] is None or row["value"] is True,
-                    "present feature value must be true or null",
-                )
-            if status == "absent":
-                _require(
-                    row["value"] is None or row["value"] is False,
-                    "absent feature value must be false or null",
-                )
-        else:
-            _require(
-                status not in {"present", "absent"},
-                "text and quantity cells cannot use present or absent",
-            )
-        if status in {"unknown", "not-applicable"}:
-            _require(row["value"] is None, f"{status} cell value must be null")
         if status == "unknown":
-            _require(
-                row["negative_basis"] is None, "unknown cannot claim a negative basis"
-            )
             _text(row["reason"], "unknown reason and next lookup")
         if status == "not-applicable":
             _text(row["reason"], "not-applicable reason")
         _text(row["reason"], "cell reason", nullable=True)
         _text(row["inspection_scope"], "inspection_scope", nullable=True)
-        _require(
-            row["negative_basis"]
-            in {None, "explicit-statement", "bounded-design-inspection"},
-            "invalid negative_basis",
-        )
-        if status != "absent":
-            _require(
-                row["negative_basis"] is None,
-                "negative_basis is allowed only for absent",
-            )
         _evidence_ids(row["evidence_ids"], evidence_by_id, "cell")
         _spans(row["spans"], raw_proposal, "cell")
 
@@ -306,20 +351,6 @@ def validate_research_tables(research_tables: dict, packet: dict) -> dict:
             _require(row["evidence_ids"], "known cell status requires evidence")
             _text(row["reason"], "known cell reason")
             _text(row["inspection_scope"], "known cell inspection_scope")
-            if value_kind in {"text", "quantity"}:
-                _require(
-                    row["value"] is not None,
-                    "described or partial text/quantity cell requires a value",
-                )
-            if value_kind == "text":
-                _text(row["value"], "text cell value")
-            if value_kind == "quantity":
-                _require(
-                    isinstance(row["value"], (int, float))
-                    and not isinstance(row["value"], bool)
-                    and math.isfinite(row["value"]),
-                    "quantity cell value must be a finite number",
-                )
             allowed_source_ids = set(literature_by_key[key].get("source_ids", []))
             for evidence_id in row["evidence_ids"]:
                 evidence_row = evidence_by_id[evidence_id]
@@ -344,11 +375,6 @@ def validate_research_tables(research_tables: dict, packet: dict) -> dict:
                 )
         if status == "absent":
             _text(row["inspection_scope"], "absent inspection_scope")
-            _require(
-                row["negative_basis"]
-                in {"explicit-statement", "bounded-design-inspection"},
-                "absent requires negative_basis",
-            )
             if row["negative_basis"] == "bounded-design-inspection":
                 _require(
                     all(

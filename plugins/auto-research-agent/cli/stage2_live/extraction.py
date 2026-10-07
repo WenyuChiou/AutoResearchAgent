@@ -294,6 +294,28 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
         if update_mode == "replace-comparison-unresolved"
         else "The extracted comparison and unresolved items append to the current packet. "
     )
+    table_contract = ""
+    if packet.get("schema_version") in {"2.2.0", "2.3.0"}:
+        table_contract = (
+            "Research-table cell contract: for a text dimension, described or partial "
+            "requires a nonempty string value; for a quantity dimension, described or "
+            "partial requires a finite numeric value and booleans are not numbers. For a "
+            "feature dimension, present uses true or null, absent uses false or null, and "
+            "partial retains source-bound evidence. Unknown and not-applicable always use "
+            "a null value. Unknown means the source does not establish the answer; it must "
+            "not be used to mean absent. negative_basis is allowed only for absent and must "
+            "name a source-bound explicit statement or bounded design inspection. Do not "
+            "add research or turn missing evidence into a known value. "
+            "Resource access contract: available, restricted, or unavailable requires "
+            "non-metadata evidence and an exact ISO-8601 UTC checked_at. Use a recorded "
+            "source retrieved_at only for the source inspection it actually documents, "
+            "when that inspection supports the stated resource status. Saved-source "
+            "possession does not establish current external access, licensing, or whole "
+            "direction feasibility. Never invent a date or a new check. Without supported "
+            "status and time, use unknown with checked_at null. For a composite resource, "
+            "every component must support the stated status; otherwise split it or keep "
+            "it unknown. Preserve supported restrictions and explain the unresolved check. "
+        )
     return (
         "Extract the already-captured Stage 2 proposal into one JSON object with no tools "
         "and no new research. The numbered proposal spans cover the original proposal bytes "
@@ -306,6 +328,7 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
         "only the declared no-tool task policy and isolation_verified must remain false. Zero "
         "candidates is valid. "
         + mode_instruction
+        + table_contract
         + "Return JSON matching generation_schema exactly.\n"
         + json.dumps(payload, ensure_ascii=False, sort_keys=True)
     )
