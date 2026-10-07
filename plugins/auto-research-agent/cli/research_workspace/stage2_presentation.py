@@ -312,12 +312,21 @@ def render_stage2_card(attachment) -> str:
     """Render one self-contained Stage 2 card without mutating its attachment."""
     from .stage2_comparison import build_comparison_view
     from .stage2_comparison_html import render_comparison_workbench
+    from stage2_workflow.content_gate import (
+        derive_content_gate,
+        render_content_gate_html,
+    )
 
     selection = attachment["selection"]
     evaluation = attachment["evaluation"]
     status = evaluation["evaluation_status"]
     provisional = status == "audit-required"
     bridge = attachment.get("bridge_receipt") or {}
+    content_gate = (
+        render_content_gate_html(derive_content_gate(selection))
+        if selection["evaluation_packet"].get("schema_version") == "2.2.0"
+        else ""
+    )
     recommendations = selection.get("recommendations") or []
     score_rows = []
     for dimension in ("P4", "P5", "P6"):
@@ -366,6 +375,7 @@ def render_stage2_card(attachment) -> str:
     <p><strong>Human choice:</strong> {_html(bridge.get("human_selection"))}</p>
     <p><strong>Stage 3 authorization:</strong> {_html(bridge.get("stage3_authorized"))}</p>
   </section>
+  {content_gate}
   {render_comparison_workbench(build_comparison_view(attachment))}
   <details class="stage2-full-checks"><summary>Full candidate checks and recorded dispositions</summary>
   <h3>Directions</h3>
