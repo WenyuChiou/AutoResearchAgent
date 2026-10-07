@@ -144,3 +144,25 @@ available to A and B. Required audits cannot be fabricated or waived by the mode
 Test actual native reading/search behavior as well as capability discovery. A
 completed response with a failed sandbox is a degraded pilot, not proof that the
 required native abilities worked.
+
+## Candidate-specific review context
+
+The production controller uses initial review view1.1. Explicit native review
+tasks and extraction can opt into that version while keeping legacy1.0 as the
+compatibility default. The workflow batch records the version in its schema;
+review reconstruction checks the exact current candidate, version, resource
+rows and view hash. An independent pair cannot mix1.0 and1.1 views.
+
+View1.1 supplies the existing five-axis anchors and candidate-specific required
+and optional resources to both the researcher and the tool-free extractor.
+Insufficient evidence is unknown/null, not evidenced failure. A partly supported
+case may remain assessed1; an established missing necessary variable may be0.
+Unknown efficacy can be the research question, whereas unknown enabling
+prerequisites block recommendation. Restrictions on an optional alternative do
+not by themselves invalidate another proposed route.
+
+The extractor preserves the captured judgment; it does not repair a clearly
+stated scientific score by silently changing it. Retain old prose and scores,
+record context or judgment errors, and bind new reviews to the repaired view.
+Passing transport tests is not semantic validation, pilot completion, formal
+isolation, human approval or scientific improvement.

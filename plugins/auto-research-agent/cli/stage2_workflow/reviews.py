@@ -13,6 +13,57 @@ from stage2_common import Stage2Error, canonical_hash, validate_evidence_refs
 
 
 ROLES = ("challenger", "feasibility")
+REVIEW_VIEW_VERSIONS = ("1.0.0", "1.1.0")
+REVIEW_VIEW_VERSION_CURRENT = "1.1.0"
+
+_ASSESSMENT_CONTRACT = {
+    "axes": ["opportunity", "value", "answerability", "materials", "execution"],
+    "score_anchors": {
+        "0": "Evidence establishes that the axis fails, not merely that evidence is missing.",
+        "1": "Evidence supports the axis only partially; material conditions remain unresolved.",
+        "2": "Evidence is sufficient for the next research-design stage; this is not scientific validation.",
+        "unknown": "Evidence is insufficient to assess the axis; use status unknown and score null.",
+    },
+    "axis_anchors": {
+        "opportunity": {
+            "0": "Evidence shows the claimed core increment is already completed or a premise is refuted without correction.",
+            "1": "A research opportunity exists, but the closest work or boundary is incomplete.",
+            "2": "Precedents, knowns, unknowns, increment, scope conditions and weakening evidence are clear enough for detailed design.",
+        },
+        "value": {
+            "0": "The claimed contribution does not match the stated impact and no contribution route remains.",
+            "1": "A beneficiary exists, but the contribution or impact route is incomplete.",
+            "2": "The proposal identifies what understanding, measurement, validation or decision would improve and why, without relying on complexity alone.",
+        },
+        "answerability": {
+            "0": "The proposed method or observation cannot address the question.",
+            "1": "The answer route is plausible, but material design details remain unresolved.",
+            "2": "Observations, derivations or comparisons can distinguish outcomes, with unsupported conclusions bounded explicitly.",
+        },
+        "materials": {
+            "0": "Evidence confirms necessary materials, variables, grain or permissions are unsuitable and no alternative exists.",
+            "1": "Some suitable material or data lead exists, but material conditions remain unresolved.",
+            "2": "Necessary research materials are suitable, access conditions checked, and alternatives and limits explicit.",
+        },
+        "execution": {
+            "0": "The minimum study exceeds available resources and no feasible alternative exists.",
+            "1": "The study appears feasible, but dependencies, estimates or risks remain incomplete.",
+            "2": "The minimum study, required capabilities, time and compute or API estimates are evidenced enough for detailed planning.",
+        },
+    },
+    "stage_boundary": (
+        "Assess initial viability and an evidence-based minimum route. Completed experiments "
+        "or a final Stage 3 configuration are not required to permit a direction. Unknown outcome "
+        "efficacy may remain the research question; unknown necessary access or resource ceilings "
+        "remain explicit and block recommendation until resolved."
+    ),
+    "resource_rules": [
+        "An optional alternative is not a mandatory blocker merely because its status is unknown.",
+        "Unknown effectiveness of a proposed new method may be the research question.",
+        "An unknown enabling prerequisite cannot be treated as established or as a pass.",
+        "A missing necessary prerequisite blocks recommendation independently of its numeric score.",
+    ],
+}
 
 
 def _require(condition, message):
@@ -20,15 +71,26 @@ def _require(condition, message):
         raise Stage2Error(message)
 
 
-def prepare_review(packet, candidate_id, snapshot_sha256, role):
+def prepare_review(
+    packet,
+    candidate_id,
+    snapshot_sha256,
+    role,
+    *,
+    review_view_version="1.0.0",
+):
     """Construct an allowlisted initial view with no other review conclusions."""
     _require(role in ROLES, "unknown-review-role")
+    _require(
+        review_view_version in REVIEW_VIEW_VERSIONS,
+        "unsupported-review-view-version",
+    )
     _, latest = latest_candidates(packet, [])
     _require(candidate_id in latest, "unknown-review-candidate")
     candidate = latest[candidate_id]
     view = {
         "kind": "Stage2InitialReviewView",
-        "schema_version": "1.0.0",
+        "schema_version": review_view_version,
         "role": role,
         "snapshot_sha256": snapshot_sha256,
         "packet_sha256": canonical_hash(packet),
@@ -50,6 +112,33 @@ def prepare_review(packet, candidate_id, snapshot_sha256, role):
             "Do not invent findings, tool receipts or a necessary disagreement."
         ),
     }
+    if review_view_version == "1.1.0":
+        tables = packet.get("research_tables")
+        _require(
+            tables is None or isinstance(tables, dict),
+            "review-research-tables-invalid",
+        )
+        resources = [] if tables is None else tables.get("direction_resources", [])
+        _require(isinstance(resources, list), "review-direction-resources-invalid")
+        _require(
+            all(
+                isinstance(row, dict)
+                and isinstance(row.get("candidate_id"), str)
+                and row["candidate_id"].strip()
+                and isinstance(row.get("candidate_version"), int)
+                and not isinstance(row["candidate_version"], bool)
+                and row["candidate_version"] > 0
+                for row in resources
+            ),
+            "review-direction-resource-row-invalid",
+        )
+        view["direction_resources"] = [
+            copy.deepcopy(row)
+            for row in resources
+            if row.get("candidate_id") == candidate_id
+            and row.get("candidate_version") == candidate["version"]
+        ]
+        view["assessment_contract"] = copy.deepcopy(_ASSESSMENT_CONTRACT)
     return copy.deepcopy(view)
 
 
@@ -75,8 +164,17 @@ def validate_review(review, view, packet):
         "review-shape",
     )
     candidate = view["candidate"]
+    review_view_version = view.get("schema_version")
+    _require(
+        review_view_version in REVIEW_VIEW_VERSIONS,
+        "unsupported-review-view-version",
+    )
     expected_view = prepare_review(
-        packet, candidate["candidate_id"], view["snapshot_sha256"], view["role"]
+        packet,
+        candidate["candidate_id"],
+        view["snapshot_sha256"],
+        view["role"],
+        review_view_version=review_view_version,
     )
     _require(view == expected_view, "review-view-packet-mismatch")
     _require(review["role"] == view["role"], "review-role-mismatch")
@@ -139,6 +237,7 @@ def reconcile_reviews(
     resolution=None,
     *,
     guard_bundle=None,
+    review_view_version="1.0.0",
 ):
     """Identify material disagreements, never resolve them by majority vote.
 
@@ -146,12 +245,22 @@ def reconcile_reviews(
     the caller before using this local eligibility gate for a recommendation.
     """
     _require(isinstance(reviews, list), "reviews-must-be-list")
+    _require(
+        review_view_version in REVIEW_VIEW_VERSIONS,
+        "unsupported-review-view-version",
+    )
     roles = [row.get("role") for row in reviews]
     _require(len(roles) == len(set(roles)), "duplicate-review-role")
     _require(set(roles).issubset(ROLES), "unknown-review-role")
     validated = []
     for row in reviews:
-        view = prepare_review(packet, candidate_id, snapshot_sha256, row["role"])
+        view = prepare_review(
+            packet,
+            candidate_id,
+            snapshot_sha256,
+            row["role"],
+            review_view_version=review_view_version,
+        )
         validated.append(validate_review(row, view, packet))
     missing = sorted(set(ROLES) - set(roles))
     if missing:

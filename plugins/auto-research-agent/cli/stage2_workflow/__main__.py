@@ -9,6 +9,7 @@ from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, canonical_hash
 
 from .orchestration import prepare_review_batch, reconcile_batch
+from .reviews import REVIEW_VIEW_VERSIONS
 from .delivery import build_delivery, inspect_delivery
 from .interaction import record_interaction
 from .import_stage1 import build_stage2_seed
@@ -105,6 +106,11 @@ def main(argv=None):
     plan = commands.add_parser("review-plan", help="prepare isolated review views")
     plan.add_argument("--screening", required=True)
     plan.add_argument("--seed", required=True)
+    plan.add_argument(
+        "--review-view-version",
+        choices=REVIEW_VIEW_VERSIONS,
+        default="1.0.0",
+    )
     reconcile = commands.add_parser("reconcile", help="check local review results")
     reconcile.add_argument("--batch", required=True)
     reconcile.add_argument("--reviews", required=True)
@@ -311,7 +317,11 @@ def main(argv=None):
                 result["task_sha256"] = canonical_hash(result)
             elif args.command == "review-plan":
                 result = prepare_review_batch(
-                    packet, snapshot_hash, _read(args.screening), args.seed
+                    packet,
+                    snapshot_hash,
+                    _read(args.screening),
+                    args.seed,
+                    review_view_version=args.review_view_version,
                 )
             else:
                 batch = _read(args.batch)

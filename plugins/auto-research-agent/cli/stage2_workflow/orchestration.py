@@ -10,6 +10,7 @@ import copy
 from stage2_check.contracts import latest_candidates
 from stage2_common import Stage2Error, canonical_hash
 from stage2_workflow.reviews import (
+    REVIEW_VIEW_VERSIONS,
     ROLES,
     prepare_review,
     reconcile_reviews,
@@ -57,7 +58,14 @@ def _batch_payload(batch):
     return {key: value for key, value in batch.items() if key != "batch_sha256"}
 
 
-def prepare_review_batch(packet, snapshot_sha256, screening, seed):
+def prepare_review_batch(
+    packet,
+    snapshot_sha256,
+    screening,
+    seed,
+    *,
+    review_view_version="1.0.0",
+):
     """Prepare two isolated roles for every included or audited candidate.
 
     ``screening`` must contain exactly one current-version row per candidate.
@@ -66,6 +74,10 @@ def prepare_review_batch(packet, snapshot_sha256, screening, seed):
     """
 
     _sha256(snapshot_sha256, "snapshot")
+    _require(
+        review_view_version in REVIEW_VIEW_VERSIONS,
+        "unsupported-review-view-version",
+    )
     _, latest = latest_candidates(packet, [])
     audit = select_excluded_audit(screening, seed)
     ordered_screening = sorted(
@@ -86,7 +98,13 @@ def prepare_review_batch(packet, snapshot_sha256, screening, seed):
     for candidate_id in selected_ids:
         cohort = "main" if candidate_id in included_ids else "audit"
         for role in ROLES:
-            view = prepare_review(packet, candidate_id, snapshot_sha256, role)
+            view = prepare_review(
+                packet,
+                candidate_id,
+                snapshot_sha256,
+                role,
+                review_view_version=review_view_version,
+            )
             assignments.append(
                 {
                     "candidate_id": candidate_id,
@@ -101,7 +119,7 @@ def prepare_review_batch(packet, snapshot_sha256, screening, seed):
     audit["selected"] = sorted(audit["selected"], key=lambda row: row["candidate_id"])
     payload = {
         "kind": "Stage2ReviewBatch",
-        "schema_version": "1.0.0",
+        "schema_version": review_view_version,
         "packet_sha256": canonical_hash(packet),
         "snapshot_sha256": snapshot_sha256,
         "seed": seed,
@@ -228,7 +246,11 @@ def reconcile_batch(
         "batch-hash-mismatch",
     )
     expected = prepare_review_batch(
-        packet, batch["snapshot_sha256"], batch["screening"], batch["seed"]
+        packet,
+        batch["snapshot_sha256"],
+        batch["screening"],
+        batch["seed"],
+        review_view_version=batch["schema_version"],
     )
     _require(batch == expected, "batch-reconstruction-mismatch")
     _require(isinstance(reviews, list), "review-results-must-be-list")
@@ -301,6 +323,7 @@ def reconcile_batch(
             complete,
             resolution,
             guard_bundle=guard_bundles[candidate_id] if guarded else None,
+            review_view_version=batch["schema_version"],
         )
         assessment = reconciled.get("assessment")
         blocked_unknown = bool(
