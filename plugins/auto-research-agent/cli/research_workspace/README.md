@@ -82,3 +82,11 @@ acceptance and source-evidence snapshots. All outputs remain outside Git.
 Opening, exporting or rebuilding this view performs no research or scoring.
 
 Saved-source reading is an explicit offline API: `source_rerun.build_rerun` accepts an original v1/v2 index, saved-source root, new private output and exact local parser hash. It preserves source bytes and historical attempts, records new extraction/access failures, and binds runtime versions. It performs no acquisition or judgment. This reader slice does not activate v3 attachment, UI or formal Stage 2 import.
+
+`source_rerun.attach_rerun` accepts that private manifest only with an external
+SHA-256. It verifies the complete artifact inventory, saved response and
+extracted-text bytes, parser-bound attempt IDs, work/source/version identities,
+locators and metadata provenance before returning WorkspaceIndex v3. Original
+claims, coverage, Unknowns, failures and source receipts remain unchanged.
+Abstract extraction cannot become full text, and the overlay cannot authorize
+research, new acquisition, scientific judgment changes or Stage 2 import.
