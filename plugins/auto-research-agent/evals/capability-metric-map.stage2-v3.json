@@ -285,6 +285,16 @@
       "candidate_review_context_mechanism": "Opt-in initial review view1.1 carries exact current-candidate resource rows and the existing five-axis assessed/unknown anchors into native review and tool-free extraction. Legacy1.0 bindings remain reconstructible; mismatched or mixed review versions fail closed. Optional alternatives do not become mandatory requirements, unknown enabling prerequisites do not become evidenced failure, and raw reviewer judgments are not automatically repaired. Transport and validation tests do not establish scientific judgment quality, complete B execution, formal isolation or A/B improvement.",
       "candidate_review_context_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_review_context.py"
+      ],
+      "assessment_target_replay_contract": "Optional explicit assessment-target policy binds the expected config,request,prompt prefix,source-context supplement and rebuilt result. Read-only replay authenticates original native units without dispatching or editing them; missing or stale policy,rehashing and authority promotion fail closed. Omitted policy preserves legacy behavior,including its known no-source-context JSON-key-order limitation. Ordinary-B replay is not formal isolation or improvement.",
+      "assessment_target_replay_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_replay.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
+      ],
+      "assessment_target_cli_contract": "Optional daily-v3 and verify-daily-v3 --assessment-target-policy accepts an exact host-generated policy binding object; omitted flags retain legacy call shape. Explicit null, non-object, unreadable, malformed or stale binding fails before scoring or replay admission. This exposes existing opt-in3.1 behavior; no rubric, model, authority, isolation or formal-quality promotion.",
+      "assessment_target_cli_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_cli.py"
       ]
     },
     {
