@@ -52,6 +52,89 @@ h2 { font-size:26px; }
 main.literature-layout { grid-template-columns:minmax(0,1fr); }
 main.literature-layout > section, main.literature-layout > aside { display:none; }
 .graph-frame, .paper-detail, .lit-toolbar, .paper-row, .metadata-scroll { background:#fff; }
+.graph-frame {
+  position:relative;
+  height:clamp(360px,58vh,620px);
+  overflow:hidden;
+  border:1px solid #cfd9e7;
+  border-radius:10px;
+  background:
+    radial-gradient(circle at 50% 45%,rgba(255,255,255,.98) 0 28%,rgba(244,247,251,.92) 68%),
+    linear-gradient(rgba(55,102,168,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(55,102,168,.045) 1px,transparent 1px);
+  background-size:auto,24px 24px,24px 24px;
+  touch-action:none;
+  cursor:grab;
+}
+.graph-frame:active { cursor:grabbing; }
+.literature-graph { width:100%; height:100%; min-width:0; min-height:0; display:block; }
+.graph-scene { transform-origin:0 0; }
+.graph-edge {
+  stroke:#9cabbc;
+  stroke-width:1.25;
+  opacity:.65;
+  vector-effect:non-scaling-stroke;
+  transition:opacity .16s ease,stroke .16s ease,stroke-width .16s ease;
+}
+.graph-edge.neighbor { stroke:#3766a8; stroke-width:2.25; opacity:.95; }
+.graph-edge.dimmed { opacity:.09; }
+.graph-node { cursor:grab; transition:opacity .16s ease; }
+.graph-node:active { cursor:grabbing; }
+.graph-node circle:first-child {
+  fill:#fff;
+  stroke:#3766a8;
+  stroke-width:2;
+  vector-effect:non-scaling-stroke;
+  filter:drop-shadow(0 4px 6px rgba(31,44,61,.14));
+  transition:r .16s ease,fill .16s ease,stroke-width .16s ease;
+}
+.graph-node.keyword circle:first-child { fill:#e8f1ee; stroke:#527e76; }
+.graph-node.role circle:first-child { fill:#fbf0d8; stroke:#a47b2d; }
+.graph-node-core { fill:#3766a8; stroke:none; pointer-events:none; }
+.graph-node.keyword .graph-node-core { fill:#527e76; }
+.graph-node.role .graph-node-core { fill:#a47b2d; }
+.graph-node text {
+  font:600 11px/1 "Segoe UI","Microsoft YaHei",sans-serif;
+  fill:#34445a;
+  paint-order:stroke;
+  stroke:#fff;
+  stroke-width:4px;
+  stroke-linejoin:round;
+  pointer-events:none;
+}
+.graph-node.paper text { font-size:12px; fill:#203047; }
+.graph-node:hover circle:first-child,
+.graph-node:focus circle:first-child,
+.graph-node.neighbor circle:first-child { stroke-width:3.5; }
+.graph-node.paper.selected circle:first-child { fill:#dce9fb; stroke:#204f91; stroke-width:4; }
+.graph-node:focus { outline:none; }
+.graph-node:focus-visible circle:first-child { stroke:#1c4b8d; stroke-width:5; }
+.graph-node.dimmed { opacity:.16; }
+.graph-tooltip {
+  position:absolute;
+  z-index:3;
+  width:min(270px,calc(100% - 20px));
+  padding:10px 12px;
+  border:1px solid #c9d5e5;
+  border-left:4px solid #3766a8;
+  border-radius:7px;
+  background:rgba(255,255,255,.97);
+  box-shadow:0 10px 28px rgba(31,44,61,.15);
+  pointer-events:none;
+  color:#203047;
+}
+.graph-tooltip[data-type="keyword"] { border-left-color:#527e76; }
+.graph-tooltip[data-type="role"] { border-left-color:#a47b2d; }
+.graph-tooltip strong,.graph-tooltip span { display:block; }
+.graph-tooltip strong { margin-bottom:3px; font:600 13px/1.35 Georgia,"Microsoft YaHei",serif; }
+.graph-tooltip span { color:#64758c; font-size:11px; line-height:1.45; }
+.graph-actions .section-title { margin-right:auto; }
+.graph-actions::after {
+  content:"Wheel to zoom · drag canvas to pan · drag nodes to arrange";
+  flex-basis:100%;
+  color:#64758c;
+  font-size:11px;
+}
 button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline:3px solid #82abe5; outline-offset:3px; }
 textarea { display:block; width:100%; resize:vertical; border:1px solid var(--line); border-radius:6px; padding:10px; font:inherit; background:#fff; color:var(--ink); }
 textarea:focus-visible { outline:3px solid #82abe5; outline-offset:2px; }
@@ -59,3 +142,13 @@ textarea:focus-visible { outline:3px solid #82abe5; outline-offset:2px; }
 @media(min-width:1500px) { main { grid-template-columns:210px minmax(0,1fr) 250px; } main > aside { grid-column:3; } main > section { grid-row:auto; } .detail { display:block; } }
 @media(max-width:1000px) { .shell { padding-left:174px; } .studio-sidebar { width:174px; } .mast { display:block; } .language-control,.controls { justify-content:flex-start; } main { grid-template-columns:minmax(0,1fr); padding:20px; } main > section { grid-row:auto; } main > aside { grid-column:auto; } .node-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:640px) { .shell { padding-left:0; } .studio-sidebar { position:static; width:auto; padding:16px; } .studio-brand { padding:0 0 12px; } .sidebar-title,.sidebar-workspace,.sidebar-footer { display:none; } .stage-rail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } header { padding:22px 18px; } .view-tabs { padding:0 18px; gap:16px; } main { padding:16px; } .card-grid,.detail { grid-template-columns:1fr; } article { padding:20px; } h1 { font-size:26px; } .stage { padding:8px 12px; } }
+@media(max-width:640px) { .graph-frame { height:clamp(250px,72vw,340px); } .graph-actions::after { content:"Use zoom buttons · drag to pan"; } }
+@media(prefers-reduced-motion:reduce) { .graph-edge,.graph-node,.graph-node circle:first-child { transition:none; } }
+
+.literature-shell > .lede { margin:8px 0; font-size:14px; line-height:1.5; }
+.graph-explanation { margin:8px 0 18px; color:#64758c; font-size:12px; }
+.graph-explanation summary { cursor:pointer; padding:6px 0; }
+.graph-explanation p { max-width:72ch; margin:6px 0; line-height:1.6; }
+
+.graph-node text { opacity:0; }
+.graph-node:hover text,.graph-node:focus text,.graph-node.selected text,.graph-node.neighbor text { opacity:1; }

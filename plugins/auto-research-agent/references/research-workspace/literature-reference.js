@@ -105,6 +105,89 @@
   const shown = (value) =>
     value === null || value === undefined || value === "" ? "Not recorded" : String(value);
 
+  const compactLabel = (value, limit = 24) => {
+    const label = String(value).replace(/\s+/g, " ").trim();
+    return label.length <= limit ? label : `${label.slice(0, limit - 1).trimEnd()}\u2026`;
+  };
+  const clampGraphPoint = (point, width = 960, height = 540) => ({
+    x: Math.max(44, Math.min(width - 44, point.x)),
+    y: Math.max(44, Math.min(height - 44, point.y)),
+  });
+  const filterRecords = (records, filters = {}) => {
+    const needle = String(filters.text || "").trim().toLowerCase();
+    return records.filter((paper) => {
+      const haystack = [paper.workId, paper.title, paper.authors.join(" "), paper.journal]
+        .join(" ")
+        .toLowerCase();
+      return (
+        (!needle || haystack.includes(needle)) &&
+        (!filters.keyword || paper.keywords.includes(filters.keyword)) &&
+        (!filters.role || paper.roles.some((role) => role.name === filters.role))
+      );
+    });
+  };
+
+  function layoutGraph(nodes, edges, width = 960, height = 540) {
+    const center = { x: width / 2, y: height / 2 };
+    const ordered = [...nodes].sort((a, b) => a.key.localeCompare(b.key));
+    const positions = new Map();
+    const rings = {
+      paper: Math.min(width, height) * 0.2,
+      keyword: Math.min(width, height) * 0.36,
+      role: Math.min(width, height) * 0.43,
+    };
+    const byType = new Map(
+      ["paper", "keyword", "role"].map((type) => [
+        type,
+        ordered.filter((node) => node.type === type),
+      ]),
+    );
+    byType.forEach((items, type) => {
+      items.forEach((node, index) => {
+        const angle = (Math.PI * 2 * index) / Math.max(1, items.length) - Math.PI / 2;
+        positions.set(node.key, {
+          x: center.x + Math.cos(angle) * rings[type],
+          y: center.y + Math.sin(angle) * rings[type],
+        });
+      });
+    });
+    for (let step = 0; step < 42; step += 1) {
+      const forces = new Map(ordered.map((node) => [node.key, { x: 0, y: 0 }]));
+      for (let left = 0; left < ordered.length; left += 1) {
+        for (let right = left + 1; right < ordered.length; right += 1) {
+          const a = positions.get(ordered[left].key), b = positions.get(ordered[right].key);
+          let dx = a.x - b.x, dy = a.y - b.y;
+          const distance = Math.max(1, Math.hypot(dx, dy));
+          if (distance < 116) {
+            const push = (116 - distance) * 0.055;
+            dx /= distance; dy /= distance;
+            forces.get(ordered[left].key).x += dx * push;
+            forces.get(ordered[left].key).y += dy * push;
+            forces.get(ordered[right].key).x -= dx * push;
+            forces.get(ordered[right].key).y -= dy * push;
+          }
+        }
+      }
+      edges.forEach((edge) => {
+        const from = positions.get(edge.from), to = positions.get(edge.to);
+        const dx = to.x - from.x, dy = to.y - from.y;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const pull = (distance - 178) * 0.012;
+        forces.get(edge.from).x += (dx / distance) * pull;
+        forces.get(edge.from).y += (dy / distance) * pull;
+        forces.get(edge.to).x -= (dx / distance) * pull;
+        forces.get(edge.to).y -= (dy / distance) * pull;
+      });
+      ordered.forEach((node) => {
+        const point = positions.get(node.key), force = forces.get(node.key);
+        force.x += (center.x - point.x) * 0.002;
+        force.y += (center.y - point.y) * 0.002;
+        Object.assign(point, clampGraphPoint({ x: point.x + force.x, y: point.y + force.y }, width, height));
+      });
+    }
+    return positions;
+  }
+
   function bibEscape(value) {
     return String(value).replace(/[\\{}%&_#$^~\u0000-\u001f\u007f]/g, (character) => {
       const replacements = {
@@ -145,7 +228,8 @@
 
   function render(root, records = demoRecords) {
     let selectedId = records[0]?.workId || null;
-    let zoom = 1;
+    const viewport = { scale: 1, x: 0, y: 0 };
+    let graphPositions = new Map();
     const filters = { text: "", keyword: "", role: "" };
     root.replaceChildren();
     root.classList.add("literature-shell");
@@ -155,10 +239,17 @@
       create("h2", "Local Literature Graph"),
       create(
         "p",
-        "Browse a small Obsidian-like graph and complete bibliographic list. Edges show recorded assignments only; this view does not assert similarity, citation, evidence support, coverage, or quality.",
+        "Explore papers, recorded classifications, and literature roles.",
         "lede",
       ),
     );
+
+    const graphExplanation = create("details", undefined, "graph-explanation");
+    graphExplanation.append(
+      create("summary", "What do the connections mean?"),
+      create("p", "Edges show recorded assignments only. They do not establish similarity, citations, claim support, coverage, or research quality."),
+    );
+    root.append(graphExplanation);
 
     const toolbar = create("div", undefined, "lit-toolbar");
     const addField = (labelText, control) => {
@@ -211,27 +302,33 @@
     const graphLabel = create("span", "Graph view", "section-title");
     const zoomOut = create("button", "Zoom −", "lit-button");
     const zoomIn = create("button", "Zoom +", "lit-button");
-    const zoomReset = create("button", "Reset", "lit-button");
+    const zoomFit = create("button", "Fit", "lit-button");
+    const zoomReset = create("button", "Reset layout", "lit-button");
     zoomOut.dataset.literatureAction = "zoom-out";
     zoomIn.dataset.literatureAction = "zoom-in";
-    zoomReset.dataset.literatureAction = "zoom-reset";
-    graphActions.append(graphLabel, zoomOut, zoomIn, zoomReset);
+    zoomFit.dataset.literatureAction = "zoom-fit";
+    zoomReset.dataset.literatureAction = "layout-reset";
+    graphActions.append(graphLabel, zoomOut, zoomIn, zoomFit, zoomReset);
     root.append(graphActions);
     const graphFrame = create("div", undefined, "graph-frame");
     graphFrame.tabIndex = 0;
     graphFrame.setAttribute("role", "region");
-    graphFrame.setAttribute("aria-label", "Scrollable literature graph");
+    graphFrame.setAttribute("aria-label", "Interactive literature graph; drag the canvas to pan");
     const svg = createSvg("svg", {
       "class": "literature-graph",
       "role": "group",
       "aria-label": "Synthetic literature graph of papers, keywords, and recorded roles",
     });
     graphFrame.append(svg);
+    const graphTooltip = create("div", "", "graph-tooltip");
+    graphTooltip.hidden = true;
+    graphTooltip.setAttribute("role", "status");
+    graphFrame.append(graphTooltip);
     root.append(graphFrame);
     root.append(
       create(
         "p",
-        "Select a paper to inspect its record. On narrow screens, scroll the graph horizontally.",
+        "Select a paper to inspect its record. Hover or focus a node for its full label.",
         "lit-caveat",
       ),
     );
@@ -272,19 +369,7 @@
       ),
     );
 
-    const visible = () => {
-      const needle = filters.text.trim().toLowerCase();
-      return records.filter((paper) => {
-        const haystack = [paper.workId, paper.title, paper.authors.join(" "), paper.journal]
-          .join(" ")
-          .toLowerCase();
-        return (
-          (!needle || haystack.includes(needle)) &&
-          (!filters.keyword || paper.keywords.includes(filters.keyword)) &&
-          (!filters.role || paper.roles.some((role) => role.name === filters.role))
-        );
-      });
-    };
+    const visible = () => filterRecords(records, filters);
 
     const setSelection = (workId, focusSelector) => {
       selectedId = workId;
@@ -295,119 +380,186 @@
       if (focusSelector) root.querySelector(focusSelector)?.focus();
     };
 
-    const svgText = (label, x, y) => {
-      const text = createSvg("text", { x, y, "text-anchor": "middle" });
-      text.textContent = label;
-      return text;
-    };
-    const nodeGroup = (type, label, x, y, width, id) => {
-      const group = createSvg("g", {
-        translate: "no",
-        class: `graph-node ${type}${id === selectedId ? " selected" : ""}`,
-        transform: `translate(${x} ${y})`,
-      });
-      group.append(
-        createSvg("rect", { x: -width / 2, y: -22, width, height: 44, rx: 8 }),
-        svgText(label, 0, 5),
+    const applyViewport = () => {
+      svg.querySelector(".graph-scene")?.setAttribute(
+        "transform",
+        `translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`,
       );
-      return group;
+      svg.setAttribute("data-zoom", viewport.scale.toFixed(2));
     };
+    const fitGraph = () => {
+      viewport.scale = 1;
+      viewport.x = 0;
+      viewport.y = 0;
+      applyViewport();
+    };
+    const zoomGraph = (factor, anchor = { x: 480, y: 270 }) => {
+      const previous = viewport.scale;
+      viewport.scale = Math.max(0.55, Math.min(2.4, previous * factor));
+      viewport.x = anchor.x - ((anchor.x - viewport.x) * viewport.scale) / previous;
+      viewport.y = anchor.y - ((anchor.y - viewport.y) * viewport.scale) / previous;
+      applyViewport();
+    };
+    const pointInGraph = (event) => {
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      const screen = point.matrixTransform(svg.getScreenCTM().inverse());
+      return {
+        x: (screen.x - viewport.x) / viewport.scale,
+        y: (screen.y - viewport.y) / viewport.scale,
+      };
+    };
+    let draggedNodeKey = null;
 
     function updateGraph() {
       const papers = visible();
       const keywords = [...new Set(papers.flatMap((paper) => paper.keywords))].sort();
-      const roles = [
-        ...new Set(papers.flatMap((paper) => paper.roles.map((role) => role.name))),
-      ].sort();
-      const height = Math.max(
-        400,
-        papers.length * 115 + 70,
-        keywords.length * 70 + 70,
-        roles.length * 70 + 70,
-      );
-      const width = 820;
-      const canvasWidth = Math.max(720, graphFrame.clientWidth) * zoom;
-      svg.style.width = zoom === 1 ? "100%" : `${canvasWidth}px`;
-      svg.style.minWidth = `${720 * zoom}px`;
-      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      const roles = [...new Set(papers.flatMap((paper) => paper.roles.map((role) => role.name)))].sort();
+      const nodes = [
+        ...papers.map((paper) => ({
+          key: `paper:${paper.workId}`,
+          type: "paper",
+          label: paper.title,
+          detail: `${paper.authors.join("; ")} · ${paper.year} · ${paper.sourceStatus}`,
+          paper,
+        })),
+        ...keywords.map((keyword) => ({
+          key: `keyword:${keyword}`,
+          type: "keyword",
+          label: keyword,
+          detail: "Recorded classification",
+        })),
+        ...roles.map((role) => ({
+          key: `role:${role}`,
+          type: "role",
+          label: role,
+          detail: "Recorded literature role",
+        })),
+      ];
+      const edges = papers.flatMap((paper) => [
+        ...paper.keywords.map((keyword) => ({
+          from: `paper:${paper.workId}`,
+          to: `keyword:${keyword}`,
+          reason: `Recorded keyword assignment: ${paper.title} → ${keyword}`,
+        })),
+        ...paper.roles.map((role) => ({
+          from: `paper:${paper.workId}`,
+          to: `role:${role.name}`,
+          reason: `Recorded role assignment: ${paper.title} → ${role.name}. ${role.basis}`,
+        })),
+      ]);
+      graphPositions = layoutGraph(nodes, edges);
+      svg.setAttribute("viewBox", "0 0 960 540");
       svg.replaceChildren();
       const title = createSvg("title");
-      title.textContent = "Recorded paper-to-keyword and paper-to-role assignments";
-      svg.append(title);
-      const paperPositions = new Map(
-        papers.map((paper, index) => [paper.workId, { x: 125, y: 65 + index * 115 }]),
-      );
-      const keywordPositions = new Map(
-        keywords.map((keyword, index) => [keyword, { x: 420, y: 60 + index * 70 }]),
-      );
-      const rolePositions = new Map(
-        roles.map((role, index) => [role, { x: 700, y: 60 + index * 70 }]),
-      );
-      const addEdge = (from, to, reason) => {
+      title.textContent = "Recorded paper-to-classification and paper-to-role assignments";
+      const scene = createSvg("g", { class: "graph-scene" });
+      const edgeLayer = createSvg("g", { class: "graph-edges" });
+      const nodeLayer = createSvg("g", { class: "graph-nodes" });
+      scene.append(edgeLayer, nodeLayer);
+      svg.append(title, scene);
+
+      const connected = new Map(nodes.map((node) => [node.key, new Set([node.key])]));
+      edges.forEach((edge) => {
+        connected.get(edge.from).add(edge.to);
+        connected.get(edge.to).add(edge.from);
+        const from = graphPositions.get(edge.from), to = graphPositions.get(edge.to);
         const line = createSvg("line", {
-          x1: from.x,
-          y1: from.y,
-          x2: to.x,
-          y2: to.y,
+          x1: from.x, y1: from.y, x2: to.x, y2: to.y,
           class: "graph-edge",
+          "data-from": edge.from,
+          "data-to": edge.to,
         });
         const edgeTitle = createSvg("title");
         edgeTitle.setAttribute("translate", "no");
-        edgeTitle.textContent = reason;
+        edgeTitle.textContent = edge.reason;
         line.append(edgeTitle);
-        svg.append(line);
-      };
-      papers.forEach((paper) => {
-        paper.keywords.forEach((keyword) =>
-          addEdge(
-            paperPositions.get(paper.workId),
-            keywordPositions.get(keyword),
-            `Recorded keyword assignment: ${paper.shortTitle} → ${keyword}`,
-          ),
-        );
-        paper.roles.forEach((role) =>
-          addEdge(
-            paperPositions.get(paper.workId),
-            rolePositions.get(role.name),
-            `Recorded role assignment: ${paper.shortTitle} → ${role.name}. ${role.basis}`,
-          ),
-        );
+        edgeLayer.append(line);
       });
-      papers.forEach((paper) => {
-        const position = paperPositions.get(paper.workId);
-        const group = nodeGroup(
-          "paper",
-          paper.shortTitle,
-          position.x,
-          position.y,
-          170,
-          paper.workId,
+
+      const highlight = (key) => {
+        const neighborhood = key ? connected.get(key) : null;
+        nodeLayer.querySelectorAll(".graph-node").forEach((element) => {
+          element.classList.toggle("dimmed", Boolean(neighborhood && !neighborhood.has(element.dataset.nodeKey)));
+          element.classList.toggle("neighbor", Boolean(key && key !== element.dataset.nodeKey && neighborhood?.has(element.dataset.nodeKey)));
+        });
+        edgeLayer.querySelectorAll(".graph-edge").forEach((element) => {
+          const active = !key || element.dataset.from === key || element.dataset.to === key;
+          element.classList.toggle("dimmed", !active);
+          element.classList.toggle("neighbor", Boolean(key && active));
+        });
+      };
+      const showTooltip = (node, element) => {
+        graphTooltip.replaceChildren(
+          source("strong", node.label),
+          source("span", node.detail),
         );
-        group.dataset.paperId = paper.workId;
-        group.setAttribute("role", "button");
-        group.setAttribute("aria-pressed", String(paper.workId === selectedId));
-        group.setAttribute("tabindex", "0");
-        group.setAttribute("aria-label", `Select ${paper.title}`);
+        graphTooltip.dataset.type = node.type;
+        graphTooltip.hidden = false;
+        const frameBox = graphFrame.getBoundingClientRect();
+        const nodeBox = element.getBoundingClientRect();
+        graphTooltip.style.left = `${Math.max(10, Math.min(frameBox.width - 290, nodeBox.left - frameBox.left + nodeBox.width / 2 + 18))}px`;
+        graphTooltip.style.top = `${Math.max(10, nodeBox.top - frameBox.top - 8)}px`;
+      };
+      const hideTooltip = () => { graphTooltip.hidden = true; };
+
+      nodes.forEach((node) => {
+        const position = graphPositions.get(node.key);
+        const group = createSvg("g", {
+          translate: "no",
+          class: `graph-node ${node.type}${node.paper?.workId === selectedId ? " selected" : ""}`,
+          transform: `translate(${position.x} ${position.y})`,
+          tabindex: "0",
+          role: node.type === "paper" ? "button" : "img",
+          "aria-label": node.type === "paper" ? `Select ${node.label}` : `${node.detail}: ${node.label}`,
+        });
+        group.dataset.nodeKey = node.key;
+        if (node.paper) {
+          group.dataset.paperId = node.paper.workId;
+          group.setAttribute("aria-pressed", String(node.paper.workId === selectedId));
+        }
+        const radius = node.type === "paper" ? 30 : 23;
+        group.append(
+          createSvg("circle", { r: radius }),
+          createSvg("circle", { r: 4, class: "graph-node-core" }),
+        );
+        const label = createSvg("text", { y: radius + 17, "text-anchor": "middle" });
+        label.textContent = compactLabel(node.label, node.type === "paper" ? 25 : 18);
         const fullTitle = createSvg("title");
-        fullTitle.textContent = paper.title;
-        group.append(fullTitle);
-        group.addEventListener("click", () => setSelection(paper.workId));
+        fullTitle.textContent = `${node.label}. ${node.detail}`;
+        group.append(label, fullTitle);
+        group.addEventListener("pointerenter", () => { highlight(node.key); showTooltip(node, group); });
+        group.addEventListener("pointerleave", () => { highlight(null); hideTooltip(); });
+        group.addEventListener("focus", () => { highlight(node.key); showTooltip(node, group); });
+        group.addEventListener("blur", () => { highlight(null); hideTooltip(); });
+        group.addEventListener("click", () => {
+          if (draggedNodeKey === node.key) {
+            draggedNodeKey = null;
+            return;
+          }
+          if (node.paper) setSelection(node.paper.workId);
+        });
         group.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === " ") {
+          if (node.paper && (event.key === "Enter" || event.key === " ")) {
             event.preventDefault();
-            setSelection(paper.workId, `[data-paper-id="${paper.workId}"]`);
+            setSelection(node.paper.workId, `[data-paper-id="${node.paper.workId}"]`);
+          }
+          const movement = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] }[event.key];
+          if (movement) {
+            event.preventDefault();
+            Object.assign(position, clampGraphPoint({ x: position.x + movement[0], y: position.y + movement[1] }));
+            group.setAttribute("transform", `translate(${position.x} ${position.y})`);
+            edgeLayer.querySelectorAll(".graph-edge").forEach((edge) => {
+              if (edge.dataset.from === node.key) { edge.setAttribute("x1", position.x); edge.setAttribute("y1", position.y); }
+              if (edge.dataset.to === node.key) { edge.setAttribute("x2", position.x); edge.setAttribute("y2", position.y); }
+            });
+            showTooltip(node, group);
           }
         });
-        svg.append(group);
+        nodeLayer.append(group);
       });
-      keywords.forEach((keyword) => {
-        const position = keywordPositions.get(keyword);
-        svg.append(nodeGroup("keyword", keyword, position.x, position.y, 150));
-      });
-      roles.forEach((role) => {
-        const position = rolePositions.get(role);
-        svg.append(nodeGroup("role", role, position.x, position.y, 150));
-      });
+      applyViewport();
     }
 
     function updateList() {
@@ -523,21 +675,84 @@
       filters.role = roleFilter.value;
       updateAll();
     });
-    zoomOut.onclick = () => {
-      zoom = Math.max(0.7, zoom - 0.15);
-      updateGraph();
-      window.WorkspaceI18n?.apply(root);
-    };
-    zoomIn.onclick = () => {
-      zoom = Math.min(1.6, zoom + 0.15);
-      updateGraph();
-      window.WorkspaceI18n?.apply(root);
-    };
+    zoomOut.onclick = () => zoomGraph(0.85);
+    zoomIn.onclick = () => zoomGraph(1.18);
+    zoomFit.onclick = fitGraph;
     zoomReset.onclick = () => {
-      zoom = 1;
+      fitGraph();
       updateGraph();
       window.WorkspaceI18n?.apply(root);
     };
+    let pointerSession = null;
+    svg.addEventListener("pointerdown", (event) => {
+      if (pointerSession) return;
+      draggedNodeKey = null;
+      const node = event.target.closest?.(".graph-node");
+      pointerSession = node
+        ? {
+            type: "node",
+            pointerId: event.pointerId,
+            node,
+            captureTarget: node,
+            key: node.dataset.nodeKey,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            moved: false,
+          }
+        : {
+            type: "pan",
+            pointerId: event.pointerId,
+            captureTarget: svg,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            x: viewport.x,
+            y: viewport.y,
+          };
+      pointerSession.captureTarget.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+    svg.addEventListener("pointermove", (event) => {
+      if (!pointerSession || event.pointerId !== pointerSession.pointerId) return;
+      if (pointerSession.type === "pan") {
+        const box = svg.getBoundingClientRect();
+        viewport.x = pointerSession.x + ((event.clientX - pointerSession.clientX) * 960) / box.width;
+        viewport.y = pointerSession.y + ((event.clientY - pointerSession.clientY) * 540) / box.height;
+        applyViewport();
+        return;
+      }
+      if (
+        Math.hypot(event.clientX - pointerSession.clientX, event.clientY - pointerSession.clientY) > 4
+      )
+        pointerSession.moved = true;
+      const position = graphPositions.get(pointerSession.key);
+      if (!position) return;
+      const point = pointInGraph(event);
+      Object.assign(position, clampGraphPoint(point));
+      pointerSession.node.setAttribute("transform", `translate(${position.x} ${position.y})`);
+      svg.querySelectorAll(".graph-edge").forEach((edge) => {
+        if (edge.dataset.from === pointerSession.key) { edge.setAttribute("x1", position.x); edge.setAttribute("y1", position.y); }
+        if (edge.dataset.to === pointerSession.key) { edge.setAttribute("x2", position.x); edge.setAttribute("y2", position.y); }
+      });
+    });
+    const endPointer = (event) => {
+      if (!pointerSession || event.pointerId !== pointerSession.pointerId) return;
+      const finished = pointerSession;
+      draggedNodeKey = event.type === "pointerup" && finished.type === "node" && finished.moved ? finished.key : null;
+      pointerSession = null;
+      if (finished.captureTarget.hasPointerCapture(event.pointerId))
+        finished.captureTarget.releasePointerCapture(event.pointerId);
+    };
+    svg.addEventListener("pointerup", endPointer);
+    svg.addEventListener("pointercancel", endPointer);
+    svg.addEventListener("lostpointercapture", endPointer);
+    svg.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      const anchor = point.matrixTransform(svg.getScreenCTM().inverse());
+      zoomGraph(event.deltaY < 0 ? 1.12 : 0.89, anchor);
+    }, { passive: false });
     exportButton.onclick = () => {
       const blob = new Blob([toBibTeX(visible())], {
         type: "application/x-bibtex;charset=utf-8",
@@ -556,5 +771,8 @@
     render,
     toBibTeX,
     demoRecords,
+    layoutGraph,
+    filterRecords,
+    clampGraphPoint,
   });
 })();

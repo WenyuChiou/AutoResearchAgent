@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 from research_workspace.projection import validate_index
-from research_workspace.view import render_view, write_workspace
+from research_workspace.view import REFERENCE_HASHES, render_view, write_workspace
 from research_workspace.stages import stage_registry
 from stage1_deliverable.common import DeliverableError, canonical, sha
 from stage1_deliverable.views import bibtex
@@ -92,6 +92,39 @@ def fixture_index():
 
 
 class WorkspaceViewTests(unittest.TestCase):
+    def test_graph_assets_are_hash_bound_and_exported(self):
+        reference_root = Path(__file__).parents[1] / "references/research-workspace"
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "view"
+            with patch("research_workspace.view.private_output", side_effect=Path):
+                manifest = write_workspace(fixture_index(), reference_root, output)
+            graph_source = (output / "literature-reference.js").read_text(
+                encoding="utf-8"
+            )
+            stylesheet = (output / "workspace.css").read_text(encoding="utf-8")
+            self.assertEqual(
+                manifest["files"]["literature-reference.js"],
+                sha(graph_source.encode()),
+            )
+            self.assertEqual(
+                manifest["reference_assets"],
+                REFERENCE_HASHES,
+            )
+            self.assertFalse(
+                manifest["reference_provenance"]["commit_alone_reconstructs_assets"]
+            )
+            self.assertIn(
+                "reference_assets", manifest["rebuild"]["reference_asset_policy"]
+            )
+            self.assertIn("function layoutGraph", graph_source)
+            self.assertIn(
+                'zoomReset.dataset.literatureAction = "layout-reset"', graph_source
+            )
+            self.assertNotIn("paper.keywords", graph_source)
+            self.assertIn("paper.classifications.map", graph_source)
+            self.assertIn("Recorded classification assignment", graph_source)
+            self.assertIn("height:clamp(360px,58vh,620px)", stylesheet)
+
     def test_existing_output_is_rejected_before_reading_assets(self):
         with tempfile.TemporaryDirectory() as folder:
             # Test-owned roots use their physical location on macOS (/var alias).

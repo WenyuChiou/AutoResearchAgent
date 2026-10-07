@@ -19,9 +19,9 @@ from .wiki import wiki_files
 REFERENCE_COMMIT = "085f363179a79375fc8e3590dda9725e25eda71a"
 REFERENCE_HASHES = {
     "prototype.html": "dfd49e7d0baf5cbf1645a08c34dafb48bba7b3db9d867adf313e91b1a810298e",
-    "literature-reference.js": "73e24c4a8e1c38ee66ca259391ed5c2bd04412dd8cd7d1f97875bbde7ed81323",
+    "literature-reference.js": "80571f6f16d1cefec5857b8b137146f98fc0e009346d54a2d4a73b0b63620ec5",
     "workspace-i18n.js": "d24fadd875728abfdd9d6a1734f430d82abf80ecf4538cf959d91245ce1bc24d",
-    "workspace.css": "c8be8874b682171e83463bb5c00b379eb75581dac125b275e4878f1cccbd101b",
+    "workspace.css": "9eefa95da3bee89ee0cf19bf688eadf5108df5ca852dc6c96749a386a249d393",
 }
 
 
@@ -331,6 +331,11 @@ def _write_view(
         "index_sha256": expected_index_sha256,
         "reference_commit": REFERENCE_COMMIT,
         "reference_assets": REFERENCE_HASHES,
+        "reference_provenance": {
+            "commit_role": "historical-reference-base",
+            "asset_binding": "exact reference_assets SHA-256 values",
+            "commit_alone_reconstructs_assets": False,
+        },
         "bibtex_producer": index["bibliography"]["producer"],
         "files": {name: sha(data) for name, data in files.items()},
         "research_execution": "not-performed",
@@ -339,6 +344,7 @@ def _write_view(
             "project_id": index["project_id"],
             "expected_manifest_sha256": index["provenance"]["package_manifest_sha256"],
             "reference_commit": REFERENCE_COMMIT,
+            "reference_asset_policy": "use exact reference_assets hashes; commit is historical provenance",
             "output_policy": "new directory outside Git",
             "validation_mode": "byte-inventory",
         },
