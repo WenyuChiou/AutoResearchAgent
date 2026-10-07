@@ -266,6 +266,12 @@
       "supplemental_source_version_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "shared_evaluator_deadline_contract": "Shared no-tool extraction and judge calls reuse the reviewed stage2_live/native_process runner, finite frozen timeout and exact temporary prompt/stream bytes; timeout and OSError attempts preserve partial streams and owned-tree cleanup reports. Evaluator producer hashes include shared runner bytes; changed producers require new attempts, never historical archive rewriting. This is transport behavior, not source meaning, isolation, formal readiness or scientific improvement.",
+      "shared_evaluator_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
       ]
     },
     {
@@ -589,6 +595,26 @@
       "supplemental_source_version_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage1-eval",
+      "mechanism": "Stage2 extraction and judge units reuse the shared evaluator transport; completed source-bound native units are measurement prerequisites, never evidence of semantic fidelity or research improvement.",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Exact bounded prompt/stream bytes, archived runner failures and helper-bound producer identity; no failed or changed-producer unit resumes."
+          ],
+          "human_judgment": "Independent source-grounded judges still establish fidelity; transport success alone is not a score."
+        }
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_evaluator_model_calls.py"
       ]
     }
   ]

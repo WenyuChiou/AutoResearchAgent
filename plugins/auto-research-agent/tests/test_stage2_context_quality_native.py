@@ -207,12 +207,13 @@ class ContextQualityNativeTests(unittest.TestCase):
 
     def test_receipted_resume_reuses_units_and_rejects_tamper_or_changed_bindings(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self._native_response
+            "stage1_eval.model_calls._execute_bound_process",
+            side_effect=self._native_response,
         ) as execute:
             first = self.invoke(call_model_v31)
         initial_calls = execute.call_count
         self.assertGreater(initial_calls, 0)
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             second = self.invoke(
                 call_model_v31,
                 resume=True,

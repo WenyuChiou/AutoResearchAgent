@@ -38,7 +38,7 @@ class SourcePipelineTests(unittest.TestCase):
         with (
             patch.object(pipeline, "collect_sources_v31", return_value=self.sources),
             patch(
-                "stage1_eval.model_calls.subprocess.run",
+                "stage1_eval.model_calls._execute_bound_process",
                 side_effect=self.original.respond,
             ) as calls,
         ):
@@ -92,7 +92,7 @@ class SourcePipelineTests(unittest.TestCase):
         with (
             patch.object(pipeline, "collect_sources_v31", return_value=self.sources),
             patch(
-                "stage1_eval.model_calls.subprocess.run",
+                "stage1_eval.model_calls._execute_bound_process",
                 side_effect=self.original.respond,
             ),
             patch(

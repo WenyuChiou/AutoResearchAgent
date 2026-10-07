@@ -281,7 +281,13 @@
         "plugins/auto-research-agent/tests/test_recovery_reviewed_delta.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
-      "quality_improvement_claimed": false
+      "quality_improvement_claimed": false,
+      "shared_evaluator_deadline_contract": "Shared no-tool extraction and judge calls reuse the reviewed stage2_live/native_process runner, finite frozen timeout and exact temporary prompt/stream bytes; timeout and OSError attempts preserve partial streams and owned-tree cleanup reports. Evaluator producer hashes include shared runner bytes; changed producers require new attempts, never historical archive rewriting. This is transport behavior, not source meaning, isolation, formal readiness or scientific improvement.",
+      "shared_evaluator_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
+      ]
     },
     {
       "capability_id": "cli:stage1-brief",

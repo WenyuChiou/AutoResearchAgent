@@ -79,7 +79,7 @@ class CompletePromptTransportTests(unittest.TestCase):
             with self.subTest(work_count=count):
                 fixture = self.fixture(count)
                 with patch(
-                    "stage1_eval.model_calls.subprocess.run",
+                    "stage1_eval.model_calls._execute_bound_process",
                     side_effect=fixture.respond,
                 ):
                     result = fixture.invoke()
@@ -97,7 +97,7 @@ class CompletePromptTransportTests(unittest.TestCase):
                         self.assertFalse(receipt["role_complete"])
                         self.assertFalse(receipt["score_awarded"])
                         self.assertEqual(receipt["status"], "passed")
-                with patch("stage1_eval.model_calls.subprocess.run") as calls:
+                with patch("stage1_eval.model_calls._execute_bound_process") as calls:
                     self.assertEqual(fixture.invoke(replay_only=True), result)
                 calls.assert_not_called()
 
@@ -114,7 +114,8 @@ class CompletePromptTransportTests(unittest.TestCase):
         with (
             patch.object(complete, "_prepare_call", side_effect=larger_review),
             patch(
-                "stage1_eval.model_calls.subprocess.run", side_effect=fixture.respond
+                "stage1_eval.model_calls._execute_bound_process",
+                side_effect=fixture.respond,
             ) as calls,
         ):
             with self.assertRaisesRegex(EvaluationError, "no evidence was omitted"):

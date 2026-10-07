@@ -598,7 +598,7 @@ class JudgeFlowTests(unittest.TestCase):
             }
             with (
                 patch(
-                    "stage1_eval.model_calls.subprocess.run",
+                    "stage1_eval.model_calls._execute_bound_process",
                     side_effect=subprocess_result,
                 ) as execute,
                 patch(
@@ -609,7 +609,7 @@ class JudgeFlowTests(unittest.TestCase):
                 first = judge_packet_v31(packet, root / "judge", options)
             self.assertEqual(execute.call_count, 4)
             with (
-                patch("stage1_eval.model_calls.subprocess.run") as execute,
+                patch("stage1_eval.model_calls._execute_bound_process") as execute,
                 patch(
                     "stage1_eval.judging_v31.check_grounding",
                     side_effect=lambda value, *_: value,
