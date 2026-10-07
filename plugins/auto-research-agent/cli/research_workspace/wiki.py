@@ -32,6 +32,11 @@ def _fence(value):
 def wiki_files(index) -> dict[str, bytes]:
     """Return deterministic relative paths and UTF-8 bytes; never write files."""
     validate_index(index)
+    availability = None
+    if index["schema_version"] == "3.0.0":
+        from .source_availability import derive_source_availability
+
+        availability = derive_source_availability(index)
     files = {}
     readme = (
         (
@@ -45,7 +50,8 @@ def wiki_files(index) -> dict[str, bytes]:
         + _fence(
             {
                 name: index[name]
-                if name != "supplement" or index["schema_version"] == "1.0.0"
+                if name != "supplement"
+                or index["supplement"]["status"] == "not-provided"
                 else {
                     key: index["supplement"][key]
                     for key in (
@@ -69,10 +75,15 @@ def wiki_files(index) -> dict[str, bytes]:
         )
         + "## Records\n\n"
     )
-    if index["schema_version"] == "2.0.0":
+    if (
+        index["schema_version"] in {"2.0.0", "3.0.0"}
+        and index["supplement"]["status"] != "not-provided"
+    ):
         readme += (
             "[Accepted repairs and core findings](../closeout/core-findings.md)\n\n"
         )
+    if availability is not None:
+        readme += "## Saved-source availability\n\n" + _fence(availability["counts"])
     for ordinal, paper in enumerate(index["papers"]):
         identity = [paper["work_id"], paper["version_id"]]
         filename = sha(canonical(identity)) + ".md"
@@ -117,10 +128,37 @@ def wiki_files(index) -> dict[str, bytes]:
                 if related:
                     rows.append(row)
             note += f"## {label}\n\n" + _fence(rows)
-        if index["schema_version"] == "2.0.0":
+        if (
+            index["schema_version"] in {"2.0.0", "3.0.0"}
+            and index["supplement"]["status"] != "not-provided"
+        ):
             from .closeout import repair_note
 
             note += repair_note(index, paper)
+        if index["schema_version"] == "3.0.0":
+            row = next(
+                r
+                for r in index["source_rerun"]["data"]["rows"]
+                if (r["work_id"], r["version_id"]) == tuple(identity)
+            )
+            note += (
+                "## New saved-source read attempt\n\nOriginal judgments above remain historical. Extraction does not establish claim support.\n\n"
+                + _fence(row)
+            )
+            source = next(
+                row
+                for row in availability["source_rows"]
+                if (row["work_id"], row["version_id"]) == tuple(identity)
+            )
+            claims = [
+                row
+                for row in availability["claim_rows"]
+                if (row["work_id"], row["version_id"]) == tuple(identity)
+            ]
+            note += (
+                "## Source availability\n\nReadable-source status does not change or explain the historical claim assessment.\n\n"
+                + _fence({"source_availability": source, "claims": claims})
+            )
         files[path] = note.encode("utf-8")
     readme += "\n## Original audit snapshots\n\n"
     for document in index["audit_documents"]:

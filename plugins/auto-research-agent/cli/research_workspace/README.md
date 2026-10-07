@@ -90,3 +90,10 @@ locators and metadata provenance before returning WorkspaceIndex v3. Original
 claims, coverage, Unknowns, failures and source receipts remain unchanged.
 Abstract extraction cannot become full text, and the overlay cannot authorize
 research, new acquisition, scientific judgment changes or Stage 2 import.
+
+The CLI accepts `--source-rerun-root` with its external manifest SHA-256 and
+emits the v3 overlay as read-only HTML, per-work Wiki notes, Excel/CSV,
+Markdown and BibTeX. Every exported source byte remains private and bound to
+the accepted manifest. Rebuilding a saved v3 view reads only those artifacts;
+it does not rerun the parser, acquire sources, score quality or alter the
+original scientific record.

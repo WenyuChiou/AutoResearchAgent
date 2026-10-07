@@ -23,7 +23,7 @@ from stage1_deliverable.common import (
     sha,
 )
 from stage1_deliverable.sources import artifact_map
-from stage1_deliverable.views import bibtex
+from stage1_deliverable.views import bibtex, csv_bytes, workbook_bytes
 from .json_bytes import decode_json
 
 
@@ -596,3 +596,98 @@ def validate_rerun_index(index):
         "rerun bibliography differs",
     )
     return index
+
+
+def rerun_files(index, rerun_root):
+    validate_rerun_index(index)
+    import json
+
+    from .source_availability import derive_source_availability
+
+    extension = index["source_rerun"]
+    rows = extension["data"]["rows"]
+    availability = derive_source_availability(index)
+
+    def tabular(values):
+        return [
+            {
+                key: (
+                    json.dumps(value, ensure_ascii=False, sort_keys=True)
+                    if isinstance(value, (dict, list))
+                    else value
+                )
+                for key, value in row.items()
+            }
+            for row in values
+        ]
+
+    flattened = [
+        {
+            "work_id": r["work_id"],
+            "version_id": r["version_id"],
+            "source_id": r["source_id"],
+            "attempt_id": r["attempt_id"],
+            "previous_status": r["previous_status"],
+            **r["metadata"],
+            **r["reading"],
+            "metadata_provenance": r["metadata_provenance"],
+        }
+        for r in rows
+    ]
+    columns = sorted({key for row in flattened for key in row})
+    flattened = [{key: row.get(key) for key in columns} for row in flattened]
+    from .closeout import closeout_tables, fence
+
+    tables = (
+        closeout_tables(index)
+        if index["supplement"]["status"] != "not-provided"
+        else {"Papers": index["papers"]}
+    )
+    tables["SourceRerun"] = flattened
+    tables["SourceAvailability"] = tabular(availability["source_rows"])
+    tables["ClaimAvailability"] = tabular(availability["claim_rows"])
+    availability_markdown = (
+        "# Saved-source availability\n\n"
+        "Availability records whether a readable saved body is present. It does not change or explain the historical claim assessment.\n\n"
+        + fence(availability)
+    )
+    files = {
+        "source-rerun/catalog.xlsx": workbook_bytes(tables),
+        "source-rerun/catalog.csv": csv_bytes("SourceRerun", flattened),
+        "source-rerun/source-availability.json": canonical(availability),
+        "source-rerun/source-availability.csv": csv_bytes(
+            "SourceAvailability", tabular(availability["source_rows"])
+        ),
+        "source-rerun/source-availability.md": availability_markdown.encode("utf-8"),
+        "source-rerun/manifest.json": canonical(extension),
+        "source-rerun/references.bib": extension["bibliography"]["all_bibtex"].encode(
+            "utf-8"
+        ),
+        "source-rerun/report.md": (
+            "# Saved-source Stage 1 rerun\n\n"
+            "Original claims, failures, compound counts and coverage remain historical and unchanged. "
+            "New read attempts and bibliography fields are separate; extraction is not claim support.\n\n"
+            + "## Source availability\n\n"
+            + fence(availability["counts"])
+            + fence(extension["data"])
+        ).encode("utf-8"),
+    }
+    for row in availability["source_rows"]:
+        identity = [row["work_id"], row["version_id"]]
+        claims = [
+            claim
+            for claim in availability["claim_rows"]
+            if (claim["work_id"], claim["version_id"])
+            == (row["work_id"], row["version_id"])
+        ]
+        files["source-rerun/notes/" + sha(canonical(identity)) + ".md"] = (
+            "# Source availability note\n\n"
+            "Readable-source status and historical claim assessment are separate.\n\n"
+            + fence({"source_availability": row, "claims": claims})
+        ).encode("utf-8")
+    root = private_output(rerun_root)
+    for name, row in extension["artifact_hashes"].items():
+        raw = safe_path(root, name).read_bytes()
+        require(sha(raw) == row["sha256"], "rerun bytes changed while exporting")
+        files["source-rerun/" + name] = raw
+    return files

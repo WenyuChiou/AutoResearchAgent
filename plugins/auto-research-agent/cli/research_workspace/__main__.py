@@ -20,6 +20,8 @@ def main():
     parser.add_argument("--repair-root")
     parser.add_argument("--expected-repair-manifest-sha256")
     parser.add_argument("--expected-repair-review-sha256")
+    parser.add_argument("--source-rerun-root")
+    parser.add_argument("--expected-source-rerun-manifest-sha256")
     parser.add_argument("--stage2-delivery")
     parser.add_argument("--stage2-bridge")
     parser.add_argument("--expected-stage2-bridge-sha256")
@@ -34,6 +36,17 @@ def main():
             expected_repair_review_sha256=args.expected_repair_review_sha256,
         )
         options = {}
+        rerun_supplied = (
+            args.source_rerun_root,
+            args.expected_source_rerun_manifest_sha256,
+        )
+        if any(value is not None for value in rerun_supplied):
+            if not all(value is not None for value in rerun_supplied):
+                raise DeliverableError("Both source rerun arguments are required")
+            from .source_rerun import attach_rerun
+
+            index = attach_rerun(index, *rerun_supplied)
+            options["source_rerun_root"] = args.source_rerun_root
         supplied = (
             args.stage2_delivery,
             args.stage2_bridge,
@@ -44,11 +57,13 @@ def main():
                 raise DeliverableError(
                     "All three Stage 2 import arguments are required"
                 )
-            options = {
-                "stage2_delivery": args.stage2_delivery,
-                "stage2_bridge": read_json(private_output(args.stage2_bridge)),
-                "expected_stage2_bridge_sha256": args.expected_stage2_bridge_sha256,
-            }
+            options.update(
+                {
+                    "stage2_delivery": args.stage2_delivery,
+                    "stage2_bridge": read_json(private_output(args.stage2_bridge)),
+                    "expected_stage2_bridge_sha256": args.expected_stage2_bridge_sha256,
+                }
+            )
         receipt = write_workspace(
             index, args.reference_root, args.output_dir, **options
         )
