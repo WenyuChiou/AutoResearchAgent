@@ -23,7 +23,7 @@ from stage1_deliverable.common import (
     sha,
 )
 from stage1_deliverable.sources import artifact_map
-from stage1_deliverable.views import bibtex
+from stage1_deliverable.views import bibtex, csv_bytes, workbook_bytes
 from .json_bytes import decode_json
 
 
@@ -596,3 +596,52 @@ def validate_rerun_index(index):
         "rerun bibliography differs",
     )
     return index
+
+
+def rerun_files(index, rerun_root):
+    validate_rerun_index(index)
+    extension = index["source_rerun"]
+    rows = extension["data"]["rows"]
+    flattened = [
+        {
+            "work_id": r["work_id"],
+            "version_id": r["version_id"],
+            "source_id": r["source_id"],
+            "attempt_id": r["attempt_id"],
+            "previous_status": r["previous_status"],
+            **r["metadata"],
+            **r["reading"],
+            "metadata_provenance": r["metadata_provenance"],
+        }
+        for r in rows
+    ]
+    columns = sorted({key for row in flattened for key in row})
+    flattened = [{key: row.get(key) for key in columns} for row in flattened]
+    from .closeout import closeout_tables, fence
+
+    tables = (
+        closeout_tables(index)
+        if index["supplement"]["status"] != "not-provided"
+        else {"Papers": index["papers"]}
+    )
+    tables["SourceRerun"] = flattened
+    files = {
+        "source-rerun/catalog.xlsx": workbook_bytes(tables),
+        "source-rerun/catalog.csv": csv_bytes("SourceRerun", flattened),
+        "source-rerun/manifest.json": canonical(extension),
+        "source-rerun/references.bib": extension["bibliography"]["all_bibtex"].encode(
+            "utf-8"
+        ),
+        "source-rerun/report.md": (
+            "# Saved-source Stage 1 rerun\n\n"
+            "Original claims, failures, compound counts and coverage remain historical and unchanged. "
+            "New read attempts and bibliography fields are separate; extraction is not claim support.\n\n"
+            + fence(extension["data"])
+        ).encode("utf-8"),
+    }
+    root = private_output(rerun_root)
+    for name, row in extension["artifact_hashes"].items():
+        raw = safe_path(root, name).read_bytes()
+        require(sha(raw) == row["sha256"], "rerun bytes changed while exporting")
+        files["source-rerun/" + name] = raw
+    return files

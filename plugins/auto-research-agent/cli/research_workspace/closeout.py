@@ -154,7 +154,10 @@ def runtime_binding():
 
 def closeout_files(index):
     validate_index(index)
-    if index["schema_version"] != "2.0.0":
+    if (
+        index["schema_version"] not in {"2.0.0", "3.0.0"}
+        or index["supplement"]["status"] == "not-provided"
+    ):
         return {}
     overlay, data = index["supplement"], index["supplement"]["data"]
     binding = {
