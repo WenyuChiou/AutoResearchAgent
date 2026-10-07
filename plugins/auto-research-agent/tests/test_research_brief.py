@@ -71,6 +71,67 @@ def search_request():
 
 
 class ResearchBriefTests(unittest.TestCase):
+    def test_priority_target_pending_blocks_search_then_records_override(self):
+        value = brief("unrestricted")
+        value["scope_fields"].append(
+            {
+                "field": "priority_reading_target",
+                "material": True,
+                "reason": "Confirm organization target separately from query scope.",
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "priority_reading_target"):
+            validate_search_request(value, search_request())
+        value["decisions"].append(
+            {
+                "event_id": "priority-1",
+                "field": "priority_reading_target",
+                "status": "specified",
+                "value": "30",
+                "actor": "test-user",
+                "authority": "user",
+                "user_input": "Organize 30 priority works.",
+                "source_ref": "test-project:alpha/input:1/turn:2",
+                "recorded_at": "2026-09-26T12:01:00Z",
+            }
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = root / "brief-1.json"
+            create_brief(value, first)
+            before = first.read_bytes()
+            compile_confirmed(
+                first, search_request(), root / "plan", as_of="2026-09-26", actor="test"
+            )
+            binding = json.loads(
+                (root / "plan/research_brief_binding.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(
+                all(
+                    not row["scope_filters"]
+                    for row in binding["request"]["query_bindings"]
+                )
+            )
+            updated = json.loads(first.read_text(encoding="utf-8"))
+            event = deepcopy(updated["decisions"][-1])
+            event.update(
+                event_id="priority-2", value="35", user_input="Use 35 instead."
+            )
+            updated["decisions"].append(event)
+            second = root / "brief-2.json"
+            create_brief(updated, second, previous=first)
+            self.assertEqual(before, first.read_bytes())
+            self.assertEqual(
+                ["30", "35"],
+                [
+                    d["value"]
+                    for d in json.loads(second.read_text())["decisions"]
+                    if d["field"] == "priority_reading_target"
+                ],
+            )
+            with self.assertRaisesRegex(ValueError, "different brief revision"):
+                validate_bound_plan(root / "plan", second)
+
     def test_declared_filter_reaches_all_compiled_query_variants(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
