@@ -34,6 +34,7 @@ from stage2_live.environment import (
     verify_environment_start,
 )
 from stage2_live.extraction import run_live_extraction
+from stage2_live.judges import _execution_policy
 from stage2_live.native import (
     SUBJECT_EXECUTION_POLICY,
     capture_native,
@@ -474,6 +475,12 @@ class _ProductionAdapter:
         preflight = preflight_for_environment(spec, home, workspace)
         native = native_for_environment(spec, home, workspace)
         verify_environment_start(preflight, native, home, workspace)
+        policy = native.get("extraction_policy")
+        deadline = (
+            {"timeout_seconds": _execution_policy(policy)["timeout_seconds"]}
+            if policy is not None
+            else {}
+        )
         if any(path.name != ".git" for path in workspace.iterdir()):
             raise Stage2Error("controller-subject-workspace-must-start-empty")
         task_path = workspace / "input.json"
@@ -499,6 +506,7 @@ class _ProductionAdapter:
             config_bindings=native["config_bindings"],
             policy_bindings=native["policy_bindings"],
             output_dir=output,
+            **deadline,
         )
         verify_environment_capture(
             output,

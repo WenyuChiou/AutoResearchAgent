@@ -50,6 +50,29 @@ correction. Research-tool loops use the host's canonical agent policy; this modu
 does not invent an overall research budget. Costs not reported by the runtime stay
 unknown. All attempts remain in the evidence bundle.
 
+`capture --request` can declare `timeout_seconds`: a finite positive number,
+excluding booleans. The supplied value is part of the immutable call binding;
+changing or removing it prevents completed-call replay. Omitting it preserves
+legacy capture bindings. The controller forwards the deadline from its frozen
+`native.extraction_policy` before staging input files. It does not create a new
+overall research budget or silently grant a longer call.
+
+Bounded prompts use a temporary binary file as standard input, preserving the
+exact bytes without blocking on a child that does not read a pipe. One monotonic
+deadline covers input staging, process startup, ownership checks and waiting.
+Temporary input closes on success or failure. Its storage requirement is
+proportional to the prompt bytes; cleanup and archive time are recorded separately.
+
+On a deadline or interrupted communication, the adapter cleans only the process
+tree it launched. Streamed output, partial session records and cleanup errors
+remain in the failed capture. Cleanup and reaping have their own bounded wait;
+the declared deadline limits communication, not archive construction time.
+Windows uses the owned process ID with `/T /F`; POSIX bounded calls use an owned
+process group. If cleanup cannot be confirmed, the failure remains visible and
+the host must diagnose it before another call. There is no automatic retry, and
+a failed capture cannot be resumed as a completed one. None of these checks
+changes native sandbox, approval, model or filesystem isolation requirements.
+
 Separate CODEX_HOME paths prevent accidental context reuse but do not establish
 filesystem or process isolation. The host must use isolated workspaces/profiles
 or containers, inspect effective tools/plugins, and exclude peer judgments and

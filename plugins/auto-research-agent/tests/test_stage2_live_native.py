@@ -7,7 +7,7 @@ from unittest.mock import patch
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
-from stage2_live import native
+from stage2_live import native, native_process
 
 
 def jsonl(*events):
@@ -391,8 +391,8 @@ class NativeCaptureTests(unittest.TestCase):
 
         class FakePopen:
             def __init__(inner, command, **kwargs):
-                self.assertNotEqual(kwargs["stdout"], native.subprocess.PIPE)
-                self.assertNotEqual(kwargs["stderr"], native.subprocess.PIPE)
+                self.assertNotEqual(kwargs["stdout"], native_process.subprocess.PIPE)
+                self.assertNotEqual(kwargs["stderr"], native_process.subprocess.PIPE)
                 kwargs["stdout"].write(payload)
                 kwargs["stdout"].flush()
                 kwargs["stderr"].write(b"native stderr")
@@ -405,7 +405,7 @@ class NativeCaptureTests(unittest.TestCase):
             def communicate(inner, input):
                 self.assertEqual(input, b"Use native tools and report.")
 
-        with patch.object(native.subprocess, "Popen", FakePopen):
+        with patch.object(native_process.subprocess, "Popen", FakePopen):
             captured = native.capture_native(**self.args())
         self.assertEqual(captured["capture_mode"], "authentic-subprocess")
         self.assertEqual((self.output / "stdout.jsonl").read_bytes(), payload)
