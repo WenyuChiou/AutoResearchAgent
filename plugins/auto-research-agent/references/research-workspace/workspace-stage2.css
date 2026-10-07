@@ -1,5 +1,8 @@
 body.stage2-workspace { max-width:none; }
 body.stage2-workspace .shell { max-width:none; width:100%; }
+body.stage2-workspace #stage2-delivery[hidden],
+body.stage2-workspace .view-tabs[hidden],
+body.stage2-workspace .shell > main[hidden] { display:none; }
 body.stage2-workspace #stage2-delivery { margin:24px; padding:20px; font:16px/1.6 "Segoe UI",system-ui,sans-serif; }
 #stage2-workbench { --s2w-ink:#183044; --s2w-muted:#5a6d7d; --s2w-line:#d7e1e8; --s2w-blue:#315f85; --s2w-teal:#18766f; box-sizing:border-box; width:100%; max-width:100%; min-width:0; margin:28px 0; color:var(--s2w-ink); background:#fff; font:16px/1.6 "Segoe UI",system-ui,sans-serif; overflow:hidden; }
 #stage2-workbench * { box-sizing:border-box; min-width:0; }

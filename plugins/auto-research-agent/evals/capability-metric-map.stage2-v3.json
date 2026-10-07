@@ -477,12 +477,13 @@
           "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
         }
       ],
-      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged. Comparison workbench preserves paper-level fields separately from recorded synthesis; local selection, filters and evidence panels do not alter canonical records, evaluator scores or permission state.",
+      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged. Comparison workbench preserves paper-level fields separately from recorded synthesis; local selection, filters and evidence panels do not alter canonical records, evaluator scores or permission state. The existing stage rail displays Stage 1 literature by default and the verified Stage 2 attachment only when Stage 2 is selected; unavailable attachments retain the disconnected placeholder, and view switching never changes research records or authorization.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py",
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_view.py",
-        "plugins/auto-research-agent/tests/test_stage2_comparison_html.py"
+        "plugins/auto-research-agent/tests/test_stage2_comparison_html.py",
+        "plugins/auto-research-agent/tests/test_workspace_stage_navigation.py"
       ],
       "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
       "topic_table_test_refs": [
