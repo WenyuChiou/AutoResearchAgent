@@ -139,6 +139,9 @@ resolution or turn completion. Ordinary CI runs source guards without a browser.
 This bounded panel check does not attest real Stage1, native authentication,
 research-topic isolation, full workspace acceptance or the real-package projection.
 
+The core panel fixture loads its four accepted reference assets from the exact retained public Git commit, verifies their fixed hashes and reports commit/path/hash separately.
+Mutable main presentation assets remain unchanged; missing or mismatched retained blobs reject without lazy fetch, object replacement or another checkout.
+
 Append source-bound ResearchBrief versions and explicit reviews with ScopeApi.
 Original brief bytes, parent/version hashes and old reviews remain saved.
 A trusted HTTP deadline check inside the mutation transaction rejects an expired queued save.
@@ -161,7 +164,7 @@ An import rejection requires a fresh process; no third-party or native-process a
 
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_browser_source.py -v
 
-Keep the accepted core_panel_fixture.py/core_panel_path.js recipe unchanged.
+Retain the core panel recipe guards and scenarios; separately identify its pinned presentation inputs.
 The separate browser/native-session/browser_driver.cjs exercises the full original sixteen synthetic session and scope scenarios.
 Run it explicitly with installed Node, Playwright and Chromium; it performs no downloads or native/model/research calls.
 Driver, fixture and loader must be at their standard paths under the sole --repo checkout.
@@ -172,6 +175,3 @@ Cleanup failures, surviving workers or receipt persistence failures cannot repor
 This synthetic host remains separate from the true Stage1 package and actual native acceptance.
 
 Opt-in browser driver requires explicit --repo/--python/--playwright/--browser/--reference/--temp/--scope/--output; ordinary Python discovery does not launch it.
-
-The core panel fixture loads its four accepted reference assets from the exact retained public Git commit, verifies their fixed hashes and reports commit/path/hash separately.
-Mutable main presentation assets remain unchanged; missing or mismatched retained blobs reject without lazy fetch, object replacement or another checkout.
