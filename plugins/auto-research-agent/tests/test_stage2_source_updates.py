@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -11,8 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from stage2_common import Stage2Error, canonical_hash, validate_packet
+from stage2_check import apply_assessment, inspect_run
 from stage2_live.source_updates import prepare_source_update
+from stage2_workflow import add_snapshot, initialize_workflow, inspect_workflow
 from stage2_fixture_helpers import write_stage2_fixture
+from test_stage2_checker import assessment
 
 
 class SourceUpdatesTests(unittest.TestCase):
@@ -75,12 +79,12 @@ class SourceUpdatesTests(unittest.TestCase):
             },
         }
 
-    def build(self, additions=None, **kwargs):
+    def build(self, additions=None, revisions=None, **kwargs):
         return prepare_source_update(
             self.packet,
             self.root / "old",
             additions or [self.addition],
-            self.revisions,
+            self.revisions if revisions is None else revisions,
             self.impact,
             self.root / "output",
             expected_packet_sha256=kwargs.get("expected", canonical_hash(self.packet)),
@@ -88,8 +92,6 @@ class SourceUpdatesTests(unittest.TestCase):
 
     def test_new_snapshot_preserves_input_and_requires_rechecks(self):
         result = self.build()
-        import json
-
         revised = json.loads(Path(result["packet_path"]).read_text())
         validate_packet(revised, result["source_root"])
         self.assertEqual(self.packet, self.original)
@@ -97,6 +99,58 @@ class SourceUpdatesTests(unittest.TestCase):
         self.assertTrue(result["review_required"])
         self.assertFalse(result["prior_reviews_carried_forward"])
         self.assertFalse(result["scientific_quality_verified"])
+
+    def test_evidence_only_update_keeps_candidates_and_invalidates_old_review(self):
+        old_packet_path = self.root / "old-packet.json"
+        old_packet_path.write_text(json.dumps(self.packet), encoding="utf-8")
+        workflow = self.root / "workflow"
+        initialize_workflow(
+            old_packet_path,
+            self.root / "old",
+            workflow,
+            {},
+            {"path": "policy.json", "sha256": "a" * 64},
+        )
+        old_state = inspect_workflow(workflow)
+
+        result = self.build(revisions=[])
+        updated_packet = json.loads(Path(result["packet_path"]).read_text())
+        self.assertEqual(self.packet, self.original)
+        self.assertEqual(updated_packet["candidates"], self.original["candidates"])
+        self.assertEqual(updated_packet["sources"][-1], self.addition["source"])
+        self.assertEqual(updated_packet["evidence"][-1], self.addition["evidence"][0])
+        self.assertEqual(
+            (
+                Path(result["source_root"]) / self.addition["source"]["path"]
+            ).read_bytes(),
+            self.raw_path.read_bytes(),
+        )
+        self.assertNotEqual(canonical_hash(updated_packet), canonical_hash(self.packet))
+        event = add_snapshot(
+            workflow,
+            result["packet_path"],
+            result["source_root"],
+            "New evidence requires a fresh check of the same candidate content.",
+            result["impact"],
+            old_state["head_sha256"],
+        )
+        new_state = inspect_workflow(workflow, event["event_sha256"])
+        self.assertIn("candidate-1", new_state["pending_candidate_ids"])
+        self.assertNotEqual(
+            new_state["latest_snapshot"]["event"]["payload"]["snapshot_sha256"],
+            old_state["latest_snapshot"]["event"]["payload"]["snapshot_sha256"],
+        )
+
+        stale = self.root / "stale-assessment.json"
+        stale.write_text(json.dumps(assessment(self.packet)), encoding="utf-8")
+        checker = workflow / "snapshots" / "000002" / "checker"
+        with self.assertRaisesRegex(Stage2Error, "assessment-packet-hash-mismatch"):
+            apply_assessment(checker, stale)
+        self.assertEqual(inspect_run(checker)["events"], [])
+
+    def test_revisions_must_still_be_a_list(self):
+        with self.assertRaisesRegex(Stage2Error, "revised-candidate-required"):
+            self.build(revisions={})
 
     def test_failures_are_retained_not_empty_success(self):
         failed = copy.deepcopy(self.addition["acquisition"])
