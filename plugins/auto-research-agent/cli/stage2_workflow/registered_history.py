@@ -15,6 +15,7 @@ from stage2_workflow.store import _inside, inspect_workflow
 
 
 VERSION = "2.0.0"
+IMPORTED_VERSION = "2.1.0"
 ARCHIVE = "registered_history/workflow"
 SCOPE = "registered-content-history-only"
 MEANING = "registered content history; execution, authorship and human approval are not attested"
@@ -144,7 +145,35 @@ def _capture_verified(state):
     return provenance, files
 
 
-def capture_registered_history(state):
+def _with_imported_history(provenance, records):
+    if not records:
+        return provenance
+    result = copy.deepcopy(provenance)
+    result["schema_version"] = IMPORTED_VERSION
+    result["imported_history"] = records
+    history_revisions(result)  # Reject duplicate/conflicting transition claims.
+    return result
+
+
+def history_revisions(provenance):
+    """Return imported and registered transitions without inventing missing rows."""
+    rows = [
+        copy.deepcopy(row)
+        for record in provenance.get("imported_history", [])
+        for row in record["revisions"]
+    ] + [
+        copy.deepcopy(row) for step in provenance["steps"] for row in step["revisions"]
+    ]
+    seen = set()
+    for row in rows:
+        key = (row["candidate_id"], row["to_version"])
+        if key in seen:
+            raise Stage2Error("registered-history-duplicate-transition")
+        seen.add(key)
+    return rows
+
+
+def capture_registered_history(state, imported_delivery_bindings=None):
     """Capture actual registered events and all consecutive immutable snapshots.
 
     The caller writes returned bytes without rewriting paths inside those bytes,
@@ -165,10 +194,18 @@ def capture_registered_history(state):
         ]
         if supplied_snapshots != actual_snapshots:
             raise Stage2Error("registered-history-state-mismatch")
-        result = _capture_verified(verified)
+        provenance, files = _capture_verified(verified)
+        if imported_delivery_bindings:
+            from .imported_history import capture_imported_history
+
+            records, imported_files, _ = capture_imported_history(
+                imported_delivery_bindings, verified["snapshots"][0]["packet"]
+            )
+            provenance = _with_imported_history(provenance, records)
+            files.update(imported_files)
         # Detect concurrent append/edit rather than silently capture a moving head.
         inspect_workflow(verified["root"], expected_head=verified["head_sha256"])
-        return result
+        return provenance, files
     except (OSError, KeyError, TypeError) as error:
         raise Stage2Error("registered-history-capture-failed") from error
 
@@ -177,9 +214,18 @@ def inspect_registered_history(root, provenance, packet, manifest):
     """Replay solely portable bytes bound by the retained delivery manifest."""
     if not isinstance(provenance, dict) or not isinstance(manifest, dict):
         raise Stage2Error("registered-history-shape")
+    version = provenance.get("schema_version")
+    if version not in {VERSION, IMPORTED_VERSION}:
+        raise Stage2Error("registered-history-claims-invalid")
+    if (version, manifest.get("schema_version")) not in {
+        (VERSION, "1.3.0"),
+        (VERSION, None),  # Preserve the legacy helper's binding-only receipt.
+        (IMPORTED_VERSION, "1.4.0"),
+    }:
+        raise Stage2Error("registered-history-version-mismatch")
     claims = {
         "kind": "Stage2DeliveryRevisionProvenance",
-        "schema_version": VERSION,
+        "schema_version": version,
         "scope": SCOPE,
         "native_execution_attested": False,
         "human_approval": False,
@@ -245,6 +291,16 @@ def inspect_registered_history(root, provenance, packet, manifest):
             archive_root, expected_head=manifest["workflow_head_sha256"]
         )
         actual, _ = _capture_verified(state)
+        from .imported_history import inspect_imported_history
+
+        records = provenance.get("imported_history", [])
+        if version == IMPORTED_VERSION and (
+            not isinstance(records, list) or not records
+        ):
+            raise Stage2Error("registered-history-import-records-required")
+        inspect_imported_history(root, records, state["snapshots"][0]["packet"])
+        if version == IMPORTED_VERSION:
+            actual = _with_imported_history(actual, records)
         if actual != provenance or state["latest_snapshot"]["packet"] != packet:
             raise Stage2Error("registered-history-replay-mismatch")
         if (
@@ -252,8 +308,6 @@ def inspect_registered_history(root, provenance, packet, manifest):
             != state["latest_snapshot"]["checker"]["manifest"]["manifest_sha256"]
         ):
             raise Stage2Error("registered-history-final-checker-mismatch")
-        return [
-            copy.deepcopy(row) for step in actual["steps"] for row in step["revisions"]
-        ]
+        return history_revisions(actual)
     except (OSError, KeyError, TypeError) as error:
         raise Stage2Error("registered-history-replay-failed") from error

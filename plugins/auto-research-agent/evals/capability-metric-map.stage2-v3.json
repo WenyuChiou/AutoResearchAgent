@@ -359,6 +359,11 @@
       "registered_history_delivery_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_registered_history.py",
         "plugins/auto-research-agent/tests/test_stage2_registered_history_delivery.py"
+      ],
+      "imported_history_delivery_mechanism": "Explicit delivery1.4/provenance2.1 imports retained legacy delivery1.1 local revision records only when raw inventory, candidate payloads, evidence and source work/version/hash match the initial workflow packet. Missing history remains missing; duplicate or conflicting transitions fail closed. Current reviews and external assessment remain required. No imported approval, execution, authorship, scientific truth or A/B improvement is attested. Legacy delivery1.3/provenance2.0 replay is unchanged.",
+      "imported_history_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_imported_history.py",
+        "plugins/auto-research-agent/tests/test_stage2_imported_history_delivery.py"
       ]
     },
     {
