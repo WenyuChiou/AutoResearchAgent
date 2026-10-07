@@ -97,3 +97,19 @@ Synthetic crash gaps before dispatch and after observed writes retain history wi
 Post-recording status/fault persistence failure keeps its missing fault event distinct
 from independently recorded channel close evidence. These are injected failure tests,
 not actual native process crash or Windows research acceptance.
+
+An explicit authenticated loopback HTTP listener wraps the injected SessionApi.
+It checks exact Host/Origin and bearer credentials, bounds JSON bodies/responses,
+and returns saved action history without retrying a lost response. Excess sockets
+close before handler creation. The connection cap defaults to 16 (allowed 1-128);
+each admitted socket has at most one handler and one deadline timer. The absolute
+socket deadline defaults to 5 seconds (allowed greater than 0 through 30), including
+trickled request lines, headers and bodies. A deadline closes the HTTP socket; it
+does not cancel an already admitted controller action or prove native completion.
+Its slot stays occupied until that handler finishes. The caller explicitly owns
+listener start/stop and supplies trusted authentication and project bindings.
+This slice provides no process launcher, browser UI or native research authority.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_http.py -v
+```

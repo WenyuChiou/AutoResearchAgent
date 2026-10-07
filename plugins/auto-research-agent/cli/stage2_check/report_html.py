@@ -4,6 +4,7 @@ import json
 from html import escape
 
 from stage2_check import report as canonical_report
+from stage2_ideation.tables_report import render_tables_html
 
 AXES = ("opportunity", "value", "answerability", "materials", "execution")
 
@@ -399,6 +400,7 @@ def render_selection_html(selection, source_snapshots):
                 '<p class="notice">This is a supplied scientific judgment/proposal, not an exact source excerpt.</p>'
                 f"<p>{comparison}</p></section>"
             ),
+            render_tables_html(packet.get("research_tables"), packet),
             _current_options(selection, evidence),
             _questions(selection),
             _histories(selection, evidence),

@@ -8,7 +8,8 @@ from jsonschema import Draft202012Validator
 
 from stage2_common import canonical_hash
 
-from .schema import extraction_schema
+from .schema import SCHEMA_VERSION, SCHEMA_VERSION_1_1, extraction_schema
+from .topic_tables import TopicTableError, materialize_research_tables
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -97,11 +98,11 @@ def _evidence_matches_source(evidence_ids, evidence_by_id, source, label):
         )
 
 
-def _expected_input_hash(raw_sha256, packet, snapshot_sha256):
+def _expected_input_hash(raw_sha256, packet, snapshot_sha256, schema_version):
     return canonical_hash(
         {
             "kind": "Stage2IdeationExtractionTask",
-            "schema_version": "1.0.0",
+            "schema_version": schema_version,
             "snapshot_sha256": snapshot_sha256,
             "packet_sha256": canonical_hash(packet),
             "raw_proposal_sha256": raw_sha256,
@@ -109,9 +110,10 @@ def _expected_input_hash(raw_sha256, packet, snapshot_sha256):
     )
 
 
-def _schema_validate(extraction):
+def _schema_validate(extraction, schema_version):
     errors = sorted(
-        Draft202012Validator(extraction_schema()).iter_errors(extraction), key=str
+        Draft202012Validator(extraction_schema(schema_version)).iter_errors(extraction),
+        key=str,
     )
     if errors:
         first = errors[0]
@@ -165,13 +167,29 @@ def validate_extraction(
     )
     _require(isinstance(extraction, dict), "extraction must be an object")
     result = copy.deepcopy(extraction)
-    _schema_validate(result)
+    schema_version = result.get("schema_version")
+    _require(
+        schema_version in {SCHEMA_VERSION, SCHEMA_VERSION_1_1},
+        "unsupported extraction schema version",
+    )
+    expected_version = (
+        SCHEMA_VERSION_1_1
+        if packet.get("schema_version") == "2.2.0"
+        else SCHEMA_VERSION
+    )
+    _require(
+        schema_version == expected_version,
+        "extraction schema version does not match packet",
+    )
+    _schema_validate(result, schema_version)
     _require(result["snapshot_sha256"] == snapshot_sha256, "snapshot hash mismatch")
     packet_sha256 = canonical_hash(packet)
     _require(result["packet_sha256"] == packet_sha256, "packet hash mismatch")
     raw_sha256 = hashlib.sha256(raw_proposal.encode("utf-8")).hexdigest()
     _require(result["raw_proposal_sha256"] == raw_sha256, "raw proposal hash mismatch")
-    expected_input = _expected_input_hash(raw_sha256, packet, snapshot_sha256)
+    expected_input = _expected_input_hash(
+        raw_sha256, packet, snapshot_sha256, schema_version
+    )
     _require(result["input_hash"] == expected_input, "extraction input hash mismatch")
 
     sources = packet.get("sources", [])
@@ -323,6 +341,17 @@ def validate_extraction(
             _text(claim["text"], "candidate claim")
             _evidence_ids(claim["evidence_ids"], known_evidence, "candidate claim")
     _validate_candidate_lineage(packet, candidates)
+    if schema_version == SCHEMA_VERSION_1_1 and result["research_tables"] is not None:
+        try:
+            materialize_research_tables(
+                result["research_tables"],
+                candidates,
+                packet,
+                raw_proposal,
+                snapshot_sha256,
+            )
+        except TopicTableError as error:
+            raise IdeationError(f"research_tables: {error}") from error
     if completeness_record is not None or expected_completeness_sha256 is not None:
         _validate_completeness(
             raw_proposal,
