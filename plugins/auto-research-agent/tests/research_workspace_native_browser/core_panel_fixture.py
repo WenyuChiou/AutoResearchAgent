@@ -52,7 +52,22 @@ REQUIRED = (
 
 
 def git(repo, *args):
-    return subprocess.check_output(["git", "-C", str(repo), *args])
+    env = dict(os.environ, GIT_NO_LAZY_FETCH="1", GIT_NO_REPLACE_OBJECTS="1")
+    return subprocess.check_output(["git", "-C", str(repo), *args], env=env)
+
+
+def reference_assets(repo, commit, pins):
+    if len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
+        raise ValueError("exact retained reference commit required")
+    assets, receipts = {}, {}
+    for name, expected in pins.items():
+        path = (PLUGIN / "references/research-workspace" / name).as_posix()
+        raw = git(repo, "show", commit + ":" + path)
+        if hashlib.sha256(raw).hexdigest() != expected:
+            raise ValueError("retained reference hash differs: " + name)
+        assets[name] = raw
+        receipts[name] = dict(commit=commit, path=path, sha256=expected)
+    return assets, receipts
 
 
 def file_receipt(repo, path):
@@ -238,6 +253,7 @@ def main():
     cleanup_diagnostics = record_cleanups(fixture)
     started = time.monotonic()
     server, worker, failure, process, result = None, None, None, None, {}
+    references = {}
     try:
         fixture.setUp()
         fixture.api = api.SessionApi(
@@ -265,10 +281,9 @@ def main():
                     },
                 },
             )
-        assets = {
-            name: (repo / PLUGIN / "references/research-workspace" / name).read_bytes()
-            for name in wiki.REFERENCE_HASHES
-        }
+        assets, references = reference_assets(
+            repo, wiki.REFERENCE_COMMIT, wiki.REFERENCE_HASHES
+        )
         server = wiki.WikiSessionServer(
             fixture.api,
             reference_assets=assets,
@@ -342,6 +357,7 @@ def main():
             seconds=time.monotonic() - started,
             sources=sources,
             origins=imported,
+            reference_assets=references,
             runtime=dict(
                 runtime,
                 python=sys.version,
