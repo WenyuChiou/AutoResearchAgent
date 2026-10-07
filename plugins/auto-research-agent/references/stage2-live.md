@@ -99,6 +99,14 @@ or containers, inspect effective tools/plugins, and exclude peer judgments and
 condition labels from the subject's mounts. No-tool model calls reject tool events.
 Production checker judgments and independent evaluator judgments stay separate.
 
+The production controller checks native completion before asking its success-only
+environment verifier to inspect the archive. A failed, interrupted, incomplete,
+or missing status raises `controller-native-capture-incomplete` with the observed
+status. Original captured files remain available for diagnosis. The controller
+does not run extraction or reconciliation, invent reviewer agreement, retry the
+call, or assign a scientific score. A model-capacity failure is an execution
+failure; it is not evidence that a research direction is invalid.
+
 Resume verifies current inputs, source bytes, code/configuration, runtime and
 the completed native archive. It never accepts a saved score merely because its
 JSON is valid. Injected test calls are labeled synthetic and cannot establish

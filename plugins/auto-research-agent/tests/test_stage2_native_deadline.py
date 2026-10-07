@@ -166,6 +166,7 @@ class NativeDeadlineTests(unittest.TestCase):
                     patch(
                         "stage2_live.controller.capture_native",
                         return_value={
+                            "status": "complete",
                             "record_sha256_receipt": "a" * 64,
                             "event_summary": {"thread_id": "fixture"},
                         },
