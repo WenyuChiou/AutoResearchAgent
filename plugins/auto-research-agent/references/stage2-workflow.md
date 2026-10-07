@@ -220,3 +220,17 @@ The limits remain100 entries,0–2 neighbours,8000 characters per context and819
 aggregate UTF-8 bytes. Policy1.0 output, prompt and rejection behavior remain
 unchanged for historical replay. This is evaluator input repair, not scientific
 quality, native execution, human approval or formal A/B evidence.
+
+## Replaying an explicitly bound assessment target
+
+`verify_daily_v3(..., assessment_target_policy=binding)` verifies the policy
+that the original daily evaluator actually used. The supplied config, request,
+content/judge/ADJ prompts and reconstructed result must all match. Source-context
+supplements remain bound by their original bytes and limits. Replay reads saved
+native archives; it never dispatches another model call or grants an audit.
+
+Omitting the policy preserves historical replay. A known historical limitation
+without source context is that unsorted native JSON keys may differ from stored
+canonical-unit order; this change does not fix that separate case. An archive
+failure is an evaluator failure, not a zero scientific score. Ordinary-B replay
+does not establish physical A/B isolation, formal readiness or improvement.
