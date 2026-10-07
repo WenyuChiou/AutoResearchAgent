@@ -18,6 +18,11 @@ from stage2_eval.evaluation_v3 import (
 )
 from stage2_check.report import render_proposal, _evidence_anchor
 from stage2_check.report_html import render_selection_html
+from .content_gate import (
+    derive_content_gate,
+    render_content_gate_html,
+    render_content_gate_markdown,
+)
 from stage2_check.report_evaluation import (
     validate_projection,
     render_evaluation_html,
@@ -37,7 +42,7 @@ def _evaluation_fragment(view, presentation_version="1.0.0"):
         raise Stage2Error("evaluation-delivery-invalid-rendered-body")
     body = document.split("<body>", 1)[1].split("</body>", 1)[0]
     if (
-        presentation_version == "1.2.0"
+        presentation_version in {"1.2.0", "1.3.0"}
         and view["evaluation_status"] == "audit-required"
     ):
         for label in ("score", "status", "rationale"):
@@ -50,7 +55,7 @@ def _evaluation_fragment(view, presentation_version="1.0.0"):
 def _evaluation_markdown_fragment(view, presentation_version="1.0.0"):
     document = _utf8(render_evaluation_markdown(view))
     if (
-        presentation_version == "1.2.0"
+        presentation_version in {"1.2.0", "1.3.0"}
         and view["evaluation_status"] == "audit-required"
     ):
         lines = document.splitlines(keepends=True)
@@ -94,7 +99,7 @@ def _evaluation_overview(view):
 
 def _evaluated_html(selection, snapshots, view, presentation_version):
     document = _utf8(render_selection_html(selection, snapshots))
-    if presentation_version in {"1.1.0", "1.2.0"}:
+    if presentation_version in {"1.1.0", "1.2.0", "1.3.0"}:
         document = document.replace(
             "</section>", "</section>" + _evaluation_overview(view), 1
         ).replace(
@@ -104,6 +109,12 @@ def _evaluated_html(selection, snapshots, view, presentation_version):
         )
     elif presentation_version != "1.0.0":
         raise Stage2Error("evaluation-delivery-presentation-version-invalid")
+    if presentation_version == "1.3.0":
+        document = document.replace(
+            "</section>",
+            "</section>" + render_content_gate_html(derive_content_gate(selection)),
+            1,
+        )
     return document.replace(
         "</main>", _evaluation_fragment(view, presentation_version) + "</main>"
     )
@@ -352,7 +363,13 @@ def build_evaluated_delivery(
     view = evaluation_projection(
         bundle, selection, source_root, expected_bundle_sha256=expected_bundle_sha256
     )
-    html = _evaluated_html(selection, source_snapshots, view, "1.2.0")
+    presentation_version = (
+        "1.3.0"
+        if selection["evaluation_packet"]["schema_version"] == "2.2.0"
+        else "1.2.0"
+    )
+    gate = derive_content_gate(selection) if presentation_version == "1.3.0" else None
+    html = _evaluated_html(selection, source_snapshots, view, presentation_version)
     markdown = render_proposal(
         selection,
         source_snapshots,
@@ -361,7 +378,9 @@ def build_evaluated_delivery(
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
-    markdown += "\n\n" + _evaluation_markdown_fragment(view, "1.2.0")
+    if gate is not None:
+        markdown += "\n\n" + render_content_gate_markdown(gate)
+    markdown += "\n\n" + _evaluation_markdown_fragment(view, presentation_version)
     destination = private_output(output_dir)
     if destination.exists():
         raise Stage2Error("evaluation-delivery-output-already-exists")
@@ -374,6 +393,8 @@ def build_evaluated_delivery(
         "selection.html": html.encode("utf-8"),
         "selection.md": markdown.encode("utf-8"),
     }
+    if gate is not None:
+        values["content_gate.json"] = gate
     for source in selection["evaluation_packet"]["sources"]:
         path = safe_path(source_root, source["path"])
         values["sources/" + source["path"]] = path.read_bytes()
@@ -395,7 +416,7 @@ def build_evaluated_delivery(
     manifest = {
         "kind": "Stage2EvaluatedDelivery",
         "schema_version": "3.0.0",
-        "presentation_version": "1.2.0",
+        "presentation_version": presentation_version,
         "core_selection_sha256": canonical_hash(selection),
         "bundle_sha256": expected_bundle_sha256,
         "event_head": event_head,
@@ -439,6 +460,16 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
         if hashlib.sha256(raw).hexdigest() != row["sha256"] or len(raw) != row["bytes"]:
             raise Stage2Error("evaluation-delivery-artifact-changed")
     selection = json.loads((root / "core_selection.json").read_bytes())
+    version = manifest.get("presentation_version", "1.0.0")
+    if version == "1.3.0":
+        if selection["evaluation_packet"]["schema_version"] != "2.2.0":
+            raise Stage2Error("evaluation-delivery-content-gate-version-mismatch")
+        if "content_gate.json" not in names or json.loads(
+            (root / "content_gate.json").read_bytes()
+        ) != derive_content_gate(selection):
+            raise Stage2Error("evaluation-delivery-content-gate-changed")
+    elif "content_gate.json" in names:
+        raise Stage2Error("evaluation-delivery-unexpected-content-gate")
     bundle = json.loads((root / "evaluation_bundle.json").read_bytes())
     projection = evaluation_projection(
         bundle,
@@ -470,6 +501,10 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
+    if version == "1.3.0":
+        markdown += "\n\n" + render_content_gate_markdown(
+            derive_content_gate(selection)
+        )
     markdown += "\n\n" + _evaluation_markdown_fragment(
         projection, manifest.get("presentation_version", "1.0.0")
     )

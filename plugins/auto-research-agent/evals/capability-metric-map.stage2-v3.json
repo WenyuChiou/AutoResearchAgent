@@ -300,6 +300,12 @@
       "research_quality_guard_tests": [
         "plugins/auto-research-agent/tests/test_stage2_quality_guards.py",
         "plugins/auto-research-agent/tests/test_stage2_guarded_delivery.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
       ]
     },
     {
@@ -395,6 +401,12 @@
         "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
       ]
     },
     {
@@ -446,6 +458,12 @@
         "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
       ]
     },
     {
@@ -490,6 +508,12 @@
         "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
       ]
     },
     {

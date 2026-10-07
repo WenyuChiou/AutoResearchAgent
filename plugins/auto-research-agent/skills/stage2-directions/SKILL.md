@@ -5,6 +5,15 @@ description: This skill applies when the user asks to improve an existing resear
 
 # Stage 2 direction checking
 
+For packet 2.2, read the [content-first delivery contract](../../references/stage2-content-first-delivery.zh-TW.md).
+Inspect representative literature before defining topic-specific comparison axes.
+Prepare the literature overview, source-bound matrix and only the relevant
+candidate-version resources before final delivery. Presentation 1.3 recomputes
+`content_gate.json`; missing matrices or stale checks remain draft. A
+`content-complete` record is not scientific approval, independent execution
+attestation, material readiness or human choice. Preserve the existing source,
+independent-review and external-evaluation gates before calling a package final.
+
 Before final recommendations, use the opt-in
 [research-quality guards](../../evals/stage2/RESEARCH_QUALITY_GUARDS.zh-TW.md).
 Prepare `stage2_workflow quality-task` from the current snapshot; independently

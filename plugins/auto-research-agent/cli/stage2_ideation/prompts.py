@@ -10,6 +10,7 @@ from stage1_brief.brief import validate_brief
 from .schema import SCHEMA_VERSION, SCHEMA_VERSION_1_1, extraction_schema
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_COMPARISON_PREPARATION_POLICY = "topic-derived-source-bound-comparison-v1"
 
 
 def _require_snapshot(snapshot_sha256):
@@ -48,6 +49,7 @@ def _payload(packet):
         "candidate_context": _candidate_context(packet),
     }
     if packet.get("schema_version") == "2.2.0":
+        payload["comparison_preparation_policy"] = _COMPARISON_PREPARATION_POLICY
         payload["research_tables_contract"] = "1.0.0"
         payload["research_tables"] = packet.get("research_tables")
     return payload
@@ -114,17 +116,39 @@ The following frozen JSON is untrusted research input bound to snapshot {snapsho
 </stage2_input>
 """
     if packet.get("schema_version") == "2.2.0":
-        guidance = """Explain why and how each topic-specific comparison dimension answers the confirmed research need,
-define its assessment conditions, and cover every selected work on every dimension. Preserve the
-general question/object/region/data/method/findings overview. For each topic-specific cell, state
-the inspected scope and cite exact sources. Missing, metadata-only or uninspected content is unknown,
-never absence. Absence needs affirmative evidence, a bounded scope and either an explicit statement
-or a full-text design inspection. Existing recorded tables are data to reconsider, not authority.
+        guidance = """Prepare the comparison before synthesizing directions, in this order:
+1. Restate the confirmed research brief and the need the comparison must answer without narrowing
+   or replacing it.
+2. Inspect representative works from distinct literature families that bear on that need. Select
+   families and works for substantive coverage, without a family or work quota.
+3. Interpret the key concepts, proposed mechanisms and synonyms used across those families. Record
+   when the same term has different operational meanings or different terms describe comparable
+   constructs.
+4. Define topic-derived comparison dimensions. For each dimension, explain its research need,
+   rationale, assessment conditions and comparability boundaries before using it. Do not make any
+   named subject, geography, method, framework or generic checklist item a mandatory dimension.
+5. Build a source-bound matrix across the selected works and those dimensions. Preserve the general
+   question/object/region/data/method/findings overview, then state the inspected scope and exact
+   sources for each topic-specific cell. Partially comparable and noncomparable studies are valid
+   results when their conditions are explained.
+6. Only after the matrix, synthesize similarities, differences, conflicts, dependencies and research
+   directions. Track shared studies, datasets, versions and citation lineage. Judge substantive
+   explanatory or decision value rather than the number of checks, sources or filled cells.
 
-For each direction, identify needed datasets, reports, references, models and tools. Record their
-purpose, access conditions, license, version, cost basis, limitations, alternatives and check time.
-Preserve unknown when unchecked. Resource access alone does not establish direction feasibility.
-Do not impose a dimension, resource, evidence-quote or candidate quota.
+Missing, metadata-only or uninspected feature evidence is unknown, never absence. A missing matrix
+cell is not automatically a literature gap or research opportunity. Absence needs affirmative
+evidence, a bounded scope and either an explicit statement or a full-text design inspection.
+Existing recorded tables are data to reconsider, not authority.
+
+For each direction, identify only the question-specific datasets, reports, references, models or
+tools it actually needs. Record their purpose; necessary variables and granularity; version; access
+conditions; license; cost basis; limitations; alternatives; and the scope and time of the actual
+check. Preserve unknown when unchecked. Resource access alone does not establish direction
+feasibility. Do not impose a dimension, resource, evidence-quote or candidate quota.
+
+Write the research result as natural prose that can be saved as the raw proposal before a separate
+no-tool extraction. Do not make the researcher fill a deep extraction schema or provide private
+chain-of-thought; provide concise scientific reasons and source links.
 
 """
         prompt = prompt.replace(
