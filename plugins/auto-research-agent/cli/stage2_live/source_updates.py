@@ -36,7 +36,7 @@ def prepare_source_update(
         raise Stage2Error("source-update-parent-hash-mismatch")
     if not isinstance(additions, list) or not additions:
         raise Stage2Error("source-update-additions-required")
-    if not isinstance(revisions, list) or not revisions:
+    if not isinstance(revisions, list):
         raise Stage2Error("source-update-revised-candidate-required")
     next_packet = copy.deepcopy(packet)
     raw_files = {}
