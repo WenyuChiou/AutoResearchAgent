@@ -28,6 +28,15 @@ def _read(path):
     return decode_json(Path(path).read_bytes(), str(path))
 
 
+def _assessment_target_options(path):
+    if path is None:
+        return {}
+    binding = _read(path)
+    if not isinstance(binding, dict):
+        raise EvaluationError("assessment target policy must be a JSON object")
+    return {"assessment_target_policy": binding}
+
+
 def _save(path, value):
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -120,6 +129,10 @@ def main(argv=None):
         daily_v3.add_argument("--" + option, required=True)
     daily_v3.add_argument("--audit")
     daily_v3.add_argument("--source-context-policy")
+    daily_v3.add_argument(
+        "--assessment-target-policy",
+        help="JSON file containing the host-frozen binding; no score or default change",
+    )
     daily_v3.add_argument("--resume", action="store_true")
     daily_v3.add_argument("--replay-receipt")
     finalize_daily_v3 = commands.add_parser(
@@ -228,6 +241,10 @@ def main(argv=None):
     ):
         daily_check_v3.add_argument("--" + option, required=True)
     daily_check_v3.add_argument("--source-context-policy")
+    daily_check_v3.add_argument(
+        "--assessment-target-policy",
+        help="JSON file containing the host-frozen binding; no score or default change",
+    )
     preflight = commands.add_parser(
         "preflight", help="verify effective policy, native actions and isolation"
     )
@@ -449,6 +466,7 @@ def main(argv=None):
                     if args.source_context_policy
                     else None
                 ),
+                **_assessment_target_options(args.assessment_target_policy),
             )
             _save(args.replay_receipt_output, result["replay_receipt"])
         elif args.command == "finalize-daily-v3":
@@ -570,6 +588,7 @@ def main(argv=None):
                     if args.source_context_policy
                     else None
                 ),
+                **_assessment_target_options(args.assessment_target_policy),
             )
             _save(args.output, result)
         elif args.command in {"prepare-profile", "preflight"}:
