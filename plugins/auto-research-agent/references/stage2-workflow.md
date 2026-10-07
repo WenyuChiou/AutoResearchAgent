@@ -207,3 +207,16 @@ selection, execution and authorship do not become current approval. Current
 independent reviews and assessment are still required. No external score,
 scientific truth, Stage3 authorization or formal A/B admission follows from
 successfully importing these records.
+
+## Bounded multi-paragraph source context
+
+Opt-in `Stage2SourceContextPolicy`1.1 keeps verbatim quotes spanning consecutive
+paragraphs. Prefer complete containing paragraphs and configured neighbours;
+when they do not fit, retain a bounded raw window containing the whole quote.
+Only1.1 adds `context.selection` and `context.truncated`. A partial window cannot
+establish full-source absence. Separator endpoints and oversized quotes fail
+closed; source/work/version/hash and exact-position checks remain mandatory.
+The limits remain100 entries,0–2 neighbours,8000 characters per context and8192
+aggregate UTF-8 bytes. Policy1.0 output, prompt and rejection behavior remain
+unchanged for historical replay. This is evaluator input repair, not scientific
+quality, native execution, human approval or formal A/B evidence.
