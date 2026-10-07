@@ -509,6 +509,10 @@
       "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
       "topic_cell_extraction_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py"
+      ],
+      "exploratory_content_revision_contract": "Replacement keeps the exact immutable exploratory intake limitations while updating superseded transient issues. Acceptance and source bindings remain unchanged; preservation alone is not a substantive revision or scientific approval.",
+      "exploratory_content_revision_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_revision.py"
       ]
     },
     {

@@ -131,6 +131,9 @@ manifest 核對輸出，避免讓 HTML 與 bundle 互相 hash。
    預設 append 模式仍供原先生成流程使用。
 3. 以既有 snapshot／revision 接口建立不可變的新快照及影響理由。
    修訂後的目前比較與 unresolved 取代舊 current view，歷史仍保留。
+   Exploratory 匯入時接受的原始限制仍須逐字保留，不能因更新未解事項
+   而消失。已被修正的暫時問題可以更新；原始接受範圍、來源層級及
+   acceptance 綁定不因此改變。保留限制本身也不算完成科學修訂。
 4. `stage2_live content-revision` 驗證父子 packet、相鄰快照、原稿、
    擷取呼叫的外部 receipt 及受影響候選，產生修訂依據。
 5. 對受影響的新版候選重新獨立查核，再交付與外部評分。舊版通過不算。
