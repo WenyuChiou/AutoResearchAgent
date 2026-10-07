@@ -170,3 +170,23 @@ P4 must not regress. P5 and P6 each need improvements in at least two of three
 pairs and no regressions, with no additional major errors. Missing necessary
 criteria or audits produce `inconclusive`, not a smaller scoring denominator.
 The current foundation does not provide those live or formal results.
+
+## Registered content history
+
+`deliver --record-registered-history` opts into delivery manifest v1.3 and
+registered-history provenance v2. It retains the actual workflow manifest,
+event chain, consecutive snapshots, candidate changes and table-only bridges.
+Portable inspection rebuilds the same history from the retained files. This
+supports an honestly labelled parent-authored or imported revision without
+inventing a native model call, source acquisition or human approval.
+
+This mode cannot be combined with `--source-update-receipt` or guard bundles.
+The existing source-update and authenticated content-extraction receipt modes
+remain separate. Recorded history is evidence that content changed and was
+registered; it does not establish the author, execution success, scientific
+correctness, formal isolation or a user's choice. Current independent reviews
+and external assessment still need their own authentic evidence.
+
+Table-only snapshots do not manufacture candidate revisions. Unknown source or
+resource conditions remain unknown. Missing or altered history, claims,
+sources, event links or retained manifest receipts fail inspection.

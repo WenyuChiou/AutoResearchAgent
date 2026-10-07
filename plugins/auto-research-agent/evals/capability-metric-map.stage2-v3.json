@@ -354,6 +354,11 @@
       "candidate_review_context_mechanism": "Opt-in initial review view1.1 carries exact current-candidate resource rows and the existing five-axis assessed/unknown anchors into native review and tool-free extraction. Legacy1.0 bindings remain reconstructible; mismatched or mixed review versions fail closed. Optional alternatives do not become mandatory requirements, unknown enabling prerequisites do not become evidenced failure, and raw reviewer judgments are not automatically repaired. Transport and validation tests do not establish scientific judgment quality, complete B execution, formal isolation or A/B improvement.",
       "candidate_review_context_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_review_context.py"
+      ],
+      "registered_history_delivery_mechanism": "Explicit delivery1.3 records the verified immutable workflow event chain, every snapshot and retained action artifact in portable provenance2.0, including table-only bridges. Candidate revisions are reconstructed only from actual registered transitions. Initial imported revisions without transition evidence remain unavailable. The retained delivery manifest detects altered history; registered records do not attest native execution, authorship, human approval or scientific improvement. Legacy authenticated-receipt and guarded delivery paths remain separate.",
+      "registered_history_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_registered_history.py",
+        "plugins/auto-research-agent/tests/test_stage2_registered_history_delivery.py"
       ]
     },
     {

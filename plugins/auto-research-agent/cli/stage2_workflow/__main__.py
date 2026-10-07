@@ -119,6 +119,11 @@ def main(argv=None):
     for name in ("batch", "reviews", "resolutions"):
         deliver.add_argument("--" + name, required=True)
     deliver.add_argument(
+        "--record-registered-history",
+        action="store_true",
+        help="record immutable content history without attesting authorship or execution",
+    )
+    deliver.add_argument(
         "--source-update-receipt",
         action="append",
         nargs=2,
@@ -302,6 +307,7 @@ def main(argv=None):
                 args.output,
                 args.expected_head,
                 source_update_receipts=args.source_update_receipt,
+                record_registered_history=args.record_registered_history,
                 guard_bundles=_read(args.guard_bundles) if args.guard_bundles else None,
                 expected_guard_bundles_sha256=args.expected_guard_bundles_sha256,
             )
