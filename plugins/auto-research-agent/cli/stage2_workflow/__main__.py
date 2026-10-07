@@ -124,6 +124,13 @@ def main(argv=None):
         help="record immutable content history without attesting authorship or execution",
     )
     deliver.add_argument(
+        "--imported-history-delivery",
+        action="append",
+        nargs=2,
+        metavar=("PATH", "EXPECTED_MANIFEST_SHA256"),
+        help="import exact legacy local revision evidence; requires --record-registered-history",
+    )
+    deliver.add_argument(
         "--source-update-receipt",
         action="append",
         nargs=2,
@@ -308,6 +315,7 @@ def main(argv=None):
                 args.expected_head,
                 source_update_receipts=args.source_update_receipt,
                 record_registered_history=args.record_registered_history,
+                imported_history_deliveries=args.imported_history_delivery,
                 guard_bundles=_read(args.guard_bundles) if args.guard_bundles else None,
                 expected_guard_bundles_sha256=args.expected_guard_bundles_sha256,
             )

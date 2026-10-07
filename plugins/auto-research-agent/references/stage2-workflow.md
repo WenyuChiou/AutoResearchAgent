@@ -190,3 +190,20 @@ and external assessment still need their own authentic evidence.
 Table-only snapshots do not manufacture candidate revisions. Unknown source or
 resource conditions remain unknown. Missing or altered history, claims,
 sources, event links or retained manifest receipts fail inspection.
+
+### Importing pre-existing local history
+
+Delivery1.4/provenance2.1 adds an explicit `--imported-history-delivery PATH
+EXPECTED_MANIFEST_SHA256` option to `deliver --record-registered-history`.
+Use a retained legacy delivery1.1 manifest receipt, not a newly invented reason.
+The adapter verifies every copied inventory byte and binds each old transition's
+exact candidate, evidence and source identity to the initial workflow packet.
+Relocated source paths are allowed; changed source bytes or versions are not.
+Missing, unrelated, conflicting or duplicate transitions fail closed. Partial
+genuine history stays partial. Legacy delivery1.3 replay remains unchanged.
+
+The copied records attest **local content history only**. Prior review, user
+selection, execution and authorship do not become current approval. Current
+independent reviews and assessment are still required. No external score,
+scientific truth, Stage3 authorization or formal A/B admission follows from
+successfully importing these records.

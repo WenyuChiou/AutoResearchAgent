@@ -31,6 +31,7 @@ VERSION = "1.0.0"
 PROVENANCE_VERSION = "1.1.0"
 GUARDED_VERSION = "1.2.0"
 REGISTERED_HISTORY_VERSION = "1.3.0"
+IMPORTED_HISTORY_VERSION = "1.4.0"
 MANIFEST = "delivery_manifest.json"
 REVIEW_INPUT_FILES = {
     "batch": "review_batch.json",
@@ -268,17 +269,26 @@ def build_delivery(
     guard_bundles=None,
     expected_guard_bundles_sha256=None,
     record_registered_history=False,
+    imported_history_deliveries=None,
 ):
     """Build a separate source-bound checker and prehuman delivery package."""
     state = inspect_workflow(run_dir, expected_head=expected_head)
     if type(record_registered_history) is not bool:
         raise Stage2Error("delivery-registered-history-option-invalid")
+    if imported_history_deliveries is not None and not isinstance(
+        imported_history_deliveries, list
+    ):
+        raise Stage2Error("delivery-imported-history-option-invalid")
+    if imported_history_deliveries and not record_registered_history:
+        raise Stage2Error("delivery-imported-history-requires-registered-history")
     if record_registered_history:
         if source_update_receipts or guard_bundles is not None:
             raise Stage2Error("delivery-registered-history-mixed-provenance")
         from .registered_history import capture_registered_history
 
-        provenance, provenance_files = capture_registered_history(state)
+        provenance, provenance_files = capture_registered_history(
+            state, imported_history_deliveries
+        )
     else:
         provenance, provenance_files = capture_revision_provenance(
             state, source_update_receipts or []
@@ -336,10 +346,20 @@ def build_delivery(
         apply_assessment(checker_root, assessment_path)
     checker_selection = export_selection(checker_root)
     checker = inspect_run(checker_root)
+    if record_registered_history:
+        from .registered_history import history_revisions
+
+        revisions = history_revisions(provenance)
+    else:
+        revisions = (
+            [row for step in provenance["steps"] for row in step["revisions"]]
+            if provenance
+            else []
+        )
     selection = (
         derive_selection(
             checker_selection,
-            [row for step in provenance["steps"] for row in step["revisions"]],
+            revisions,
         )
         if provenance is not None
         else checker_selection
@@ -390,7 +410,9 @@ def build_delivery(
     manifest = {
         "kind": "Stage2DeliveryManifest",
         "schema_version": (
-            REGISTERED_HISTORY_VERSION
+            IMPORTED_HISTORY_VERSION
+            if record_registered_history and provenance.get("schema_version") == "2.1.0"
+            else REGISTERED_HISTORY_VERSION
             if record_registered_history
             else GUARDED_VERSION
             if guarded
@@ -481,10 +503,12 @@ def inspect_delivery(directory, expected_manifest_sha256):
     }
     version = manifest.get("schema_version") if isinstance(manifest, dict) else None
     guarded = version == GUARDED_VERSION
-    recorded_history = version == REGISTERED_HISTORY_VERSION
-    has_provenance = version in {PROVENANCE_VERSION, REGISTERED_HISTORY_VERSION} or (
-        guarded and manifest.get("revision_provenance_included") is True
-    )
+    recorded_history = version in {REGISTERED_HISTORY_VERSION, IMPORTED_HISTORY_VERSION}
+    has_provenance = version in {
+        PROVENANCE_VERSION,
+        REGISTERED_HISTORY_VERSION,
+        IMPORTED_HISTORY_VERSION,
+    } or (guarded and manifest.get("revision_provenance_included") is True)
     if has_provenance:
         required |= {
             "checker_selection_sha256",
@@ -515,6 +539,7 @@ def inspect_delivery(directory, expected_manifest_sha256):
             PROVENANCE_VERSION,
             GUARDED_VERSION,
             REGISTERED_HISTORY_VERSION,
+            IMPORTED_HISTORY_VERSION,
         }
         or manifest["manifest_sha256"] != _manifest_hash(manifest)
     ):
