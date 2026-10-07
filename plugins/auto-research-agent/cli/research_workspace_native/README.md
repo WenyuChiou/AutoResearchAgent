@@ -138,3 +138,10 @@ and zero for project-b. `dispatched` / `answer-sent` remain distinct from native
 resolution or turn completion. Ordinary CI runs source guards without a browser.
 This bounded panel check does not attest real Stage1, native authentication,
 research-topic isolation, full workspace acceptance or the real-package projection.
+
+Append source-bound ResearchBrief versions and explicit reviews with ScopeApi.
+Original brief bytes, parent/version hashes and old reviews remain saved.
+A trusted HTTP deadline check inside the mutation transaction rejects an expired queued save.
+Saved scope is not active input, a permit, or execution authority.
+
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_api.py -v
