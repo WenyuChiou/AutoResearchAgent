@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage2-packet.v2_3.schema.json",
+  "title": "Stage 2 scientific packet v2.3 with supplemental source versions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "packet_id", "brief", "resources", "comparison", "literature", "supplemental_literature", "evidence", "sources", "candidates", "unresolved", "upstream", "research_tables"],
+  "properties": {
+    "kind": {"$ref": "stage2-packet.v2_2.schema.json#/properties/kind"},
+    "schema_version": {"const": "2.3.0"},
+    "packet_id": {"$ref": "stage2-packet.v2_2.schema.json#/properties/packet_id"},
+    "brief": {"$ref": "stage2-packet.v2_2.schema.json#/properties/brief"},
+    "resources": {"$ref": "stage2-packet.v2_2.schema.json#/properties/resources"},
+    "comparison": {"$ref": "stage2-packet.v2_2.schema.json#/properties/comparison"},
+    "literature": {"$ref": "stage2-packet.v2_2.schema.json#/properties/literature"},
+    "supplemental_literature": {
+      "type": "array",
+      "items": {"$ref": "stage2-packet.v2.schema.json#/$defs/literature"}
+    },
+    "sources": {"$ref": "stage2-packet.v2_2.schema.json#/properties/sources"},
+    "evidence": {"$ref": "stage2-packet.v2_2.schema.json#/properties/evidence"},
+    "candidates": {"$ref": "stage2-packet.v2_2.schema.json#/properties/candidates"},
+    "unresolved": {"$ref": "stage2-packet.v2_2.schema.json#/properties/unresolved"},
+    "upstream": {"$ref": "stage2-packet.v2_2.schema.json#/properties/upstream"},
+    "research_tables": {"$ref": "stage2-packet.v2_2.schema.json#/properties/research_tables"}
+  },
+  "oneOf": [
+    {"$ref": "stage2-packet.v2_2.schema.json#/oneOf/0"},
+    {"$ref": "stage2-packet.v2_2.schema.json#/oneOf/1"}
+  ]
+}

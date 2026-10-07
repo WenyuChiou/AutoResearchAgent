@@ -36,8 +36,15 @@ def _status(cell):
 
 def _rows(tables, packet):
     literature = {
-        (row["work_id"], row["version_id"]): row for row in packet.get("literature", [])
+        (row["work_id"], row["version_id"]): (row, False)
+        for row in packet.get("literature", [])
     }
+    literature.update(
+        {
+            (row["work_id"], row["version_id"]): (row, True)
+            for row in packet.get("supplemental_literature", [])
+        }
+    )
     cells = {
         (row["work_id"], row["version_id"], row["dimension_id"]): row
         for row in tables["cells"]
@@ -45,8 +52,10 @@ def _rows(tables, packet):
     result = []
     for ref in tables["work_refs"]:
         identity = (ref["work_id"], ref["version_id"])
-        work = literature[identity]
+        work, supplemental = literature[identity]
         citation = f"{work['title']} ({_text(work.get('year'))})"
+        if supplemental:
+            citation += f" — supplemental source version {_text(work['version_id'])} of the same work"
         result.append(
             [citation]
             + [

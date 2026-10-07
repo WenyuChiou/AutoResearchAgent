@@ -46,7 +46,7 @@ def derive_content_gate(selection):
             blockers.append({"check_id": check_id, "reason": reason})
 
     tables = packet.get("research_tables")
-    prepared = packet.get("schema_version") == "2.2.0" and tables is not None
+    prepared = packet.get("schema_version") in {"2.2.0", "2.3.0"} and tables is not None
     if prepared:
         try:
             tables = validate_research_tables(tables, packet)
@@ -62,7 +62,10 @@ def derive_content_gate(selection):
         if prepared
         else set()
     )
-    literature = packet.get("literature", [])
+    literature = [
+        *packet.get("literature", []),
+        *packet.get("supplemental_literature", []),
+    ]
     if not isinstance(literature, list) or any(
         not isinstance(row, dict)
         or not _text(row.get("work_id"))

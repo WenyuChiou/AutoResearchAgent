@@ -64,6 +64,11 @@
       "topic_table_content_projection": "Opt-in packet2.2 content-first view includes recorded literature, comparison cells and current candidate-version resources, omits raw extraction receipts, prior dispositions and internal checker scores; legacy views remain unchanged.",
       "topic_table_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
@@ -108,6 +113,11 @@
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
@@ -245,6 +255,11 @@
       "daily_assessment_target_policy": "Explicit opt-in3.1 framing binds actual submitted-content policy bytes before independent native daily scoring; request/config/result/resume reflect the choice. Legacy prompt/field semantics remain unchanged, actual code-byte changes still invalidate prior runtime bindings. No formal promotion.",
       "daily_assessment_target_policy_tests": [
         "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
@@ -306,6 +321,11 @@
         "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
         "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
         "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
@@ -464,6 +484,11 @@
         "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
         "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
         "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
@@ -514,6 +539,11 @@
         "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
         "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
         "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
@@ -548,6 +578,11 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
         "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     }
   ]

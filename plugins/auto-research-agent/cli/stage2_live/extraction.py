@@ -112,7 +112,7 @@ def _validate_span_index(raw_proposal, spans):
 
 def generation_schema(span_index, packet=None):
     """Request span selections and leave candidate identity to the host."""
-    table_mode = (packet or {}).get("schema_version") == "2.2.0"
+    table_mode = (packet or {}).get("schema_version") in {"2.2.0", "2.3.0"}
     schema = extraction_schema("1.1.0") if table_mode else extraction_schema()
     ids = [row["span_id"] for row in span_index["spans"]]
     schema["$id"] = "stage2-live-ideation-extraction.span-ids.v1.schema.json"
