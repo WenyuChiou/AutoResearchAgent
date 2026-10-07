@@ -139,6 +139,9 @@ resolution or turn completion. Ordinary CI runs source guards without a browser.
 This bounded panel check does not attest real Stage1, native authentication,
 research-topic isolation, full workspace acceptance or the real-package projection.
 
+The core panel fixture loads its four accepted reference assets from the exact retained public Git commit, verifies their fixed hashes and reports commit/path/hash separately.
+Mutable main presentation assets remain unchanged; missing or mismatched retained blobs reject without lazy fetch, object replacement or another checkout.
+
 Append source-bound ResearchBrief versions and explicit reviews with ScopeApi.
 Original brief bytes, parent/version hashes and old reviews remain saved.
 A trusted HTTP deadline check inside the mutation transaction rejects an expired queued save.

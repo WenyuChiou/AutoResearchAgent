@@ -117,6 +117,46 @@ class CoreBrowserSourceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             browser.output_root(str(output), self.repo)
 
+    def test_reference_assets_use_retained_blobs_not_current_presentation(self):
+        paths = [p for p in browser.REQUIRED if p.parent.name == "research-workspace"]
+        expected = {p.name: (self.repo / p).read_bytes() for p in paths}
+        pins = {
+            name: browser.hashlib.sha256(raw).hexdigest()
+            for name, raw in expected.items()
+        }
+        for path in paths:
+            (self.repo / path).write_bytes(b"# changed current presentation\n")
+        browser.git(self.repo, "add", "--", *(p.as_posix() for p in paths))
+        staged = browser.hashlib.sha256(
+            browser.git(self.repo, "diff", "--cached", "--binary", "--full-index")
+        ).hexdigest()
+        browser.candidate(str(self.repo), self.head, staged)
+        assets, receipts = browser.reference_assets(self.repo, self.head, pins)
+        self.assertEqual(assets, expected)
+        for path in paths:
+            self.assertEqual(
+                receipts[path.name],
+                dict(commit=self.head, path=path.as_posix(), sha256=pins[path.name]),
+            )
+            self.assertNotEqual(assets[path.name], (self.repo / path).read_bytes())
+
+    def test_missing_or_mismatched_reference_rejects_without_fetch_or_fallback(self):
+        path = browser.PLUGIN / "references/research-workspace/prototype.html"
+        pin = browser.hashlib.sha256((self.repo / path).read_bytes()).hexdigest()
+        with patch.object(
+            browser.subprocess, "check_output", wraps=browser.subprocess.check_output
+        ) as calls:
+            for commit, pins, error in (
+                ("0" * 40, {path.name: pin}, browser.subprocess.CalledProcessError),
+                (self.head, {"absent.css": pin}, browser.subprocess.CalledProcessError),
+                (self.head, {path.name: "0" * 64}, ValueError),
+            ):
+                with self.subTest(commit=commit, pins=pins), self.assertRaises(error):
+                    browser.reference_assets(self.repo, commit, pins)
+            for call in calls.call_args_list:
+                self.assertEqual(call.kwargs["env"]["GIT_NO_LAZY_FETCH"], "1")
+                self.assertEqual(call.kwargs["env"]["GIT_NO_REPLACE_OBJECTS"], "1")
+
     def test_real_testcase_cleanup_fault_is_not_pass(self):
         fixture = unittest.TestCase()
         diagnostics = browser.record_cleanups(fixture)
