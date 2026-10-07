@@ -142,7 +142,7 @@ def _package(root, expected):
     return outer, manifest, records
 
 
-def _source_records(bound_read, records):
+def _source_records(package_root, bound_read, records):
     attempts = _jsonl(bound_read("deliverable/paper_manifest.jsonl"))
     _require(
         len({(row["source_id"], row["attempt"]) for row in attempts}) == len(attempts),
@@ -186,10 +186,23 @@ def _source_records(bound_read, records):
             == normalize(paper["title"]),
             "source title binding mismatch",
         )
-        _require(
-            receipt["expected_identity"]["doi"] == (paper["doi"] or ""),
-            "source DOI binding mismatch",
-        )
+        if receipt["expected_identity"]["doi"] != (paper["doi"] or ""):
+            archive_root = safe_path(package_root, archive.rstrip("/"))
+            observation = decode_json(bound_read(archive + "validation.json"))
+            _require(
+                isinstance(observation, dict),
+                "source validation observation must be an object",
+            )
+            replayed, replay_mapping, replay = sources.validate_archive(archive_root)
+            _require(replayed == receipt, "source replay receipt binding mismatch")
+            sources.validate_observation(
+                archive_root,
+                replayed,
+                replay_mapping,
+                replay,
+                saved_observation=observation,
+            )
+            sources.validate_paper_identity(paper, replayed)
         rows = [row for row in attempts if row["source_id"] == source["source_id"]]
         _require(
             {row["attempt"] for row in rows}
@@ -281,7 +294,7 @@ def project_package(
     root = private_output(package_root)
     outer, manifest, records = _package(root, expected_manifest_sha256)
     bound_read = _bound_reader(root, outer["files"])
-    source_rows = _source_records(bound_read, records)
+    source_rows = _source_records(root, bound_read, records)
     manifest_sha = outer["files"]["deliverable/provenance_manifest.json"]["sha256"]
     record_sha = manifest["original_input_sha256"]
 

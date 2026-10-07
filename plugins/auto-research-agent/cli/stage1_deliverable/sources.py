@@ -362,9 +362,13 @@ def stage_source(source, input_root, archive):
     write_json(archive / "validation.json", observation)
 
 
-def validate_observation(archive, result, mapping, replay):
+def validate_observation(archive, result, mapping, replay, *, saved_observation=None):
     """Check saved validator evidence against the original and fresh replay."""
-    saved = read_json(archive / "validation.json")
+    saved = (
+        read_json(archive / "validation.json")
+        if saved_observation is None
+        else saved_observation
+    )
     _keys(saved, replay, "saved source validation observation")
     command = saved["command"]
     if (
