@@ -10,7 +10,8 @@ from unittest import mock
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
 
-from stage1_eval.common import EvaluationError, sha  # noqa: E402
+from stage1_eval import model_calls  # noqa: E402
+from stage1_eval.common import EvaluationError, canonical, sha  # noqa: E402
 from stage1_eval.model import (  # noqa: E402
     call_model,
     replay_native_model_call_archive,
@@ -75,7 +76,7 @@ class ModelCallTests(unittest.TestCase):
 
     def test_default_timeout_is_600_and_success_is_bound_to_native_json(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ) as run:
             result, provenance = self.invoke()
         self.assertEqual(result, {"ok": True})
@@ -88,12 +89,182 @@ class ModelCallTests(unittest.TestCase):
         self.assertEqual(record["status"], "completed")
         self.assertEqual(set(record["files"]), {"stdout", "stderr", "output"})
 
+    def test_shared_runner_gets_exact_input_files_and_deadline(self):
+        def execute(command, **kwargs):
+            self.assertEqual(kwargs["input"], b"raw prompt")
+            self.assertEqual(kwargs["timeout_seconds"], 600)
+            self.assertEqual(Path(kwargs["cwd"]).parent, Path(tempfile.gettempdir()))
+            self.assertTrue(hasattr(kwargs["stdout"], "write"))
+            self.assertTrue(hasattr(kwargs["stderr"], "write"))
+            value = {"ok": True}
+            kwargs["stdout"].write(transcript(value))
+            kwargs["stderr"].write(b"captured stderr")
+            Path(command[command.index("-o") + 1]).write_bytes(
+                json.dumps(value).encode()
+            )
+            return 0
+
+        with mock.patch(
+            "stage1_eval.model_calls.run_bound_process", side_effect=execute
+        ) as run:
+            result, _ = self.invoke()
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(run.call_count, 1)
+        self.assertNotIn("capture_output", run.call_args.kwargs)
+        self.assertNotIn("stdin", run.call_args.kwargs)
+
+    def test_timeout_saves_partial_streams_and_owned_cleanup_report(self):
+        cleanup = {
+            "platform": "windows",
+            "target_pid": 321,
+            "mechanism": "taskkill /PID /T /F",
+            "ownership_confirmed": True,
+            "tree_kill_status": "complete",
+            "errors": [],
+        }
+
+        def execute(command, **kwargs):
+            kwargs["stdout"].write(b"partial stdout from file")
+            kwargs["stderr"].write(b"partial stderr from file")
+            error = subprocess.TimeoutExpired(command, kwargs["timeout_seconds"])
+            error.cleanup_report = cleanup
+            raise error
+
+        with mock.patch(
+            "stage1_eval.model_calls.run_bound_process", side_effect=execute
+        ) as run:
+            with self.assertRaisesRegex(EvaluationError, "timed out"):
+                self.invoke()
+        self.assertEqual(run.call_count, 1)
+        archive = self.output / "judge.model-call"
+        self.assertEqual(
+            (archive / "attempt-01.stdout.jsonl").read_bytes(),
+            b"partial stdout from file",
+        )
+        self.assertEqual(
+            (archive / "attempt-01.stderr.txt").read_bytes(),
+            b"partial stderr from file",
+        )
+        record = json.loads((archive / "attempt-01.record.json").read_text())
+        self.assertEqual(record["cleanup_report"], cleanup)
+        self.assertTrue(record["timed_out"])
+
+    def test_post_launch_runner_failure_is_archived_without_retry_or_resume(self):
+        cleanup = {
+            "platform": "posix",
+            "target_pid": 654,
+            "mechanism": "killpg(SIGKILL)",
+            "ownership_confirmed": False,
+            "tree_kill_status": "not-attempted-unconfirmed-ownership",
+            "errors": ["cleanup-identity-mismatch"],
+        }
+
+        def execute(_command, **kwargs):
+            kwargs["stdout"].write(b"partial runner stdout")
+            kwargs["stderr"].write(b"HTTP 503 connection reset runner stderr")
+            error = RuntimeError("spawned process group ownership failed")
+            error.cleanup_report = cleanup
+            raise error
+
+        with mock.patch(
+            "stage1_eval.model_calls.run_bound_process", side_effect=execute
+        ) as run:
+            with self.assertRaisesRegex(RuntimeError, "process group ownership"):
+                self.invoke()
+        self.assertEqual(run.call_count, 1)
+        archive = self.output / "judge.model-call"
+        self.assertEqual(
+            (archive / "attempt-01.stdout.jsonl").read_bytes(),
+            b"partial runner stdout",
+        )
+        self.assertEqual(
+            (archive / "attempt-01.stderr.txt").read_bytes(),
+            b"HTTP 503 connection reset runner stderr",
+        )
+        record = json.loads((archive / "attempt-01.record.json").read_text())
+        self.assertEqual(record["failure_class"], "runner")
+        self.assertEqual(record["cleanup_report"], cleanup)
+        self.assertFalse(record["timed_out"])
+        self.assertFalse((archive / "attempt-02.record.json").exists())
+
+        with mock.patch("stage1_eval.model_calls.run_bound_process") as resumed_run:
+            with self.assertRaisesRegex(EvaluationError, "incomplete or failed"):
+                self.invoke(
+                    resume_verified=True,
+                    semantic_validator=lambda value: value["ok"],
+                )
+        resumed_run.assert_not_called()
+
+    def test_runner_interrupt_is_archived_then_original_interrupt_propagates(self):
+        cleanup = {
+            "platform": "windows",
+            "target_pid": 987,
+            "mechanism": "taskkill /PID /T /F",
+            "ownership_confirmed": True,
+            "tree_kill_status": "complete",
+            "errors": [],
+        }
+        interrupt = KeyboardInterrupt("operator interrupt")
+        interrupt.cleanup_report = cleanup
+
+        def execute(_command, **kwargs):
+            kwargs["stdout"].write(b"partial interrupt stdout")
+            kwargs["stderr"].write(b"partial interrupt stderr")
+            raise interrupt
+
+        with mock.patch(
+            "stage1_eval.model_calls.run_bound_process", side_effect=execute
+        ) as run:
+            with self.assertRaises(KeyboardInterrupt) as raised:
+                self.invoke()
+        self.assertIs(raised.exception, interrupt)
+        self.assertEqual(run.call_count, 1)
+        archive = self.output / "judge.model-call"
+        self.assertEqual(
+            (archive / "attempt-01.stdout.jsonl").read_bytes(),
+            b"partial interrupt stdout",
+        )
+        self.assertEqual(
+            (archive / "attempt-01.stderr.txt").read_bytes(),
+            b"partial interrupt stderr",
+        )
+        record = json.loads((archive / "attempt-01.record.json").read_text())
+        self.assertEqual(record["failure_class"], "runner")
+        self.assertIn("KeyboardInterrupt", record["failure_detail"])
+        self.assertEqual(record["cleanup_report"], cleanup)
+        self.assertFalse((archive / "attempt-02.record.json").exists())
+
+    def test_evaluator_code_hash_includes_shared_transport(self):
+        root = Path(model_calls.__file__).resolve().parent
+        rows = [
+            {"path": name, "sha256": sha(path.read_bytes())}
+            for name, path in (
+                ("model.py", root / "model.py"),
+                ("model_calls.py", root / "model_calls.py"),
+                (
+                    "stage2_live/native_process.py",
+                    root.parent / "stage2_live" / "native_process.py",
+                ),
+            )
+        ]
+        self.assertEqual(model_calls._evaluator_code_sha(), sha(canonical(rows)))
+
+    def test_policy_requires_a_finite_bound_before_process_execution(self):
+        for timeout in (None, False, 0, float("inf"), float("nan")):
+            with (
+                self.subTest(timeout=timeout),
+                mock.patch("stage1_eval.model_calls.run_bound_process") as run_bound,
+            ):
+                with self.assertRaisesRegex(EvaluationError, "timeout.*positive"):
+                    self.invoke(execution_policy={**POLICY, "timeout_seconds": timeout})
+                run_bound.assert_not_called()
+
     def test_transient_transport_retries_once_then_stops(self):
         failed = SimpleNamespace(
             returncode=1, stdout=b"", stderr=b"HTTP 429 rate limit"
         )
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=[failed, failed],
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "transient-transport"):
@@ -115,7 +286,7 @@ class ModelCallTests(unittest.TestCase):
         )
         policy = {**POLICY, "max_transient_transport_retries": 0}
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", return_value=failed
+            "stage1_eval.model_calls._execute_bound_process", return_value=failed
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "transient-transport"):
                 self.invoke(execution_policy=policy)
@@ -135,7 +306,7 @@ class ModelCallTests(unittest.TestCase):
             return self.success(command, **kwargs) if value == "success" else value
 
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=response,
         ) as run:
             result, provenance = self.invoke()
@@ -148,7 +319,7 @@ class ModelCallTests(unittest.TestCase):
             returncode=1, stdout=b"", stderr=b"HTTP 401 Unauthorized"
         )
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", return_value=failed
+            "stage1_eval.model_calls._execute_bound_process", return_value=failed
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "process"):
                 self.invoke()
@@ -159,7 +330,7 @@ class ModelCallTests(unittest.TestCase):
             ["codex"], 600, output=b"partial stdout", stderr=b"partial stderr"
         )
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=timeout
+            "stage1_eval.model_calls._execute_bound_process", side_effect=timeout
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "timed out"):
                 self.invoke()
@@ -174,10 +345,10 @@ class ModelCallTests(unittest.TestCase):
 
     def test_valid_resume_reuses_without_subprocess(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ):
             self.invoke()
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             result, provenance = self.invoke(
                 resume_verified=True, semantic_validator=lambda value: value["ok"]
             )
@@ -188,7 +359,7 @@ class ModelCallTests(unittest.TestCase):
 
     def test_resume_rejects_changed_prompt_schema_and_config_without_execution(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ):
             self.invoke()
         cases = [
@@ -199,7 +370,7 @@ class ModelCallTests(unittest.TestCase):
         for name, change in cases:
             with (
                 self.subTest(name=name),
-                mock.patch("stage1_eval.model_calls.subprocess.run") as run,
+                mock.patch("stage1_eval.model_calls._execute_bound_process") as run,
             ):
                 schema = self.schema
                 if "schema" in change:
@@ -230,14 +401,17 @@ class ModelCallTests(unittest.TestCase):
                 output = self.root / f"output-{target}"
                 self.output = output
                 with mock.patch(
-                    "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+                    "stage1_eval.model_calls._execute_bound_process",
+                    side_effect=self.success,
                 ):
                     self.invoke()
                 archive = output / "judge.model-call"
                 record = json.loads((archive / "attempt-01.record.json").read_text())
                 path = archive / record["files"][target]["path"]
                 path.write_bytes(b"{}")
-                with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+                with mock.patch(
+                    "stage1_eval.model_calls._execute_bound_process"
+                ) as run:
                     with self.assertRaisesRegex(EvaluationError, "bytes changed"):
                         self.invoke(
                             resume_verified=True,
@@ -247,7 +421,7 @@ class ModelCallTests(unittest.TestCase):
 
     def test_semantic_validator_rejects_execution_and_resume(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "semantic-mismatch"):
                 self.invoke(semantic_validator=lambda _value: False)
@@ -274,10 +448,10 @@ class ModelCallTests(unittest.TestCase):
 
         self.output = self.root / "resume-semantic"
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ):
             self.invoke()
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             with self.assertRaisesRegex(EvaluationError, "semantic validation"):
                 self.invoke(
                     resume_verified=True,
@@ -294,7 +468,7 @@ class ModelCallTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=transcript(value), stderr=b"")
 
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=invalid
+            "stage1_eval.model_calls._execute_bound_process", side_effect=invalid
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "schema-mismatch"):
                 self.invoke()
@@ -306,7 +480,7 @@ class ModelCallTests(unittest.TestCase):
 
         self.output = self.root / "spawn"
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=FileNotFoundError("missing codex"),
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "spawn"):
@@ -320,7 +494,7 @@ class ModelCallTests(unittest.TestCase):
 
         self.output = self.root / "spawn-connection"
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=ConnectionResetError("spawn connection reset"),
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "spawn"):
@@ -337,7 +511,7 @@ class ModelCallTests(unittest.TestCase):
             stderr=b"",
         )
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", return_value=malicious
+            "stage1_eval.model_calls._execute_bound_process", return_value=malicious
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "process"):
                 self.invoke()
@@ -353,7 +527,9 @@ class ModelCallTests(unittest.TestCase):
             value = next(calls)
             return self.success(command, **kwargs) if value == "success" else value
 
-        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=response):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=response
+        ):
             self.invoke()
         archive = self.output / "judge.model-call"
         (archive / "attempt-01.stderr.txt").write_bytes(b"edited")
@@ -364,7 +540,9 @@ class ModelCallTests(unittest.TestCase):
 
         self.output = self.root / "rehashed-prior"
         calls = iter((failed, "success"))
-        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=response):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=response
+        ):
             self.invoke()
         archive = self.output / "judge.model-call"
         stderr_path = archive / "attempt-01.stderr.txt"
@@ -380,7 +558,7 @@ class ModelCallTests(unittest.TestCase):
 
         self.output = self.root / "unsafe"
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ):
             self.invoke()
         archive = self.output / "judge.model-call"
@@ -395,7 +573,7 @@ class ModelCallTests(unittest.TestCase):
 
     def test_public_replay_helper_checks_expected_request(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ):
             _result, provenance = self.invoke()
         request = json.loads(
@@ -415,7 +593,7 @@ class ModelCallTests(unittest.TestCase):
     def test_archive_path_alias_is_canonical_before_execution_and_replay(self):
         self.output = self.root / "alias" / ".." / "output"
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ):
             _, provenance = self.invoke()
         archive = Path(provenance["call_archive"])
@@ -434,7 +612,7 @@ class ModelCallTests(unittest.TestCase):
             expected_policy=POLICY,
             semantic_validator=lambda value: value["ok"],
         )
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as execute:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as execute:
             value, _ = verify_model_call_archive(archive, **args)
         execute.assert_not_called()
         self.assertEqual(value, {"ok": True})
@@ -447,7 +625,7 @@ class ModelCallTests(unittest.TestCase):
 
     def test_replay_rejects_renamed_attempt_record(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.success
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
         ):
             self.invoke()
         archive = self.output / "judge.model-call"

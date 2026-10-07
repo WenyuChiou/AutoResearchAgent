@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
+from stage2_live.native_process import run_bound_process, validate_timeout_seconds
 
 from .common import EvaluationError, canonical, read_json, sha
 from .runtime import executable_sha256
@@ -46,11 +47,11 @@ def _normalize_policy(execution_policy, timeout):
     policy.setdefault("max_transient_transport_retries", 1)
     if policy["schema_version"] != MODEL_CALL_ARCHIVE_VERSION:
         raise EvaluationError("unknown evaluator model-call policy version")
-    if (
-        not isinstance(policy["timeout_seconds"], (int, float))
-        or isinstance(policy["timeout_seconds"], bool)
-        or policy["timeout_seconds"] <= 0
-    ):
+    try:
+        timeout_seconds = validate_timeout_seconds(policy["timeout_seconds"])
+    except ValueError:
+        raise EvaluationError("model-call timeout must be positive")
+    if timeout_seconds is None:
         raise EvaluationError("model-call timeout must be positive")
     if timeout is not None and timeout != policy["timeout_seconds"]:
         raise EvaluationError("timeout argument differs from frozen execution policy")
@@ -111,10 +112,60 @@ def _completed_agent_json(raw):
 def _evaluator_code_sha():
     root = Path(__file__).resolve().parent
     rows = []
-    for name in ("model.py", "model_calls.py"):
-        raw = (root / name).read_bytes()
+    for name, path in (
+        ("model.py", root / "model.py"),
+        ("model_calls.py", root / "model_calls.py"),
+        (
+            "stage2_live/native_process.py",
+            root.parent / "stage2_live" / "native_process.py",
+        ),
+    ):
+        raw = path.read_bytes()
         rows.append({"path": name, "sha256": sha(raw)})
     return sha(canonical(rows))
+
+
+def _execute_bound_process(command, *, input, capture_output, cwd, env, timeout, check):
+    """Adapt the shared owned-tree runner to the existing CompletedProcess seam."""
+
+    if capture_output is not True or check is not False:
+        raise ValueError(
+            "bounded evaluator transport requires captured unchecked output"
+        )
+    with (
+        tempfile.TemporaryFile(mode="w+b") as stdout_handle,
+        tempfile.TemporaryFile(mode="w+b") as stderr_handle,
+    ):
+        try:
+            returncode = run_bound_process(
+                command,
+                input=input,
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+                env=env,
+                cwd=cwd,
+                timeout_seconds=timeout,
+            )
+        except BaseException as error:
+            stdout_handle.seek(0)
+            stderr_handle.seek(0)
+            captured_stdout = stdout_handle.read()
+            captured_stderr = stderr_handle.read()
+            try:
+                error.stdout = captured_stdout
+                error.stderr = captured_stderr
+            except BaseException:
+                # Never replace the process failure with evidence attachment.
+                pass
+            raise
+        stdout_handle.seek(0)
+        stderr_handle.seek(0)
+        return subprocess.CompletedProcess(
+            command,
+            returncode,
+            stdout=stdout_handle.read(),
+            stderr=stderr_handle.read(),
+        )
 
 
 def _command(codex, model, reasoning, generation_schema, attempt_output):
@@ -506,9 +557,12 @@ def call_model_v31(
         returncode = None
         timed_out = False
         spawn_error = None
+        runner_error = None
+        runner_traceback = None
+        cleanup_report = None
         with tempfile.TemporaryDirectory(prefix="stage1-evaluator-") as scratch:
             try:
-                completed = subprocess.run(
+                completed = _execute_bound_process(
                     command,
                     input=prompt.encode("utf-8"),
                     capture_output=True,
@@ -524,9 +578,22 @@ def call_model_v31(
                 stdout = exc.stdout or b""
                 stderr = exc.stderr or b""
                 timed_out = True
+                cleanup_report = getattr(exc, "cleanup_report", None)
             except OSError as exc:
-                stderr = str(exc).encode("utf-8", errors="replace")
+                stdout = getattr(exc, "stdout", None) or b""
+                stderr = getattr(exc, "stderr", None) or str(exc).encode(
+                    "utf-8", errors="replace"
+                )
                 spawn_error = exc
+                cleanup_report = getattr(exc, "cleanup_report", None)
+            except BaseException as exc:
+                stdout = getattr(exc, "stdout", None) or b""
+                stderr = getattr(exc, "stderr", None) or str(exc).encode(
+                    "utf-8", errors="replace"
+                )
+                runner_error = exc
+                runner_traceback = exc.__traceback__
+                cleanup_report = getattr(exc, "cleanup_report", None)
         output = files["output"].read_bytes() if files["output"].is_file() else b""
         if files["output"].is_file():
             files["output"].unlink()
@@ -541,6 +608,9 @@ def call_model_v31(
         elif spawn_error is not None:
             error = "spawn"
             failure_detail = str(spawn_error)
+        elif runner_error is not None:
+            error = "runner"
+            failure_detail = f"{type(runner_error).__name__}: {runner_error}"
         elif returncode:
             error = (
                 "transient-transport"
@@ -597,7 +667,11 @@ def call_model_v31(
             "failure_class": error,
             "failure_detail": failure_detail,
         }
+        if cleanup_report is not None:
+            record["cleanup_report"] = cleanup_report
         _save_attempt(files, stdout, stderr, output, record)
+        if runner_error is not None:
+            raise runner_error.with_traceback(runner_traceback)
         if status == "completed":
             _write_new(output_dir / f"{label}.json", output)
             _write_new(output_dir / f"{label}.jsonl", stdout)

@@ -73,6 +73,16 @@ the host must diagnose it before another call. There is no automatic retry, and
 a failed capture cannot be resumed as a completed one. None of these checks
 changes native sandbox, approval, model or filesystem isolation requirements.
 
+The shared evaluator transport applies the same owned-process runner to no-tool
+extraction and judge calls. Its frozen timeout is validated before launch; exact
+prompt bytes use temporary input, and stdout/stderr use temporary binary streams.
+Timeout, launch and runner failures retain partial streams and any cleanup report
+in the attempt archive. Interruptions are archived before propagating unchanged.
+The evaluator producer fingerprint includes the shared runner's
+bytes, so completed units from a different transport cannot silently resume.
+Historical archives remain unchanged; a changed producer requires a new bound
+attempt. This transport repair does not establish source meaning or a score.
+
 Separate CODEX_HOME paths prevent accidental context reuse but do not establish
 filesystem or process isolation. The host must use isolated workspaces/profiles
 or containers, inspect effective tools/plugins, and exclude peer judgments and

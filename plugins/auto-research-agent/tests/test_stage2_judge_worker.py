@@ -37,7 +37,7 @@ SCHEMA = {
     "additionalProperties": False,
 }
 VALUE = {"score": 1, "flag": False, "reason": "Synthetic native output only."}
-RUN = "stage1_eval.model_calls.subprocess.run"
+RUN = "stage1_eval.model_calls._execute_bound_process"
 
 
 def digest(path):
