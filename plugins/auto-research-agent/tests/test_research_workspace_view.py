@@ -95,7 +95,7 @@ class WorkspaceViewTests(unittest.TestCase):
     def test_graph_assets_are_hash_bound_and_exported(self):
         reference_root = Path(__file__).parents[1] / "references/research-workspace"
         with tempfile.TemporaryDirectory() as folder:
-            output = Path(folder) / "view"
+            output = Path(folder).resolve() / "view"
             with patch("research_workspace.view.private_output", side_effect=Path):
                 manifest = write_workspace(fixture_index(), reference_root, output)
             graph_source = (output / "literature-reference.js").read_text(
