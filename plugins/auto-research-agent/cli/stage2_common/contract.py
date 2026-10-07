@@ -16,7 +16,14 @@ SCHEMA_PATHS = {
     / "schemas/stage2-packet.v2.schema.json",
     "2.1.0": Path(__file__).resolve().parents[2]
     / "schemas/stage2-packet.v2_1.schema.json",
+    "2.2.0": Path(__file__).resolve().parents[2]
+    / "schemas/stage2-packet.v2_2.schema.json",
+    "2.3.0": Path(__file__).resolve().parents[2]
+    / "schemas/stage2-packet.v2_3.schema.json",
 }
+
+V2_PACKET_VERSIONS = {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}
+TABLE_PACKET_VERSIONS = {"2.2.0", "2.3.0"}
 
 
 class Stage2Error(ValueError):
@@ -71,7 +78,19 @@ def _schema_validate(packet):
     try:
         schema = json.loads(path.read_text(encoding="utf-8"))
         registry = Registry()
-        dependencies = [SCHEMA_PATHS["2.0.0"]] if version == "2.1.0" else []
+        dependencies = (
+            [
+                SCHEMA_PATHS["2.0.0"],
+                SCHEMA_PATHS["2.1.0"],
+                SCHEMA_PATHS["2.2.0"],
+            ]
+            if version == "2.3.0"
+            else [SCHEMA_PATHS["2.0.0"], SCHEMA_PATHS["2.1.0"]]
+            if version == "2.2.0"
+            else [SCHEMA_PATHS["2.0.0"]]
+            if version == "2.1.0"
+            else []
+        )
         for schema_path in dependencies:
             value = json.loads(schema_path.read_text(encoding="utf-8"))
             registry = registry.with_resource(
@@ -126,7 +145,7 @@ def validate_packet(packet, root):
     except (ValueError, KeyError, TypeError) as error:
         raise Stage2Error(f"invalid confirmed ResearchBrief: {error}") from error
 
-    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
+    if packet["schema_version"] in V2_PACKET_VERSIONS:
         upstream = packet["upstream"]
         unsigned = {
             key: value for key, value in upstream.items() if key != "binding_sha256"
@@ -143,7 +162,10 @@ def validate_packet(packet, root):
             upstream["resources_sha256"] == canonical_hash(packet["resources"]),
             "stage1-stage2-resources-binding-mismatch",
         )
-        if packet["schema_version"] == "2.1.0":
+        if packet["schema_version"] == "2.1.0" or (
+            packet["schema_version"] in TABLE_PACKET_VERSIONS
+            and upstream.get("intake_mode") == "exploratory"
+        ):
             acceptance = upstream["acceptance"]
             _require(
                 upstream["acceptance_sha256"] == canonical_hash(acceptance),
@@ -168,9 +190,26 @@ def validate_packet(packet, root):
     sources = packet["sources"]
     evidence = packet["evidence"]
     literature = packet.get("literature", [])
+    supplemental_literature = packet.get("supplemental_literature", [])
+    all_literature = [*literature, *supplemental_literature]
     candidates = packet["candidates"]
-    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
+    if packet["schema_version"] in V2_PACKET_VERSIONS:
         _unique(literature, "work_id", "literature work_id")
+    if packet["schema_version"] == "2.3.0":
+        primary_work_ids = {row["work_id"] for row in literature}
+        _require(
+            all(row["origin"] == "stage2" for row in supplemental_literature),
+            "supplemental-literature-origin-must-be-stage2",
+        )
+        _require(
+            all(row["work_id"] in primary_work_ids for row in supplemental_literature),
+            "supplemental-literature-unknown-primary-work",
+        )
+        version_keys = [(row["work_id"], row["version_id"]) for row in all_literature]
+        _require(
+            len(version_keys) == len(set(version_keys)),
+            "duplicate literature work/version",
+        )
     _unique(sources, "source_id", "source_id")
     _unique(sources, "path", "source path")
     _require(
@@ -185,7 +224,11 @@ def validate_packet(packet, root):
 
     source_by_id = {row["source_id"]: row for row in sources}
     evidence_by_id = {row["evidence_id"]: row for row in evidence}
-    for row in literature:
+    supplemental_keys = {
+        (row["work_id"], row["version_id"]) for row in supplemental_literature
+    }
+    for row in all_literature:
+        row_key = (row["work_id"], row["version_id"])
         work_sources = {
             source_id
             for source_id in row["source_ids"]
@@ -213,6 +256,46 @@ def validate_packet(packet, root):
                 set(role["claim_ids"]).issubset(row["claim_ids"]),
                 f"literature-role-evidence-mismatch: {row['work_id']}",
             )
+        if row_key in supplemental_keys:
+            levels = {"metadata": 0, "abstract": 1, "full-text": 2}
+            _require(
+                set(row["source_ids"])
+                == {
+                    source["source_id"]
+                    for source in sources
+                    if (source["work_id"], source["version_id"]) == row_key
+                },
+                f"supplemental-literature-source-closure-mismatch: {row['work_id']}",
+            )
+            _require(
+                set(row["claim_ids"])
+                == {
+                    claim["evidence_id"]
+                    for claim in evidence
+                    if (claim["work_id"], claim["version_id"]) == row_key
+                },
+                f"supplemental-literature-claim-closure-mismatch: {row['work_id']}",
+            )
+            _require(
+                levels[row["evidence_level"]]
+                <= max(
+                    levels[source_by_id[source_id]["evidence_level"]]
+                    for source_id in row["source_ids"]
+                ),
+                f"supplemental-literature-evidence-level-promotion: {row['work_id']}",
+            )
+            _require(
+                all(
+                    levels[evidence_by_id[evidence_id]["evidence_level"]]
+                    <= levels[
+                        source_by_id[evidence_by_id[evidence_id]["source_id"]][
+                            "evidence_level"
+                        ]
+                    ]
+                    for evidence_id in row["claim_ids"]
+                ),
+                f"supplemental-literature-claim-level-promotion: {row['work_id']}",
+            )
     source_text = {}
     for source in sources:
         path = _bound_path(root, source["path"])
@@ -228,7 +311,7 @@ def validate_packet(packet, root):
                 f"source is not a UTF-8 snapshot: {source['source_id']}"
             ) from error
 
-    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
+    if packet["schema_version"] in V2_PACKET_VERSIONS:
         included = set(packet["upstream"]["included_work_ids"])
         stage1_literature = [row for row in literature if row["origin"] == "stage1"]
         stage1_sources = [row for row in sources if row["origin"] == "stage1"]
@@ -264,6 +347,12 @@ def validate_packet(packet, root):
             and row["version_id"] == source["version_id"],
             f"evidence work/version mismatch: {row['evidence_id']}",
         )
+        if packet["schema_version"] == "2.3.0":
+            levels = {"metadata": 0, "abstract": 1, "full-text": 2}
+            _require(
+                levels[row["evidence_level"]] <= levels[source["evidence_level"]],
+                f"evidence-level-promotion: {row['evidence_id']}",
+            )
         _require(
             row["quote"] in source_text[row["source_id"]],
             f"evidence quote is not exact contiguous source text: {row['evidence_id']}",
@@ -290,6 +379,14 @@ def validate_packet(packet, root):
                 row["parent_version"] == expected_parent,
                 f"wrong candidate parent version: {candidate_id} v{row['version']}",
             )
+    if (
+        packet["schema_version"] in TABLE_PACKET_VERSIONS
+        and packet["research_tables"] is not None
+    ):
+        # Bindings are checked here; paper interpretation still needs review.
+        from stage2_ideation.topic_tables import validate_research_tables
+
+        validate_research_tables(packet["research_tables"], packet)
     return None
 
 

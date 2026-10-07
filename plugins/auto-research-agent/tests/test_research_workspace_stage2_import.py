@@ -172,6 +172,18 @@ class WorkspaceStage2ImportTests(unittest.TestCase):
         )
         html = (destination / "index.html").read_text(encoding="utf-8")
         self.assertIn('id="stage2-delivery"', html)
+        self.assertIn('<section id="stage2-delivery" hidden>', html)
+        self.assertIn('id="stage2-workbench"', html)
+        self.assertIn('class="stage2-workspace"', html)
+        self.assertIn('src="./workspace-stage2.js"', html)
+        self.assertIn('href="./workspace-stage2.css"', html)
+        self.assertIn(
+            "main[hidden] { display:none; }",
+            (destination / "workspace-stage2.css").read_text(encoding="utf-8"),
+        )
+        self.assertIn("stage2/comparison-view.json", receipt["files"])
+        self.assertIn("stage2_comparison.py", receipt["adapter_sources"])
+        self.assertIn("stage2_comparison_html.py", receipt["adapter_sources"])
         self.assertIn("stage2/report-reader.html", html)
         self.assertIn("R1 source-bound comment", html)
         self.assertEqual(

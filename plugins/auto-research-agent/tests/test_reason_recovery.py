@@ -86,7 +86,9 @@ class ReasonRecoveryTests(unittest.TestCase):
                 stderr=b"",
             )
 
-        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=respond):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=respond
+        ):
             try:
                 run_unit(
                     self.prompt,

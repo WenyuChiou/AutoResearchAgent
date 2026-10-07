@@ -132,7 +132,7 @@ class SourceAuditUnitTests(unittest.TestCase):
 
     def test_all_targets_complete_native_units_tail_and_zero_call_replay(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ) as run:
             result = self.invoke()
         self.assertEqual(len(result["summaries"]), 7)
@@ -171,7 +171,7 @@ class SourceAuditUnitTests(unittest.TestCase):
             len({(row["start"], row["end"]) for row in routed}), len(routed)
         )
         self.assertFalse(result["score_awarded"])
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             self.assertEqual(self.invoke(replay_only=True), result)
         replay.assert_not_called()
 
@@ -179,7 +179,7 @@ class SourceAuditUnitTests(unittest.TestCase):
         targets = audit_targets(self.extraction)
         self.assertEqual(len(targets), 7)
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             result = self.invoke()
         missing = {
@@ -198,7 +198,7 @@ class SourceAuditUnitTests(unittest.TestCase):
         self.record["source_level"] = "metadata"
         self.packet["sources"]["source"]["source_level"] = "metadata"
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             result = self.invoke()
         claim = next(
@@ -211,7 +211,7 @@ class SourceAuditUnitTests(unittest.TestCase):
 
     def test_timeout_keeps_error_pending_and_blocks_blind_resume(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=subprocess.TimeoutExpired(
                 "codex", 600, output=b"partial", stderr=b"timeout"
             ),
@@ -225,7 +225,7 @@ class SourceAuditUnitTests(unittest.TestCase):
         self.assertEqual(len(error["error_unit_ids"]), 1)
         self.assertTrue(error["pending_unit_ids"])
         self.assertFalse((self.root / "audit/result.json").exists())
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             with self.assertRaises(EvaluationError):
                 self.invoke()
         replay.assert_not_called()
@@ -233,14 +233,14 @@ class SourceAuditUnitTests(unittest.TestCase):
 
     def test_rehashed_summary_tamper_rejected_without_calls(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             self.invoke()
         path = self.root / "audit/result.json"
         result = read_json(path)
         result["summaries"][-1]["verdict"] = "supported"
         path.write_bytes(canonical(result))
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             with self.assertRaisesRegex(EvaluationError, "saved binding changed"):
                 self.invoke(replay_only=True)
         replay.assert_not_called()
@@ -270,11 +270,11 @@ class SourceAuditUnitTests(unittest.TestCase):
             self.options,
         )
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             result = audit_sources(*args)
         reordered = json.loads(canonical(packet))
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             self.assertEqual(
                 audit_sources(reordered, *args[1:], replay_only=True), result
             )
@@ -282,7 +282,7 @@ class SourceAuditUnitTests(unittest.TestCase):
 
     def test_oversize_original_is_not_truncated_or_sent(self):
         self.extraction["works"][0]["exact_reference"] = "测" * 4000
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             with self.assertRaisesRegex(EvaluationError, "exceeds byte limit"):
                 self.invoke()
         run.assert_not_called()

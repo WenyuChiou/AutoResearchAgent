@@ -11,7 +11,12 @@ from stage2_ideation.report import _source_url
 
 def build_bibliography(packet, snapshots, evidence):
     """Validate and project packet literature without inventing metadata."""
-    if packet.get("schema_version") not in {"2.0.0", "2.1.0"}:
+    if packet.get("schema_version") not in {
+        "2.0.0",
+        "2.1.0",
+        "2.2.0",
+        "2.3.0",
+    }:
         return {
             "available": False,
             "message": (
@@ -26,11 +31,14 @@ def build_bibliography(packet, snapshots, evidence):
     rows = packet.get("literature")
     if not isinstance(rows, list):
         raise Stage2Error("report-literature-missing")
+    supplemental = packet.get("supplemental_literature", [])
+    if not isinstance(supplemental, list):
+        raise Stage2Error("report-supplemental-literature-invalid")
     schema = json.loads(SCHEMA_PATHS["2.0.0"].read_text(encoding="utf-8"))
     validator = Draft202012Validator(
         {"$defs": schema["$defs"], "$ref": "#/$defs/literature"}
     )
-    for row in rows:
+    for row in [*rows, *supplemental]:
         error = next(validator.iter_errors(row), None)
         if error is not None:
             raise Stage2Error(f"report-literature-schema: {error.message}")
@@ -43,14 +51,19 @@ def build_bibliography(packet, snapshots, evidence):
 
     seen_works = set()
     projected = []
+    projected_by_work = {}
     by_evidence = {}
-    for row in rows:
+    for row, is_supplemental in [
+        *((row, False) for row in rows),
+        *((row, True) for row in supplemental),
+    ]:
         work_id = row.get("work_id")
         if row.get("origin") not in {"stage1", "stage2"}:
             raise Stage2Error(f"report-literature-origin-invalid: {work_id}")
-        if work_id in seen_works:
+        if not is_supplemental and work_id in seen_works:
             raise Stage2Error(f"report-duplicate-literature: {work_id}")
-        seen_works.add(work_id)
+        if not is_supplemental:
+            seen_works.add(work_id)
         source_ids = row.get("source_ids")
         claim_ids = row.get("claim_ids")
         roles = row.get("roles")
@@ -116,25 +129,41 @@ def build_bibliography(packet, snapshots, evidence):
                 raise Stage2Error(f"report-literature-role-claim-mismatch: {work_id}")
             projected_role = {
                 "role": role_name,
-                "reason": role.get("reason"),
+                "reason": (
+                    f"Supplemental source version {row['version_id']} of the same work; "
+                    + role.get("reason")
+                    if is_supplemental
+                    else role.get("reason")
+                ),
                 "claim_ids": list(role_claim_ids),
             }
             projected_roles.append(projected_role)
             for claim_id in role_claim_ids:
                 by_evidence.setdefault(claim_id, []).append(projected_role)
 
-        projected.append(
-            {
-                **row,
-                "doi_href": _source_url(f"https://doi.org/{row['doi']}")
-                if row.get("doi")
-                else None,
-                "url_href": _source_url(row.get("url")),
-                "sources": work_sources,
-                "claim_ids": list(claim_ids),
-                "roles": projected_roles,
-            }
-        )
+        item = {
+            **row,
+            "doi_href": _source_url(f"https://doi.org/{row['doi']}")
+            if row.get("doi")
+            else None,
+            "url_href": _source_url(row.get("url")),
+            "sources": work_sources,
+            "claim_ids": list(claim_ids),
+            "roles": projected_roles,
+        }
+        if is_supplemental:
+            primary = projected_by_work.get(work_id)
+            if primary is None:
+                raise Stage2Error(
+                    f"report-supplemental-literature-unknown-primary: {work_id}"
+                )
+            item["support_scope"] = "supplemental-source-version-of-same-work"
+            primary["supplemental_versions"].append(item)
+        else:
+            if packet.get("schema_version") == "2.3.0":
+                item["supplemental_versions"] = []
+            projected.append(item)
+            projected_by_work[work_id] = item
     projected.sort(key=lambda row: (row["work_id"], row["version_id"]))
     return {
         "available": True,

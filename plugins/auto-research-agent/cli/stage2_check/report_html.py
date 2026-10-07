@@ -4,6 +4,7 @@ import json
 from html import escape
 
 from stage2_check import report as canonical_report
+from stage2_ideation.tables_report import render_tables_html
 
 AXES = ("opportunity", "value", "answerability", "materials", "execution")
 
@@ -302,6 +303,28 @@ def _bibliography(bibliography, evidence):
             )
             or "none recorded"
         )
+        supplemental = "".join(
+            "<details><summary>Additional source version of the same study: "
+            + _text(version["version_id"])
+            + "</summary><dl><dt>Title</dt><dd>"
+            + _text(version["title"])
+            + "</dd><dt>Recorded evidence level</dt><dd>"
+            + _text(version["evidence_level"])
+            + "</dd><dt>Saved sources</dt><dd>"
+            + ", ".join(
+                _snapshot_link(source) + f" (level={_text(source['evidence_level'])})"
+                for source in version["sources"]
+            )
+            + "</dd><dt>Claims</dt><dd>"
+            + _evidence_links(version["claim_ids"], evidence)
+            + "</dd></dl><ul>"
+            + "".join(
+                f"<li>{_text(role['role'])}: {_text(role['reason'])}</li>"
+                for role in version["roles"]
+            )
+            + "</ul></details>"
+            for version in work.get("supplemental_versions", [])
+        )
         works.append(
             '<article class="card bibliography-work">'
             f"<h3>{_text(work['work_id'])} / {_text(work['version_id'])}</h3><dl>"
@@ -315,7 +338,7 @@ def _bibliography(bibliography, evidence):
             f"<dt>Saved sources</dt><dd>{sources}</dd></dl>"
             "<h4>Recorded literature roles</h4>"
             "<p>These are saved classifications, not semantic verification.</p>"
-            f"<ul>{roles}</ul></article>"
+            f"<ul>{roles}</ul>{supplemental}</article>"
         )
     return (
         '<section id="bibliography"><h2>Accepted bibliography</h2>'
@@ -399,6 +422,7 @@ def render_selection_html(selection, source_snapshots):
                 '<p class="notice">This is a supplied scientific judgment/proposal, not an exact source excerpt.</p>'
                 f"<p>{comparison}</p></section>"
             ),
+            render_tables_html(packet.get("research_tables"), packet),
             _current_options(selection, evidence),
             _questions(selection),
             _histories(selection, evidence),

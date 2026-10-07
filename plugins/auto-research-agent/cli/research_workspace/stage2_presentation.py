@@ -14,6 +14,14 @@ _DISPOSITION_LABELS = {
     "reject": "Rejected on the recorded evidence",
 }
 
+_DIMENSION_LABELS = {
+    "P4": "Literature comparison",
+    "P5": "Research opportunity",
+    "P6": "Decision quality",
+}
+
+_LONG_QUESTION = 180
+
 
 def _html(value):
     if value is None:
@@ -38,16 +46,95 @@ def _fence(value):
     return f"{fence}\n{text}\n{fence}\n"
 
 
-def _direction_rows(selection):
+def _question(value):
+    if value is None:
+        return '<p class="stage2-question">Unknown</p>'
+    text = str(value)
+    if len(text) <= _LONG_QUESTION:
+        return '<p class="stage2-question">' + _html(text) + "</p>"
+    summary = text[: _LONG_QUESTION - 1].rstrip() + "…"
+    return (
+        '<details class="stage2-question"><summary>'
+        + _html(summary)
+        + "</summary><p>"
+        + _html(text)
+        + "</p></details>"
+    )
+
+
+def _preview(value, limit=180):
+    """Show an exact excerpt; keep the complete recorded wording one click away."""
+    if value is None or len(str(value)) <= limit:
+        return _html(value)
+    text = str(value)
+    return (
+        '<details class="stage2-preview"><summary>'
+        + _html(text[:limit].rstrip() + "…")
+        + "</summary><p>"
+        + _html(text)
+        + "</p></details>"
+    )
+
+
+def _decisive_checks(assessment):
+    if assessment is None:
+        return (
+            "<li>Unknown — no current assessment is recorded for this candidate "
+            "version.</li>"
+        )
     rows = []
-    for option in selection.get("current_options", []):
+    for axis, finding in (assessment.get("checks") or {}).items():
+        if not isinstance(finding, dict):
+            continue
+        if finding.get("blocking") is True or finding.get("status") == "unknown":
+            flags = []
+            if finding.get("blocking") is True:
+                flags.append("blocking")
+            if finding.get("status") == "unknown":
+                flags.append("unknown")
+            rows.append(
+                "<li><strong>"
+                + _html(axis)
+                + " ("
+                + _html(", ".join(flags))
+                + ")</strong>: "
+                + _preview(finding.get("rationale"), 120)
+                + "</li>"
+            )
+    return "".join(rows) or "<li>None recorded.</li>"
+
+
+def _next_checks(assessment):
+    if assessment is None:
+        return "<li>None recorded.</li>"
+    values = []
+    for finding in (assessment.get("checks") or {}).values():
+        if not isinstance(finding, dict):
+            continue
+        if finding.get("blocking") is True or finding.get("status") == "unknown":
+            if finding.get("next_check"):
+                values.append(finding["next_check"])
+    if assessment.get("next_step"):
+        values.append(assessment["next_step"])
+    unique = list(dict.fromkeys(values))
+    return (
+        "".join("<li>" + _preview(value, 120) + "</li>" for value in unique)
+        or "<li>None recorded.</li>"
+    )
+
+
+def _direction_cards(selection):
+    cards = []
+    recommendations = {
+        (row.get("candidate_id"), row.get("version"))
+        for row in selection.get("recommendations", [])
+        if isinstance(row, dict)
+    }
+    for index, option in enumerate(selection.get("current_options", []), 1):
         candidate = option.get("candidate") or {}
         assessment = option.get("assessment")
         candidate_id = candidate.get("candidate_id")
         version = candidate.get("version")
-        identity = _html(candidate_id)
-        if version is not None:
-            identity += f" v{_html(version)}"
         if assessment is None:
             disposition = "Assessment pending"
             reason = "No current assessment is recorded for this candidate version."
@@ -57,20 +144,48 @@ def _direction_rows(selection):
                 raw_disposition, str(raw_disposition) if raw_disposition else "Unknown"
             )
             reason = assessment.get("reason") or "No reason recorded."
-        rows.append(
-            "<li><p><strong>"
-            + _html(candidate.get("question"))
-            + "</strong></p><strong>"
-            + identity
-            + ": "
+        proposal_state = (
+            "Recorded proposal-ready recommendation"
+            if (candidate_id, version) in recommendations
+            else "No proposal-ready recommendation recorded"
+        )
+        cards.append(
+            '<article class="stage2-direction"><h4>Direction '
+            + str(index)
+            + "</h4><dl>"
+            + "<dt>Research question</dt><dd>"
+            + _question(candidate.get("question"))
+            + "</dd>"
+            + "<dt>Why worthwhile</dt><dd>"
+            + _preview(candidate.get("value"))
+            + "</dd>"
+            + "<dt>Candidate version</dt><dd>v"
+            + _html(version)
+            + "</dd>"
+            + "<dt>Proposal state</dt><dd>"
+            + proposal_state
+            + "</dd>"
+            + "<dt>Disposition</dt><dd><strong>"
             + _html(disposition)
             + "</strong><br>"
-            + _html(reason)
-            + "</li>"
+            + _preview(reason)
+            + "</dd>"
+            + "<dt>What blocks or remains unknown?</dt><dd><ul>"
+            + _decisive_checks(assessment)
+            + "</ul></dd>"
+            + "<dt>What is the next check?</dt><dd><ul>"
+            + _next_checks(assessment)
+            + "</ul></dd></dl>"
+            + '<details class="stage2-identity"><summary>Candidate identity</summary><p>'
+            + _html(candidate_id)
+            + "</p></details>"
+            + '<p><a href="stage2/report-reader.html">Open verified evidence and any recorded revision details</a> · '
+            + '<a href="stage2/selection.md">Open editable verified Markdown</a></p>'
+            + "</article>"
         )
-    if not rows:
-        return "<li>No current direction dispositions are recorded.</li>"
-    return "".join(rows)
+    if not cards:
+        return "<p>No current directions are recorded.</p>"
+    return "".join(cards)
 
 
 def _material_rows(selection):
@@ -195,22 +310,41 @@ def _criterion_details(evaluation, *, provisional):
 
 def render_stage2_card(attachment) -> str:
     """Render one self-contained Stage 2 card without mutating its attachment."""
+    from .stage2_comparison import build_comparison_view
+    from .stage2_comparison_html import render_comparison_workbench
+    from stage2_workflow.content_gate import (
+        derive_content_gate,
+        render_content_gate_html,
+    )
+
     selection = attachment["selection"]
     evaluation = attachment["evaluation"]
     status = evaluation["evaluation_status"]
     provisional = status == "audit-required"
+    bridge = attachment.get("bridge_receipt") or {}
+    content_gate = (
+        render_content_gate_html(derive_content_gate(selection))
+        if selection["evaluation_packet"].get("schema_version") in {"2.2.0", "2.3.0"}
+        else ""
+    )
+    recommendations = selection.get("recommendations") or []
     score_rows = []
     for dimension in ("P4", "P5", "P6"):
         result = evaluation["dimensions"][dimension]
         value = result["score"]
-        suffix = " (provisional)" if provisional and value is not None else ""
+        suffix = " (provisional)" if provisional else ""
         displayed = (
-            f"{_html(value)}% ({_html(result['sum'])}/6){suffix}"
+            f"{_html(result['sum'])}/6"
+            f" ({_html(result['assessed'])}/{_html(result['required'])} criteria assessed)"
+            f"{suffix}"
             if value is not None
-            else f"Unknown ({_html(result['assessed'])}/{_html(result['required'])} criteria assessed)"
+            else "Unknown/6"
+            f" ({_html(result['assessed'])}/{_html(result['required'])} criteria assessed)"
+            f"{suffix}"
         )
         score_rows.append(
-            f'<tr><th scope="row">{dimension}</th><td>{displayed}</td></tr>'
+            f'<tr><th scope="row">{dimension} — {_DIMENSION_LABELS[dimension]}</th>'
+            f"<td>{displayed}</td></tr>"
         )
     audit_notice = (
         '<aside class="stage2-audit"><strong>Named audit pending.</strong> '
@@ -220,23 +354,45 @@ def render_stage2_card(attachment) -> str:
         else ""
     )
     return f"""<section id="stage2-delivery">
+  <style>
+    #stage2-delivery .stage2-status p{{margin:.35rem 0}}
+    #stage2-delivery .stage2-direction{{border:1px solid #dbe4ee;border-radius:10px;padding:1rem;margin:1rem 0}}
+    #stage2-delivery .stage2-direction h4{{margin:0 0 .7rem}}
+    #stage2-delivery .stage2-direction dl{{display:grid;grid-template-columns:minmax(130px,.28fr) minmax(0,1fr);gap:.5rem .75rem;margin:0}}
+    #stage2-delivery .stage2-direction dt{{font-weight:600}}
+    #stage2-delivery .stage2-direction dd{{margin:0;min-width:0;overflow-wrap:anywhere}}
+    #stage2-delivery .stage2-direction ul{{padding-left:1.1rem;margin:0}}
+    #stage2-delivery .stage2-question,#stage2-delivery .stage2-preview{{margin:0;padding:.25rem .4rem}}
+    #stage2-delivery .stage2-preview summary{{cursor:pointer}}
+    @media(max-width:600px){{#stage2-delivery .stage2-direction dl{{grid-template-columns:1fr;gap:.25rem}}#stage2-delivery .stage2-direction dd{{margin-bottom:.6rem}}}}
+  </style>
   <h2>Stage 2 direction delivery</h2>
   <p>This is a private, read-only presentation of the verified Stage 2 attachment. It does not record approval, authorize Stage 3, or establish formal improvement.</p>
   <p><a href="stage2/report-reader.html">Open the verified HTML report</a> · <a href="stage2/selection.md">Open the verified Markdown report</a></p>
-  <h3>Direction disposition</h3>
-  <p>These are recorded prehuman dispositions. A recommendation still requires human review.</p>
-  <ul>{_direction_rows(selection)}</ul>
-  <aside class="stage2-materials">
-    <h3>Materials state</h3>
-    <p>Materials and resource availability are shown independently from the external P4/P5/P6 scores.</p>
-    <ul>{_material_rows(selection)}</ul>
-    <h4>Recorded resource information</h4>{_resources(selection)}
-  </aside>
+  <section class="stage2-status" aria-label="Recorded Stage 2 status">
+    <p><strong>Evaluation status:</strong> {_html(status)}</p>{audit_notice}
+    <p><strong>Recorded proposal-ready recommendations:</strong> {_html(len(recommendations))}</p>
+    <p><strong>Human choice:</strong> {_html(bridge.get("human_selection"))}</p>
+    <p><strong>Stage 3 authorization:</strong> {_html(bridge.get("stage3_authorized"))}</p>
+  </section>
+  {content_gate}
+  {render_comparison_workbench(build_comparison_view(attachment))}
+  <details class="stage2-full-checks"><summary>Full candidate checks and recorded dispositions</summary>
+  <h3>Directions</h3>
+  <p>Each card shows recorded proposal fields and checks. A recommendation still requires human choice, and a high external score does not establish material readiness.</p>
+  {_direction_cards(selection)}
+  </details>
   <h3>External evaluation</h3>
-  <p>Status: {_html(status)}</p>{audit_notice}
   <table><thead><tr><th>Dimension</th><th>Score</th></tr></thead><tbody>{"".join(score_rows)}</tbody></table>
+  <p>Each dimension has a fixed maximum of 6. Unknown stays null; assessed counts show completeness. Scores do not establish that required materials are ready.</p>
   <h3>Original criterion comments and evidence</h3>
   {_criterion_details(evaluation, provisional=provisional)}
+  <details class="stage2-materials">
+    <summary>Recorded materials and resources</summary>
+    <p>Materials and resource availability are separate from the external P4/P5/P6 scores.</p>
+    <ul>{_material_rows(selection)}</ul>
+    <h4>Recorded resource information</h4>{_resources(selection)}
+  </details>
 </section>"""
 
 

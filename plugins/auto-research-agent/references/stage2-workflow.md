@@ -170,3 +170,53 @@ P4 must not regress. P5 and P6 each need improvements in at least two of three
 pairs and no regressions, with no additional major errors. Missing necessary
 criteria or audits produce `inconclusive`, not a smaller scoring denominator.
 The current foundation does not provide those live or formal results.
+
+## Registered content history
+
+`deliver --record-registered-history` opts into delivery manifest v1.3 and
+registered-history provenance v2. It retains the actual workflow manifest,
+event chain, consecutive snapshots, candidate changes and table-only bridges.
+Portable inspection rebuilds the same history from the retained files. This
+supports an honestly labelled parent-authored or imported revision without
+inventing a native model call, source acquisition or human approval.
+
+This mode cannot be combined with `--source-update-receipt` or guard bundles.
+The existing source-update and authenticated content-extraction receipt modes
+remain separate. Recorded history is evidence that content changed and was
+registered; it does not establish the author, execution success, scientific
+correctness, formal isolation or a user's choice. Current independent reviews
+and external assessment still need their own authentic evidence.
+
+Table-only snapshots do not manufacture candidate revisions. Unknown source or
+resource conditions remain unknown. Missing or altered history, claims,
+sources, event links or retained manifest receipts fail inspection.
+
+### Importing pre-existing local history
+
+Delivery1.4/provenance2.1 adds an explicit `--imported-history-delivery PATH
+EXPECTED_MANIFEST_SHA256` option to `deliver --record-registered-history`.
+Use a retained legacy delivery1.1 manifest receipt, not a newly invented reason.
+The adapter verifies every copied inventory byte and binds each old transition's
+exact candidate, evidence and source identity to the initial workflow packet.
+Relocated source paths are allowed; changed source bytes or versions are not.
+Missing, unrelated, conflicting or duplicate transitions fail closed. Partial
+genuine history stays partial. Legacy delivery1.3 replay remains unchanged.
+
+The copied records attest **local content history only**. Prior review, user
+selection, execution and authorship do not become current approval. Current
+independent reviews and assessment are still required. No external score,
+scientific truth, Stage3 authorization or formal A/B admission follows from
+successfully importing these records.
+
+## Bounded multi-paragraph source context
+
+Opt-in `Stage2SourceContextPolicy`1.1 keeps verbatim quotes spanning consecutive
+paragraphs. Prefer complete containing paragraphs and configured neighbours;
+when they do not fit, retain a bounded raw window containing the whole quote.
+Only1.1 adds `context.selection` and `context.truncated`. A partial window cannot
+establish full-source absence. Separator endpoints and oversized quotes fail
+closed; source/work/version/hash and exact-position checks remain mandatory.
+The limits remain100 entries,0–2 neighbours,8000 characters per context and8192
+aggregate UTF-8 bytes. Policy1.0 output, prompt and rejection behavior remain
+unchanged for historical replay. This is evaluator input repair, not scientific
+quality, native execution, human approval or formal A/B evidence.

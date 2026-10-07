@@ -29,6 +29,19 @@ def _require(condition, message):
 
 def validate_index(index):
     """Validate the presentation contract, never scientific correctness."""
+    if index.get("schema_version") == "3.0.0":
+        from .source_rerun import validate_rerun_index
+
+        return validate_rerun_index(index)
+    if index.get("schema_version") == "2.0.0":
+        from .repair import validate_repair_projection
+
+        original = deepcopy(index)
+        original["schema_version"] = "1.0.0"
+        original["supplement"] = {"status": "not-provided", "top3_status": "pending"}
+        validate_index(original)
+        validate_repair_projection(index)
+        return index
     schema = read_json(Path(__file__).with_name("WorkspaceIndex.v1.schema.json"))
     try:
         Draft202012Validator(schema).validate(index)
@@ -129,7 +142,7 @@ def _package(root, expected):
     return outer, manifest, records
 
 
-def _source_records(bound_read, records):
+def _source_records(package_root, bound_read, records):
     attempts = _jsonl(bound_read("deliverable/paper_manifest.jsonl"))
     _require(
         len({(row["source_id"], row["attempt"]) for row in attempts}) == len(attempts),
@@ -173,10 +186,23 @@ def _source_records(bound_read, records):
             == normalize(paper["title"]),
             "source title binding mismatch",
         )
-        _require(
-            receipt["expected_identity"]["doi"] == (paper["doi"] or ""),
-            "source DOI binding mismatch",
-        )
+        if receipt["expected_identity"]["doi"] != (paper["doi"] or ""):
+            archive_root = safe_path(package_root, archive.rstrip("/"))
+            observation = decode_json(bound_read(archive + "validation.json"))
+            _require(
+                isinstance(observation, dict),
+                "source validation observation must be an object",
+            )
+            replayed, replay_mapping, replay = sources.validate_archive(archive_root)
+            _require(replayed == receipt, "source replay receipt binding mismatch")
+            sources.validate_observation(
+                archive_root,
+                replayed,
+                replay_mapping,
+                replay,
+                saved_observation=observation,
+            )
+            sources.validate_paper_identity(paper, replayed)
         rows = [row for row in attempts if row["source_id"] == source["source_id"]]
         _require(
             {row["attempt"] for row in rows}
@@ -255,6 +281,9 @@ def project_package(
     expected_manifest_sha256,
     *,
     validation_mode="byte-inventory",
+    repair_root=None,
+    expected_repair_manifest_sha256=None,
+    expected_repair_review_sha256=None,
 ):
     """Return deterministic records; byte checks are not exporter semantic replay."""
     identifier(project_id)
@@ -265,7 +294,7 @@ def project_package(
     root = private_output(package_root)
     outer, manifest, records = _package(root, expected_manifest_sha256)
     bound_read = _bound_reader(root, outer["files"])
-    source_rows = _source_records(bound_read, records)
+    source_rows = _source_records(root, bound_read, records)
     manifest_sha = outer["files"]["deliverable/provenance_manifest.json"]["sha256"]
     record_sha = manifest["original_input_sha256"]
 
@@ -397,4 +426,18 @@ def project_package(
         "package changed during projection",
     )
     canonical(result)  # Reject unserializable output before the caller writes it.
+    validate_index(result)
+    supplied = (
+        repair_root,
+        expected_repair_manifest_sha256,
+        expected_repair_review_sha256,
+    )
+    if any(value is not None for value in supplied):
+        _require(
+            all(value is not None for value in supplied),
+            "all repair arguments are required",
+        )
+        from .repair import apply_repair
+
+        result = apply_repair(result, *supplied)
     return validate_index(result)

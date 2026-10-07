@@ -10,6 +10,7 @@ import copy
 from stage2_check.contracts import latest_candidates
 from stage2_common import Stage2Error, canonical_hash
 from stage2_workflow.reviews import (
+    REVIEW_VIEW_VERSIONS,
     ROLES,
     prepare_review,
     reconcile_reviews,
@@ -57,7 +58,14 @@ def _batch_payload(batch):
     return {key: value for key, value in batch.items() if key != "batch_sha256"}
 
 
-def prepare_review_batch(packet, snapshot_sha256, screening, seed):
+def prepare_review_batch(
+    packet,
+    snapshot_sha256,
+    screening,
+    seed,
+    *,
+    review_view_version="1.0.0",
+):
     """Prepare two isolated roles for every included or audited candidate.
 
     ``screening`` must contain exactly one current-version row per candidate.
@@ -66,6 +74,10 @@ def prepare_review_batch(packet, snapshot_sha256, screening, seed):
     """
 
     _sha256(snapshot_sha256, "snapshot")
+    _require(
+        review_view_version in REVIEW_VIEW_VERSIONS,
+        "unsupported-review-view-version",
+    )
     _, latest = latest_candidates(packet, [])
     audit = select_excluded_audit(screening, seed)
     ordered_screening = sorted(
@@ -86,7 +98,13 @@ def prepare_review_batch(packet, snapshot_sha256, screening, seed):
     for candidate_id in selected_ids:
         cohort = "main" if candidate_id in included_ids else "audit"
         for role in ROLES:
-            view = prepare_review(packet, candidate_id, snapshot_sha256, role)
+            view = prepare_review(
+                packet,
+                candidate_id,
+                snapshot_sha256,
+                role,
+                review_view_version=review_view_version,
+            )
             assignments.append(
                 {
                     "candidate_id": candidate_id,
@@ -101,7 +119,7 @@ def prepare_review_batch(packet, snapshot_sha256, screening, seed):
     audit["selected"] = sorted(audit["selected"], key=lambda row: row["candidate_id"])
     payload = {
         "kind": "Stage2ReviewBatch",
-        "schema_version": "1.0.0",
+        "schema_version": review_view_version,
         "packet_sha256": canonical_hash(packet),
         "snapshot_sha256": snapshot_sha256,
         "seed": seed,
@@ -192,7 +210,15 @@ def _resolution_map(resolutions, expected_ids):
     return result
 
 
-def reconcile_batch(packet, batch, reviews, resolutions):
+def reconcile_batch(
+    packet,
+    batch,
+    reviews,
+    resolutions,
+    *,
+    guard_bundles=None,
+    expected_guard_bundles_sha256=None,
+):
     """Reconcile a fully reconstructed batch from explicit result envelopes.
 
     A review result envelope has ``candidate_id``, ``candidate_version``,
@@ -202,13 +228,29 @@ def reconcile_batch(packet, batch, reviews, resolutions):
     "next_step": str | None}``.
     """
 
+    guarded = guard_bundles is not None
+    _require(
+        guarded or expected_guard_bundles_sha256 is None,
+        "guard-bundles-required-for-expected-hash",
+    )
+    if guarded:
+        _sha256(expected_guard_bundles_sha256, "guard-bundles")
+        _require(isinstance(guard_bundles, dict), "guard-bundles-must-be-object")
+        _require(
+            canonical_hash(guard_bundles) == expected_guard_bundles_sha256,
+            "guard-bundles-external-hash-mismatch",
+        )
     _require(isinstance(batch, dict) and set(batch) == _BATCH_KEYS, "batch-shape")
     _require(
         batch["batch_sha256"] == canonical_hash(_batch_payload(batch)),
         "batch-hash-mismatch",
     )
     expected = prepare_review_batch(
-        packet, batch["snapshot_sha256"], batch["screening"], batch["seed"]
+        packet,
+        batch["snapshot_sha256"],
+        batch["screening"],
+        batch["seed"],
+        review_view_version=batch["schema_version"],
     )
     _require(batch == expected, "batch-reconstruction-mismatch")
     _require(isinstance(reviews, list), "review-results-must-be-list")
@@ -237,6 +279,22 @@ def reconcile_batch(packet, batch, reviews, resolutions):
         results[key] = copy.deepcopy(row)
 
     candidate_ids = sorted({key[0] for key in assignments})
+    if guarded:
+        _require(
+            set(guard_bundles) == set(candidate_ids),
+            "guard-bundles-candidate-set-mismatch",
+        )
+        from stage2_workflow.quality_guards import validate_guard_bundle
+
+        for candidate_id in candidate_ids:
+            # Validate every supplied record even when its reviewers are still
+            # pending. The boolean only gates a resolved recommendation.
+            validate_guard_bundle(
+                guard_bundles[candidate_id],
+                packet,
+                candidate_id,
+                batch["snapshot_sha256"],
+            )
     resolution_by_id = _resolution_map(resolutions, set(candidate_ids))
     candidate_rows = []
     recommendations = []
@@ -264,6 +322,8 @@ def reconcile_batch(packet, batch, reviews, resolutions):
             batch["snapshot_sha256"],
             complete,
             resolution,
+            guard_bundle=guard_bundles[candidate_id] if guarded else None,
+            review_view_version=batch["schema_version"],
         )
         assessment = reconciled.get("assessment")
         blocked_unknown = bool(
@@ -291,6 +351,19 @@ def reconcile_batch(packet, batch, reviews, resolutions):
         )
 
     next_step = resolutions["next_step"]
+    if guarded:
+        for row in candidate_rows:
+            assessment = row["reconciliation"].get("assessment")
+            if (
+                assessment
+                and assessment.get("disposition") == "recommend"
+                and not row["recommendation_eligible"]
+            ):
+                raise Stage2Error(
+                    "guarded-recommendation-ineligible: "
+                    f"{row['candidate_id']}: provide required evidence or revise "
+                    "the assessment disposition"
+                )
     if not recommendations:
         _text(next_step, "zero-recommendation-next-step")
     review_counts = {status: 0 for status in sorted(_RESULT_STATUSES)}
@@ -300,9 +373,13 @@ def reconcile_batch(packet, batch, reviews, resolutions):
     local_ready = all(
         row["reconciliation"]["status"] == "resolved" for row in candidate_rows
     )
-    return {
-        "kind": "Stage2ReviewBatchReconciliation",
-        "schema_version": "1.0.0",
+    result = {
+        "kind": (
+            "Stage2GuardedReviewBatchReconciliation"
+            if guarded
+            else "Stage2ReviewBatchReconciliation"
+        ),
+        "schema_version": "1.1.0" if guarded else "1.0.0",
         "packet_sha256": batch["packet_sha256"],
         "snapshot_sha256": batch["snapshot_sha256"],
         "batch_sha256": batch["batch_sha256"],
@@ -317,6 +394,13 @@ def reconcile_batch(packet, batch, reviews, resolutions):
         "local_reconciliation_ready": local_ready,
         "actual_execution_attested": False,
     }
+    if guarded:
+        result["guard_bundles_sha256"] = expected_guard_bundles_sha256
+        result["guard_semantics"] = (
+            "caller judgments and source-bound prerequisite checks; not formal "
+            "execution attestation or human approval"
+        )
+    return result
 
 
 def make_followup(
