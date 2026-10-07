@@ -424,7 +424,8 @@
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "the Stage 1 skill invokes a source-version-bound topic-core assessment",
-            "confirmed scope and family-to-need mappings are required before new searches; intake metrics remain separate from P1-P3 scores"
+            "confirmed scope and family-to-need mappings are required before new searches; intake metrics remain separate from P1-P3 scores",
+            "native intake proposes30 distinct priority works for new briefs, records submitted targets separately from hard/resource limits, preserves historical targets and rejects silent sufficiency promotion in the declared workflow"
           ],
           "human_judgment": "Independent v3 judges assess whether the cited work actually changes the research decision."
         },
@@ -441,6 +442,9 @@
           ],
           "human_judgment": "Judge the actual evidence and stopping rationale under the same rubric, not a preferred record format."
         }
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_research_brief.py"
       ]
     },
     {
