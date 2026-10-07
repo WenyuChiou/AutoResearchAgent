@@ -241,7 +241,8 @@ def _topic_comparison(view):
     evidence = view.get("evidence") or []
     literature = {
         (row.get("work_id"), row.get("version_id")): row
-        for row in view.get("literature") or []
+        for row in (view.get("literature") or [])
+        + (view.get("supplemental_literature") or [])
         if isinstance(row, dict)
     }
     cell_index = {
@@ -271,6 +272,8 @@ def _topic_comparison(view):
             + _html(list(identity))
             + "</span>"
         )
+        if work and work.get("record_kind") == "supplemental-source-version":
+            citation += '<span class="s2w-muted">Additional source version of the same study</span>'
         values = []
         for axis in dimensions:
             cell = cell_index.get((*identity, axis.get("dimension_id")))
@@ -472,6 +475,38 @@ def _direction_resources(view):
     )
 
 
+def _source_versions(row, evidence):
+    versions = row.get("source_versions") or []
+    if not versions:
+        return ""
+    sections = []
+    for version in versions:
+        fields = version.get("cells") or {}
+        sections.append(
+            _citation(version)
+            + "".join(
+                "<p><strong>"
+                + label
+                + ": </strong>"
+                + _preview((fields.get(name) or {}).get("text"))
+                + "</p>"
+                for name, label in (
+                    ("data", "Data"),
+                    ("method", "Method"),
+                    ("findings", "Findings"),
+                )
+            )
+            + _evidence(version, evidence)
+        )
+    return (
+        '<details class="s2w-source-versions"><summary>Additional source versions ('
+        + str(len(versions))
+        + ")</summary>"
+        + "".join(sections)
+        + "</details>"
+    )
+
+
 def _literature_rows(view):
     rows = []
     evidence = view.get("evidence") or []
@@ -505,6 +540,7 @@ def _literature_rows(view):
             + "<span>Compare</span></label>"
             + _citation(row)
             + _evidence(row, evidence)
+            + _source_versions(row, evidence)
             + "</th>"
             + "".join(values)
             + "</tr>"

@@ -201,6 +201,27 @@ def _bibliography(lines, bibliography, evidence):
             ]
             or ["  - None recorded"]
         )
+        for version in work.get("supplemental_versions", []):
+            lines.extend(
+                [
+                    "- Additional source version of the same study: "
+                    + _text(version["version_id"]),
+                    "  - Title: " + _text(version["title"]),
+                    "  - Recorded evidence level: " + _text(version["evidence_level"]),
+                    "  - Sources: "
+                    + ", ".join(
+                        f"[{_text(source['source_id'])}]({_safe_snapshot_path(source['path'])}) "
+                        f"(level={_text(source['evidence_level'])})"
+                        for source in version["sources"]
+                    ),
+                    "  - Claims: " + _evidence_links(version["claim_ids"], evidence),
+                    "  - Roles: "
+                    + "; ".join(
+                        _text(role["role"]) + ": " + _text(role["reason"])
+                        for role in version["roles"]
+                    ),
+                ]
+            )
         lines.append("")
 
 

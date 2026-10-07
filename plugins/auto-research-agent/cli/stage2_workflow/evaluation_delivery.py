@@ -365,7 +365,7 @@ def build_evaluated_delivery(
     )
     presentation_version = (
         "1.3.0"
-        if selection["evaluation_packet"]["schema_version"] == "2.2.0"
+        if selection["evaluation_packet"]["schema_version"] in {"2.2.0", "2.3.0"}
         else "1.2.0"
     )
     gate = derive_content_gate(selection) if presentation_version == "1.3.0" else None
@@ -462,7 +462,7 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
     selection = json.loads((root / "core_selection.json").read_bytes())
     version = manifest.get("presentation_version", "1.0.0")
     if version == "1.3.0":
-        if selection["evaluation_packet"]["schema_version"] != "2.2.0":
+        if selection["evaluation_packet"]["schema_version"] not in {"2.2.0", "2.3.0"}:
             raise Stage2Error("evaluation-delivery-content-gate-version-mismatch")
         if "content_gate.json" not in names or json.loads(
             (root / "content_gate.json").read_bytes()
