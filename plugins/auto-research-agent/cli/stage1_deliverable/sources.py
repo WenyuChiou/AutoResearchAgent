@@ -468,14 +468,39 @@ def _state(result, attempt, raw):
     )
 
 
-def source_records(source, paper, archive, runtime):
-    result, mapping, replay = validate_archive(archive)
-    validate_observation(archive, result, mapping, replay)
+def validate_paper_identity(paper, result):
+    """Bind catalog identity to the request or the replayed source observation.
+
+    A URL-only request does not assert that the fetched work has no DOI. Keep
+    observed bibliographic identity separate from claim/evidence eligibility.
+    """
     expected = result["expected_identity"]
     if " ".join(expected.get("title", "").casefold().split()).rstrip(".") != " ".join(
         paper["title"].casefold().split()
-    ).rstrip(".") or expected.get("doi", "") != (paper["doi"] or ""):
+    ).rstrip("."):
         raise DeliverableError("source expected identity differs from canonical work")
+    requested_doi = expected.get("doi", "")
+    catalog_doi = paper["doi"] or ""
+    if requested_doi == catalog_doi:
+        return
+    observed_doi = result["observed_identity"].get("doi", "")
+    if (
+        not requested_doi
+        and catalog_doi == observed_doi
+        and re.fullmatch(r"10\.\d{4,9}/\S+", observed_doi)
+        and result["status"] == "available"
+        and result["identity_status"] != "mismatch"
+    ):
+        # The saved source validator has already replayed the observed DOI.
+        # Unverified title identity stays unverified; this is not sufficiency.
+        return
+    raise DeliverableError("source expected identity differs from canonical work")
+
+
+def source_records(source, paper, archive, runtime):
+    result, mapping, replay = validate_archive(archive)
+    validate_observation(archive, result, mapping, replay)
+    validate_paper_identity(paper, result)
     rows = []
     for attempt in result["attempts"]:
         relative = mapping.get(attempt.get("raw_path"))
