@@ -145,7 +145,10 @@ def validate_research_tables(research_tables: dict, packet: dict) -> dict:
     }
     literature_by_key = {
         (row.get("work_id"), row.get("version_id")): row
-        for row in packet.get("literature", [])
+        for row in [
+            *packet.get("literature", []),
+            *packet.get("supplemental_literature", []),
+        ]
         if isinstance(row, dict)
     }
     if not literature_by_key:
@@ -211,6 +214,9 @@ def validate_research_tables(research_tables: dict, packet: dict) -> dict:
         _require(key in literature_keys, "work_ref does not identify packet literature")
         work_keys.append(key)
     _require(len(work_keys) == len(set(work_keys)), "duplicate work_ref")
+    # Source acquisition can temporarily leave a valid previous matrix short of
+    # the new versions. The content gate requires full coverage before delivery;
+    # keeping the old cells here permits a bound rebuild without losing history.
 
     cells = result["cells"]
     _require(isinstance(cells, list), "cells must be an array")

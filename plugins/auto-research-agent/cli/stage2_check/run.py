@@ -247,7 +247,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
     _validate_manifest(manifest)
     packet_path = root / manifest["packet_path"]
     packet = _read_json(packet_path)
-    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0"}:
+    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
         try:
             root = private_output(root)
         except DeliverableError as error:
@@ -256,7 +256,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
         root = root.resolve()
     if canonical_hash(packet) != manifest["stored_packet_sha256"]:
         raise Stage2Error("stored-packet-hash-mismatch")
-    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0"}:
+    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
         input_packet_path = root / "input_packet.json"
         try:
             input_packet_bytes = input_packet_path.read_bytes()
@@ -337,7 +337,7 @@ def initialize_run(
     source_root = Path(source_root).resolve()
     source_packet = _read_json(packet_file)
     packet_sha256 = canonical_hash(source_packet)
-    if source_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0"}:
+    if source_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != packet_sha256:
@@ -347,7 +347,8 @@ def initialize_run(
     try:
         output = (
             private_output(Path(output_dir).absolute())
-            if source_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0"}
+            if source_packet.get("schema_version")
+            in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}
             else Path(output_dir).resolve()
         )
     except DeliverableError as error:
@@ -399,7 +400,7 @@ def initialize_run(
         _write_new(output / "packet.json", _canonical_bytes(stored_packet))
         created_at = clock()
         input_refs = []
-        if source_packet["schema_version"] in {"2.0.0", "2.1.0", "2.2.0"}:
+        if source_packet["schema_version"] in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
             _write_new(output / "input_packet.json", _canonical_bytes(source_packet))
             stored_packet_sha256 = canonical_hash(stored_packet)
             input_refs = [
