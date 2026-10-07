@@ -29,6 +29,9 @@ from stage2_check.report import render_proposal, _quote_block
 
 VERSION = "1.0.0"
 PROVENANCE_VERSION = "1.1.0"
+GUARDED_VERSION = "1.2.0"
+REGISTERED_HISTORY_VERSION = "1.3.0"
+IMPORTED_HISTORY_VERSION = "1.4.0"
 MANIFEST = "delivery_manifest.json"
 REVIEW_INPUT_FILES = {
     "batch": "review_batch.json",
@@ -180,6 +183,46 @@ def _resolved_assessments(reconciliation):
     return rows
 
 
+def _guard_source_roots(guard_bundles):
+    return {
+        candidate_id: bundle.get("source_root")
+        for candidate_id, bundle in sorted(guard_bundles.items())
+    }
+
+
+def _bind_guard_source_root(guard_bundles, source_root):
+    if not isinstance(guard_bundles, dict):
+        raise Stage2Error("guard-bundles-must-be-object")
+    expected = str(source_root.resolve())
+    for candidate_id, bundle in guard_bundles.items():
+        if not isinstance(bundle, dict) or bundle.get("source_root") != expected:
+            raise Stage2Error(
+                f"guard-source-root-mismatch: {candidate_id}: expected {expected}"
+            )
+
+
+def _portable_guard_bundles(guard_bundles, source_root):
+    portable = copy.deepcopy(guard_bundles)
+    for bundle in portable.values():
+        bundle["source_root"] = str(source_root.resolve())
+    return portable
+
+
+def _reject_ineligible_recommendations(reconciliation):
+    for row in reconciliation["candidates"]:
+        assessment = row["reconciliation"].get("assessment")
+        if (
+            assessment
+            and assessment.get("disposition") == "recommend"
+            and not row["recommendation_eligible"]
+        ):
+            raise Stage2Error(
+                "guarded-recommendation-ineligible: "
+                f"{row['candidate_id']}: provide required evidence or revise the "
+                "assessment disposition"
+            )
+
+
 def _root_markdown(checker, selection, reconciliation):
     data = render_proposal(
         selection,
@@ -223,15 +266,48 @@ def build_delivery(
     expected_head,
     *,
     source_update_receipts=None,
+    guard_bundles=None,
+    expected_guard_bundles_sha256=None,
+    record_registered_history=False,
+    imported_history_deliveries=None,
 ):
     """Build a separate source-bound checker and prehuman delivery package."""
     state = inspect_workflow(run_dir, expected_head=expected_head)
-    provenance, provenance_files = capture_revision_provenance(
-        state, source_update_receipts or []
-    )
+    if type(record_registered_history) is not bool:
+        raise Stage2Error("delivery-registered-history-option-invalid")
+    if imported_history_deliveries is not None and not isinstance(
+        imported_history_deliveries, list
+    ):
+        raise Stage2Error("delivery-imported-history-option-invalid")
+    if imported_history_deliveries and not record_registered_history:
+        raise Stage2Error("delivery-imported-history-requires-registered-history")
+    if record_registered_history:
+        if source_update_receipts or guard_bundles is not None:
+            raise Stage2Error("delivery-registered-history-mixed-provenance")
+        from .registered_history import capture_registered_history
+
+        provenance, provenance_files = capture_registered_history(
+            state, imported_history_deliveries
+        )
+    else:
+        provenance, provenance_files = capture_revision_provenance(
+            state, source_update_receipts or []
+        )
     snapshot, snapshot_hash, packet = _current_snapshot(state, batch)
     source_root = _verify_source_map(snapshot, packet)
-    reconciliation = reconcile_batch(packet, batch, reviews, resolutions)
+    guarded = guard_bundles is not None
+    if guarded:
+        _bind_guard_source_root(guard_bundles, source_root)
+    reconciliation = reconcile_batch(
+        packet,
+        batch,
+        reviews,
+        resolutions,
+        guard_bundles=guard_bundles,
+        expected_guard_bundles_sha256=expected_guard_bundles_sha256,
+    )
+    if guarded:
+        _reject_ineligible_recommendations(reconciliation)
 
     output = Path(output_dir).resolve()
     if output.exists():
@@ -251,6 +327,9 @@ def build_delivery(
     _write_new(output / "review_results.json", reviews)
     _write_new(output / "review_resolutions.json", resolutions)
     _write_new(output / "reconciliation.json", reconciliation)
+    if guarded:
+        _write_new(output / "guard_bundles.json", guard_bundles)
+        _write_new(output / "guarded_reconciliation.json", reconciliation)
     audit = _review_audit(state, snapshot, batch, reviews, resolutions, reconciliation)
     _write_new(output / "review_audit.json", audit)
 
@@ -267,10 +346,20 @@ def build_delivery(
         apply_assessment(checker_root, assessment_path)
     checker_selection = export_selection(checker_root)
     checker = inspect_run(checker_root)
+    if record_registered_history:
+        from .registered_history import history_revisions
+
+        revisions = history_revisions(provenance)
+    else:
+        revisions = (
+            [row for step in provenance["steps"] for row in step["revisions"]]
+            if provenance
+            else []
+        )
     selection = (
         derive_selection(
             checker_selection,
-            [row for step in provenance["steps"] for row in step["revisions"]],
+            revisions,
         )
         if provenance is not None
         else checker_selection
@@ -287,6 +376,10 @@ def build_delivery(
     if provenance is not None:
         for relative, raw in provenance_files.items():
             _write_new(_safe_package_path(output, relative), raw)
+        if record_registered_history:
+            (output / "registered_history" / "workflow" / "actions").mkdir(
+                parents=True, exist_ok=True
+            )
         _write_new(output / "revision_provenance.json", provenance)
     _write_new(
         output / "selection.md", _root_markdown(checker, selection, reconciliation)
@@ -316,7 +409,17 @@ def build_delivery(
     ]
     manifest = {
         "kind": "Stage2DeliveryManifest",
-        "schema_version": PROVENANCE_VERSION if provenance is not None else VERSION,
+        "schema_version": (
+            IMPORTED_HISTORY_VERSION
+            if record_registered_history and provenance.get("schema_version") == "2.1.0"
+            else REGISTERED_HISTORY_VERSION
+            if record_registered_history
+            else GUARDED_VERSION
+            if guarded
+            else PROVENANCE_VERSION
+            if provenance is not None
+            else VERSION
+        ),
         "delivery_status": ("local-report-ready" if local_ready else "draft-not-ready"),
         "workflow_manifest_sha256": state["manifest"]["manifest_sha256"],
         "workflow_head_sha256": state["head_sha256"],
@@ -345,6 +448,18 @@ def build_delivery(
             checker_selection_sha256=canonical_hash(checker_selection),
             revision_provenance_file="revision_provenance.json",
             revision_provenance_sha256=canonical_hash(provenance),
+        )
+    if record_registered_history:
+        manifest["revision_provenance_scope"] = "registered-content-history-only"
+    if guarded:
+        manifest.update(
+            guard_inputs_schema_version="1.0.0",
+            revision_provenance_included=provenance is not None,
+            guard_bundles_file="guard_bundles.json",
+            guard_bundles_sha256=expected_guard_bundles_sha256,
+            guard_bundle_original_source_roots=_guard_source_roots(guard_bundles),
+            guarded_reconciliation_file="guarded_reconciliation.json",
+            guarded_reconciliation_sha256=canonical_hash(reconciliation),
         )
     manifest["manifest_sha256"] = _manifest_hash(manifest)
     _write_new(output / MANIFEST, manifest)
@@ -387,20 +502,52 @@ def inspect_delivery(directory, expected_manifest_sha256):
         "manifest_sha256",
     }
     version = manifest.get("schema_version") if isinstance(manifest, dict) else None
-    if version == PROVENANCE_VERSION:
+    guarded = version == GUARDED_VERSION
+    recorded_history = version in {REGISTERED_HISTORY_VERSION, IMPORTED_HISTORY_VERSION}
+    has_provenance = version in {
+        PROVENANCE_VERSION,
+        REGISTERED_HISTORY_VERSION,
+        IMPORTED_HISTORY_VERSION,
+    } or (guarded and manifest.get("revision_provenance_included") is True)
+    if has_provenance:
         required |= {
             "checker_selection_sha256",
             "revision_provenance_file",
             "revision_provenance_sha256",
         }
+    if guarded:
+        required |= {
+            "guard_inputs_schema_version",
+            "revision_provenance_included",
+            "guard_bundles_file",
+            "guard_bundles_sha256",
+            "guard_bundle_original_source_roots",
+            "guarded_reconciliation_file",
+            "guarded_reconciliation_sha256",
+        }
+    if recorded_history:
+        required.add("revision_provenance_scope")
     if not isinstance(manifest, dict) or set(manifest) != required:
         raise Stage2Error("delivery-manifest-shape")
+    if guarded and type(manifest["revision_provenance_included"]) is not bool:
+        raise Stage2Error("delivery-guard-provenance-marker-invalid")
     if (
         manifest["kind"] != "Stage2DeliveryManifest"
-        or version not in {VERSION, PROVENANCE_VERSION}
+        or version
+        not in {
+            VERSION,
+            PROVENANCE_VERSION,
+            GUARDED_VERSION,
+            REGISTERED_HISTORY_VERSION,
+            IMPORTED_HISTORY_VERSION,
+        }
         or manifest["manifest_sha256"] != _manifest_hash(manifest)
     ):
         raise Stage2Error("delivery-manifest-invalid")
+    if recorded_history and manifest["revision_provenance_scope"] != (
+        "registered-content-history-only"
+    ):
+        raise Stage2Error("delivery-registered-history-scope-invalid")
     if expected_manifest_sha256 != manifest["manifest_sha256"]:
         raise Stage2Error("delivery-manifest-receipt-mismatch")
     if manifest["review_input_files"] != REVIEW_INPUT_FILES:
@@ -451,7 +598,39 @@ def inspect_delivery(directory, expected_manifest_sha256):
         raise Stage2Error("delivery-batch-snapshot-mismatch")
     reviews = _read_json(root / manifest["review_input_files"]["reviews"])
     resolutions = _read_json(root / manifest["review_input_files"]["resolutions"])
-    reconciliation = reconcile_batch(packet, batch, reviews, resolutions)
+    guard_bundles = None
+    if guarded:
+        if (
+            manifest["guard_inputs_schema_version"] != "1.0.0"
+            or manifest["guard_bundles_file"] != "guard_bundles.json"
+            or manifest["guarded_reconciliation_file"] != "guarded_reconciliation.json"
+        ):
+            raise Stage2Error("delivery-guard-input-paths-invalid")
+        guard_bundles = _read_json(root / manifest["guard_bundles_file"])
+        if (
+            canonical_hash(guard_bundles) != manifest["guard_bundles_sha256"]
+            or _guard_source_roots(guard_bundles)
+            != manifest["guard_bundle_original_source_roots"]
+        ):
+            raise Stage2Error("delivery-guard-original-binding-mismatch")
+        guard_bundles = _portable_guard_bundles(
+            guard_bundles, root / "checker" / "sources"
+        )
+    reconciliation = reconcile_batch(
+        packet,
+        batch,
+        reviews,
+        resolutions,
+        guard_bundles=guard_bundles,
+        expected_guard_bundles_sha256=(
+            canonical_hash(guard_bundles) if guarded else None
+        ),
+    )
+    if guarded:
+        # Reconciliation stores the externally retained digest of the original
+        # guard bytes, while replay validates a source-root-normalized copy.
+        reconciliation["guard_bundles_sha256"] = manifest["guard_bundles_sha256"]
+        _reject_ineligible_recommendations(reconciliation)
     saved_reconciliation = _read_json(
         root / manifest["review_input_files"]["reconciliation"]
     )
@@ -460,6 +639,14 @@ def inspect_delivery(directory, expected_manifest_sha256):
         or canonical_hash(reconciliation) != manifest["reconciliation_sha256"]
     ):
         raise Stage2Error("delivery-reconciliation-mismatch")
+    if guarded:
+        guarded_receipt = _read_json(root / manifest["guarded_reconciliation_file"])
+        if (
+            guarded_receipt != reconciliation
+            or canonical_hash(guarded_receipt)
+            != manifest["guarded_reconciliation_sha256"]
+        ):
+            raise Stage2Error("delivery-guarded-reconciliation-mismatch")
     audit = _read_json(root / manifest["review_input_files"]["audit"])
     if (
         audit.get("batch") != batch
@@ -477,13 +664,18 @@ def inspect_delivery(directory, expected_manifest_sha256):
     selection = _read_json(root / "selection.json")
     checker_selection = _read_json(root / "checker" / "selection.json")
     expected_selection = build_selection(checker)
-    if version == PROVENANCE_VERSION:
+    if has_provenance:
         if manifest["revision_provenance_file"] != "revision_provenance.json":
             raise Stage2Error("delivery-revision-provenance-path-invalid")
         provenance = _read_json(root / manifest["revision_provenance_file"])
         if canonical_hash(provenance) != manifest["revision_provenance_sha256"]:
             raise Stage2Error("delivery-revision-provenance-hash-mismatch")
-        revisions = inspect_revision_provenance(root, provenance, packet, manifest)
+        if recorded_history:
+            from .registered_history import inspect_registered_history
+
+            revisions = inspect_registered_history(root, provenance, packet, manifest)
+        else:
+            revisions = inspect_revision_provenance(root, provenance, packet, manifest)
         expected_selection = derive_selection(expected_selection, revisions)
         if canonical_hash(checker_selection) != manifest["checker_selection_sha256"]:
             raise Stage2Error("delivery-checker-selection-hash-mismatch")

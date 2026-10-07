@@ -98,7 +98,7 @@ class EvaluatorUnitTests(unittest.TestCase):
 
     def test_invalid_initial_gets_one_correction_then_replays_without_calls(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self.responder([{"value": 0}, {"value": 1}]),
         ) as run:
             value, provenance = self.invoke()
@@ -108,7 +108,7 @@ class EvaluatorUnitTests(unittest.TestCase):
         self.assertEqual(provenance["correction_reason"], "value must be positive")
         self.assertTrue((self.output / "semantic-unit.unit.json").is_file())
 
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             replayed, replay_provenance = self.invoke(replay_only=True)
         replay.assert_not_called()
         self.assertEqual(replayed, value)
@@ -116,7 +116,7 @@ class EvaluatorUnitTests(unittest.TestCase):
 
     def test_second_semantic_failure_stops_after_one_correction(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self.responder([{"value": 0}, {"value": -1}]),
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "value must be positive"):
@@ -132,7 +132,7 @@ class EvaluatorUnitTests(unittest.TestCase):
         schema = {**SCHEMA, "properties": {"value": {"type": "integer", "maximum": 10}}}
         self.schema.write_text(json.dumps(schema), encoding="utf-8")
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self.responder([{"value": 25}, {"value": 3}]),
         ) as run:
             value, provenance = self.invoke()
@@ -157,14 +157,14 @@ class EvaluatorUnitTests(unittest.TestCase):
                 expected_config=request["config"],
                 expected_policy=POLICY,
             )
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             self.assertEqual(self.invoke(replay_only=True), (value, provenance))
         replay.assert_not_called()
         # The correction route still validates raw bytes against archived hashes.
         (archive / "attempt-01.output.json").write_text(
             '{"value": 2}', encoding="utf-8"
         )
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             with self.assertRaisesRegex(EvaluationError, "bytes changed"):
                 self.invoke(replay_only=True)
         replay.assert_not_called()
@@ -173,7 +173,7 @@ class EvaluatorUnitTests(unittest.TestCase):
         schema = {**SCHEMA, "properties": {"value": {"type": "integer", "maximum": 10}}}
         self.schema.write_text(json.dumps(schema), encoding="utf-8")
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self.responder([{"value": 25}, {"value": 20}]),
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "local schema validation"):
@@ -213,7 +213,7 @@ class EvaluatorUnitTests(unittest.TestCase):
             ["codex"], 600, output=b"partial", stderr=b"timeout"
         )
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=timeout
+            "stage1_eval.model_calls._execute_bound_process", side_effect=timeout
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "incomplete or failed"):
                 self.invoke()
@@ -232,7 +232,7 @@ class EvaluatorUnitTests(unittest.TestCase):
                 max_prompt_bytes=limit,
             )
 
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             for limit in (0, True, "100"):
                 with self.assertRaisesRegex(EvaluationError, "invalid unit"):
                     invoke("unit", limit)
@@ -240,7 +240,7 @@ class EvaluatorUnitTests(unittest.TestCase):
                 invoke("测" * 20, 59)
         run.assert_not_called()
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self.responder([{"value": 0}]),
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "exceeds byte limit"):
@@ -251,7 +251,7 @@ class EvaluatorUnitTests(unittest.TestCase):
 
     def test_saved_unit_value_tamper_is_rejected(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self.responder([{"value": 1}]),
         ):
             self.invoke()
@@ -259,7 +259,7 @@ class EvaluatorUnitTests(unittest.TestCase):
         stored = read_json(receipt)
         stored["value"] = {"value": 999}
         receipt.write_text(json.dumps(stored), encoding="utf-8")
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             with self.assertRaisesRegex(
                 EvaluationError, "saved normalized result changed"
             ):
@@ -268,11 +268,11 @@ class EvaluatorUnitTests(unittest.TestCase):
 
     def test_input_and_policy_drift_reject_without_execution(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self.responder([{"value": 1}]),
         ):
             self.invoke()
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             with self.assertRaisesRegex(EvaluationError, "request fingerprint"):
                 self.invoke(prompt="changed prompt", replay_only=True)
         run.assert_not_called()
@@ -281,7 +281,7 @@ class EvaluatorUnitTests(unittest.TestCase):
             **self.options,
             "execution_policy": {**POLICY, "max_transient_transport_retries": 0},
         }
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             with self.assertRaisesRegex(EvaluationError, "request fingerprint"):
                 self.invoke(replay_only=True, options=changed)
         run.assert_not_called()

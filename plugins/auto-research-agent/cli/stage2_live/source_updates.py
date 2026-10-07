@@ -36,7 +36,7 @@ def prepare_source_update(
         raise Stage2Error("source-update-parent-hash-mismatch")
     if not isinstance(additions, list) or not additions:
         raise Stage2Error("source-update-additions-required")
-    if not isinstance(revisions, list) or not revisions:
+    if not isinstance(revisions, list):
         raise Stage2Error("source-update-revised-candidate-required")
     next_packet = copy.deepcopy(packet)
     raw_files = {}
@@ -119,7 +119,16 @@ def prepare_source_update(
             row = copy.deepcopy(addition["literature"])
             if row.get("origin") != "stage2":
                 raise Stage2Error("source-update-literature-origin-must-be-stage2")
-            next_packet.setdefault("literature", []).append(row)
+            primary_work_ids = {
+                item["work_id"] for item in next_packet.get("literature", [])
+            }
+            target = (
+                "supplemental_literature"
+                if packet["schema_version"] == "2.3.0"
+                and row.get("work_id") in primary_work_ids
+                else "literature"
+            )
+            next_packet.setdefault(target, []).append(row)
         raw_files[source["path"]] = raw
     next_packet["candidates"].extend(copy.deepcopy(revisions))
     if unresolved is not None:

@@ -8,7 +8,8 @@ from jsonschema import Draft202012Validator
 
 from stage2_common import canonical_hash
 
-from .schema import extraction_schema
+from .schema import SCHEMA_VERSION, SCHEMA_VERSION_1_1, extraction_schema
+from .topic_tables import TopicTableError, materialize_research_tables
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -97,11 +98,11 @@ def _evidence_matches_source(evidence_ids, evidence_by_id, source, label):
         )
 
 
-def _expected_input_hash(raw_sha256, packet, snapshot_sha256):
+def _expected_input_hash(raw_sha256, packet, snapshot_sha256, schema_version):
     return canonical_hash(
         {
             "kind": "Stage2IdeationExtractionTask",
-            "schema_version": "1.0.0",
+            "schema_version": schema_version,
             "snapshot_sha256": snapshot_sha256,
             "packet_sha256": canonical_hash(packet),
             "raw_proposal_sha256": raw_sha256,
@@ -109,9 +110,10 @@ def _expected_input_hash(raw_sha256, packet, snapshot_sha256):
     )
 
 
-def _schema_validate(extraction):
+def _schema_validate(extraction, schema_version):
     errors = sorted(
-        Draft202012Validator(extraction_schema()).iter_errors(extraction), key=str
+        Draft202012Validator(extraction_schema(schema_version)).iter_errors(extraction),
+        key=str,
     )
     if errors:
         first = errors[0]
@@ -142,7 +144,13 @@ def _validate_candidate_lineage(packet, extracted_candidates):
 
 
 def validate_extraction(
-    raw_proposal: str, extraction: dict, packet: dict, snapshot_sha256: str
+    raw_proposal: str,
+    extraction: dict,
+    packet: dict,
+    snapshot_sha256: str,
+    *,
+    completeness_record=None,
+    expected_completeness_sha256=None,
 ) -> dict:
     """Validate extraction bindings and return an order-preserving deep copy.
 
@@ -159,13 +167,29 @@ def validate_extraction(
     )
     _require(isinstance(extraction, dict), "extraction must be an object")
     result = copy.deepcopy(extraction)
-    _schema_validate(result)
+    schema_version = result.get("schema_version")
+    _require(
+        schema_version in {SCHEMA_VERSION, SCHEMA_VERSION_1_1},
+        "unsupported extraction schema version",
+    )
+    expected_version = (
+        SCHEMA_VERSION_1_1
+        if packet.get("schema_version") in {"2.2.0", "2.3.0"}
+        else SCHEMA_VERSION
+    )
+    _require(
+        schema_version == expected_version,
+        "extraction schema version does not match packet",
+    )
+    _schema_validate(result, schema_version)
     _require(result["snapshot_sha256"] == snapshot_sha256, "snapshot hash mismatch")
     packet_sha256 = canonical_hash(packet)
     _require(result["packet_sha256"] == packet_sha256, "packet hash mismatch")
     raw_sha256 = hashlib.sha256(raw_proposal.encode("utf-8")).hexdigest()
     _require(result["raw_proposal_sha256"] == raw_sha256, "raw proposal hash mismatch")
-    expected_input = _expected_input_hash(raw_sha256, packet, snapshot_sha256)
+    expected_input = _expected_input_hash(
+        raw_sha256, packet, snapshot_sha256, schema_version
+    )
     _require(result["input_hash"] == expected_input, "extraction input hash mismatch")
 
     sources = packet.get("sources", [])
@@ -317,4 +341,100 @@ def validate_extraction(
             _text(claim["text"], "candidate claim")
             _evidence_ids(claim["evidence_ids"], known_evidence, "candidate claim")
     _validate_candidate_lineage(packet, candidates)
+    if schema_version == SCHEMA_VERSION_1_1 and result["research_tables"] is not None:
+        try:
+            materialize_research_tables(
+                result["research_tables"],
+                candidates,
+                packet,
+                raw_proposal,
+                snapshot_sha256,
+            )
+        except TopicTableError as error:
+            raise IdeationError(f"research_tables: {error}") from error
+    if completeness_record is not None or expected_completeness_sha256 is not None:
+        _validate_completeness(
+            raw_proposal,
+            result,
+            packet,
+            snapshot_sha256,
+            completeness_record,
+            expected_completeness_sha256,
+        )
     return result
+
+
+def prepare_completeness_record(
+    raw_proposal, extraction, packet, snapshot_sha256, ideas
+):
+    """Bind only caller-supplied idea spans; this is not semantic discovery."""
+    _require(isinstance(ideas, list), "idea completeness entries must be an array")
+    candidate_spans = {
+        row["candidate"]["candidate_id"]: row["spans"]
+        for row in extraction["candidates"]
+    }
+    candidate_ids = set(candidate_spans)
+    mapped = set()
+    span_keys = []
+    for row in ideas:
+        _require(
+            isinstance(row, dict)
+            and set(row) == {"idea_id", "span", "outcome", "candidate_id", "reason"},
+            "idea completeness entry shape",
+        )
+        _text(row["idea_id"], "idea_id")
+        _span(row["span"], raw_proposal, "idea completeness")
+        span_keys.append((row["span"]["start"], row["span"]["end"]))
+        _require(
+            isinstance(row["outcome"], str)
+            and row["outcome"] in {"extracted", "retained-unformed", "excluded"},
+            "idea outcome",
+        )
+        _text(row["reason"], "idea completeness reason")
+        if row["outcome"] == "extracted":
+            _require(
+                row["candidate_id"] in candidate_ids, "idea maps unknown candidate"
+            )
+            _require(
+                row["span"] in candidate_spans[row["candidate_id"]],
+                "idea span does not bind mapped candidate",
+            )
+            mapped.add(row["candidate_id"])
+        else:
+            _require(
+                row["candidate_id"] is None,
+                "unformed/excluded idea cannot map candidate",
+            )
+    _unique([row["idea_id"] for row in ideas], "idea ID")
+    _unique(span_keys, "idea span")
+    _require(
+        mapped == candidate_ids,
+        "formed extracted idea omitted from completeness record",
+    )
+    payload = {
+        "kind": "Stage2IdeationCompleteness",
+        "schema_version": "1.0.0",
+        "scope": "caller-supplied-spans-only",
+        "packet_sha256": canonical_hash(packet),
+        "snapshot_sha256": snapshot_sha256,
+        "raw_proposal_sha256": hashlib.sha256(raw_proposal.encode("utf-8")).hexdigest(),
+        "extraction_sha256": canonical_hash(extraction),
+        "ideas": copy.deepcopy(ideas),
+    }
+    return {**payload, "record_sha256": canonical_hash(payload)}
+
+
+def _validate_completeness(
+    raw_proposal, extraction, packet, snapshot_sha256, record, expected_sha256
+):
+    _require(
+        isinstance(record, dict) and isinstance(expected_sha256, str),
+        "opt-in completeness record and expected hash required",
+    )
+    _require(
+        canonical_hash(record) == expected_sha256, "external completeness hash mismatch"
+    )
+    rebuilt = prepare_completeness_record(
+        raw_proposal, extraction, packet, snapshot_sha256, record.get("ideas")
+    )
+    _require(record == rebuilt, "completeness record reconstruction mismatch")

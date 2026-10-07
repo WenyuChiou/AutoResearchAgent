@@ -92,6 +92,12 @@ SessionApi exposes opaque project/request/action references over an existing inj
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_session_api.py -v
 ```
 
+API recovery fixtures reopen SQLite using a new writer, owner and connection epoch.
+Synthetic crash gaps before dispatch and after observed writes retain history without retry.
+Post-recording status/fault persistence failure keeps its missing fault event distinct
+from independently recorded channel close evidence. These are injected failure tests,
+not actual native process crash or Windows research acceptance.
+
 An explicit authenticated loopback HTTP listener wraps the injected SessionApi.
 It checks exact Host/Origin and bearer credentials, bounds JSON bodies/responses,
 and returns saved action history without retrying a lost response. Excess sockets

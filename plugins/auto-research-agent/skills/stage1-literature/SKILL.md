@@ -14,6 +14,21 @@ with literature, data and validation evidence, then record the user's choice.
 Never turn a suggested country into an accepted study boundary. Preserve an
 already specified country without asking again. Unrestricted scope is a valid
 continuing choice; research with no geographic dependency need not choose a country.
+Before a new search, use a native researcher question to confirm the initial
+priority reading and organization target, proposing **30 distinct works** for
+new briefs. A displayed default is not a submitted answer. Record the applicable
+project, input version, original answer and target in ResearchBrief decision
+history; reuse a valid confirmed answer on resume, and reject stale or
+wrong-project answers. Explicit researcher targets override the default.
+Keep any optional hard maximum and actual query, read, round and resource limits
+separate. Thirty is not a hard maximum, required full-text count, sufficiency
+rule, query filter or increased execution budget. Preserve the broader search
+and screening bibliography; report requested and actual distinct works, source
+availability, extraction and claim states, and remaining need coverage.
+No filler or duplicate/version inflation: reaching the target with unresolved
+needs remains partial/continue. Preserve frozen packages and their historical
+targets without retroactively assigning this default. See the intake contract
+for how to record this organization decision without narrowing search scope.
 Use `stage1_brief record` to preserve decision history and `stage1_brief compile`
 to bind query families to a confirmed brief and research needs. Validate that
 binding before executing a new plan. The older `stage1_coverage compile` remains

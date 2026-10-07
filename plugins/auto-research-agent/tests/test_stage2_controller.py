@@ -316,7 +316,9 @@ class Stage2ControllerTests(unittest.TestCase):
                         return_value={},
                     ),
                     patch("stage2_live.controller.verify_environment_start"),
-                    patch("stage2_live.controller.verify_environment_capture"),
+                    patch(
+                        "stage2_live.controller.verify_environment_capture"
+                    ) as environment_verifier,
                     patch(
                         "stage2_live.controller.capture_native",
                         return_value={
@@ -337,6 +339,109 @@ class Stage2ControllerTests(unittest.TestCase):
                 self.assertEqual(
                     set(capture.call_args.kwargs["input_bindings"]), {key, "sources"}
                 )
+                environment_verifier.assert_called_once()
+
+    def test_incomplete_native_capture_stops_all_adapter_paths_and_preserves_raw(self):
+        cases = (
+            ("research", "failed", "failed"),
+            ("review", None, "unknown"),
+            ("resolve", "interrupted", "interrupted"),
+        )
+        for method, status, expected in cases:
+            with self.subTest(method=method, status=status):
+                root = self.root / f"incomplete-{method}"
+                workspace, home, sources = (
+                    root / "workspace",
+                    root / "home",
+                    root / "sources",
+                )
+                for path in (workspace, home, sources):
+                    path.mkdir(parents=True)
+                (sources / "source.txt").write_text(
+                    "synthetic public source", encoding="utf-8"
+                )
+                output = root / "output"
+                capture_dir = (
+                    output
+                    if method == "research"
+                    else output.with_name(output.name + "-capture")
+                )
+
+                def incomplete_capture(**kwargs):
+                    captured = Path(kwargs["output_dir"])
+                    captured.mkdir()
+                    (captured / "run.json").write_text(
+                        json.dumps({"status": status}), encoding="utf-8"
+                    )
+                    (captured / "stdout.jsonl").write_text(
+                        '{"type":"turn.failed","synthetic":true}\n',
+                        encoding="utf-8",
+                    )
+                    result = {
+                        "record_sha256_receipt": "a" * 64,
+                        "event_summary": {"thread_id": "synthetic-failed"},
+                    }
+                    if status is not None:
+                        result["status"] = status
+                    return result
+
+                native = {
+                    "codex": "fixture",
+                    "model": "gpt-test",
+                    "reasoning": "high",
+                    "config_bindings": {},
+                    "policy_bindings": {},
+                    "extraction_policy": {
+                        "schema_version": "3.1.0",
+                        "evaluator_bundle_sha256": "b" * 64,
+                        "timeout_seconds": 600,
+                        "max_transient_transport_retries": 0,
+                        "max_semantic_corrections_per_unit": 1,
+                        "retry_timeouts": False,
+                    },
+                }
+                context = {
+                    "task": {"prompt": "bounded task"},
+                    "view": {"prompt": "bounded review"},
+                    "source_root": sources,
+                    "paths": {"workspace": workspace, "home": home},
+                    "spec": {"native": native},
+                    "output": output,
+                }
+                with (
+                    patch(
+                        "stage2_live.controller.preflight_for_environment",
+                        return_value={},
+                    ),
+                    patch("stage2_live.controller.verify_environment_start"),
+                    patch(
+                        "stage2_live.controller.capture_native",
+                        side_effect=incomplete_capture,
+                    ) as capture_runner,
+                    patch(
+                        "stage2_live.controller.verify_environment_capture"
+                    ) as environment_verifier,
+                    patch(
+                        "stage2_live.controller.choose_captured_proposal"
+                    ) as proposal,
+                    patch("stage2_live.controller.extract_review") as review,
+                    patch("stage2_live.controller.extract_resolution") as resolution,
+                    self.assertRaisesRegex(
+                        Stage2Error,
+                        f"controller-native-capture-incomplete: {expected}",
+                    ),
+                ):
+                    getattr(_ProductionAdapter(), method)(context)
+                capture_runner.assert_called_once()
+                environment_verifier.assert_not_called()
+                proposal.assert_not_called()
+                review.assert_not_called()
+                resolution.assert_not_called()
+                self.assertEqual(
+                    json.loads((capture_dir / "run.json").read_text()),
+                    {"status": status},
+                )
+                self.assertTrue((capture_dir / "stdout.jsonl").is_file())
 
     def test_read_only_verification_refuses_missing_unit_without_execution(self):
         with tempfile.TemporaryDirectory() as temp:

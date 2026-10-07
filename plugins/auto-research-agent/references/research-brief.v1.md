@@ -56,6 +56,29 @@ plan directory; validation against the new brief rejects the old plan. No file
 is overwritten. Decision records are operator attestations, not cryptographic
 proof that a named person approved them.
 
+## Initial organization target
+
+For new briefs, propose **30 distinct priority works** in a native researcher
+question before searching. Keep the target pending until an applicable answer
+is submitted; a default, silence or timeout is not confirmation. Preserve the
+answer with project and input-version references in the decision's `source_ref`.
+Reuse confirmed applicable answers on resume; stale or wrong-project answers
+do not authorize the current search. An explicit target overrides the proposal.
+
+The existing generic decision fields can record `priority_reading_target` as a
+material intake field, with a `specified` target after confirmation. This is
+an organization decision, not a geographical or keyword restriction: never put
+the count into `query_bindings.scope_filters`. This guidance does not add an
+automatic default to the CLI or a new numeric validation rule to schema v1.
+Keep the optional researcher hard maximum and actual search/read/round/resource
+limits separately recorded. Thirty is neither a full-text promise, hard maximum,
+sufficiency rule nor budget increase. Report requested versus actual distinct
+works, source/extraction/claim states, the retained screening bibliography and
+remaining needs. Do not pad the list or count multiple versions as distinct
+works. An achieved target with unresolved needs remains partial/continue.
+Frozen briefs and packages keep their recorded target, including historical 20;
+this guidance never stamps the new default onto them.
+
 ## Intake metrics are not literature scores
 
 - Unauthorized declared scope narrowing: zero for an accepted plan; a conflicting

@@ -9,6 +9,7 @@ from stage1_eval.common import EvaluationError
 from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, validate_packet
 from stage2_ideation import build_research_task
+from stage2_workflow.reviews import REVIEW_VIEW_VERSIONS
 
 from .extraction import run_live_extraction
 from .judges import run_stage2_judges
@@ -252,6 +253,12 @@ def main(argv=None):
             task.add_argument(
                 "--role", required=True, choices=["challenger", "feasibility"]
             )
+        if name in {"review-task", "reconciliation-task"}:
+            task.add_argument(
+                "--review-view-version",
+                choices=REVIEW_VIEW_VERSIONS,
+                default="1.0.0",
+            )
         if name == "reconciliation-task":
             task.add_argument("--reviews", required=True)
         tasks.append(task)
@@ -290,6 +297,11 @@ def main(argv=None):
                 )
             else:
                 call.add_argument("--reviews", required=True)
+            call.add_argument(
+                "--review-view-version",
+                choices=REVIEW_VIEW_VERSIONS,
+                default="1.0.0",
+            )
         else:
             for option in (
                 "subject-id",
@@ -603,6 +615,7 @@ def main(argv=None):
                 "output_dir",
                 "resume",
                 "record_sha256_receipt",
+                "timeout_seconds",
             }
             if not isinstance(request, dict) or set(request) - allowed:
                 raise CaptureError("capture request contains unsupported fields")
@@ -631,7 +644,11 @@ def main(argv=None):
                     result = build_research_task(packet, args.snapshot_sha256)
                 elif args.command == "review-task":
                     result = review_task(
-                        packet, args.candidate, args.snapshot_sha256, args.role
+                        packet,
+                        args.candidate,
+                        args.snapshot_sha256,
+                        args.role,
+                        review_view_version=args.review_view_version,
                     )
                 else:
                     result = reconciliation_task(
@@ -639,6 +656,7 @@ def main(argv=None):
                         args.candidate,
                         args.snapshot_sha256,
                         _read(args.reviews),
+                        review_view_version=args.review_view_version,
                     )
                 _save(args.output, result)
             else:
@@ -693,6 +711,7 @@ def main(argv=None):
                             args.role,
                             args.capture,
                             args.receipt,
+                            review_view_version=args.review_view_version,
                             **options,
                         )
                     else:
@@ -704,6 +723,7 @@ def main(argv=None):
                             _read(args.reviews),
                             args.capture,
                             args.receipt,
+                            review_view_version=args.review_view_version,
                             **options,
                         )
                 if args.replay_receipt_output and "replay_receipt" in result:

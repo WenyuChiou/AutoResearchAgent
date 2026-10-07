@@ -91,7 +91,7 @@ def _validate_evidence_additions(packet, source_root, additions):
             "quote",
         }
         if packet["schema_version"] != "1.0.0":
-            allowed.add("origin")
+            allowed.update({"origin", "claim_text", "relation", "evidence_level"})
         if not isinstance(row, dict) or set(row) != allowed:
             raise Stage2Error("content-revision-evidence-row-shape")
         if row["evidence_id"] in known:
@@ -99,6 +99,20 @@ def _validate_evidence_additions(packet, source_root, additions):
         source = sources.get(row["source_id"])
         if source is None:
             raise Stage2Error("content-revision-evidence-foreign-source")
+        if packet["schema_version"] != "1.0.0":
+            if row["origin"] != "stage2":
+                raise Stage2Error("content-revision-evidence-origin-must-be-stage2")
+            for field in ("claim_text", "relation"):
+                if not isinstance(row[field], str) or not row[field].strip():
+                    raise Stage2Error(f"content-revision-evidence-{field}-invalid")
+            levels = {"metadata": 0, "abstract": 1, "full-text": 2}
+            if (
+                not isinstance(row["evidence_level"], str)
+                or row["evidence_level"] not in levels
+            ):
+                raise Stage2Error("content-revision-evidence-level-invalid")
+            if levels[row["evidence_level"]] > levels[source["evidence_level"]]:
+                raise Stage2Error("content-revision-evidence-level-promotion")
         if (row["work_id"], row["version_id"]) != (
             source["work_id"],
             source["version_id"],

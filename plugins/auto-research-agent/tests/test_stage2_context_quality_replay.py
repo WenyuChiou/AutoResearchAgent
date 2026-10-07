@@ -116,7 +116,7 @@ class ContextQualityReplayTests(unittest.TestCase):
     def _produce(self, name, mutations=None):
         output = self.base / name
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=self._response(mutations),
         ) as dispatch:
             result = run_context_quality_v3(
@@ -156,7 +156,7 @@ class ContextQualityReplayTests(unittest.TestCase):
         before = {
             p.relative_to(self.out): _sha(p) for p in self.out.rglob("*") if p.is_file()
         }
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as dispatch:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as dispatch:
             verified = self._verify()
         dispatch.assert_not_called()
         after = {
@@ -279,7 +279,7 @@ class ContextQualityReplayTests(unittest.TestCase):
             value["judgments"][0]["evidence_ids"] = ["foreign-case-evidence"]
 
         output, receipt, calls = self._produce("corrected", {"r1-01": foreign_evidence})
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as dispatch:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as dispatch:
             verified = self._verify(output, receipt)
         dispatch.assert_not_called()
         self.assertTrue(verified["qa_pass"])

@@ -101,7 +101,7 @@ class CompleteJudgingTests(unittest.TestCase):
 
     def test_all_ten_criteria_native_archives_and_zero_call_replay(self):
         with patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ) as calls:
             result = self.invoke()
             self.assertGreater(calls.call_count, 20)
@@ -126,14 +126,14 @@ class CompleteJudgingTests(unittest.TestCase):
             view = read_json(path)
             self.assertEqual(view["expected_span_ids"], view["planned_span_ids"])
             self.assertNotIn("submitted_span_ids", view)
-        with patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with patch("stage1_eval.model_calls._execute_bound_process") as replay:
             self.assertEqual(self.invoke(replay_only=True), result)
         replay.assert_not_called()
         target = self.root / "complete/result.json"
         modified = read_json(target)
         modified["selected"]["content"]["criteria"][0]["score"] = 0
         target.write_bytes(canonical(modified))
-        with patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with patch("stage1_eval.model_calls._execute_bound_process") as replay:
             with self.assertRaisesRegex(EvaluationError, "artifact changed"):
                 self.invoke(replay_only=True)
         replay.assert_not_called()
@@ -141,7 +141,9 @@ class CompleteJudgingTests(unittest.TestCase):
     def test_content_over_old_view_limit_has_all_text_and_every_need(self):
         text = "Ordinary text. " * 4500 + "TAIL CONTRARY FINDING"
         self.packet["content_evidence"] = {"answer": _evidence(text)}
-        with patch("stage1_eval.model_calls.subprocess.run", side_effect=self.respond):
+        with patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
+        ):
             complete._content(
                 self.packet, self.root / "content", self.options, self.audits, False
             )
@@ -172,7 +174,7 @@ class CompleteJudgingTests(unittest.TestCase):
                 )
             )
         }
-        with patch("stage1_eval.model_calls.subprocess.run") as calls:
+        with patch("stage1_eval.model_calls._execute_bound_process") as calls:
             with self.assertRaisesRegex(EvaluationError, "no evidence was omitted"):
                 self.invoke()
         calls.assert_not_called()
@@ -181,14 +183,16 @@ class CompleteJudgingTests(unittest.TestCase):
     def test_equal_null_scores_with_different_missing_codes_require_adjudication(self):
         self.different_code = True
         self.root = self.root / "r2-in-parent"
-        with patch("stage1_eval.model_calls.subprocess.run", side_effect=self.respond):
+        with patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
+        ):
             result = self.invoke()
         self.assertEqual(result["adjudicated_phases"], ["content"])
 
     def test_major_review_rejects_ungrounded_confirmation_and_keeps_failures(self):
         self.false_major = True
         with patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ) as calls:
             with self.assertRaisesRegex(EvaluationError, "contrary process evidence"):
                 complete._call(
@@ -211,7 +215,9 @@ class CompleteJudgingTests(unittest.TestCase):
 
     def test_core_batches_preserve_every_work_and_missing_need_is_rejected(self):
         self.packet["extraction"]["works"] = [{"work_id": f"w{i}"} for i in range(5)]
-        with patch("stage1_eval.model_calls.subprocess.run", side_effect=self.respond):
+        with patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
+        ):
             result = self.invoke()
         self.assertEqual(len(result["selected"]["content"]["core_assessments"]), 5)
         core = [p for p in self.prompts if p["unit_kind"] == "core"]
@@ -331,7 +337,7 @@ class CompleteJudgingTests(unittest.TestCase):
 
     def test_over_limit_audit_reason_rejects_before_judge_native_call(self):
         self.representative_audits(reason="R" * 1025, work_count=1)
-        with patch("stage1_eval.model_calls.subprocess.run") as native:
+        with patch("stage1_eval.model_calls._execute_bound_process") as native:
             with self.assertRaisesRegex(
                 EvaluationError, "source audit leaf is invalid"
             ):
@@ -342,7 +348,9 @@ class CompleteJudgingTests(unittest.TestCase):
         self,
     ):
         self.representative_audits()
-        with patch("stage1_eval.model_calls.subprocess.run", side_effect=self.respond):
+        with patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
+        ):
             result = self.invoke()
         self.assertIn("content", result["adjudicated_phases"])
         for role in ("r1", "r2", "adj"):
@@ -439,7 +447,7 @@ class CompleteJudgingTests(unittest.TestCase):
                 for row in result["selected"]["content"]["criteria"]
             )
         )
-        with patch("stage1_eval.model_calls.subprocess.run") as calls:
+        with patch("stage1_eval.model_calls._execute_bound_process") as calls:
             self.assertEqual(self.invoke(replay_only=True), result)
         calls.assert_not_called()
         path = self.root / "complete/content/content-r1-review.result.json"
@@ -451,7 +459,7 @@ class CompleteJudgingTests(unittest.TestCase):
             value = json.loads(original)
             value["source_audit_view_manifest"][field] = changed
             path.write_bytes(canonical(value))
-            with patch("stage1_eval.model_calls.subprocess.run") as calls:
+            with patch("stage1_eval.model_calls._execute_bound_process") as calls:
                 with self.assertRaisesRegex(EvaluationError, "artifact changed"):
                     self.invoke(replay_only=True)
             calls.assert_not_called()
@@ -480,7 +488,7 @@ class CompleteJudgingTests(unittest.TestCase):
             passage.clear()
             passage.update(deepcopy(original_passage))
             passage[field] = changed
-            with patch("stage1_eval.model_calls.subprocess.run") as calls:
+            with patch("stage1_eval.model_calls._execute_bound_process") as calls:
                 with self.assertRaises(EvaluationError, msg=field):
                     self.invoke(replay_only=True)
             calls.assert_not_called()
@@ -495,7 +503,7 @@ class CompleteJudgingTests(unittest.TestCase):
                 leaf["value"]["reason"] = "".join(
                     rng.choices(string.ascii_letters, k=400)
                 )
-        with patch("stage1_eval.model_calls.subprocess.run") as calls:
+        with patch("stage1_eval.model_calls._execute_bound_process") as calls:
             with self.assertRaisesRegex(EvaluationError, "no evidence was omitted"):
                 self.invoke()
         calls.assert_not_called()
@@ -520,7 +528,7 @@ class CompleteJudgingTests(unittest.TestCase):
             ("r1", self.audits, None),
             ("adj", self.audits, None),
         ):
-            with patch("stage1_eval.model_calls.subprocess.run") as calls:
+            with patch("stage1_eval.model_calls._execute_bound_process") as calls:
                 with self.assertRaises(EvaluationError):
                     complete._call(
                         self.packet,
@@ -560,7 +568,7 @@ class CompleteJudgingTests(unittest.TestCase):
                 return_value=scenario.sources,
             ),
             patch(
-                "stage1_eval.model_calls.subprocess.run", side_effect=native
+                "stage1_eval.model_calls._execute_bound_process", side_effect=native
             ) as calls,
         ):
             result = source_fixture.pipeline.evaluate_v31(scenario.flow.args)

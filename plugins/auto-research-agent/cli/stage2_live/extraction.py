@@ -112,9 +112,12 @@ def _validate_span_index(raw_proposal, spans):
 
 def generation_schema(span_index, packet=None):
     """Request span selections and leave candidate identity to the host."""
-    schema = extraction_schema()
+    table_mode = (packet or {}).get("schema_version") in {"2.2.0", "2.3.0"}
+    schema = extraction_schema("1.1.0") if table_mode else extraction_schema()
     ids = [row["span_id"] for row in span_index["spans"]]
     schema["$id"] = "stage2-live-ideation-extraction.span-ids.v1.schema.json"
+    if table_mode:
+        schema["$id"] = "stage2-live-ideation-extraction.span-ids.v1_1.schema.json"
     # The API requires items even for a locally constrained empty array.
     schema["properties"]["receipt"]["properties"]["tool_calls"]["items"] = {
         "type": "string"
@@ -199,6 +202,28 @@ def expand_span_ids(value, raw_proposal, span_index, packet=None):
                         "candidate identity and version must be host-assigned"
                     )
                 row["candidate"].update(fields)
+    tables = result.get("research_tables")
+    if tables is not None:
+        for collection in ("dimensions", "cells", "direction_resources"):
+            for row in tables[collection]:
+                expanded = []
+                seen = set()
+                for selected in row["spans"]:
+                    if not isinstance(selected, dict) or set(selected) != {"span_id"}:
+                        raise ValueError(
+                            "generated table span selection has unexpected fields"
+                        )
+                    span_id = selected["span_id"]
+                    if span_id not in by_id or span_id in seen:
+                        raise ValueError(
+                            "generated table references foreign or repeated span ID"
+                        )
+                    seen.add(span_id)
+                    source = by_id[span_id]
+                    expanded.append(
+                        {key: source[key] for key in ("start", "end", "quote")}
+                    )
+                row["spans"] = expanded
     return result
 
 
@@ -269,6 +294,28 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
         if update_mode == "replace-comparison-unresolved"
         else "The extracted comparison and unresolved items append to the current packet. "
     )
+    table_contract = ""
+    if packet.get("schema_version") in {"2.2.0", "2.3.0"}:
+        table_contract = (
+            "Research-table cell contract: for a text dimension, described or partial "
+            "requires a nonempty string value; for a quantity dimension, described or "
+            "partial requires a finite numeric value and booleans are not numbers. For a "
+            "feature dimension, present uses true or null, absent uses false or null, and "
+            "partial retains source-bound evidence. Unknown and not-applicable always use "
+            "a null value. Unknown means the source does not establish the answer; it must "
+            "not be used to mean absent. negative_basis is allowed only for absent and must "
+            "name a source-bound explicit statement or bounded design inspection. Do not "
+            "add research or turn missing evidence into a known value. "
+            "Resource access contract: available, restricted, or unavailable requires "
+            "non-metadata evidence and an exact ISO-8601 UTC checked_at. Use a recorded "
+            "source retrieved_at only for the source inspection it actually documents, "
+            "when that inspection supports the stated resource status. Saved-source "
+            "possession does not establish current external access, licensing, or whole "
+            "direction feasibility. Never invent a date or a new check. Without supported "
+            "status and time, use unknown with checked_at null. For a composite resource, "
+            "every component must support the stated status; otherwise split it or keep "
+            "it unknown. Preserve supported restrictions and explain the unresolved check. "
+        )
     return (
         "Extract the already-captured Stage 2 proposal into one JSON object with no tools "
         "and no new research. The numbered proposal spans cover the original proposal bytes "
@@ -281,6 +328,7 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
         "only the declared no-tool task policy and isolation_verified must remain false. Zero "
         "candidates is valid. "
         + mode_instruction
+        + table_contract
         + "Return JSON matching generation_schema exactly.\n"
         + json.dumps(payload, ensure_ascii=False, sort_keys=True)
     )

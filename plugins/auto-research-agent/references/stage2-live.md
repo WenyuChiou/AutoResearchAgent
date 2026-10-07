@@ -12,6 +12,16 @@ the exact original text and checks work, version and evidence references.
 The host also assigns new candidate IDs and revision numbers. An unnumbered idea
 in the original prose must not be omitted merely because it has no database ID.
 
+Comparison dimensions declare their `value_kind` before cells are extracted.
+Text cells use `described` or `partial` with text; quantity cells use a finite
+number. A feature cell marked `present` has `true` or `null`, while `absent` has
+`false` or `null`. Descriptive explanations belong in the reason, not a Boolean
+value. Unknown and not-applicable cells keep a null value; unknown is never
+evidence of absence. A negative basis belongs only to an evidence-supported
+absent feature. Validation reports the cell identity rather than silently
+coercing a value. Retain rejected attempts; a bounded correction does not relax
+the source, version, inspection or evidence requirements.
+
 `python -m stage2_live --help` exposes explicit calls, not a background scheduler:
 
 1. `research-task` prepares the comparison and open-ideation prompt.
@@ -50,11 +60,52 @@ correction. Research-tool loops use the host's canonical agent policy; this modu
 does not invent an overall research budget. Costs not reported by the runtime stay
 unknown. All attempts remain in the evidence bundle.
 
+`capture --request` can declare `timeout_seconds`: a finite positive number,
+excluding booleans. The supplied value is part of the immutable call binding;
+changing or removing it prevents completed-call replay. Omitting it preserves
+legacy capture bindings. The controller forwards the deadline from its frozen
+`native.extraction_policy` before staging input files. It does not create a new
+overall research budget or silently grant a longer call.
+
+Bounded prompts use a temporary binary file as standard input, preserving the
+exact bytes without blocking on a child that does not read a pipe. One monotonic
+deadline covers input staging, process startup, ownership checks and waiting.
+Temporary input closes on success or failure. Its storage requirement is
+proportional to the prompt bytes; cleanup and archive time are recorded separately.
+
+On a deadline or interrupted communication, the adapter cleans only the process
+tree it launched. Streamed output, partial session records and cleanup errors
+remain in the failed capture. Cleanup and reaping have their own bounded wait;
+the declared deadline limits communication, not archive construction time.
+Windows uses the owned process ID with `/T /F`; POSIX bounded calls use an owned
+process group. If cleanup cannot be confirmed, the failure remains visible and
+the host must diagnose it before another call. There is no automatic retry, and
+a failed capture cannot be resumed as a completed one. None of these checks
+changes native sandbox, approval, model or filesystem isolation requirements.
+
+The shared evaluator transport applies the same owned-process runner to no-tool
+extraction and judge calls. Its frozen timeout is validated before launch; exact
+prompt bytes use temporary input, and stdout/stderr use temporary binary streams.
+Timeout, launch and runner failures retain partial streams and any cleanup report
+in the attempt archive. Interruptions are archived before propagating unchanged.
+The evaluator producer fingerprint includes the shared runner's
+bytes, so completed units from a different transport cannot silently resume.
+Historical archives remain unchanged; a changed producer requires a new bound
+attempt. This transport repair does not establish source meaning or a score.
+
 Separate CODEX_HOME paths prevent accidental context reuse but do not establish
 filesystem or process isolation. The host must use isolated workspaces/profiles
 or containers, inspect effective tools/plugins, and exclude peer judgments and
 condition labels from the subject's mounts. No-tool model calls reject tool events.
 Production checker judgments and independent evaluator judgments stay separate.
+
+The production controller checks native completion before asking its success-only
+environment verifier to inspect the archive. A failed, interrupted, incomplete,
+or missing status raises `controller-native-capture-incomplete` with the observed
+status. Original captured files remain available for diagnosis. The controller
+does not run extraction or reconciliation, invent reviewer agreement, retry the
+call, or assign a scientific score. A model-capacity failure is an execution
+failure; it is not evidence that a research direction is invalid.
 
 Resume verifies current inputs, source bytes, code/configuration, runtime and
 the completed native archive. It never accepts a saved score merely because its
@@ -74,6 +125,17 @@ tool provenance. Authentication files are never included in the session archive.
 
 ## What remains before formal A/B
 
+Content replacement preserves the immutable limitations accepted at exploratory
+Stage 1 intake. New unresolved issues may replace superseded transient issues;
+they cannot erase the accepted scope, promote evidence or rewrite acceptance.
+Retaining those limitations alone is not a substantive scientific revision.
+
+Known resource access requires non-metadata evidence and an exact UTC check time.
+A recorded source retrieval time supports only the inspection it documents;
+saved-source possession does not establish current access, licensing or direction
+feasibility. Missing support remains unknown with no invented time. Composite
+resources must support every component or remain split/unknown.
+
 Controlled AI diagnostics, a complete domain pilot, a non-domain pilot, evaluator
 calibration, host-isolation evidence and a separately frozen live-readiness
 contract precede formal runs. The existing offline rubric does not become formal
@@ -82,3 +144,25 @@ available to A and B. Required audits cannot be fabricated or waived by the mode
 Test actual native reading/search behavior as well as capability discovery. A
 completed response with a failed sandbox is a degraded pilot, not proof that the
 required native abilities worked.
+
+## Candidate-specific review context
+
+The production controller uses initial review view1.1. Explicit native review
+tasks and extraction can opt into that version while keeping legacy1.0 as the
+compatibility default. The workflow batch records the version in its schema;
+review reconstruction checks the exact current candidate, version, resource
+rows and view hash. An independent pair cannot mix1.0 and1.1 views.
+
+View1.1 supplies the existing five-axis anchors and candidate-specific required
+and optional resources to both the researcher and the tool-free extractor.
+Insufficient evidence is unknown/null, not evidenced failure. A partly supported
+case may remain assessed1; an established missing necessary variable may be0.
+Unknown efficacy can be the research question, whereas unknown enabling
+prerequisites block recommendation. Restrictions on an optional alternative do
+not by themselves invalidate another proposed route.
+
+The extractor preserves the captured judgment; it does not repair a clearly
+stated scientific score by silently changing it. Retain old prose and scores,
+record context or judgment errors, and bind new reviews to the repaired view.
+Passing transport tests is not semantic validation, pilot completion, formal
+isolation, human approval or scientific improvement.

@@ -158,19 +158,35 @@ def _candidate_ids(packet):
     return sorted({row["candidate_id"] for row in packet["candidates"]})
 
 
-def _validate_append_only(previous, current):
+def _validate_append_only(previous, current, *, parent_snapshot_sha256=None):
     if canonical_hash(previous["brief"]) != canonical_hash(current["brief"]):
         raise Stage2Error("workflow-brief-change-requires-explicit-decision")
     if canonical_hash(previous["resources"]) != canonical_hash(current["resources"]):
         raise Stage2Error("workflow-resources-change-requires-explicit-decision")
     if previous["schema_version"] != current["schema_version"]:
         raise Stage2Error("workflow-packet-version-change-requires-new-run")
-    if previous["schema_version"] in {"2.0.0", "2.1.0"} and canonical_hash(
-        previous["upstream"]
-    ) != canonical_hash(current["upstream"]):
+    if previous["schema_version"] in {
+        "2.0.0",
+        "2.1.0",
+        "2.2.0",
+        "2.3.0",
+    } and canonical_hash(previous["upstream"]) != canonical_hash(current["upstream"]):
         raise Stage2Error("workflow-upstream-stage1-binding-rewritten")
+    old_tables = previous.get("research_tables")
+    tables = current.get("research_tables")
+    if old_tables is not None and tables is None:
+        raise Stage2Error("workflow-research-tables-cannot-be-discarded")
+    if tables is not None and tables != old_tables:
+        if tables["input_packet_sha256"] != canonical_hash(previous):
+            raise Stage2Error("workflow-research-tables-parent-packet-mismatch")
+        if (
+            parent_snapshot_sha256 is not None
+            and tables["input_snapshot_sha256"] != parent_snapshot_sha256
+        ):
+            raise Stage2Error("workflow-research-tables-parent-snapshot-mismatch")
     for field, keys in (
         ("literature", ("work_id", "version_id")),
+        ("supplemental_literature", ("work_id", "version_id")),
         ("sources", ("source_id",)),
         ("evidence", ("evidence_id",)),
         ("candidates", ("candidate_id", "version")),
@@ -393,7 +409,7 @@ def initialize_workflow(
         raise Stage2Error("workflow-settings-policy-must-be-objects")
     initial_packet = _read_json(Path(packet_path).resolve())
     initial_packet_sha256 = canonical_hash(initial_packet)
-    if initial_packet.get("schema_version") in {"2.0.0", "2.1.0"}:
+    if initial_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != initial_packet_sha256:
@@ -558,7 +574,9 @@ def inspect_workflow(run_dir, expected_head=None):
             if checker["manifest"]["stage_run"] != manifest["stage_run"]:
                 raise Stage2Error("workflow-stage-run-binding-mismatch")
         else:
-            _validate_append_only(previous_packet, packet)
+            _validate_append_only(
+                previous_packet, packet, parent_snapshot_sha256=previous_snapshot_hash
+            )
         if (
             canonical_hash(packet["brief"]) != manifest["brief_sha256"]
             or canonical_hash(packet["resources"]) != manifest["resources_sha256"]
@@ -735,7 +753,13 @@ def add_snapshot(
             )
             checker = inspect_run(snapshot_dir / "checker")
             packet = _restore_packet(checker)
-            _validate_append_only(state["latest_snapshot"]["packet"], packet)
+            _validate_append_only(
+                state["latest_snapshot"]["packet"],
+                packet,
+                parent_snapshot_sha256=state["latest_snapshot"]["event"]["payload"][
+                    "snapshot_sha256"
+                ],
+            )
             normalized_impact = _validate_impact(packet, impact)
             payload = {
                 "snapshot_sequence": sequence,

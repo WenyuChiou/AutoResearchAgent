@@ -10,6 +10,8 @@ from urllib.parse import quote, urlsplit, urlunsplit
 from stage2_common import canonical_hash, validate_packet
 
 from .extraction import validate_extraction
+from .integration import build_next_packet
+from .tables_report import render_tables_html, render_tables_markdown
 
 VERSION = "1.0.0"
 NOTICE = (
@@ -54,7 +56,7 @@ def build_proposal_view(packet, source_root, raw_proposal, extraction, snapshot_
                 "roles": copy.deepcopy(row["roles"]),
             }
         )
-    return {
+    view = {
         "kind": "Stage2IdeationProposalView",
         "schema_version": VERSION,
         "status": "draft-pending-independent-check-and-user-selection",
@@ -91,6 +93,13 @@ def build_proposal_view(packet, source_root, raw_proposal, extraction, snapshot_
             ),
         },
     }
+    if packet.get("schema_version") in {"2.2.0", "2.3.0"}:
+        table_packet = build_next_packet(
+            packet, source_root, raw_proposal, extraction, snapshot_sha256
+        )["packet"]
+        view["research_tables"] = copy.deepcopy(table_packet["research_tables"])
+        view["table_packet"] = table_packet
+    return view
 
 
 def _md(value):
@@ -330,6 +339,10 @@ def render_proposal_markdown(view):
             "",
         ]
     )
+    if view.get("research_tables") is not None:
+        lines.extend(
+            ["", render_tables_markdown(view["research_tables"], view["table_packet"])]
+        )
     return "\n".join(lines).encode("utf-8")
 
 
@@ -356,6 +369,11 @@ def _html_source_ref(row):
 
 def render_proposal_html(view):
     """Render the same validated proposal view as safe standalone HTML bytes."""
+    tables_html = (
+        render_tables_html(view["research_tables"], view["table_packet"])
+        if view.get("research_tables") is not None
+        else ""
+    )
     bibliography = []
     for row in view["bibliography"]:
         bibliography.append(
@@ -442,9 +460,10 @@ def render_proposal_html(view):
     document = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DRAFT: Stage 2 literature and ideation proposal</title>
-<style>body{{max-width:1100px;margin:auto;padding:2rem;font:16px/1.55 system-ui;color:#172033}}section,article{{border:1px solid #d9dfeb;border-radius:10px;padding:1rem;margin:1rem 0}}.notice{{background:#fff2c7;border-left:5px solid #a66b00}}dl{{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:.45rem 1rem}}dt{{font-weight:700}}dd{{margin:0;overflow-wrap:anywhere}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7fa;padding:1rem}}code{{overflow-wrap:anywhere}}@media(max-width:650px){{dl{{grid-template-columns:1fr}}}}</style>
+<style>body{{max-width:1100px;margin:auto;padding:2rem;font:16px/1.55 system-ui;color:#172033}}section,article{{border:1px solid #d9dfeb;border-radius:10px;padding:1rem;margin:1rem 0}}.notice{{background:#fff2c7;border-left:5px solid #a66b00}}dl{{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:.45rem 1rem}}dt{{font-weight:700}}dd{{margin:0;overflow-wrap:anywhere}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7fa;padding:1rem}}code{{overflow-wrap:anywhere}}@media(max-width:650px){{dl{{grid-template-columns:1fr}}}}.table-wrap{{overflow-x:auto}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #d9dfeb;padding:.6rem;text-align:left;vertical-align:top}}
+</style>
 </head><body><header><h1>DRAFT: Stage 2 literature and ideation proposal</h1><p class="notice">{_h(view["notice"])}</p></header>
-<main><section><h2>Validation boundary</h2><ul><li>Source binding validation: {_h(view["validation_boundary"]["factual_source_validation"])}</li><li>Source metadata identity verified: false</li><li>{_h(view["validation_boundary"]["source_metadata_note"])}</li><li>Scientific validity verified: false</li><li>{_h(view["validation_boundary"]["scientific_validation_note"])}</li></ul></section>
+<main>{tables_html}<section><h2>Validation boundary</h2><ul><li>Source binding validation: {_h(view["validation_boundary"]["factual_source_validation"])}</li><li>Source metadata identity verified: false</li><li>{_h(view["validation_boundary"]["source_metadata_note"])}</li><li>Scientific validity verified: false</li><li>{_h(view["validation_boundary"]["scientific_validation_note"])}</li></ul></section>
 <section><h2>Provenance</h2><dl><dt>Packet SHA-256</dt><dd><code>{view["packet_sha256"]}</code></dd><dt>Snapshot SHA-256</dt><dd><code>{view["snapshot_sha256"]}</code></dd><dt>Raw proposal SHA-256</dt><dd><code>{view["raw_proposal_sha256"]}</code></dd><dt>Extraction SHA-256</dt><dd><code>{view["extraction_sha256"]}</code></dd></dl></section>
 <section><h2>Research scope</h2><dl><dt>Original scope</dt><dd>{_h(view["brief"]["original_description"])}</dd><dt>Resources</dt><dd>{_h(view["resources"])}</dd><dt>Starting comparison</dt><dd>{_h(view["starting_comparison"])}</dd></dl></section>
 <section><h2>Bibliography</h2>{"".join(bibliography) or "<p>No bibliography rows were extracted.</p>"}</section>

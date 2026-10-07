@@ -149,7 +149,7 @@ class OriginalFieldTests(unittest.TestCase):
     def test_original_values_conflicts_cross_span_unicode_and_zero_call_replay(self):
         before = deepcopy(self.extraction)
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             enriched, receipt = self.invoke()
         fields = enriched["works"][0]["original_fields"]
@@ -172,13 +172,13 @@ class OriginalFieldTests(unittest.TestCase):
                 self.subject["evidence"]["answer"]["text"][part["start"] : part["end"]],
                 row["original_value"],
             )
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             self.assertEqual(self.invoke(replay_only=True), (enriched, receipt))
         replay.assert_not_called()
 
     def test_connected_source_audit_uses_original_year_not_external_year(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             result = audit_subject_sources(
                 self.subject,
@@ -227,7 +227,7 @@ class OriginalFieldTests(unittest.TestCase):
             },
         }
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             enriched, _ = self.invoke()
         self.assertEqual(enriched["works"][0]["original_fields"]["version"], [])
@@ -238,7 +238,7 @@ class OriginalFieldTests(unittest.TestCase):
         self.assertIsNone(version[0]["original_value"])
 
     def test_wrong_work_provenance_and_changed_subject_reject_before_model(self):
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             self.provenance["work_source_map"]["work"][0]["evidence_id"] = "wrong-file"
             with self.assertRaisesRegex(EvaluationError, "wrong citation evidence"):
                 self.invoke()
@@ -256,7 +256,7 @@ class OriginalFieldTests(unittest.TestCase):
             return self.complete(command, value)
 
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=wrong
+            "stage1_eval.model_calls._execute_bound_process", side_effect=wrong
         ) as run:
             with self.assertRaisesRegex(EvaluationError, "literal is absent"):
                 self.invoke()
@@ -267,7 +267,7 @@ class OriginalFieldTests(unittest.TestCase):
 
     def test_rehashed_original_result_tamper_is_rejected_without_calls(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             self.invoke()
         path = self.output / "result.json"
@@ -276,7 +276,7 @@ class OriginalFieldTests(unittest.TestCase):
             "9999"
         )
         path.write_bytes(canonical(result))
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             with self.assertRaisesRegex(
                 EvaluationError, "saved evaluator artifact changed"
             ):

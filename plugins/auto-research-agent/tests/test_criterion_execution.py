@@ -111,7 +111,7 @@ class CriterionExecutionTests(unittest.TestCase):
         index, _ = build_coverage_plan(subject, "process", max_unit_bytes=4500)
         self.assertGreaterEqual(len(index), 83)
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ) as run:
             result = self.invoke(subject)
         self.assertEqual(set(result["roles"]), {"r1", "r2"})
@@ -138,7 +138,7 @@ class CriterionExecutionTests(unittest.TestCase):
         self.assertGreater(first["nodes"]["final"]["counts"]["contrary"], 0)
         self.assertEqual(run.call_count, 2 * len(first["nodes"]))
         self.assertFalse(any("prior_judgments" in data for data in self.prompts))
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             self.assertEqual(self.invoke(subject, replay_only=True), result)
         replay.assert_not_called()
 
@@ -152,7 +152,9 @@ class CriterionExecutionTests(unittest.TestCase):
                 value["summaries"]["uncertain"] = "Synthetic uncertainty."
             return self.fixture.completed(command, value)
 
-        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=disagree):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=disagree
+        ):
             result = self.invoke(packet("positive evidence"))
         self.assertEqual(set(result["roles"]), {"r1", "r2", "adj"})
         self.assertEqual(result["selected_role"], "adj")
@@ -177,7 +179,9 @@ class CriterionExecutionTests(unittest.TestCase):
                 value["verdict"]["missing_evidence_codes"] = ["stop-rationale-absent"]
             return self.fixture.completed(command, value)
 
-        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=disagree):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=disagree
+        ):
             result = self.invoke(packet(""), name="missing-disagreement")
         self.assertEqual(set(result["roles"]), {"r1", "r2", "adj"})
         self.assertEqual(result["selected_role"], "adj")
@@ -193,7 +197,7 @@ class CriterionExecutionTests(unittest.TestCase):
     def test_missing_duplicate_and_rehashed_coverage_or_result_cannot_replay(self):
         subject = packet("positive evidence " * 500)
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             self.invoke(subject)
         for relative, mutate in (
@@ -213,7 +217,7 @@ class CriterionExecutionTests(unittest.TestCase):
             mutate(changed)
             path.write_bytes(canonical(changed))
             sha(path.read_bytes())
-            with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+            with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
                 with self.assertRaises(EvaluationError):
                     self.invoke(subject, replay_only=True)
             replay.assert_not_called()
@@ -236,14 +240,16 @@ class CriterionExecutionTests(unittest.TestCase):
             return self.respond(command, **kwargs)
 
         subject = packet("positive\n" * 3000)
-        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=timeout):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=timeout
+        ):
             with self.assertRaises(EvaluationError):
                 self.invoke(subject)
         failure = read_json(next((self.root / "run/r1").glob("*.error.json")))
         self.assertEqual(len(failure["completed_unit_ids"]), 1)
         self.assertTrue(failure["pending_unit_ids"])
         self.assertFalse(failure["semantic_aggregation_complete"])
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             with self.assertRaises(EvaluationError):
                 self.invoke(subject)
         replay.assert_not_called()
@@ -258,7 +264,8 @@ class CriterionExecutionTests(unittest.TestCase):
             )
         ):
             with mock.patch(
-                "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+                "stage1_eval.model_calls._execute_bound_process",
+                side_effect=self.respond,
             ):
                 result = self.invoke(packet(text, name=f"format-{n}"), name=f"run-{n}")
             self.assertEqual(result["roles"]["r1"]["verdict"]["score"], 1)
@@ -272,19 +279,21 @@ class CriterionExecutionTests(unittest.TestCase):
                 value["summaries"]["contrary"] = ""
             return self.fixture.completed(command, value)
 
-        with mock.patch("stage1_eval.model_calls.subprocess.run", side_effect=erase):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=erase
+        ):
             with self.assertRaisesRegex(EvaluationError, "polarity"):
                 self.invoke(packet("CONTRARY"))
         oversized = packet("positive")
         oversized["task"] = "too large" * 2000
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             with self.assertRaisesRegex(EvaluationError, "byte limit"):
                 self.invoke(oversized, name="oversized")
         run.assert_not_called()
 
     def test_oversized_invalid_output_cannot_launch_unbounded_correction(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run",
+            "stage1_eval.model_calls._execute_bound_process",
             side_effect=lambda command, **kwargs: self.fixture.completed(
                 command, {"bad": "x" * 9000}
             ),
@@ -304,7 +313,7 @@ class CriterionExecutionTests(unittest.TestCase):
         subject = packet(text)
         _, plan = build_coverage_plan(subject, "process", max_unit_bytes=4500)
         self.assertGreater(len(plan["units"]), MAX_PLAN_UNITS_PER_CRITERION)
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as run:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as run:
             with self.assertRaisesRegex(
                 EvaluationError, "execution budget exceeded before model calls"
             ):
@@ -314,7 +323,7 @@ class CriterionExecutionTests(unittest.TestCase):
 
     def test_all_three_process_criteria_and_empty_input_unknown(self):
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             result = judge_process_complete(packet(""), self.root / "all", self.options)
         self.assertEqual(len(result), 3)
@@ -336,7 +345,7 @@ class CriterionExecutionTests(unittest.TestCase):
         )
         subject["process_evidence"]["arbitrary-file"]["origin"] = "subject-native-trace"
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             self.invoke(subject)
         spans = [row for data in self.prompts for row in data["spans"].values()]
@@ -349,7 +358,7 @@ class CriterionExecutionTests(unittest.TestCase):
         text = "研究🚀" * 900
         subject = packet(text)
         with mock.patch(
-            "stage1_eval.model_calls.subprocess.run", side_effect=self.respond
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.respond
         ):
             result = self.invoke(subject)
         plan = read_json(self.root / "run/plan.json")["plan"]
@@ -366,7 +375,7 @@ class CriterionExecutionTests(unittest.TestCase):
             ),
             text,
         )
-        with mock.patch("stage1_eval.model_calls.subprocess.run") as replay:
+        with mock.patch("stage1_eval.model_calls._execute_bound_process") as replay:
             self.assertEqual(self.invoke(subject, replay_only=True), result)
         replay.assert_not_called()
 

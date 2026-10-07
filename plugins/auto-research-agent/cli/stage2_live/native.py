@@ -11,9 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 import re
 import shutil
-import subprocess
 
 from .native_policy import NAMED_POLICY_KIND, NamedPolicyError, named_policy_args
+from .native_process import run_bound_process, validate_timeout_seconds
 
 
 SUBJECT_EXECUTION_POLICY = {"sandbox": "workspace-write", "network_access": True}
@@ -292,12 +292,13 @@ def _request_binding(
     input_bindings,
     config_bindings,
     policy_bindings,
+    timeout_seconds=None,
 ):
     profile_config = _normal_path(codex_home) / "config.toml"
     profile_binding = (
         _path_binding(profile_config) if profile_config.is_file() else None
     )
-    return {
+    binding = {
         "codex": str(_normal_path(codex)),
         "codex_runtime_sha256": codex_runtime_sha(codex),
         "codex_home": str(_normal_path(codex_home)),
@@ -311,6 +312,9 @@ def _request_binding(
         "config_bindings": _bindings(config_bindings),
         "policy_bindings": policy_bindings,
     }
+    if timeout_seconds is not None:
+        binding["timeout_seconds"] = timeout_seconds
+    return binding
 
 
 def _stable_request(binding):
@@ -420,6 +424,13 @@ def verify_capture(
         stable.get("policy_bindings"), dict
     ):
         raise CaptureError("capture permission binding is malformed")
+    if "timeout_seconds" in stable:
+        try:
+            if stable["timeout_seconds"] is None:
+                raise ValueError("declared timeout cannot be null")
+            validate_timeout_seconds(stable["timeout_seconds"])
+        except ValueError as error:
+            raise CaptureError("capture timeout binding is invalid") from error
     named = stable["policy_bindings"].get("kind") == NAMED_POLICY_KIND
     if record.get("schema_version") != ("2.0.0" if named else "1.0.0"):
         raise CaptureError("capture schema differs from permission policy")
@@ -473,12 +484,18 @@ def capture_native(
     resume=False,
     process_runner=None,
     record_sha256_receipt=None,
+    timeout_seconds=None,
 ):
     """Run once, or verify and replay a completed capture without re-execution.
 
     ``process_runner`` is solely an injected test seam. Its use is recorded and
     can never be represented as an authentic native subprocess capture.
+    A supplied timeout is a frozen per-call deadline, not a new overall budget.
     """
+    try:
+        validate_timeout_seconds(timeout_seconds)
+    except ValueError as error:
+        raise CaptureError("timeout_seconds must be finite and positive") from error
     codex_home, workspace, output = map(
         _normal_path, (codex_home, workspace, output_dir)
     )
@@ -510,6 +527,7 @@ def capture_native(
         input_bindings,
         config_bindings,
         policy_bindings,
+        timeout_seconds,
     )
     if policy_bindings != SUBJECT_EXECUTION_POLICY:
         try:
@@ -549,12 +567,16 @@ def capture_native(
     exception = None
     try:
         if injected:
+            runner_deadline = (
+                {"timeout": timeout_seconds} if timeout_seconds is not None else {}
+            )
             result = process_runner(
                 command,
                 input=prompt_bytes,
                 env=dict(os.environ, CODEX_HOME=str(codex_home)),
                 cwd=workspace,
                 capture_output=True,
+                **runner_deadline,
             )
             stdout = (
                 result.stdout
@@ -576,16 +598,15 @@ def capture_native(
                 (output / "stdout.jsonl").open("xb") as stdout_handle,
                 (output / "stderr.txt").open("xb") as stderr_handle,
             ):
-                process = subprocess.Popen(
+                exit_code = run_bound_process(
                     command,
-                    stdin=subprocess.PIPE,
+                    input=prompt_bytes,
                     stdout=stdout_handle,
                     stderr=stderr_handle,
                     env=dict(os.environ, CODEX_HOME=str(codex_home)),
                     cwd=workspace,
+                    timeout_seconds=timeout_seconds,
                 )
-                process.communicate(input=prompt_bytes)
-                exit_code = process.returncode
             stdout = (output / "stdout.jsonl").read_bytes()
             stderr = (output / "stderr.txt").read_bytes()
     except (
@@ -595,6 +616,8 @@ def capture_native(
         stderr = getattr(error, "stderr", None) or str(error).encode("utf-8", "replace")
         exit_code = None
         exception = {"type": type(error).__name__, "message": str(error)}
+        if hasattr(error, "cleanup_report"):
+            exception["cleanup_report"] = error.cleanup_report
         for path, data in (
             (output / "stdout.jsonl", stdout),
             (output / "stderr.txt", stderr),

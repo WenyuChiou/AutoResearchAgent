@@ -30,7 +30,8 @@ class RevisionProvenanceTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        # Use the physical host temp root; production still rejects linked paths.
+        self.root = Path(temporary.name).resolve()
         self.sources = self.root / "sources"
         self.parent = write_stage2_fixture(self.sources, candidate_count=2)
         self.parent_path = self.root / "parent.json"

@@ -19,9 +19,10 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-          "accepted Wiki assets retain their original hashes; a separate same-origin panel exposes only opaque session targets, holds uncertain submissions and reads durable action keys without native I/O",
-          "HTTP rejects cross-origin/host, duplicate safety headers, invalid JSON and oversized bodies before dispatch; excess sockets create no handler, trickled line/header/body expires at the absolute deadline, and lost responses recover from read-only action history without resend",
-        "project/principal/version checks precede dispatch; exact saved request and turn targets stay server-side; concurrent or reconstructed API replay and history reads produce no duplicate write",
+            "accepted Wiki assets retain their original hashes; a separate same-origin panel exposes only opaque session targets, holds uncertain submissions and reads durable action keys without native I/O",
+            "HTTP rejects cross-origin/host, duplicate safety headers, invalid JSON and oversized bodies before dispatch; excess sockets create no handler, trickled line/header/body expires at the absolute deadline, and lost responses recover from read-only action history without resend",
+            "fresh SQLite writer, new owner and connection epoch preserve API crash gaps without resending; a failed post-recording fault event remains distinct from durable close evidence",
+            "project/principal/version checks precede dispatch; exact saved request and turn targets stay server-side; concurrent or reconstructed API replay and history reads produce no duplicate write",
             "bound answers, explicit decisions and interrupts preserve exact request identity, durable admission and no-resend recovery; stale, partial, malformed and owner-loss observations never become terminal proof",
             "construction fails before binding on invalid channel, epoch or sink; post-binding failures preserve fault or explicit unobserved fault plus separate close evidence, and SQLite reopen does not reuse an old epoch",
             "a full-frame observation requires exact persisted outgoing bytes, current owner/project/epoch and contiguous positive counted suffix writes; incomplete, changed or incoming-only evidence is rejected",
@@ -38,8 +39,9 @@
         "no production launcher, frozen input access, model calls or scientific score changes"
       ],
       "test_refs": [
-      "plugins/auto-research-agent/tests/test_research_workspace_native_wiki_http.py",
-      "plugins/auto-research-agent/tests/test_research_workspace_native_http.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_wiki_http.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_http.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_native_api_recovery.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_session_api.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_controller.py",
         "plugins/auto-research-agent/tests/test_research_workspace_native_controller_safety.py",
@@ -66,7 +68,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace",
       "problem": "The Wiki reference displays synthetic papers and cannot reconcile a real partial Stage 1 package across its graph, notes, catalog and bibliography.",
-      "mechanism": "Wrap saved Stage 1 records with a deterministic, externally hash-bound read-only WorkspaceIndex and English HTML view. Reuse record validation, safe file boundaries and the existing bibliography producer; retain source levels, claim relations, coverage, input identities and failed attempts without launching research or scoring.",
+      "mechanism": "Wrap saved Stage 1 records with a deterministic, externally hash-bound read-only WorkspaceIndex and English HTML view. Reuse record validation, safe file boundaries and the existing bibliography producer; retain source levels, claim relations, coverage, input identities and failed attempts without launching research or scoring. Optionally attach an externally accepted private repair overlay with exact source passages, original-to-atomic mappings, preserved failures and separate core findings; v1 inputs and scientific states remain unchanged. The optional accepted repair overlay is projected into English HTML, version-bound Markdown, Excel/CSV, core findings and a complete bibliography with independent source, assertion and unresolved states. An offline saved-byte reader can explicitly produce a new hash-bound extraction manifest from v1/v2 source receipts using a pinned local parser. The separately attached WorkspaceIndex v3 binds that manifest, its exact work/source/version identities, source bytes, locators and metadata provenance while preserving every legacy field. The CLI and read-only presentation export the accepted overlay into HTML, Wiki, Excel/CSV, Markdown and BibTeX without parser execution, source acquisition or scientific promotion. The local literature graph uses a deterministic bounded layout, distinct work/version nodes, recorded classification/role edges, pointer and keyboard navigation, and hash-bound reference assets; interaction changes no canonical evidence.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -76,7 +78,12 @@
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "one work/version identity reconciles graph, list, detail, notes and bibliography",
-            "input manifests, source hashes, limitations and retained failures are inspectable separately from validation and scientific support"
+            "input manifests, source hashes, limitations and retained failures are inspectable separately from validation and scientific support",
+            "all closeout formats retain original work/version identities and Unknowns, accepted atomic mappings, source hashes and separately bound exporter runtime",
+            "saved response, work/source/version, reading attempt and local parser hashes are preserved without source acquisition or scientific judgment changes",
+            "v3 attachment rejects changed manifests, source versions, artifact bytes, locators, metadata provenance and evidence or import upgrades",
+            "v3 export rebuilds deterministic cross-format work/version/source identities and retains mixed read successes, failures and original states",
+            "graph filter, selection, pan, zoom and drag preserve work/version identities and exact canonical exports; reference asset hashes supersede historical base provenance for rebuild"
           ],
           "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
         }
@@ -90,8 +97,15 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace.py",
+        "plugins/auto-research-agent/tests/test_workspace_observed_doi.py",
         "plugins/auto-research-agent/tests/test_research_workspace_view.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_wiki.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_wiki.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_repair.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_closeout.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_saved_reader.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_binding.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_exports.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_source_availability.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
@@ -270,7 +284,13 @@
         "plugins/auto-research-agent/tests/test_recovery_reviewed_delta.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
-      "quality_improvement_claimed": false
+      "quality_improvement_claimed": false,
+      "shared_evaluator_deadline_contract": "Shared no-tool extraction and judge calls reuse the reviewed stage2_live/native_process runner, finite frozen timeout and exact temporary prompt/stream bytes; timeout and OSError attempts preserve partial streams and owned-tree cleanup reports. Evaluator producer hashes include shared runner bytes; changed producers require new attempts, never historical archive rewriting. This is transport behavior, not source meaning, isolation, formal readiness or scientific improvement.",
+      "shared_evaluator_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
+      ]
     },
     {
       "capability_id": "cli:stage1-brief",
@@ -337,6 +357,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_deliverable.py",
+        "plugins/auto-research-agent/tests/test_stage1_observed_doi.py",
         ".github/scripts/test_validate_research_pr.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
@@ -413,7 +434,8 @@
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "the Stage 1 skill invokes a source-version-bound topic-core assessment",
-            "confirmed scope and family-to-need mappings are required before new searches; intake metrics remain separate from P1-P3 scores"
+            "confirmed scope and family-to-need mappings are required before new searches; intake metrics remain separate from P1-P3 scores",
+            "native intake proposes30 distinct priority works for new briefs, records submitted targets separately from hard/resource limits, preserves historical targets and rejects silent sufficiency promotion in the declared workflow"
           ],
           "human_judgment": "Independent v3 judges assess whether the cited work actually changes the research decision."
         },
@@ -430,6 +452,9 @@
           ],
           "human_judgment": "Judge the actual evidence and stopping rationale under the same rubric, not a preferred record format."
         }
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_research_brief.py"
       ]
     },
     {

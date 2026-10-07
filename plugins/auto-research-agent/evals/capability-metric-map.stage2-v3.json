@@ -47,9 +47,10 @@
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
       ],
-      "mechanism": "Opt-in source-context v1 binds exact source bytes, adjacent context, evidence levels and unverified semantic declarations; bounded context and independent review prevent location binding from being misread as semantic verification.",
+      "mechanism": "Opt-in source-context v1 binds exact source bytes, adjacent context, evidence levels and unverified semantic declarations. Policy1.1 accepts complete verbatim multi-paragraph quotes, preferring complete paragraphs and otherwise labelling a bounded raw window as partial. Legacy1.0 output and rejection behavior remain reconstructible; unchanged aggregate bounds and independent review prevent location binding from being misread as semantic verification or full-source absence.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
+        "plugins/auto-research-agent/tests/test_stage2_source_context_multispan.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
       ],
@@ -60,6 +61,15 @@
       "formal_admission_bridge": "Schema2.0.0 binds v3 plan/readiness/result artifact receipts and replays six v3 judge bundles; unsupported native inventory, nested usage, quality and preflight/controller replay remain explicit blockers. No formal promotion.",
       "formal_admission_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_formal_admission_v3.py"
+      ],
+      "topic_table_content_projection": "Opt-in packet2.2 content-first view includes recorded literature, comparison cells and current candidate-version resources, omits raw extraction receipts, prior dispositions and internal checker scores; legacy views remain unchanged.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
@@ -104,10 +114,25 @@
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ]
     },
     {
       "capability_id": "cli:stage2-live",
+      "native_incomplete_capture_contract": "The shared production capture seam rejects missing or noncomplete native status before success-only environment verification, review extraction or reconciliation. Original failed artifacts remain intact. An unavailable model or interrupted call is an execution failure, never a zero scientific score, absent reviewer agreement or a completed pilot. No retry, model, policy, sandbox or rubric change.",
+      "native_incomplete_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ],
+      "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
+      "native_call_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_deadline.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_native.py"
+      ],
       "metric_effects": [
         {
           "metric_id": "P4",
@@ -241,6 +266,25 @@
       "daily_assessment_target_policy": "Explicit opt-in3.1 framing binds actual submitted-content policy bytes before independent native daily scoring; request/config/result/resume reflect the choice. Legacy prompt/field semantics remain unchanged, actual code-byte changes still invalidate prior runtime bindings. No formal promotion.",
       "daily_assessment_target_policy_tests": [
         "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "shared_evaluator_deadline_contract": "Shared no-tool extraction and judge calls reuse the reviewed stage2_live/native_process runner, finite frozen timeout and exact temporary prompt/stream bytes; timeout and OSError attempts preserve partial streams and owned-tree cleanup reports. Evaluator producer hashes include shared runner bytes; changed producers require new attempts, never historical archive rewriting. This is transport behavior, not source meaning, isolation, formal readiness or scientific improvement.",
+      "shared_evaluator_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
+      ],
+      "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
+      "topic_cell_extraction_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py"
+      ],
+      "candidate_review_context_mechanism": "Opt-in initial review view1.1 carries exact current-candidate resource rows and the existing five-axis assessed/unknown anchors into native review and tool-free extraction. Legacy1.0 bindings remain reconstructible; mismatched or mixed review versions fail closed. Optional alternatives do not become mandatory requirements, unknown enabling prerequisites do not become evidenced failure, and raw reviewer judgments are not automatically repaired. Transport and validation tests do not establish scientific judgment quality, complete B execution, formal isolation or A/B improvement.",
+      "candidate_review_context_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_review_context.py"
       ]
     },
     {
@@ -291,6 +335,36 @@
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
+      ],
+      "research_quality_guards": "Opt-in source/candidate/snapshot-bound checks for comparability, evidence dependency, distinguishable mechanisms and critical premises; exact guard map with external receipt; guarded schema1.2 export rejects ineligible raw recommendations. Alternative and simultaneous resource claims differ. No semantic truth or formal promotion inferred.",
+      "research_quality_guard_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_quality_guards.py",
+        "plugins/auto-research-agent/tests/test_stage2_guarded_delivery.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "candidate_review_context_mechanism": "Opt-in initial review view1.1 carries exact current-candidate resource rows and the existing five-axis assessed/unknown anchors into native review and tool-free extraction. Legacy1.0 bindings remain reconstructible; mismatched or mixed review versions fail closed. Optional alternatives do not become mandatory requirements, unknown enabling prerequisites do not become evidenced failure, and raw reviewer judgments are not automatically repaired. Transport and validation tests do not establish scientific judgment quality, complete B execution, formal isolation or A/B improvement.",
+      "candidate_review_context_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_review_context.py"
+      ],
+      "registered_history_delivery_mechanism": "Explicit delivery1.3 records the verified immutable workflow event chain, every snapshot and retained action artifact in portable provenance2.0, including table-only bridges. Candidate revisions are reconstructed only from actual registered transitions. Initial imported revisions without transition evidence remain unavailable. The retained delivery manifest detects altered history; registered records do not attest native execution, authorship, human approval or scientific improvement. Legacy authenticated-receipt and guarded delivery paths remain separate.",
+      "registered_history_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_registered_history.py",
+        "plugins/auto-research-agent/tests/test_stage2_registered_history_delivery.py"
+      ],
+      "imported_history_delivery_mechanism": "Explicit delivery1.4/provenance2.1 imports retained legacy delivery1.1 local revision records only when raw inventory, candidate payloads, evidence and source work/version/hash match the initial workflow packet. Missing history remains missing; duplicate or conflicting transitions fail closed. Current reviews and external assessment remain required. No imported approval, execution, authorship, scientific truth or A/B improvement is attested. Legacy delivery1.3/provenance2.0 replay is unchanged.",
+      "imported_history_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_imported_history.py",
+        "plugins/auto-research-agent/tests/test_stage2_imported_history_delivery.py"
       ]
     },
     {
@@ -379,6 +453,19 @@
           ],
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
+      ],
+      "research_quality_guards": "Requires independent source-based quality and prerequisite checking before final guarded recommendations; effects unknown until live evaluation.",
+      "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
       ]
     },
     {
@@ -387,7 +474,9 @@
         {
           "metric_id": "P4",
           "rubric_criteria": [
-            "P4V3.FIDELITY"
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
@@ -405,16 +494,71 @@
             "Authenticated source updates or content-only revisions bind immutable snapshots, preserved source/candidate history, optional exact excerpts on existing sources, and fresh affected-version checks; zero new evidence is legal for substantive content correction"
           ],
           "human_judgment": "Fresh affected-version review establishes assessment support; no formal improvement claim."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Complete recorded work/dimension grid; bound cell provenance; current versus historical candidate-version resources; preserved unknowns and safe Markdown/HTML/Wiki projection"
+          ],
+          "human_judgment": "Independent source-grounded review is required; prepared tables do not demonstrate scientific improvement."
         }
+      ],
+      "idea_completeness": "Opt-in source-bound caller-supplied idea spans with extracted/retained-unformed/excluded reasons; original prose retained; CLI rejects external receipt mismatch before export. Does not claim exhaustive discovery.",
+      "idea_completeness_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_quality_guards.py"
+      ],
+      "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
+      "topic_cell_extraction_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py"
+      ],
+      "exploratory_content_revision_contract": "Replacement keeps the exact immutable exploratory intake limitations while updating superseded transient issues. Acceptance and source bindings remain unchanged; preservation alone is not a substantive revision or scientific approval.",
+      "exploratory_content_revision_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_revision.py"
       ]
     },
     {
       "capability_id": "cli:research-workspace",
       "metric_effects": [
         {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Per-work/version recorded data, method, findings and limits remain exact; absent cells stay null; evidence association excludes foreign works or source versions."
+          ],
+          "human_judgment": "Readable comparisons expose source limits; table completeness is not scientific fidelity proof."
+        },
+        {
           "metric_id": "P6",
           "rubric_criteria": [
-            "P6V3.CHOICE"
+            "P6V3.CHOICE",
+            "P6V3.FEASIBILITY"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
@@ -423,10 +567,89 @@
           "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
         }
       ],
-      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research.",
+      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged. Comparison workbench preserves paper-level fields separately from recorded synthesis; local selection, filters and evidence panels do not alter canonical records, evaluator scores or permission state. The existing stage rail displays Stage 1 literature by default and the verified Stage 2 attachment only when Stage 2 is selected; unavailable attachments retain the disconnected placeholder, and view switching never changes research records or authorization.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_view.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_html.py",
+        "plugins/auto-research-agent/tests/test_workspace_stage_navigation.py"
+      ],
+      "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ],
+      "content_first_delivery_mechanism": "Packet2.2 task binds topic-derived-source-bound-comparison-v1; presentation1.3 reconstructs source-version/current-candidate matrix, resource and decision-record completeness into shared reports/Wiki. Record completeness is not semantic truth, native independent execution, material readiness or scientific improvement.",
+      "content_first_delivery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-common",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Opt-in packet2.2 validates source-bound topic cells and complete declared work/dimension grids while preserving full versus exploratory intake restrictions."
+          ],
+          "human_judgment": "Binding and grid completeness do not establish correct scientific interpretation."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Resources bind exact candidate versions; known access requires source evidence and check time; unknown access/license/cost/version remain explicit."
+          ],
+          "human_judgment": "Source-bound resource records do not establish whole-direction feasibility or scientific improvement."
+        }
+      ],
+      "mechanism": "Shared packet validation dispatches opt-in topic/resource validation without changing legacy schemas, scientific anchors or human authority.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage1-eval",
+      "mechanism": "Stage2 extraction and judge units reuse the shared evaluator transport; completed source-bound native units are measurement prerequisites, never evidence of semantic fidelity or research improvement.",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Exact bounded prompt/stream bytes, archived runner failures and helper-bound producer identity; no failed or changed-producer unit resumes."
+          ],
+          "human_judgment": "Independent source-grounded judges still establish fidelity; transport success alone is not a score."
+        }
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_evaluator_model_calls.py"
       ]
     }
   ]

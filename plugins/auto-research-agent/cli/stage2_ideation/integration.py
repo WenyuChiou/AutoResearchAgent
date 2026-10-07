@@ -5,9 +5,11 @@ import copy
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 
 from .extraction import validate_extraction
+from .topic_tables import materialize_research_tables, validate_research_tables
 
 
 UPDATE_MODES = {"append", "replace-comparison-unresolved"}
+EXPLORATORY_PACKET_VERSIONS = {"2.1.0", "2.2.0", "2.3.0"}
 
 
 def _comparison_text(rows, *, replacement):
@@ -27,6 +29,35 @@ def _comparison_text(rows, *, replacement):
         else "Additional proposal comparison (subject to independent review):\n"
     )
     return heading + "\n".join(additions)
+
+
+def _exploratory_acceptance_limitations(packet):
+    if packet.get("schema_version") not in EXPLORATORY_PACKET_VERSIONS:
+        return []
+    upstream = packet.get("upstream", {})
+    if upstream.get("intake_mode") != "exploratory":
+        return []
+    return copy.deepcopy(upstream["acceptance"]["limitations"])
+
+
+def _replacement_unresolved(packet, extracted):
+    acceptance_limitations = _exploratory_acceptance_limitations(packet)
+    if not acceptance_limitations:
+        replacement = copy.deepcopy(extracted)
+        return replacement, replacement != packet["unresolved"]
+    replacement = []
+    for item in extracted:
+        if item not in replacement:
+            replacement.append(copy.deepcopy(item))
+    for item in acceptance_limitations:
+        if item not in replacement:
+            replacement.append(copy.deepcopy(item))
+    acceptance_set = set(acceptance_limitations)
+    prior_current = [
+        item for item in packet["unresolved"] if item not in acceptance_set
+    ]
+    next_current = [item for item in replacement if item not in acceptance_set]
+    return replacement, next_current != prior_current
 
 
 def build_next_packet(
@@ -103,11 +134,13 @@ def build_next_packet(
                 raise Stage2Error("ideation-content-revision-invalid-candidate")
             candidate_changed = True
         next_comparison = comparison or packet["comparison"]
-        next_unresolved = copy.deepcopy(result["unresolved"])
+        next_unresolved, unresolved_changed = _replacement_unresolved(
+            packet, result["unresolved"]
+        )
         if not (
             candidate_changed
             or next_comparison != packet["comparison"]
-            or next_unresolved != packet["unresolved"]
+            or unresolved_changed
         ):
             raise Stage2Error("ideation-content-revision-no-substantive-change")
         next_packet["comparison"] = next_comparison
@@ -118,6 +151,18 @@ def build_next_packet(
         for unknown in result["unresolved"]:
             if unknown not in next_packet["unresolved"]:
                 next_packet["unresolved"].append(unknown)
+    if (
+        result.get("schema_version") == "1.1.0"
+        and result["research_tables"] is not None
+    ):
+        next_packet["research_tables"] = materialize_research_tables(
+            result["research_tables"],
+            result["candidates"],
+            packet,
+            raw_proposal,
+            snapshot_sha256,
+        )
+        validate_research_tables(next_packet["research_tables"], next_packet)
     next_packet["packet_id"] = (
         "ideation-" + canonical_hash({"parent": packet, "extraction": result})[:24]
     )
