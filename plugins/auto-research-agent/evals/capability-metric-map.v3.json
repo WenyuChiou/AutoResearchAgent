@@ -95,6 +95,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace.py",
+        "plugins/auto-research-agent/tests/test_workspace_observed_doi.py",
         "plugins/auto-research-agent/tests/test_research_workspace_view.py",
         "plugins/auto-research-agent/tests/test_research_workspace_wiki.py",
         "plugins/auto-research-agent/tests/test_research_workspace_repair.py",
@@ -354,6 +355,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_deliverable.py",
+        "plugins/auto-research-agent/tests/test_stage1_observed_doi.py",
         ".github/scripts/test_validate_research_pr.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",

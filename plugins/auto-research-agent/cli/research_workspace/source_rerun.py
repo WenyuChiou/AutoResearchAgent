@@ -32,6 +32,41 @@ def require(value, message):
         raise DeliverableError(message)
 
 
+def _saved_response_selection(attempts):
+    """Return the latest nonredirect event and its matching offline acquisition."""
+    position, selected = next(
+        (
+            (position, attempt)
+            for position, attempt in reversed(list(enumerate(attempts)))
+            if attempt.get("outcome") != "redirect"
+        ),
+        (0, None),
+    )
+    acquisition = None
+    if (
+        selected
+        and selected.get("purpose") == "offline-parser-replay"
+        and selected.get("http_status") is None
+    ):
+        acquisition = next(
+            (
+                attempt
+                for attempt in reversed(attempts[:position])
+                if attempt.get("purpose") != "offline-parser-replay"
+                and attempt.get("outcome") != "redirect"
+                and attempt.get("http_status") == 200
+                and attempt.get("raw_path")
+                and attempt.get("response_truncated") is False
+                and all(
+                    attempt.get(key) == selected.get(key)
+                    for key in ("raw_sha256", "response_bytes", "final_url")
+                )
+            ),
+            None,
+        )
+    return selected, acquisition
+
+
 def _parser(path, expected):
     path = Path(path).resolve(strict=True)
     require(sha(path.read_bytes()) == expected, "rerun parser hash differs")
@@ -112,14 +147,7 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
             sha(original) == source["result_sha256"], "rerun original receipt differs"
         )
         require(decode_json(original) == receipt, "rerun receipt identity differs")
-        selected = next(
-            (
-                a
-                for a in reversed(receipt["attempts"])
-                if a.get("raw_path") and a.get("outcome") != "redirect"
-            ),
-            None,
-        )
+        selected, acquisition = _saved_response_selection(receipt["attempts"])
         row = {key: source[key] for key in ("work_id", "version_id", "source_id")}
         row.update(
             original_result_sha256=source["result_sha256"],
@@ -138,7 +166,7 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
             "diagnostics": {},
             "error": None,
         }
-        if selected:
+        if selected and selected.get("raw_path"):
             raw = safe_path(
                 package_root, prefix + mapping[selected["raw_path"]]
             ).read_bytes()
@@ -158,7 +186,35 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
                     raise ValueError(
                         "saved response is truncated; extraction not admitted"
                     )
-                if selected.get("http_status") != 200:
+                if (
+                    selected.get("purpose") == "offline-parser-replay"
+                    and selected.get("http_status") is None
+                ):
+                    if (
+                        type(selected.get("response_bytes")) is not int
+                        or len(raw) != selected["response_bytes"]
+                    ):
+                        raise ValueError("offline replay byte count differs")
+                    if acquisition is None:
+                        raise ValueError(
+                            "offline parser replay has no matching successful saved acquisition"
+                        )
+                    try:
+                        acquisition_raw = safe_path(
+                            package_root, prefix + mapping[acquisition["raw_path"]]
+                        ).read_bytes()
+                    except OSError as error:
+                        raise ValueError(
+                            "offline replay acquisition archive could not be read"
+                        ) from error
+                    require(
+                        sha(acquisition_raw) == acquisition["raw_sha256"]
+                        and len(acquisition_raw) == acquisition["response_bytes"],
+                        "offline replay acquisition bytes differ",
+                    )
+                    raw = acquisition_raw
+                    row["acquisition_sequence"] = acquisition["sequence"]
+                elif selected.get("http_status") != 200:
                     raise PermissionError(
                         "saved HTTP response was not successful; no new access attempted"
                     )
@@ -199,6 +255,15 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
                     else "failed-engineering",
                     error={"type": type(error).__name__, "message": str(error)},
                 )
+        elif selected:
+            offline = selected.get("purpose") == "offline-parser-replay"
+            reading.update(
+                status="failed-engineering" if offline else "inaccessible",
+                error={
+                    "type": "ValueError" if offline else "PermissionError",
+                    "message": "latest attempt has no saved body; earlier responses were not substituted",
+                },
+            )
         row["reading"] = reading
         row["source_metadata"] = extracted.get("bibliographic_metadata", {})
         row["metadata"], row["metadata_provenance"] = _metadata(
@@ -463,13 +528,14 @@ def validate_rerun_index(index):
             and row["original_attempts"] == source["receipt"]["attempts"],
             "rerun historical failure/attempts differ",
         )
-        selected = next(
-            (
-                a
-                for a in reversed(source["receipt"]["attempts"])
-                if a.get("raw_path") and a.get("outcome") != "redirect"
-            ),
-            None,
+        selected, acquisition = _saved_response_selection(source["receipt"]["attempts"])
+        acquisition_bound = (
+            acquisition is not None
+            and row.get("acquisition_sequence") == acquisition["sequence"]
+        )
+        require(
+            "acquisition_sequence" not in row or acquisition_bound,
+            "rerun acquisition attempt differs",
         )
         if row.get("raw_sha256"):
             require(
@@ -486,7 +552,8 @@ def validate_rerun_index(index):
                 "rerun selected attempt differs",
             )
         require(
-            bool(row.get("raw_path")) == bool(selected), "rerun saved response omitted"
+            bool(row.get("raw_path")) == bool(selected and selected.get("raw_path")),
+            "rerun saved response omitted",
         )
         require(
             row["attempt_id"]
@@ -525,6 +592,22 @@ def validate_rerun_index(index):
             "rerun identity status invalid",
         )
         if reading["status"] in {"extracted", "identity-mismatch"}:
+            require(
+                selected is not None
+                and bool(selected.get("raw_path"))
+                and not selected.get("response_truncated")
+                and (selected.get("http_status") == 200 or acquisition_bound),
+                "rerun successful reading lacks saved acquisition",
+            )
+            if acquisition_bound:
+                require(
+                    type(selected.get("response_bytes")) is int
+                    and extension["artifact_hashes"]
+                    .get(row["raw_path"], {})
+                    .get("bytes")
+                    == selected["response_bytes"],
+                    "rerun offline acquisition byte count differs",
+                )
             require(
                 bool(row.get("extracted_path"))
                 and reading["characters"] > 0
