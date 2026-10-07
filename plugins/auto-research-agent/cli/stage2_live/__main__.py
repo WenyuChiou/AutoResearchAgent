@@ -603,6 +603,7 @@ def main(argv=None):
                 "output_dir",
                 "resume",
                 "record_sha256_receipt",
+                "timeout_seconds",
             }
             if not isinstance(request, dict) or set(request) - allowed:
                 raise CaptureError("capture request contains unsupported fields")
