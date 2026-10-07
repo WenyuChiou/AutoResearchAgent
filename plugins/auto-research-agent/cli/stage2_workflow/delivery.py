@@ -30,6 +30,7 @@ from stage2_check.report import render_proposal, _quote_block
 VERSION = "1.0.0"
 PROVENANCE_VERSION = "1.1.0"
 GUARDED_VERSION = "1.2.0"
+REGISTERED_HISTORY_VERSION = "1.3.0"
 MANIFEST = "delivery_manifest.json"
 REVIEW_INPUT_FILES = {
     "batch": "review_batch.json",
@@ -266,12 +267,22 @@ def build_delivery(
     source_update_receipts=None,
     guard_bundles=None,
     expected_guard_bundles_sha256=None,
+    record_registered_history=False,
 ):
     """Build a separate source-bound checker and prehuman delivery package."""
     state = inspect_workflow(run_dir, expected_head=expected_head)
-    provenance, provenance_files = capture_revision_provenance(
-        state, source_update_receipts or []
-    )
+    if type(record_registered_history) is not bool:
+        raise Stage2Error("delivery-registered-history-option-invalid")
+    if record_registered_history:
+        if source_update_receipts or guard_bundles is not None:
+            raise Stage2Error("delivery-registered-history-mixed-provenance")
+        from .registered_history import capture_registered_history
+
+        provenance, provenance_files = capture_registered_history(state)
+    else:
+        provenance, provenance_files = capture_revision_provenance(
+            state, source_update_receipts or []
+        )
     snapshot, snapshot_hash, packet = _current_snapshot(state, batch)
     source_root = _verify_source_map(snapshot, packet)
     guarded = guard_bundles is not None
@@ -345,6 +356,10 @@ def build_delivery(
     if provenance is not None:
         for relative, raw in provenance_files.items():
             _write_new(_safe_package_path(output, relative), raw)
+        if record_registered_history:
+            (output / "registered_history" / "workflow" / "actions").mkdir(
+                parents=True, exist_ok=True
+            )
         _write_new(output / "revision_provenance.json", provenance)
     _write_new(
         output / "selection.md", _root_markdown(checker, selection, reconciliation)
@@ -375,7 +390,9 @@ def build_delivery(
     manifest = {
         "kind": "Stage2DeliveryManifest",
         "schema_version": (
-            GUARDED_VERSION
+            REGISTERED_HISTORY_VERSION
+            if record_registered_history
+            else GUARDED_VERSION
             if guarded
             else PROVENANCE_VERSION
             if provenance is not None
@@ -410,6 +427,8 @@ def build_delivery(
             revision_provenance_file="revision_provenance.json",
             revision_provenance_sha256=canonical_hash(provenance),
         )
+    if record_registered_history:
+        manifest["revision_provenance_scope"] = "registered-content-history-only"
     if guarded:
         manifest.update(
             guard_inputs_schema_version="1.0.0",
@@ -462,7 +481,8 @@ def inspect_delivery(directory, expected_manifest_sha256):
     }
     version = manifest.get("schema_version") if isinstance(manifest, dict) else None
     guarded = version == GUARDED_VERSION
-    has_provenance = version == PROVENANCE_VERSION or (
+    recorded_history = version == REGISTERED_HISTORY_VERSION
+    has_provenance = version in {PROVENANCE_VERSION, REGISTERED_HISTORY_VERSION} or (
         guarded and manifest.get("revision_provenance_included") is True
     )
     if has_provenance:
@@ -481,16 +501,28 @@ def inspect_delivery(directory, expected_manifest_sha256):
             "guarded_reconciliation_file",
             "guarded_reconciliation_sha256",
         }
+    if recorded_history:
+        required.add("revision_provenance_scope")
     if not isinstance(manifest, dict) or set(manifest) != required:
         raise Stage2Error("delivery-manifest-shape")
     if guarded and type(manifest["revision_provenance_included"]) is not bool:
         raise Stage2Error("delivery-guard-provenance-marker-invalid")
     if (
         manifest["kind"] != "Stage2DeliveryManifest"
-        or version not in {VERSION, PROVENANCE_VERSION, GUARDED_VERSION}
+        or version
+        not in {
+            VERSION,
+            PROVENANCE_VERSION,
+            GUARDED_VERSION,
+            REGISTERED_HISTORY_VERSION,
+        }
         or manifest["manifest_sha256"] != _manifest_hash(manifest)
     ):
         raise Stage2Error("delivery-manifest-invalid")
+    if recorded_history and manifest["revision_provenance_scope"] != (
+        "registered-content-history-only"
+    ):
+        raise Stage2Error("delivery-registered-history-scope-invalid")
     if expected_manifest_sha256 != manifest["manifest_sha256"]:
         raise Stage2Error("delivery-manifest-receipt-mismatch")
     if manifest["review_input_files"] != REVIEW_INPUT_FILES:
@@ -613,7 +645,12 @@ def inspect_delivery(directory, expected_manifest_sha256):
         provenance = _read_json(root / manifest["revision_provenance_file"])
         if canonical_hash(provenance) != manifest["revision_provenance_sha256"]:
             raise Stage2Error("delivery-revision-provenance-hash-mismatch")
-        revisions = inspect_revision_provenance(root, provenance, packet, manifest)
+        if recorded_history:
+            from .registered_history import inspect_registered_history
+
+            revisions = inspect_registered_history(root, provenance, packet, manifest)
+        else:
+            revisions = inspect_revision_provenance(root, provenance, packet, manifest)
         expected_selection = derive_selection(expected_selection, revisions)
         if canonical_hash(checker_selection) != manifest["checker_selection_sha256"]:
             raise Stage2Error("delivery-checker-selection-hash-mismatch")
