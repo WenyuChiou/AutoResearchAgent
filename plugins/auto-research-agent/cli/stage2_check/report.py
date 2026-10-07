@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from stage2_common import Stage2Error
 from stage2_check.bibliography import build_bibliography
+from stage2_ideation.tables_report import render_tables_markdown
 
 AXES = ("opportunity", "value", "answerability", "materials", "execution")
 _SHA = re.compile(r"^[0-9a-f]{64}$")
@@ -392,6 +393,10 @@ def render_proposal(
         [f"- {_text(item)}" for item in selection["action_record_blocking_items"]]
         or ["- None recorded"]
     )
+    if packet.get("research_tables") is not None:
+        lines.extend(
+            ["", render_tables_markdown(packet["research_tables"], packet), ""]
+        )
     lines.extend(["", "## Current candidate options", ""])
     for option in selection["current_options"]:
         candidate = option["candidate"]
