@@ -291,6 +291,10 @@
         "plugins/auto-research-agent/tests/test_stage2_daily_target_replay.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
+      ],
+      "assessment_target_cli_contract": "Optional daily-v3 and verify-daily-v3 --assessment-target-policy accepts an exact host-generated policy binding object; omitted flags retain legacy call shape. Explicit null, non-object, unreadable, malformed or stale binding fails before scoring or replay admission. This exposes existing opt-in3.1 behavior; no rubric, model, authority, isolation or formal-quality promotion.",
+      "assessment_target_cli_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_cli.py"
       ]
     },
     {
