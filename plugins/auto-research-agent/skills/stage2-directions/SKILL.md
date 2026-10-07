@@ -33,7 +33,16 @@ report still requires independent external scoring and actual human selection.
 For the current opt-in v3 workflow, read the
 [balanced evaluation and transparent delivery guide](../../evals/stage2/STAGE2_V3_EVALUATION.zh-TW.md).
 After preparing every selection package, run `stage2_live daily-v3` with distinct
-R1/R2/ADJ contexts, then `stage2_workflow evaluated-deliver-v3`. Keep the core
+R1/R2/ADJ contexts, then `stage2_workflow evaluated-deliver-v3`. For explicit
+assessment-target policy 3.1, freeze the installed host's `target_policy_binding`
+as a JSON file and supply the same `--assessment-target-policy` file to
+`daily-v3` and `verify-daily-v3`; read the
+[policy and replay guide](../../evals/stage2/ASSESSMENT_TARGET_POLICY_V31.zh-TW.md).
+Do not construct a binding from a version label or reuse one after its producer
+bytes change. Omitted policy retains the legacy behavior; do not rewrite old
+archives to enable the new framing. Successful replay authenticates saved calls,
+not scientific quality, physical isolation, formal readiness or user approval.
+Keep the core
 selection unchanged for purely presentational edits. A judge failure does not
 discard research: publish the readable package with incomplete evaluation.
 Show all nine comments, unknowns, evidence locations and pending audit; the

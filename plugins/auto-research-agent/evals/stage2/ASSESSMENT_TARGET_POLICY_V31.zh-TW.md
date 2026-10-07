@@ -51,3 +51,21 @@ GPT-5.6 Sol／High judge，共 22 個實際呼叫與 168 個指定判斷。
 
 完整 daily 評分、正式隔離／用量 admission、兩個研究預演及三組
 正式 A／B，仍須各自驗證。這個接口不宣稱 formal-ready 或研究改善。
+
+## 日常 CLI 如何使用與查回原紀錄
+
+`daily-v3` 與 `verify-daily-v3` 都提供選用的
+`--assessment-target-policy`，其值是 policy binding JSON 檔案路徑。
+由實際安裝的 `stage2_live.assessment_target_policy.target_policy_binding`
+產生 binding；它包含政策種類、版本、提示 hash 與模組 hash。
+只寫「3.1.0」不足以確認用了哪一份政策，不能自行補 hash。
+
+新評分明確選用此政策時，評分與 replay 使用同一份 binding。
+replay 只核對原本的設定、提示、來源語境、呼叫與輸出，不重跑模型。
+省略參數保留原來的呼叫方式與驗證規則，舊 archive 不改写。
+明確提供 null、陣列、文字、缺檔、錯誤 JSON 或不符實際 bytes 的
+binding 時，必須拒絕，不能退回舊政策繼續評分。
+
+評分提示修正與研究品質改善不同。完成 replay 也不代表完成真人覆核、
+正式隔離、兩個預演或三組 A／B。科學內容不變時，不為了新增這個
+CLI 參數而重跑已驗證的模型呼叫。
