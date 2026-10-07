@@ -272,6 +272,10 @@
         "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
         "plugins/auto-research-agent/tests/test_stage2_native_process.py",
         "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
+      ],
+      "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
+      "topic_cell_extraction_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py"
       ]
     },
     {
@@ -501,6 +505,10 @@
       "supplemental_source_version_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
+      "topic_cell_extraction_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py"
       ]
     },
     {

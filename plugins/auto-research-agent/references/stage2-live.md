@@ -12,6 +12,16 @@ the exact original text and checks work, version and evidence references.
 The host also assigns new candidate IDs and revision numbers. An unnumbered idea
 in the original prose must not be omitted merely because it has no database ID.
 
+Comparison dimensions declare their `value_kind` before cells are extracted.
+Text cells use `described` or `partial` with text; quantity cells use a finite
+number. A feature cell marked `present` has `true` or `null`, while `absent` has
+`false` or `null`. Descriptive explanations belong in the reason, not a Boolean
+value. Unknown and not-applicable cells keep a null value; unknown is never
+evidence of absence. A negative basis belongs only to an evidence-supported
+absent feature. Validation reports the cell identity rather than silently
+coercing a value. Retain rejected attempts; a bounded correction does not relax
+the source, version, inspection or evidence requirements.
+
 `python -m stage2_live --help` exposes explicit calls, not a background scheduler:
 
 1. `research-task` prepares the comparison and open-ideation prompt.
@@ -106,6 +116,12 @@ stream may still establish completion, but that does not establish complete chil
 tool provenance. Authentication files are never included in the session archive.
 
 ## What remains before formal A/B
+
+Known resource access requires non-metadata evidence and an exact UTC check time.
+A recorded source retrieval time supports only the inspection it documents;
+saved-source possession does not establish current access, licensing or direction
+feasibility. Missing support remains unknown with no invented time. Composite
+resources must support every component or remain split/unknown.
 
 Controlled AI diagnostics, a complete domain pilot, a non-domain pilot, evaluator
 calibration, host-isolation evidence and a separately frozen live-readiness
