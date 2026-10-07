@@ -60,6 +60,10 @@
       "formal_admission_bridge": "Schema2.0.0 binds v3 plan/readiness/result artifact receipts and replays six v3 judge bundles; unsupported native inventory, nested usage, quality and preflight/controller replay remain explicit blockers. No formal promotion.",
       "formal_admission_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_formal_admission_v3.py"
+      ],
+      "topic_table_content_projection": "Opt-in packet2.2 content-first view includes recorded literature, comparison cells and current candidate-version resources, omits raw extraction receipts, prior dispositions and internal checker scores; legacy views remain unchanged.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
       ]
     },
     {
@@ -385,7 +389,13 @@
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
       ],
-      "research_quality_guards": "Requires independent source-based quality and prerequisite checking before final guarded recommendations; effects unknown until live evaluation."
+      "research_quality_guards": "Requires independent source-based quality and prerequisite checking before final guarded recommendations; effects unknown until live evaluation.",
+      "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ]
     },
     {
       "capability_id": "cli:stage2-ideation",
@@ -393,7 +403,9 @@
         {
           "metric_id": "P4",
           "rubric_criteria": [
-            "P4V3.FIDELITY"
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
@@ -411,11 +423,29 @@
             "Authenticated source updates or content-only revisions bind immutable snapshots, preserved source/candidate history, optional exact excerpts on existing sources, and fresh affected-version checks; zero new evidence is legal for substantive content correction"
           ],
           "human_judgment": "Fresh affected-version review establishes assessment support; no formal improvement claim."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Complete recorded work/dimension grid; bound cell provenance; current versus historical candidate-version resources; preserved unknowns and safe Markdown/HTML/Wiki projection"
+          ],
+          "human_judgment": "Independent source-grounded review is required; prepared tables do not demonstrate scientific improvement."
         }
       ],
       "idea_completeness": "Opt-in source-bound caller-supplied idea spans with extracted/retained-unformed/excluded reasons; original prose retained; CLI rejects external receipt mismatch before export. Does not claim exhaustive discovery.",
       "idea_completeness_tests": [
         "plugins/auto-research-agent/tests/test_stage2_quality_guards.py"
+      ],
+      "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
       ]
     },
     {
@@ -425,7 +455,8 @@
           "metric_id": "P4",
           "rubric_criteria": [
             "P4V3.FIDELITY",
-            "P4V3.COMPARABILITY"
+            "P4V3.COMPARABILITY",
+            "P4V3.SYNTHESIS"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
@@ -436,7 +467,8 @@
         {
           "metric_id": "P6",
           "rubric_criteria": [
-            "P6V3.CHOICE"
+            "P6V3.CHOICE",
+            "P6V3.FEASIBILITY"
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
@@ -445,12 +477,53 @@
           "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
         }
       ],
-      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged. Comparison workbench preserves paper-level fields separately from recorded synthesis; local selection, filters and evidence panels do not alter canonical records, evaluator scores or permission state.",
+      "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged. Comparison workbench preserves paper-level fields separately from recorded synthesis; local selection, filters and evidence panels do not alter canonical records, evaluator scores or permission state. The existing stage rail displays Stage 1 literature by default and the verified Stage 2 attachment only when Stage 2 is selected; unavailable attachments retain the disconnected placeholder, and view switching never changes research records or authorization.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_import.py",
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_view.py",
-        "plugins/auto-research-agent/tests/test_stage2_comparison_html.py"
+        "plugins/auto-research-agent/tests/test_stage2_comparison_html.py",
+        "plugins/auto-research-agent/tests/test_workspace_stage_navigation.py"
+      ],
+      "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
+      "topic_table_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_html.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-common",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY",
+            "P4V3.COMPARABILITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Opt-in packet2.2 validates source-bound topic cells and complete declared work/dimension grids while preserving full versus exploratory intake restrictions."
+          ],
+          "human_judgment": "Binding and grid completeness do not establish correct scientific interpretation."
+        },
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Resources bind exact candidate versions; known access requires source evidence and check time; unknown access/license/cost/version remain explicit."
+          ],
+          "human_judgment": "Source-bound resource records do not establish whole-direction feasibility or scientific improvement."
+        }
+      ],
+      "mechanism": "Shared packet validation dispatches opt-in topic/resource validation without changing legacy schemas, scientific anchors or human authority.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
       ]
     }
   ]

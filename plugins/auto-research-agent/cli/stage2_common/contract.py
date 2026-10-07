@@ -16,6 +16,8 @@ SCHEMA_PATHS = {
     / "schemas/stage2-packet.v2.schema.json",
     "2.1.0": Path(__file__).resolve().parents[2]
     / "schemas/stage2-packet.v2_1.schema.json",
+    "2.2.0": Path(__file__).resolve().parents[2]
+    / "schemas/stage2-packet.v2_2.schema.json",
 }
 
 
@@ -71,7 +73,13 @@ def _schema_validate(packet):
     try:
         schema = json.loads(path.read_text(encoding="utf-8"))
         registry = Registry()
-        dependencies = [SCHEMA_PATHS["2.0.0"]] if version == "2.1.0" else []
+        dependencies = (
+            [SCHEMA_PATHS["2.0.0"], SCHEMA_PATHS["2.1.0"]]
+            if version == "2.2.0"
+            else [SCHEMA_PATHS["2.0.0"]]
+            if version == "2.1.0"
+            else []
+        )
         for schema_path in dependencies:
             value = json.loads(schema_path.read_text(encoding="utf-8"))
             registry = registry.with_resource(
@@ -126,7 +134,7 @@ def validate_packet(packet, root):
     except (ValueError, KeyError, TypeError) as error:
         raise Stage2Error(f"invalid confirmed ResearchBrief: {error}") from error
 
-    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
+    if packet["schema_version"] in {"2.0.0", "2.1.0", "2.2.0"}:
         upstream = packet["upstream"]
         unsigned = {
             key: value for key, value in upstream.items() if key != "binding_sha256"
@@ -143,7 +151,10 @@ def validate_packet(packet, root):
             upstream["resources_sha256"] == canonical_hash(packet["resources"]),
             "stage1-stage2-resources-binding-mismatch",
         )
-        if packet["schema_version"] == "2.1.0":
+        if packet["schema_version"] == "2.1.0" or (
+            packet["schema_version"] == "2.2.0"
+            and upstream.get("intake_mode") == "exploratory"
+        ):
             acceptance = upstream["acceptance"]
             _require(
                 upstream["acceptance_sha256"] == canonical_hash(acceptance),
@@ -169,7 +180,7 @@ def validate_packet(packet, root):
     evidence = packet["evidence"]
     literature = packet.get("literature", [])
     candidates = packet["candidates"]
-    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
+    if packet["schema_version"] in {"2.0.0", "2.1.0", "2.2.0"}:
         _unique(literature, "work_id", "literature work_id")
     _unique(sources, "source_id", "source_id")
     _unique(sources, "path", "source path")
@@ -228,7 +239,7 @@ def validate_packet(packet, root):
                 f"source is not a UTF-8 snapshot: {source['source_id']}"
             ) from error
 
-    if packet["schema_version"] in {"2.0.0", "2.1.0"}:
+    if packet["schema_version"] in {"2.0.0", "2.1.0", "2.2.0"}:
         included = set(packet["upstream"]["included_work_ids"])
         stage1_literature = [row for row in literature if row["origin"] == "stage1"]
         stage1_sources = [row for row in sources if row["origin"] == "stage1"]
@@ -290,6 +301,11 @@ def validate_packet(packet, root):
                 row["parent_version"] == expected_parent,
                 f"wrong candidate parent version: {candidate_id} v{row['version']}",
             )
+    if packet["schema_version"] == "2.2.0" and packet["research_tables"] is not None:
+        # Bindings are checked here; paper interpretation still needs review.
+        from stage2_ideation.topic_tables import validate_research_tables
+
+        validate_research_tables(packet["research_tables"], packet)
     return None
 
 

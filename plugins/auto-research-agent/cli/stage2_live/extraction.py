@@ -112,9 +112,12 @@ def _validate_span_index(raw_proposal, spans):
 
 def generation_schema(span_index, packet=None):
     """Request span selections and leave candidate identity to the host."""
-    schema = extraction_schema()
+    table_mode = (packet or {}).get("schema_version") == "2.2.0"
+    schema = extraction_schema("1.1.0") if table_mode else extraction_schema()
     ids = [row["span_id"] for row in span_index["spans"]]
     schema["$id"] = "stage2-live-ideation-extraction.span-ids.v1.schema.json"
+    if table_mode:
+        schema["$id"] = "stage2-live-ideation-extraction.span-ids.v1_1.schema.json"
     # The API requires items even for a locally constrained empty array.
     schema["properties"]["receipt"]["properties"]["tool_calls"]["items"] = {
         "type": "string"
@@ -199,6 +202,28 @@ def expand_span_ids(value, raw_proposal, span_index, packet=None):
                         "candidate identity and version must be host-assigned"
                     )
                 row["candidate"].update(fields)
+    tables = result.get("research_tables")
+    if tables is not None:
+        for collection in ("dimensions", "cells", "direction_resources"):
+            for row in tables[collection]:
+                expanded = []
+                seen = set()
+                for selected in row["spans"]:
+                    if not isinstance(selected, dict) or set(selected) != {"span_id"}:
+                        raise ValueError(
+                            "generated table span selection has unexpected fields"
+                        )
+                    span_id = selected["span_id"]
+                    if span_id not in by_id or span_id in seen:
+                        raise ValueError(
+                            "generated table references foreign or repeated span ID"
+                        )
+                    seen.add(span_id)
+                    source = by_id[span_id]
+                    expanded.append(
+                        {key: source[key] for key in ("start", "end", "quote")}
+                    )
+                row["spans"] = expanded
     return result
 
 
