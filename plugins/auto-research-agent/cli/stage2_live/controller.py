@@ -508,6 +508,11 @@ class _ProductionAdapter:
             output_dir=output,
             **deadline,
         )
+        if capture.get("status") != "complete":
+            raise Stage2Error(
+                "controller-native-capture-incomplete: "
+                + str(capture.get("status", "unknown"))
+            )
         verify_environment_capture(
             output,
             capture["record_sha256_receipt"],

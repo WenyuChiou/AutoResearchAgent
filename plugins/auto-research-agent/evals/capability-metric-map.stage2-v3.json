@@ -122,6 +122,10 @@
     },
     {
       "capability_id": "cli:stage2-live",
+      "native_incomplete_capture_contract": "The shared production capture seam rejects missing or noncomplete native status before success-only environment verification, review extraction or reconciliation. Original failed artifacts remain intact. An unavailable model or interrupted call is an execution failure, never a zero scientific score, absent reviewer agreement or a completed pilot. No retry, model, policy, sandbox or rubric change.",
+      "native_incomplete_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ],
       "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
       "native_call_deadline_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_native_deadline.py",
