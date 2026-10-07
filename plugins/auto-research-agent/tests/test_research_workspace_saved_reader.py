@@ -7,7 +7,6 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 
@@ -219,10 +218,10 @@ def _bind_history(reader):
     source["result_sha256"] = sha(original)
 
 
-@pytest.fixture
-def offline_reader():
+def _offline_reader(test_case):
     reader = SavedReaderTests()
     reader.setUp()
+    test_case.addCleanup(reader.doCleanups)
     source = reader.index["sources"][0]
     acquisition = source["receipt"]["attempts"][-1]
     offline = deepcopy(acquisition)
@@ -238,141 +237,145 @@ def offline_reader():
         reader.raw["source-0"]
     )
     _bind_history(reader)
-    try:
-        yield reader
-    finally:
-        reader.doCleanups()
+    return reader
 
 
-@pytest.mark.parametrize("level", ["full-text", "abstract"])
-def test_offline_history_replays_matching_actual_body_without_new_access(
-    offline_reader, level
-):
-    reader = offline_reader
-    parser = PARSER.replace(b'"full-text"', f'"{level}"'.encode())
-    reader.parser.write_bytes(parser)
-    reader.parser_sha = sha(parser)
-    before = deepcopy(reader.index)
-    output, digest, manifest = reader.build()
-    attached = attach_rerun(reader.index, output, digest)
-    assert attached["source_rerun"]["data"] == manifest["data"]
-    row = manifest["data"]["rows"][0]
-    assert row["reading"]["status"] == "extracted"
-    assert row["reading"]["evidence_level"] == level
-    assert row["original_attempts"] == before["sources"][0]["receipt"]["attempts"]
-    assert row["selected_sequence"] == 3
-    assert row["acquisition_sequence"] == 2
-    assert row["original_attempts"][-1]["http_status"] is None
-    assert reader.index == before
-    assert manifest["data"]["new_searches"] == manifest["data"]["new_downloads"] == 0
-    assert manifest["data"]["scientific_judgments_changed"] is False
-    assert manifest["data"]["quality_score"] is None
+class OfflineHistoryTests(unittest.TestCase):
+    def test_offline_history_replays_matching_actual_body_without_new_access(self):
+        for level in ["full-text", "abstract"]:
+            with self.subTest(level=level):
+                offline_reader = _offline_reader(self)
+                reader = offline_reader
+                parser = PARSER.replace(b'"full-text"', f'"{level}"'.encode())
+                reader.parser.write_bytes(parser)
+                reader.parser_sha = sha(parser)
+                before = deepcopy(reader.index)
+                output, digest, manifest = reader.build()
+                attached = attach_rerun(reader.index, output, digest)
+                assert attached["source_rerun"]["data"] == manifest["data"]
+                row = manifest["data"]["rows"][0]
+                assert row["reading"]["status"] == "extracted"
+                assert row["reading"]["evidence_level"] == level
+                assert (
+                    row["original_attempts"]
+                    == before["sources"][0]["receipt"]["attempts"]
+                )
+                assert row["selected_sequence"] == 3
+                assert row["acquisition_sequence"] == 2
+                assert row["original_attempts"][-1]["http_status"] is None
+                assert reader.index == before
+                assert (
+                    manifest["data"]["new_searches"]
+                    == manifest["data"]["new_downloads"]
+                    == 0
+                )
+                assert manifest["data"]["scientific_judgments_changed"] is False
+                assert manifest["data"]["quality_score"] is None
 
+    def test_offline_history_rejects_unmatched_or_unusable_acquisition(self):
+        for field, value in [
+            ("raw_sha256", "0" * 64),
+            ("final_url", "https://example.test/other"),
+            ("response_bytes", 1),
+            ("response_truncated", True),
+            ("outcome", "redirect"),
+            ("purpose", "offline-parser-replay"),
+        ]:
+            with self.subTest(field=field, value=value):
+                offline_reader = _offline_reader(self)
+                reader = offline_reader
+                reader.index["sources"][0]["receipt"]["attempts"][-2][field] = value
+                _bind_history(reader)
+                output, digest, manifest = reader.build()
+                attach_rerun(reader.index, output, digest)
+                reading = manifest["data"]["rows"][0]["reading"]
+                assert reading["status"] == "failed-engineering"
+                assert (
+                    "no matching successful saved acquisition"
+                    in reading["error"]["message"]
+                )
+                assert reading["characters"] == 0
 
-@pytest.mark.parametrize(
-    "field,value",
-    [
-        ("raw_sha256", "0" * 64),
-        ("final_url", "https://example.test/other"),
-        ("response_bytes", 1),
-        ("response_truncated", True),
-        ("outcome", "redirect"),
-        ("purpose", "offline-parser-replay"),
-    ],
-)
-def test_offline_history_rejects_unmatched_or_unusable_acquisition(
-    offline_reader, field, value
-):
-    reader = offline_reader
-    reader.index["sources"][0]["receipt"]["attempts"][-2][field] = value
-    _bind_history(reader)
-    output, digest, manifest = reader.build()
-    attach_rerun(reader.index, output, digest)
-    reading = manifest["data"]["rows"][0]["reading"]
-    assert reading["status"] == "failed-engineering"
-    assert "no matching successful saved acquisition" in reading["error"]["message"]
-    assert reading["characters"] == 0
+    def test_offline_history_without_original_acquisition_fails_engineering(self):
+        offline_reader = _offline_reader(self)
+        reader = offline_reader
+        reader.index["sources"][0]["receipt"]["attempts"] = [
+            reader.index["sources"][0]["receipt"]["attempts"][-1]
+        ]
+        _bind_history(reader)
+        output, digest, manifest = reader.build()
+        attach_rerun(reader.index, output, digest)
+        assert manifest["data"]["rows"][0]["reading"]["status"] == "failed-engineering"
 
+    def test_offline_history_checks_actual_acquisition_archive_bytes(self):
+        offline_reader = _offline_reader(self)
+        reader = offline_reader
+        (reader.package / "deliverable/sources/source-0/saved.html").write_bytes(
+            b"altered acquisition"
+        )
+        output, digest, manifest = reader.build()
+        attach_rerun(reader.index, output, digest)
+        reading = manifest["data"]["rows"][0]["reading"]
+        assert reading["status"] == "failed-engineering"
+        assert "acquisition bytes differ" in reading["error"]["message"]
 
-def test_offline_history_without_original_acquisition_fails_engineering(offline_reader):
-    reader = offline_reader
-    reader.index["sources"][0]["receipt"]["attempts"] = [
-        reader.index["sources"][0]["receipt"]["attempts"][-1]
-    ]
-    _bind_history(reader)
-    output, digest, manifest = reader.build()
-    attach_rerun(reader.index, output, digest)
-    assert manifest["data"]["rows"][0]["reading"]["status"] == "failed-engineering"
+    def test_offline_history_missing_acquisition_archive_fails_engineering(self):
+        offline_reader = _offline_reader(self)
+        reader = offline_reader
+        before = deepcopy(reader.index)
+        archive = reader.package / "deliverable/sources/source-0"
+        (archive / "saved.html").unlink()
+        assert (archive / "replay.html").is_file()
+        output, digest, manifest = reader.build()
+        attach_rerun(reader.index, output, digest)
+        row = manifest["data"]["rows"][0]
+        reading = row["reading"]
+        assert reading["status"] == "failed-engineering"
+        assert reading["error"]["type"] == "ValueError"
+        assert "acquisition archive could not be read" in reading["error"]["message"]
+        assert reading["characters"] == 0 and reading["text_sha256"] is None
+        assert "extracted_path" not in row
+        assert row["selected_sequence"] == 3
+        assert row["original_attempts"] == before["sources"][0]["receipt"]["attempts"]
+        assert reader.index == before
 
+    def test_offline_history_does_not_override_latest_actual_failure(self):
+        for saved_body in [False, True]:
+            with self.subTest(saved_body=saved_body):
+                offline_reader = _offline_reader(self)
+                reader = offline_reader
+                latest = deepcopy(reader.index["sources"][0]["receipt"]["attempts"][-1])
+                latest.update(
+                    sequence=4,
+                    purpose="synthetic actual response",
+                    http_status=403 if saved_body else None,
+                    outcome="http-error" if saved_body else "network-error",
+                    raw_path="replay.html" if saved_body else None,
+                    raw_sha256=sha(reader.raw["source-0"]) if saved_body else None,
+                )
+                reader.index["sources"][0]["receipt"]["attempts"].append(latest)
+                _bind_history(reader)
+                output, digest, manifest = reader.build()
+                attach_rerun(reader.index, output, digest)
+                row = manifest["data"]["rows"][0]
+                assert row["reading"]["status"] == "inaccessible"
+                assert row["reading"]["characters"] == 0
+                assert "extracted_path" not in row
+                assert row["original_attempts"][-1] == latest
 
-def test_offline_history_checks_actual_acquisition_archive_bytes(offline_reader):
-    reader = offline_reader
-    (reader.package / "deliverable/sources/source-0/saved.html").write_bytes(
-        b"altered acquisition"
-    )
-    output, digest, manifest = reader.build()
-    attach_rerun(reader.index, output, digest)
-    reading = manifest["data"]["rows"][0]["reading"]
-    assert reading["status"] == "failed-engineering"
-    assert "acquisition bytes differ" in reading["error"]["message"]
-
-
-def test_offline_history_missing_acquisition_archive_fails_engineering(offline_reader):
-    reader = offline_reader
-    before = deepcopy(reader.index)
-    archive = reader.package / "deliverable/sources/source-0"
-    (archive / "saved.html").unlink()
-    assert (archive / "replay.html").is_file()
-    output, digest, manifest = reader.build()
-    attach_rerun(reader.index, output, digest)
-    row = manifest["data"]["rows"][0]
-    reading = row["reading"]
-    assert reading["status"] == "failed-engineering"
-    assert reading["error"]["type"] == "ValueError"
-    assert "acquisition archive could not be read" in reading["error"]["message"]
-    assert reading["characters"] == 0 and reading["text_sha256"] is None
-    assert "extracted_path" not in row
-    assert row["selected_sequence"] == 3
-    assert row["original_attempts"] == before["sources"][0]["receipt"]["attempts"]
-    assert reader.index == before
-
-
-@pytest.mark.parametrize("saved_body", [False, True])
-def test_offline_history_does_not_override_latest_actual_failure(
-    offline_reader, saved_body
-):
-    reader = offline_reader
-    latest = deepcopy(reader.index["sources"][0]["receipt"]["attempts"][-1])
-    latest.update(
-        sequence=4,
-        purpose="synthetic actual response",
-        http_status=403 if saved_body else None,
-        outcome="http-error" if saved_body else "network-error",
-        raw_path="replay.html" if saved_body else None,
-        raw_sha256=sha(reader.raw["source-0"]) if saved_body else None,
-    )
-    reader.index["sources"][0]["receipt"]["attempts"].append(latest)
-    _bind_history(reader)
-    output, digest, manifest = reader.build()
-    attach_rerun(reader.index, output, digest)
-    row = manifest["data"]["rows"][0]
-    assert row["reading"]["status"] == "inaccessible"
-    assert row["reading"]["characters"] == 0
-    assert "extracted_path" not in row
-    assert row["original_attempts"][-1] == latest
-
-
-@pytest.mark.parametrize("sequence", [1, 3, 99])
-def test_offline_history_rejects_rehashed_acquisition_sequence(
-    offline_reader, sequence
-):
-    reader = offline_reader
-    output, _, manifest = reader.build()
-    manifest["data"]["rows"][0]["acquisition_sequence"] = sequence
-    raw = canonical(manifest)
-    (output / "source-rerun-manifest.json").write_bytes(raw)
-    with pytest.raises(DeliverableError, match="acquisition attempt differs"):
-        attach_rerun(reader.index, output, sha(raw))
+    def test_offline_history_rejects_rehashed_acquisition_sequence(self):
+        for sequence in [1, 3, 99]:
+            with self.subTest(sequence=sequence):
+                offline_reader = _offline_reader(self)
+                reader = offline_reader
+                output, _, manifest = reader.build()
+                manifest["data"]["rows"][0]["acquisition_sequence"] = sequence
+                raw = canonical(manifest)
+                (output / "source-rerun-manifest.json").write_bytes(raw)
+                with self.assertRaisesRegex(
+                    DeliverableError, "acquisition attempt differs"
+                ):
+                    attach_rerun(reader.index, output, sha(raw))
 
 
 if __name__ == "__main__":
