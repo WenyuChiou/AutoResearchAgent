@@ -174,7 +174,7 @@ def validate_extraction(
     )
     expected_version = (
         SCHEMA_VERSION_1_1
-        if packet.get("schema_version") == "2.2.0"
+        if packet.get("schema_version") in {"2.2.0", "2.3.0"}
         else SCHEMA_VERSION
     )
     _require(

@@ -29,8 +29,8 @@ def _field(record, name):
     return deepcopy(record[name])
 
 
-def _cell(literature_index, findings, classification, finding, fallback):
-    root = f"selection.evaluation_packet.literature[{literature_index}]"
+def _cell(literature_index, findings, classification, finding, fallback, collection):
+    root = f"selection.evaluation_packet.{collection}[{literature_index}]"
     if finding in findings:
         return {
             "text": deepcopy(findings[finding]),
@@ -66,9 +66,9 @@ def _related_evidence_ids(work, evidence):
     ]
 
 
-def _literature(packet):
+def _literature(packet, collection="literature"):
     evidence = _evidence_rows(packet)
-    rows = packet.get("literature")
+    rows = packet.get(collection)
     if not isinstance(rows, list):
         return []
     output = []
@@ -97,7 +97,9 @@ def _literature(packet):
                 },
                 "evidence_ids": _related_evidence_ids(work, evidence),
                 "cells": {
-                    name: _cell(index, findings, classification, finding, fallback)
+                    name: _cell(
+                        index, findings, classification, finding, fallback, collection
+                    )
                     for name, (finding, fallback) in _CELL_FIELDS.items()
                 },
             }
@@ -166,7 +168,7 @@ def build_comparison_view(attachment):
     """Build an inert view from facts already recorded in an attachment."""
     selection = attachment.get("selection") or {}
     packet = selection.get("evaluation_packet") or {}
-    return {
+    view = {
         "schema_version": "1.0.0",
         "literature": _literature(packet),
         "directions": _directions(selection),
@@ -175,3 +177,15 @@ def build_comparison_view(attachment):
         "resources": _field(packet, "resources"),
         "research_tables": _field(packet, "research_tables"),
     }
+    if packet.get("schema_version") == "2.3.0":
+        supplements = _literature(packet, "supplemental_literature")
+        for row in supplements:
+            row["record_kind"] = "supplemental-source-version"
+        view["supplemental_literature"] = supplements
+        for row in view["literature"]:
+            row["source_versions"] = [
+                deepcopy(item)
+                for item in supplements
+                if item["work_id"] == row["work_id"]
+            ]
+    return view

@@ -165,9 +165,12 @@ def _validate_append_only(previous, current, *, parent_snapshot_sha256=None):
         raise Stage2Error("workflow-resources-change-requires-explicit-decision")
     if previous["schema_version"] != current["schema_version"]:
         raise Stage2Error("workflow-packet-version-change-requires-new-run")
-    if previous["schema_version"] in {"2.0.0", "2.1.0", "2.2.0"} and canonical_hash(
-        previous["upstream"]
-    ) != canonical_hash(current["upstream"]):
+    if previous["schema_version"] in {
+        "2.0.0",
+        "2.1.0",
+        "2.2.0",
+        "2.3.0",
+    } and canonical_hash(previous["upstream"]) != canonical_hash(current["upstream"]):
         raise Stage2Error("workflow-upstream-stage1-binding-rewritten")
     old_tables = previous.get("research_tables")
     tables = current.get("research_tables")
@@ -183,6 +186,7 @@ def _validate_append_only(previous, current, *, parent_snapshot_sha256=None):
             raise Stage2Error("workflow-research-tables-parent-snapshot-mismatch")
     for field, keys in (
         ("literature", ("work_id", "version_id")),
+        ("supplemental_literature", ("work_id", "version_id")),
         ("sources", ("source_id",)),
         ("evidence", ("evidence_id",)),
         ("candidates", ("candidate_id", "version")),
@@ -405,7 +409,7 @@ def initialize_workflow(
         raise Stage2Error("workflow-settings-policy-must-be-objects")
     initial_packet = _read_json(Path(packet_path).resolve())
     initial_packet_sha256 = canonical_hash(initial_packet)
-    if initial_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0"}:
+    if initial_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != initial_packet_sha256:

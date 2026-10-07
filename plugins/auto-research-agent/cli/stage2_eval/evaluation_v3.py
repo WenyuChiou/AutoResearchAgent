@@ -147,7 +147,7 @@ def prepare_content_view_v3(
             "candidates": candidates,
         },
     }
-    if packet.get("schema_version") == "2.2.0":
+    if packet.get("schema_version") in {"2.2.0", "2.3.0"}:
         tables = packet.get("research_tables")
         if tables is not None:
             from stage2_ideation.topic_tables import validate_research_tables
@@ -155,6 +155,10 @@ def prepare_content_view_v3(
             tables = validate_research_tables(tables, packet)
         content = view["scientific_content"]
         content["literature"] = deepcopy(packet["literature"])
+        if packet.get("schema_version") == "2.3.0":
+            content["supplemental_literature"] = deepcopy(
+                packet["supplemental_literature"]
+            )
         content["topic_comparison"] = (
             {
                 "dimensions": [
