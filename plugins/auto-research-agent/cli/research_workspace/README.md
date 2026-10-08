@@ -139,3 +139,13 @@ selection row; the original complete bibliography retains its existing keys.
 it does not attest the separately required visual/native acceptance. Coverage,
 scientific assessments, full-record exports and official Stage 2 eligibility
 remain unchanged. Rebuilding these exports performs no new research or reading.
+
+### Normalized-page comparison primitive
+
+`normalized_page_comparison.compare_normalized_page_evidence` checks two supplied
+page strings against recorded NFC/whitespace hashes, equality and ordered differences.
+Punctuation, word boundaries and character order remain significant. This pure
+helper performs no acquisition, reading, research or scoring. Its comparison facts
+do not certify full-body coverage, identity, independent acceptance or eligibility.
+Source/runtime/dual-acceptance binding, whole-body verification and optional
+attachment/CLI/export integration remain separate pending work.
