@@ -1,7 +1,8 @@
 """Opt-in physical role scope around the unchanged standalone native command.
 
 The trusted recorder stays outside this scope. Native processes receive the
-frozen image and their own four directories, never recorder code or peer data.
+frozen image and their role files, never recorder code or peer data. Selected
+actions receive only their trace child and a single final-output file.
 """
 
 import hashlib
@@ -234,27 +235,42 @@ def _validate(scope, *, codex, home, workspace):
         raise NativeNamespaceError("namespace image bytes changed")
 
 
-def bind_namespace(codex, home, workspace=None):
+def bind_namespace(codex, home, workspace=None, *, trace_root=None):
     """Bind opt-in host transport bytes; absence preserves legacy execution."""
     path = Path(home).resolve() / SCOPE_FILE
     if not os.path.lexists(path):
+        if trace_root is not None:
+            raise NativeNamespaceError("scoped trace requires an opt-in namespace")
         return None
     if sys.platform != "linux":
         raise NativeNamespaceError("opt-in native namespace requires Linux")
     raw, digest = _read(path)
     scope = json.loads(raw)
     _validate(scope, codex=codex, home=home, workspace=workspace)
-    return {
+    binding = {
         "path": str(path),
         "sha256": digest,
         "scope": scope,
         "dispatcher_sha256": _read(__file__)[1],
     }
+    if trace_root is not None:
+        if not isinstance(trace_root, (str, os.PathLike)):
+            raise NativeNamespaceError("scoped trace path must be a path string")
+        selected = _directory(os.fspath(trace_root))
+        telemetry = Path(scope["telemetry"])
+        if selected == telemetry or not selected.is_relative_to(telemetry):
+            raise NativeNamespaceError("scoped trace must be a private telemetry child")
+        if str(selected) != str(trace_root):
+            raise NativeNamespaceError("scoped trace path is not canonical")
+        binding["trace_root"] = str(selected)
+    return binding
 
 
-def wrap_namespace(command, binding):
+def wrap_namespace(command, binding, *, output_sink=None):
     """Build a bounded, shell-free prefix without changing native permissions."""
     if binding is None:
+        if output_sink is not None:
+            raise NativeNamespaceError("output sink requires a scoped action")
         return command
     if (
         not isinstance(command, list)
@@ -262,18 +278,41 @@ def wrap_namespace(command, binding):
         or any(not isinstance(arg, str) for arg in command)
     ):
         raise NativeNamespaceError("native command must be a nonempty string vector")
-    if not isinstance(binding, dict) or set(binding) != {
-        "path",
-        "sha256",
-        "scope",
-        "dispatcher_sha256",
-    }:
+    fields = {"path", "sha256", "scope", "dispatcher_sha256"}
+    if not isinstance(binding, dict) or set(binding) not in (
+        fields,
+        fields | {"trace_root"},
+    ):
         raise NativeNamespaceError("namespace binding schema differs")
     scope = binding["scope"]
     alias = _native_alias(scope)
-    current = bind_namespace(command[0], scope["home"], scope["workspace"])
+    current = bind_namespace(
+        command[0],
+        scope["home"],
+        scope["workspace"],
+        trace_root=binding.get("trace_root"),
+    )
     if current != binding:
         raise NativeNamespaceError("namespace binding changed before dispatch")
+    sink = None
+    if output_sink is not None:
+        if "trace_root" not in binding or not isinstance(
+            output_sink, (str, os.PathLike)
+        ):
+            raise NativeNamespaceError("output sink requires a scoped action")
+        sink = Path(output_sink)
+        if (
+            not sink.is_absolute()
+            or str(sink.resolve()) != os.fspath(output_sink)
+            or sink.name != "final.txt"
+            or not sink.is_relative_to(Path(scope["capture_root"]))
+            or command.count("-o") != 1
+            or command[command.index("-o") + 1 : command.index("-o") + 2] != [str(sink)]
+        ):
+            raise NativeNamespaceError("output sink differs from the native final path")
+        _read(sink)  # Require a precreated, anchored regular file, never a directory.
+    elif "trace_root" in binding and "-o" in command:
+        raise NativeNamespaceError("scoped final output requires its single-file sink")
     prefix = [
         scope["bwrap"],
         "--unshare-all",
@@ -301,8 +340,20 @@ def wrap_namespace(command, binding):
             "/etc/resolv.conf",
         )
     )
-    for name in ("home", "workspace", "telemetry", "capture_root"):
+    names = (
+        ("home", "workspace")
+        if "trace_root" in binding
+        else ("home", "workspace", "telemetry", "capture_root")
+    )
+    for name in names:
         prefix.extend(("--bind", scope[name], scope[name]))
+    if "trace_root" in binding:
+        # The recorder owns archives outside this process. The provider only
+        # needs its selected trace child; parent/sibling evidence stays absent.
+        selected = binding["trace_root"]
+        prefix.extend(("--bind", selected, selected))
+    if sink is not None:
+        prefix.extend(("--bind", str(sink), str(sink)))
     prefix.extend(("--ro-bind", binding["path"], binding["path"]))
     prefix.extend(
         (
@@ -324,7 +375,7 @@ def wrap_namespace(command, binding):
             scope["home"],
             "--setenv",
             "CODEX_ROLLOUT_TRACE_ROOT",
-            scope["telemetry"],
+            binding.get("trace_root", scope["telemetry"]),
             "--",
         )
     )

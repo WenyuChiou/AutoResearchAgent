@@ -273,6 +273,23 @@ SourceContextPolicy1.1 允許真實引文跨越連續段落，保留原檔換行
 順序可能不符的已知限制；本次不冒稱修好該情況。這類重播故障屬於評估器
 故障，不能扣研究品質分數。原始紀錄保留，不為通過查核重跑已完成模型。
 
+### 多步研究的執行紀錄與歷史查核
+
+每一步可使用受保護 telemetry 目錄下獨立的 `trace_root`。原生捕捉、
+工具清單、來源 hash 和 namespace 都綁定同一個子目錄；不能把另一個
+步驟的 receipt 拿來使用。父目錄及其他步驟不因此開放給研究 agent。
+另外只開放預先建立的 `final.txt` 單檔，接收 Codex 的最終回覆；
+不開放 capture 父目錄、archive 或其他步驟的輸出。
+這個選項要求 named policy1.1；未提供時保留舊版目錄與驗證方式。
+
+研究往下走後，工作目錄會增加檔案。`verify_historical_producer_inventory`
+與 `inspect_historical_execution_inventory` 只查已封存的執行證據，輸出
+`verified-history-no-execution`。它們仍核對原始輸入、設定、程式、
+runtime、來源和外部 receipt；不呼叫模型，也不能授權重新執行。
+
+真正的 resume 仍要求工作目錄與原來完成時一致。工作目錄變了，只能
+查歷史，不能假装符合原本的 resume 條件。未知 tokens、費用、失敗和
+未完成狀態照原樣保留。這些接口不代表完整 Stage2、正式隔離或 A/B 改善。
 
 ## 原生能力證據 v1.2
 

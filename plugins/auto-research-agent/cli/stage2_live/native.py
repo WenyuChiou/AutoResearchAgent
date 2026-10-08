@@ -300,6 +300,7 @@ def _request_binding(
     timeout_seconds=None,
     *,
     bind_native_scope=True,
+    trace_root=None,
 ):
     profile_config = _normal_path(codex_home) / "config.toml"
     profile_binding = (
@@ -323,7 +324,9 @@ def _request_binding(
         binding["timeout_seconds"] = timeout_seconds
     if bind_native_scope:
         try:
-            namespace = bind_namespace(codex, codex_home, workspace)
+            namespace = bind_namespace(
+                codex, codex_home, workspace, trace_root=trace_root
+            )
         except NativeNamespaceError as error:
             raise CaptureError(str(error)) from error
         if namespace is not None:
@@ -383,7 +386,11 @@ def _expected_command(record, output):
         "-",
     ]
     try:
-        return wrap_namespace(command, stable.get("native_namespace"))
+        namespace = stable.get("native_namespace")
+        sink = output / "final.txt" if namespace and "trace_root" in namespace else None
+        if sink is None:
+            return wrap_namespace(command, namespace)
+        return wrap_namespace(command, namespace, output_sink=sink)
     except NativeNamespaceError as error:
         raise CaptureError(str(error)) from error
 
@@ -514,6 +521,7 @@ def capture_native(
     process_runner=None,
     record_sha256_receipt=None,
     timeout_seconds=None,
+    trace_root=None,
 ):
     """Run once, or verify and replay a completed capture without re-execution.
 
@@ -577,6 +585,7 @@ def capture_native(
         config_bindings,
         policy_bindings,
         timeout_seconds,
+        trace_root=trace_root,
     )
     namespace = current.get("native_namespace")
     if namespace is not None:
@@ -606,6 +615,9 @@ def capture_native(
     output.mkdir(parents=True)
     _archive_start(output, current, prompt_bytes)
     final_path = output / "final.txt"
+    if namespace and "trace_root" in namespace:
+        with final_path.open("xb"):
+            pass
     command = _expected_command(
         {"stable_request_binding": _stable_request(current)}, output
     )

@@ -133,6 +133,13 @@
     },
     {
       "capability_id": "cli:stage2-live",
+      "native_action_history_contract": "Opt-in named-policy1.1 per-action trace roots bind exact capture, observation and narrow namespace evidence. Separate read-only archived verification preserves every original input/runtime/profile/producer/receipt binding while allowing later workspace files; live resume still rejects changed workspaces. Historical inspection never dispatches or attests formal readiness or scientific improvement.",
+      "native_action_history_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_action_trace_root.py",
+        "plugins/auto-research-agent/tests/test_stage2_namespace_trace_child.py",
+        "plugins/auto-research-agent/tests/test_stage2_producer_history.py",
+        "plugins/auto-research-agent/tests/test_stage2_producer_replay.py"
+      ],
       "native_role_namespace_contract": "Opt-in Linux role namespace binds dispatcher, image bytes/modes/ownership, standalone executable, DNS and narrow role directories. Capture, observation and evaluator replay reconstruct the same shell-free prefix; changed scope cannot resume. The prefix does not change native permission arguments or attest successful tools, network policy, functional preflight, judge quality or formal readiness. Legacy execution remains unchanged when no scope file exists.",
       "native_role_namespace_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_native_namespace.py",
