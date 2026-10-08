@@ -195,6 +195,10 @@ class SessionApi:
             action_ref=self._ref(binding, "action", key),
             action_sha256=item["action_sha256"],
             kind=item["kind"],
+            client_key=item["request"]["key"],
+            target_ref=item["request"].get(
+                "request_ref", item["request"].get("action_ref")
+            ),
             status=observed.get("status", "dispatch-unobserved"),
             replayed=replayed,
             failure=item.get("failure"),
