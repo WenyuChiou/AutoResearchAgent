@@ -1,5 +1,17 @@
 # Stage 2 v3：研究流程、平衡評分與透明交付
 
+### 原生執行紀錄如何核對
+
+`stage2_live.execution_inventory.inspect_execution_inventory` 只讀取已封存的
+原生執行與外部保存的 producer receipt，不再呼叫模型。它保存實際送給
+模型的 developer 訊息、可用工具、子 agent 關係，以及原生設定、skills、
+plugins、MCP 的回應。每個項目都能回到原始 bytes 與 hash。
+
+「所有呼叫都有記錄」與「所有 token 用量都可得」分開表示。取消的呼叫
+仍算一次嘗試；缺少用量保持 unknown，不能填零或宣稱符合 token 預算。
+RPC 回應使用原生觀察器的獨立大小上限，不能錯套單一 trace 檔案上限。
+此接口不會自行證明角色隔離、完整預演、正式 A/B 或研究品質改善。
+
 前例定位的 packet 2.4 接口及操作流程見
 [前例定位說明](../../references/stage2-prior-work.zh-TW.md)。它把候選、來源、
 實際搜尋及重疊／差異綁在同一版，送到獨立查核與 Markdown／HTML／Wiki。

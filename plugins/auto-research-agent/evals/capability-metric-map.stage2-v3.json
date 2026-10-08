@@ -310,6 +310,10 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "per_execution_inventory": "Receipt-bound private inventory reconstructs actual model requests, developer inputs, offered tools, role lineage and supported config/skills/plugins/MCP RPC responses. Separate call completeness, token availability and structural blockers; cancelled inference usage stays unknown. It does not attest formal role isolation or complete Stage2 execution.",
+      "per_execution_inventory_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_execution_inventory.py"
       ]
     },
     {
