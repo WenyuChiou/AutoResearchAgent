@@ -75,6 +75,24 @@ class ProducerReplayTests(unittest.TestCase):
         self.assertIsNone(result["cost"]["amount"])
         self.assertFalse(result["formal_ready"])
 
+    def test_optional_deadline_is_preserved_for_strict_producer_verification(self):
+        self.request["timeout_seconds"] = 600
+        original = dict(self.request)
+        result = self.project()
+        self.assertEqual(self.request, original)
+        self.assertEqual(result["counts"]["inferences"], 6)
+        self.assertFalse(result["formal_ready"])
+
+    def test_optional_deadline_rejects_invalid_values_and_extra_fields(self):
+        for invalid in (None, True, 0, -1, float("nan"), float("inf"), "600"):
+            with self.subTest(invalid=invalid), self.assertRaises(CaptureError):
+                self.request["timeout_seconds"] = invalid
+                self.project()
+        self.request["timeout_seconds"] = 600
+        self.request["unbound_runtime"] = "other"
+        with self.assertRaisesRegex(CaptureError, "exact frozen request"):
+            self.project()
+
     def test_structural_gap_or_incomplete_attempt_blocks_call_accounting(self):
         for key, value in (
             ("blockers", ["spawn-child-missing:spawn-1"]),

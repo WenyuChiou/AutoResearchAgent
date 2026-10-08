@@ -3,6 +3,8 @@
 from copy import deepcopy
 import json
 
+from stage2_common import current_prior_work_reviews
+
 
 _CELL_FIELDS = {
     "question": ("question", None),
@@ -107,7 +109,7 @@ def _literature(packet, collection="literature"):
     return output
 
 
-def _directions(selection):
+def _directions(selection, prior_reviews=None):
     rows = selection.get("current_options")
     if not isinstance(rows, list):
         return []
@@ -118,30 +120,35 @@ def _directions(selection):
         candidate = candidate if isinstance(candidate, dict) else {}
         assessment = option.get("assessment")
         assessment = assessment if isinstance(assessment, dict) else {}
-        output.append(
-            {
-                "key": _key(candidate.get("candidate_id"), candidate.get("version")),
-                **{
-                    name: _field(candidate, name)
-                    for name in (
-                        "candidate_id",
-                        "version",
-                        "question",
-                        "opportunity",
-                        "value",
-                        "approach",
-                        "requirements",
-                        "limitations",
-                    )
-                },
-                **{
-                    name: _field(assessment, name)
-                    for name in ("disposition", "reason", "next_step")
-                },
-                "evidence_ids": _field(candidate, "evidence_ids"),
-                "checks": _field(assessment, "checks"),
-            }
-        )
+        direction = {
+            "key": _key(candidate.get("candidate_id"), candidate.get("version")),
+            **{
+                name: _field(candidate, name)
+                for name in (
+                    "candidate_id",
+                    "version",
+                    "question",
+                    "opportunity",
+                    "value",
+                    "approach",
+                    "requirements",
+                    "limitations",
+                )
+            },
+            **{
+                name: _field(assessment, name)
+                for name in ("disposition", "reason", "next_step")
+            },
+            "evidence_ids": _field(candidate, "evidence_ids"),
+            "checks": _field(assessment, "checks"),
+        }
+        if prior_reviews is not None:
+            direction["prior_work_review"] = deepcopy(
+                prior_reviews.get(
+                    (candidate.get("candidate_id"), candidate.get("version"))
+                )
+            )
+        output.append(direction)
     return output
 
 
@@ -164,20 +171,42 @@ def _project_evidence(packet):
     ]
 
 
+def _prior_work_source_levels(packet):
+    return {
+        row.get("source_id"): deepcopy(row.get("evidence_level"))
+        for row in packet.get("sources", [])
+        if isinstance(row, dict) and row.get("source_id") is not None
+    }
+
+
 def build_comparison_view(attachment):
     """Build an inert view from facts already recorded in an attachment."""
     selection = attachment.get("selection") or {}
     packet = selection.get("evaluation_packet") or {}
+    prior_work = None
+    if packet.get("schema_version") == "2.4.0":
+        prior_work = current_prior_work_reviews(packet)
     view = {
         "schema_version": "1.0.0",
         "literature": _literature(packet),
-        "directions": _directions(selection),
+        "directions": _directions(
+            selection,
+            None
+            if prior_work is None
+            else {
+                (row["candidate_id"], row["candidate_version"]): row
+                for row in prior_work.values()
+            },
+        ),
         "comparison": _field(packet, "comparison"),
         "evidence": _project_evidence(packet),
         "resources": _field(packet, "resources"),
         "research_tables": _field(packet, "research_tables"),
     }
-    if packet.get("schema_version") == "2.3.0":
+    if prior_work is not None:
+        view["prior_work_reviews"] = deepcopy(list(prior_work.values()))
+        view["prior_work_source_levels"] = _prior_work_source_levels(packet)
+    if packet.get("schema_version") in {"2.3.0", "2.4.0"}:
         supplements = _literature(packet, "supplemental_literature")
         for row in supplements:
             row["record_kind"] = "supplemental-source-version"

@@ -16,6 +16,7 @@ def build_bibliography(packet, snapshots, evidence):
         "2.1.0",
         "2.2.0",
         "2.3.0",
+        "2.4.0",
     }:
         return {
             "available": False,
@@ -160,7 +161,7 @@ def build_bibliography(packet, snapshots, evidence):
             item["support_scope"] = "supplemental-source-version-of-same-work"
             primary["supplemental_versions"].append(item)
         else:
-            if packet.get("schema_version") == "2.3.0":
+            if packet.get("schema_version") in {"2.3.0", "2.4.0"}:
                 item["supplemental_versions"] = []
             projected.append(item)
             projected_by_work[work_id] = item

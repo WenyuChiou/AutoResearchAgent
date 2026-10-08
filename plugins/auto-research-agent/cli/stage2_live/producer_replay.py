@@ -1,7 +1,7 @@
 """Read-only execution inventory from externally retained producer receipts."""
 
 from . import trace_capture, trace_observation, trace_producer
-from .native import CaptureError
+from .native import CaptureError, validate_timeout_seconds
 
 
 REQUEST_FIELDS = frozenset(
@@ -27,8 +27,19 @@ def verify_producer_inventory(telemetry_root, producer_receipt, *, capture_reque
     rather than a portable attestation or a formal-readiness decision. A caller
     must obtain ``capture_request`` and its receipt from its frozen plan.
     """
-    if not isinstance(capture_request, dict) or set(capture_request) != REQUEST_FIELDS:
+    if (
+        not isinstance(capture_request, dict)
+        or not REQUEST_FIELDS <= set(capture_request)
+        or set(capture_request) - REQUEST_FIELDS not in (set(), {"timeout_seconds"})
+    ):
         raise CaptureError("producer replay needs the exact frozen request fields")
+    if "timeout_seconds" in capture_request:
+        try:
+            if capture_request["timeout_seconds"] is None:
+                raise ValueError("declared timeout cannot be null")
+            validate_timeout_seconds(capture_request["timeout_seconds"])
+        except ValueError as error:
+            raise CaptureError("producer replay timeout is invalid") from error
     root = trace_capture._absolute(telemetry_root)
     policy = capture_request["policy_bindings"]
     if (

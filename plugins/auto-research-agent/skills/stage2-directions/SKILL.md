@@ -5,6 +5,22 @@ description: This skill applies when the user asks to improve an existing resear
 
 # Stage 2 direction checking
 
+For opt-in packet 2.4, read the [prior-work positioning contract](../../references/stage2-prior-work.zh-TW.md).
+Decompose the candidate's proposed increment before searching question, mechanism,
+method, population and validation synonyms, citation chains and contrary work.
+Save a candidate/source-bound prior-work review with actual search receipts,
+established work, overlap, differences and bounded search limitations. Several
+closest works are valid. Correctly recognizing an existing precedent and revising
+the increment can be strong positioning; do not promise novelty or a score.
+Keep abstract-only and inaccessible methods explicit. Distinguish a precedented
+feedback architecture from empirically identified parameters; conditional
+exploration does not require a completed Stage 3 experiment or establish real
+predictive validity. New source/candidate bytes require fresh positioning and
+affected independent checks. Render the same validated review in Markdown,
+HTML and Wiki, preserving raw reviewer comments and pending human audit.
+Read the source, search and version contract before constructing the record;
+never insert unvalidated extra JSON or reuse an old review for a new candidate.
+
 For packet 2.2, read the [content-first delivery contract](../../references/stage2-content-first-delivery.zh-TW.md).
 Inspect representative literature before defining topic-specific comparison axes.
 Prepare the literature overview, source-bound matrix and only the relevant

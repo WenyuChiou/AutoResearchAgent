@@ -114,6 +114,11 @@ def _policy_preflight(args):
 
 
 def _request(args):
+    timeout = args.get("timeout_seconds")
+    try:
+        native.validate_timeout_seconds(timeout)
+    except ValueError as error:
+        _fail(f"producer-timeout-invalid: {error}")
     return native._stable_request(
         native._request_binding(
             args["codex"],
@@ -125,6 +130,7 @@ def _request(args):
             args["input_bindings"],
             args["config_bindings"],
             args["policy_bindings"],
+            timeout,
         )
     )
 
@@ -201,6 +207,9 @@ def _observation_binding(inventory, request):
         "codex_home": request.get("codex_home"),
         "thread_id": None,
     }
+    namespace = request.get("native_namespace")
+    if namespace is not None:
+        expected["native_namespace"] = namespace
     _require(
         isinstance(inventory, dict)
         and canonical_hash(inventory.get("binding")) == canonical_hash(expected),

@@ -19,7 +19,7 @@ import sys
 
 from stage2_check import initialize_run, inspect_run
 from stage2_check.contracts import decode_json
-from stage2_common import Stage2Error, canonical_hash
+from stage2_common import Stage2Error, canonical_hash, source_set_hash
 
 
 VERSION = "1.0.0"
@@ -139,6 +139,26 @@ def _restore_packet(checker):
         raise Stage2Error("workflow-source-snapshot-set-mismatch")
     for source in packet["sources"]:
         source["path"] = paths[source["source_id"]]
+    receipt_paths = {
+        (row["candidate_id"], row["search_id"]): row["original_path"]
+        for row in checker["manifest"].get("prior_work_receipts", [])
+    }
+    expected_receipts = {
+        (review["candidate_id"], search["search_id"])
+        for review in packet.get("prior_work_reviews", [])
+        for search in review["searches"]
+        if search["raw_path"] is not None
+    }
+    if set(receipt_paths) != expected_receipts:
+        raise Stage2Error("workflow-prior-work-receipt-snapshot-set-mismatch")
+    for review in packet.get("prior_work_reviews", []):
+        for search in review["searches"]:
+            key = (review["candidate_id"], search["search_id"])
+            if search["raw_path"] is not None:
+                if key not in receipt_paths:
+                    raise Stage2Error("workflow-prior-work-receipt-snapshot-missing")
+                search["raw_path"] = receipt_paths[key]
+        review["source_set_sha256"] = source_set_hash(packet)
     return packet
 
 
@@ -170,6 +190,7 @@ def _validate_append_only(previous, current, *, parent_snapshot_sha256=None):
         "2.1.0",
         "2.2.0",
         "2.3.0",
+        "2.4.0",
     } and canonical_hash(previous["upstream"]) != canonical_hash(current["upstream"]):
         raise Stage2Error("workflow-upstream-stage1-binding-rewritten")
     old_tables = previous.get("research_tables")
@@ -409,7 +430,13 @@ def initialize_workflow(
         raise Stage2Error("workflow-settings-policy-must-be-objects")
     initial_packet = _read_json(Path(packet_path).resolve())
     initial_packet_sha256 = canonical_hash(initial_packet)
-    if initial_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
+    if initial_packet.get("schema_version") in {
+        "2.0.0",
+        "2.1.0",
+        "2.2.0",
+        "2.3.0",
+        "2.4.0",
+    }:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != initial_packet_sha256:
