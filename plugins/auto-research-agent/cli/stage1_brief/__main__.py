@@ -4,7 +4,10 @@ import argparse
 import json
 from pathlib import Path
 
+from stage1_ledger.journal import decode
+
 from .brief import compile_confirmed, create_brief, validate_bound_plan, validate_brief
+from .formal_target import formal_question, prepare_formal_intake, submit_formal_target
 
 
 def main(argv=None):
@@ -14,6 +17,19 @@ def main(argv=None):
     create.add_argument("request", type=Path)
     create.add_argument("output", type=Path)
     create.add_argument("--previous", type=Path)
+    intake = sub.add_parser("intake")
+    intake.add_argument("request", type=Path)
+    intake.add_argument("output", type=Path)
+    intake.add_argument("--project-id", required=True)
+    intake.add_argument("--input-version", required=True)
+    intake.add_argument("--request-id", required=True)
+    intake.add_argument("--proposed-target", type=int, default=30)
+    question = sub.add_parser("formal-question")
+    question.add_argument("brief", type=Path)
+    answer = sub.add_parser("submit-formal-target")
+    answer.add_argument("brief", type=Path)
+    answer.add_argument("answer", type=Path)
+    answer.add_argument("output", type=Path)
     check = sub.add_parser("validate")
     check.add_argument("brief", type=Path)
     check.add_argument("--confirmed", action="store_true")
@@ -30,10 +46,29 @@ def main(argv=None):
     try:
 
         def load(path):
-            return json.loads(path.read_text(encoding="utf-8"))
+            return decode(path.read_bytes(), str(path))
 
         if args.command == "record":
             result = create_brief(load(args.request), args.output, args.previous)
+        elif args.command == "intake":
+            result = create_brief(
+                prepare_formal_intake(
+                    load(args.request),
+                    project_id=args.project_id,
+                    input_version=args.input_version,
+                    request_id=args.request_id,
+                    proposed_target=args.proposed_target,
+                ),
+                args.output,
+            )
+        elif args.command == "formal-question":
+            result = formal_question(load(args.brief))
+        elif args.command == "submit-formal-target":
+            result = create_brief(
+                submit_formal_target(load(args.brief), load(args.answer)),
+                args.output,
+                previous=args.brief,
+            )
         elif args.command == "validate":
             result = validate_brief(load(args.brief), require_confirmed=args.confirmed)
         elif args.command == "compile":
