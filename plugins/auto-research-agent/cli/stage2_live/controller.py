@@ -10,10 +10,15 @@ import copy
 import hashlib
 import json
 import shutil
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from stage2_check.contracts import latest_candidates
-from stage2_common import Stage2Error, canonical_hash, validate_packet
+from stage2_common import (
+    Stage2Error,
+    canonical_hash,
+    current_prior_work_reviews,
+    validate_packet,
+)
 from stage2_ideation import build_research_task
 from stage2_ideation.integration import build_next_packet
 from stage2_workflow.delivery import build_delivery, inspect_delivery
@@ -130,14 +135,162 @@ def _latest_map(packet):
     return current
 
 
+def _initial_review_view_version(packet):
+    """Select the opt-in prior-work view without changing historical packets."""
+
+    return (
+        "1.2.0"
+        if packet.get("schema_version") == "2.4.0"
+        else REVIEW_VIEW_VERSION_CURRENT
+    )
+
+
+def _prior_work_basis_sha256(packet):
+    value = copy.deepcopy(packet)
+    value["prior_work_reviews"] = []
+    return canonical_hash(value)
+
+
+def _prior_work_completion(packet, snapshot_sha256):
+    """Describe the explicit dossier gate needed before independent review."""
+
+    if packet.get("schema_version") != "2.4.0":
+        return None
+    current = _latest_map(packet)
+    reviews = current_prior_work_reviews(packet)
+    missing = sorted(set(current) - set(reviews))
+    return {
+        "kind": "Stage2PriorWorkCompletion",
+        "schema_version": "1.0.0",
+        "status": "pending" if missing else "complete",
+        "snapshot_sha256": snapshot_sha256,
+        "packet_basis_sha256": _prior_work_basis_sha256(packet),
+        "candidate_ids": sorted(current),
+        "missing_candidate_ids": missing,
+    }
+
+
 def _snapshot_hash(snapshot):
     return snapshot["event"]["payload"]["snapshot_sha256"]
 
 
-def _source_root(snapshot):
-    root = snapshot["checker"]["root"] / "sources"
-    validate_packet(snapshot["packet"], root)
-    return root
+def _portable_input_path(root, relative):
+    posix = PurePosixPath(relative)
+    windows = PureWindowsPath(relative)
+    if (
+        not isinstance(relative, str)
+        or not relative
+        or posix.is_absolute()
+        or windows.is_absolute()
+        or windows.drive
+        or "\\" in relative
+        or relative != posix.as_posix()
+        or any(part in {"", ".", ".."} for part in posix.parts)
+    ):
+        raise Stage2Error(f"controller-input-view-path-invalid: {relative!r}")
+    path = root.joinpath(*posix.parts)
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise Stage2Error(f"controller-input-view-path-escape: {relative}")
+    return path
+
+
+def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
+    """Build or verify a snapshot-bound combined source and receipt input view."""
+
+    if snapshot["packet"].get("schema_version") != "2.4.0":
+        root = Path(snapshot["checker"]["root"]) / "sources"
+        validate_packet(snapshot["packet"], root)
+        return root
+
+    snapshot_sha256 = _snapshot_hash(snapshot)
+    checker = snapshot["checker"]
+    checker_root = Path(checker["root"]).resolve()
+    manifest = checker["manifest"]
+    artifacts = [
+        {
+            "kind": "source",
+            "binding_id": row["source_id"],
+            "path": row["original_path"],
+            "stored_path": row["stored_path"],
+            "sha256": row["sha256"],
+        }
+        for row in manifest["source_snapshots"]
+    ] + [
+        {
+            "kind": "prior-work-receipt",
+            "binding_id": f"{row['candidate_id']}:{row['search_id']}",
+            "path": row["original_path"],
+            "stored_path": row["stored_path"],
+            "sha256": row["sha256"],
+        }
+        for row in manifest.get("prior_work_receipts", [])
+    ]
+    view_manifest = {
+        "kind": "Stage2ControllerInputView",
+        "schema_version": "1.0.0",
+        "snapshot_sha256": snapshot_sha256,
+        "packet_sha256": canonical_hash(snapshot["packet"]),
+        "checker_manifest_sha256": manifest["manifest_sha256"],
+        "artifacts": artifacts,
+    }
+    view_manifest["manifest_sha256"] = canonical_hash(view_manifest)
+    root = Path(controller_dir).resolve() / "prior_work_inputs" / snapshot_sha256
+    manifest_path = root / "input_manifest.json"
+
+    def verify():
+        try:
+            saved = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise Stage2Error("controller-input-view-manifest-invalid") from error
+        if saved != view_manifest:
+            raise Stage2Error("controller-input-view-manifest-mismatch")
+        expected_paths = {row["path"] for row in artifacts}
+        actual_paths = {
+            path.relative_to(root).as_posix()
+            for path in root.rglob("*")
+            if path.is_file() and path != manifest_path
+        }
+        if actual_paths != expected_paths:
+            raise Stage2Error("controller-input-view-inventory-mismatch")
+        for row in artifacts:
+            path = _portable_input_path(root, row["path"])
+            if (
+                path.is_symlink()
+                or hashlib.sha256(path.read_bytes()).hexdigest() != row["sha256"]
+            ):
+                raise Stage2Error("controller-input-view-artifact-mismatch")
+        validate_packet(snapshot["packet"], root)
+        return root
+
+    if root.exists():
+        return verify()
+    if not create:
+        raise Stage2Error("controller-input-view-missing")
+    root.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        root.mkdir()
+    except FileExistsError:
+        return verify()
+    try:
+        copied = {}
+        for row in artifacts:
+            source = _portable_input_path(checker_root, row["stored_path"])
+            raw = source.read_bytes()
+            if hashlib.sha256(raw).hexdigest() != row["sha256"]:
+                raise Stage2Error("controller-input-view-source-mismatch")
+            previous = copied.get(row["path"])
+            if previous is not None and previous != row["sha256"]:
+                raise Stage2Error("controller-input-view-path-conflict")
+            destination = _portable_input_path(root, row["path"])
+            if previous is None:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(raw)
+                copied[row["path"]] = row["sha256"]
+        manifest_path.write_bytes(_json_bytes(view_manifest))
+        return verify()
+    except Exception:
+        shutil.rmtree(root)
+        raise
 
 
 def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
@@ -754,7 +907,7 @@ def _run_controller_impl(
     controller_dir = Path(controller_dir).resolve()
     delivery_dir = Path(delivery_dir).resolve()
     run_root = state["root"]
-    protected = [run_root, _source_root(base)]
+    protected = [run_root, Path(base["checker"]["root"]).resolve()]
     for row in spec["workspaces"].values():
         protected.extend(Path(value).resolve() for value in row.values())
     outputs = [controller_dir, delivery_dir]
@@ -765,7 +918,7 @@ def _run_controller_impl(
     ):
         raise Stage2Error("controller-input-output-collision")
     controller_dir.mkdir(parents=True, exist_ok=True)
-    source_root = _source_root(base)
+    source_root = materialize_snapshot_input_root(base, controller_dir)
 
     task = build_research_task(packet, base_hash)
     research_id = f"ideation-{base_hash[:16]}"
@@ -842,6 +995,14 @@ def _run_controller_impl(
         for row in state["snapshots"]
         if canonical_hash(row["packet"]) == canonical_hash(next_packet)
     ]
+    if next_packet.get("schema_version") == "2.4.0":
+        basis_sha256 = _prior_work_basis_sha256(next_packet)
+        matching = [
+            row
+            for row in state["snapshots"]
+            if row["packet"].get("schema_version") == "2.4.0"
+            and _prior_work_basis_sha256(row["packet"]) == basis_sha256
+        ]
     if matching:
         review_snapshot = matching[-1]
     else:
@@ -868,8 +1029,22 @@ def _run_controller_impl(
         review_snapshot = state["latest_snapshot"]
     packet = copy.deepcopy(review_snapshot["packet"])
     snapshot_sha256 = _snapshot_hash(review_snapshot)
-    source_root = _source_root(review_snapshot)
+    source_root = materialize_snapshot_input_root(review_snapshot, controller_dir)
     current = _latest_map(packet)
+    prior_work_completion = _prior_work_completion(packet, snapshot_sha256)
+    units = [research, extraction]
+    if (
+        prior_work_completion is not None
+        and prior_work_completion["status"] == "pending"
+    ):
+        return _terminal(
+            "needs-prior-work",
+            state,
+            adapter,
+            units,
+            candidate_ids=sorted(current),
+            prior_work_completion=prior_work_completion,
+        )
     screening = [
         {
             "candidate_id": candidate_id,
@@ -885,10 +1060,9 @@ def _run_controller_impl(
         snapshot_sha256,
         screening,
         spec["seed"],
-        review_view_version=REVIEW_VIEW_VERSION_CURRENT,
+        review_view_version=_initial_review_view_version(packet),
     )
     reviews = []
-    units = [research, extraction]
     candidate_indexes = {
         candidate_id: index for index, candidate_id in enumerate(sorted(current))
     }
@@ -1168,6 +1342,10 @@ def _persist_controller_manifest(
         "human_selection": "pending",
         "stage3_execution_authorized": False,
     }
+    if "prior_work_completion" in result:
+        manifest["prior_work_completion"] = copy.deepcopy(
+            result["prior_work_completion"]
+        )
     manifest["manifest_sha256"] = canonical_hash(manifest)
     versioned = (
         controller_root
@@ -1539,9 +1717,10 @@ def verify_controller(output_dir, externally_retained_receipt):
         "stage3_execution_authorized",
         "manifest_sha256",
     }
+    allowed = (required, required | {"prior_work_completion"})
     if (
         not isinstance(manifest, dict)
-        or set(manifest) != required
+        or set(manifest) not in allowed
         or manifest["kind"] != "Stage2ControllerManifest"
         or manifest["schema_version"] not in {VERSION, ROLE_POLICY_VERSION}
         or manifest["manifest_sha256"]
@@ -1554,7 +1733,68 @@ def verify_controller(output_dir, externally_retained_receipt):
         or manifest["stage3_execution_authorized"] is not False
     ):
         raise Stage2Error("controller-manifest-invalid")
+    if "prior_work_completion" in manifest:
+        completion = manifest["prior_work_completion"]
+        keys = {
+            "kind",
+            "schema_version",
+            "status",
+            "snapshot_sha256",
+            "packet_basis_sha256",
+            "candidate_ids",
+            "missing_candidate_ids",
+        }
+        if (
+            manifest["status"] != "needs-prior-work"
+            or not isinstance(completion, dict)
+            or set(completion) != keys
+            or completion["kind"] != "Stage2PriorWorkCompletion"
+            or completion["schema_version"] != "1.0.0"
+            or completion["status"] != "pending"
+            or not completion["missing_candidate_ids"]
+            or not isinstance(completion["candidate_ids"], list)
+            or not isinstance(completion["missing_candidate_ids"], list)
+            or any(
+                not isinstance(candidate_id, str) or not candidate_id
+                for candidate_id in [
+                    *completion["candidate_ids"],
+                    *completion["missing_candidate_ids"],
+                ]
+            )
+            or completion["candidate_ids"] != sorted(set(completion["candidate_ids"]))
+            or completion["missing_candidate_ids"]
+            != sorted(set(completion["missing_candidate_ids"]))
+            or not set(completion["missing_candidate_ids"]).issubset(
+                completion["candidate_ids"]
+            )
+        ):
+            raise Stage2Error("controller-prior-work-completion-invalid")
+        for label in ("snapshot_sha256", "packet_basis_sha256"):
+            digest = completion[label]
+            if (
+                not isinstance(digest, str)
+                or len(digest) != 64
+                or any(char not in "0123456789abcdef" for char in digest)
+            ):
+                raise Stage2Error("controller-prior-work-completion-invalid")
     state = inspect_workflow(manifest["workflow_root"])
+    if "prior_work_completion" in manifest:
+        completion = manifest["prior_work_completion"]
+        snapshot = next(
+            (
+                row
+                for row in state["snapshots"]
+                if _snapshot_hash(row) == completion["snapshot_sha256"]
+            ),
+            None,
+        )
+        if (
+            snapshot is None
+            or _prior_work_completion(snapshot["packet"], completion["snapshot_sha256"])
+            != completion
+        ):
+            raise Stage2Error("controller-prior-work-completion-binding-mismatch")
+        materialize_snapshot_input_root(snapshot, root, create=False)
     historical_head = manifest["workflow_head_sha256"]
     if historical_head != state["head_sha256"] and historical_head not in {
         row["event_sha256"] for row in state["events"]
@@ -1654,7 +1894,7 @@ def verify_controller(output_dir, externally_retained_receipt):
             raise Stage2Error("controller-extraction-base-snapshot-missing")
         rebuilt = build_next_packet(
             base["packet"],
-            _source_root(base),
+            materialize_snapshot_input_root(base, root, create=False),
             research["raw_proposal"],
             extraction["extraction"],
             base_hash,
@@ -1674,7 +1914,7 @@ def verify_controller(output_dir, externally_retained_receipt):
             extraction["replay_receipt"],
             raw_proposal=research["raw_proposal"],
             packet=base["packet"],
-            source_root=_source_root(base),
+            source_root=materialize_snapshot_input_root(base, root, create=False),
             snapshot_sha256=base_hash,
             expected_config=model_config,
             expected_policy=extraction_request["execution_policy"],

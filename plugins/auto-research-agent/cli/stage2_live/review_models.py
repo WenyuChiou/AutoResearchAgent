@@ -104,9 +104,14 @@ def review_task(
 
 
 def _review_view_version(packet, candidate_id, snapshot_sha256, role, view_sha256):
-    matches = [
+    versions = tuple(
         version
         for version in REVIEW_VIEW_VERSIONS
+        if version != "1.2.0" or packet["schema_version"] == "2.4.0"
+    )
+    matches = [
+        version
+        for version in versions
         if canonical_hash(
             review_task(
                 packet,

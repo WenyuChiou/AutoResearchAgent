@@ -148,7 +148,7 @@ main.core-stage-layout > aside {
   .selection-summary { grid-column: 1; }
   .selection-citation-links a { flex: 1 1 140px; text-align: center; }
   .core-stage { padding: 18px 15px; }
-  .literature-graph { min-width: 760px; }
+  .literature-graph { min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

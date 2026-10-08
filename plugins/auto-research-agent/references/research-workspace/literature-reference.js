@@ -113,6 +113,22 @@
     x: Math.max(44, Math.min(width - 44, point.x)),
     y: Math.max(44, Math.min(height - 44, point.y)),
   });
+
+  const positionGraphTooltip = (frame, anchor, tip) => {
+    const pad = 8, gap = 12;
+    const clamp = (value, maximum) => Math.max(pad, Math.min(maximum, value));
+    const maxX = frame.width - tip.width - pad;
+    const maxY = frame.height - tip.height - pad;
+    const right = anchor.right + gap;
+    const left = anchor.left - gap - tip.width;
+    let x = right, y = (anchor.top + anchor.bottom - tip.height) / 2;
+    if (right > maxX) {
+      if (left >= pad) x = left;
+      else if (anchor.bottom + gap <= maxY) y = anchor.bottom + gap;
+      else if (anchor.top - gap - tip.height >= pad) y = anchor.top - gap - tip.height;
+    }
+    return {left: clamp(x, maxX), top: clamp(y, maxY)};
+  };
   const filterRecords = (records, filters = {}) => {
     const needle = String(filters.text || "").trim().toLowerCase();
     return records.filter((paper) => {
@@ -411,6 +427,7 @@
       };
     };
     let draggedNodeKey = null;
+    let tooltipHideTimer = null;
 
     function updateGraph() {
       const papers = visible();
@@ -491,6 +508,7 @@
         });
       };
       const showTooltip = (node, element) => {
+        clearTimeout(tooltipHideTimer);
         graphTooltip.replaceChildren(
           source("strong", node.label),
           source("span", node.detail),
@@ -499,10 +517,28 @@
         graphTooltip.hidden = false;
         const frameBox = graphFrame.getBoundingClientRect();
         const nodeBox = element.getBoundingClientRect();
-        graphTooltip.style.left = `${Math.max(10, Math.min(frameBox.width - 290, nodeBox.left - frameBox.left + nodeBox.width / 2 + 18))}px`;
-        graphTooltip.style.top = `${Math.max(10, nodeBox.top - frameBox.top - 8)}px`;
+        const width = graphFrame.clientWidth, height = graphFrame.clientHeight;
+        graphTooltip.style.maxWidth = `${Math.max(0, width - 16)}px`;
+        graphTooltip.style.maxHeight = `${Math.max(0, Math.min(160, height - 16))}px`;
+        const offsetX = frameBox.left + graphFrame.clientLeft;
+        const offsetY = frameBox.top + graphFrame.clientTop;
+        const point = positionGraphTooltip(
+          {width, height},
+          {left: nodeBox.left - offsetX, right: nodeBox.right - offsetX,
+            top: nodeBox.top - offsetY, bottom: nodeBox.bottom - offsetY},
+          graphTooltip.getBoundingClientRect(),
+        );
+        graphTooltip.style.left = `${point.left}px`;
+        graphTooltip.style.top = `${point.top}px`;
       };
-      const hideTooltip = () => { graphTooltip.hidden = true; };
+      const hideTooltip = (event) => {
+        if (event?.relatedTarget && graphTooltip.contains(event.relatedTarget)) return;
+        clearTimeout(tooltipHideTimer);
+        tooltipHideTimer = setTimeout(() => { graphTooltip.hidden = true; }, 120);
+      };
+      graphTooltip.onpointerenter = () => clearTimeout(tooltipHideTimer);
+      graphTooltip.onpointerleave = hideTooltip;
+      graphTooltip.onpointerdown = (event) => event.stopPropagation();
 
       nodes.forEach((node) => {
         const position = graphPositions.get(node.key);
@@ -530,7 +566,7 @@
         fullTitle.textContent = `${node.label}. ${node.detail}`;
         group.append(label, fullTitle);
         group.addEventListener("pointerenter", () => { highlight(node.key); showTooltip(node, group); });
-        group.addEventListener("pointerleave", () => { highlight(null); hideTooltip(); });
+        group.addEventListener("pointerleave", (event) => { highlight(null); hideTooltip(event); });
         group.addEventListener("focus", () => { highlight(node.key); showTooltip(node, group); });
         group.addEventListener("blur", () => { highlight(null); hideTooltip(); });
         group.addEventListener("click", () => {
@@ -774,5 +810,6 @@
     layoutGraph,
     filterRecords,
     clampGraphPoint,
+    positionGraphTooltip,
   });
 })();

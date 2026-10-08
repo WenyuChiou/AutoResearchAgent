@@ -124,6 +124,77 @@ def _assessment(assessment, evidence, *, historical=False):
 </section>"""
 
 
+def _prior_work_evidence(evidence_ids, evidence, snapshots):
+    rows = []
+    for evidence_id in evidence_ids:
+        item = evidence[evidence_id]
+        source = snapshots[item["source_id"]]
+        rows.append(
+            f'<a href="#{_evidence_anchor(evidence_id)}">{_text(evidence_id)}</a> '
+            f"(level={_text(source['evidence_level'])}; locator={_text(item['locator'])})"
+        )
+    return "; ".join(rows) or "None recorded"
+
+
+def _prior_work_review(review, evidence, snapshots, receipt_base):
+    comparison_rows = []
+    for row in review["comparisons"]:
+        evidence_limits = _prior_work_evidence(row["evidence_ids"], evidence, snapshots)
+        if row["limitations"]:
+            evidence_limits += "; limitations: " + "; ".join(
+                _text(value) for value in row["limitations"]
+            )
+        comparison_rows.append(
+            "<tr>"
+            f'<th scope="row">{_text(row["work_id"])} / {_text(row["version_id"])}</th>'
+            f"<td>{_text(row['role'])}</td><td>{_text(row['established'])}</td>"
+            f"<td>{_text(row['overlap'])}</td><td>{_text(row['difference'])}</td>"
+            f"<td>{evidence_limits}</td></tr>"
+        )
+    searches = []
+    for row in review["searches"]:
+        if row["raw_path"] is None:
+            raw = "None recorded"
+        else:
+            href = canonical_report._receipt_href(row["raw_path"], receipt_base)
+            raw = (
+                '<a href="' + _e(href) + '">' + _text(row["raw_path"]) + "</a>"
+                if href is not None
+                else "<code>" + _text(row["raw_path"]) + "</code>"
+            )
+        refs = (
+            ", ".join(
+                f"{_text(ref['work_id'])} / {_text(ref['version_id'])}"
+                for ref in row["work_refs"]
+            )
+            or "None recorded"
+        )
+        searches.append(
+            f"<article><h5>{_text(row['search_id'])}</h5><dl>"
+            f"<dt>Need</dt><dd>{_text(row['need'])}</dd>"
+            f"<dt>Query</dt><dd>{_text(row['query'])}</dd>"
+            f"<dt>Status / outcome</dt><dd>{_text(row['status'])} / {_text(row['outcome'])}</dd>"
+            f"<dt>Tool reference</dt><dd>{_text(row['tool_ref']) if row['tool_ref'] is not None else 'None recorded'}</dd>"
+            f"<dt>Saved raw receipt</dt><dd>{raw}</dd>"
+            f"<dt>Referenced work versions</dt><dd>{refs}</dd></dl></article>"
+        )
+    return f"""
+<section class="prior-work">
+  <h4>Prior-work positioning</h4>
+  <dl><dt>Candidate binding</dt><dd>{_text(review["candidate_id"])} v{review["candidate_version"]}</dd>
+  <dt>Review status</dt><dd>{_text(review["review_status"])}</dd>
+  <dt>Positioning</dt><dd>{_text(review["positioning"])}</dd>
+  <dt>Stop reason</dt><dd>{_text(review["stop_reason"])}</dd></dl>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>Prior work</th><th>Role</th><th>Established</th><th>Overlap</th><th>Difference</th><th>Evidence / limits</th></tr></thead>
+  <tbody>{"".join(comparison_rows) or '<tr><td colspan="6">No comparison recorded.</td></tr>'}</tbody></table></div>
+  <h5>Critical unresolved items</h5>{_items(review["unresolved"])}
+  <details><summary>Search scope, queries and saved receipts</summary>
+    <h5>Search limits</h5>{_items(review["search_limits"])}
+    {"".join(searches) or "<p>None recorded.</p>"}
+  </details>
+</section>"""
+
+
 def _brief(packet):
     brief = packet["brief"]
     needs = "".join(
@@ -196,10 +267,25 @@ def _portfolio(selection):
 </section>"""
 
 
-def _current_options(selection, evidence):
+def _current_options(selection, evidence, snapshots, receipt_base):
     cards = []
+    packet = selection["evaluation_packet"]
+    prior_reviews = {
+        (row["candidate_id"], row["candidate_version"]): row
+        for row in canonical_report.current_prior_work_reviews(packet).values()
+    }
     for option in selection["current_options"]:
-        cards.append(_candidate(option["candidate"], evidence))
+        candidate = option["candidate"]
+        cards.append(_candidate(candidate, evidence))
+        if packet.get("schema_version") == "2.4.0":
+            review = prior_reviews.get(
+                (candidate["candidate_id"], candidate["version"])
+            )
+            cards.append(
+                _prior_work_review(review, evidence, snapshots, receipt_base)
+                if review is not None
+                else '<section class="prior-work pending"><h4>Prior-work positioning</h4><p>No validated review is recorded for this current candidate version. This direction remains draft; no novelty or P5 score is inferred.</p></section>'
+            )
         if option["assessment"] is None:
             cards.append(
                 '<section class="assessment pending"><h4>Pending assessment</h4>'
@@ -406,12 +492,13 @@ def _sources(snapshots, evidence, bibliography):
 <h2>Evidence appendix</h2>{"".join(appendix) or "<p>No evidence excerpts are recorded.</p>"}</section>"""
 
 
-def render_selection_html(selection, source_snapshots):
+def render_selection_html(selection, source_snapshots, *, receipt_prefix=None):
     """Render complete validated Stage 2 content as safe standalone HTML bytes."""
     packet, snapshots, evidence, bibliography = canonical_report._validate_bindings(
         selection, source_snapshots
     )
     packet_hash = selection["packet_sha256"]
+    receipt_base = canonical_report._receipt_base(receipt_prefix)
     comparison = _text(packet["comparison"])
     body = "".join(
         [
@@ -423,7 +510,7 @@ def render_selection_html(selection, source_snapshots):
                 f"<p>{comparison}</p></section>"
             ),
             render_tables_html(packet.get("research_tables"), packet),
-            _current_options(selection, evidence),
+            _current_options(selection, evidence, snapshots, receipt_base),
             _questions(selection),
             _histories(selection, evidence),
             _bibliography(bibliography, evidence),
