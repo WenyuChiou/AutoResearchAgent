@@ -19,9 +19,9 @@ from .wiki import wiki_files
 REFERENCE_COMMIT = "085f363179a79375fc8e3590dda9725e25eda71a"
 REFERENCE_HASHES = {
     "prototype.html": "dfd49e7d0baf5cbf1645a08c34dafb48bba7b3db9d867adf313e91b1a810298e",
-    "literature-reference.js": "80571f6f16d1cefec5857b8b137146f98fc0e009346d54a2d4a73b0b63620ec5",
+    "literature-reference.js": "6a6cad0f744988da523cf548f9e0013269ac3c96d0366d208d63815128305b55",
     "workspace-i18n.js": "d24fadd875728abfdd9d6a1734f430d82abf80ecf4538cf959d91245ce1bc24d",
-    "workspace.css": "9eefa95da3bee89ee0cf19bf688eadf5108df5ca852dc6c96749a386a249d393",
+    "workspace.css": "7d61618949a42c9afdbbdedcad2556bf71a0d647c5d33b950063100cc932f4e4",
 }
 
 
@@ -212,6 +212,12 @@ def _write_view(
             '<link rel="stylesheet" href="./workspace-source-rerun.css">\n</head>',
         )
         script_names.append("workspace-source-rerun.js")
+    html = _replace(
+        html,
+        "</head>",
+        '<link rel="stylesheet" href="./workspace-selection.css">\n</head>',
+    )
+    script_names.append("workspace-literature-selection.js")
     script_names.append("workspace-records.js")
     if stage2_attachment is not None:
         html = html.replace("<body>", '<body class="stage2-workspace">').replace(
@@ -255,6 +261,9 @@ def _write_view(
         from .source_availability import derive_source_availability
 
         payload["source_availability"] = derive_source_availability(index)
+    from .literature_selection import derive_literature_selection, selection_files
+
+    payload["literature_selection"] = derive_literature_selection(index)
     if stage2_attachment is not None:
         payload["stage2"] = stage2_attachment
     encoded = (
@@ -290,6 +299,12 @@ def _write_view(
         ).encode(),
         "workspace-data.js": ("window.WORKSPACE_VIEW = " + encoded + ";\n").encode(),
         "workspace-records.js": adapter.read_bytes(),
+        "workspace-literature-selection.js": adapter.with_name(
+            "workspace-literature-selection.js"
+        ).read_bytes(),
+        "workspace-selection.css": adapter.with_name(
+            "workspace-selection.css"
+        ).read_bytes(),
         "workspace-index.json": raw,
         "references.bib": (
             index["source_rerun"]["bibliography"] if rerun else index["bibliography"]
@@ -297,6 +312,7 @@ def _write_view(
         **notes,
         **stage2_files,
     }
+    files.update(selection_files(index))
     if repaired:
         from .closeout import closeout_files
 
@@ -359,8 +375,18 @@ def _write_view(
                 "stages.py",
                 "view.py",
                 "wiki.py",
+                "literature_selection.py",
+                "body_completeness.py",
                 "json_bytes.py",
                 "WorkspaceIndex.v1.schema.json",
+            )
+        },
+        "ui_sources": {
+            name: sha(adapter.with_name(name).read_bytes())
+            for name in (
+                "workspace-records.js",
+                "workspace-literature-selection.js",
+                "workspace-selection.css",
             )
         },
     }
