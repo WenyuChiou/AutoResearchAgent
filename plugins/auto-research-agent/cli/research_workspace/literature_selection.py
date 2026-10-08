@@ -73,8 +73,10 @@ def _diagnostic_reasons(row):
     return _unique(reasons)
 
 
-def _binding(row, artifacts):
+def _binding(row, artifacts, body_reviews=None):
     """Return the exact current binding and reject a forged admissible row."""
+    from .body_review_attachment import body_review_key
+
     reading = row["reading"]
     raw_path = row.get("raw_path")
     text_path = row.get("extracted_path")
@@ -115,6 +117,8 @@ def _binding(row, artifacts):
         "locators": deepcopy(reading["locators"]),
         "diagnostics": deepcopy(reading.get("diagnostics") or {}),
         "body_completeness": assess_body_completeness(row),
+        **({"independent_body_review": deepcopy(body_reviews[body_review_key(row)]["evidence"])}
+           if body_review_key(row) in (body_reviews or {}) else {}),
         "error": deepcopy(reading.get("error")),
         "metadata": deepcopy(row.get("metadata") or {}),
         "metadata_provenance": deepcopy(row.get("metadata_provenance") or {}),
@@ -194,6 +198,7 @@ def derive_literature_selection(index):
     rerun = index.get("source_rerun") if version == "3.0.0" else None
     rerun_rows = rerun["data"]["rows"] if rerun else []
     artifacts = rerun["artifact_hashes"] if rerun else {}
+    body_reviews = rerun.get("body_reviews", {}) if rerun else {}
     by_identity = {}
     for source in rerun_rows:
         by_identity.setdefault((source["work_id"], source["version_id"]), []).append(
@@ -210,7 +215,7 @@ def derive_literature_selection(index):
             ),
             "rerun source is outside canonical paper membership",
         )
-        bindings = [_binding(source, artifacts) for source in sources]
+        bindings = [_binding(source, artifacts, body_reviews) for source in sources]
         eligible = [source["source_id"] for source in sources if _eligible(source)]
         reasons = _unique(
             reason for source in sources for reason in _source_reasons(source)

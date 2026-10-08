@@ -388,7 +388,8 @@ def _bibliography(index, rows):
     }
 
 
-def attach_rerun(index, rerun_root, expected_manifest_sha256):
+def attach_rerun(index, rerun_root, expected_manifest_sha256, *,
+                 expected_body_review_acceptance_hashes=None):
     """Accept an externally bound rerun without altering frozen claims or scores."""
     from .projection import validate_index
 
@@ -426,6 +427,12 @@ def attach_rerun(index, rerun_root, expected_manifest_sha256):
         "artifact_hashes": files,
         "bibliography": _bibliography(index, manifest["data"]["rows"]),
     }
+    from .body_review_attachment import attach_body_reviews
+
+    reviews = attach_body_reviews(manifest["data"]["rows"], evidence, files,
+                                  expected_body_review_acceptance_hashes)
+    if reviews:
+        result["source_rerun"]["body_reviews"] = reviews
     validate_rerun_index(result)
     for row in result["source_rerun"]["data"]["rows"]:
         if row.get("raw_path"):
@@ -678,6 +685,9 @@ def validate_rerun_index(index):
         extension["bibliography"] == _bibliography(base, rows),
         "rerun bibliography differs",
     )
+    from .body_review_attachment import validate_body_reviews
+
+    validate_body_reviews(extension)
     return index
 
 

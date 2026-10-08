@@ -60,6 +60,22 @@ Private papers, source text, actual indexes and snapshots never belong in Git.
 Public fixtures are synthetic. Rendering success and byte checks do not prove
 P1-P3 quality improvement or actual native execution.
 
+### Separately bound PDF body review
+
+A saved-source rerun may reference an engineering-only body-review bundle and
+its canonical verification result. Supply each externally accepted digest with
+`--expected-body-review-acceptance-sha256`; a declared digest inside the bundle
+alone is insufficient. The adapter verifies source, version, reading attempt,
+original parser, independent reader/runtime artifacts, every page, quotations,
+and separately reviewed discrepancies before attaching evidence.
+
+The verification result must also be a byte-bound rerun artifact. Its cached
+projection is checked again against that artifact and the current reading.
+The original source rows, automatic diagnostics and body-completeness decision
+remain unchanged. Evidence appears separately in selection bindings and saved
+rerun exports; this slice cannot grant formal eligibility, authenticate declared
+reviewer identity, repair scientific claims or authorize Stage 2 execution.
+
 ### Accepted private repair overlay API
 
 `project_package` accepts `repair_root`, `expected_repair_manifest_sha256` and
