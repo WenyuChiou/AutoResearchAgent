@@ -4,7 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 import json
 from pathlib import Path
+import sqlite3
 import sys
+import threading
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
@@ -250,6 +252,79 @@ class ScopeApiTests(unittest.TestCase):
         with self.assertRaises(SessionApiError):
             self.scope.history("token-a", p.ref)
         self.assertEqual(p.channel.calls, [])
+
+    def test_sqlite_writer_wait_deadline_rolls_back_append_and_review(self):
+        def expired():
+            raise TimeoutError
+
+        for kind in ("append", "review"):
+            with self.subTest(kind=kind):
+                p = self.brief(kind + "-deadline")
+                if kind == "append":
+                    body = self.body(p, key=kind + "-deadline")
+                    operation = self.scope.append
+                else:
+                    original = self.scope.history("token-a", p.ref)["versions"][0]
+                    body = dict(
+                        key=kind + "-deadline",
+                        revision=p.store.snapshot(p.pid)["revision"],
+                        index_sha256=p.hash,
+                        input_version=p.version,
+                        confirmed=True,
+                        version_ref=original["version_ref"],
+                        version_sha256=original["sha256"],
+                        decision="changes-requested",
+                        note="Synthetic review remains unresolved.",
+                    )
+                    operation = self.scope.review
+                before = p.store.snapshot(p.pid)
+                events = p.store.events(p.pid)
+                entered = threading.Event()
+                writer = sqlite3.connect(p.store.path, timeout=1, isolation_level=None)
+                pool = ThreadPoolExecutor(max_workers=1)
+                try:
+                    writer.execute("BEGIN IMMEDIATE")
+                    p.store.db.set_trace_callback(
+                        lambda statement: entered.set()
+                        if statement == "BEGIN IMMEDIATE"
+                        else None
+                    )
+                    future = pool.submit(
+                        operation,
+                        "token-a",
+                        p.ref,
+                        body,
+                        check_deadline=expired,
+                    )
+                    self.assertTrue(entered.wait(2), "target SQLite write did not start")
+                    self.assertFalse(future.done())
+                    writer.rollback()
+                    with self.assertRaises(SessionApiError) as raised:
+                        future.result(timeout=5)
+                    self.assertEqual(
+                        (raised.exception.status, raised.exception.code),
+                        (408, "request-timeout"),
+                    )
+                finally:
+                    p.store.db.set_trace_callback(None)
+                    if writer.in_transaction:
+                        writer.rollback()
+                    writer.close()
+                    pool.shutdown(wait=True, cancel_futures=True)
+                self.assertEqual(p.store.snapshot(p.pid), before)
+                self.assertEqual(p.store.events(p.pid), events)
+
+                accepted = operation("token-a", p.ref, body)
+                saved = p.store.snapshot(p.pid)
+                saved_events = p.store.events(p.pid)
+                replay = operation(
+                    "token-a", p.ref, body, check_deadline=expired
+                )
+                self.assertEqual(dict(replay, replayed=False), accepted)
+                self.assertTrue(replay["replayed"])
+                self.assertEqual(p.store.snapshot(p.pid), saved)
+                self.assertEqual(p.store.events(p.pid), saved_events)
+                self.assertEqual(p.channel.calls, [])
 
 
 if __name__ == "__main__":
