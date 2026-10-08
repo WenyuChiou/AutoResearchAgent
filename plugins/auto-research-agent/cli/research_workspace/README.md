@@ -97,3 +97,20 @@ Markdown and BibTeX. Every exported source byte remains private and bound to
 the accepted manifest. Rebuilding a saved v3 view reads only those artifacts;
 it does not rerun the parser, acquire sources, score quality or alter the
 original scientific record.
+
+The derived `literature_selection` payload applies one topic-independent rule:
+include readable full text with matching work/source/version/hash and confirmed
+source identity. Abstract-only, metadata-only, inaccessible, failed, truncated
+or explicitly incomplete sources remain in the screening list with their reasons.
+Readable full text whose identity is unverified stays pending. A claim's Unknown
+status does not remove an otherwise eligible work. Legacy indexes without a
+current source review stay pending; no historical record is rewritten.
+
+`literature/` exports the same bound selection as JSON, CSV, Markdown, Excel
+(Included, Screening and Selection sheets), an included bibliography and the
+complete screening bibliography. The payload provides the frontend contract;
+new selection bibliographies use version-bound citation keys recorded in each
+selection row; the original complete bibliography retains its existing keys.
+it does not attest the separately required visual/native acceptance. Coverage,
+scientific assessments, full-record exports and official Stage 2 eligibility
+remain unchanged. Rebuilding these exports performs no new research or reading.
