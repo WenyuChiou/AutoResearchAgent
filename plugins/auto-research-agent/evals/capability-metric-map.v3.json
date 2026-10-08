@@ -82,7 +82,7 @@
             "v3 attachment rejects changed manifests, source versions, artifact bytes, locators, metadata provenance and evidence or import upgrades",
             "v3 export rebuilds deterministic cross-format work/version/source identities and retains mixed read successes, failures and original states",
             "graph filter, selection, pan, zoom and drag preserve work/version identities and exact canonical exports; reference asset hashes supersede historical base provenance for rebuild",
-            "formal selection admits only readable full text with confirmed work/source/version/hash binding; all pending/excluded records, per-source diagnostics and Unknown claims remain unchanged"
+            "formal selection admits only readable full text with confirmed work/source/version/hash binding and affirmative reconciled body extent; absent proof stays pending and inconsistent extent is excluded, while all screening records, diagnostics and Unknown claims remain unchanged"
           ],
           "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
         }
@@ -106,6 +106,7 @@
         "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_exports.py",
         "plugins/auto-research-agent/tests/test_research_workspace_source_availability.py",
         "plugins/auto-research-agent/tests/test_research_workspace_literature_selection.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_body_completeness.py",
         "plugins/auto-research-agent/tests/test_workspace_literature_selection_ui.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",

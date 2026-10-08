@@ -11,8 +11,10 @@ import re
 from stage1_deliverable.common import DeliverableError, canonical, sha
 from stage1_deliverable.views import csv_bytes, workbook_bytes
 
+from .body_completeness import assess_body_completeness
 
-RULE_VERSION = "1.0.0"
+
+RULE_VERSION = "1.1.0"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
@@ -112,6 +114,7 @@ def _binding(row, artifacts):
         "characters": reading["characters"],
         "locators": deepcopy(reading["locators"]),
         "diagnostics": deepcopy(reading.get("diagnostics") or {}),
+        "body_completeness": assess_body_completeness(row),
         "error": deepcopy(reading.get("error")),
         "metadata": deepcopy(row.get("metadata") or {}),
         "metadata_provenance": deepcopy(row.get("metadata_provenance") or {}),
@@ -144,6 +147,8 @@ def _source_reasons(row):
             reasons.append("abstract-only")
         elif reading["evidence_level"] == "metadata":
             reasons.append("metadata-only")
+        elif reading["evidence_level"] == "full-text":
+            reasons.extend(assess_body_completeness(row)["reasons"])
     return _unique(reasons)
 
 
@@ -159,19 +164,23 @@ def _eligible(row):
         and selected is not None
         and selected.get("response_truncated") is False
         and not _diagnostic_reasons(row)
+        and assess_body_completeness(row)["status"] == "confirmed"
     )
 
 
-def _pending_identity_review(row):
+def _pending_source_review(row):
     reading = row["reading"]
+    body = assess_body_completeness(row)
     return (
-        reading["identity_status"] == "unverified"
+        reading["identity_status"] in {"consistent", "verified", "unverified"}
         and reading["status"] == "extracted"
         and reading["evidence_level"] == "full-text"
         and reading["characters"] > 0
         and bool(reading["locators"])
         and (_selected_attempt(row) or {}).get("response_truncated") is False
         and not _diagnostic_reasons(row)
+        and body["status"] != "incomplete"
+        and (reading["identity_status"] == "unverified" or body["status"] == "pending")
     )
 
 
@@ -211,7 +220,7 @@ def derive_literature_selection(index):
             reasons = ["readable-full-text-identity-confirmed"]
         elif not rerun or not sources:
             status, reasons = "pending", ["pending-source-review"]
-        elif any(_pending_identity_review(source) for source in sources):
+        elif any(_pending_source_review(source) for source in sources):
             status = "pending"
         else:
             status = "excluded"

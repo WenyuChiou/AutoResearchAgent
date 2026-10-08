@@ -106,6 +106,15 @@ Readable full text whose identity is unverified stays pending. A claim's Unknown
 status does not remove an otherwise eligible work. Legacy indexes without a
 current source review stay pending; no historical record is rewritten.
 
+Selection rule `1.1.0` also requires affirmative body-extent evidence. PDF
+receipts reconcile the total, readable and located pages and extracted-text
+extent. Non-PDF receipts require a full-body `document_extent` bound to the raw
+and extracted hashes, matching character counts and a complete body locator.
+A `full-text` label or `complete: true` alone is insufficient. Missing proof or
+unreviewed extraction fidelity stays pending; contradictory extent is excluded.
+These checks establish recorded extraction extent, not semantic correctness,
+claim support or research sufficiency. Old source records are never restamped.
+
 `literature/` exports the same bound selection as JSON, CSV, Markdown, Excel
 (Included, Screening and Selection sheets), an included bibliography and the
 complete screening bibliography. The payload provides the frontend contract;
