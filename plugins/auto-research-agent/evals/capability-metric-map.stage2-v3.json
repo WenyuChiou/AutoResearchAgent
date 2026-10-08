@@ -1,7 +1,4 @@
 {
-  "registry_id": "capability-metric-map-stage2-v3",
-  "schema_version": "3.0.0",
-  "extends": "capability-metric-map-v1",
   "capabilities": [],
   "capability_extensions": [
     {
@@ -132,29 +129,28 @@
       ]
     },
     {
+      "assessment_target_cli_contract": "Optional daily-v3 and verify-daily-v3 --assessment-target-policy accepts an exact host-generated policy binding object; omitted flags retain legacy call shape. Explicit null, non-object, unreadable, malformed or stale binding fails before scoring or replay admission. This exposes existing opt-in3.1 behavior; no rubric, model, authority, isolation or formal-quality promotion.",
+      "assessment_target_cli_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_cli.py"
+      ],
+      "assessment_target_policy_contract": "Opt-in3.1 prompt framing scores the actual submitted content, not external facts or the judge's critique; each criterion and temporal version remains separate. Legacy producers/replay and v3 rubric stay unchanged. Host bindings pin actual policy bytes; no native admission, formal readiness or quality claim is inferred.",
+      "assessment_target_policy_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_assessment_target_policy.py"
+      ],
+      "assessment_target_replay_contract": "Optional explicit assessment-target policy binds the expected config,request,prompt prefix,source-context supplement and rebuilt result. Read-only replay authenticates original native units without dispatching or editing them; missing or stale policy,rehashing and authority promotion fail closed. Omitted policy preserves legacy behavior,including its known no-source-context JSON-key-order limitation. Ordinary-B replay is not formal isolation or improvement.",
+      "assessment_target_replay_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_replay.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
+      ],
+      "candidate_review_context_mechanism": "Opt-in initial review view1.1 carries exact current-candidate resource rows and the existing five-axis assessed/unknown anchors into native review and tool-free extraction. Legacy1.0 bindings remain reconstructible; mismatched or mixed review versions fail closed. Optional alternatives do not become mandatory requirements, unknown enabling prerequisites do not become evidenced failure, and raw reviewer judgments are not automatically repaired. Transport and validation tests do not establish scientific judgment quality, complete B execution, formal isolation or A/B improvement.",
+      "candidate_review_context_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_review_context.py"
+      ],
       "capability_id": "cli:stage2-live",
-      "native_action_history_contract": "Opt-in named-policy1.1 per-action trace roots bind exact capture, observation and narrow namespace evidence. Separate read-only archived verification preserves every original input/runtime/profile/producer/receipt binding while allowing later workspace files; live resume still rejects changed workspaces. Historical inspection never dispatches or attests formal readiness or scientific improvement.",
-      "native_action_history_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_action_trace_root.py",
-        "plugins/auto-research-agent/tests/test_stage2_namespace_trace_child.py",
-        "plugins/auto-research-agent/tests/test_stage2_producer_history.py",
-        "plugins/auto-research-agent/tests/test_stage2_producer_replay.py"
-      ],
-      "native_role_namespace_contract": "Opt-in Linux role namespace binds dispatcher, image bytes/modes/ownership, standalone executable, DNS and narrow role directories. Capture, observation and evaluator replay reconstruct the same shell-free prefix; changed scope cannot resume. The prefix does not change native permission arguments or attest successful tools, network policy, functional preflight, judge quality or formal readiness. Legacy execution remains unchanged when no scope file exists.",
-      "native_role_namespace_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_native_namespace.py",
-        "plugins/auto-research-agent/tests/test_stage2_native_namespace_integration.py",
-        "plugins/auto-research-agent/tests/test_stage2_trace_producer_namespace.py"
-      ],
-      "native_incomplete_capture_contract": "The shared production capture seam rejects missing or noncomplete native status before success-only environment verification, review extraction or reconciliation. Original failed artifacts remain intact. An unavailable model or interrupted call is an execution failure, never a zero scientific score, absent reviewer agreement or a completed pilot. No retry, model, policy, sandbox or rubric change.",
-      "native_incomplete_capture_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_controller.py"
-      ],
-      "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
-      "native_call_deadline_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_native_deadline.py",
-        "plugins/auto-research-agent/tests/test_stage2_native_process.py",
-        "plugins/auto-research-agent/tests/test_stage2_live_native.py"
+      "daily_assessment_target_policy": "Explicit opt-in3.1 framing binds actual submitted-content policy bytes before independent native daily scoring; request/config/result/resume reflect the choice. Legacy prompt/field semantics remain unchanged, actual code-byte changes still invalidate prior runtime bindings. No formal promotion.",
+      "daily_assessment_target_policy_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
       ],
       "metric_effects": [
         {
@@ -197,54 +193,48 @@
           "human_judgment": "Independent source-grounded judgments; missing audit cannot establish improvement."
         }
       ],
-      "test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_source_context.py",
-        "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
-        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
-      ],
-      "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
-      "research_followup_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_research_followups.py",
-        "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
-        "plugins/auto-research-agent/tests/test_stage2_controller.py"
-      ],
-      "source_context_native_calibration": "Blinded no-tool native supplemental 12-case runner; input/runtime/shared-code bindings, per-attempt evidence, external receipted completed-unit resume, explicit incomplete reviewer; native QA does not establish formal admission.",
-      "source_context_native_calibration_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_context_quality_native.py"
-      ],
-      "native_trace_file_integrity": "Bounded raw native trace byte reader authenticates caller-retained inventory receipt; file identity, traversal/reparse, file count and finite-read guards. Offline observation primitive; no execution or formal promotion.",
-      "native_trace_file_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_trace_files.py"
-      ],
-      "native_trace_inference_parsing": "Receipt-reader-dependent private inference helpers resolve tool definitions and same-thread deltas; typed token subsets and complete compaction accounting remain explicit. Parsing cannot attest execution or formal readiness.",
-      "native_trace_inference_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_trace_parsing.py"
-      ],
       "named_native_capture": "Opt-in capture v2 binds exact restrictive named permission config, native managed network proxy and protected role directories; reconstructs dispatch without overriding named permissions with legacy sandbox arguments. Functional preflight and role isolation remain separately required.",
       "named_native_capture_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
         "plugins/auto-research-agent/tests/test_stage2_live_native.py",
         "plugins/auto-research-agent/tests/test_stage2_preflight.py"
       ],
+      "native_action_history_contract": "Opt-in named-policy1.1 per-action trace roots bind exact capture, observation and narrow namespace evidence. Separate read-only archived verification preserves every original input/runtime/profile/producer/receipt binding while allowing later workspace files; live resume still rejects changed workspaces. Historical inspection never dispatches or attests formal readiness or scientific improvement.",
+      "native_action_history_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_action_trace_root.py",
+        "plugins/auto-research-agent/tests/test_stage2_namespace_trace_child.py",
+        "plugins/auto-research-agent/tests/test_stage2_producer_history.py",
+        "plugins/auto-research-agent/tests/test_stage2_producer_replay.py"
+      ],
+      "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
+      "native_call_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_deadline.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_native.py"
+      ],
       "native_compaction_accounting": "Private per-request compaction accounting binds native request/response payloads and distinct retry identities. Duplicate terminals are idempotent only when identical; missing native token usage remains unknown and overlapping inference identity cannot establish complete totals.",
       "native_compaction_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_compaction.py"
       ],
-      "native_trace_observation": "Offline receipt-bound native event inspector links inferences, offered tools, child edges, failures and token totals. Missing terminals and unaccounted compaction stay explicit blockers; this is content observation, not execution attestation or formal admission.",
-      "native_trace_observation_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_trace_observation.py"
+      "native_incomplete_capture_contract": "The shared production capture seam rejects missing or noncomplete native status before success-only environment verification, review extraction or reconciliation. Original failed artifacts remain intact. An unavailable model or interrupted call is an execution failure, never a zero scientific score, absent reviewer agreement or a completed pilot. No retry, model, policy, sandbox or rubric change.",
+      "native_incomplete_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. This primitive has no execution or formal admission authority.",
-      "native_seal_io_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_trace_seal_io.py"
+      "native_judge_trace_replay": "Strict original-seal replay joins every native judge attempt root to its exact trace, recomputes offered tools and usage, rejects missing/foreign/tampered evidence, and dispatches no model. Namespace isolation and scientific/formal acceptance remain external.",
+      "native_judge_trace_replay_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_judge_trace_replay.py"
       ],
+      "native_judge_worker": "One frozen role-owned prompt/schema calls unchanged native v3.1 capture; strict read-only replay binds raw generations, display copies, complete archive inventory and worker/runtime bytes. Host semantic checks, namespace attestation, nested usage, calibration and formal admission remain separate.",
+      "native_judge_worker_tests": [
+        "plugins/auto-research-agent/tests/test_stage2_judge_worker.py"
+      ],
+      "native_observation_deadline_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py"
+      ],
+      "native_observation_deadlines": "Schema2.0.0 records an explicit finite metadata RPC deadline; legacy1.0.0 remains replayable. Invalid limits fail before output/RPC. Timeouts remain partial; a longer deadline is not evidence of successful inventory or formal readiness.",
       "native_observation_io": "Producer-supplied retained directory handles anchor every metadata/failure write with exclusive leaves; legacy collector remains compatible. No model dispatch, isolation proof or formal promotion.",
       "native_observation_io_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_observation_io.py"
-      ],
-      "native_observation_deadlines": "Schema2.0.0 records an explicit finite metadata RPC deadline; legacy1.0.0 remains replayable. Invalid limits fail before output/RPC. Timeouts remain partial; a longer deadline is not evidence of successful inventory or formal readiness.",
-      "native_observation_deadline_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_runtime_observation.py"
       ],
       "native_observation_response_bounds": "Binary bounded readline supports large valid private metadata frames while enforcing64MiB frame/128MiB stream ceilings; finite distinct JSON, UTF8, reader and limit failures remain non-formal. No native feature or permission reduction.",
       "native_observation_response_test_refs": [
@@ -254,21 +244,68 @@
       "native_producer_public_replay_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_producer_replay.py"
       ],
+      "native_role_namespace_contract": "Opt-in Linux role namespace binds dispatcher, image bytes/modes/ownership, standalone executable, DNS and narrow role directories. Capture, observation and evaluator replay reconstruct the same shell-free prefix; changed scope cannot resume. The prefix does not change native permission arguments or attest successful tools, network policy, functional preflight, judge quality or formal readiness. Legacy execution remains unchanged when no scope file exists.",
+      "native_role_namespace_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_namespace.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_namespace_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_trace_producer_namespace.py"
+      ],
+      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. This primitive has no execution or formal admission authority.",
+      "native_seal_io_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_seal_io.py"
+      ],
       "native_trace_capture_seal": "Opt-in immutable capture/trace content seal binds verified native capture identity, every raw trace byte and recomputed observation; bounded no-follow reads and checked resume preserve synthetic markers and unknowns. Content linkage does not attest genuine acquisition or formal readiness.",
       "native_trace_capture_seal_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_capture.py"
+      ],
+      "native_trace_file_integrity": "Bounded raw native trace byte reader authenticates caller-retained inventory receipt; file identity, traversal/reparse, file count and finite-read guards. Offline observation primitive; no execution or formal promotion.",
+      "native_trace_file_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_files.py"
+      ],
+      "native_trace_inference_parsing": "Receipt-reader-dependent private inference helpers resolve tool definitions and same-thread deltas; typed token subsets and complete compaction accounting remain explicit. Parsing cannot attest execution or formal readiness.",
+      "native_trace_inference_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_parsing.py"
+      ],
+      "native_trace_observation": "Offline receipt-bound native event inspector links inferences, offered tools, child edges, failures and token totals. Missing terminals and unaccounted compaction stay explicit blockers; this is content observation, not execution attestation or formal admission.",
+      "native_trace_observation_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_trace_observation.py"
       ],
       "native_trace_producer": "Named-policy host wrapper binds one native capture, pre-turn API inventory and immutable raw-trace sealing; receipt-verified resume never re-executes. Host observation is not provider attestation or formal admission.",
       "native_trace_producer_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_producer.py"
       ],
-      "source_context_native_replay": "Read-only current-format verifier rebuilds supplemental 12-case/24-judgment native requests, replays every original/correction archive, binds display sidecars and recomputes outcomes; attempted root calls exclude nested inference inventory, cost stays unknown and formal-ready false.",
-      "source_context_native_replay_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_context_quality_replay.py"
+      "no_tool_trace_capture_contract": "Copy only fresh telemetry children matching every authenticated call attempt; bind original inventories and external seal receipts. Refuse foreign or duplicate roots, links, changed bytes and unsafe paths. The capture token is in-memory and grants no execution authority.",
+      "no_tool_trace_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_capture.py"
       ],
-      "native_judge_worker": "One frozen role-owned prompt/schema calls unchanged native v3.1 capture; strict read-only replay binds raw generations, display copies, complete archive inventory and worker/runtime bytes. Host semantic checks, namespace attestation, nested usage, calibration and formal admission remain separate.",
-      "native_judge_worker_tests": [
-        "plugins/auto-research-agent/tests/test_stage2_judge_worker.py"
+      "no_tool_trace_evidence_contract": "Authenticate all native v3.1 attempt roots against original retained raw-trace seals, effective read-only/never settings and observed zero tools/children. The caller first validates canonical archive provenance; missing, foreign, tampered or incomplete evidence fails. Unknown usage stays null; no execution, authority, isolation or improvement is claimed.",
+      "no_tool_trace_evidence_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_evidence.py"
+      ],
+      "observed_action_contract": "One sequential action uses its own trace root, original native/producer/runtime receipts and reconstructed inventory. Historical replay makes no fresh execution, authority or formal-ready claim; failed inventory retains recoverable receipts and unknown costs.",
+      "observed_action_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_observed_action.py"
+      ],
+      "observed_preflight_contract": "Opt-in production probe1.2 authenticates external capture, producer and raw trace receipts before typed command/output/search/child checks. Effective parent and inherited/own child policies and exact executor workspace must match. Read-only validation never executes archived code or grants formal isolation, pilot completion or scientific improvement;1.1 remains reconstructible.",
+      "observed_preflight_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_preflight_observed_receipts.py",
+        "plugins/auto-research-agent/tests/test_stage2_preflight_native_witnesses.py",
+        "plugins/auto-research-agent/tests/test_stage2_preflight_trace_witnesses.py"
+      ],
+      "per_execution_inventory": "Receipt-bound private inventory reconstructs actual model requests, developer inputs, offered tools, role lineage and supported config/skills/plugins/MCP RPC responses. Separate call completeness, token availability and structural blockers; cancelled inference usage stays unknown. It does not attest formal role isolation or complete Stage2 execution.",
+      "per_execution_inventory_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_execution_inventory.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
+      "research_followup_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_research_followups.py",
+        "plugins/auto-research-agent/tests/test_stage2_material_followup.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
       "role_policy_controller_contract": "Opt-in controller1.1 resolves SHA-bound named policy1.1 per home/workspace; denied capture_root contains every fresh output; both observed restricted filesystem representations and active profile must match. Legacy contracts remain separate; no formal isolation or quality promotion.",
       "role_policy_controller_tests": [
@@ -278,63 +315,33 @@
         "plugins/auto-research-agent/tests/test_stage2_preflight.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "assessment_target_policy_contract": "Opt-in3.1 prompt framing scores the actual submitted content, not external facts or the judge's critique; each criterion and temporal version remains separate. Legacy producers/replay and v3 rubric stay unchanged. Host bindings pin actual policy bytes; no native admission, formal readiness or quality claim is inferred.",
-      "assessment_target_policy_tests": [
-        "plugins/auto-research-agent/tests/test_stage2_assessment_target_policy.py"
-      ],
-      "native_judge_trace_replay": "Strict original-seal replay joins every native judge attempt root to its exact trace, recomputes offered tools and usage, rejects missing/foreign/tampered evidence, and dispatches no model. Namespace isolation and scientific/formal acceptance remain external.",
-      "native_judge_trace_replay_tests": [
-        "plugins/auto-research-agent/tests/test_stage2_judge_trace_replay.py"
-      ],
-      "daily_assessment_target_policy": "Explicit opt-in3.1 framing binds actual submitted-content policy bytes before independent native daily scoring; request/config/result/resume reflect the choice. Legacy prompt/field semantics remain unchanged, actual code-byte changes still invalidate prior runtime bindings. No formal promotion.",
-      "daily_assessment_target_policy_tests": [
-        "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
-      ],
-      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
-      "supplemental_source_version_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
-        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
-      ],
       "shared_evaluator_deadline_contract": "Shared no-tool extraction and judge calls reuse the reviewed stage2_live/native_process runner, finite frozen timeout and exact temporary prompt/stream bytes; timeout and OSError attempts preserve partial streams and owned-tree cleanup reports. Evaluator producer hashes include shared runner bytes; changed producers require new attempts, never historical archive rewriting. This is transport behavior, not source meaning, isolation, formal readiness or scientific improvement.",
       "shared_evaluator_deadline_test_refs": [
         "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
         "plugins/auto-research-agent/tests/test_stage2_native_process.py",
         "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
       ],
+      "source_context_native_calibration": "Blinded no-tool native supplemental 12-case runner; input/runtime/shared-code bindings, per-attempt evidence, external receipted completed-unit resume, explicit incomplete reviewer; native QA does not establish formal admission.",
+      "source_context_native_calibration_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_context_quality_native.py"
+      ],
+      "source_context_native_replay": "Read-only current-format verifier rebuilds supplemental 12-case/24-judgment native requests, replays every original/correction archive, binds display sidecars and recomputes outcomes; attempted root calls exclude nested inference inventory, cost stays unknown and formal-ready false.",
+      "source_context_native_replay_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_context_quality_replay.py"
+      ],
+      "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
+      "supplemental_source_version_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
+        "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_source_context.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
+      ],
       "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
       "topic_cell_extraction_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py"
-      ],
-      "candidate_review_context_mechanism": "Opt-in initial review view1.1 carries exact current-candidate resource rows and the existing five-axis assessed/unknown anchors into native review and tool-free extraction. Legacy1.0 bindings remain reconstructible; mismatched or mixed review versions fail closed. Optional alternatives do not become mandatory requirements, unknown enabling prerequisites do not become evidenced failure, and raw reviewer judgments are not automatically repaired. Transport and validation tests do not establish scientific judgment quality, complete B execution, formal isolation or A/B improvement.",
-      "candidate_review_context_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_review_context.py"
-      ],
-      "assessment_target_replay_contract": "Optional explicit assessment-target policy binds the expected config,request,prompt prefix,source-context supplement and rebuilt result. Read-only replay authenticates original native units without dispatching or editing them; missing or stale policy,rehashing and authority promotion fail closed. Omitted policy preserves legacy behavior,including its known no-source-context JSON-key-order limitation. Ordinary-B replay is not formal isolation or improvement.",
-      "assessment_target_replay_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_daily_target_replay.py",
-        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
-        "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
-      ],
-      "assessment_target_cli_contract": "Optional daily-v3 and verify-daily-v3 --assessment-target-policy accepts an exact host-generated policy binding object; omitted flags retain legacy call shape. Explicit null, non-object, unreadable, malformed or stale binding fails before scoring or replay admission. This exposes existing opt-in3.1 behavior; no rubric, model, authority, isolation or formal-quality promotion.",
-      "assessment_target_cli_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_daily_target_cli.py"
-      ],
-      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
-      "prior_work_positioning_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
-        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
-      ],
-      "per_execution_inventory": "Receipt-bound private inventory reconstructs actual model requests, developer inputs, offered tools, role lineage and supported config/skills/plugins/MCP RPC responses. Separate call completeness, token availability and structural blockers; cancelled inference usage stays unknown. It does not attest formal role isolation or complete Stage2 execution.",
-      "per_execution_inventory_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_execution_inventory.py"
-      ],
-      "no_tool_trace_evidence_contract": "Authenticate all native v3.1 attempt roots against original retained raw-trace seals, effective read-only/never settings and observed zero tools/children. The caller first validates canonical archive provenance; missing, foreign, tampered or incomplete evidence fails. Unknown usage stays null; no execution, authority, isolation or improvement is claimed.",
-      "no_tool_trace_evidence_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_evidence.py"
-      ],
-      "no_tool_trace_capture_contract": "Copy only fresh telemetry children matching every authenticated call attempt; bind original inventories and external seal receipts. Refuse foreign or duplicate roots, links, changed bytes and unsafe paths. The capture token is in-memory and grants no execution authority.",
-      "no_tool_trace_capture_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_capture.py"
       ]
     },
     {
@@ -751,5 +758,8 @@
         "plugins/auto-research-agent/tests/test_evaluator_model_calls.py"
       ]
     }
-  ]
+  ],
+  "extends": "capability-metric-map-v1",
+  "registry_id": "capability-metric-map-stage2-v3",
+  "schema_version": "3.0.0"
 }
