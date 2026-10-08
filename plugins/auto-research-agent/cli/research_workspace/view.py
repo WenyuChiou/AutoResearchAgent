@@ -21,7 +21,7 @@ REFERENCE_HASHES = {
     "prototype.html": "dfd49e7d0baf5cbf1645a08c34dafb48bba7b3db9d867adf313e91b1a810298e",
     "literature-reference.js": "6a6cad0f744988da523cf548f9e0013269ac3c96d0366d208d63815128305b55",
     "workspace-i18n.js": "d24fadd875728abfdd9d6a1734f430d82abf80ecf4538cf959d91245ce1bc24d",
-    "workspace.css": "6cd1a6029e1a46a7eb292733cc5bafa55a02c8efeb6c25fd6506e43e3bcd13d4",
+    "workspace.css": "7d61618949a42c9afdbbdedcad2556bf71a0d647c5d33b950063100cc932f4e4",
 }
 
 
