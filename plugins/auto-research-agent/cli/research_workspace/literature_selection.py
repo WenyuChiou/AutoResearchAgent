@@ -117,8 +117,15 @@ def _binding(row, artifacts, body_reviews=None):
         "locators": deepcopy(reading["locators"]),
         "diagnostics": deepcopy(reading.get("diagnostics") or {}),
         "body_completeness": assess_body_completeness(row),
-        **({"independent_body_review": deepcopy(body_reviews[body_review_key(row)]["evidence"])}
-           if body_review_key(row) in (body_reviews or {}) else {}),
+        **(
+            {
+                "independent_body_review": deepcopy(
+                    body_reviews[body_review_key(row)]["evidence"]
+                )
+            }
+            if body_review_key(row) in (body_reviews or {})
+            else {}
+        ),
         "error": deepcopy(reading.get("error")),
         "metadata": deepcopy(row.get("metadata") or {}),
         "metadata_provenance": deepcopy(row.get("metadata_provenance") or {}),

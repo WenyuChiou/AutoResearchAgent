@@ -46,8 +46,11 @@ def main():
                 raise DeliverableError("Both source rerun arguments are required")
             from .source_rerun import attach_rerun
 
-            index = attach_rerun(index, *rerun_supplied,
-                                 expected_body_review_acceptance_hashes=args.expected_body_review_acceptance_sha256)
+            index = attach_rerun(
+                index,
+                *rerun_supplied,
+                expected_body_review_acceptance_hashes=args.expected_body_review_acceptance_sha256,
+            )
             options["source_rerun_root"] = args.source_rerun_root
         elif args.expected_body_review_acceptance_sha256:
             raise DeliverableError("Body review acceptance requires a source rerun")
