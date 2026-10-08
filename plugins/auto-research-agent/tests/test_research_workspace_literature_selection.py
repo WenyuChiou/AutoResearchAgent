@@ -93,7 +93,7 @@ class LiteratureSelectionTests(unittest.TestCase):
         )
         self.assertEqual(len(csv_rows), 1)
         with tempfile.TemporaryDirectory() as folder:
-            output = Path(folder) / "empty-view"
+            output = Path(folder).resolve() / "empty-view"
             reference = Path(__file__).parents[1] / "references/research-workspace"
             receipt = write_workspace(index, reference, output)
             self.assertIn("literature/selection.json", receipt["files"])
@@ -258,7 +258,7 @@ class LiteratureSelectionTests(unittest.TestCase):
     def test_view_payload_and_exports_bind_one_selection_without_execution(self):
         temporary, index = attached_index()
         self.addCleanup(temporary.cleanup)
-        root = Path(temporary.name)
+        root = Path(temporary.name).resolve()
         output = root / "view"
         reference = Path(__file__).parents[1] / "references/research-workspace"
         receipt = write_workspace(index, reference, output, source_rerun_root=root)
