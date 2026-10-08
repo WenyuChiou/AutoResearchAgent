@@ -212,6 +212,12 @@ def _write_view(
             '<link rel="stylesheet" href="./workspace-source-rerun.css">\n</head>',
         )
         script_names.append("workspace-source-rerun.js")
+    html = _replace(
+        html,
+        "</head>",
+        '<link rel="stylesheet" href="./workspace-selection.css">\n</head>',
+    )
+    script_names.append("workspace-literature-selection.js")
     script_names.append("workspace-records.js")
     if stage2_attachment is not None:
         html = html.replace("<body>", '<body class="stage2-workspace">').replace(
@@ -255,6 +261,9 @@ def _write_view(
         from .source_availability import derive_source_availability
 
         payload["source_availability"] = derive_source_availability(index)
+    from .literature_selection import derive_literature_selection, selection_files
+
+    payload["literature_selection"] = derive_literature_selection(index)
     if stage2_attachment is not None:
         payload["stage2"] = stage2_attachment
     encoded = (
@@ -290,6 +299,12 @@ def _write_view(
         ).encode(),
         "workspace-data.js": ("window.WORKSPACE_VIEW = " + encoded + ";\n").encode(),
         "workspace-records.js": adapter.read_bytes(),
+        "workspace-literature-selection.js": adapter.with_name(
+            "workspace-literature-selection.js"
+        ).read_bytes(),
+        "workspace-selection.css": adapter.with_name(
+            "workspace-selection.css"
+        ).read_bytes(),
         "workspace-index.json": raw,
         "references.bib": (
             index["source_rerun"]["bibliography"] if rerun else index["bibliography"]
@@ -297,6 +312,7 @@ def _write_view(
         **notes,
         **stage2_files,
     }
+    files.update(selection_files(index))
     if repaired:
         from .closeout import closeout_files
 
@@ -359,8 +375,17 @@ def _write_view(
                 "stages.py",
                 "view.py",
                 "wiki.py",
+                "literature_selection.py",
                 "json_bytes.py",
                 "WorkspaceIndex.v1.schema.json",
+            )
+        },
+        "ui_sources": {
+            name: sha(adapter.with_name(name).read_bytes())
+            for name in (
+                "workspace-records.js",
+                "workspace-literature-selection.js",
+                "workspace-selection.css",
             )
         },
     }
