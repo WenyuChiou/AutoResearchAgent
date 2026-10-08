@@ -331,6 +331,10 @@
       "no_tool_trace_evidence_contract": "Authenticate all native v3.1 attempt roots against original retained raw-trace seals, effective read-only/never settings and observed zero tools/children. The caller first validates canonical archive provenance; missing, foreign, tampered or incomplete evidence fails. Unknown usage stays null; no execution, authority, isolation or improvement is claimed.",
       "no_tool_trace_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_evidence.py"
+      ],
+      "no_execution_trace_evidence_contract": "Explicit no-executed-tools-v1 retains actually offered native tools while requiring authenticated zero executed tools/children across all attempts. Strict empty-tool proof remains separate and unchanged. Saved inventory hashes and actual settings are evidence only, never execution permission or formal isolation/readiness.",
+      "no_execution_trace_evidence_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_execution_trace_evidence.py"
       ]
     },
     {
