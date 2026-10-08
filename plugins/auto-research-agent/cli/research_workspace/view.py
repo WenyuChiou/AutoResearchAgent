@@ -376,6 +376,7 @@ def _write_view(
                 "view.py",
                 "wiki.py",
                 "literature_selection.py",
+                "body_completeness.py",
                 "json_bytes.py",
                 "WorkspaceIndex.v1.schema.json",
             )

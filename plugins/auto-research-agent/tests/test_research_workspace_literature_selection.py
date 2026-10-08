@@ -31,12 +31,29 @@ def attached_index(change=None, base_change=None):
     if base_change:
         base_change(index)
     manifest = rerun_fixture.fixture_manifest(index)
+    complete_document(manifest["data"]["rows"][0])
     if change:
         change(manifest)
     temporary = tempfile.TemporaryDirectory(prefix="literature-selection-")
     root = Path(temporary.name).resolve()
     expected = rerun_fixture.write_manifest(root, manifest)
     return temporary, attach_rerun(index, root, expected)
+
+
+def complete_document(row):
+    """Supply an affirmative full-body receipt for the known synthetic text."""
+    reading = row["reading"]
+    reading["locators"] = [
+        {"start": 0, "end": reading["characters"], "type": "text", "value": "body"}
+    ]
+    reading["diagnostics"]["document_extent"] = {
+        "scope": "full-body",
+        "complete": True,
+        "raw_sha256": row["raw_sha256"],
+        "text_sha256": reading["text_sha256"],
+        "expected_characters": reading["characters"],
+        "readable_characters": reading["characters"],
+    }
 
 
 def change_second(status, level, identity="consistent"):
@@ -55,6 +72,8 @@ def change_second(status, level, identity="consistent"):
             )
         else:
             row["reading"]["locators"][0]["value"] = "body"
+            if level == "full-text":
+                complete_document(row)
             if status == "identity-mismatch":
                 row["reading"]["observed_identity"] = {
                     "title": "different work",
@@ -65,6 +84,43 @@ def change_second(status, level, identity="consistent"):
 
 
 class LiteratureSelectionTests(unittest.TestCase):
+    def test_full_text_without_affirmative_extent_stays_pending(self):
+        def missing_extent(manifest):
+            manifest["data"]["rows"][0]["reading"]["diagnostics"] = {}
+
+        temporary, index = attached_index(missing_extent)
+        self.addCleanup(temporary.cleanup)
+        before = canonical(index)
+        result = derive_literature_selection(index)
+        row = result["rows"][0]
+        self.assertEqual(row["status"], "pending")
+        self.assertEqual(row["eligible_source_ids"], [])
+        self.assertEqual(
+            row["source_binding_references"][0]["body_completeness"]["status"],
+            "pending",
+        )
+        self.assertEqual(result["rule_version"], "1.1.0")
+        self.assertEqual(canonical(index), before)
+        self.assertEqual(index["claims"][0]["support"], "Unknown")
+
+    def test_inconsistent_body_extent_is_excluded_without_rewriting_evidence(self):
+        def inconsistent_extent(manifest):
+            extent = manifest["data"]["rows"][0]["reading"]["diagnostics"][
+                "document_extent"
+            ]
+            extent["expected_characters"] += 1
+
+        temporary, index = attached_index(inconsistent_extent)
+        self.addCleanup(temporary.cleanup)
+        before = canonical(index)
+        row = derive_literature_selection(index)["rows"][0]
+        self.assertEqual(row["status"], "excluded")
+        self.assertEqual(
+            row["source_binding_references"][0]["body_completeness"]["status"],
+            "incomplete",
+        )
+        self.assertEqual(canonical(index), before)
+
     def test_empty_legacy_index_exports_headers_without_inventing_records(self):
         index = rerun_fixture.view_fixture.fixture_index()
         index.update(papers=[], sources=[], claims=[])
@@ -279,6 +335,10 @@ class LiteratureSelectionTests(unittest.TestCase):
         self.assertEqual(
             receipt["adapter_sources"]["literature_selection.py"],
             sha(module.read_bytes()),
+        )
+        self.assertEqual(
+            receipt["adapter_sources"]["body_completeness.py"],
+            sha(module.with_name("body_completeness.py").read_bytes()),
         )
 
     def test_exports_are_deterministic_and_reconcile_exact_identities(self):
