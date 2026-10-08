@@ -192,19 +192,22 @@ def _attempt_terminal(observation, attempt, root):
     return failed
 
 
-def verify_no_tool_trace_evidence(
+def _verify_trace_evidence(
     archive_provenance,
     trace_root,
     seal_file,
     externally_retained_seal_sha256,
     *,
     expected_config,
+    offered_tool_mode,
 ):
     """Verify raw traces only after canonical native archive authentication.
 
     This does not authenticate arbitrary provenance objects, dispatch calls,
     or attest formal role isolation. The caller retains the original seal.
     """
+    if offered_tool_mode not in {"empty", "record"}:
+        _fail("offered-tool-mode-invalid")
     if (
         not isinstance(expected_config, dict)
         or set(expected_config) != _CONFIG
@@ -287,7 +290,13 @@ def verify_no_tool_trace_evidence(
             _fail("trace-incomplete")
         if any(item.startswith("offered-tools-") for item in blockers):
             _fail("offered-tools-unresolved")
-        _no_offered_tools(observation, raw)
+        if offered_tool_mode == "empty":
+            _no_offered_tools(observation, raw)
+            offered = None
+        else:
+            from .no_execution_trace_evidence import _offered_inventory
+
+            offered = _offered_inventory(observation, raw)
         failed = _attempt_terminal(observation, attempt, actual_root)
         usage = _usage(observation)
         if any(value is None for value in usage.values()):
@@ -295,18 +304,19 @@ def verify_no_tool_trace_evidence(
         else:
             for key, value in usage.items():
                 aggregate[key] += value
-        reports.append(
-            {
-                "attempt": attempt["attempt"],
-                "thread_id": actual_root,
-                "status": "failure" if failed else "completed",
-                "error": attempt.get("failure_class") if failed else None,
-                "calls": observation.get("inferences"),
-                "usage": usage,
-                "effective_config": actual_config,
-            }
-        )
-    return {
+        report = {
+            "attempt": attempt["attempt"],
+            "thread_id": actual_root,
+            "status": "failure" if failed else "completed",
+            "error": attempt.get("failure_class") if failed else None,
+            "calls": observation.get("inferences"),
+            "usage": usage,
+            "effective_config": actual_config,
+        }
+        if offered_tool_mode == "record":
+            report["offered_tool_inventory"] = offered
+        reports.append(report)
+    result = {
         "kind": "Stage2NoToolTraceEvidence",
         "schema_version": "1.0.0",
         "verification_status": "verified",
@@ -320,3 +330,33 @@ def verify_no_tool_trace_evidence(
         "resume_action": "verified-replay-no-execution",
         "original_seal_sha256": externally_retained_seal_sha256,
     }
+    if offered_tool_mode == "record":
+        result.update(
+            kind="Stage2NoExecutionTraceEvidence",
+            schema_version="1.0.0",
+            execution_policy="no-executed-tools-v1",
+            tool_calls_observed=0,
+            child_threads_observed=0,
+            tools_unavailable_attested=False,
+            formal_isolation_attested=False,
+        )
+    return result
+
+
+def verify_no_tool_trace_evidence(
+    archive_provenance,
+    trace_root,
+    seal_file,
+    externally_retained_seal_sha256,
+    *,
+    expected_config,
+):
+    """Retain the strict contract: every offered tool inventory must be empty."""
+    return _verify_trace_evidence(
+        archive_provenance,
+        trace_root,
+        seal_file,
+        externally_retained_seal_sha256,
+        expected_config=expected_config,
+        offered_tool_mode="empty",
+    )
