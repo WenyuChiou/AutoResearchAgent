@@ -19,9 +19,9 @@ from .wiki import wiki_files
 REFERENCE_COMMIT = "085f363179a79375fc8e3590dda9725e25eda71a"
 REFERENCE_HASHES = {
     "prototype.html": "dfd49e7d0baf5cbf1645a08c34dafb48bba7b3db9d867adf313e91b1a810298e",
-    "literature-reference.js": "80571f6f16d1cefec5857b8b137146f98fc0e009346d54a2d4a73b0b63620ec5",
+    "literature-reference.js": "6a6cad0f744988da523cf548f9e0013269ac3c96d0366d208d63815128305b55",
     "workspace-i18n.js": "d24fadd875728abfdd9d6a1734f430d82abf80ecf4538cf959d91245ce1bc24d",
-    "workspace.css": "9eefa95da3bee89ee0cf19bf688eadf5108df5ca852dc6c96749a386a249d393",
+    "workspace.css": "6cd1a6029e1a46a7eb292733cc5bafa55a02c8efeb6c25fd6506e43e3bcd13d4",
 }
 
 
