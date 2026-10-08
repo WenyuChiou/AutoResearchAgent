@@ -291,6 +291,12 @@ runtime、來源和外部 receipt；不呼叫模型，也不能授權重新執�
 查歷史，不能假装符合原本的 resume 條件。未知 tokens、費用、失敗和
 未完成狀態照原樣保留。這些接口不代表完整 Stage2、正式隔離或 A/B 改善。
 
+### 無工具擷取的原始呼叫查核
+
+先用既有 v3.1 驗證器核對模型呼叫封包，再以外部保留的 seal hash 核對所有實際 attempt 的原生日誌。
+確認實際模型設定、零工具、零子 agent，並保留傳輸失敗與 unknown 用量；不能只相信「無工具」旗標。
+這是原始呼叫證據查核，不會啟動模型，也不代表正式 A/B 的環境隔離或研究改善。
+
 ## 原生能力證據 v1.2
 
 `Stage2ProductionRuntimeProbeSpec` v1.2 先核對外部保存的 producer、native capture 與 trace receipts，再檢查實際讀取、寫入、原生搜尋及子 agent 的完成紀錄。命令與輸出必須屬於同一工作目錄和原生 turn；子 agent 的繼承設定與自身設定都須符合政策。

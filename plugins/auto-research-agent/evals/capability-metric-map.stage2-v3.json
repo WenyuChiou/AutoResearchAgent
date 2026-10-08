@@ -328,6 +328,10 @@
       "per_execution_inventory_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_execution_inventory.py"
       ],
+      "no_tool_trace_evidence_contract": "Authenticate all native v3.1 attempt roots against original retained raw-trace seals, effective read-only/never settings and observed zero tools/children. The caller first validates canonical archive provenance; missing, foreign, tampered or incomplete evidence fails. Unknown usage stays null; no execution, authority, isolation or improvement is claimed.",
+      "no_tool_trace_evidence_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_evidence.py"
+      ],
       "observed_preflight_contract": "Opt-in production probe1.2 authenticates external capture, producer and raw trace receipts before typed command/output/search/child checks. Effective parent and inherited/own child policies and exact executor workspace must match. Read-only validation never executes archived code or grants formal isolation, pilot completion or scientific improvement;1.1 remains reconstructible.",
       "observed_preflight_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_preflight_observed_receipts.py",
@@ -337,6 +341,14 @@
       "observed_action_contract": "One sequential action uses its own trace root, original native/producer/runtime receipts and reconstructed inventory. Historical replay makes no fresh execution, authority or formal-ready claim; failed inventory retains recoverable receipts and unknown costs.",
       "observed_action_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_observed_action.py"
+      ],
+      "no_tool_trace_capture_contract": "Copy only fresh telemetry children matching every authenticated call attempt; bind original inventories and external seal receipts. Refuse foreign or duplicate roots, links, changed bytes and unsafe paths. The capture token is in-memory and grants no execution authority.",
+      "no_tool_trace_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_capture.py"
+      ],
+      "no_execution_trace_evidence_contract": "Explicit no-executed-tools-v1 retains actually offered native tools while requiring authenticated zero executed tools/children across all attempts. Strict empty-tool proof remains separate and unchanged. Saved inventory hashes and actual settings are evidence only, never execution permission or formal isolation/readiness.",
+      "no_execution_trace_evidence_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_execution_trace_evidence.py"
       ]
     },
     {
