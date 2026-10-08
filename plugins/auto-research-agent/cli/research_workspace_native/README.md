@@ -163,3 +163,15 @@ Loaded paths, raw source hashes and package paths are checked again before each 
 An import rejection requires a fresh process; no third-party or native-process attestation is claimed.
 
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_browser_source.py -v
+
+Retain the core panel recipe guards and scenarios; separately identify its pinned presentation inputs.
+The separate browser/native-session/browser_driver.cjs exercises the full original sixteen synthetic session and scope scenarios.
+Run it explicitly with installed Node, Playwright and Chromium; it performs no downloads or native/model/research calls.
+Driver, fixture and loader must be at their standard paths under the sole --repo checkout.
+Use a new exclusive output receipt; previous R9/R10 results retain their original source attribution.
+The fixture uses the current 16-connection cap and five-second HTTP deadline.
+Its running phase has an absolute 120-second deadline; bounded cleanup is additional.
+Cleanup failures, surviving workers or receipt persistence failures cannot report success.
+This synthetic host remains separate from the true Stage1 package and actual native acceptance.
+
+Opt-in browser driver requires explicit --repo/--python/--playwright/--browser/--reference/--temp/--scope/--output; ordinary Python discovery does not launch it.
