@@ -1,6 +1,9 @@
 """Read-only execution inventory from externally retained producer receipts."""
 
-from . import trace_capture, trace_observation, trace_producer
+import os
+from pathlib import Path
+
+from . import native_policy, trace_capture, trace_observation, trace_producer
 from .native import CaptureError, validate_timeout_seconds
 
 
@@ -27,10 +30,39 @@ def verify_producer_inventory(telemetry_root, producer_receipt, *, capture_reque
     rather than a portable attestation or a formal-readiness decision. A caller
     must obtain ``capture_request`` and its receipt from its frozen plan.
     """
+    return _verify_inventory(
+        telemetry_root,
+        producer_receipt,
+        capture_request=capture_request,
+        workspace_mode="current",
+    )
+
+
+def verify_historical_producer_inventory(
+    telemetry_root, producer_receipt, *, capture_request
+):
+    """Verify completed archived evidence after the live workspace advances.
+
+    Runtime, profile, input bytes, producer bytes and all archive receipts still
+    match. Only equality of the current workspace with its archived end state is
+    inapplicable. This API cannot dispatch or resume a subject.
+    """
+    return _verify_inventory(
+        telemetry_root,
+        producer_receipt,
+        capture_request=capture_request,
+        workspace_mode="archived",
+    )
+
+
+def _verify_inventory(
+    telemetry_root, producer_receipt, *, capture_request, workspace_mode
+):
     if (
         not isinstance(capture_request, dict)
         or not REQUEST_FIELDS <= set(capture_request)
-        or set(capture_request) - REQUEST_FIELDS not in (set(), {"timeout_seconds"})
+        or not (set(capture_request) - REQUEST_FIELDS)
+        <= {"timeout_seconds", "trace_root"}
     ):
         raise CaptureError("producer replay needs the exact frozen request fields")
     if "timeout_seconds" in capture_request:
@@ -44,12 +76,30 @@ def verify_producer_inventory(telemetry_root, producer_receipt, *, capture_reque
     policy = capture_request["policy_bindings"]
     if (
         not isinstance(policy, dict)
-        or policy.get("kind") != "Stage2NamedPermissionsPolicy"
-        or policy.get("telemetry_path") != str(root)
+        or policy.get("kind") != native_policy.NAMED_POLICY_KIND
     ):
         raise CaptureError("producer replay telemetry differs from the frozen policy")
+    selected = capture_request.get("trace_root")
+    if "trace_root" in capture_request:
+        parent = policy.get("telemetry_path")
+        if (
+            policy.get("schema_version") != native_policy.CAPTURE_ROOT_POLICY_VERSION
+            or not isinstance(selected, (str, os.PathLike))
+            or not isinstance(parent, str)
+            or not Path(parent).is_absolute()
+            or str(Path(parent).resolve()) != parent
+            or os.fspath(selected) != str(root)
+            or root == Path(parent)
+            or not root.is_relative_to(Path(parent))
+        ):
+            raise CaptureError(
+                "producer replay action trace differs from the frozen policy"
+            )
+    elif policy.get("telemetry_path") != str(root):
+        raise CaptureError("producer replay telemetry differs from the frozen policy")
+    mode = {} if workspace_mode == "current" else {"workspace_mode": "archived"}
     record = trace_producer._verify(
-        capture_request, root, producer_receipt, allow_synthetic=False
+        capture_request, root, producer_receipt, allow_synthetic=False, **mode
     )
     trace = record["trace"]
     # _verify has already authenticated this exact trace against the capture
@@ -78,7 +128,7 @@ def verify_producer_inventory(telemetry_root, producer_receipt, *, capture_reque
     )
     return {
         "kind": "Stage2NativeExecutionInventory",
-        "schema_version": "1.0.0",
+        "schema_version": "1.0.0" if workspace_mode == "current" else "1.1.0",
         "evidence_class": "host-observed-producer-replay",
         "formal_ready": False,
         "producer_receipt": producer_receipt,
@@ -98,9 +148,12 @@ def verify_producer_inventory(telemetry_root, producer_receipt, *, capture_reque
         "token_usage_totals": observed["token_usage_totals"],
         "cost": {"amount": None, "currency": None, "state": "unknown"},
         "blockers": observed["blockers"],
-        "resume_action": "verified-replay-no-execution",
+        "resume_action": "verified-replay-no-execution"
+        if workspace_mode == "current"
+        else "verified-history-no-execution",
         "limitations": [
-            "strict retained-runtime replay; no provider acquisition attestation",
+            "retained-runtime replay; no provider acquisition attestation",
+            "archived verification never authorizes resuming a changed workspace",
             "partial metadata cannot support a complete inventory claim",
             "unknown tokens cannot demonstrate token-budget compliance",
             "all-role preflights, pilots and calibration remain separate",

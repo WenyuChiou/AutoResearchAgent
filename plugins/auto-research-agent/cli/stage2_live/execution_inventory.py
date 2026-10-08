@@ -10,7 +10,10 @@ from stage2_common import canonical_hash
 
 from . import observation, trace_capture, trace_observation, trace_producer
 from .native import CaptureError
-from .producer_replay import verify_producer_inventory
+from .producer_replay import (
+    verify_historical_producer_inventory,
+    verify_producer_inventory,
+)
 from .trace_files import _json, _load_inventory
 from .trace_parsing import _tools
 from .trace_seal_io import SealDirectory
@@ -144,12 +147,39 @@ def _metadata_inventory(root, runtime_record):
 
 def inspect_execution_inventory(telemetry_root, producer_receipt, *, capture_request):
     """Authenticate and inventory an existing producer archive without dispatch or writes."""
-    base = verify_producer_inventory(
-        telemetry_root, producer_receipt, capture_request=capture_request
+    return _inspect_execution_inventory(
+        telemetry_root,
+        producer_receipt,
+        capture_request=capture_request,
+        workspace_mode="current",
     )
+
+
+def inspect_historical_execution_inventory(
+    telemetry_root, producer_receipt, *, capture_request
+):
+    """Read authenticated completed actions without authorizing their resumption."""
+    return _inspect_execution_inventory(
+        telemetry_root,
+        producer_receipt,
+        capture_request=capture_request,
+        workspace_mode="archived",
+    )
+
+
+def _inspect_execution_inventory(
+    telemetry_root, producer_receipt, *, capture_request, workspace_mode
+):
+    verifier = (
+        verify_producer_inventory
+        if workspace_mode == "current"
+        else verify_historical_producer_inventory
+    )
+    base = verifier(telemetry_root, producer_receipt, capture_request=capture_request)
     root = trace_capture._absolute(telemetry_root)
+    mode = {} if workspace_mode == "current" else {"workspace_mode": "archived"}
     record = trace_producer._verify(
-        capture_request, root, producer_receipt, allow_synthetic=False
+        capture_request, root, producer_receipt, allow_synthetic=False, **mode
     )
     trace = record["trace"]
     observed = trace_observation.inspect_native_trace(
@@ -182,7 +212,7 @@ def inspect_execution_inventory(telemetry_root, producer_receipt, *, capture_req
     )
     return {
         "kind": "Stage2ExecutionInventory",
-        "schema_version": "1.0.0",
+        "schema_version": "1.0.0" if workspace_mode == "current" else "1.1.0",
         "evidence_class": base["evidence_class"],
         "formal_ready": False,
         "coverage_complete": coverage_complete,
@@ -200,7 +230,9 @@ def inspect_execution_inventory(telemetry_root, producer_receipt, *, capture_req
         "cost": {"amount": None, "currency": None, "state": "unknown"},
         "blockers": observed["blockers"],
         "privacy": "private-local-report; captured content must not enter public artifacts",
-        "resume_action": "verified-replay-no-execution",
+        "resume_action": "verified-replay-no-execution"
+        if workspace_mode == "current"
+        else "verified-history-no-execution",
         "limitations": [
             "inventory replay is non-formal and makes no admission or readiness claim",
             "metadata RPC results are observations, not effective instructions",
