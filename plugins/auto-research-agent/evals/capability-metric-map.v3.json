@@ -105,7 +105,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_binding.py",
         "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_exports.py",
         "plugins/auto-research-agent/tests/test_research_workspace_source_availability.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_literature_selection.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_literature_selection.py",
+        "plugins/auto-research-agent/tests/test_workspace_literature_selection_ui.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

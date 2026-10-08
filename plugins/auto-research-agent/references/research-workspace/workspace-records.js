@@ -21,6 +21,8 @@
     ["No records match these filters.", "没有匹配记录。", "沒有符合紀錄。"],
     ["Browse a small Obsidian-like graph and complete bibliographic list. Edges show recorded assignments only; this view does not assert similarity, citation, evidence support, coverage, or quality.", "浏览全部文献及完整书目。连线只表示原包记录的分类和角色，不代表相似度、引用或科学质量。", "瀏覽全部文獻及完整書目。連線僅表示原套件記錄的分類和角色，不代表相似度、引用或科學品質。"],
     ["Lines mean an explicit keyword or role assignment. No paper-to-paper citation edges are recorded.", "连线仅表示原记录的分类或角色，不是文献间的引用关系。", "連線僅表示原紀錄的分類或角色，並非文獻間的引用關係。"],
+    ["Formal literature set", "正式文献集", "正式文獻集"], ["Included", "已纳入", "已納入"], ["Pending identity review", "身份待核", "身分待核"], ["All screened", "全部筛选记录", "全部篩選紀錄"],
+    ["Selection details", "筛选详情", "篩選詳情"], ["Citation files", "引文文件", "引文檔案"], ["Included .bib", "纳入文献 .bib", "納入文獻 .bib"], ["Screening .bib", "完整筛选 .bib", "完整篩選 .bib"], ["Original bibliography", "原始参考文献", "原始參考文獻"], ["Download included .bib", "下载纳入文献 .bib", "下載納入文獻 .bib"],
     ["Inputs", "输入", "輸入"], ["Expected outputs", "预期输出", "預期輸出"], ["Blocked · execution disconnected", "阻塞 · 未连接执行器", "阻塞 · 未連線執行器"],
     ["A reviewed handoff from the preceding stage is required.", "需要上一阶段已审阅的交接包。", "需要前一階段已審閱的交接套件。"],
     ["No new research deliverable is created by this view.", "此视图不生成新的科研交付。", "此檢視不產生新的研究交付。"],
@@ -51,7 +53,10 @@
     const rerunValue = (name, frozen) => rerun && Object.prototype.hasOwnProperty.call(metadata, name) ? metadata[name] : frozen;
     return {workId: identity(p), identity: `${p.work_id} / ${p.version_id}`, shortTitle: p.work_id, title: displayMetadata(p.title), authors: p.authors.length ? p.authors.map(displayMetadata) : ["Not recorded"], year: displayMetadata(p.year), journal: displayMetadata(rerunValue("journal", p.venue)), volume: rerunValue("volume", p.volume) ?? null, issue: rerunValue("issue", p.issue) ?? null, pages: rerunValue("pages", p.pages) ?? null, doi: rerunValue("doi", p.doi), sourceStatus: rerun ? `Current read: ${rerun.reading?.status ?? "unknown"} · ${rerun.reading?.evidence_level ?? "unknown"}; original: ${rerun.previous_status ?? "unknown"} · ${rerun.previous_evidence_level ?? p.evidence_level ?? "unknown"}` : `${p.evidence_level} · ${p.source_ids.map(id => index.sources.find(s => s.source_id === id)?.receipt?.status ?? "unknown").join(", ") || "unknown"}`, classifications: p.classification?.topic_cluster ? [p.classification.topic_cluster] : [], roles: (p.roles || []).map(r => ({name: r.role, basis: r.reason})), original: p};
   });
-  const state = {stage: 1, view: "graph", selected: records[0]?.workId || null, filters: {text:"",keyword:"",role:""}, scope:"filtered"};
+  const selection = window.WorkspaceLiteratureSelection?.create(index, payload.literature_selection) || {available:false, defaultScope:"all", filter:items => [...items], row:() => null, citationTarget:() => null, counts:{}};
+  const initialRecords = selection.filter(records, selection.defaultScope);
+  const state = {stage: 1, view: "graph", selected: initialRecords[0]?.workId || records[0]?.workId || null, filters: {text:"",keyword:"",role:""}, scope:"filtered", selectionScope:selection.defaultScope};
+  const selectedRecords = () => selection.filter(records, state.selectionScope);
   function bibliography(visible, scope) {
     const bibliography = index.source_rerun?.bibliography || index.bibliography;
     if (scope === "all") return bibliography.all_bibtex;
@@ -59,6 +64,8 @@
     return bibliography.entries.filter(entry => chosen.has(identity(entry))).map(entry => entry.bibtex.trimEnd()).join("\n\n") + "\n";
   }
   function download(visible) {
+    const target = selection.citationTarget("included");
+    if (target) { const link = make("a"); link.href = target.href; link.download = target.filename; link.click(); return; }
     const url = URL.createObjectURL(new Blob([bibliography(visible, state.scope)], {type:"application/x-bibtex;charset=utf-8"}));
     const link = make("a"); link.href = url; link.download = `references-${state.scope}.bib`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 0);
   }
@@ -86,11 +93,33 @@
       if (typeof saved.text === "string") link.onclick = event => { event.preventDefault(); const url = URL.createObjectURL(new Blob([saved.text], {type:"text/markdown;charset=utf-8"})); const copy = make("a"); copy.href = url; copy.download = link.download; copy.click(); setTimeout(() => URL.revokeObjectURL(url), 0); };
     }
   }
+  function selectionPanel(root) {
+    if (!selection.available) return;
+    const panel = make("section", undefined, "selection-toolbar");
+    const field = make("div"), label = make("label", "Formal literature set");
+    const chooser = make("select"); chooser.setAttribute("aria-label", "Formal literature set");
+    for (const [value, text] of [["included","Included"],["pending","Pending identity review"],["all","All screened"]]) { const option = make("option", text); option.value = value; chooser.append(option); }
+    chooser.value = state.selectionScope;
+    chooser.onchange = () => { state.selectionScope = chooser.value; const visible = selectedRecords(); if (!visible.some(record => record.workId === state.selected)) state.selected = visible[0]?.workId || null; render(); };
+    field.append(label, chooser);
+    const citations = make("div", undefined, "selection-citations"); citations.append(make("span", "Citation files"));
+    const links = make("div", undefined, "selection-citation-links");
+    for (const [scope, text] of [["included","Included .bib"],["screening","Screening .bib"],["original","Original bibliography"]]) { const target = selection.citationTarget(scope), link = make("a", text); link.href = target.href; link.download = target.filename; links.append(link); }
+    citations.append(links);
+    const disclosure = make("details", undefined, "selection-summary");
+    disclosure.append(make("summary", `Selection details · ${selection.counts.included || 0} included · ${selection.counts.pending || 0} pending · ${selection.counts.excluded || 0} excluded`));
+    const reasons = make("ul", undefined, "selection-reason-list");
+    for (const record of records) { const row = selection.row(record); if (row) reasons.append(make("li", `${record.identity} · ${row.status} · ${(row.reasons || []).join(", ")}`)); }
+    disclosure.append(reasons); panel.append(field, citations, disclosure); root.prepend(panel);
+  }
   function library(root) {
-    window.LiteratureReference.render(root, records, {selectedId:state.selected, filters:state.filters, select:id => {state.selected = id;}, detail:details, export:download});
+    const visibleRecords = selectedRecords();
+    window.LiteratureReference.render(root, visibleRecords, {selectedId:state.selected, filters:state.filters, select:id => {state.selected = id;}, detail:details, export:download});
+    selectionPanel(root);
+    const exportButton = root.querySelector("[data-literature-action='export-bibtex']"); if (selection.available && exportButton) exportButton.textContent = "Download included .bib";
     const scope = make("select"); scope.id = "bibliographyScope"; scope.setAttribute("aria-label", "Bibliography scope");
     for (const [value, label] of [["filtered", "Filtered records"], ["all", "All indexed records"]]) { const option = make("option", label); option.value = value; scope.append(option); }
-    scope.value = state.scope; scope.onchange = () => {state.scope = scope.value;}; root.querySelector(".lit-actions").prepend(scope);
+    scope.value = state.scope; scope.onchange = () => {state.scope = scope.value;}; if (!selection.available) root.querySelector(".lit-actions").prepend(scope);
     root.querySelectorAll("[data-literature-filter]").forEach(control => { const save = () => {state.filters[control.dataset.literatureFilter] = control.value;}; control.addEventListener("input", save); control.addEventListener("change", save); });
     if (state.view === "catalog") { root.querySelectorAll(".graph-actions,.graph-frame,.graph-legend,.paper-list").forEach(el => {el.hidden = true;}); root.querySelectorAll(":scope > .section-title").forEach(el => {el.hidden = !el.nextElementSibling?.matches(".paper-detail,.metadata-scroll");}); }
     if (state.view === "graph") window.WorkspaceRepair?.graph(root);
@@ -101,6 +130,7 @@
     if (stage2) stage2.hidden = !showDelivery;
     const main = document.querySelector("main");
     if (main) main.hidden = showDelivery;
+    main?.classList.toggle("core-stage-layout", state.stage !== 1 && !showDelivery);
     $("stageRail").replaceChildren();
     stages.forEach(stage => { const button = make("button", undefined, `stage ${state.stage === stage.stage ? "active" : "locked"}`); button.append(make("b", `STAGE ${stage.stage}`), make("span", stage.label)); button.setAttribute("aria-pressed", String(state.stage === stage.stage)); button.onclick = () => {state.stage = stage.stage; render();}; $("stageRail").append(button); });
     const tabs = document.querySelector(".view-tabs"); tabs.hidden = showDelivery; tabs.replaceChildren(); $("nodeList").replaceChildren();
@@ -112,12 +142,12 @@
       binding.append(summary, source("p", index.project_id), source("p", index.topic));
       $("nodeList").append(binding, make("p", "Blocked · execution disconnected", "binding-execution"));
     } else $("nodeList").append(source("p", index.project_id), source("p", index.topic), source("small", index.status), make("p", "Blocked · execution disconnected"));
-    const root = $("article"); root.replaceChildren(); root.classList.remove("literature-shell");
-    if (state.stage !== 1) { const stage = stages.find(s => s.stage === state.stage); root.append(make("h2", stage.label), make("p", stage.purpose), make("p", "Blocked · execution disconnected", "status blocked"), source("p", stage.support_status), make("h3", "Inputs"), ...stage.required_inputs.map(value => make("p", value)), make("h3", "Expected outputs"), ...stage.expected_deliverables.map(value => make("p", value)), make("p", "No new research deliverable is created by this view.")); }
+    const root = $("article"); root.replaceChildren(); root.classList.remove("literature-shell"); root.classList.toggle("core-stage", state.stage !== 1);
+    if (state.stage !== 1) { const stage = stages.find(s => s.stage === state.stage), inputs = make("details"), outputs = make("details"); inputs.append(make("summary", "Inputs"), ...stage.required_inputs.map(value => make("p", value))); outputs.append(make("summary", "Expected outputs"), ...stage.expected_deliverables.map(value => make("p", value))); root.append(make("h2", stage.label), make("p", stage.purpose), make("p", "Blocked · execution disconnected", "status blocked"), source("p", stage.support_status), inputs, outputs, make("p", "No new research deliverable is created by this view.")); }
     else if (["graph", "catalog"].includes(state.view)) library(root);
     else if (state.view === "repairs" && window.WorkspaceRepair) window.WorkspaceRepair.render(root);
     else if (state.view === "source-rerun" && window.WorkspaceSourceRerun) window.WorkspaceSourceRerun.render(root);
-    else if (state.view === "notes") { root.append(make("h2", "Notes"), make("p", window.WorkspaceRepair ? "Accepted repairs & core findings" : "Top-3 supplement is pending.")); for (const record of records) { const section = make("section", undefined, "note-card"); section.append(source("h3", record.title), source("p", record.identity)); note(section, record.original); rawSection(section, "Complete metadata", record.original); root.append(section); } }
+    else if (state.view === "notes") { const scoped = selectedRecords(); root.append(make("h2", "Notes"), make("p", window.WorkspaceRepair ? "Accepted repairs & core findings" : "Top-3 supplement is pending.")); selectionPanel(root); if (!scoped.length) root.append(make("p", "No records match these filters.", "empty-note")); for (const record of scoped) { const section = make("section", undefined, "note-card"); section.append(source("h3", record.title), source("p", record.identity)); note(section, record.original); rawSection(section, "Complete metadata", record.original); root.append(section); } }
     else if (state.view === "sources") { root.append(make("h2", "Sources & provenance")); rawSection(root, "Index binding", {index_sha256:payload.index_sha256, ...index.provenance}); for (const row of index.sources) { root.append(source("h3", row.source_id)); rawSection(root, "Source records", row); } rawSection(root, "Sources & provenance", index.edges); }
     else { root.append(make("h2", "Coverage & screening")); rawSection(root, "Coverage & Stop Decision", index.coverage); rawSection(root, "Coverage & screening", index.screening); rawSection(root, "Search & Reading", index.search); rawSection(root, "Original audit documents", index.audit_documents); rawSection(root, "Coverage & Stop Decision", index.coverage_documents); rawSection(root, "Unknown", index.missing_fields); rawSection(root, "Import Stage 1", index.readiness); }
     if (window.WorkspaceRepair) {
@@ -128,6 +158,7 @@
     $("workspaceLanguage").value = i18n.locale; i18n.apply(); updateTitle();
   }
   $("workspaceLanguage").onchange = event => { i18n.set(event.target.value); updateTitle(); };
+  document.body.classList.toggle("workspace-selection-ready", true);
   window.WorkspaceRecords = Object.freeze({safeArtifactId, bibliography, render});
   render();
 })();
