@@ -324,7 +324,8 @@ def render_stage2_card(attachment) -> str:
     bridge = attachment.get("bridge_receipt") or {}
     content_gate = (
         render_content_gate_html(derive_content_gate(selection))
-        if selection["evaluation_packet"].get("schema_version") in {"2.2.0", "2.3.0"}
+        if selection["evaluation_packet"].get("schema_version")
+        in {"2.2.0", "2.3.0", "2.4.0"}
         else ""
     )
     recommendations = selection.get("recommendations") or []

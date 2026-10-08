@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 
 from stage1_deliverable.common import DeliverableError, private_output
-from stage2_common import Stage2Error, canonical_hash, validate_packet
+from stage2_common import Stage2Error, canonical_hash, source_set_hash, validate_packet
 
 from .contracts import decode_json, latest_candidates, validate_assessment
 from .report import render_proposal
@@ -111,7 +111,8 @@ def _validate_manifest(manifest):
         "stage_run",
         "manifest_sha256",
     }
-    if not isinstance(manifest, dict) or set(manifest) != required:
+    allowed = (required, required | {"prior_work_receipts"})
+    if not isinstance(manifest, dict) or set(manifest) not in allowed:
         raise Stage2Error("run-manifest-shape")
     if manifest["kind"] != "Stage2CheckRun" or manifest["schema_version"] != VERSION:
         raise Stage2Error("run-manifest-version")
@@ -236,7 +237,66 @@ def _original_packet(packet, manifest, histories=None):
             for history in histories.values()
             for candidate in history
         ]
+        latest = {
+            candidate_id: max(history, key=lambda row: row["version"])
+            for candidate_id, history in histories.items()
+        }
+        if "prior_work_reviews" in restored:
+            restored["prior_work_reviews"] = [
+                review
+                for review in restored["prior_work_reviews"]
+                if review["candidate_id"] in latest
+                and review["candidate_version"]
+                == latest[review["candidate_id"]]["version"]
+                and review["candidate_sha256"]
+                == canonical_hash(latest[review["candidate_id"]])
+            ]
+    receipt_paths = {
+        (row["candidate_id"], row["search_id"]): row["original_path"]
+        for row in manifest.get("prior_work_receipts", [])
+    }
+    captured = {
+        (review["candidate_id"], search["search_id"])
+        for review in restored.get("prior_work_reviews", [])
+        for search in review["searches"]
+        if search["raw_path"] is not None
+    }
+    if (histories is None and set(receipt_paths) != captured) or (
+        histories is not None and not captured.issubset(receipt_paths)
+    ):
+        raise Stage2Error("prior-work-receipt-snapshot-set-mismatch")
+    for review in restored.get("prior_work_reviews", []):
+        for search in review["searches"]:
+            key = (review["candidate_id"], search["search_id"])
+            if key in receipt_paths:
+                search["raw_path"] = receipt_paths[key]
+        review["source_set_sha256"] = source_set_hash(restored)
     return restored
+
+
+def _current_packet(packet, histories):
+    """Derive current candidates while retaining only dossiers bound to them."""
+
+    current = copy.deepcopy(packet)
+    current["candidates"] = [
+        copy.deepcopy(candidate)
+        for history in histories.values()
+        for candidate in history
+    ]
+    latest = {
+        candidate_id: max(history, key=lambda row: row["version"])
+        for candidate_id, history in histories.items()
+    }
+    if "prior_work_reviews" in current:
+        current["prior_work_reviews"] = [
+            review
+            for review in current["prior_work_reviews"]
+            if review["candidate_id"] in latest
+            and review["candidate_version"] == latest[review["candidate_id"]]["version"]
+            and review["candidate_sha256"]
+            == canonical_hash(latest[review["candidate_id"]])
+        ]
+    return current
 
 
 def inspect_run(run_dir, *, expected_event_head=None):
@@ -247,7 +307,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
     _validate_manifest(manifest)
     packet_path = root / manifest["packet_path"]
     packet = _read_json(packet_path)
-    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
+    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}:
         try:
             root = private_output(root)
         except DeliverableError as error:
@@ -256,7 +316,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
         root = root.resolve()
     if canonical_hash(packet) != manifest["stored_packet_sha256"]:
         raise Stage2Error("stored-packet-hash-mismatch")
-    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
+    if packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}:
         input_packet_path = root / "input_packet.json"
         try:
             input_packet_bytes = input_packet_path.read_bytes()
@@ -289,6 +349,29 @@ def inspect_run(run_dir, *, expected_event_head=None):
             raise Stage2Error(
                 f"source-snapshot-hash-mismatch: {snapshot['stored_path']}"
             )
+    receipt_snapshots = manifest.get("prior_work_receipts", [])
+    expected_receipts = {
+        (review["candidate_id"], search["search_id"]): search
+        for review in packet.get("prior_work_reviews", [])
+        for search in review["searches"]
+        if search["raw_path"] is not None
+    }
+    snapshot_keys = [
+        (row.get("candidate_id"), row.get("search_id")) for row in receipt_snapshots
+    ]
+    if len(snapshot_keys) != len(set(snapshot_keys)) or set(snapshot_keys) != set(
+        expected_receipts
+    ):
+        raise Stage2Error("prior-work-receipt-snapshot-set-mismatch")
+    for snapshot in receipt_snapshots:
+        key = (snapshot["candidate_id"], snapshot["search_id"])
+        search = expected_receipts[key]
+        if snapshot.get("stored_path") != search["raw_path"]:
+            raise Stage2Error("prior-work-receipt-snapshot-binding-mismatch")
+        path = _source_path(root, snapshot["stored_path"])
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest != search["raw_sha256"] or digest != snapshot.get("sha256"):
+            raise Stage2Error("prior-work-receipt-snapshot-hash-mismatch")
     if canonical_hash(_original_packet(packet, manifest)) != manifest["packet_sha256"]:
         raise Stage2Error("original-packet-hash-mismatch")
     events, event_ids = _load_events(root)
@@ -337,7 +420,13 @@ def initialize_run(
     source_root = Path(source_root).resolve()
     source_packet = _read_json(packet_file)
     packet_sha256 = canonical_hash(source_packet)
-    if source_packet.get("schema_version") in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
+    if source_packet.get("schema_version") in {
+        "2.0.0",
+        "2.1.0",
+        "2.2.0",
+        "2.3.0",
+        "2.4.0",
+    }:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != packet_sha256:
@@ -348,7 +437,7 @@ def initialize_run(
         output = (
             private_output(Path(output_dir).absolute())
             if source_packet.get("schema_version")
-            in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}
+            in {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}
             else Path(output_dir).resolve()
         )
     except DeliverableError as error:
@@ -373,6 +462,7 @@ def initialize_run(
     try:
         (output / "events").mkdir()
         snapshots = []
+        receipt_snapshots = []
         stored_packet = copy.deepcopy(source_packet)
         stored_sources = {row["source_id"]: row for row in stored_packet["sources"]}
         for source in source_packet["sources"]:
@@ -397,10 +487,60 @@ def initialize_run(
                 }
             )
             stored_sources[source["source_id"]]["path"] = stored_relative
+        stored_reviews = {
+            row["candidate_id"]: row
+            for row in stored_packet.get("prior_work_reviews", [])
+        }
+        copied_receipts = {}
+        for review in source_packet.get("prior_work_reviews", []):
+            for search in review["searches"]:
+                if search["raw_path"] is None:
+                    continue
+                relative = search["raw_path"]
+                stored_relative = f"prior_work_receipts/{relative}"
+                original = _source_path(source_root, relative)
+                destination = _source_path(output, stored_relative)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                digest = hashlib.sha256(original.read_bytes()).hexdigest()
+                previous = copied_receipts.get(stored_relative)
+                if previous is None:
+                    with (
+                        original.open("rb") as reader,
+                        destination.open("xb") as writer,
+                    ):
+                        shutil.copyfileobj(reader, writer)
+                        writer.flush()
+                        os.fsync(writer.fileno())
+                    copied_receipts[stored_relative] = digest
+                elif previous != digest:
+                    raise Stage2Error("prior-work-receipt-copy-path-conflict")
+                receipt_snapshots.append(
+                    {
+                        "candidate_id": review["candidate_id"],
+                        "search_id": search["search_id"],
+                        "original_path": relative,
+                        "stored_path": stored_relative,
+                        "sha256": digest,
+                    }
+                )
+                stored_search = next(
+                    row
+                    for row in stored_reviews[review["candidate_id"]]["searches"]
+                    if row["search_id"] == search["search_id"]
+                )
+                stored_search["raw_path"] = stored_relative
+        for review in stored_packet.get("prior_work_reviews", []):
+            review["source_set_sha256"] = source_set_hash(stored_packet)
         _write_new(output / "packet.json", _canonical_bytes(stored_packet))
         created_at = clock()
         input_refs = []
-        if source_packet["schema_version"] in {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}:
+        if source_packet["schema_version"] in {
+            "2.0.0",
+            "2.1.0",
+            "2.2.0",
+            "2.3.0",
+            "2.4.0",
+        }:
             _write_new(output / "input_packet.json", _canonical_bytes(source_packet))
             stored_packet_sha256 = canonical_hash(stored_packet)
             input_refs = [
@@ -448,6 +588,8 @@ def initialize_run(
                 "input_refs": input_refs,
             },
         }
+        if source_packet["schema_version"] == "2.4.0":
+            manifest["prior_work_receipts"] = receipt_snapshots
         manifest["manifest_sha256"] = _manifest_hash(manifest)
         _write_new(output / "run_manifest.json", manifest)
         inspect_run(output)
@@ -493,12 +635,7 @@ def apply_assessment(run_dir, assessment_path, *, clock=_utc_now):
         if revised is not None:
             candidate_histories = copy.deepcopy(state["histories"])
             candidate_histories[revised["candidate_id"]].append(revised)
-            revised_packet = copy.deepcopy(state["packet"])
-            revised_packet["candidates"] = [
-                candidate
-                for history in candidate_histories.values()
-                for candidate in history
-            ]
+            revised_packet = _current_packet(state["packet"], candidate_histories)
             validate_packet(revised_packet, root)
         sequence = len(state["events"]) + 1
         applied_at = clock()
@@ -794,6 +931,7 @@ def export_selection(run_dir, *, expected_event_head=None):
             state["packet"]["sources"],
             event_head=state["event_head_sha256"],
             stored_packet_sha256=state["manifest"]["stored_packet_sha256"],
+            receipt_prefix="prior_work_receipts",
         ),
     )
 

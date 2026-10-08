@@ -3,7 +3,7 @@
 from html import escape
 
 from stage2_check.contracts import latest_candidates, validate_assessment
-from stage2_common import Stage2Error, canonical_hash
+from stage2_common import Stage2Error, canonical_hash, current_prior_work_reviews
 from stage2_ideation.topic_tables import validate_research_tables
 from stage2_eval.evaluation import validate_action_record
 
@@ -46,7 +46,10 @@ def derive_content_gate(selection):
             blockers.append({"check_id": check_id, "reason": reason})
 
     tables = packet.get("research_tables")
-    prepared = packet.get("schema_version") in {"2.2.0", "2.3.0"} and tables is not None
+    prepared = (
+        packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}
+        and tables is not None
+    )
     if prepared:
         try:
             tables = validate_research_tables(tables, packet)
@@ -104,6 +107,7 @@ def derive_content_gate(selection):
         "Every current candidate needs a matching direction record.",
     )
     resources = tables["direction_resources"] if prepared else []
+    prior_work = current_prior_work_reviews(packet)
     actual_recommendations = set()
     for candidate_id, candidate in latest.items():
         key = f"{candidate_id}:v{candidate['version']}"
@@ -116,6 +120,12 @@ def derive_content_gate(selection):
         )
         if not current:
             continue
+        if packet.get("schema_version") == "2.4.0":
+            check(
+                key + ":prior-work",
+                candidate_id in prior_work,
+                "Complete a candidate/source-bound prior-work review before final delivery.",
+            )
         check(
             key + ":proposal",
             all(
