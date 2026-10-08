@@ -70,6 +70,11 @@
       "supplemental_source_version_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
       ]
     },
     {
@@ -119,10 +124,28 @@
       "supplemental_source_version_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
       ]
     },
     {
       "capability_id": "cli:stage2-live",
+      "native_action_history_contract": "Opt-in named-policy1.1 per-action trace roots bind exact capture, observation and narrow namespace evidence. Separate read-only archived verification preserves every original input/runtime/profile/producer/receipt binding while allowing later workspace files; live resume still rejects changed workspaces. Historical inspection never dispatches or attests formal readiness or scientific improvement.",
+      "native_action_history_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_action_trace_root.py",
+        "plugins/auto-research-agent/tests/test_stage2_namespace_trace_child.py",
+        "plugins/auto-research-agent/tests/test_stage2_producer_history.py",
+        "plugins/auto-research-agent/tests/test_stage2_producer_replay.py"
+      ],
+      "native_role_namespace_contract": "Opt-in Linux role namespace binds dispatcher, image bytes/modes/ownership, standalone executable, DNS and narrow role directories. Capture, observation and evaluator replay reconstruct the same shell-free prefix; changed scope cannot resume. The prefix does not change native permission arguments or attest successful tools, network policy, functional preflight, judge quality or formal readiness. Legacy execution remains unchanged when no scope file exists.",
+      "native_role_namespace_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_namespace.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_namespace_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_trace_producer_namespace.py"
+      ],
       "native_incomplete_capture_contract": "The shared production capture seam rejects missing or noncomplete native status before success-only environment verification, review extraction or reconciliation. Original failed artifacts remain intact. An unavailable model or interrupted call is an execution failure, never a zero scientific score, absent reviewer agreement or a completed pilot. No retry, model, policy, sandbox or rubric change.",
       "native_incomplete_capture_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
@@ -295,6 +318,15 @@
       "assessment_target_cli_contract": "Optional daily-v3 and verify-daily-v3 --assessment-target-policy accepts an exact host-generated policy binding object; omitted flags retain legacy call shape. Explicit null, non-object, unreadable, malformed or stale binding fails before scoring or replay admission. This exposes existing opt-in3.1 behavior; no rubric, model, authority, isolation or formal-quality promotion.",
       "assessment_target_cli_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_daily_target_cli.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "per_execution_inventory": "Receipt-bound private inventory reconstructs actual model requests, developer inputs, offered tools, role lineage and supported config/skills/plugins/MCP RPC responses. Separate call completeness, token availability and structural blockers; cancelled inference usage stays unknown. It does not attest formal role isolation or complete Stage2 execution.",
+      "per_execution_inventory_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_execution_inventory.py"
       ]
     },
     {
@@ -375,6 +407,11 @@
       "imported_history_delivery_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_imported_history.py",
         "plugins/auto-research-agent/tests/test_stage2_imported_history_delivery.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
       ]
     },
     {
@@ -476,6 +513,11 @@
         "plugins/auto-research-agent/tests/test_stage2_comparison_preparation.py",
         "plugins/auto-research-agent/tests/test_stage2_content_gate.py",
         "plugins/auto-research-agent/tests/test_stage2_content_delivery.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
       ]
     },
     {
@@ -546,6 +588,11 @@
       "exploratory_content_revision_contract": "Replacement keeps the exact immutable exploratory intake limitations while updating superseded transient issues. Acceptance and source bindings remain unchanged; preservation alone is not a substantive revision or scientific approval.",
       "exploratory_content_revision_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_exploratory_revision.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
       ]
     },
     {
@@ -575,6 +622,18 @@
             "Verified Stage 2 proposal, nine original judgment comments and null/audit states are visible from the Wiki; external bridge binds exact project/index/delivery versions; no model calls or permission promotion."
           ],
           "human_judgment": "A readable verified projection is not evidence of scientific improvement or original Stage 1 lineage."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Current candidate/source-set hashes, exact work/version evidence and raw search receipts validate; revised candidates cannot use stale positioning. Markdown/HTML/Wiki retain the same bounded comparisons and limits."
+          ],
+          "human_judgment": "Binding and visible comparisons support independent precedent review; they do not prove novelty or warrant a score."
         }
       ],
       "mechanism": "Opt-in explicit receipt-bound evaluated-delivery sidecar preserves frozen WorkspaceIndex v1 and existing UI assets; copies verified proposal/source bytes and renders independent judgment context without launching research. Exact-excerpt cards show what/why/blocker/next/version, with provisional named audit before directions; long wording remains expandable and raw judge/source records unchanged. Comparison workbench preserves paper-level fields separately from recorded synthesis; local selection, filters and evidence panels do not alter canonical records, evaluator scores or permission state. The existing stage rail displays Stage 1 literature by default and the verified Stage 2 attachment only when Stage 2 is selected; unavailable attachments retain the disconnected placeholder, and view switching never changes research records or authorization.",
@@ -601,6 +660,11 @@
       "supplemental_source_version_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
       ]
     },
     {
@@ -629,6 +693,18 @@
             "Resources bind exact candidate versions; known access requires source evidence and check time; unknown access/license/cost/version remain explicit."
           ],
           "human_judgment": "Source-bound resource records do not establish whole-direction feasibility or scientific improvement."
+        },
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.PRECEDENT",
+            "P5V3.REVISION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Current candidate/source-set hashes, exact work/version evidence and raw search receipts validate; revised candidates cannot use stale positioning. Markdown/HTML/Wiki retain the same bounded comparisons and limits."
+          ],
+          "human_judgment": "Binding and visible comparisons support independent precedent review; they do not prove novelty or warrant a score."
         }
       ],
       "mechanism": "Shared packet validation dispatches opt-in topic/resource validation without changing legacy schemas, scientific anchors or human authority.",
@@ -640,6 +716,11 @@
       "supplemental_source_version_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
+      ],
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
       ]
     },
     {

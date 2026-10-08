@@ -230,6 +230,7 @@ def _root_markdown(checker, selection, reconciliation):
         event_head=checker["event_head_sha256"],
         stored_packet_sha256=checker["manifest"]["stored_packet_sha256"],
         audit_prefix="checker",
+        receipt_prefix="checker/prior_work_receipts",
     )
     next_step = (
         reconciliation["next_step"]
@@ -244,7 +245,11 @@ def _root_markdown(checker, selection, reconciliation):
 
 
 def _root_html(checker, selection, reconciliation):
-    document = render_selection_html(selection, checker["packet"]["sources"])
+    document = render_selection_html(
+        selection,
+        checker["packet"]["sources"],
+        receipt_prefix="checker/prior_work_receipts",
+    )
     next_step = (
         reconciliation["next_step"]
         or "No additional portfolio-level step was recorded."

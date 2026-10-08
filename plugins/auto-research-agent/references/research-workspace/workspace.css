@@ -120,14 +120,17 @@ main.literature-layout > section, main.literature-layout > aside { display:none;
   border-radius:7px;
   background:rgba(255,255,255,.97);
   box-shadow:0 10px 28px rgba(31,44,61,.15);
-  pointer-events:none;
+  pointer-events:auto;
+  overflow:auto;
+  overflow-wrap:anywhere;
+  box-sizing:border-box;
   color:#203047;
 }
 .graph-tooltip[data-type="keyword"] { border-left-color:#527e76; }
 .graph-tooltip[data-type="role"] { border-left-color:#a47b2d; }
 .graph-tooltip strong,.graph-tooltip span { display:block; }
-.graph-tooltip strong { margin-bottom:3px; font:600 13px/1.35 Georgia,"Microsoft YaHei",serif; }
-.graph-tooltip span { color:#64758c; font-size:11px; line-height:1.45; }
+.graph-tooltip strong { margin-bottom:3px; font:600 16px/1.4 Georgia,"Microsoft YaHei",serif; }
+.graph-tooltip span { color:#64758c; font-size:14px; line-height:1.5; }
 .graph-actions .section-title { margin-right:auto; }
 .graph-actions::after {
   content:"Wheel to zoom · drag canvas to pan · drag nodes to arrange";

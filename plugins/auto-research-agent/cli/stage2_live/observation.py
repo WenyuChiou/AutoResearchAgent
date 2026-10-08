@@ -16,6 +16,7 @@ import time
 
 from stage1_deliverable.common import DeliverableError, private_output
 from .native import CaptureError, codex_runtime_sha, sha256, _utc_now
+from .native_namespace import NativeNamespaceError, bind_namespace, wrap_namespace
 from .trace_seal_io import SealDirectory
 
 
@@ -325,6 +326,7 @@ def collect_runtime_observation(
     thread_id=None,
     rpc_transport=None,
     rpc_timeout_seconds=120,
+    trace_root=None,
     _output_handle=None,
 ):
     """Collect private metadata; never dispatch turn/start or change settings."""
@@ -355,6 +357,10 @@ def collect_runtime_observation(
     ):
         raise CaptureError("thread_id must be nonempty when supplied")
     runtime = codex_runtime_sha(codex)
+    try:
+        namespace = bind_namespace(codex, home, work, trace_root=trace_root)
+    except NativeNamespaceError as error:
+        raise CaptureError(str(error)) from error
     config = home / "config.toml"
     config_sha = sha256(config.read_bytes()) if config.is_file() else None
     requests = [
@@ -380,7 +386,21 @@ def collect_runtime_observation(
         )
     if _output_handle is None:
         output.mkdir(parents=True, exist_ok=False)
-    command = [str(Path(codex).resolve()), "app-server", "--stdio"]
+    native_command = [str(Path(codex).resolve()), "app-server", "--stdio"]
+    try:
+        command = wrap_namespace(native_command, namespace)
+    except NativeNamespaceError as error:
+        raise CaptureError(str(error)) from error
+    if namespace:
+        namespace_raw = Path(namespace["path"]).read_bytes()
+        if sha256(namespace_raw) != namespace["sha256"]:
+            raise CaptureError("native namespace changed before archival")
+        _write_observation(
+            output,
+            "native-namespace.json",
+            namespace_raw,
+            _output_handle,
+        )
     started = _utc_now()
     transport = rpc_transport or _rpc_exchange
     try:
@@ -447,10 +467,19 @@ def collect_runtime_observation(
             }
         )
     _verify_transport(rows, events, responses)
-    if runtime != codex_runtime_sha(codex) or config_sha != (
-        sha256(config.read_bytes()) if config.is_file() else None
+    try:
+        namespace_changed = (
+            namespace is not None
+            and bind_namespace(codex, home, work, trace_root=trace_root) != namespace
+        )
+    except NativeNamespaceError as error:
+        raise CaptureError(str(error)) from error
+    if (
+        runtime != codex_runtime_sha(codex)
+        or config_sha != (sha256(config.read_bytes()) if config.is_file() else None)
+        or namespace_changed
     ):
-        raise CaptureError("runtime or profile changed during observation")
+        raise CaptureError("runtime, profile, or namespace changed during observation")
     payloads = {
         "rpc.json": rows,
         "transport.json": events,
@@ -463,6 +492,8 @@ def collect_runtime_observation(
             _write_observation(output, name, raw, _output_handle)
         artifacts[name] = sha256(raw)
     artifacts["stderr.txt"] = sha256(stderr)
+    if namespace:
+        artifacts["native-namespace.json"] = namespace["sha256"]
     record = {
         "kind": "Stage2RuntimeObservation",
         "schema_version": "2.0.0",
@@ -490,6 +521,8 @@ def collect_runtime_observation(
         "filesystem_read_isolation": "not-assessed",
         "formal_ready": False,
     }
+    if namespace:
+        record["binding"]["native_namespace"] = namespace
     raw = (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode()
     _write_observation(output, "observation.json", raw, _output_handle)
     return {**record, "record_sha256_receipt": sha256(raw)}
@@ -525,9 +558,49 @@ def verify_runtime_observation(output_dir, receipt, *, allow_synthetic=False):
             and not allow_synthetic
         ):
             raise CaptureError("synthetic observation is not native evidence")
-        if set(record["artifacts"]) not in (
+        namespace = record.get("binding", {}).get("native_namespace")
+        namespace_file = root / "native-namespace.json"
+        if (namespace is not None) != namespace_file.is_file() or (
+            namespace is not None
+        ) != ("native-namespace.json" in record.get("artifacts", {})):
+            raise CaptureError("observation namespace artifact binding differs")
+        try:
+            if namespace is not None:
+                current = bind_namespace(
+                    namespace["scope"]["codex"],
+                    namespace["scope"]["home"],
+                    namespace["scope"]["workspace"],
+                    trace_root=namespace.get("trace_root"),
+                )
+                if current != namespace:
+                    raise CaptureError("observation namespace binding changed")
+                expected_command = wrap_namespace(
+                    [namespace["scope"]["codex"], "app-server", "--stdio"],
+                    namespace,
+                )
+                if record.get("command") != expected_command:
+                    raise CaptureError("observation namespace command differs")
+            elif record.get("command") != [
+                record["binding"].get("codex", record["command"][0]),
+                "app-server",
+                "--stdio",
+            ]:
+                # Legacy records did not retain the executable path separately;
+                # their first command element remains the binding.
+                raise CaptureError("observation command differs")
+        except NativeNamespaceError as error:
+            raise CaptureError(str(error)) from error
+        expected_artifacts = set(record["artifacts"])
+        if expected_artifacts not in (
             {"rpc.json", "transport.json", "stderr.txt"},
             {"rpc.json", "transport.json", "stderr.txt", "rpc-responses.json"},
+            {
+                "rpc.json",
+                "transport.json",
+                "stderr.txt",
+                "rpc-responses.json",
+                "native-namespace.json",
+            },
         ):
             raise CaptureError("observation artifact set differs")
         for name, digest in record["artifacts"].items():

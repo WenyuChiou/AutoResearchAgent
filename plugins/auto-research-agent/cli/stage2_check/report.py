@@ -6,7 +6,7 @@ import re
 from pathlib import PurePosixPath, PureWindowsPath
 from urllib.parse import quote
 
-from stage2_common import Stage2Error
+from stage2_common import Stage2Error, current_prior_work_reviews
 from stage2_check.bibliography import build_bibliography
 from stage2_ideation.tables_report import render_tables_markdown
 
@@ -61,6 +61,19 @@ def _safe_snapshot_path(value):
     ):
         raise Stage2Error(f"unsafe-report-source-path: {value!r}")
     return "/".join(quote(part, safe="") for part in posix.parts)
+
+
+def _receipt_base(receipt_prefix):
+    if receipt_prefix is None:
+        return None
+    return _safe_snapshot_path(receipt_prefix)
+
+
+def _receipt_href(raw_path, receipt_base):
+    relative = _safe_snapshot_path(raw_path)
+    if receipt_base is None:
+        return None
+    return f"{receipt_base}/{relative}"
 
 
 def _evidence_anchor(evidence_id):
@@ -294,6 +307,87 @@ def _assessment_details(lines, assessment, evidence):
     lines.extend(["", f"- Next step: {_text(next_step)}", ""])
 
 
+def _prior_work_evidence(evidence_ids, evidence, snapshots):
+    values = []
+    for evidence_id in evidence_ids:
+        row = evidence[evidence_id]
+        source = snapshots[row["source_id"]]
+        values.append(
+            f"[{_text(evidence_id)}](#{_evidence_anchor(evidence_id)}) "
+            f"(level={_text(source['evidence_level'])}; locator={_text(row['locator'])})"
+        )
+    return "; ".join(values) or "None recorded"
+
+
+def _prior_work_review(lines, review, evidence, snapshots, receipt_base):
+    lines.extend(
+        [
+            "#### Prior-work positioning",
+            "",
+            f"- Candidate binding: {_text(review['candidate_id'])} v{review['candidate_version']}",
+            f"- Review status: {_text(review['review_status'])}",
+            f"- Positioning: {_text(review['positioning'])}",
+            f"- Stop reason: {_text(review['stop_reason'])}",
+            "",
+            "| Prior work | Role | Established | Overlap | Difference | Evidence / limits |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for row in review["comparisons"]:
+        evidence_limits = _prior_work_evidence(row["evidence_ids"], evidence, snapshots)
+        if row["limitations"]:
+            evidence_limits += "; limitations: " + "; ".join(
+                _text(value) for value in row["limitations"]
+            )
+        lines.append(
+            f"| {_text(row['work_id'])} / {_text(row['version_id'])} | "
+            f"{_text(row['role'])} | {_text(row['established'])} | "
+            f"{_text(row['overlap'])} | {_text(row['difference'])} | "
+            f"{evidence_limits} |"
+        )
+    if not review["comparisons"]:
+        lines.append("| None recorded | — | — | — | — | No comparison recorded |")
+    lines.extend(["", "Critical unresolved items:"])
+    lines.extend(
+        [f"- {_text(value)}" for value in review["unresolved"]] or ["- None recorded"]
+    )
+    lines.extend(["", "Search limits:"])
+    lines.extend(f"- {_text(value)}" for value in review["search_limits"])
+    lines.extend(
+        ["", "<details><summary>Search queries and saved receipts</summary>", ""]
+    )
+    for search in review["searches"]:
+        work_refs = (
+            ", ".join(
+                f"{_text(ref['work_id'])} / {_text(ref['version_id'])}"
+                for ref in search["work_refs"]
+            )
+            or "None recorded"
+        )
+        if search["raw_path"] is None:
+            raw_path = "None recorded"
+        else:
+            href = _receipt_href(search["raw_path"], receipt_base)
+            raw_path = (
+                f"[{_text(search['raw_path'])}]({href})"
+                if href is not None
+                else _code(search["raw_path"])
+            )
+        lines.extend(
+            [
+                f"- **{_text(search['search_id'])}** — need: {_text(search['need'])}",
+                f"  - Query: {_text(search['query'])}",
+                f"  - Status / outcome: {_text(search['status'])} / {_text(search['outcome'])}",
+                f"  - Tool reference: {_text(search['tool_ref']) if search['tool_ref'] is not None else 'None recorded'}",
+                f"  - Saved raw receipt: {raw_path}",
+                f"  - Referenced work versions: {work_refs}",
+            ]
+        )
+    if not review["searches"]:
+        lines.append("- None recorded")
+    lines.extend(["", "</details>", ""])
+
+
 def _brief(lines, brief):
     lines.extend(
         [
@@ -336,13 +430,20 @@ def _brief(lines, brief):
 
 
 def render_proposal(
-    selection, source_snapshots, *, event_head, stored_packet_sha256, audit_prefix=""
+    selection,
+    source_snapshots,
+    *,
+    event_head,
+    stored_packet_sha256,
+    audit_prefix="",
+    receipt_prefix=None,
 ):
     """Return a complete prehuman proposal report as deterministic UTF-8 bytes."""
     packet, snapshots, evidence, bibliography = _validate_bindings(
         selection, source_snapshots
     )
     audit_base = (_safe_snapshot_path(audit_prefix) + "/") if audit_prefix else ""
+    receipt_base = _receipt_base(receipt_prefix)
     if not isinstance(event_head, str) or not _SHA.fullmatch(event_head):
         raise Stage2Error("report-event-head-invalid")
     packet_hash = selection.get("packet_sha256")
@@ -419,9 +520,28 @@ def render_proposal(
             ["", render_tables_markdown(packet["research_tables"], packet), ""]
         )
     lines.extend(["", "## Current candidate options", ""])
+    prior_reviews = {
+        (row["candidate_id"], row["candidate_version"]): row
+        for row in current_prior_work_reviews(packet).values()
+    }
     for option in selection["current_options"]:
         candidate = option["candidate"]
         _candidate_details(lines, candidate, evidence)
+        if packet.get("schema_version") == "2.4.0":
+            review = prior_reviews.get(
+                (candidate["candidate_id"], candidate["version"])
+            )
+            if review is None:
+                lines.extend(
+                    [
+                        "#### Prior-work positioning",
+                        "",
+                        "No validated review is recorded for this current candidate version. This direction remains draft; no novelty or P5 score is inferred.",
+                        "",
+                    ]
+                )
+            else:
+                _prior_work_review(lines, review, evidence, snapshots, receipt_base)
         if option["assessment"] is None:
             lines.extend(
                 [

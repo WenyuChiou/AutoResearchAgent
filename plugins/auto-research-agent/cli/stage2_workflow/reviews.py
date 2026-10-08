@@ -9,11 +9,16 @@ import json
 import hashlib
 
 from stage2_check.contracts import AXES, latest_candidates, validate_assessment
-from stage2_common import Stage2Error, canonical_hash, validate_evidence_refs
+from stage2_common import (
+    Stage2Error,
+    canonical_hash,
+    current_prior_work_reviews,
+    validate_evidence_refs,
+)
 
 
 ROLES = ("challenger", "feasibility")
-REVIEW_VIEW_VERSIONS = ("1.0.0", "1.1.0")
+REVIEW_VIEW_VERSIONS = ("1.0.0", "1.1.0", "1.2.0")
 REVIEW_VIEW_VERSION_CURRENT = "1.1.0"
 
 _ASSESSMENT_CONTRACT = {
@@ -85,6 +90,11 @@ def prepare_review(
         review_view_version in REVIEW_VIEW_VERSIONS,
         "unsupported-review-view-version",
     )
+    if review_view_version == "1.2.0":
+        _require(
+            packet.get("schema_version") == "2.4.0",
+            "review-view-1.2-requires-packet-2.4",
+        )
     _, latest = latest_candidates(packet, [])
     _require(candidate_id in latest, "unknown-review-candidate")
     candidate = latest[candidate_id]
@@ -112,7 +122,7 @@ def prepare_review(
             "Do not invent findings, tool receipts or a necessary disagreement."
         ),
     }
-    if review_view_version == "1.1.0":
+    if review_view_version in {"1.1.0", "1.2.0"}:
         tables = packet.get("research_tables")
         _require(
             tables is None or isinstance(tables, dict),
@@ -139,6 +149,10 @@ def prepare_review(
             and row.get("candidate_version") == candidate["version"]
         ]
         view["assessment_contract"] = copy.deepcopy(_ASSESSMENT_CONTRACT)
+    if review_view_version == "1.2.0":
+        prior_work = current_prior_work_reviews(packet)
+        _require(candidate_id in prior_work, "prior-work-review-missing")
+        view["prior_work_review"] = prior_work[candidate_id]
     return copy.deepcopy(view)
 
 

@@ -76,7 +76,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/research_workspace",
       "problem": "The Wiki reference displays synthetic papers and cannot reconcile a real partial Stage 1 package across its graph, notes, catalog and bibliography.",
-      "mechanism": "Wrap saved Stage 1 records with a deterministic, externally hash-bound read-only WorkspaceIndex and English HTML view. Reuse record validation, safe file boundaries and the existing bibliography producer; retain source levels, claim relations, coverage, input identities and failed attempts without launching research or scoring. Optionally attach an externally accepted private repair overlay with exact source passages, original-to-atomic mappings, preserved failures and separate core findings; v1 inputs and scientific states remain unchanged. The optional accepted repair overlay is projected into English HTML, version-bound Markdown, Excel/CSV, core findings and a complete bibliography with independent source, assertion and unresolved states. An offline saved-byte reader can explicitly produce a new hash-bound extraction manifest from v1/v2 source receipts using a pinned local parser. The separately attached WorkspaceIndex v3 binds that manifest, its exact work/source/version identities, source bytes, locators and metadata provenance while preserving every legacy field. The CLI and read-only presentation export the accepted overlay into HTML, Wiki, Excel/CSV, Markdown and BibTeX without parser execution, source acquisition or scientific promotion. The local literature graph uses a deterministic bounded layout, distinct work/version nodes, recorded classification/role edges, pointer and keyboard navigation, and hash-bound reference assets; interaction changes no canonical evidence.",
+      "mechanism": "Wrap saved Stage 1 records with a deterministic, externally hash-bound read-only WorkspaceIndex and English HTML view. Reuse record validation, safe file boundaries and the existing bibliography producer; retain source levels, claim relations, coverage, input identities and failed attempts without launching research or scoring. Optionally attach an externally accepted private repair overlay with exact source passages, original-to-atomic mappings, preserved failures and separate core findings; v1 inputs and scientific states remain unchanged. The optional accepted repair overlay is projected into English HTML, version-bound Markdown, Excel/CSV, core findings and a complete bibliography with independent source, assertion and unresolved states. An offline saved-byte reader can explicitly produce a new hash-bound extraction manifest from v1/v2 source receipts using a pinned local parser. The separately attached WorkspaceIndex v3 binds that manifest, its exact work/source/version identities, source bytes, locators and metadata provenance while preserving every legacy field. The CLI and read-only presentation export the accepted overlay into HTML, Wiki, Excel/CSV, Markdown and BibTeX without parser execution, source acquisition or scientific promotion. The local literature graph uses a deterministic bounded layout, distinct work/version nodes, recorded classification/role edges, pointer and keyboard navigation, and hash-bound reference assets; interaction changes no canonical evidence. A conservative derived literature selection includes readable identity-bound full text, preserves full screening records and Unknown claims, and exports one bound selection across JSON, CSV, Markdown, Excel and BibTeX without scientific or execution promotion.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -91,7 +91,8 @@
             "saved response, work/source/version, reading attempt and local parser hashes are preserved without source acquisition or scientific judgment changes",
             "v3 attachment rejects changed manifests, source versions, artifact bytes, locators, metadata provenance and evidence or import upgrades",
             "v3 export rebuilds deterministic cross-format work/version/source identities and retains mixed read successes, failures and original states",
-            "graph filter, selection, pan, zoom and drag preserve work/version identities and exact canonical exports; reference asset hashes supersede historical base provenance for rebuild"
+            "graph filter, selection, pan, zoom and drag preserve work/version identities and exact canonical exports; reference asset hashes supersede historical base provenance for rebuild",
+            "formal selection admits only readable full text with confirmed work/source/version/hash binding and affirmative reconciled body extent; absent proof stays pending and inconsistent extent is excluded, while all screening records, diagnostics and Unknown claims remain unchanged"
           ],
           "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
         }
@@ -113,7 +114,10 @@
         "plugins/auto-research-agent/tests/test_research_workspace_saved_reader.py",
         "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_binding.py",
         "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_exports.py",
-        "plugins/auto-research-agent/tests/test_research_workspace_source_availability.py"
+        "plugins/auto-research-agent/tests/test_research_workspace_source_availability.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_literature_selection.py",
+        "plugins/auto-research-agent/tests/test_research_workspace_body_completeness.py",
+        "plugins/auto-research-agent/tests/test_workspace_literature_selection_ui.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

@@ -1,5 +1,24 @@
 # Stage 2 v3：研究流程、平衡評分與透明交付
 
+### 原生執行紀錄如何核對
+
+`stage2_live.execution_inventory.inspect_execution_inventory` 只讀取已封存的
+原生執行與外部保存的 producer receipt，不再呼叫模型。它保存實際送給
+模型的 developer 訊息、可用工具、子 agent 關係，以及原生設定、skills、
+plugins、MCP 的回應。每個項目都能回到原始 bytes 與 hash。
+
+「所有呼叫都有記錄」與「所有 token 用量都可得」分開表示。取消的呼叫
+仍算一次嘗試；缺少用量保持 unknown，不能填零或宣稱符合 token 預算。
+RPC 回應使用原生觀察器的獨立大小上限，不能錯套單一 trace 檔案上限。
+此接口不會自行證明角色隔離、完整預演、正式 A/B 或研究品質改善。
+
+前例定位的 packet 2.4 接口及操作流程見
+[前例定位說明](../../references/stage2-prior-work.zh-TW.md)。它把候選、來源、
+實際搜尋及重疊／差異綁在同一版，送到獨立查核與 Markdown／HTML／Wiki。
+P5V3.PRECEDENT 的標準不改：完整表格不自動等於 2 分，已找到前例也不
+自動代表方向無價值。合法原文仍無法取得時保留限制，不能重評到滿分為止。
+新版候選或來源不能混用旧定位、旧評語或 Eric 對舊報告的覆核。
+
 交付物可以選擇保存「已登記的內容歷史」：候選修訂、比較表更新和補查
 沿著原本的事件及來源版本保留，搬到其他電腦仍能重新核對。這個 v2
 紀錄只證明內容曾變更並登記，不證明作者、模型呼叫成功或使用者同意。
@@ -253,3 +272,21 @@ SourceContextPolicy1.1 允許真實引文跨越連續段落，保留原檔換行
 舊版未提供 policy 時維持原行為。沒有來源語境的舊紀錄仍有 JSON key
 順序可能不符的已知限制；本次不冒稱修好該情況。這類重播故障屬於評估器
 故障，不能扣研究品質分數。原始紀錄保留，不為通過查核重跑已完成模型。
+
+### 多步研究的執行紀錄與歷史查核
+
+每一步可使用受保護 telemetry 目錄下獨立的 `trace_root`。原生捕捉、
+工具清單、來源 hash 和 namespace 都綁定同一個子目錄；不能把另一個
+步驟的 receipt 拿來使用。父目錄及其他步驟不因此開放給研究 agent。
+另外只開放預先建立的 `final.txt` 單檔，接收 Codex 的最終回覆；
+不開放 capture 父目錄、archive 或其他步驟的輸出。
+這個選項要求 named policy1.1；未提供時保留舊版目錄與驗證方式。
+
+研究往下走後，工作目錄會增加檔案。`verify_historical_producer_inventory`
+與 `inspect_historical_execution_inventory` 只查已封存的執行證據，輸出
+`verified-history-no-execution`。它們仍核對原始輸入、設定、程式、
+runtime、來源和外部 receipt；不呼叫模型，也不能授權重新執行。
+
+真正的 resume 仍要求工作目錄與原來完成時一致。工作目錄變了，只能
+查歷史，不能假装符合原本的 resume 條件。未知 tokens、費用、失敗和
+未完成狀態照原樣保留。這些接口不代表完整 Stage2、正式隔離或 A/B 改善。

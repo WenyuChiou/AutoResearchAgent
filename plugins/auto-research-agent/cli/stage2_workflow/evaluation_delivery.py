@@ -97,8 +97,12 @@ def _evaluation_overview(view):
     )
 
 
-def _evaluated_html(selection, snapshots, view, presentation_version):
-    document = _utf8(render_selection_html(selection, snapshots))
+def _evaluated_html(
+    selection, snapshots, view, presentation_version, *, receipt_prefix=None
+):
+    document = _utf8(
+        render_selection_html(selection, snapshots, receipt_prefix=receipt_prefix)
+    )
     if presentation_version in {"1.1.0", "1.2.0", "1.3.0"}:
         document = document.replace(
             "</section>", "</section>" + _evaluation_overview(view), 1
@@ -365,16 +369,24 @@ def build_evaluated_delivery(
     )
     presentation_version = (
         "1.3.0"
-        if selection["evaluation_packet"]["schema_version"] in {"2.2.0", "2.3.0"}
+        if selection["evaluation_packet"]["schema_version"]
+        in {"2.2.0", "2.3.0", "2.4.0"}
         else "1.2.0"
     )
     gate = derive_content_gate(selection) if presentation_version == "1.3.0" else None
-    html = _evaluated_html(selection, source_snapshots, view, presentation_version)
+    html = _evaluated_html(
+        selection,
+        source_snapshots,
+        view,
+        presentation_version,
+        receipt_prefix="sources",
+    )
     markdown = render_proposal(
         selection,
         source_snapshots,
         event_head=event_head,
         stored_packet_sha256=stored_packet_sha256,
+        receipt_prefix="sources",
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
@@ -398,6 +410,11 @@ def build_evaluated_delivery(
     for source in selection["evaluation_packet"]["sources"]:
         path = safe_path(source_root, source["path"])
         values["sources/" + source["path"]] = path.read_bytes()
+    for review in selection["evaluation_packet"].get("prior_work_reviews", []):
+        for search in review["searches"]:
+            if search["raw_path"] is not None:
+                path = safe_path(source_root, search["raw_path"])
+                values["sources/" + search["raw_path"]] = path.read_bytes()
     inventory = []
     for name, value in values.items():
         raw = (
@@ -462,7 +479,11 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
     selection = json.loads((root / "core_selection.json").read_bytes())
     version = manifest.get("presentation_version", "1.0.0")
     if version == "1.3.0":
-        if selection["evaluation_packet"]["schema_version"] not in {"2.2.0", "2.3.0"}:
+        if selection["evaluation_packet"]["schema_version"] not in {
+            "2.2.0",
+            "2.3.0",
+            "2.4.0",
+        }:
             raise Stage2Error("evaluation-delivery-content-gate-version-mismatch")
         if "content_gate.json" not in names or json.loads(
             (root / "content_gate.json").read_bytes()
@@ -492,12 +513,14 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
         snapshots,
         projection,
         manifest.get("presentation_version", "1.0.0"),
+        receipt_prefix="sources",
     )
     markdown = render_proposal(
         selection,
         snapshots,
         event_head=manifest["event_head"],
         stored_packet_sha256=manifest["stored_packet_sha256"],
+        receipt_prefix="sources",
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
