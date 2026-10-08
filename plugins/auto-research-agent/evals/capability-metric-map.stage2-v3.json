@@ -331,6 +331,10 @@
       "no_tool_trace_evidence_contract": "Authenticate all native v3.1 attempt roots against original retained raw-trace seals, effective read-only/never settings and observed zero tools/children. The caller first validates canonical archive provenance; missing, foreign, tampered or incomplete evidence fails. Unknown usage stays null; no execution, authority, isolation or improvement is claimed.",
       "no_tool_trace_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_evidence.py"
+      ],
+      "no_tool_trace_capture_contract": "Copy only fresh telemetry children matching every authenticated call attempt; bind original inventories and external seal receipts. Refuse foreign or duplicate roots, links, changed bytes and unsafe paths. The capture token is in-memory and grants no execution authority.",
+      "no_tool_trace_capture_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_capture.py"
       ]
     },
     {
