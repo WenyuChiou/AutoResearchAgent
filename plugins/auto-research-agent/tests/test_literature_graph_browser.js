@@ -117,9 +117,16 @@ assert(fs.existsSync(viewPath), "pass an existing generated index.html path");
     await page.mouse.move(1, 1); await page.mouse.up();
     await interrupted.click();
     check("cancel preserves the next genuine click", (await page.locator(".graph-node.paper.selected").getAttribute("data-paper-id")) === interruptedId);
-    await page.locator("select").filter({ has: page.locator("option", { hasText: "All indexed records" }) }).selectOption({ label: "All indexed records" });
+    const hasSelection = await page.evaluate(() => Boolean(window.WORKSPACE_VIEW?.literature_selection));
+    if (!hasSelection) {
+      await page.locator("select").filter({ has: page.locator("option", { hasText: "All indexed records" }) }).selectOption({ label: "All indexed records" });
+    }
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Export canonical .bib", exact: true }).click();
+    if (hasSelection) {
+      await page.getByRole("link", { name: "Original bibliography", exact: true }).first().click();
+    } else {
+      await page.getByRole("button", { name: "Export canonical .bib", exact: true }).click();
+    }
     const download = await downloadPromise;
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "literature-graph-"));
     const downloadedBib = path.join(temporary, "references.bib");
