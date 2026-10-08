@@ -333,6 +333,10 @@
         "plugins/auto-research-agent/tests/test_stage2_preflight_observed_receipts.py",
         "plugins/auto-research-agent/tests/test_stage2_preflight_native_witnesses.py",
         "plugins/auto-research-agent/tests/test_stage2_preflight_trace_witnesses.py"
+      ],
+      "observed_action_contract": "One sequential action uses its own trace root, original native/producer/runtime receipts and reconstructed inventory. Historical replay makes no fresh execution, authority or formal-ready claim; failed inventory retains recoverable receipts and unknown costs.",
+      "observed_action_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_observed_action.py"
       ]
     },
     {
