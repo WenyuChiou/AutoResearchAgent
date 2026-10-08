@@ -1,5 +1,6 @@
 """Escaped HTML projection for the read-only Stage 2 comparison workbench."""
 
+import hashlib
 import json
 from html import escape
 from urllib.parse import urlsplit
@@ -475,6 +476,137 @@ def _direction_resources(view):
     )
 
 
+def _prior_work_evidence(review_row, view):
+    wanted = review_row.get("evidence_ids") or []
+    evidence = {
+        row.get("evidence_id"): row
+        for row in view.get("evidence") or []
+        if isinstance(row, dict)
+    }
+    source_levels = view.get("prior_work_source_levels") or {}
+    rows = []
+    for evidence_id in wanted:
+        item = evidence.get(evidence_id) or {}
+        label = (
+            _text(evidence_id)
+            + " · level="
+            + _text(source_levels.get(item.get("source_id")))
+            + " · locator="
+            + _text(item.get("locator"))
+        )
+        rows.append(
+            '<li><a href="stage2/report-reader.html#'
+            + "evidence-"
+            + hashlib.sha256(str(evidence_id).encode("utf-8")).hexdigest()[:16]
+            + '">'
+            + escape(label)
+            + "</a>"
+            + _preview(item.get("quote"), 180)
+            + "</li>"
+        )
+    return "<ul>" + "".join(rows) + "</ul>" if rows else "None recorded"
+
+
+def _prior_work_positioning(review, view):
+    if review is None:
+        return (
+            '<div class="s2w-empty"><strong>Prior-work review not recorded.</strong> '
+            "This current direction remains draft; no novelty or P5 score is inferred.</div>"
+        )
+    comparisons = []
+    for row in review.get("comparisons") or []:
+        limitations = (
+            "<ul>"
+            + "".join("<li>" + _html(value) + "</li>" for value in row["limitations"])
+            + "</ul>"
+            if row["limitations"]
+            else "None recorded"
+        )
+        comparisons.append(
+            '<tr><th scope="row">'
+            + _html(row.get("work_id"))
+            + " / "
+            + _html(row.get("version_id"))
+            + '<span class="s2w-muted">'
+            + _html(row.get("role"))
+            + "</span></th><td>"
+            + _preview(row.get("established"))
+            + "</td><td>"
+            + _preview(row.get("overlap"))
+            + "</td><td>"
+            + _preview(row.get("difference"))
+            + "</td><td>"
+            + _prior_work_evidence(row, view)
+            + "<details><summary>Limitations</summary>"
+            + limitations
+            + "</details></td></tr>"
+        )
+    searches = []
+    for row in review.get("searches") or []:
+        refs = (
+            ", ".join(
+                _text([ref.get("work_id"), ref.get("version_id")])
+                for ref in row.get("work_refs") or []
+            )
+            or "None recorded"
+        )
+        searches.append(
+            "<article><h6>"
+            + _html(row.get("search_id"))
+            + "</h6><dl><dt>Need</dt><dd>"
+            + _html(row.get("need"))
+            + "</dd><dt>Raw query</dt><dd>"
+            + _html(row.get("query"))
+            + "</dd><dt>Status / outcome</dt><dd>"
+            + _html(row.get("status"))
+            + " / "
+            + _html(row.get("outcome"))
+            + "</dd><dt>Tool reference</dt><dd>"
+            + _html(row.get("tool_ref"))
+            + "</dd><dt>Saved raw receipt</dt><dd>"
+            + _html(row.get("raw_path"))
+            + " · SHA-256="
+            + _html(row.get("raw_sha256"))
+            + "</dd><dt>Referenced work versions</dt><dd>"
+            + escape(refs)
+            + "</dd></dl></article>"
+        )
+    unresolved = review.get("unresolved") or []
+    limits = review.get("search_limits") or []
+    return (
+        '<div class="s2w-prior-work"><p><strong>Positioning:</strong> '
+        + _html(review.get("positioning"))
+        + '</p><p class="s2w-muted">Review status: '
+        + _html(review.get("review_status"))
+        + " · stop reason: "
+        + _html(review.get("stop_reason"))
+        + '</p><div class="s2w-table-scroll"><table class="s2w-table s2w-prior-work-table">'
+        + "<thead><tr><th>Prior work</th><th>Established</th><th>Overlap</th><th>Difference</th><th>Evidence / limits</th></tr></thead><tbody>"
+        + (
+            "".join(comparisons)
+            or '<tr><td colspan="5">No comparison recorded.</td></tr>'
+        )
+        + "</tbody></table></div><h5>Critical unresolved items</h5>"
+        + (
+            "<ul>"
+            + "".join("<li>" + _html(value) + "</li>" for value in unresolved)
+            + "</ul>"
+            if unresolved
+            else "<p>None recorded.</p>"
+        )
+        + "<details><summary>Search scope, raw queries, evidence receipts and limits</summary><h5>Search limits</h5>"
+        + (
+            "<ul>"
+            + "".join("<li>" + _html(value) + "</li>" for value in limits)
+            + "</ul>"
+            if limits
+            else "<p>None recorded.</p>"
+        )
+        + ("".join(searches) or "<p>No searches recorded.</p>")
+        + "</details></div>"
+    )
+
+
 def _source_versions(row, evidence):
     versions = row.get("source_versions") or []
     if not versions:
@@ -562,12 +694,19 @@ def _direction_rows(view):
         ("disposition", "Disposition"),
         ("next_step", "Next step"),
     )
+    has_prior_work = "prior_work_reviews" in view
     rows = []
     for index, row in enumerate(view.get("directions") or []):
         identity = _text([row.get("candidate_id"), row.get("version")])
         cells = "".join(
             "<td>" + _preview(row.get(name)) + "</td>" for name, _ in fields
         )
+        if has_prior_work:
+            cells += (
+                "<td>"
+                + _prior_work_positioning(row.get("prior_work_review"), view)
+                + "</td>"
+            )
         checks = _preview(row.get("checks"), 240)
         rows.append(
             f'<tr><th scope="row"><strong>Option {index + 1}</strong><details><summary>Candidate version</summary>'
@@ -581,9 +720,11 @@ def _direction_rows(view):
             + "</tr>"
         )
     headings = "".join('<th scope="col">' + label + "</th>" for _, label in fields)
+    if has_prior_work:
+        headings += '<th scope="col">Prior-work positioning</th>'
     body = (
         "".join(rows)
-        or '<tr><td colspan="9">No research directions are recorded.</td></tr>'
+        or f'<tr><td colspan="{10 if has_prior_work else 9}">No research directions are recorded.</td></tr>'
     )
     return headings, body
 

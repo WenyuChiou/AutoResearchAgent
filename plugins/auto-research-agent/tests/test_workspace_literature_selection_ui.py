@@ -1,6 +1,7 @@
 """Node-only semantic checks for the formal literature UI selection helper."""
 
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -143,6 +144,28 @@ class WorkspaceLiteratureSelectionLoaderTests(unittest.TestCase):
                 self.assertEqual(raw, (source / name).read_bytes())
                 self.assertEqual(self.manifest["files"][name], sha(raw))
                 self.assertEqual(self.manifest["ui_sources"][name], sha(raw))
+
+    def test_exported_overlay_keeps_narrow_graph_within_its_frame(self):
+        base = (self.output / "workspace.css").read_text(encoding="utf-8")
+        overlay = (self.output / "workspace-selection.css").read_text(encoding="utf-8")
+        graph_rules = re.findall(r"\.literature-graph\s*\{([^{}]*)\}", base + overlay)
+        widths = []
+        minimums = []
+        for rule in graph_rules:
+            widths.extend(re.findall(r"(?:^|;)\s*width\s*:\s*([^;]+)", rule))
+            minimums.extend(
+                re.findall(
+                    r"(?:^|;)\s*min-width\s*:\s*([0-9.]+)(?:px)?\s*(?:;|$)", rule
+                )
+            )
+        self.assertTrue(widths, "Export must define graph sizing")
+        self.assertEqual(widths[-1].strip(), "100%")
+        minimum = float(minimums[-1]) if minimums else 0
+        # The later selection overlay must not expand an SVG beyond its frame.
+        for viewport, frame in [(320, 288), (640, 576), (760, 586)]:
+            with self.subTest(viewport=viewport, graph_frame=frame):
+                rendered_width = max(frame, minimum)
+                self.assertLessEqual(rendered_width, frame)
 
     def test_legacy_index_payload_retains_pending_selection_without_promotion(self):
         text = (self.output / "workspace-data.js").read_text(encoding="utf-8")

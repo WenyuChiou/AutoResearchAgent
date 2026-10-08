@@ -20,10 +20,12 @@ SCHEMA_PATHS = {
     / "schemas/stage2-packet.v2_2.schema.json",
     "2.3.0": Path(__file__).resolve().parents[2]
     / "schemas/stage2-packet.v2_3.schema.json",
+    "2.4.0": Path(__file__).resolve().parents[2]
+    / "schemas/stage2-packet.v2_4.schema.json",
 }
 
-V2_PACKET_VERSIONS = {"2.0.0", "2.1.0", "2.2.0", "2.3.0"}
-TABLE_PACKET_VERSIONS = {"2.2.0", "2.3.0"}
+V2_PACKET_VERSIONS = {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}
+TABLE_PACKET_VERSIONS = {"2.2.0", "2.3.0", "2.4.0"}
 
 
 class Stage2Error(ValueError):
@@ -85,6 +87,13 @@ def _schema_validate(packet):
                 SCHEMA_PATHS["2.2.0"],
             ]
             if version == "2.3.0"
+            else [
+                SCHEMA_PATHS["2.0.0"],
+                SCHEMA_PATHS["2.1.0"],
+                SCHEMA_PATHS["2.2.0"],
+                SCHEMA_PATHS["2.3.0"],
+            ]
+            if version == "2.4.0"
             else [SCHEMA_PATHS["2.0.0"], SCHEMA_PATHS["2.1.0"]]
             if version == "2.2.0"
             else [SCHEMA_PATHS["2.0.0"]]
@@ -195,7 +204,7 @@ def validate_packet(packet, root):
     candidates = packet["candidates"]
     if packet["schema_version"] in V2_PACKET_VERSIONS:
         _unique(literature, "work_id", "literature work_id")
-    if packet["schema_version"] == "2.3.0":
+    if packet["schema_version"] in {"2.3.0", "2.4.0"}:
         primary_work_ids = {row["work_id"] for row in literature}
         _require(
             all(row["origin"] == "stage2" for row in supplemental_literature),
@@ -347,7 +356,7 @@ def validate_packet(packet, root):
             and row["version_id"] == source["version_id"],
             f"evidence work/version mismatch: {row['evidence_id']}",
         )
-        if packet["schema_version"] == "2.3.0":
+        if packet["schema_version"] in {"2.3.0", "2.4.0"}:
             levels = {"metadata": 0, "abstract": 1, "full-text": 2}
             _require(
                 levels[row["evidence_level"]] <= levels[source["evidence_level"]],
@@ -387,6 +396,12 @@ def validate_packet(packet, root):
         from stage2_ideation.topic_tables import validate_research_tables
 
         validate_research_tables(packet["research_tables"], packet)
+    if packet["schema_version"] == "2.4.0":
+        from .prior_work import validate_prior_work_reviews
+
+        validate_prior_work_reviews(
+            packet, root, canonical_hash=canonical_hash, error_type=Stage2Error
+        )
     return None
 
 
