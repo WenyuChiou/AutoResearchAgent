@@ -1,0 +1,5 @@
+#native-scope-panel { border-top:1px solid var(--line); margin-top:20px; padding-top:20px; }
+#native-scope-panel label { display:grid; gap:5px; margin:10px 0; }
+#native-scope-panel label:has(input[type=checkbox]) { display:flex; align-items:center; gap:8px; }
+#native-scope-panel select { max-width:100%; }
+#native-scope-panel form { border:1px solid var(--line); border-radius:8px; padding:16px; margin:16px 0; }

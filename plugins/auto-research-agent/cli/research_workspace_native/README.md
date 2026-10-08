@@ -141,3 +141,18 @@ research-topic isolation, full workspace acceptance or the real-package projecti
 
 The core panel fixture loads its four accepted reference assets from the exact retained public Git commit, verifies their fixed hashes and reports commit/path/hash separately.
 Mutable main presentation assets remain unchanged; missing or mismatched retained blobs reject without lazy fetch, object replacement or another checkout.
+
+Append source-bound ResearchBrief versions and explicit reviews with ScopeApi.
+Original brief bytes, parent/version hashes and old reviews remain saved.
+A trusted HTTP deadline check inside the mutation transaction rejects an expired queued save.
+Saved scope is not active input, a permit, or execution authority.
+
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_api.py -v
+
+ScopeWikiSessionServer adds scope history, selected-version review and explicit confirmation to the original Wiki.
+The panel translates interface labels only; source and user text remain original.
+Its trusted deadline check runs after store lock waits and before transactional commit.
+Expired append/review requests leave SQLite state unchanged. Viewing or saving never starts research.
+Credentials remain in memory; response loss reads saved history without automatic POST retries.
+
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_http.py -v
