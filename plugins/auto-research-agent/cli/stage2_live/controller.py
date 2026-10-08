@@ -21,6 +21,7 @@ from stage2_common import (
 )
 from stage2_ideation import build_research_task
 from stage2_ideation.integration import build_next_packet
+from stage2_workflow.completion import inspect_completion
 from stage2_workflow.delivery import build_delivery, inspect_delivery
 from stage2_workflow.orchestration import prepare_review_batch, reconcile_batch
 from stage2_workflow.reviews import REVIEW_VIEW_VERSION_CURRENT
@@ -871,6 +872,13 @@ def _run_controller(
     result = _run_controller_impl(
         run_dir, controller_dir, delivery_dir, expected_head, spec, adapter
     )
+    if "delivery_manifest" in result:
+        completion = inspect_completion(
+            delivery_dir, result["delivery_manifest"]["manifest_sha256"]
+        )
+        result["completion"] = completion
+        result["selection_ready"] = completion["research_delivery_ready"]
+        result["stage2_complete"] = completion["stage2_complete"]
     manifest = _persist_controller_manifest(
         run_dir, controller_dir, delivery_dir, spec, adapter, result
     )
@@ -1272,6 +1280,15 @@ def _run_controller_impl(
 
 
 def _terminal(status, state, adapter, units, **extra):
+    next_steps = {
+        "follow-up-needed": "Complete the bound follow-up, save a new snapshot, and recheck affected directions.",
+        "needs-prior-work": "Complete source-bound precedent positioning before independent review.",
+        "needs-workspace": "Prepare and verify the missing role environments before further calls.",
+        "needs-recovery": "Recover the recorded incomplete unit; do not rerun completed units.",
+        "failed": "Inspect the retained failed unit and repair its cause before a retry.",
+        "blocked": "Resolve missing or failed independent checks before preparing a final package.",
+        "awaiting-human": "Inspect content completeness and independent assessment before treating this as a final package.",
+    }
     return {
         "kind": "Stage2ControllerResult",
         "schema_version": VERSION,
@@ -1279,10 +1296,12 @@ def _terminal(status, state, adapter, units, **extra):
         "workflow_head_sha256": state["head_sha256"],
         "synthetic_test_only": bool(adapter.synthetic),
         "formal_ready": False,
-        "selection_ready": status == "awaiting-human",
+        "selection_ready": False,
+        "stage2_complete": False,
         "pilot_executable": False,
         "human_selection": "pending",
         "stage3_execution_authorized": False,
+        "next_step": next_steps.get(status, "Inspect the retained workflow state."),
         "units": copy.deepcopy(units),
         **copy.deepcopy(extra),
     }
@@ -1346,6 +1365,8 @@ def _persist_controller_manifest(
         manifest["prior_work_completion"] = copy.deepcopy(
             result["prior_work_completion"]
         )
+    if "completion" in result:
+        manifest["completion"] = copy.deepcopy(result["completion"])
     manifest["manifest_sha256"] = canonical_hash(manifest)
     versioned = (
         controller_root
@@ -1683,7 +1704,13 @@ def _verify_saved_resolution(
         raise Stage2Error("controller-resolution-model-replay-mismatch")
 
 
-def verify_controller(output_dir, externally_retained_receipt):
+def verify_controller(
+    output_dir,
+    externally_retained_receipt,
+    *,
+    evaluation_dir=None,
+    expected_evaluation_manifest_sha256=None,
+):
     """Recompute a saved controller run and return its formal-admission facts."""
 
     root = Path(output_dir).resolve()
@@ -1717,7 +1744,12 @@ def verify_controller(output_dir, externally_retained_receipt):
         "stage3_execution_authorized",
         "manifest_sha256",
     }
-    allowed = (required, required | {"prior_work_completion"})
+    allowed = (
+        required,
+        required | {"prior_work_completion"},
+        required | {"completion"},
+        required | {"prior_work_completion", "completion"},
+    )
     if (
         not isinstance(manifest, dict)
         or set(manifest) not in allowed
@@ -1828,6 +1860,10 @@ def verify_controller(output_dir, externally_retained_receipt):
         _snapshot_hash(base),
         synthetic=manifest["synthetic_test_only"],
     )
+    declared_base_hash = _snapshot_hash(base)
+    action_ids = [row.get("action_id") for row in manifest["action_summaries"]]
+    if len(action_ids) != len(set(action_ids)):
+        raise Stage2Error("controller-action-summary-duplicate")
     modes = set()
     values = {}
     expected_rows = []
@@ -1886,15 +1922,15 @@ def verify_controller(output_dir, externally_retained_receipt):
         extraction_id, extraction_action = extraction_actions[0]
         extraction = values[extraction_id]
         base_hash = extraction_action["request"]["snapshot_sha256"]
-        base = next(
+        extraction_base = next(
             (row for row in state["snapshots"] if _snapshot_hash(row) == base_hash),
             None,
         )
-        if base is None:
+        if extraction_base is None or base_hash != declared_base_hash:
             raise Stage2Error("controller-extraction-base-snapshot-missing")
         rebuilt = build_next_packet(
-            base["packet"],
-            materialize_snapshot_input_root(base, root, create=False),
+            extraction_base["packet"],
+            materialize_snapshot_input_root(extraction_base, root, create=False),
             research["raw_proposal"],
             extraction["extraction"],
             base_hash,
@@ -1913,8 +1949,10 @@ def verify_controller(output_dir, externally_retained_receipt):
             extraction_output,
             extraction["replay_receipt"],
             raw_proposal=research["raw_proposal"],
-            packet=base["packet"],
-            source_root=materialize_snapshot_input_root(base, root, create=False),
+            packet=extraction_base["packet"],
+            source_root=materialize_snapshot_input_root(
+                extraction_base, root, create=False
+            ),
             snapshot_sha256=base_hash,
             expected_config=model_config,
             expected_policy=extraction_request["execution_policy"],
@@ -2009,15 +2047,83 @@ def verify_controller(output_dir, externally_retained_receipt):
             raise Stage2Error("controller-delivery-workflow-head-mismatch")
     elif manifest["status"] == "awaiting-human":
         raise Stage2Error("controller-ready-status-requires-delivery")
-    selection_ready = bool(
-        delivery
-        and delivery["manifest"]["local_reconciliation_ready"]
-        and delivery["manifest"]["delivery_status"] == "local-report-ready"
-    )
+    completion = None
+    if delivery is not None:
+        snapshot_hash = delivery["manifest"]["snapshot_sha256"]
+        snapshot = next(
+            row for row in state["snapshots"] if _snapshot_hash(row) == snapshot_hash
+        )
+        required_actions = {
+            f"ideation-{declared_base_hash[:16]}": (
+                "stage2-ideation-native",
+                declared_base_hash,
+            ),
+            f"extraction-{declared_base_hash[:16]}": (
+                "stage2-ideation-extraction",
+                declared_base_hash,
+            ),
+        }
+        for candidate_id in _latest_map(snapshot["packet"]):
+            for role in ROLES:
+                required_actions[
+                    f"review-{snapshot_hash[:12]}-{candidate_id}-{role}"
+                ] = ("stage2-independent-review", snapshot_hash)
+            required_actions[f"resolution-{snapshot_hash[:12]}-{candidate_id}"] = (
+                "stage2-review-reconciliation",
+                snapshot_hash,
+            )
+        if set(values) != set(required_actions):
+            raise Stage2Error("controller-required-action-set-incomplete")
+        for action_id, (kind, bound_snapshot) in required_actions.items():
+            request = state["actions"][action_id]["request"]
+            if (
+                request["action_kind"] != kind
+                or request["snapshot_sha256"] != bound_snapshot
+            ):
+                raise Stage2Error("controller-required-action-binding-mismatch")
+        review_inputs = delivery["manifest"]["review_input_files"]
+        delivery_root = delivery["root"]
+        saved_reviews = json.loads(
+            (delivery_root / review_inputs["reviews"]).read_text(encoding="utf-8")
+        )
+        for row in saved_reviews:
+            action_id = (
+                f"review-{snapshot_hash[:12]}-{row['candidate_id']}-{row['role']}"
+            )
+            if row["review"] != values[action_id]["review"]:
+                raise Stage2Error("controller-delivery-review-binding-mismatch")
+        saved_resolutions = json.loads(
+            (delivery_root / review_inputs["resolutions"]).read_text(encoding="utf-8")
+        )
+        for row in saved_resolutions["candidate_resolutions"]:
+            action_id = f"resolution-{snapshot_hash[:12]}-{row['candidate_id']}"
+            if row["resolution"] != values[action_id]["resolution"]:
+                raise Stage2Error("controller-delivery-resolution-binding-mismatch")
+        recorded = inspect_completion(
+            manifest["delivery_root"], manifest["delivery_manifest_sha256"]
+        )
+        if "completion" in manifest and manifest["completion"] != recorded:
+            raise Stage2Error("controller-completion-reconstruction-mismatch")
+        completion = (
+            inspect_completion(
+                manifest["delivery_root"],
+                manifest["delivery_manifest_sha256"],
+                evaluation_dir=evaluation_dir,
+                expected_evaluation_manifest_sha256=expected_evaluation_manifest_sha256,
+            )
+            if evaluation_dir is not None
+            or expected_evaluation_manifest_sha256 is not None
+            else recorded
+        )
+    elif evaluation_dir is not None or expected_evaluation_manifest_sha256 is not None:
+        raise Stage2Error("controller-assessment-requires-delivery")
+    selection_ready = bool(completion and completion["research_delivery_ready"])
+    stage2_complete = bool(completion and completion["stage2_complete"])
     pilot_executable = bool(
         authentic
         and manifest["status"] == "awaiting-human"
         and selection_ready
+        and stage2_complete
         and model_call_verification == "authenticated"
     )
     return {
@@ -2029,6 +2135,8 @@ def verify_controller(output_dir, externally_retained_receipt):
         "authentic_native_execution": authentic,
         "synthetic_test_only": synthetic,
         "selection_ready": selection_ready,
+        "stage2_complete": stage2_complete,
+        "completion": completion,
         "model_call_verification": model_call_verification,
         "model_call_blockers": model_call_blockers,
         "pilot_executable": pilot_executable,

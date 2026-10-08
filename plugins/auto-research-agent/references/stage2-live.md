@@ -125,6 +125,37 @@ tool provenance. Authentication files are never included in the session archive.
 
 ## What remains before formal A/B
 
+### What counts as completed Stage 2
+
+The controller's `awaiting-human` label alone is not a completion receipt.
+`selection_ready` requires the current source-bound comparison matrix, resource
+records and complete independent direction reviews. Drafts remain readable.
+`stage2_complete` additionally requires the exact selection's independently
+replayed v3 assessment. Missing assessment, necessary null scores and pending
+named audit stay incomplete; zero scores or zero recommendations are legitimate.
+
+`verify-controller` accepts an optional evaluated-delivery directory via
+`--evaluation` together with its externally retained
+`--expected-evaluation-manifest-sha256`. It reconstructs the delivery, requires
+every recorded native/extraction/review/reconciliation action, and compares the
+published reviews with those actually saved by the controller. Rehashing a
+manifest cannot hide a missing call or substitute another valid review package.
+
+Verification never launches models, creates Eric's choice, authorizes Stage 3
+or establishes formal A/B readiness. A complete assessment means the judgment
+is recorded and traceable; it does not mean every direction is feasible or good.
+The existing `follow-up-needed` response supplies a bounded lookup task, not an
+automatically completed lookup loop. Acquire lawful sources, add the validated
+immutable revision and freshly check affected candidates before continuing;
+never reuse an old PASS or claim the actual live pilots are complete.
+
+### 完成狀態的白話說明
+
+「有產生報告」不等於「Stage 2 完成」。先檢查比較矩陣、必要資源與兩位
+獨立查核的紀錄，再核對同一版本的外部評分。缺資料、必要分數未知或仍待
+真人覆核，就列出阻塞與下一步。零推薦、低分或方向被淘汰仍可完整交付。
+檢查通過也不會替使用者選題，不會自動開始 Stage 3，更不是 A/B 改善證明。
+
 Content replacement preserves the immutable limitations accepted at exploratory
 Stage 1 intake. New unresolved issues may replace superseded transient issues;
 they cannot erase the accepted scope, promote evidence or rewrite acceptance.
