@@ -1,5 +1,18 @@
 # Native workspace primitives
 
+An explicit `codex_probe.run_probe` adds a one-shot connection readiness check.
+It requires an absolute executable and SHA-256, an empty private working root,
+an exclusive receipt and a bounded protocol deadline. Only initialize,
+initialized and account/read(false) are sent. No thread, resume, turn, login,
+model, search or research operation is exposed. Account reads can contact the
+authentication backend. Sanitized receipts retain response hashes, failures and
+cleanup without account email, tokens or stderr. A check pass is an observation,
+not persistent session readiness, process containment or model entitlement.
+
+```powershell
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_codex_probe.py -v
+```
+
 Persistent injected JSON-RPC requires a deadline-aware channel, durable event sink
 and write-time binding checks. Typed IDs, exact answers and ambiguous failures stay
 distinct; failed connections cannot resend. Protocol pin: `b5d805789d4033c911868f49118a264a7ab3d067`.
