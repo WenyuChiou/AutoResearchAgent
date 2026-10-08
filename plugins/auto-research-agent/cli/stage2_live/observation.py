@@ -326,6 +326,7 @@ def collect_runtime_observation(
     thread_id=None,
     rpc_transport=None,
     rpc_timeout_seconds=120,
+    trace_root=None,
     _output_handle=None,
 ):
     """Collect private metadata; never dispatch turn/start or change settings."""
@@ -357,7 +358,7 @@ def collect_runtime_observation(
         raise CaptureError("thread_id must be nonempty when supplied")
     runtime = codex_runtime_sha(codex)
     try:
-        namespace = bind_namespace(codex, home, work)
+        namespace = bind_namespace(codex, home, work, trace_root=trace_root)
     except NativeNamespaceError as error:
         raise CaptureError(str(error)) from error
     config = home / "config.toml"
@@ -468,7 +469,8 @@ def collect_runtime_observation(
     _verify_transport(rows, events, responses)
     try:
         namespace_changed = (
-            namespace is not None and bind_namespace(codex, home, work) != namespace
+            namespace is not None
+            and bind_namespace(codex, home, work, trace_root=trace_root) != namespace
         )
     except NativeNamespaceError as error:
         raise CaptureError(str(error)) from error
@@ -568,6 +570,7 @@ def verify_runtime_observation(output_dir, receipt, *, allow_synthetic=False):
                     namespace["scope"]["codex"],
                     namespace["scope"]["home"],
                     namespace["scope"]["workspace"],
+                    trace_root=namespace.get("trace_root"),
                 )
                 if current != namespace:
                     raise CaptureError("observation namespace binding changed")

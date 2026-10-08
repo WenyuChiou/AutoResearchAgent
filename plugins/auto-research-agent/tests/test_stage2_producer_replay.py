@@ -150,6 +150,64 @@ class ProducerReplayTests(unittest.TestCase):
             )
         self.assertEqual((case.calls, case.rpc_calls), (1, 1))
 
+    def test_action_trace_child_forwards_exact_deadline_and_request(self):
+        child = self.root / "action-1"
+        child.mkdir()
+        self.request["trace_root"] = str(child)
+        self.request["timeout_seconds"] = 600
+        self.request["policy_bindings"]["schema_version"] = "1.1.0"
+        with (
+            patch.object(
+                producer_replay.trace_producer, "_verify", return_value=self.record
+            ) as verify,
+            patch.object(
+                producer_replay.trace_observation,
+                "inspect_native_trace",
+                return_value=self.observed,
+            ),
+            patch.object(
+                producer_replay.trace_producer.observation,
+                "verify_runtime_observation",
+                return_value={"status": "observed"},
+            ),
+            patch.dict("os.environ", {"CODEX_ROLLOUT_TRACE_ROOT": "unrelated-ambient"}),
+        ):
+            result = producer_replay.verify_producer_inventory(
+                child, "p" * 64, capture_request=self.request
+            )
+            verify.assert_called_once_with(
+                self.request, child, "p" * 64, allow_synthetic=False
+            )
+        self.assertFalse(result["formal_ready"])
+
+    def test_foreign_root_or_legacy_policy_cannot_accept_action_trace(self):
+        child = self.root / "action-1"
+        child.mkdir()
+        self.request["trace_root"] = str(child)
+        self.request["policy_bindings"]["schema_version"] = "1.1.0"
+        with patch.object(producer_replay.trace_producer, "_verify") as verify:
+            for request, root in (
+                (self.request, self.root),
+                ({**self.request, "trace_root": str(self.root)}, self.root),
+                ({**self.request, "trace_root": None}, child),
+                (
+                    {
+                        **self.request,
+                        "policy_bindings": {
+                            **self.request["policy_bindings"],
+                            "schema_version": "1.0.0",
+                        },
+                    },
+                    child,
+                ),
+                ({**self.request, "extra": True}, child),
+            ):
+                with self.assertRaises(CaptureError):
+                    producer_replay.verify_producer_inventory(
+                        root, "p" * 64, capture_request=request
+                    )
+            verify.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

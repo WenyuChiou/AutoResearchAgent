@@ -25,7 +25,7 @@ from .trace_seal_io import SealDirectory
 CONTROL = "producer.json"
 
 
-def _telemetry(policy):
+def _telemetry(policy, trace_root=None):
     _require(
         isinstance(policy, dict)
         and policy.get("kind") == native_policy.NAMED_POLICY_KIND
@@ -35,15 +35,37 @@ def _telemetry(policy):
     ambient = os.environ.get("CODEX_ROLLOUT_TRACE_ROOT")
     declared = policy["telemetry_path"]
     _require(
+        trace_root is None or isinstance(trace_root, (str, os.PathLike)),
+        "producer-action-trace-root-invalid",
+    )
+    selected = declared if trace_root is None else os.fspath(trace_root)
+    if trace_root is not None:
+        _require(
+            policy.get("schema_version") == native_policy.CAPTURE_ROOT_POLICY_VERSION,
+            "producer-action-trace-requires-policy-1.1",
+        )
+        path = Path(selected)
+        _require(
+            path.is_absolute()
+            and str(path.resolve()) == selected
+            and Path(declared).is_absolute()
+            and str(Path(declared).resolve()) == declared
+            and path != Path(declared)
+            and path.is_relative_to(Path(declared)),
+            "producer-action-trace-root-invalid",
+        )
+        status = _regular(path, "producer-action-trace-root")
+        _require(stat.S_ISDIR(status.st_mode), "producer-action-trace-root-invalid")
+    _require(
         isinstance(ambient, str)
         and ambient
         and Path(ambient).is_absolute()
         and Path(declared).is_absolute()
-        and ambient == declared
+        and ambient == selected
         and str(trace_capture._absolute(ambient)) == ambient,
         "producer-telemetry-binding-mismatch",
     )
-    root = Path(ambient)
+    root = Path(selected)
     status = _regular(root, "producer-telemetry-root")
     _require(stat.S_ISDIR(status.st_mode), "producer-telemetry-root-invalid")
     return root
@@ -131,6 +153,7 @@ def _request(args):
             args["config_bindings"],
             args["policy_bindings"],
             timeout,
+            trace_root=args.get("trace_root"),
         )
     )
 
@@ -282,7 +305,13 @@ def _read(bundle, receipt):
     return value
 
 
-def _verify(args, root, receipt, *, allow_synthetic):
+def _verify(args, root, receipt, *, allow_synthetic, workspace_mode="current"):
+    # Historical verification is read-only. The capture/resume entrypoint never
+    # supplies this mode: resuming still requires the unchanged live workspace.
+    _require(
+        workspace_mode in {"current", "archived"},
+        "producer-workspace-verification-mode-invalid",
+    )
     bundle = root / "bundle"
     record = _read(bundle, receipt)
     _require(
@@ -333,10 +362,11 @@ def _verify(args, root, receipt, *, allow_synthetic):
         == canonical_hash(current_request),
         "producer-current-binding-changed",
     )
-    _require(
-        capture["workspace_end"] == native._path_binding(args["workspace"]),
-        "producer-workspace-changed",
-    )
+    if workspace_mode == "current":
+        _require(
+            capture["workspace_end"] == native._path_binding(args["workspace"]),
+            "producer-workspace-changed",
+        )
     trace = record["trace"]
     _require(
         isinstance(trace, dict)
@@ -383,7 +413,7 @@ def _capture_observed_native(
     _require(
         process_injected == allow_synthetic_test, "producer-synthetic-seam-mismatch"
     )
-    root = _telemetry(args["policy_bindings"])
+    root = _telemetry(args["policy_bindings"], args.get("trace_root"))
     native._assert_separate(
         root, args["codex_home"], args["workspace"], args["capture_dir"]
     )
@@ -408,6 +438,7 @@ def _capture_observed_native(
                     workspace=args["workspace"],
                     output_dir=root / "bundle" / "inventory",
                     rpc_transport=rpc_transport,
+                    trace_root=args.get("trace_root"),
                     _output_handle=inventory_handle,
                 )
     _observation_binding(inventory, current_request)
