@@ -13,7 +13,10 @@ CLI = Path(__file__).resolve().parents[1] / "cli"
 sys.path.insert(0, str(CLI))
 
 from stage2_common import Stage2Error  # noqa: E402
-from stage2_live.no_tool_trace_evidence import verify_no_tool_trace_evidence  # noqa: E402
+from stage2_live.no_tool_trace_evidence import (  # noqa: E402
+    _read_only_sandbox,
+    verify_no_tool_trace_evidence,
+)
 from native_trace_fixture import NativeTraceFixture  # noqa: E402
 
 
@@ -23,6 +26,45 @@ def _write(path, value):
 
 
 class NoToolTraceEvidenceTests(unittest.TestCase):
+    def test_native_managed_read_only_profile_requires_exact_grants(self):
+        profile = {
+            "type": "managed",
+            "file_system": {
+                "type": "restricted",
+                "entries": [
+                    {
+                        "path": {"type": "special", "value": {"kind": "root"}},
+                        "access": "read",
+                    }
+                ],
+            },
+            "network": "restricted",
+        }
+        self.assertEqual(
+            _read_only_sandbox({"permission_profile": profile}), "read-only"
+        )
+        for mutation in (
+            lambda p: p["file_system"]["entries"][0].update(access="write"),
+            lambda p: p["file_system"]["entries"].append({"access": "write"}),
+            lambda p: p.update(network="enabled"),
+            lambda p: p.update(unrecognized=True),
+        ):
+            value = json.loads(json.dumps(profile))
+            mutation(value)
+            with self.assertRaisesRegex(Stage2Error, "permission-profile-unsupported"):
+                _read_only_sandbox({"permission_profile": value})
+        with self.assertRaisesRegex(Stage2Error, "permission-profile-unsupported"):
+            _read_only_sandbox(
+                {
+                    "permission_profile": profile,
+                    "sandbox_policy": {"type": "workspace-write"},
+                }
+            )
+        self.assertIsNone(_read_only_sandbox({}))
+        self.assertEqual(
+            _read_only_sandbox({"sandbox_policy": {"type": "read-only"}}), "read-only"
+        )
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

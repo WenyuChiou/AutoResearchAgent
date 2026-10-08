@@ -371,7 +371,12 @@ def validate_research_tables(research_tables: dict, packet: dict) -> dict:
                 )
                 _require(
                     source.get("evidence_level") != "metadata",
-                    "known cell status requires non-metadata evidence",
+                    "known cell status requires non-metadata evidence: "
+                    f"dimension={row['dimension_id']}, work={key[0]}, "
+                    f"version={key[1]}, evidence={evidence_id}, "
+                    f"source={source.get('source_id')}, status={status}; "
+                    "use unknown with null value and a next lookup when "
+                    "the source does not establish the answer",
                 )
         if status == "absent":
             _text(row["inspection_scope"], "absent inspection_scope")
