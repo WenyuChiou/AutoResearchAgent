@@ -444,6 +444,25 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "stage3_planning_context_mechanism": "Opt-in planning package1.0 retains selected scientific question/method, complete validated comparison/bibliography/resource/prior-work context and original user choice. Receiver reopens the required delivery and original interaction/native message against externally retained hashes and recomputes the projection. Missing legacy context and unknowns remain explicit; internally rehashed omissions or changed versions fail. Old interaction/handoff1.0 is unchanged. No new choice, human identity, execution authorization, semantic feasibility, live Stage3 completion or A/B improvement is established.",
+      "stage3_planning_context_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py",
+        "plugins/auto-research-agent/tests/test_stage2_workflow_cli.py"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_workflow_store.py",
+        "plugins/auto-research-agent/tests/test_stage1_stage2_handoff.py",
+        "plugins/auto-research-agent/tests/test_stage2_workflow_reviews.py",
+        "plugins/auto-research-agent/tests/test_stage2_workflow_cli.py",
+        "plugins/auto-research-agent/tests/test_stage2_orchestration.py",
+        "plugins/auto-research-agent/tests/test_stage2_delivery.py",
+        "plugins/auto-research-agent/tests/test_stage2_interaction.py",
+        "plugins/auto-research-agent/tests/test_stage2_report_html.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py",
+        "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py",
+        "plugins/auto-research-agent/tests/test_stage2_prerequisites.py",
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
       ]
     },
     {
