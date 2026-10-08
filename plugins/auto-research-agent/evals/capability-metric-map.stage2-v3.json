@@ -301,9 +301,19 @@
         "plugins/auto-research-agent/tests/test_stage2_native_process.py",
         "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
       ],
-      "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
+      "topic_cell_extraction_contract": "The saved-proposal extractor explains the existing text/quantity/feature cell contract before generation; malformed cells fail closed with work/version/dimension identity. Known statuses, including partial, require exact-work/version non-metadata evidence; metadata-only uncertainty stays unknown rather than partial. Evidence-level rejection identifies the exact dimension, work, version, evidence, source and status for bounded correction. It preserves unknown versus absence, source evidence and rejected attempts; no automatic coercion, additional semantic retry, rubric change or scientific improvement claim.",
+      "native_managed_read_only_trace_contract": "Effective-config parsing additionally recognizes only the exact observed managed/restricted root-read profile with restricted network. Unknown fields, extra grants, write access, enabled network and conflicting legacy sandbox declarations fail closed. Missing profiles retain legacy parsing; this changes observation compatibility, never actual permissions, evidence seals, runtime conditions or formal admission.",
+      "native_managed_read_only_trace_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_evidence.py"
+      ],
+      "all_attempt_seals_before_verification": "Fresh capture copies and seals every authenticated unit before semantic verification, so failure of the first unit retains later correction seals without granting completion. Existing original failures cannot retroactively gain a before-call witness or an original seal.",
+      "all_attempt_seals_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_no_tool_trace_capture.py"
+      ],
       "topic_cell_extraction_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py"
+        "plugins/auto-research-agent/tests/test_stage2_table_cell_contract.py",
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_extraction.py"
       ],
       "candidate_review_context_mechanism": "Opt-in initial review view1.1 carries exact current-candidate resource rows and the existing five-axis assessed/unknown anchors into native review and tool-free extraction. Legacy1.0 bindings remain reconstructible; mismatched or mixed review versions fail closed. Optional alternatives do not become mandatory requirements, unknown enabling prerequisites do not become evidenced failure, and raw reviewer judgments are not automatically repaired. Transport and validation tests do not establish scientific judgment quality, complete B execution, formal isolation or A/B improvement.",
       "candidate_review_context_test_refs": [

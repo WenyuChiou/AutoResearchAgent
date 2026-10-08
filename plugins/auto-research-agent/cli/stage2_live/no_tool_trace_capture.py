@@ -234,6 +234,10 @@ def _finish_trace_capture(
                 "seal_sha256": seal_sha,
                 "trace_root": str(trace_root),
             }
+        # Preserve every authenticated attempt before any semantic check can
+        # fail. A failed first unit must not discard later correction traces.
+        for unit, (provenance, _) in units.items():
+            receipt = receipts[unit]
             verifier = (
                 verify_no_tool_trace_evidence
                 if execution_policy == "no-offered-tools-v1"
@@ -241,9 +245,9 @@ def _finish_trace_capture(
             )
             proof = verifier(
                 provenance,
-                trace_root,
-                seal_path,
-                seal_sha,
+                receipt["trace_root"],
+                receipt["seal_path"],
+                receipt["seal_sha256"],
                 expected_config=expected_config,
             )
             results[unit] = {**receipts[unit], "proof": proof}

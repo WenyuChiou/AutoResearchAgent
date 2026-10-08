@@ -95,6 +95,32 @@ def _attempts(provenance, expected):
     return fingerprint, attempts
 
 
+def _read_only_sandbox(value):
+    sandbox = value.get("sandbox_policy")
+    legacy = sandbox.get("type") if isinstance(sandbox, dict) else sandbox
+    profile = value.get("permission_profile")
+    if profile is None:
+        return legacy
+    # Admit only the observed native managed, globally read-only profile.
+    # No write grants, extra entries or unknown permission fields are inferred.
+    expected = {
+        "type": "managed",
+        "file_system": {
+            "type": "restricted",
+            "entries": [
+                {
+                    "path": {"type": "special", "value": {"kind": "root"}},
+                    "access": "read",
+                }
+            ],
+        },
+        "network": "restricted",
+    }
+    if profile != expected or legacy not in {None, "read-only"}:
+        _fail("effective-permission-profile-unsupported")
+    return "read-only"
+
+
 def _effective(raw, root):
     configs, models = [], []
     for line in raw["trace.jsonl"].splitlines():
@@ -116,11 +142,11 @@ def _effective(raw, root):
             models.append(request["model"])
     if len(configs) != 1:
         _fail("effective-config-missing-or-duplicate")
-    value, sandbox = configs[0], configs[0].get("sandbox_policy")
+    value = configs[0]
     return {
         "model": value.get("model"),
         "reasoning": value.get("reasoning_effort"),
-        "sandbox_mode": sandbox.get("type") if isinstance(sandbox, dict) else sandbox,
+        "sandbox_mode": _read_only_sandbox(value),
         "approval_policy": value.get("approval_policy"),
     }, models
 
