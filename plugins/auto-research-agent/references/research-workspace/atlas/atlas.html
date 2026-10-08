@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Harness | Evidence Atlas</title>
+  <link rel="stylesheet" href="./atlas.css">
+</head>
+<body>
+  <div class="atlas-shell">
+    <aside class="atlas-sidebar">
+      <a class="atlas-brand" href="./index.html">harness<span>RESEARCH STUDIO</span></a>
+      <nav id="atlas-stages" aria-label="Research stages"></nav>
+      <a id="atlas-original" href="./index.html">Original workspace · session &amp; scope</a>
+    </aside>
+    <div class="atlas-main">
+      <header class="atlas-topbar">
+        <div><strong id="atlas-project"></strong><p id="atlas-status"></p></div>
+        <label><span id="atlas-language-label">Language</span>
+          <select id="atlas-language"><option value="en">English</option><option value="zh-Hans">简体中文</option><option value="zh-Hant">繁體中文</option></select>
+        </label>
+      </header>
+      <main id="atlas-content"></main>
+      <footer id="atlas-footer"></footer>
+    </div>
+  </div>
+  <script src="./atlas-data.js"></script>
+  <script src="./atlas-model.js"></script>
+  <script src="./atlas-ui.js"></script>
+</body>
+</html>
