@@ -371,6 +371,17 @@ class SavedSourceRerunTests(unittest.TestCase):
         output = Path(repaired.repair.temporary.name).resolve() / "v2-view"
         receipt = write_workspace(repaired.index, reference, output)
         producer = Path(__file__).parents[1] / "cli/stage1_deliverable"
+        workspace = producer.with_name("research_workspace")
+        self.assertEqual(
+            {
+                name: receipt["adapter_sources"][name]
+                for name in ("body_review.py", "body_review_attachment.py")
+            },
+            {
+                name: sha((workspace / name).read_bytes())
+                for name in ("body_review.py", "body_review_attachment.py")
+            },
+        )
         for name in ("views.py", "common.py", "records.py", "sources.py", "package.py"):
             with self.subTest(name=name):
                 self.assertEqual(
