@@ -133,6 +133,12 @@
     },
     {
       "capability_id": "cli:stage2-live",
+      "native_role_namespace_contract": "Opt-in Linux role namespace binds dispatcher, image bytes/modes/ownership, standalone executable, DNS and narrow role directories. Capture, observation and evaluator replay reconstruct the same shell-free prefix; changed scope cannot resume. The prefix does not change native permission arguments or attest successful tools, network policy, functional preflight, judge quality or formal readiness. Legacy execution remains unchanged when no scope file exists.",
+      "native_role_namespace_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_namespace.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_namespace_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_trace_producer_namespace.py"
+      ],
       "native_incomplete_capture_contract": "The shared production capture seam rejects missing or noncomplete native status before success-only environment verification, review extraction or reconciliation. Original failed artifacts remain intact. An unavailable model or interrupted call is an execution failure, never a zero scientific score, absent reviewer agreement or a completed pilot. No retry, model, policy, sandbox or rubric change.",
       "native_incomplete_capture_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
