@@ -1,5 +1,34 @@
 # Read-only research workspace
 
+## Optional evidence atlas
+
+Add `--atlas` to the existing CLI command to export `atlas.html` alongside the
+original `index.html`. Open either file directly, or serve the output directory
+on loopback with `python -m http.server 8765 --bind 127.0.0.1`.
+The atlas uses the reviewed v9 navy layout, larger text and three UI languages.
+Source titles, classifications, findings and decision reasons remain verbatim.
+
+The working collection shows the canonical included records, without a fixed
+30–40 limit. If none are included, it explicitly shows pending records. The
+screening archive retains every work/version, exclusion reason and historical
+decision. Missing discovery counts or relevance ranks stay Unknown; recorded
+order, title and year sorting remain available.
+
+Topic and method nodes open the corresponding collection. Paper nodes open
+details, sources, reading attempts, notes and canonical bibliography links.
+Distance uses method-label Jaccard only, not citation or evidence strength.
+Six representative neighbors keep the map readable; the complete set remains
+paginated. Stage 2 browses its own externally bound attachment, direction sets,
+comparison cells, candidate references and original assessment. It never infers
+Stage 1 lineage from matching titles or IDs. Missing scores and audits stay open.
+
+`atlas-binding.json` and `view-manifest.json` bind the exact index, attachment,
+data and presentation bytes. Default exports and the four pinned reference
+assets retain their existing behavior. The original workspace remains the
+session/scope/review entry point; this companion starts no native process,
+model call, search, rerun or evaluation. Browser fixtures are synthetic cases,
+not Windows native or scientific acceptance.
+
 This first #80/#82 slice projects an existing Stage 1 package into an English
 HTML workspace, notes, a graph, a complete catalog and bibliography. It does not
 change canonical research records or rebuild the original deliverable. English
