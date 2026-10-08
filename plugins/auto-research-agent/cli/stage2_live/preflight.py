@@ -1096,6 +1096,14 @@ def inspect_preflight(
     capture_dir, record_sha256_receipt, probe_spec, *, inventory_receipt=None
 ):
     """Reconstruct functional capability evidence from one authentic capture."""
+    if isinstance(probe_spec, dict) and probe_spec.get("schema_version") == "1.2.0":
+        from .preflight_observed import inspect_observed_preflight
+
+        if inventory_receipt is not None:
+            raise PreflightError("observed probe uses its own producer inventory")
+        return inspect_observed_preflight(
+            capture_dir, record_sha256_receipt, probe_spec
+        )
     production = _validate_probe_spec(probe_spec)
     capture = Path(capture_dir).resolve()
     try:

@@ -13,6 +13,11 @@ import re
 import shutil
 
 from .native_policy import NAMED_POLICY_KIND, NamedPolicyError, named_policy_args
+from .native_namespace import (
+    NativeNamespaceError,
+    bind_namespace,
+    wrap_namespace,
+)
 from .native_process import run_bound_process, validate_timeout_seconds
 
 
@@ -293,6 +298,9 @@ def _request_binding(
     config_bindings,
     policy_bindings,
     timeout_seconds=None,
+    *,
+    bind_native_scope=True,
+    trace_root=None,
 ):
     profile_config = _normal_path(codex_home) / "config.toml"
     profile_binding = (
@@ -314,6 +322,15 @@ def _request_binding(
     }
     if timeout_seconds is not None:
         binding["timeout_seconds"] = timeout_seconds
+    if bind_native_scope:
+        try:
+            namespace = bind_namespace(
+                codex, codex_home, workspace, trace_root=trace_root
+            )
+        except NativeNamespaceError as error:
+            raise CaptureError(str(error)) from error
+        if namespace is not None:
+            binding["native_namespace"] = namespace
     return binding
 
 
@@ -331,6 +348,12 @@ def _archive_start(output, binding, prompt_bytes):
     profile = binding.get("codex_profile_config")
     if profile:
         _copy_binding(profile["path"], archive / "profile-config.toml")
+    namespace = binding.get("native_namespace")
+    if namespace:
+        archived = archive / "native-namespace.json"
+        _copy_binding(namespace["path"], archived)
+        if sha256(archived.read_bytes()) != namespace["sha256"]:
+            raise CaptureError("native namespace changed before archival")
     for category in ("input_bindings", "config_bindings"):
         for name, item in binding[category].items():
             _copy_binding(item["path"], archive / category / name)
@@ -346,7 +369,7 @@ def _expected_command(record, output):
             )
         except (NamedPolicyError, OSError) as error:
             raise CaptureError(str(error)) from error
-    return [
+    command = [
         stable["codex"],
         "exec",
         *sandbox_args,
@@ -362,6 +385,14 @@ def _expected_command(record, output):
         str(output / "final.txt"),
         "-",
     ]
+    try:
+        namespace = stable.get("native_namespace")
+        sink = output / "final.txt" if namespace and "trace_root" in namespace else None
+        if sink is None:
+            return wrap_namespace(command, namespace)
+        return wrap_namespace(command, namespace, output_sink=sink)
+    except NativeNamespaceError as error:
+        raise CaptureError(str(error)) from error
 
 
 def _verify_archives(output, record):
@@ -381,6 +412,11 @@ def _verify_archives(output, record):
         _path_binding(archive / "profile-config.toml"), profile
     ):
         raise CaptureError("archived profile config differs from frozen binding")
+    namespace = stable.get("native_namespace")
+    if namespace and (
+        sha256((archive / "native-namespace.json").read_bytes()) != namespace["sha256"]
+    ):
+        raise CaptureError("archived native namespace differs from frozen binding")
     for category in ("input_bindings", "config_bindings"):
         for name, expected in stable[category].items():
             if not _same_binding_bytes(
@@ -485,6 +521,7 @@ def capture_native(
     process_runner=None,
     record_sha256_receipt=None,
     timeout_seconds=None,
+    trace_root=None,
 ):
     """Run once, or verify and replay a completed capture without re-execution.
 
@@ -517,6 +554,26 @@ def capture_native(
     ):
         raise CaptureError("exact model and reasoning are required")
     prompt_bytes = _prompt_bytes(prompt)
+    if policy_bindings != SUBJECT_EXECUTION_POLICY:
+        policy_request = _request_binding(
+            codex,
+            codex_home,
+            workspace,
+            prompt_bytes,
+            model,
+            reasoning,
+            input_bindings,
+            config_bindings,
+            policy_bindings,
+            timeout_seconds,
+            bind_native_scope=False,
+        )
+        try:
+            named_policy_args(
+                policy_request, (codex_home / "config.toml").read_bytes(), output
+            )
+        except (NamedPolicyError, OSError) as error:
+            raise CaptureError(str(error)) from error
     current = _request_binding(
         codex,
         codex_home,
@@ -528,14 +585,13 @@ def capture_native(
         config_bindings,
         policy_bindings,
         timeout_seconds,
+        trace_root=trace_root,
     )
-    if policy_bindings != SUBJECT_EXECUTION_POLICY:
-        try:
-            named_policy_args(
-                current, (codex_home / "config.toml").read_bytes(), output
-            )
-        except (NamedPolicyError, OSError) as error:
-            raise CaptureError(str(error)) from error
+    namespace = current.get("native_namespace")
+    if namespace is not None:
+        capture_root = Path(namespace["scope"]["capture_root"]).resolve()
+        if output != capture_root and not output.is_relative_to(capture_root):
+            raise CaptureError("namespace capture output must be inside capture_root")
     if output.exists():
         if not resume:
             raise CaptureError("capture output already exists")
@@ -559,6 +615,9 @@ def capture_native(
     output.mkdir(parents=True)
     _archive_start(output, current, prompt_bytes)
     final_path = output / "final.txt"
+    if namespace and "trace_root" in namespace:
+        with final_path.open("xb"):
+            pass
     command = _expected_command(
         {"stable_request_binding": _stable_request(current)}, output
     )

@@ -28,14 +28,26 @@ def _enable_tables(args):
     """Prepare a new opt-in run seed without rewriting or promoting its parent."""
     original = _read(args.packet)
     validate_packet(original, args.source_root)
-    if original["schema_version"] not in {"2.0.0", "2.1.0"} and not (
-        original["schema_version"] == "2.2.0" and args.supplemental_versions
+    if (
+        original["schema_version"] not in {"2.0.0", "2.1.0"}
+        and not (original["schema_version"] == "2.2.0" and args.supplemental_versions)
+        and not (original["schema_version"] == "2.3.0" and args.prior_work_reviews)
     ):
         raise Stage2Error("topic tables require a v2 or exploratory v2.1 input seed")
     packet = copy.deepcopy(original)
-    packet["schema_version"] = "2.3.0" if args.supplemental_versions else "2.2.0"
+    packet["schema_version"] = (
+        "2.4.0"
+        if args.prior_work_reviews
+        else "2.3.0"
+        if args.supplemental_versions
+        else "2.2.0"
+    )
     if args.supplemental_versions:
         packet["supplemental_literature"] = []
+    elif args.prior_work_reviews:
+        packet.setdefault("supplemental_literature", [])
+    if args.prior_work_reviews:
+        packet["prior_work_reviews"] = []
     packet["research_tables"] = None
     validate_packet(packet, args.source_root)
     output = Path(args.output).absolute()
@@ -70,6 +82,11 @@ def main(argv=None):
         "--supplemental-versions",
         action="store_true",
         help="start a new v2.3 run with an empty supplemental literature history",
+    )
+    enable.add_argument(
+        "--prior-work-reviews",
+        action="store_true",
+        help="opt in to packet 2.4 candidate/source-bound prior-work reviews",
     )
     report = commands.add_parser("report", help="export an unassessed ideation draft")
     for name in (

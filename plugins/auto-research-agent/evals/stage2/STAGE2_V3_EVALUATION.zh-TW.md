@@ -1,5 +1,24 @@
 # Stage 2 v3：研究流程、平衡評分與透明交付
 
+### 原生執行紀錄如何核對
+
+`stage2_live.execution_inventory.inspect_execution_inventory` 只讀取已封存的
+原生執行與外部保存的 producer receipt，不再呼叫模型。它保存實際送給
+模型的 developer 訊息、可用工具、子 agent 關係，以及原生設定、skills、
+plugins、MCP 的回應。每個項目都能回到原始 bytes 與 hash。
+
+「所有呼叫都有記錄」與「所有 token 用量都可得」分開表示。取消的呼叫
+仍算一次嘗試；缺少用量保持 unknown，不能填零或宣稱符合 token 預算。
+RPC 回應使用原生觀察器的獨立大小上限，不能錯套單一 trace 檔案上限。
+此接口不會自行證明角色隔離、完整預演、正式 A/B 或研究品質改善。
+
+前例定位的 packet 2.4 接口及操作流程見
+[前例定位說明](../../references/stage2-prior-work.zh-TW.md)。它把候選、來源、
+實際搜尋及重疊／差異綁在同一版，送到獨立查核與 Markdown／HTML／Wiki。
+P5V3.PRECEDENT 的標準不改：完整表格不自動等於 2 分，已找到前例也不
+自動代表方向無價值。合法原文仍無法取得時保留限制，不能重評到滿分為止。
+新版候選或來源不能混用旧定位、旧評語或 Eric 對舊報告的覆核。
+
 交付物可以選擇保存「已登記的內容歷史」：候選修訂、比較表更新和補查
 沿著原本的事件及來源版本保留，搬到其他電腦仍能重新核對。這個 v2
 紀錄只證明內容曾變更並登記，不證明作者、模型呼叫成功或使用者同意。
@@ -253,3 +272,43 @@ SourceContextPolicy1.1 允許真實引文跨越連續段落，保留原檔換行
 舊版未提供 policy 時維持原行為。沒有來源語境的舊紀錄仍有 JSON key
 順序可能不符的已知限制；本次不冒稱修好該情況。這類重播故障屬於評估器
 故障，不能扣研究品質分數。原始紀錄保留，不為通過查核重跑已完成模型。
+
+### 多步研究的執行紀錄與歷史查核
+
+每一步可使用受保護 telemetry 目錄下獨立的 `trace_root`。原生捕捉、
+工具清單、來源 hash 和 namespace 都綁定同一個子目錄；不能把另一個
+步驟的 receipt 拿來使用。父目錄及其他步驟不因此開放給研究 agent。
+另外只開放預先建立的 `final.txt` 單檔，接收 Codex 的最終回覆；
+不開放 capture 父目錄、archive 或其他步驟的輸出。
+這個選項要求 named policy1.1；未提供時保留舊版目錄與驗證方式。
+
+研究往下走後，工作目錄會增加檔案。`verify_historical_producer_inventory`
+與 `inspect_historical_execution_inventory` 只查已封存的執行證據，輸出
+`verified-history-no-execution`。它們仍核對原始輸入、設定、程式、
+runtime、來源和外部 receipt；不呼叫模型，也不能授權重新執行。
+
+真正的 resume 仍要求工作目錄與原來完成時一致。工作目錄變了，只能
+查歷史，不能假装符合原本的 resume 條件。未知 tokens、費用、失敗和
+未完成狀態照原樣保留。這些接口不代表完整 Stage2、正式隔離或 A/B 改善。
+
+### 無工具擷取的原始呼叫查核
+
+先用既有 v3.1 驗證器核對模型呼叫封包，再以外部保留的 seal hash 核對所有實際 attempt 的原生日誌。
+確認實際模型設定、零工具、零子 agent，並保留傳輸失敗與 unknown 用量；不能只相信「無工具」旗標。
+這是原始呼叫證據查核，不會啟動模型，也不代表正式 A/B 的環境隔離或研究改善。
+
+## 原生能力證據 v1.2
+
+`Stage2ProductionRuntimeProbeSpec` v1.2 先核對外部保存的 producer、native capture 與 trace receipts，再檢查實際讀取、寫入、原生搜尋及子 agent 的完成紀錄。命令與輸出必須屬於同一工作目錄和原生 turn；子 agent 的繼承設定與自身設定都須符合政策。
+
+驗證只讀取已保存的證據，不重跑模型，也不執行 trace 裡的程式碼。缺紀錄、receipt 不符、未完成或政策不同時拒絕；不能靠自填 `passed` 通過。v1.1 仍保留原有行為。
+
+這是一般 B 流程的能力門檻；不證明 A/B 檔案隔離、完整預演或研究品質改善。跨主機無法核實的 shell alias 也不會被默認接受。
+
+### 每一步的原生呼叫紀錄
+
+一次研究動作保存自己的 trace root，以及原生呼叫、producer、runtime 三份原始 receipt。
+程式用這些 receipt 重建實際工具、子 agent、失敗及用量，不相信手填的成功標籤。
+若清單驗證失敗，仍保留可恢復的原始紀錄；unknown 成本不變成零。
+歷史重建不會重新執行模型，也不代表取得新的執行權限。
+此接口是一般 B 流程的基礎，不能證明兩個預演完成、正式隔離或科學品質改善。

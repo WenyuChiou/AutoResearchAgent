@@ -60,6 +60,22 @@ Private papers, source text, actual indexes and snapshots never belong in Git.
 Public fixtures are synthetic. Rendering success and byte checks do not prove
 P1-P3 quality improvement or actual native execution.
 
+### Separately bound PDF body review
+
+A saved-source rerun may reference an engineering-only body-review bundle and
+its canonical verification result. Supply each externally accepted digest with
+`--expected-body-review-acceptance-sha256`; a declared digest inside the bundle
+alone is insufficient. The adapter verifies source, version, reading attempt,
+original parser, independent reader/runtime artifacts, every page, quotations,
+and separately reviewed discrepancies before attaching evidence.
+
+The verification result must also be a byte-bound rerun artifact. Its cached
+projection is checked again against that artifact and the current reading.
+The original source rows, automatic diagnostics and body-completeness decision
+remain unchanged. Evidence appears separately in selection bindings and saved
+rerun exports; this slice cannot grant formal eligibility, authenticate declared
+reviewer identity, repair scientific claims or authorize Stage 2 execution.
+
 ### Accepted private repair overlay API
 
 `project_package` accepts `repair_root`, `expected_repair_manifest_sha256` and
@@ -97,3 +113,29 @@ Markdown and BibTeX. Every exported source byte remains private and bound to
 the accepted manifest. Rebuilding a saved v3 view reads only those artifacts;
 it does not rerun the parser, acquire sources, score quality or alter the
 original scientific record.
+
+The derived `literature_selection` payload applies one topic-independent rule:
+include readable full text with matching work/source/version/hash and confirmed
+source identity. Abstract-only, metadata-only, inaccessible, failed, truncated
+or explicitly incomplete sources remain in the screening list with their reasons.
+Readable full text whose identity is unverified stays pending. A claim's Unknown
+status does not remove an otherwise eligible work. Legacy indexes without a
+current source review stay pending; no historical record is rewritten.
+
+Selection rule `1.1.0` also requires affirmative body-extent evidence. PDF
+receipts reconcile the total, readable and located pages and extracted-text
+extent. Non-PDF receipts require a full-body `document_extent` bound to the raw
+and extracted hashes, matching character counts and a complete body locator.
+A `full-text` label or `complete: true` alone is insufficient. Missing proof or
+unreviewed extraction fidelity stays pending; contradictory extent is excluded.
+These checks establish recorded extraction extent, not semantic correctness,
+claim support or research sufficiency. Old source records are never restamped.
+
+`literature/` exports the same bound selection as JSON, CSV, Markdown, Excel
+(Included, Screening and Selection sheets), an included bibliography and the
+complete screening bibliography. The payload provides the frontend contract;
+new selection bibliographies use version-bound citation keys recorded in each
+selection row; the original complete bibliography retains its existing keys.
+it does not attest the separately required visual/native acceptance. Coverage,
+scientific assessments, full-record exports and official Stage 2 eligibility
+remain unchanged. Rebuilding these exports performs no new research or reading.

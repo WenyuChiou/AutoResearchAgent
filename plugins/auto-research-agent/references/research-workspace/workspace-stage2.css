@@ -112,3 +112,15 @@ body.stage2-workspace #stage2-delivery { margin:24px; padding:20px; font:16px/1.
   #stage2-workbench .s2w-topic tbody th { position:static; min-width:220px; }
   #stage2-workbench .s2w-topic thead th:first-child { min-width:220px; }
 }
+
+/* Small screens scroll whole columns instead of pinning one over the content. */
+@media(max-width:640px) {
+  #stage2-workbench .s2w-literature tr > :first-child,
+  #stage2-workbench .s2w-literature[data-mode="overview"] tr > :first-child,
+  #stage2-workbench .s2w-literature[data-mode="concepts"] tr > :first-child {
+    position:static;
+    width:176px;
+    min-width:176px;
+    box-shadow:none;
+  }
+}

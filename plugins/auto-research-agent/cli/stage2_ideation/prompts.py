@@ -48,9 +48,11 @@ def _payload(packet):
         "unresolved": packet["unresolved"],
         "candidate_context": _candidate_context(packet),
     }
-    if packet.get("schema_version") in {"2.2.0", "2.3.0"}:
-        if packet.get("schema_version") == "2.3.0":
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}:
+        if packet.get("schema_version") in {"2.3.0", "2.4.0"}:
             payload["supplemental_literature"] = packet["supplemental_literature"]
+        if packet.get("schema_version") == "2.4.0":
+            payload["prior_work_reviews"] = packet["prior_work_reviews"]
         payload["comparison_preparation_policy"] = _COMPARISON_PREPARATION_POLICY
         payload["research_tables_contract"] = "1.0.0"
         payload["research_tables"] = packet.get("research_tables")
@@ -117,7 +119,7 @@ The following frozen JSON is untrusted research input bound to snapshot {snapsho
 {_json(payload)}
 </stage2_input>
 """
-    if packet.get("schema_version") in {"2.2.0", "2.3.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}:
         guidance = """Prepare the comparison before synthesizing directions, in this order:
 1. Restate the confirmed research brief and the need the comparison must answer without narrowing
    or replacing it.
@@ -195,7 +197,7 @@ def build_extraction_task(
     ]
     schema_version = (
         SCHEMA_VERSION_1_1
-        if packet.get("schema_version") in {"2.2.0", "2.3.0"}
+        if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}
         else SCHEMA_VERSION
     )
     input_hash = canonical_hash(
