@@ -10,7 +10,9 @@ import stat
 from stage2_common import Stage2Error, canonical_hash
 from .trace_handles import TraceRoot
 
-MAX_FILES = 512
+# A native multi-agent research turn can produce several payloads per event.
+# This is a bounded recorder ceiling, not permission to issue more model calls.
+MAX_FILES = 4096
 MAX_FILE_BYTES = 4 * 1024 * 1024
 MAX_TOTAL_BYTES = 32 * 1024 * 1024
 MAX_EVENTS = 20_000
