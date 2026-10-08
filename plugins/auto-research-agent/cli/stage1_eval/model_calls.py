@@ -10,6 +10,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
+from stage2_live.native import CaptureError, codex_runtime_sha
+from stage2_live.native_namespace import (
+    NativeNamespaceError,
+    bind_namespace,
+    wrap_namespace,
+)
 from stage2_live.native_process import run_bound_process, validate_timeout_seconds
 
 from .common import EvaluationError, canonical, read_json, sha
@@ -194,20 +200,66 @@ def _command(codex, model, reasoning, generation_schema, attempt_output):
     return command
 
 
+def _namespace_command(config, model, reasoning, generation_schema, attempt_output):
+    command = _command(
+        config["codex"], model, reasoning, generation_schema, attempt_output
+    )
+    namespace = config.get("native_namespace")
+    if namespace is None:
+        return command
+    roots = [
+        Path(namespace["scope"][name]).resolve()
+        for name in ("capture_root", "workspace")
+    ]
+    for path in (generation_schema, attempt_output):
+        resolved = Path(path).resolve()
+        if not any(resolved == root or resolved.is_relative_to(root) for root in roots):
+            raise EvaluationError(
+                "namespace model-call paths must be inside capture_root or workspace"
+            )
+    try:
+        return wrap_namespace(command, namespace)
+    except NativeNamespaceError as error:
+        raise EvaluationError(str(error)) from error
+
+
 def _request_config(codex, evaluator_home, model, reasoning):
     home = Path(evaluator_home).resolve()
     if not home.is_dir():
         raise EvaluationError("evaluator CODEX_HOME does not exist")
-    return {
+    try:
+        namespace = bind_namespace(codex, home)
+        if namespace is not None:
+            codex_runtime_sha(codex)
+    except (CaptureError, NativeNamespaceError) as error:
+        raise EvaluationError(str(error)) from error
+    config = {
         "codex": str(Path(codex).resolve()),
         "codex_executable_sha256": executable_sha256(codex),
         "evaluator_home": str(home),
         "model": model,
         "reasoning": reasoning,
     }
+    if namespace is not None:
+        config["native_namespace"] = namespace
+        config["effective_cwd"] = namespace["scope"]["workspace"]
+    return config
 
 
 def _request_record(prompt, schema_raw, generation_raw, config, policy, label):
+    evaluator_code_sha256 = _evaluator_code_sha()
+    namespace = config.get("native_namespace")
+    if namespace is not None:
+        evaluator_code_sha256 = sha(
+            canonical(
+                {
+                    "evaluator_code_sha256": evaluator_code_sha256,
+                    "native_namespace_dispatcher_sha256": namespace[
+                        "dispatcher_sha256"
+                    ],
+                }
+            )
+        )
     binding = {
         "archive_version": MODEL_CALL_ARCHIVE_VERSION,
         "label": label,
@@ -216,7 +268,7 @@ def _request_record(prompt, schema_raw, generation_raw, config, policy, label):
         "generation_schema_sha256": sha(generation_raw),
         "config": config,
         "execution_policy": policy,
-        "evaluator_code_sha256": _evaluator_code_sha(),
+        "evaluator_code_sha256": evaluator_code_sha256,
     }
     return {**binding, "request_fingerprint_sha256": sha(canonical(binding))}
 
@@ -366,6 +418,16 @@ def replay_native_model_call_archive(
         raise EvaluationError("archived model schema changed")
     if (archive / "generation-schema.json").read_bytes() != generation_raw:
         raise EvaluationError("archived generation schema changed")
+    namespace = expected_config.get("native_namespace")
+    namespace_path = archive / "native-namespace.json"
+    if namespace is not None:
+        if (
+            not namespace_path.is_file()
+            or sha(namespace_path.read_bytes()) != namespace["sha256"]
+        ):
+            raise EvaluationError("archived native namespace changed")
+    elif namespace_path.exists():
+        raise EvaluationError("unexpected archived native namespace")
     records = sorted(archive.glob("attempt-*.record.json"))
     if not records or len(records) > 1 + policy["max_transient_transport_retries"]:
         raise EvaluationError("model-call archive violates frozen attempt limit")
@@ -386,8 +448,8 @@ def replay_native_model_call_archive(
         expected_files = _attempt_files(archive, number)
         if record_path != expected_files["record"]:
             raise EvaluationError("model-call attempt sequence changed")
-        expected_command = _command(
-            expected_config["codex"],
+        expected_command = _namespace_command(
+            expected_config,
             expected_config["model"],
             expected_config["reasoning"],
             archive / "generation-schema.json",
@@ -539,12 +601,22 @@ def call_model_v31(
     _write_new(archive / "prompt.txt", prompt.encode("utf-8"))
     _write_new(archive / "schema.json", schema_raw)
     _write_new(archive / "generation-schema.json", generation_raw)
+    if "native_namespace" in config:
+        _write_new(
+            archive / "native-namespace.json",
+            Path(config["native_namespace"]["path"]).read_bytes(),
+        )
+        if (
+            sha((archive / "native-namespace.json").read_bytes())
+            != config["native_namespace"]["sha256"]
+        ):
+            raise EvaluationError("native namespace changed before archival")
     _json_new(archive / "request.json", request)
     attempts = policy["max_transient_transport_retries"] + 1
     for number in range(1, attempts + 1):
         files = _attempt_files(archive, number)
-        command = _command(
-            config["codex"],
+        command = _namespace_command(
+            config,
             model,
             reasoning,
             archive / "generation-schema.json",
@@ -566,7 +638,7 @@ def call_model_v31(
                     command,
                     input=prompt.encode("utf-8"),
                     capture_output=True,
-                    cwd=scratch,
+                    cwd=config.get("effective_cwd", scratch),
                     env=dict(os.environ, CODEX_HOME=config["evaluator_home"]),
                     timeout=policy["timeout_seconds"],
                     check=False,
