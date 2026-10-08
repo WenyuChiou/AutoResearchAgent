@@ -123,7 +123,7 @@ class NativeNamespaceTests(unittest.TestCase):
 
     def test_source_read_is_hash_bound(self):
         with tempfile.TemporaryDirectory() as root:
-            file = Path(root) / "receipt.json"
+            file = Path(root).resolve() / "receipt.json"
             file.write_bytes(b"original")
             digest = hashlib.sha256(b"original").hexdigest()
             self.assertEqual(namespace._read(file, digest), (b"original", digest))
@@ -135,7 +135,7 @@ class NativeNamespaceTests(unittest.TestCase):
 
     def test_large_frozen_binary_uses_streaming_hash(self):
         with tempfile.TemporaryDirectory() as root:
-            file = Path(root) / "large-native"
+            file = Path(root).resolve() / "large-native"
             with file.open("wb") as stream:
                 stream.truncate(129 * 1024 * 1024)
             value = namespace._file_sha(file)
@@ -148,12 +148,12 @@ class NativeNamespaceTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "posix", "Unix filenames and FIFO transport")
     def test_image_file_names_do_not_use_trace_leaf_rules_and_fifo_is_rejected(self):
         with tempfile.TemporaryDirectory() as root:
-            file = Path(root) / "VERSION+release"
+            file = Path(root).resolve() / "VERSION+release"
             file.write_bytes(b"image file")
             self.assertEqual(
                 namespace._file_sha(file), hashlib.sha256(b"image file").hexdigest()
             )
-            pipe = Path(root) / "pipe"
+            pipe = Path(root).resolve() / "pipe"
             os.mkfifo(pipe)
             with self.assertRaisesRegex(namespace.NativeNamespaceError, "not regular"):
                 namespace._file_sha(pipe)
@@ -163,12 +163,12 @@ class NativeNamespaceTests(unittest.TestCase):
     )
     def test_image_permissions_are_bound_in_addition_to_bytes(self):
         with tempfile.TemporaryDirectory() as root:
-            file = Path(root) / "native"
+            file = Path(root).resolve() / "native"
             file.write_bytes(b"same bytes")
             file.chmod(0o600)
-            old = namespace.image_tree_sha(root)
+            old = namespace.image_tree_sha(Path(root).resolve())
             file.chmod(0o700)
-            self.assertNotEqual(namespace.image_tree_sha(root), old)
+            self.assertNotEqual(namespace.image_tree_sha(Path(root).resolve()), old)
 
 
 if __name__ == "__main__":
