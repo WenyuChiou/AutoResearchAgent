@@ -255,6 +255,9 @@ def _write_view(
         from .source_availability import derive_source_availability
 
         payload["source_availability"] = derive_source_availability(index)
+    from .literature_selection import derive_literature_selection, selection_files
+
+    payload["literature_selection"] = derive_literature_selection(index)
     if stage2_attachment is not None:
         payload["stage2"] = stage2_attachment
     encoded = (
@@ -297,6 +300,7 @@ def _write_view(
         **notes,
         **stage2_files,
     }
+    files.update(selection_files(index))
     if repaired:
         from .closeout import closeout_files
 
@@ -359,6 +363,7 @@ def _write_view(
                 "stages.py",
                 "view.py",
                 "wiki.py",
+                "literature_selection.py",
                 "json_bytes.py",
                 "WorkspaceIndex.v1.schema.json",
             )
