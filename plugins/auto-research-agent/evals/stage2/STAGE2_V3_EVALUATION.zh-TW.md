@@ -291,6 +291,14 @@ runtime、來源和外部 receipt；不呼叫模型，也不能授權重新執�
 查歷史，不能假装符合原本的 resume 條件。未知 tokens、費用、失敗和
 未完成狀態照原樣保留。這些接口不代表完整 Stage2、正式隔離或 A/B 改善。
 
+## 原生能力證據 v1.2
+
+`Stage2ProductionRuntimeProbeSpec` v1.2 先核對外部保存的 producer、native capture 與 trace receipts，再檢查實際讀取、寫入、原生搜尋及子 agent 的完成紀錄。命令與輸出必須屬於同一工作目錄和原生 turn；子 agent 的繼承設定與自身設定都須符合政策。
+
+驗證只讀取已保存的證據，不重跑模型，也不執行 trace 裡的程式碼。缺紀錄、receipt 不符、未完成或政策不同時拒絕；不能靠自填 `passed` 通過。v1.1 仍保留原有行為。
+
+這是一般 B 流程的能力門檻；不證明 A/B 檔案隔離、完整預演或研究品質改善。跨主機無法核實的 shell alias 也不會被默認接受。
+
 ### 每一步的原生呼叫紀錄
 
 一次研究動作保存自己的 trace root，以及原生呼叫、producer、runtime 三份原始 receipt。
