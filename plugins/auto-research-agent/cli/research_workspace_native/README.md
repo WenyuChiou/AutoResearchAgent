@@ -156,3 +156,10 @@ Expired append/review requests leave SQLite state unchanged. Viewing or saving n
 Credentials remain in memory; response loss reads saved history without automatic POST retries.
 
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_scope_http.py -v
+
+The expanded browser fixture requires one complete absolute --repo; overlays and fallback checkouts are rejected.
+Captured owned Python source is compiled directly, with construction and shared native fixtures included.
+Loaded paths, raw source hashes and package paths are checked again before each control operation.
+An import rejection requires a fresh process; no third-party or native-process attestation is claimed.
+
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_browser_source.py -v

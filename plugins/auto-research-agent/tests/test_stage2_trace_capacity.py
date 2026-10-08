@@ -1,6 +1,7 @@
 """Realistic native payload inventories stay bounded without truncation."""
 
 import hashlib
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,9 +13,26 @@ from stage2_live.trace_handles import TraceRoot
 
 
 class TraceCapacityTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "POSIX temporary-parent symlink regression")
+    def test_capacity_fixtures_use_real_roots_under_symlinked_temp_parent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            real = base / "real"
+            real.mkdir()
+            alias = base / "alias"
+            alias.symlink_to(real, target_is_directory=True)
+            with patch.object(tempfile, "tempdir", str(alias)):
+                for method in (
+                    self.test_research_turn_with_697_files_loads_and_snapshots_every_file,
+                    self.test_actual_directory_count_is_bounded_independently_of_receipt,
+                    self.test_growing_count_does_not_disable_byte_or_external_hash_checks,
+                ):
+                    with self.subTest(fixture=method.__name__):
+                        method()
+
     def test_research_turn_with_697_files_loads_and_snapshots_every_file(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             (root / "payloads").mkdir()
             (root / "manifest.json").write_bytes(b"{}")
             (root / "trace.jsonl").write_bytes(b"{}\n")
@@ -49,7 +67,7 @@ class TraceCapacityTests(unittest.TestCase):
 
     def test_actual_directory_count_is_bounded_independently_of_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             (root / "payloads").mkdir()
             for number in range(4):
                 (root / "payloads" / str(number)).write_bytes(b"x")
@@ -60,7 +78,7 @@ class TraceCapacityTests(unittest.TestCase):
 
     def test_growing_count_does_not_disable_byte_or_external_hash_checks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             (root / "payloads").mkdir()
             (root / "manifest.json").write_bytes(b"large")
             (root / "trace.jsonl").write_bytes(b"{}\n")
