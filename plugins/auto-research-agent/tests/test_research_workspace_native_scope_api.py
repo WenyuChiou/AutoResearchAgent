@@ -285,9 +285,9 @@ class ScopeApiTests(unittest.TestCase):
                 try:
                     writer.execute("BEGIN IMMEDIATE")
                     p.store.db.set_trace_callback(
-                        lambda statement: entered.set()
-                        if statement == "BEGIN IMMEDIATE"
-                        else None
+                        lambda statement: (
+                            entered.set() if statement == "BEGIN IMMEDIATE" else None
+                        )
                     )
                     future = pool.submit(
                         operation,
@@ -296,7 +296,9 @@ class ScopeApiTests(unittest.TestCase):
                         body,
                         check_deadline=expired,
                     )
-                    self.assertTrue(entered.wait(2), "target SQLite write did not start")
+                    self.assertTrue(
+                        entered.wait(2), "target SQLite write did not start"
+                    )
                     self.assertFalse(future.done())
                     writer.rollback()
                     with self.assertRaises(SessionApiError) as raised:
@@ -317,9 +319,7 @@ class ScopeApiTests(unittest.TestCase):
                 accepted = operation("token-a", p.ref, body)
                 saved = p.store.snapshot(p.pid)
                 saved_events = p.store.events(p.pid)
-                replay = operation(
-                    "token-a", p.ref, body, check_deadline=expired
-                )
+                replay = operation("token-a", p.ref, body, check_deadline=expired)
                 self.assertEqual(dict(replay, replayed=False), accepted)
                 self.assertTrue(replay["replayed"])
                 self.assertEqual(p.store.snapshot(p.pid), saved)
