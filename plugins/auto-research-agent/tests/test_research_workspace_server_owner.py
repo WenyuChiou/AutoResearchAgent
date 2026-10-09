@@ -159,6 +159,16 @@ class OwnersTests(OwnedProcessCase):
                 self.api.view("token", "project-ref")
                 self.api.action("token", "project-ref", result["action_ref"])
             self.assertEqual(writes.call_count, before)
+
+        def terminal_saved():
+            status = owner.status()
+            self.assertFalse(status["failure"], status)
+            return (
+                self.state()["turns"].get("synthetic-turn", {}).get("status")
+                == "completed"
+            )
+
+        self.wait(terminal_saved)  # Request resolution and turn terminal are separate.
         self.assertIn("synthetic-turn", self.state()["turns"])
         self.assertTrue(owner.shutdown()["leader_reaped"])
         self.assertTrue(owner.status()["cleanup_observed"])
