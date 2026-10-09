@@ -114,15 +114,19 @@ class OwnedProcessCase(unittest.TestCase):
         finally:
             self.store._lock.release()
 
-    def _assert_real_fake_child_recording_bootstrap_and_same_transport_handoff(self):
+    def _assert_real_fake_child_recording_bootstrap_and_same_transport_handoff(
+        self, *, startup_delay=0
+    ):
         from research_workspace_native.bootstrap import BootstrapSession
         from research_workspace_native.controller import InjectedSessionController
 
         self.child.write_text(
-            "import sys,json\nfor line in sys.stdin.buffer:\n m=json.loads(line);method=m['method']\n if method=='initialized':continue\n p=m['params']\n r={'userAgent':'synthetic-server'} if method=='initialize' else {'requiresOpenaiAuth':True,'account':{'type':'apiKey'}} if method=='account/read' else {'thread':{'id':'synthetic-thread'},'cwd':p['cwd'],'model':p['model'],'approvalPolicy':p['approvalPolicy'],'sandbox':{'type':'readOnly','networkAccess':False}}\n print(json.dumps({'id':m['id'],'result':r}),flush=True)\n",
+            f"import sys,json,time\ntime.sleep({startup_delay!r})\nfor line in sys.stdin.buffer:\n m=json.loads(line);method=m['method']\n if method=='initialized':continue\n p=m['params']\n r={{'userAgent':'synthetic-server'}} if method=='initialize' else {{'requiresOpenaiAuth':True,'account':{{'type':'apiKey'}}}} if method=='account/read' else {{'thread':{{'id':'synthetic-thread'}},'cwd':p['cwd'],'model':p['model'],'approvalPolicy':p['approvalPolicy'],'sandbox':{{'type':'readOnly','networkAccess':False}}}}\n print(json.dumps({{'id':m['id'],'result':r}}),flush=True)\n",
             encoding="utf8",
         )
-        channel = self.channel()
+        # This positive handoff checks identity and shared transport, not a
+        # two-second performance bound on child startup and durable journal I/O.
+        channel = self.channel(lifetime=30)
         self.store.record_intent(
             "alpha",
             self.owner,
@@ -148,7 +152,7 @@ class OwnedProcessCase(unittest.TestCase):
             verify_binding=lambda: True,
             admit_lifecycle=lambda offer: True,
         )
-        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=2)
+        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=10)
         controller = InjectedSessionController.adopt_ready(
             boot, admit_action=lambda action: False
         )

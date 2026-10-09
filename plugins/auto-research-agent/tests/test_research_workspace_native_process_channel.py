@@ -238,6 +238,11 @@ class OwnedProcessTests(OwnedProcessCase):
     def test_real_fake_child_recording_bootstrap_and_same_transport_handoff(self):
         self._assert_real_fake_child_recording_bootstrap_and_same_transport_handoff()
 
+    def test_fake_child_startup_latency_preserves_handoff_identity(self):
+        self._assert_real_fake_child_recording_bootstrap_and_same_transport_handoff(
+            startup_delay=2.5
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
