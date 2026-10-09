@@ -277,8 +277,11 @@ class MessageHostTests(unittest.TestCase):
         self.assertEqual(len(self.p.channel.messages()), 1)
 
     def test_waiting_for_sqlite_lock_past_deadline_cannot_record_or_write(self):
-        server = self.start(timeout=0.1)
+        server = self.start()
         body = self.message(server)
+        # Setup performs real source hashing and durable offer writes. Apply the
+        # short request budget only to the blocked POST this test exercises.
+        server.timeout_seconds = 0.1
         before = self.p.store.snapshot(self.p.pid)
         reached, done, errors = threading.Event(), threading.Event(), []
         original = self.case.api._authenticate
@@ -312,8 +315,9 @@ class MessageHostTests(unittest.TestCase):
         self.assertEqual(self.p.channel.calls, [])
 
     def test_slow_controller_admission_past_deadline_has_no_write(self):
-        server = self.start(timeout=0.1)
+        server = self.start()
         body = self.message(server)
+        server.timeout_seconds = 0.1
         self.p.controller.admit_action = lambda _: time.sleep(0.15) or True
         try:
             self.request(server, "POST", "/messages", body)

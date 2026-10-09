@@ -42,7 +42,10 @@ class Deadline:
     def database(self, store):
         with self.hold(store._lock):
             previous = store.db.execute("PRAGMA busy_timeout").fetchone()[0]
-            store.db.execute("PRAGMA busy_timeout=" + str(int(self.left() * 1000)))
+            # Busy handlers count sleep, not elapsed time. WAL blocking locks on
+            # some platforms can outlast a short budget, so refuse contention
+            # immediately; never retry an operation with an unknown outcome.
+            store.db.execute("PRAGMA busy_timeout=0")
             try:
                 yield
             except sqlite3.OperationalError as error:
@@ -56,7 +59,7 @@ class Deadline:
 
     def refresh(self, store):
         self.check()
-        store.db.execute("PRAGMA busy_timeout=" + str(int(self.left() * 1000)))
+        store.db.execute("PRAGMA busy_timeout=0")
 
     def guard(self, verify):
         """Read-only callback may finish late; late success never grants I/O.

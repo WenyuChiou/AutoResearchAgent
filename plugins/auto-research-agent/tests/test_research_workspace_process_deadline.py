@@ -44,11 +44,46 @@ class DeadlineTests(unittest.TestCase):
                         self.assertRaises(TimeoutError),
                         Deadline(0.05, start + 2).database(store),
                     ):
+                        self.assertEqual(
+                            store.db.execute("PRAGMA busy_timeout").fetchone()[0], 0
+                        )
                         store.db.execute("BEGIN IMMEDIATE")
+                    elapsed = time.monotonic() - start
                 finally:
                     blocker.rollback()
                     blocker.close()
-                self.assertLess(time.monotonic() - start, 0.3)
+                self.assertLess(elapsed, 0.3)
+                self.assertEqual(
+                    store.db.execute("PRAGMA busy_timeout").fetchone()[0], 5000
+                )
+            finally:
+                store.close()
+
+    def test_zero_timeout_database_allows_passive_nonblocking_reads(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = FrameJournal(Path(folder).resolve() / "synthetic.sqlite")
+            try:
+                with Deadline(0, time.monotonic() + 2).database(store):
+                    self.assertEqual(store.db.execute("SELECT 1").fetchone()[0], 1)
+                    self.assertEqual(
+                        store.db.execute("PRAGMA busy_timeout").fetchone()[0], 0
+                    )
+                self.assertEqual(
+                    store.db.execute("PRAGMA busy_timeout").fetchone()[0], 5000
+                )
+            finally:
+                store.close()
+
+    def test_refresh_never_reenables_database_busy_wait(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = FrameJournal(Path(folder).resolve() / "synthetic.sqlite")
+            try:
+                deadline = Deadline(1, time.monotonic() + 2)
+                with deadline.database(store):
+                    deadline.refresh(store)
+                    self.assertEqual(
+                        store.db.execute("PRAGMA busy_timeout").fetchone()[0], 0
+                    )
                 self.assertEqual(
                     store.db.execute("PRAGMA busy_timeout").fetchone()[0], 5000
                 )
