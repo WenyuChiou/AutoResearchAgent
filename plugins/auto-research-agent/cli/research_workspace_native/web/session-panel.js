@@ -19,6 +19,12 @@
     cancel: ["Cancel request", "取消请求", "取消請求"],
     interrupt: ["Interrupt active turn", "中断当前执行", "中斷目前執行"],
     approval: ["Native approval request", "原生审批请求", "原生核准請求"],
+    question: ["Your answer is needed", "需要你回答", "需要你回答"],
+    observations: ["Binding & complete observations", "绑定与完整观察记录", "綁定與完整觀察紀錄"],
+    command: ["Requested command", "请求执行的命令", "請求執行的命令"],
+    reason: ["Reason", "原因", "原因"],
+    approvalBlocked: ["Approval is unavailable under current permissions.", "当前权限不允许批准此请求。", "目前權限不允許核准此請求。"],
+    revision: ["Observed revision", "观察记录版本", "觀察紀錄版本"],
     held: ["Submission recorded locally; only read history now. No automatic resend.", "提交意图已在本地记录；现在只读取历史，不自动重发。", "提交意圖已在本機記錄；現在僅讀取歷史，不自動重送。"],
     history: ["Saved actions", "已保存操作", "已儲存操作"],
     empty: ["No pending questions", "没有待回答问题", "沒有待回答問題"],
@@ -26,6 +32,7 @@
     error: ["Read or submission failed. Refresh history; do not resend.", "读取或提交失败。请刷新历史，不要重发。", "讀取或提交失敗。請重新整理歷史，不要重送。"],
     storage: ["Local intent storage is unavailable; submission is blocked.", "本地意图存储不可用，提交已阻止。", "本機意圖儲存不可用，提交已阻止。"],
     unknown: ["Local intent has no observed server receipt yet", "本地意图尚未观察到服务端回执", "本機意圖尚未觀察到伺服器回執"],
+    saved: ["Operation record saved; observed status", "操作记录已保存，观察状态", "操作紀錄已儲存，觀察狀態"],
     large: ["Answer exceeds the 32 KiB limit; shorten it before submitting.", "回答超过 32 KiB，请缩短后提交。", "回答超過 32 KiB，請縮短後提交。"],
   };
   const make = (tag, text, parent, source = false) => {
@@ -39,6 +46,13 @@
     const element = make(tag, "", parent, true);
     element.dataset.nativeLabel = key;
     return element;
+  };
+  const observations = (parent, value) => {
+    const detail = make("details", undefined, parent);
+    detail.className = "native-observations";
+    label("summary", "observations", detail);
+    make("pre", JSON.stringify(value, null, 2), detail, true);
+    return detail;
   };
   const root = make("section");
   root.id = "native-session-panel";
@@ -83,12 +97,12 @@
   if (!root.isConnected) document.body.append(root);
   if (atlas) document.getElementById("host-panel")?.prepend(root);
   let credential = "", project = "", view = null, busy = false, generation = 0, readSequence = 0;
-  const drafts = new Map(), extensions = []; let noticeKey = null;
+  const drafts = new Map(), extensions = []; let noticeKey = null, noticeReason = "";
   const locale = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
   const t = key => rows[key][locale()];
-  const showNotice = key => {noticeKey = key; notice.textContent = key ? t(key) : "";};
+  const showNotice = (key, reason = "") => {noticeKey = key; noticeReason = reason; notice.textContent = key ? t(key) + (reason ? " · " + reason : "") : "";};
   const translate = () => {
-    root.querySelectorAll("[data-native-label]").forEach(e => e.textContent = t(e.dataset.nativeLabel)); if (noticeKey) notice.textContent = t(noticeKey);
+    root.querySelectorAll("[data-native-label]").forEach(e => e.textContent = t(e.dataset.nativeLabel)); if (noticeKey) notice.textContent = t(noticeKey) + (noticeReason ? " · " + noticeReason : "");
   };
   new MutationObserver(translate).observe(document.documentElement, {attributes: true, attributeFilter: ["lang"]});
   const ledgerName = () => `native-intents:${project}:${view.index_sha256}:${view.input_version}`;
@@ -116,6 +130,7 @@
       try {
         const body = await response.json();
         if (body && typeof body === "object" && Object.hasOwn(body, "receipt")) error.receipt = body.receipt;
+        if (typeof body?.error === "string") error.code = body.error;
       } catch {} // An unreadable rejection body leaves the outcome unknown.
       throw error;
     }
@@ -125,15 +140,18 @@
     binding.replaceChildren(); questions.replaceChildren(); operations.replaceChildren(); history.replaceChildren();
     if (!view) {extensions.forEach(e => e.clear()); return;}
     label("strong", "source", binding);
-    make("pre", JSON.stringify({project_ref: view.project_ref, index_sha256: view.index_sha256,
-      input_version: view.input_version, revision: view.revision, failure: view.failure}, null, 2), binding, true);
+    make("p", view.project_ref, binding, true);
+    label("span", "revision", binding); make("span", " · " + view.revision, binding, true);
+    if (view.failure) make("p", view.failure, binding, true);
+    observations(binding, {project_ref: view.project_ref, index_sha256: view.index_sha256,
+      input_version: view.input_version, revision: view.revision, failure: view.failure});
     for (const r of view.requests.filter(r => r.status === "pending")) {
       const card = make("form", undefined, questions);
       card.className = "native-request";
       card.dataset.requestRef = r.request_ref;
-      make("code", r.request_ref + " · " + r.request_sha256, card, true);
       const locked = busy || Boolean(view.failure) || held(r.request_ref);
       if (r.method === "item/tool/requestUserInput") {
+        label("h3", "question", card);
         const fields = [];
         for (const q of r.payload.questions) {
           const wrapper = make("label", undefined, card);
@@ -158,7 +176,13 @@
           {answers: Object.fromEntries(fields.map(([id, field]) => [id, {answers: [field.value]}]))});};
       } else if (["item/commandExecution/requestApproval", "item/fileChange/requestApproval"].includes(r.method)) {
         label("h3", "approval", card);
-        make("pre", JSON.stringify(r.payload, null, 2), card, true);
+        if (r.payload.command !== undefined) {
+          label("strong", "command", card); make("p", r.payload.command, card, true);
+        }
+        if (r.payload.reason !== undefined) {
+          label("strong", "reason", card); make("p", r.payload.reason, card, true);
+        }
+        if (r.can_accept !== true) label("p", "approvalBlocked", card);
         for (const decision of ["accept", "decline", "cancel"]) {
           const button = label("button", decision, card);
           button.type = "button"; button.disabled = locked || (decision === "accept" && r.can_accept !== true);
@@ -166,6 +190,7 @@
         }
       } else make("p", r.method + " · unsupported", card, true);
       if (held(r.request_ref)) label("p", "held", card);
+      observations(card, r);
     }
     if (!questions.childElementCount) label("p", "empty", questions);
     for (const op of view.operations) {
@@ -173,10 +198,15 @@
       button.disabled = busy || !op.can_interrupt || Boolean(view.failure) || held(op.action_ref);
       button.onclick = () => submit("interrupt", op);
     }
-    for (const action of view.actions) make("pre", JSON.stringify(action, null, 2), history, true);
+    for (const action of view.actions) {
+      const card = make("article", undefined, history);
+      make("p", action.kind + " · " + action.status, card, true);
+      if (action.failure) make("p", typeof action.failure === "string" ? action.failure : JSON.stringify(action.failure), card, true);
+      observations(card, action);
+    }
     for (const pending of ledger()) if (!view.actions.some(a => a.client_key === pending.key)) {
       const card = make("div", undefined, history);
-      label("p", "unknown", card); make("code", pending.key + " · " + pending.target, card, true);
+      label("p", "unknown", card); observations(card, pending);
     }
     translate();
     extensions.forEach(e => e.refresh(view));
@@ -209,14 +239,25 @@
       showNotice("large"); return;
     }
     const intent = {key, kind, target: target.request_ref || target.action_ref};
+    const submittedBinding = view;
     try {
       sessionStorage.setItem(ledgerName(), JSON.stringify([...records, intent]));
       if (!ledger().some(r => r.key === key)) throw Error("intent-unobserved");
     } catch {showNotice("storage"); return;}
     busy = true; render(); showNotice("held");
     try {await request("POST", kind === "answer" ? "/answers" : "/interrupts", body);}
-    catch {showNotice("error");}
-    finally {busy = false; try {await refresh();} catch {showNotice("error");}}
+    catch (error) {showNotice("error", error.code || error.message);}
+    finally {
+      busy = false;
+      try {
+        await refresh();
+        const saved = sameBinding(view, submittedBinding) && view.actions.find(a =>
+          a.client_key === key && a.kind === kind && a.target_ref === intent.target &&
+          /^[0-9a-f]{64}$/.test(a.action_ref) && /^[0-9a-f]{64}$/.test(a.action_sha256) &&
+          ["dispatch-unobserved", "intent-recorded", "refused", "write-observed", "dispatched", "completed", "retired", "failed-known-unsent", "execution-unknown"].includes(a.status));
+        if (saved) showNotice("saved", saved.status + (saved.failure ? " · " + saved.failure : ""));
+      } catch (error) {showNotice("error", error.code || error.message);}
+    }
   };
   connection.onsubmit = async event => {
     event.preventDefault(); if (busy) return;
@@ -224,9 +265,9 @@
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(candidate)) return;
     const current = ++generation; credential = credentialInput.value; project = candidate;
     credentialInput.value = ""; view = null; drafts.clear(); render(); showNotice(null);
-    try {await refresh();} catch {if (current === generation) {view = null; render(); showNotice("error");}}
+    try {await refresh();} catch (error) {if (current === generation) {view = null; render(); showNotice("error", error.code || error.message);}}
   };
-  refreshButton.onclick = async () => {try {await refresh();} catch {showNotice("error");}};
+  refreshButton.onclick = async () => {try {await refresh();} catch (error) {showNotice("error", error.code || error.message);}};
   disconnect.onclick = () => {if (busy) return; generation++; credential = ""; view = null; drafts.clear(); render(); showNotice(null);};
   window.NativePanel = {extend(factory) {
     const extension = factory({root, available: () => Boolean(view) && !view.failure && !busy,
@@ -268,7 +309,7 @@
     }
     credential = atlas.credential; project = atlas.project_ref;
     connection.hidden = true;
-    refresh().catch(() => showNotice("error")); // GET only; no launcher or resend.
+    refresh().catch(error => showNotice("error", error.code || error.message)); // GET only; no launcher or resend.
   }
   translate();
 })();

@@ -35,6 +35,35 @@
     requested: ["Next-stage request recorded; execution is not authorized by this review.", "已记录下一阶段申请；此审阅记录不授予执行权限。", "已記錄下一階段申請；此審閱紀錄不授予執行權限。"],
     blocked: ["Next-stage request blocked by the stage check.", "本阶段检查未通过，下一阶段申请已被阻塞。", "本階段檢查未通過，下一階段申請已被阻塞。"],
     details: ["Read check details", "查看检查详情", "查看檢查詳情"],
+    latestCheck: ["Latest stage check", "本阶段最近检查", "本階段最近檢查"],
+    notChecked: ["No check recorded for this stage", "本阶段尚无检查记录", "本階段尚無檢查紀錄"],
+    partialHistory: ["Older check records are outside this history window.", "更早的检查记录不在当前历史窗口中。", "較早的檢查紀錄不在目前歷史視窗中。"],
+    checkPass: ["Check passed", "检查通过", "檢查通過"],
+    checkReady: ["Stage check ready", "阶段检查已就绪", "階段檢查已就緒"],
+    checkBlocked: ["Check blocked", "检查受阻", "檢查受阻"],
+    checkIncomplete: ["Delivery incomplete", "交付尚未完整", "交付尚未完整"],
+    checkMissing: ["Stage input missing", "缺少阶段输入", "缺少階段輸入"],
+    blockers: ["Blocking items", "待处理事项", "待處理事項"],
+    noBlockers: ["No blocking items reported by this check.", "本次检查未报告阻塞项。", "本次檢查未報告阻塞項。"],
+    savedOnly: ["This is a saved-input check, not permission to start the next stage.", "这是已保存输入的检查结果，不授予下一阶段执行权限。", "這是已儲存輸入的檢查結果，不授予下一階段執行權限。"],
+    retainedOnly: ["Showing a retained check; the latest server state is not verified.", "正在显示已保留的检查；最新服务状态尚未核验。", "正在顯示已保留的檢查；最新服務狀態尚未核驗。"],
+    summaryDetails: ["View full check record", "查看完整检查记录", "查看完整檢查紀錄"],
+    outputRefs: ["Saved output references", "已保存产物位置", "已儲存產物位置"],
+    copyOutputs: ["These references belong to the retained check copy; original inputs are preserved.", "这些位置属于本次检查的保留副本；原始输入保持不变。", "這些位置屬於本次檢查的保留副本；原始輸入保持不變。"],
+    includedPapers: ["Papers in the handoff", "交接包中的论文", "交接包中的論文"],
+    ledgerValid: ["Ledger validation passed", "Ledger 结构校验通过", "Ledger 結構校驗通過"],
+    deliveryContent: ["Delivery content", "交付内容", "交付內容"],
+    contentReady: ["ready for review", "可供审阅", "可供審閱"],
+    contentIncomplete: ["incomplete", "尚未完整", "尚未完整"],
+    assessment: ["Independent assessment", "独立评估", "獨立評估"],
+    assessmentMissing: ["not supplied", "尚未提供", "尚未提供"],
+    assessmentComplete: ["completed in saved evidence", "已保存证据中已完成", "已儲存證據中已完成"],
+    assessmentAudit: ["audit pending", "审计待完成", "審計待完成"],
+    assessmentUnknown: ["unknown", "尚未确定", "尚未確定"],
+    closestWork: ["Closest related works need verification", "最接近的相关文献仍需核验", "最接近的相關文獻仍需核驗"],
+    unfinished: ["Recorded actions are unfinished", "已有操作尚未完成", "已有操作尚未完成"],
+    extraction: ["Evidence extraction is incomplete", "证据提取尚未完整", "證據擷取尚未完整"],
+    sourceRead: ["Source reading failure needs review", "来源读取失败需要审阅", "來源讀取失敗需要審閱"],
     storage: ["Unable to save recovery information. Nothing was submitted.", "无法保存恢复信息，尚未提交。", "無法儲存復原資訊，尚未提交。"],
   };
   const t = key => labels[key][({en:0,"zh-Hans":1,"zh-Hant":2})[document.documentElement.lang] ?? 0];
@@ -51,6 +80,7 @@
   const check = make("button",controls), refresh = make("button",controls);
   const status = make("p",panel); status.setAttribute("role","status");
   const inputStatus = make("p",panel);
+  const summary = make("section",panel); summary.className="stage-check-summary"; summary.setAttribute("aria-live","polite");
   const form = make("form",panel); form.className="stage-review-form";
   const decision = make("select",form);
   decision.setAttribute("aria-label","Stage decision");
@@ -60,17 +90,19 @@
   const confirmText=make("span",confirmLabel), submit=make("button",form);submit.type="submit";
   const history=make("details",panel), historyTitle=make("summary",history), rows=make("div",history);
   let view=null,pending=null,busy=false,readable=false,state="loading",sequence=0,details=null;
+  const checks=new Map();
+  const remember=row=>{if(row.result && row.action!=="review-stage")checks.set(row.client_key,row);return row;};
   try {const raw=sessionStorage.getItem(storage); if(raw!==null) {
     const value=JSON.parse(raw);
     if (!value || Object.keys(value).sort().join()!=="hash,key" || !hash(value.hash) || !/^[a-z0-9-]{36}$/.test(value.key)) throw Error("invalid-intent");
     pending=value;state="unknown";
   }} catch {pending=false;state="error";}
   const bound = value => value && value.project_ref===config.project_ref && value.index_sha256===config.index_sha256 && value.input_version===config.input_version;
-  const receipt = value => {
+  const receipt = (value,expectedSource=view?.source_sha256) => {
     if (!value || !["running","completed","failed","execution-unknown"].includes(value.status) || !bound({...value.request,project_ref:config.project_ref}) ||
         value.native_execution!==false || value.model_execution!==false || value.execution_authorized!==false || !hash(value.source_sha256) ||
         !value.request || value.client_key!==value.request.key || ![1,2].includes(value.stage) || value.stage!==value.request.stage || value.action!==value.request.action ||
-        (view && value.source_sha256!==view.source_sha256)) throw Error("receipt-binding-differs");
+        (expectedSource && value.source_sha256!==expectedSource)) throw Error("receipt-binding-differs");
     return value;
   };
   const request=async (suffix="",body)=>{
@@ -79,6 +111,44 @@
     if(!response.ok) throw Error("stage-response-unavailable"); return response.json();
   };
   const locked=()=>busy || !view || !readable || pending!==null || view.history_count>=128 || view.history.some(row=>["running","execution-unknown"].includes(row.status));
+  const showDetails=async row=>{
+    try{const loaded=checks.get(row.client_key) || receipt(await request("/actions/"+encodeURIComponent(row.client_key)));
+      if(loaded.client_key!==row.client_key || loaded.stage!==row.stage || loaded.action!==row.action || loaded.source_sha256!==row.source_sha256)throw Error("requested-check-differs");
+      details=remember(loaded);history.open=true;render();}
+    catch{state="error";render();}
+  };
+  const renderSummary=()=>{
+    summary.replaceChildren();make("h3",summary,t("latestCheck"));
+    if(!view){make("p",summary,t("loading"));return;}
+    const action=stage.value==="1"?"checkpoint-stage1":"inspect-stage2";
+    const latest=[...(view?.history || [])].reverse().find(row=>row.stage===Number(stage.value)&&row.action===action);
+    if(!latest){make("p",summary,t(view?.history_count>64?"partialHistory":"notChecked"));return;}
+    const result=checks.get(latest.client_key)?.result;
+    const readiness=latest.status==="completed" ? (result?.readiness.status || latest.result_summary?.readiness_status) : null;
+    const keys={pass:"checkPass",ready:"checkReady",blocked:"checkBlocked",incomplete:"checkIncomplete",missing:"checkMissing"};
+    const label=latest.status==="failed"?"failed":latest.status==="running"?"running":latest.status==="execution-unknown"?"unknown":keys[readiness] || "unknown";
+    const badge=make("strong",summary,t(label));badge.className="stage-check-badge";badge.dataset.state=latest.status==="completed" && keys[readiness]?readiness:latest.status;
+    if(!readable)make("p",summary,t("retainedOnly"));
+    if(latest.error)make("p",summary,latest.error.code).translate=false;
+    if(result){
+      const blockers=result.readiness.blockers;
+      if(blockers.length){make("p",summary,t("blockers"));const list=make("ul",summary);
+        const names={"closest-work-unverified":"closestWork","unfinished-actions":"unfinished","extraction-incomplete":"extraction","source-read-failure-requires-review":"sourceRead"};
+        for(const blocker of blockers){const text=typeof blocker==="string"?(names[blocker]?t(names[blocker]):blocker):blocker.reason || blocker.message || blocker.check_id || JSON.stringify(blocker);make("li",list,text).translate=false;}
+      }else make("p",summary,t("noBlockers"));
+      if(result.handoff?.papers)make("p",summary,t("includedPapers")+": "+result.handoff.papers.length);
+      if(result.ledger_valid===true)make("p",summary,t("ledgerValid"));
+      if(result.completion){const completion=result.completion;
+        make("p",summary,t("deliveryContent")+": "+t(completion.research_delivery_ready?"contentReady":"contentIncomplete"));
+        const states={missing:"assessmentMissing",completed:"assessmentComplete","audit-required":"assessmentAudit",unknown:"assessmentUnknown"};
+        make("p",summary,t("assessment")+": "+(states[completion.assessment_status]?t(states[completion.assessment_status]):completion.assessment_status));
+      }
+      const outputs=result.checkpoint?.stage_result?.outputs;
+      if(Array.isArray(outputs)&&outputs.length){const saved=make("details",summary);make("summary",saved,t("outputRefs")+" · "+outputs.length);make("p",saved,t("copyOutputs"));const list=make("ul",saved);outputs.forEach(ref=>make("li",list,ref.path).translate=false);}
+    }else if(Number.isSafeInteger(latest.result_summary?.blocker_count))make("p",summary,t("blockers")+": "+latest.result_summary.blocker_count);
+    const button=make("button",summary,t("summaryDetails"));button.type="button";button.disabled=busy;button.onclick=()=>showDetails(latest);
+    make("p",summary,t("savedOnly"));
+  };
   const render=()=>{
     title.textContent=t("title");boundary.textContent=t("boundary");
     [...stage.options].forEach((option,i)=>option.textContent=t("stage"+(i+1)));
@@ -87,6 +157,7 @@
     [...decision.options].forEach(option=>option.textContent=t(option.value));
     note.setAttribute("aria-label",t("note"));note.placeholder=t("note");confirmText.textContent=t("confirm");submit.textContent=t("submit");
     [decision,note,confirm,submit].forEach(n=>n.disabled=locked());
+    renderSummary();
     historyTitle.textContent=t("history");rows.replaceChildren();
     for (const row of view?.history || []) {
       const card=make("article",rows);card.className="stage-action-record";
@@ -98,7 +169,7 @@
       if(row.error)make("p",card,row.error.code).translate=false;
       make("code",card,row.client_key).translate=false;
       const button=make("button",card,t("details"));button.type="button";button.disabled=busy;
-      button.onclick=async()=>{try{details=receipt(await request("/actions/"+encodeURIComponent(row.client_key)));render();}catch{state="error";render();}};
+      button.onclick=()=>showDetails(row);
     }
     if(details?.result){const card=make("article",rows);const result=details.result;make("h3",card,result.kind).translate=false;
       make("p",card,result.readiness.status).translate=false;
@@ -114,9 +185,10 @@
           !Number.isSafeInteger(loaded.revision) || loaded.revision<0 || (view&&(loaded.source_sha256!==view.source_sha256 || loaded.revision<view.revision)) ||
           !Array.isArray(loaded.history) || loaded.history.length>64 || !Number.isSafeInteger(loaded.history_count) || loaded.history_count>128 ||
           loaded.native_execution!==false || loaded.model_execution!==false || loaded.next_stage_execution_authorized!==false)throw Error("invalid-stage-view");
-      view=loaded;view.history.forEach(receipt);
+      loaded.history.forEach(row=>receipt(row,loaded.source_sha256));view=loaded;
       if(pending){const row=receipt(await request("/actions/"+encodeURIComponent(pending.key)));
         if(row.client_key!==pending.key || await digest(row.request)!==pending.hash)throw Error("recovery-differs");
+        remember(row);
         state=["completed","failed"].includes(row.status)?row.status:"unknown";
         if(["completed","failed"].includes(row.status)){sessionStorage.removeItem(storage);pending=null;details=row;}
       }else state=pending===false?"error":view.history_count>=128?"capacity":view.history.some(r=>r.status==="execution-unknown")?"unknown":"ready";

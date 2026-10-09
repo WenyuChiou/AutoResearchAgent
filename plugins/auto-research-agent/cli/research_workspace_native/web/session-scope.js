@@ -23,20 +23,29 @@
       held: ["Local intent retained. Read history to recover; do not resubmit.", "本地意图已保留，请读取历史恢复，不要重新提交。", "本機意圖已保留，請讀取歷史恢復，不要重新提交。"],
       unavailable: ["Scope overlay unavailable for this session", "本会话的范围覆盖层不可用", "本工作階段的範圍覆蓋層不可用"],
       large: ["Decision is too large or local intent storage is unavailable", "决定过长或本地意图存储不可用", "決定過長或本機意圖儲存不可用"],
+      observations: ["Source binding & complete record", "来源绑定与完整记录", "來源綁定與完整紀錄"],
+      saved: ["Decision record saved", "决定记录已保存", "決定紀錄已儲存"],
+      description: ["Original research request", "原始研究要求", "原始研究要求"],
+      current: ["Current scope", "当前范围", "目前範圍"],
     };
     const el = (tag, parent, text) => {
       const e = document.createElement(tag); if (text !== undefined) e.textContent = text;
       e.setAttribute("translate", "no"); parent?.append(e); return e;
     };
     const translated = (tag, parent, key) => {const e = el(tag, parent); e.dataset.scopeLabel = key; return e;};
+    const observations = (parent, value) => {
+      const detail = el("details", parent); detail.className = "native-observations";
+      translated("summary", detail, "observations");
+      el("pre", detail, JSON.stringify(value, null, 2));
+    };
     const box = el("section", root); box.id = "native-scope-panel";
     translated("h3", box, "title"); translated("p", box, "boundary");
     const notice = el("p", box); notice.setAttribute("role", "status");
     const content = el("div", box);
     let view = null, history = null, selected = null, snapshot = null, sequence = 0, busy = false, loading = false;
-    let noticeKey = null; const index = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
+    let noticeKey = null, noticeReason = ""; const index = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
     const t = key => rows[key][index()];
-    const showNotice = key => {noticeKey = key; notice.textContent = key ? t(key) : "";}; const translate = () => {box.querySelectorAll("[data-scope-label]").forEach(e => e.textContent = t(e.dataset.scopeLabel)); box.querySelectorAll("[data-scope-aria]").forEach(e => e.setAttribute("aria-label", t(e.dataset.scopeAria))); if (noticeKey) notice.textContent = t(noticeKey);};
+    const showNotice = (key, reason = "") => {noticeKey = key; noticeReason = reason; notice.textContent = key ? t(key) + (reason ? " · " + reason : "") : "";}; const translate = () => {box.querySelectorAll("[data-scope-label]").forEach(e => e.textContent = t(e.dataset.scopeLabel)); box.querySelectorAll("[data-scope-aria]").forEach(e => e.setAttribute("aria-label", t(e.dataset.scopeAria))); if (noticeKey) notice.textContent = t(noticeKey) + (noticeReason ? " · " + noticeReason : "");};
     new MutationObserver(translate).observe(document.documentElement, {attributes: true, attributeFilter: ["lang"]});
     const ledgerName = () => `native-scope-intents:${view.project_ref}:${view.index_sha256}:${view.input_version}`;
     const intents = () => {
@@ -61,12 +70,27 @@
     const render = () => {
       content.replaceChildren(); if (!history || !snapshot) return;
       const version = field(content, "version", "select");
-      for (const row of history.versions) {
-        const option = el("option", version, row.sha256); option.value = row.version_ref;
+      for (const [i, row] of history.versions.entries()) {
+        const option = el("option", version, "v" + (i + 1)); option.value = row.version_ref;
+        option.title = row.sha256;
       }
       version.value = selected;
       version.onchange = async () => {selected = version.value; await load(view);};
-      el("pre", content, JSON.stringify(snapshot, null, 2));
+      translated("h4", content, "description");
+      el("p", content, snapshot.original_description);
+      translated("h4", content, "current");
+      for (const row of snapshot.scope_fields) {
+        const saved = snapshot.scope?.[row.field];
+        el("p", content, row.field + " · " + (saved?.status || "Unknown") + " · " + (saved?.value ?? "Unknown"));
+        if (row.reason) el("p", content, row.reason);
+      }
+      for (const decision of snapshot.decisions || []) {
+        const card = el("article", content);
+        el("p", card, decision.field + " · " + decision.status + " · " + (decision.value ?? "Unknown"));
+        if (decision.reason) el("p", card, decision.reason);
+        if (decision.user_input) el("p", card, decision.user_input);
+      }
+      observations(content, snapshot);
       const form = el("form", content); form.id = "native-scope-form";
       const choiceField = field(form, "field", "select");
       for (const row of snapshot.scope_fields) el("option", choiceField, row.field).value = row.field;
@@ -95,9 +119,14 @@
       reviewForm.onsubmit = event => {event.preventDefault(); if (reviewed.checked) submit("reviews", {
         version_ref: snapshot.version_ref, version_sha256: snapshot.sha256, decision: decision.value, note: note.value,
       });};
-      for (const action of history.actions) el("pre", content, JSON.stringify(action, null, 2));
+      for (const action of history.actions) {
+        const card = el("article", content);
+        el("p", card, action.kind + " · " + action.status + (action.decision ? " · " + action.decision : ""));
+        if (action.note) el("p", card, action.note);
+        observations(card, action);
+      }
       for (const local of intents()) if (!history.actions.some(a => a.client_key === local.key)) {
-        translated("p", content, "held"); el("code", content, local.key + " · " + local.target);
+        translated("p", content, "held"); observations(content, local);
       }
       translate();
     };
@@ -116,11 +145,12 @@
         if (current !== sequence) return;
         if (value.version_ref !== ref || value.sha256 !== saved.versions.find(v => v.version_ref === ref).sha256) throw Error("scope-version-differs");
         history = saved; selected = ref; snapshot = value; loading = false; render();
-      } catch {if (current === sequence) {history = null; snapshot = null; loading = false; content.replaceChildren(); showNotice("unavailable");}}
+      } catch (error) {if (current === sequence) {history = null; snapshot = null; loading = false; content.replaceChildren(); showNotice("unavailable", error.code || error.message);}}
     };
     const submit = async (kind, body) => {
       if (busy || loading || !available() || !history || !snapshot || selected !== snapshot.version_ref || held(kind)) return;
       const key = crypto.randomUUID();
+      const submittedBinding = view;
       body = {key, revision: history.revision, index_sha256: view.index_sha256, input_version: view.input_version, confirmed: true, ...body};
       try {
         const previous = intents(), encoded = JSON.stringify(body);
@@ -130,8 +160,17 @@
       } catch {showNotice("large"); return;}
       busy = true; showNotice("held");
       try {await write("/scope/" + kind, body); if (kind === "versions") selected = null;}
-      catch {showNotice("held");}
-      finally {busy = false; if (view) await load(view);}
+      catch (error) {showNotice("held", error.code || error.message);}
+      finally {
+        busy = false;
+        if (view) await load(view);
+        const saved = history && view && ["project_ref", "index_sha256", "input_version"].every(k => view[k] === submittedBinding[k]) &&
+          history.actions.find(a => a.client_key === key && a.kind === (kind === "versions" ? "append" : "review") &&
+            a.status === (kind === "versions" ? "version-saved" : "review-recorded") && /^[0-9a-f]{64}$/.test(a.action_ref) &&
+            history.versions.some(v => v.version_ref === a.version_ref && v.sha256 === a.version_sha256 &&
+              (kind === "versions" ? v.parent_ref === body.parent_ref : v.version_ref === body.version_ref)));
+        if (saved) showNotice("saved", saved.status);
+      }
     };
     translate();
     return {refresh: load, clear() {sequence++; view = null; history = null; snapshot = null; selected = null; loading = false; content.replaceChildren(); showNotice(null);}};

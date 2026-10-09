@@ -10,6 +10,7 @@
     ready: ["Message bound to the current source version", "消息已绑定当前来源版本", "訊息已綁定目前來源版本"],
     idle: ["Prepare a message before sending. Refresh reads saved history only.", "发送前先准备消息；刷新只读取已保存的历史。", "傳送前請先準備訊息；重新整理只讀取已儲存的歷史。"],
     held: ["Submission recorded; read history to check the outcome. No automatic resend.", "提交已记录；请读取历史核查结果，不会自动重发。", "提交已記錄；請讀取歷史核查結果，不會自動重送。"],
+    saved: ["Message operation record saved. Read history for execution status.", "消息操作记录已保存；执行状态请查看历史。", "訊息操作紀錄已儲存；執行狀態請查看歷史。"],
     unsent: ["Message was rejected before admission. Prepare again to retry explicitly.", "消息在受理前被拒绝。请重新准备后明确重试。", "訊息在受理前遭拒絕。請重新準備後明確重試。"],
     error: ["Message unavailable. Read history; do not submit again while its outcome is unknown.", "消息暂不可用。请读取历史，结果未知时不要重复提交。", "訊息暫不可用。請讀取歷史，結果未知時請勿重複提交。"],
     large: ["Use nonblank text up to {limit} bytes.", "请输入非空文字，最多 {limit} 字节。", "請輸入非空文字，最多 {limit} 位元組。"],
@@ -202,7 +203,10 @@
             result.client_key !== body.key || result.target_ref !== body.offer_ref || typeof result.replayed !== "boolean" ||
             !["dispatch-unobserved", "intent-recorded", "refused", "write-observed", "dispatched", "completed", "retired", "failed-known-unsent", "execution-unknown"].includes(result.status) ||
             (result.failure !== null && typeof result.failure !== "string")) throw Error("unobserved-message-response");
-        if (current === sequence && sameBinding(binding, view)) text.value = "";
+        if (current === sequence && sameBinding(binding, view)) {
+          text.value = "";
+          if (["write-observed", "dispatched", "completed", "retired", "failed-known-unsent"].includes(result.status) && result.failure === null) notice = "saved";
+        }
       }
       catch (error) {
         if (current === sequence && sameBinding(binding, view)) {
