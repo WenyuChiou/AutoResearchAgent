@@ -132,6 +132,10 @@
     methodLink: ["Recorded method", "已记录方法", "已記錄方法"],
     similarityLink: ["Method-label similarity", "方法标签相似度", "方法標籤相似度"],
     sourceLinkMissing: ["Paper-to-paper source links: not recorded in this package", "论文间原文关系：此包尚未记录", "論文間原文關係：此套件尚未記錄"],
+    viewAliases: ["P/M numbers are display labels, not discovery order. Hover or select to read the complete record.", "P／M 编号仅用于图上显示，不是发现顺序。悬停或点击查看完整记录。", "P／M 編號僅用於圖上顯示，不是發現順序。懸停或點選以檢視完整紀錄。"],
+    globalSimilarity: ["Similarity is overlaid on this layout; distance is not a score. Percentages use exact recorded method-label Jaccard.", "相似度叠加在当前布局上，距离不代表评分。百分比按已记录方法标签的 Jaccard 交集计算。", "相似度疊加於目前佈局，距離不代表評分。百分比依已記錄方法標籤的 Jaccard 交集計算。"],
+    layoutNote: ["Solid: direction membership · Dashed: recorded methods · Dotted: label similarity. Distance is layout only.", "实线：方向归属 · 虚线：已记录方法 · 点线：标签相似度。距离仅用于排版。", "實線：方向歸屬 · 虛線：已記錄方法 · 點線：標籤相似度。距離僅用於排版。"],
+    graphBasis: ["Classification & relationship basis", "分类与关系依据", "分類與關係依據"],
     reserved: ["Stage contract preview · this companion performs no execution", "阶段契约预览 · 此图谱不执行研究", "階段契約預覽 · 此圖譜不執行研究"]
   };
   const fieldLabels = {
@@ -154,6 +158,9 @@
   const languageControl = document.getElementById("atlas-language");
   const interfaceLanguage = value => ["en", "zh-Hans", "zh-Hant"].includes(value) ? value : "en";
   const state = {language: interfaceLanguage(languageControl?.value), stage: 1, scope: "working", sort: "recorded", mode: "library", topic: "", method: "", pair: [], paper: null, page: 0, graphPage: 0, groupPage: 0, neighborsPage: 0, ledgerPage: 0, text: "", status: "", tab: "sets", selected: new Set(), comparePage: 0, candidatePage: 0, libraryOpen: false, network: "global", similarity: false, zoom: 1, workflow: {1: 1, 2: 1}, productOpen: false, stage2Paper: null, networkFocus: null, graphCleared: false, processOpen: false};
+  state.summaryTopic = null; state.summaryPaper = null; state.summaryPage = 0;
+  state.summaryGraphFocus = null;
+  const graphFocus = () => state.summaryGraphFocus || state.networkFocus;
   if (languageControl) languageControl.value = state.language;
   const locale = () => ["en", "zh-Hans", "zh-Hant"].indexOf(state.language);
   const t = name => words[name]?.[locale()] ?? name;
@@ -225,15 +232,18 @@
     return state.method ? rows.filter(p => p.methods.includes(state.method)) : rows;
   }
   function resetNetwork() {
+    state.summaryGraphFocus = null;
     state.networkFocus = null; state.paper = null; state.graphCleared = true;
     state.mode = "library"; state.topic = ""; state.method = "";
     state.network = "global"; state.similarity = false; state.zoom = 1; state.graphPage = 0; render();
   }
   function focusGroup(kind, key) {
+    state.summaryGraphFocus = null;
     state.networkFocus = state.networkFocus?.kind === kind && state.networkFocus.key === key ? null : {kind, key};
-    state.network = "global"; state.similarity = false; render();
+    state.network = "global"; render();
   }
   function focusPaper(key) {
+    state.summaryGraphFocus = null;
     if (state.networkFocus?.kind === "paper" && state.paper === key) {
       state.networkFocus = null; state.paper = null; state.graphCleared = true; render();
     } else choosePaper(key);
@@ -242,7 +252,9 @@
     const box = el("div", undefined, "atlas-graph"), layer = el("div", undefined, "atlas-graph-layer"), svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     layer.style.transform = `scale(${state.zoom})`;
     box.style.aspectRatio = `600 / ${height}`;
+    if (height === 540) {box.style.height = "540px"; box.style.aspectRatio = "auto";}
     svg.setAttribute("viewBox", `0 0 600 ${height}`); svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("preserveAspectRatio", "none");
     clusters.forEach(group => {
       const ellipse = document.createElementNS(svg.namespaceURI, "ellipse");
       Object.entries({cx: group.x, cy: group.y, rx: group.rx || 85, ry: group.ry || 67, fill: group.color}).forEach(([name, value]) => ellipse.setAttribute(name, value));
@@ -252,32 +264,41 @@
       const line = document.createElementNS(svg.namespaceURI, "line");
       Object.entries({x1: a.x, y1: a.y, x2: b.x, y2: b.y}).forEach(([name, value]) => line.setAttribute(name, value));
       line.dataset.kind = meta.kind || "direction"; line.style.setProperty("--edge", meta.color || b.color || colors[0]);
-      const title = document.createElementNS(svg.namespaceURI, "title"); title.textContent = t((meta.kind || "direction") + "Link"); line.append(title);
-      svg.append(line); return {line, a, b};
+      const title = document.createElementNS(svg.namespaceURI, "title"); title.textContent = t((meta.kind || "direction") + "Link") + (meta.label ? ` · ${meta.label}` : ""); line.append(title);
+      svg.append(line);
+      let label = null;
+      if (meta.label) {
+        label = document.createElementNS(svg.namespaceURI, "text"); label.textContent = meta.label;
+        label.setAttribute("x", (a.x + b.x) / 2); label.setAttribute("y", (a.y + b.y) / 2 - 5);
+        label.setAttribute("class", "atlas-edge-label"); svg.append(label);
+      }
+      return {line, label, a, b};
     });
     layer.append(svg);
     const controls = [];
     const highlight = requested => {
       const key = nodes.some(node => node.key === requested) ? requested : null;
       const related = new Set(key ? [key] : []);
-      lines.forEach(({line, a, b}) => {
+      lines.forEach(({line, label, a, b}) => {
         const active = !key || a.key === key || b.key === key;
         if (active) {related.add(a.key); related.add(b.key);}
         line.dataset.related = String(Boolean(key && active)); line.dataset.muted = String(Boolean(key && !active));
+        if (label) label.dataset.muted = String(Boolean(key && !active));
       });
       controls.forEach(({control, node}) => {control.dataset.muted = String(Boolean(key && !related.has(node.key)));});
     };
     nodes.forEach(node => {
       const control = button("", node.action); control.className = `atlas-node ${node.type || ""}`;
       control.style.left = `${node.x / 6}%`; control.style.top = `${node.y / (height / 100)}%`; control.style.setProperty("--category", node.color || colors[0]);
-      control.append(source("span", node.label)); if (node.count !== undefined) control.append(el("strong", node.count));
+      if (node.fill) control.style.setProperty("--node-fill", node.fill);
+      control.append(source("span", node.label)); if (node.sub) control.append(source("small", node.sub)); if (node.count !== undefined) control.append(el("strong", node.count));
       control.title = text(node.title || node.label); control.dataset.nodeKey = node.key || "";
       if (node.selected) control.setAttribute("aria-pressed", "true");
       control.onpointerenter = control.onfocus = () => highlight(node.key);
-      control.onpointerleave = control.onblur = () => highlight(state.networkFocus ? `${state.networkFocus.kind}:${state.networkFocus.key}` : null);
-      control.setAttribute("aria-label", `${text(node.label)} ${node.count ?? ""}`); layer.append(control); controls.push({control, node});
+      control.onpointerleave = control.onblur = () => highlight(graphFocus() ? `${graphFocus().kind}:${graphFocus().key}` : null);
+      control.setAttribute("aria-label", `${text(node.title || node.label)} ${node.count ?? ""}`); layer.append(control); controls.push({control, node});
     });
-    highlight(state.networkFocus ? `${state.networkFocus.kind}:${state.networkFocus.key}` : null);
+    highlight(graphFocus() ? `${graphFocus().kind}:${graphFocus().key}` : null);
     box.append(layer); parent.append(box);
   }
   function legend(parent, similarity = false) {
@@ -288,49 +309,51 @@
     }); parent.append(box);
   }
   function groupGraph(parent) {
-    const rows = contextRows(), page = pagination(parent, rows.length, 48, "graphPage"), shown = ordered(rows).slice(page * 48, page * 48 + 48);
-    const groups = model.groups(shown), methods = model.groups(shown, "methods"), nodes = [], edges = [];
-    const assigned = new Map();
-    shown.forEach(paper => {
-      const key = groups.find(group => paper.topics.includes(group.key))?.key || "";
-      if (!assigned.has(key)) assigned.set(key, []); assigned.get(key).push(paper);
-    });
-    const displayed = [...groups];
-    if (assigned.has("")) displayed.push({key: "", label: t("unclassified"), ids: assigned.get("").map(p => p.key)});
-    const maximum = Math.max(0, ...[...assigned.values()].map(rows => rows.length));
-    const columns = displayed.length === 1 ? 1 : displayed.length <= 4 || maximum > 5 ? 2 : 3;
-    const rowCount = Math.max(1, Math.ceil(displayed.length / columns)), rowStarts = [], rowHeights = [];
-    let offset = 0;
-    for (let row = 0; row < rowCount; row++) {
-      const count = Math.max(0, ...displayed.slice(row * columns, row * columns + columns).map(g => assigned.get(g.key)?.length || 0));
-      rowStarts.push(offset); const h = count > 4 ? 90 + Math.ceil(count / 3) * 90 : 210;
-      rowHeights.push(h); offset += h;
-    }
-    const height = Math.max(470, offset + 110), groupNodes = new Map();
-    displayed.forEach((group, i) => {
-      const row = Math.floor(i / columns), x = columns === 1 ? 300 : columns === 2 ? 150 + (i % 2) * 300 : 105 + (i % 3) * 195;
-      const node = {x, y: rowStarts[row] + 30, key: "topic:" + group.key, label: group.label, count: group.ids.length, color: group.key ? colors[i % 6] : "#8b949a", selected: state.networkFocus?.kind === "topic" && state.networkFocus.key === group.key, type: "atlas-topic-node", action: () => focusGroup("topic", group.key), clusterY: rowStarts[row] + rowHeights[row] / 2 + 20, rx: columns < 3 ? 125 : 85, ry: rowHeights[row] / 2 - 30};
+    const rows = contextRows(), page = rows.length > 48 ? pagination(parent, rows.length, 48, "graphPage") : 0, shown = ordered(rows).slice(page * 48, page * 48 + 48);
+    if (rows.length <= 48) parent.append(el("p", `${rows.length} ${t("records")}`, "atlas-small"));
+    const layout = model.networkLayout(shown, {singleMethods: true}), nodes = [], edges = [], groupNodes = new Map();
+    const palette = new Map(model.networkLayout(archive).groups.map(group => [group.key, group.colorIndex < 0 ? "#8b949a" : colors[group.colorIndex]]));
+    layout.groups.forEach(group => {
+      const dx = group.x - 300, dy = group.y - 270, radius = Math.hypot(dx, dy) || 1;
+      const x = Math.max(74, Math.min(526, group.x + dx / radius * 42));
+      const y = Math.max(24, Math.min(516, group.y + dy / radius * 56));
+      const label = group.key || t("unclassified");
+      const node = {x, y, key: "topic:" + group.key, label, title: label, count: group.ids.length, color: palette.get(group.key), selected: graphFocus()?.kind === "topic" && graphFocus().key === group.key, type: "atlas-topic-node", action: () => focusGroup("topic", group.key)};
       groupNodes.set(group.key, node); nodes.push(node);
     });
     const paperNodes = new Map();
-    assigned.forEach((members, key) => members.forEach((paper, i) => {
-      const group = groupNodes.get(key), row = Math.floor(displayed.findIndex(g => g.key === key) / columns);
-      const angle = i * Math.PI * 2 / Math.max(members.length, 1) - Math.PI / 2, dense = members.length > 4;
-      const radius = members.length > 1 ? 60 : 0, gridColumns = Math.min(3, members.length);
-      const x = dense ? group.x + ((i % gridColumns) - (gridColumns - 1) / 2) * 100 : group.x + Math.cos(angle) * radius;
-      const y = dense ? rowStarts[row] + 120 + Math.floor(i / gridColumns) * 90 : rowStarts[row] + 135 + Math.sin(angle) * radius * .7;
-      const node = {x, y, key: "paper:" + paper.key, label: paper.work_id, title: paper.title, color: group.color, selected: state.networkFocus?.kind === "paper" && paper.key === state.paper, type: "atlas-paper-node", action: () => focusPaper(paper.key)};
+    layout.papers.forEach(position => {
+      const paper = shown.find(p => p.key === position.key), categories = position.groupKeys.map(key => palette.get(key));
+      const alias = `P${String(archive.findIndex(p => p.key === paper.key) + 1).padStart(2, "0")}`;
+      const short = String(paper.work_id).replace(/-et-al-/g, " ").replace(/-/g, " ");
+      const fill = categories.length > 1 ? `conic-gradient(${categories.map((color, i) => `${color} ${i / categories.length * 100}% ${(i + 1) / categories.length * 100}%`).join(",")})` : null;
+      const node = {...position, key: "paper:" + paper.key, label: alias, sub: short, title: `${alias} · ${paper.title} · ${paper.work_id} / ${paper.version_id}`, color: palette.get(position.primaryGroupKey), fill, selected: graphFocus()?.kind === "paper" && paper.key === graphFocus().key, type: "atlas-paper-node", action: () => focusPaper(paper.key)};
       nodes.push(node); paperNodes.set(paper.key, node);
       paper.topics.forEach(topic => {if (groupNodes.has(topic)) edges.push([node, groupNodes.get(topic), {kind: "direction", color: groupNodes.get(topic).color}]);});
-    }));
-    const drawn = methods.filter(method => method.ids.length > 1 || method.ids.includes(state.paper) || (state.networkFocus?.kind === "method" && state.networkFocus.key === method.key));
-    drawn.slice(0, 6).forEach((method, i, list) => {
-      const node = {x: list.length === 1 ? 300 : 100 + i * 400 / (list.length - 1), y: height - 45, key: "method:" + method.key, label: method.label, count: method.ids.length, color: "#a48644", type: "atlas-method", selected: state.networkFocus?.kind === "method" && state.networkFocus.key === method.key, action: () => focusGroup("method", method.key)};
+    });
+    const literalMethods = model.groups(shown, "methods").sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+    /* Unique literal methods remain unique. Small packets can show each central
+       diamond; larger packets show shared hubs plus the explicitly focused method. */
+    const hasShared = literalMethods.some(m => m.ids.length > 1);
+    const drawn = layout.methods.filter(m => m.ids.length > 1 || !hasShared && literalMethods.length <= 16 || m.ids.includes(state.paper) || state.networkFocus?.kind === "method" && state.networkFocus.key === m.key);
+    const allMethods = model.groups(archive, "methods").sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+    drawn.forEach((method, i, list) => {
+      const {x, y} = method;
+      const methodIndex = allMethods.findIndex(m => m.key === method.key), compact = method.label.length > 28, alias = `M${String(methodIndex + 1).padStart(2, "0")}`;
+      const node = {x, y, key: "method:" + method.key, label: compact ? alias : method.label, title: method.label, count: compact ? undefined : method.ids.length, color: colors[methodIndex % 6], type: "atlas-method" + (compact ? " atlas-method-compact" : ""), selected: state.networkFocus?.kind === "method" && state.networkFocus.key === method.key, action: () => focusGroup("method", method.key)};
       nodes.push(node); method.ids.forEach(key => {if (paperNodes.has(key)) edges.push([node, paperNodes.get(key), {kind: "method", color: node.color}]);});
     });
-    graph(parent, nodes, edges, [...groupNodes.values()].map(node => ({...node, y: node.clusterY})), height);
-    legend(parent); parent.append(el("p", t("graphNote"), "atlas-small"), el("p", t("sourceLinkMissing"), "atlas-small"));
-    const all = el("details"), buttons = el("div", undefined, "atlas-actions"); all.append(el("summary", `${t("allGroups")} · ${groups.length}`));
+    const similarityKey = graphFocus()?.kind === "paper" ? graphFocus().key : state.paper;
+    const neighbors = state.similarity && paperNodes.has(similarityKey) ? model.local(shown, similarityKey) : [];
+    neighbors.forEach(row => {
+      edges.push([paperNodes.get(similarityKey), paperNodes.get(row.paper.key), {kind: "similarity", color: "#567fa2", label: `${(row.similarity * 100).toFixed(1)}%`}]);
+    });
+    graph(parent, nodes, edges, layout.groups.map(group => ({...group, color: palette.get(group.key)})), layout.height);
+    legend(parent, state.similarity); parent.append(el("p", t("layoutNote"), "atlas-small"));
+    if (state.similarity && !neighbors.length) parent.append(el("p", t("noRelations"), "atlas-small"));
+    const basis = el("details", undefined, "atlas-small"); basis.append(el("summary", t("graphBasis")), el("p", t("graphNote")), el("p", t("viewAliases")), el("p", t("sourceLinkMissing")));
+    if (state.similarity) basis.append(el("p", t("globalSimilarity"))); parent.append(basis);
+    const all = el("details"), buttons = el("div", undefined, "atlas-actions"); all.append(el("summary", `${t("allGroups")} · ${layout.groups.length}`));
     model.groups(rows).forEach(group => buttons.append(button(`${group.label} · ${group.ids.length}`, () => focusGroup("topic", group.key))));
     model.groups(rows, "methods").forEach(group => buttons.append(button(`${group.label} · ${group.ids.length}`, () => focusGroup("method", group.key))));
     all.append(buttons); parent.append(all);
@@ -440,12 +463,32 @@
     content.append(box);
   }
   function topicCounts() {
-    const box = panel(t("topicCounts")), cards = el("div", undefined, "atlas-topic-cards"), groups = model.groups(papers), maximum = Math.max(1, ...groups.map(group => group.ids.length));
-    groups.forEach((group, i) => {
-      const card = button("", () => focusGroup("topic", group.key), state.networkFocus?.kind === "topic" && state.networkFocus.key === group.key); card.className = "atlas-topic-card"; card.style.setProperty("--category", colors[i % 6]);
-      card.append(source("strong", group.label), el("b", group.ids.length)); const track = el("span", undefined, "atlas-track"), fill = el("span"); fill.style.width = `${group.ids.length / maximum * 100}%`; track.append(fill); card.append(track); cards.append(card);
-    }); box.append(cards, el("p", t("countsNote"), "atlas-small"));
-    if (state.mode === "topic") { const list = el("div", undefined, "atlas-topic-list"), rows = contextRows(), page = pagination(list, rows.length, 6, "groupPage"); rows.slice(page * 6, page * 6 + 6).forEach(paper => paperRow(list, paper)); box.append(list); }
+    const box = panel(t("topicCounts")), split = el("div", undefined, "atlas-summary-split"), cards = el("div", undefined, "atlas-topic-cards"), list = el("div", undefined, "atlas-summary-list"), groups = model.groups(papers);
+    box.id = "atlas-direction-summary";
+    const unclassified = papers.filter(p => !p.topics.length);
+    if (unclassified.length) groups.push({key: "", label: t("unclassified"), ids: unclassified.map(p => p.key)});
+    const palette = new Map(model.networkLayout(archive).groups.map(group => [group.key, colors[group.colorIndex]]));
+    const selected = groups.find(group => group.key === state.summaryTopic) || groups[0];
+    const unit = Math.min(28, 72 / Math.sqrt(Math.max(1, ...groups.map(group => group.ids.length))));
+    groups.forEach(group => {
+      const card = button("", () => {state.summaryTopic = group.key; state.summaryPaper = null; state.summaryPage = 0; state.summaryGraphFocus = {kind: "topic", key: group.key}; state.network = "global"; render();}, selected?.key === group.key); card.className = "atlas-topic-card"; card.style.setProperty("--category", palette.get(group.key) || "#8b949a");
+      const bubble = el("b", group.ids.length); bubble.style.width = bubble.style.height = `${unit * Math.sqrt(group.ids.length)}px`;
+      card.append(bubble, source("strong", group.label)); cards.append(card);
+    });
+    if (selected) {
+      list.append(source("h3", selected.label), el("p", `${selected.ids.length} ${t("related")}`, "atlas-small"));
+      const rows = papers.filter(p => selected.ids.includes(p.key)), page = rows.length > 5 ? pagination(list, rows.length, 5, "summaryPage") : 0;
+      rows.slice(page * 5, page * 5 + 5).forEach(paper => {
+        const control = button("", () => {state.summaryPaper = state.summaryPaper === paper.key ? null : paper.key; state.summaryGraphFocus = state.summaryPaper ? {kind: "paper", key: paper.key} : {kind: "topic", key: selected.key}; state.network = "global"; render();}, state.summaryPaper === paper.key); control.className = "atlas-summary-paper";
+        control.dataset.summaryPaper = paper.key; control.append(source("strong", paper.title), source("small", `${paper.work_id} · ${paper.year ?? t("unknown")}`)); list.append(control);
+        if (state.summaryPaper === paper.key) {
+          const preview = el("div", undefined, "atlas-summary-preview"); preview.append(source("p", paper.findings?.main_findings ?? paper.findings?.relevance));
+          const url = safeUrl(paper.url); if (url) preview.append(link(t("publicLink"), url));
+          list.append(preview);
+        }
+      });
+    } else list.append(el("p", t("unclassified")));
+    split.append(cards, list); box.append(split, el("p", t("countsNote"), "atlas-small"));
     content.append(box);
   }
   function stage1() {
@@ -460,13 +503,13 @@
     const networkActions = el("div", undefined, "atlas-actions atlas-network-actions");
     for (const [mode, label] of [["global", "globalNetwork"], ["local", "localNetwork"]]) networkActions.append(button(t(label), () => { state.network = mode; state.similarity = mode === "local"; render(); }, state.network === mode));
     const toggle = el("label", undefined, "atlas-check"), similarityInput = el("input"); similarityInput.type = "checkbox"; similarityInput.checked = state.similarity;
-    similarityInput.onchange = () => { state.similarity = similarityInput.checked; state.network = similarityInput.checked ? "local" : "global"; render(); }; toggle.append(similarityInput, el("span", t("similarity"))); networkActions.append(toggle);
+    similarityInput.onchange = () => { state.similarity = similarityInput.checked; render(); }; toggle.append(similarityInput, el("span", t("similarity"))); networkActions.append(toggle);
     networkActions.append(button(t("resetNetwork"), resetNetwork), button("−", () => { state.zoom = Math.max(.5, state.zoom - .25); render(); }), el("span", `${Math.round(state.zoom * 100)}%`, "atlas-small"), button("+", () => { state.zoom = Math.min(2, state.zoom + .25); render(); }), button(t("fit"), () => { state.zoom = 1; render(); })); graphPanel.append(networkActions);
     if (state.network === "local" && selected) paperGraph(graphPanel, selected); else groupGraph(graphPanel);
     if (state.networkFocus && ["topic", "method"].includes(state.networkFocus.kind)) {
       const focus = state.networkFocus, field = focus.kind === "topic" ? "topics" : "methods";
-      const rows = papers.filter(p => p[field].includes(focus.key));
-      detailPanel.append(source("h3", focus.key), el("p", `${rows.length} ${t("related")}`, "atlas-small"));
+      const rows = papers.filter(p => focus.kind === "topic" && !focus.key ? !p.topics.length : p[field].includes(focus.key));
+      detailPanel.append(source("h3", focus.key || t("unclassified")), el("p", `${rows.length} ${t("related")}`, "atlas-small"));
       rows.forEach(p => paperRow(detailPanel, p));
     } else if (selected) paperDetail(detailPanel, selected);
     else detailPanel.append(el("p", t("selectNode"), "atlas-note"));
