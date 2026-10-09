@@ -20,6 +20,8 @@ from stage1_deliverable.common import canonical, private_output, safe_path, sha
 from .http import SessionHandler, SessionHttpServer, token_authenticator
 from .session_api import SessionApi, SessionApiError
 from .transport import _decode
+from .harness_host import bind_operations, handle_operations
+from .harness_ops import ACTIONS
 
 REF = re.compile(r"[A-Za-z0-9_-]{1,64}")
 HASH = re.compile(r"[0-9a-f]{64}")
@@ -164,6 +166,7 @@ class AtlasHost(SessionHttpServer):
         presentation=None,
         capability_state=None,
         native_runtime=None,
+        harness_ops=None,
         credential=None,
         native_script=None,
         **options,
@@ -213,6 +216,10 @@ class AtlasHost(SessionHttpServer):
                         self.native_cases[row["ref"]] = dict(
                             actual, project_ref=project_ref
                         )
+        self.harness_ops = harness_ops
+        self.harness_cases = bind_operations(harness_ops, files, views, credential)
+        self._harness_owned = False
+        self._harness_closed = False
         self.connection_check = deepcopy(connection or {"status": "not-checked"})
         self.presentation = deepcopy(
             presentation or dict(language="en", density="comfortable")
@@ -235,6 +242,12 @@ class AtlasHost(SessionHttpServer):
             ("atlas-host.css", "/host-panel.css"),
         ):
             self._assets[route] = (assets / filename).read_bytes()
+        harness_script, harness_style = "", ""
+        if harness_ops is not None:
+            for filename in ("harness-panel.js", "harness-panel.css"):
+                self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
+            harness_script = '<script src="/harness-panel.js"></script>'
+            harness_style = '<link rel="stylesheet" href="/harness-panel.css">'
         native_scripts, native_style = [], ""
         if native_script is not None:
             if (
@@ -256,6 +269,13 @@ class AtlasHost(SessionHttpServer):
         self.host_binding = {
             "kind": "WorkspaceAtlasHostOverlay",
             "execution_authority": False,
+            "harness_operations": deepcopy(self.harness_cases),
+            "harness_operation_scope": "offline-saved-input"
+            if self.harness_cases
+            else "disabled",
+            "harness_capabilities": list(ACTIONS) if self.harness_cases else [],
+            "harness_research_execution": False,
+            "harness_model_execution": False,
             "views": deepcopy(views),
             "base_files": {key: sha(raw) for key, raw in files.items()},
         }
@@ -284,10 +304,10 @@ class AtlasHost(SessionHttpServer):
                 "</body>",
                 '<link rel="stylesheet" href="/host-panel.css">'
                 + native_style
-                + (
-                    '<script src="/host-bootstrap/' + row["ref"] + '.js"></script>'
-                    '<script src="/host-panel.js"></script>'
-                )
+                + harness_style
+                + ('<script src="/host-bootstrap/' + row["ref"] + '.js"></script>')
+                + harness_script
+                + '<script src="/host-panel.js"></script>'
                 + "".join(
                     '<script src="' + route + '"></script>' for route in native_scripts
                 )
@@ -333,6 +353,7 @@ class AtlasHost(SessionHttpServer):
         try:
             super().__init__(api, **options)
             self._native_owned = native_runtime is not None
+            self._harness_owned = harness_ops is not None
         except BaseException:
             if self.maintenance is not None and self._maintenance_owned:
                 self.maintenance.close()
@@ -381,8 +402,13 @@ class AtlasHost(SessionHttpServer):
                         }
                         raise
             finally:
-                if self.maintenance is not None and self._maintenance_owned:
-                    self.maintenance.close()
+                try:
+                    if self._harness_owned and not self._harness_closed:
+                        self._harness_closed = True
+                        self.harness_ops.close()
+                finally:
+                    if self.maintenance is not None and self._maintenance_owned:
+                        self.maintenance.close()
 
 
 class AtlasHandler(SessionHandler):
@@ -397,6 +423,8 @@ class AtlasHandler(SessionHandler):
             self._handle(method)
 
     def do_GET(self):
+        if self.path.startswith("/api/harness/"):
+            return handle_operations(self, "GET")
         if self.path.startswith("/api/native/"):
             return self._native("GET")
         try:
@@ -481,6 +509,22 @@ class AtlasHandler(SessionHandler):
                     + b";\n"
                 )
                 native = self.server.native_cases.get(ref)
+                harness = self.server.harness_cases.get(ref)
+                raw += (
+                    b"window.WORKSPACE_HARNESS="
+                    + json.dumps(
+                        dict(
+                            enabled=harness is not None,
+                            project_ref=ref if harness else None,
+                            index_sha256=harness["index_sha256"] if harness else None,
+                        ),
+                        ensure_ascii=True,
+                        allow_nan=False,
+                    )
+                    .replace("<", "\\u003c")
+                    .encode()
+                    + b";\n"
+                )
                 bootstrap = dict(
                     credential=self.server.credential,
                     current_case=ref,
@@ -553,6 +597,8 @@ class AtlasHandler(SessionHandler):
         return length
 
     def do_POST(self):
+        if self.path.startswith("/api/harness/"):
+            return handle_operations(self, "POST")
         if self.path.startswith("/api/native/"):
             return self._native("POST")
         try:
@@ -608,6 +654,7 @@ def main():
     parser.add_argument("--codex-sha256")
     parser.add_argument("--probe-root", type=Path)
     parser.add_argument("--maintenance-db", type=Path)
+    parser.add_argument("--harness-operations-root", type=Path)
     args = parser.parse_args()
     from .host_config import load_config, create_host
 
@@ -632,12 +679,26 @@ def main():
         from .codex_probe import run_probe
 
         connection = run_probe(args.codex, args.codex_sha256, cwd, root / "probe.jsonl")
-    server = create_host(
-        config,
-        connection=connection,
-        port=args.port,
-        maintenance_db=args.maintenance_db,
-    )
+    credential, operations = secrets.token_urlsafe(32), None
+    if args.harness_operations_root is not None:
+        from .harness_host import create_harness_operations
+
+        operations = create_harness_operations(
+            config["files"], config["views"], args.harness_operations_root, credential
+        )
+    try:
+        server = create_host(
+            config,
+            connection=connection,
+            port=args.port,
+            maintenance_db=args.maintenance_db,
+            credential=credential,
+            harness_ops=operations,
+        )
+    except BaseException:
+        if operations is not None:
+            operations.close()
+        raise
     url = server.expected_origin + "/"
     print(url, flush=True)
     if args.open:
