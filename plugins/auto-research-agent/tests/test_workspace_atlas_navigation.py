@@ -13,7 +13,7 @@ from research_workspace.atlas_model import model_asset  # noqa: E402
 
 class AtlasNavigationTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node.js is unavailable")
-    def test_initial_language_and_later_stages_stay_synchronized(self):
+    def test_initial_language_and_host_panel_stay_synchronized(self):
         result = subprocess.run(
             [
                 shutil.which("node"),
@@ -24,7 +24,9 @@ class AtlasNavigationTests(unittest.TestCase):
             timeout=30,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("assertions passed; synthetic DOM only", result.stdout)
+        self.assertIn(
+            "assertions passed; synthetic DOM and inert host only", result.stdout
+        )
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is unavailable")
     def test_navigation_preserves_versions_and_all_screened_records(self):
