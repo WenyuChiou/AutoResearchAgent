@@ -358,7 +358,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_deliverable",
       "problem": "A literature run can finish with evaluator artifacts but no editable report, bibliography, classified metadata or lawful source package for the researcher.",
-      "mechanism": "Derive editable literature reports and a private public-source package from canonical version-bound records; replay the pinned research-hub source validator, runtime bytes, source spans, saved validation observations and every derived view. Escape bibliography text once while preserving verbatim URI fields. Preflight explicit private and temporary roots outside Git before execution; source replay also enforces that boundary. Record actual access failures and explicitly unexercised states without changing scientific scores.",
+      "mechanism": "Derive editable literature reports and a private public-source package from canonical version-bound records; replay the pinned research-hub source validator, runtime bytes, source spans, saved validation observations and every derived view. Escape bibliography text once while preserving verbatim URI fields. Preflight explicit private and temporary roots outside Git before execution; source replay also enforces that boundary. Record actual access failures and explicitly unexercised states without changing scientific scores. Retain optional object-valued public diagnostics in immutable source archives and bind a replayed source-own title when a stale lookup title differs, while preserving original identity states and conflicting-DOI rejection.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -382,6 +382,7 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_deliverable.py",
         "plugins/auto-research-agent/tests/test_stage1_observed_doi.py",
+      "plugins/auto-research-agent/tests/test_stage1_source_receipt_diagnostics.py",
         ".github/scripts/test_validate_research_pr.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",

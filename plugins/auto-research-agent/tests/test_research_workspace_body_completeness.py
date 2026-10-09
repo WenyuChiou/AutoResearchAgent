@@ -200,8 +200,12 @@ class BodyCompletenessTests(unittest.TestCase):
     def test_pending_or_malformed_reading_order_cannot_confirm_complete_extents(self):
         for factory in (pdf_row, document_row):
             for receipt in (
-                {"status": "pending"}, {"status": "failed"},
-                {"status": []}, {"status": {}}, {}, None,
+                {"status": "pending"},
+                {"status": "failed"},
+                {"status": []},
+                {"status": {}},
+                {},
+                None,
             ):
                 with self.subTest(factory=factory.__name__, receipt=receipt):
                     row = factory()

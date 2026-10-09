@@ -160,9 +160,16 @@ def validate_receipt_shape(result):
             "locators",
             "errors",
             "output_dir",
+        )
+        + (
+            ("diagnostics",)
+            if isinstance(result, dict) and "diagnostics" in result
+            else ()
         ),
         "public source receipt",
     )
+    if "diagnostics" in result and not isinstance(result["diagnostics"], dict):
+        raise DeliverableError("source diagnostics must be an object")
     _keys(
         result["request"],
         ("operation", "doi", "url", "title", "output_dir", "public_only"),
@@ -479,10 +486,27 @@ def validate_paper_identity(paper, result):
     observed bibliographic identity separate from claim/evidence eligibility.
     """
     expected = result["expected_identity"]
-    if " ".join(expected.get("title", "").casefold().split()).rstrip(".") != " ".join(
-        paper["title"].casefold().split()
-    ).rstrip("."):
-        raise DeliverableError("source expected identity differs from canonical work")
+
+    def title(value):
+        return (
+            " ".join(value.casefold().split()).rstrip(".")
+            if isinstance(value, str)
+            else ""
+        )
+
+    catalog_title = title(paper["title"])
+    if title(expected.get("title")) != catalog_title:
+        if not (
+            result["status"] == "available"
+            and result["identity_status"] != "mismatch"
+            and title(result["observed_identity"].get("title")) == catalog_title
+        ):
+            raise DeliverableError(
+                "source expected identity differs from canonical work"
+            )
+        # A lookup title can refer to an earlier edition. The independently
+        # replayed own-source title binds this catalog entry; retain the original
+        # unverified state and the requested/observed DOI checks below.
     requested_doi = expected.get("doi", "")
     catalog_doi = paper["doi"] or ""
     if requested_doi == catalog_doi:
