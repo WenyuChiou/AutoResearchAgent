@@ -188,3 +188,23 @@ Cleanup failures, surviving workers or receipt persistence failures cannot repor
 This synthetic host remains separate from the true Stage1 package and actual native acceptance.
 
 Opt-in browser driver requires explicit --repo/--python/--playwright/--browser/--reference/--temp/--scope/--output; ordinary Python discovery does not launch it.
+
+# Injected bootstrap context: implementation-only
+
+`BootstrapContext` requires a pre-existing, unsent `thread/start` intent bound
+to the project, index hash, source input version and exclusive process-held owner.
+Literal source and lifecycle callbacks are necessary before adopting a channel;
+these callbacks are not authenticated authority or Windows process attestation.
+
+The helper durably records typed RPC/frame identities and exact outgoing claims
+before I/O, uses one recording channel and transport, and rejects caller-created
+dispatches. It only permits a submitted read-only sandbox. Constructor failure
+after ownership transfer closes the underlying channel even if wrapper creation
+fails; failed cleanup remains explicit. It never creates a thread by itself.
+
+Focused verification uses fake channels and real SQLite only:
+
+`python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_bootstrap_context.py -v`
+
+No process launch, account proof, research, model turn, import, resume, reconnect,
+or budget is provided. Ordinary controller constructors retain their guards.
