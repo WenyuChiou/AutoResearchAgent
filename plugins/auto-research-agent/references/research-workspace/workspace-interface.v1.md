@@ -27,9 +27,10 @@ remains supported only with legacy config. Semantic inbox references must name
 an existing `MaintenanceInbox` whose complete case/source bindings match.
 The embedding caller retains inbox ownership and closes it after its hosts.
 Missing registrations are unavailable; this entry point never creates a session.
-Integration B reports existing runtime requests as registered-unconnected until
-the separate native integration supplies the connection. Language and compact
-density affect the served overlay, while canonical files and hashes stay intact.
+The native integration connects an existing registered API/runtime with the
+embedding caller's explicit credential and verifies its saved-view bindings.
+Runtime construction, bootstrap and pump start remain separate explicit actions.
+Language and compact density affect the served overlay; canonical hashes stay intact.
 
 Example settings (the placeholders require real external pinned hashes):
 

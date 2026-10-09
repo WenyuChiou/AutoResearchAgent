@@ -8,6 +8,7 @@ from stage1_deliverable.common import sha
 
 from .http import _decode
 from .maintenance_inbox import MaintenanceInbox
+from .session_api import SessionApi
 
 
 class HostRegistry:
@@ -17,7 +18,11 @@ class HostRegistry:
         self.runtimes = dict(runtimes or {})
         self.inboxes = dict(inboxes or {})
         if any(
-            isinstance(value, (str, bytes, Path)) or callable(value)
+            isinstance(value, (str, bytes, Path))
+            or callable(value)
+            or not isinstance(getattr(value, "api", None), SessionApi)
+            or not callable(getattr(value, "bindings", None))
+            or not callable(getattr(value, "shutdown", None))
             for value in self.runtimes.values()
         ):
             raise ValueError("registered runtime object required")
@@ -83,6 +88,8 @@ def create_host(config, *, registry=None, **options):
     registry = HostRegistry() if registry is None else registry
     if not isinstance(registry, HostRegistry):
         raise ValueError("trusted host registry required")
+    if "native_runtime" in options:
+        raise ValueError("native runtime must resolve through the trusted registry")
     if (
         config["config_kind"] == "semantic"
         and options.get("maintenance_db") is not None
@@ -97,11 +104,10 @@ def create_host(config, *, registry=None, **options):
         inbox = None
     if native["mode"] == "disabled":
         runtime = None
-    # The persistent native connection is delivered by the next integration PR.
     state = dict(
         native="disabled"
         if native["mode"] == "disabled"
-        else ("registered-unconnected" if runtime is not None else "unavailable"),
+        else ("connected" if runtime is not None else "unavailable"),
         maintenance="disabled"
         if maintenance["mode"] == "disabled"
         else ("record-only" if inbox is not None else "unavailable"),
@@ -112,5 +118,6 @@ def create_host(config, *, registry=None, **options):
         presentation=deepcopy(config["presentation"]),
         capability_state=state,
         maintenance_inbox=inbox,
+        native_runtime=runtime,
         **options,
     )
