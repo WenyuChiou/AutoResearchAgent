@@ -162,7 +162,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_interface_config.py",
         "plugins/auto-research-agent/tests/test_workspace_host_config.py",
         "plugins/auto-research-agent/tests/test_workspace_atlas_associations.js",
-        "plugins/auto-research-agent/tests/test_workspace_atlas_spatial.js"
+        "plugins/auto-research-agent/tests/test_workspace_atlas_spatial.js",
+        "plugins/auto-research-agent/tests/test_workspace_atlas_vendor.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

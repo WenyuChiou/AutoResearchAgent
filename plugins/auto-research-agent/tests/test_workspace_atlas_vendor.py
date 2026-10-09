@@ -15,7 +15,9 @@ class AtlasVendorTests(unittest.TestCase):
             for name, expected in package["files"].items():
                 raw = (root / name).read_bytes()
                 self.assertEqual(len(raw), expected["bytes"], name)
-                self.assertEqual(hashlib.sha256(raw).hexdigest(), expected["sha256"], name)
+                self.assertEqual(
+                    hashlib.sha256(raw).hexdigest(), expected["sha256"], name
+                )
         notices = (root / "vendor/THIRD_PARTY_LICENSES.txt").read_bytes()
         self.assertIn(b"MIT", notices)
         self.assertFalse(notices.endswith(b"\n\n"))
