@@ -316,8 +316,8 @@
       "runtime_integrity_required": false,
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage1_brief",
-      "problem": "A broad direction can silently become a country-specific search without a recorded user decision.",
-      "mechanism": "Record versioned user scope decisions and bind query families to confirmed needs, preserving suggestions, unrestricted choices and history.",
+      "problem": "A broad direction can silently narrow scope or count screened candidates as a confirmed final-formal literature target.",
+      "mechanism": "Record versioned user scope and final-formal count decisions, bind submitted project/input/request answers and query families to confirmed needs, and account distinct formally included works without changing historical1.0 briefs.",
       "metric_effects": [
         {
           "metric_id": "P2",
@@ -335,10 +335,14 @@
         "pending material scope blocks compilation",
         "suggestions are not user decisions",
         "old plans cannot pass a new brief revision",
-        "no country default or frozen paper list"
+        "no country default or frozen paper list",
+        "new1.1 final-formal question remains pending until a submitted positive integer answer bound to project/input/request",
+        "formal progress deduplicates included work IDs and never implies sufficiency, budget expansion or Stage2 eligibility",
+        "historical1.0 priority-count semantics are not retroactively changed"
       ],
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_research_brief.py"
+        "plugins/auto-research-agent/tests/test_research_brief.py",
+        "plugins/auto-research-agent/tests/test_research_brief_formal_target.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
