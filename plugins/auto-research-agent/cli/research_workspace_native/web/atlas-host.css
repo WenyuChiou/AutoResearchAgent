@@ -35,6 +35,16 @@
 .host-case-kind { color: #62717e; font-size: 13px; margin: 5px 0; }
 .host-case-sha { display: block; color: #62717e; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .host-maintenance { border-top: 1px solid #dce4e6; padding-top: 14px; margin-top: 18px; }
+.host-feedback { border-top: 1px solid #dce4e6; padding-top: 14px; margin-top: 18px; }
+.host-feedback[hidden] { display: none; }
+.host-feedback h3 { font-size: 19px; margin: 0 0 12px; }
+.host-feedback label { font-size: 15px; color: #62717e; }
+.host-feedback textarea { box-sizing: border-box; width: 100%; resize: vertical; margin-top: 8px; border: 1px solid #cad8d7; border-radius: 7px; padding: 10px; font: inherit; color: #243649; background: #f8faf8; }
+.host-feedback-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.host-feedback-buttons button { padding: 8px 12px; font: inherit; font-size: 15px; border: 1px solid #cad8d7; border-radius: 7px; background: #fff; color: #243649; }
+.host-feedback-buttons button:disabled { opacity: .55; cursor: wait; }
+.host-feedback-history { display: grid; gap: 8px; margin-top: 12px; }
+.host-feedback-history article p { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 700px) {
   .host-open { right: 18px; bottom: 16px; }
   .host-drawer { right: 18px; bottom: 76px; }

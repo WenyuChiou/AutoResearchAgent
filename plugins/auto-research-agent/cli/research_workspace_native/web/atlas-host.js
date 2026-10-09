@@ -6,7 +6,7 @@
   if (!bootstrap || typeof bootstrap !== "object") return;
   const credential = typeof bootstrap.credential === "string" ? bootstrap.credential : "";
   const labels = {
-    open: ["Codex connection", "Codex 连接", "Codex 連線"],
+    open: ["Codex & feedback", "Codex 与反馈", "Codex 與回饋"],
     close: ["Close", "关闭", "關閉"],
     refresh: ["Read saved check", "读取检查记录", "讀取檢查紀錄"],
     readFailed: ["Unable to read the saved check. The last result is retained.", "无法读取检查记录，仍保留上次结果。", "無法讀取檢查記錄，仍保留上次結果。"],
@@ -24,6 +24,17 @@
     current: ["Current case", "当前案例", "目前案例"],
     view: ["View manifest", "页面清单", "頁面清單"],
     maintenance: ["UI maintenance needs a separate Codex task with tests, PR and preview. This readiness check does not connect that task.", "界面维护需要独立的 Codex 任务、测试、PR 和预览。本次连接检查尚未接通该任务。", "介面維護需要獨立的 Codex 任務、測試、PR 與預覽。本次連線檢查尚未接通該任務。"],
+    feedbackTitle: ["Improve this interface", "改进这个界面", "改善這個介面"],
+    feedbackLabel: ["Describe the issue or change you want", "描述遇到的问题或希望的改动", "描述遇到的問題或希望的改動"],
+    save: ["Save feedback", "保存反馈", "儲存回饋"],
+    history: ["Read feedback history", "读取反馈历史", "讀取回饋歷史"],
+    recorded: ["Recorded — not dispatched to Codex", "已记录，尚未派给 Codex", "已記錄，尚未派給 Codex"],
+    saving: ["Saving…", "正在保存…", "正在儲存…"],
+    unknownSave: ["Response unavailable. Read history to check this key; do not submit again.", "未收到回执。请读取历史核查此记录，请勿重复提交。", "未收到回執。請讀取歷史核查此記錄，請勿重複提交。"],
+    feedbackReadFailed: ["Feedback history could not be read. Previous records are retained.", "无法读取反馈历史，仍保留上次记录。", "無法讀取回饋歷史，仍保留上次記錄。"],
+    feedbackBound: ["Use 1–4,000 UTF-8 bytes. Your text is saved with this case, source version and stage.", "请输入 1–4,000 个 UTF-8 字节。文字随当前案例、来源版本和阶段保存。", "請輸入 1–4,000 個 UTF-8 位元組。文字會隨目前案例、來源版本與階段儲存。"],
+    intentUnavailable: ["The browser cannot save a recovery key. Feedback was not submitted.", "浏览器无法保存恢复记录，反馈尚未提交。", "瀏覽器無法儲存復原紀錄，回饋尚未提交。"],
+    stage: ["Stage", "阶段", "階段"],
   };
   const language = document.getElementById("atlas-language");
   const t = key => labels[key][({en: 0, "zh-Hans": 1, "zh-Hant": 2})[language?.value] ?? 0];
@@ -58,6 +69,41 @@
   const refresh = make("button", panel, "host-refresh"); refresh.type = "button";
   const casesTitle = make("h3", panel, "host-cases-title"), cases = make("div", panel, "host-cases");
   const maintenance = make("p", panel, "host-maintenance");
+  const feedback = make("section", panel, "host-feedback");
+  feedback.hidden = bootstrap.maintenance_enabled !== true;
+  const feedbackTitle = make("h3", feedback), feedbackLabel = make("label", feedback);
+  feedbackLabel.htmlFor = "host-feedback-text";
+  const feedbackText = make("textarea", feedback); feedbackText.id = "host-feedback-text";
+  feedbackText.rows = 4;
+  const feedbackBound = make("p", feedback, "host-boundary");
+  const feedbackButtons = make("div", feedback, "host-feedback-buttons");
+  const save = make("button", feedbackButtons), history = make("button", feedbackButtons);
+  save.type = history.type = "button";
+  const feedbackNotice = make("p", feedback, "host-boundary"); feedbackNotice.setAttribute("role", "status");
+  const feedbackKey = make("code", feedback, "host-case-sha");
+  const feedbackRows = make("div", feedback, "host-feedback-history");
+  let feedbackBusy = false, feedbackState = "", feedbackRecords = [], pending = null;
+  const caseBinding = bootstrap.cases.find(row => row.ref === bootstrap.current_case);
+  const storageKey = "atlas-feedback-intent:" + bootstrap.current_case + ":" + caseBinding?.index_sha256 + ":" + caseBinding?.manifest_sha256;
+  const hash = value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+  const digest = async value => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value))))].map(b => b.toString(16).padStart(2, "0")).join("");
+  const requestHash = (stage, message, key) => digest({binding: {index_sha256: caseBinding.index_sha256, manifest_sha256: caseBinding.manifest_sha256, project_id: caseBinding.project_id}, case_ref: bootstrap.current_case, key, message, stage});
+  const validateReceipt = async row => {
+    const fields = ["case_ref", "created_at", "feedback_ref", "index_sha256", "key", "manifest_sha256", "message", "project_id", "record_sha256", "replayed", "sequence", "stage", "status"];
+    if (!row || typeof row !== "object" || Array.isArray(row) || Object.keys(row).sort().join() !== fields.sort().join() ||
+        row.case_ref !== bootstrap.current_case || row.project_id !== caseBinding?.project_id || row.index_sha256 !== caseBinding?.index_sha256 || row.manifest_sha256 !== caseBinding?.manifest_sha256 ||
+        row.status !== "recorded-not-dispatched" || !Number.isSafeInteger(row.stage) || row.stage < 1 || row.stage > 6 || !Number.isSafeInteger(row.sequence) || row.sequence < 1 || typeof row.replayed !== "boolean" ||
+        typeof row.key !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/.test(row.key) || typeof row.created_at !== "string" || !Number.isFinite(Date.parse(row.created_at)) ||
+        typeof row.message !== "string" || !row.message.trim() || new TextEncoder().encode(row.message).length > 4000 || !hash(row.feedback_ref) || !hash(row.record_sha256) ||
+        await digest([row.case_ref, row.key]) !== row.feedback_ref || await requestHash(row.stage, row.message, row.key) !== row.record_sha256) throw Error("invalid-feedback-record");
+    return row;
+  };
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(storageKey));
+    if (saved && typeof saved.key === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(saved.key) && hash(saved.record_sha256) && Number.isInteger(saved.stage) && saved.stage >= 1 && saved.stage <= 6) {
+      pending = saved; feedbackState = "unknownSave";
+    }
+  } catch { /* Storage is optional; no secret or user text is persisted here. */ }
   let connection = bootstrap.connection || {}, busy = false, readFailed = false;
   const render = () => {
     const key = ["check-passed", "needs-login", "check-failed", "not-checked"].includes(connection.status) ? connection.status : "not-checked";
@@ -91,6 +137,20 @@
       }
     }
     maintenance.textContent = t("maintenance");
+    feedbackTitle.textContent = t("feedbackTitle"); feedbackLabel.textContent = t("feedbackLabel");
+    feedbackBound.textContent = t("feedbackBound");
+    save.textContent = t("save"); history.textContent = t("history");
+    save.disabled = feedbackBusy || !!pending || !credential;
+    history.disabled = feedbackBusy || !credential;
+    feedbackNotice.textContent = feedbackState ? t(feedbackState) : "";
+    feedbackKey.textContent = pending ? pending.key : "";
+    feedbackRows.replaceChildren();
+    for (const row of feedbackRecords) {
+      const card = make("article", feedbackRows, "host-case");
+      make("p", card, "host-case-kind", t("stage") + " " + row.stage + " · " + t("recorded"));
+      make("p", card, "", row.message).translate = false;
+      make("code", card, "host-case-sha", row.key).translate = false;
+    }
   };
   const hide = () => { panel.hidden = true; open.setAttribute("aria-expanded", "false"); open.focus(); };
   open.addEventListener("click", () => {
@@ -112,6 +172,57 @@
       readFailed = false;
     } catch { readFailed = true; }
     finally { busy = false; render(); }
+  });
+  const feedbackUrl = "/api/maintenance/" + encodeURIComponent(bootstrap.current_case);
+  const fetchFeedback = async (method, body, suffix = "") => {
+    const headers = {Authorization: "Bearer " + credential};
+    if (body) headers["Content-Type"] = "application/json";
+    const response = await fetch(feedbackUrl + suffix, {method, credentials: "omit", cache: "no-store", redirect: "error", headers, ...(body ? {body: JSON.stringify(body)} : {})});
+    if (!response.ok) throw Error("feedback-rejected");
+    return response.json();
+  };
+  history.addEventListener("click", async () => {
+    if (feedbackBusy || !credential) return;
+    feedbackBusy = true; render();
+    try {
+      const rows = await fetchFeedback("GET");
+      if (!Array.isArray(rows)) throw Error("invalid-history");
+      const validated = await Promise.all(rows.map(validateReceipt));
+      if (new Set(validated.map(row => row.key)).size !== validated.length) throw Error("duplicate-history");
+      if (pending && !rows.some(row => row.key === pending.key)) {
+        const saved = await validateReceipt(await fetchFeedback("GET", null, "/" + encodeURIComponent(pending.key)));
+        if (saved.key === pending.key) validated.push(saved);
+      }
+      const recovered = pending && validated.find(row => row.key === pending.key);
+      if (recovered && (recovered.stage !== pending.stage || recovered.record_sha256 !== pending.record_sha256)) throw Error("recovery-binding-differs");
+      feedbackRecords = validated;
+      if (recovered) {
+        pending = null; try { sessionStorage.removeItem(storageKey); } catch { /* A later reload recovers again with GET. */ } feedbackState = "recorded";
+      } else if (!pending) feedbackState = "";
+    } catch { feedbackState = "feedbackReadFailed"; }
+    finally { feedbackBusy = false; render(); }
+  });
+  save.addEventListener("click", async () => {
+    if (feedbackBusy || pending || !credential) return;
+    const message = feedbackText.value, size = new TextEncoder().encode(message).length;
+    if (!message.trim() || size > 4000 || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(message)) {
+      feedbackState = "feedbackBound"; render(); return;
+    }
+    const key = "ui-" + crypto.randomUUID();
+    const stage = Number(document.documentElement.dataset.atlasStage || "1");
+    feedbackBusy = true; feedbackState = "saving"; render();
+    try {
+      pending = {key, stage, record_sha256: await requestHash(stage, message, key)};
+      sessionStorage.setItem(storageKey, JSON.stringify(pending));
+    } catch { pending = null; feedbackBusy = false; feedbackState = "intentUnavailable"; render(); return; }
+    try {
+      const row = await validateReceipt(await fetchFeedback("POST", {key, stage, message}));
+      if (row.key !== key || row.stage !== stage || row.record_sha256 !== pending.record_sha256) throw Error("invalid-receipt");
+      feedbackRecords = [row, ...feedbackRecords.filter(r => r.key !== key)];
+      pending = null; try { sessionStorage.removeItem(storageKey); } catch { /* GET remains the only recovery path. */ }
+      feedbackText.value = ""; feedbackState = "recorded";
+    } catch { feedbackState = "unknownSave"; }
+    finally { feedbackBusy = false; render(); }
   });
   render();
 })();

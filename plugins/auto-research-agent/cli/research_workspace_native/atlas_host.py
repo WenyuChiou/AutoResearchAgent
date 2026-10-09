@@ -1,4 +1,4 @@
-"""Serve explicitly pinned atlas views with a separate read-only Codex check.
+"""Serve pinned atlas views, a cached Codex check and an optional feedback inbox.
 
 The host never creates/resumes threads, dispatches turns or changes research data.
 Its loopback bootstrap is for one local user, not multi-tenant authentication.
@@ -100,11 +100,16 @@ def load_views(config_path, expected_sha256):
             snapshot[name] = data
         index_sha = sha(snapshot["workspace-index.json"])
         binding = _decode(snapshot["atlas-binding.json"].decode("utf-8"))
+        index = _decode(snapshot["workspace-index.json"].decode("utf-8"))
         if (
             not isinstance(binding, dict)
             or index_sha != manifest.get("index_sha256")
             or binding.get("index_sha256") != index_sha
             or binding.get("kind") != "WorkspaceEvidenceAtlas"
+            or not isinstance(index, dict)
+            or not isinstance(index.get("project_id"), str)
+            or not 0 < len(index["project_id"]) <= 128
+            or binding.get("project_id") != index["project_id"]
             or binding.get("execution_authority") is not False
             or not isinstance(binding.get("files"), dict)
             or not {
@@ -132,6 +137,7 @@ def load_views(config_path, expected_sha256):
                 index_sha256=index_sha,
                 fixture=entry["fixture"],
                 manifest_sha256=entry["sha256"],
+                project_id=index["project_id"],
             )
         )
     return files, views
@@ -140,11 +146,14 @@ def load_views(config_path, expected_sha256):
 class AtlasHost(SessionHttpServer):
     """Reuse accepted socket bounds with an empty, inaccessible native facade."""
 
-    def __init__(self, *, files, views, connection=None, **options):
+    def __init__(
+        self, *, files, views, connection=None, maintenance_db=None, **options
+    ):
         self.credential = secrets.token_urlsafe(32)
         self.authenticate = token_authenticator({self.credential: "local-viewer"})
         self.connection_check = deepcopy(connection or {"status": "not-checked"})
         self._assets, self.views = dict(files), deepcopy(views)
+        self.maintenance = None
         assets = Path(__file__).parent / "web"
         for filename, route in (
             ("atlas-host.js", "/host-panel.js"),
@@ -175,8 +184,26 @@ class AtlasHost(SessionHttpServer):
         }
         self._assets["/host-binding.json"] = canonical(self.host_binding)
         self._assets["/"] = self._landing()
+        if maintenance_db is not None:
+            from .maintenance_inbox import MaintenanceInbox
+
+            self.maintenance = MaintenanceInbox(
+                maintenance_db,
+                {
+                    row["ref"]: {
+                        name: row[name]
+                        for name in ("project_id", "index_sha256", "manifest_sha256")
+                    }
+                    for row in views
+                },
+            )
         # No registered controller; /api/native routes are not exposed below.
-        super().__init__(SessionApi(authenticate=self.authenticate), **options)
+        try:
+            super().__init__(SessionApi(authenticate=self.authenticate), **options)
+        except BaseException:
+            if self.maintenance is not None:
+                self.maintenance.close()
+            raise
         self.RequestHandlerClass = AtlasHandler
 
     def _landing(self):
@@ -205,6 +232,13 @@ class AtlasHost(SessionHttpServer):
             + ". Research/model execution is not enabled.</p></main></body></html>"
         ).encode("utf-8")
 
+    def server_close(self):
+        try:
+            super().server_close()
+        finally:
+            if self.maintenance is not None:
+                self.maintenance.close()
+
 
 class AtlasHandler(SessionHandler):
     def do_GET(self):
@@ -230,6 +264,18 @@ class AtlasHandler(SessionHandler):
                     raise SessionApiError("credential-rejected", 401)
                 return self._reply(200, self.server.connection_check)
             match = re.fullmatch(
+                r"/api/maintenance/([A-Za-z0-9_-]{1,64})(?:/([A-Za-z0-9._:-]{1,128}))?",
+                self.path,
+            )
+            if match:
+                self._feedback_auth("GET")
+                result = (
+                    self.server.maintenance.get(match.group(1), match.group(2))
+                    if match.group(2)
+                    else self.server.maintenance.history(match.group(1))
+                )
+                return self._reply(200, result)
+            match = re.fullmatch(
                 r"/host-bootstrap/([A-Za-z0-9_-]{1,64})\.js", self.path
             )
             if match:
@@ -244,6 +290,7 @@ class AtlasHandler(SessionHandler):
                             current_case=ref,
                             cases=self.server.views,
                             connection=self.server.connection_check,
+                            maintenance_enabled=self.server.maintenance is not None,
                         ),
                         ensure_ascii=True,
                         allow_nan=False,
@@ -287,11 +334,58 @@ class AtlasHandler(SessionHandler):
             self.wfile.write(raw)
         except SessionApiError as error:
             self._reply(error.status, {"error": error.code})
+        except ValueError:
+            self._reply(400, {"error": "feedback-rejected"})
         except (TimeoutError, OSError):
             self.close_connection = True
 
+    def _feedback_auth(self, method):
+        token, length = self._headers(method)
+        if self.headers.get("Sec-Fetch-Site") not in (None, "none", "same-origin"):
+            raise SessionApiError("cross-site-rejected", 403)
+        if self.server.authenticate(token) is None:
+            raise SessionApiError("credential-rejected", 401)
+        if self.server.maintenance is None:
+            raise SessionApiError("feedback-not-enabled", 404)
+        return length
+
     def do_POST(self):
-        self._reply(405, {"error": "read-only-host"})
+        try:
+            match = re.fullmatch(r"/api/maintenance/([A-Za-z0-9_-]{1,64})", self.path)
+            if not match:
+                raise SessionApiError("read-only-host", 405)
+            length = self._feedback_auth("POST")
+            if self.headers.get("Content-Type", "").lower() != "application/json":
+                raise SessionApiError("json-content-type-required", 415)
+            if not 0 < length <= 8192:
+                raise SessionApiError("feedback-body-bound-exceeded", 413)
+            self._remaining()
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                raise SessionApiError("partial-body", 400)
+            try:
+                body = _decode(raw.decode("utf-8"))
+            except (ValueError, UnicodeError, RecursionError):
+                raise SessionApiError("invalid-json", 400) from None
+            if not isinstance(body, dict) or set(body) != {"stage", "message", "key"}:
+                raise SessionApiError("feedback-fields-rejected", 400)
+            self._remaining()
+            result = self.server.maintenance.submit(
+                match.group(1),
+                body["stage"],
+                body["message"],
+                body["key"],
+                before_commit=self._remaining,
+            )
+            self._reply(200, result)
+        except SessionApiError as error:
+            self._reply(error.status, {"error": error.code})
+        except ValueError:
+            self._reply(409, {"error": "feedback-rejected"})
+        except (TimeoutError, OSError):
+            self.close_connection = True
+        except Exception:
+            self._reply(500, {"error": "feedback-save-failed"})
 
 
 def main():
@@ -304,6 +398,7 @@ def main():
     parser.add_argument("--codex", type=Path)
     parser.add_argument("--codex-sha256")
     parser.add_argument("--probe-root", type=Path)
+    parser.add_argument("--maintenance-db", type=Path)
     args = parser.parse_args()
     files, views = load_views(args.config, args.config_sha256)
     connection = None
@@ -319,7 +414,13 @@ def main():
         from .codex_probe import run_probe
 
         connection = run_probe(args.codex, args.codex_sha256, cwd, root / "probe.jsonl")
-    server = AtlasHost(files=files, views=views, connection=connection, port=args.port)
+    server = AtlasHost(
+        files=files,
+        views=views,
+        connection=connection,
+        port=args.port,
+        maintenance_db=args.maintenance_db,
+    )
     url = server.expected_origin + "/"
     print(url, flush=True)
     if args.open:

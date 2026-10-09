@@ -14,7 +14,7 @@ python -B -m research_workspace_native.atlas_host --config C:/private/views.json
 Configuration has only `views`, an array of entries with `ref`, `label`, absolute
 `manifest` path, manifest `sha256` and boolean `fixture`. Each registered manifest
 must describe a complete atlas export. Files are verified and snapshotted before
-listening; unknown paths and API writes are rejected. Same-title cases remain
+listening; unknown paths and research API writes are rejected. Same-title cases remain
 separate views. This is a single-user localhost host, not public deployment or
 multi-tenant access control. Browser bootstrap credentials remain only in memory.
 
@@ -26,6 +26,18 @@ GET only retrieves the saved observation. Passing does not mean a persistent
 research session, model entitlement, process containment or completed model turn.
 
 ## Requested UI maintenance assistant
+
+With an explicit `--maintenance-db C:/private/ui-feedback.sqlite`, the host adds
+a durable feedback box. Trusted startup binds each case to its project, index and
+manifest hashes. POST accepts only stage, message and idempotency key; exact
+Host/Origin and bearer checks precede the SQLite save. The status is always
+`recorded-not-dispatched`. The inbox has no process, model or research authority.
+GET reads saved history or an exact key. Duplicate same-key payloads return the
+original record; different payloads reject. Lost responses and page reloads only
+recover with GET, without automatic resend. User text stays private in SQLite;
+browser session storage holds only a case/source-bound intent key and stage.
+Feedback does not modify the accepted UI, research records or preview. The planned
+maintenance executor below remains separate.
 
 The user requested a small global feedback box on 2026-10-08. Its intended flow is
 feedback → separate UI worktree/Codex thread → tests → Draft PR → branch preview.
