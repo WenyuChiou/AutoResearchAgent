@@ -28,6 +28,11 @@
     labelInput.onchange = () => {if (dead) return; settings.showLabels = labelInput.checked; spatial?.setLabels(labelInput.checked);};
     choose(t("fit"), () => {if (!dead) spatial?.fit();});
     const help = document.createElement("p"); help.className = "atlas-small"; help.textContent = t("spatialHelp");
+    const shapes = document.createElement("div"); shapes.className = "atlas-node-legend";
+    for (const [kind, label] of [["paper", "paperShape"], ["topic", "topicShape"], ["method", "methodShape"]]) {
+      const item = document.createElement("span"), icon = document.createElement("i"), text = document.createElement("span");
+      icon.dataset.nodeKind = kind; icon.setAttribute("aria-hidden", "true"); text.textContent = t(label); item.append(icon, text); shapes.append(item);
+    }
     const legend = document.createElement("div"); legend.className = "atlas-graph-legend";
     for (const [kind, label] of [["direction", "directionLink"], ["method", "methodLink"], ["overlap", "overlapLink"], ...(settings.computed ? [["similarity", "computedLinks"]] : [])]) {
       const item = document.createElement("span"), sample = document.createElement("i"), text = document.createElement("span");
@@ -47,7 +52,7 @@
       relationBox.append(row);
     });
     const note = document.createElement("p"); note.className = "atlas-small"; note.textContent = t("spatialBasis");
-    parent.append(controls, host, help, legend, note, relationBox);
+    parent.append(controls, host, help, shapes, legend, note, relationBox);
     const current = ++ticket;
     root.queueMicrotask(() => {
       if (dead || current !== ticket || !host.isConnected) return;

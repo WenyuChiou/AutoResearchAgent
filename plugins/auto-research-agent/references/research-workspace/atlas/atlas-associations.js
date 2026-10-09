@@ -151,7 +151,30 @@
   function build(records, options = {}) {
     return {recorded: recorded(records), lexical: lexical(records, options), lexicalTopics: lexicalTopics(records, options)};
   }
-  const api = {key, tokens, features, recorded, lexical, lexicalTopics, build};
+  function related(records, paperKey, options = {}) {
+    const papers = normalized(records), byKey = new Map(papers.map(paper => [paper.key, paper]));
+    if (!byKey.has(paperKey)) return [];
+    const settings = {neighbors: 2, threshold: .09, ...options}, found = new Map();
+    const links = [...recorded(papers), ...(settings.computed !== false ? lexical(papers, settings) : [])];
+    for (const link of links) {
+      if (link.from.type !== "paper" || link.to.type !== "paper") continue;
+      const other = link.from.key === paperKey ? link.to.key : link.to.key === paperKey ? link.from.key : null;
+      if (other === paperKey || !byKey.has(other)) continue;
+      if (!found.has(other)) found.set(other, {paper: byKey.get(other), shared_topics: [], shared_methods: [], lexical: null});
+      const entry = found.get(other);
+      if (link.kind === "recorded-paper-overlap") {
+        entry.shared_topics = [...new Set([...entry.shared_topics, ...rows(link.shared_topics)])].sort(compare);
+        entry.shared_methods = [...new Set([...entry.shared_methods, ...rows(link.shared_methods)])].sort(compare);
+      } else if (link.kind === "lexical-content") {
+        entry.lexical = {score: link.score, shared_terms: [...link.shared_terms], basis: link.basis};
+      }
+    }
+    const sharedCount = entry => entry.shared_topics.length + entry.shared_methods.length;
+    return [...found.values()].sort((a, b) =>
+      Number(sharedCount(b) > 0) - Number(sharedCount(a) > 0) || sharedCount(b) - sharedCount(a) ||
+      (b.lexical?.score || 0) - (a.lexical?.score || 0) || compare(a.paper.key, b.paper.key));
+  }
+  const api = {key, tokens, features, recorded, lexical, lexicalTopics, build, related};
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else host.AtlasAssociations = api;
 })(typeof window === "undefined" ? globalThis : window);

@@ -98,8 +98,8 @@ may choose one primary group for geometry, but that choice cannot discard other
 recorded memberships. Exact shared topic or method labels and shared-paper
 topic overlaps are recorded associations, not inferred citations.
 
-The separately labeled `AtlasAssociations` projection compares only saved
-findings fields and all literal topics. Its English stop words, Chinese
+The separately labeled `AtlasAssociations` projection compares saved
+findings fields and literal topic-label text. Its English stop words, Chinese
 bigrams and deterministic TF-IDF cosine produce lexical paper links and topic
 aggregate links. Keep these distinct from recorded relationships, method-label
 Jaccard and any bound original-source relation. Relationship details expose the basis,
@@ -128,6 +128,16 @@ URL/DOI, source IDs, accepted saved-source links and the complete Markdown note.
 This section precedes findings. Source attempts, historical decisions, claim
 records and raw provenance may remain collapsed. Preserve URL/path and hash
 guards, source access failures, Unknowns and exact work/version bindings.
+
+The selected paper detail lists canonical related paper versions from the
+current working/archive collection. Merge exact shared directions, literal
+method labels and separately labeled computed text links into one card per
+version. Show five cards and collapse the rest. Keep topic-aggregate links out
+of this direct-paper list; text cosine and normalized shared terms are neither
+source quotations nor scientific agreement. Clicking a card focuses its exact
+upper detail and graph node while retaining library filters, ordering and page.
+Use circles for paper nodes, projected diamonds for direction nodes, and smaller
+method nodes, with a visible shape legend in both camera modes.
 
 Stage 1 and Stage 2 put results first, then the within-stage workflow and collapsed
 process history. Future stages retain this order while choosing visualizations

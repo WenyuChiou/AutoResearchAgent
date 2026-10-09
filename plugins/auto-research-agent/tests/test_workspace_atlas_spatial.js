@@ -61,6 +61,7 @@ assert.equal(resolved.shown[0].id, "selected"); assert.deepEqual(resolved.hidden
 // Injected DOM/runtime: actual WebGL/browser acceptance remains a separate check.
 let nextFrame = 0, observerDisconnected = 0;
 const frames = new Map();
+const runLastFrame = () => { const [key, callback] = [...frames].at(-1); frames.delete(key); callback(); };
 global.requestAnimationFrame = callback => { frames.set(++nextFrame, callback); return nextFrame; };
 global.cancelAnimationFrame = frame => frames.delete(frame);
 global.ResizeObserver = class { constructor(callback) { this.callback = callback; } observe() { this.callback(); } disconnect() { observerDisconnected++; } };
@@ -78,7 +79,7 @@ const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 const created = [];
 global.ForceGraph3D = () => () => {
   const config = {}, camera = {position: vector(), up: vector(), fov: 50, zoom: 1,
-    matrixWorldInverse: {elements: identity}, projectionMatrix: {elements: identity}, updateMatrixWorld() {}, updateProjectionMatrix() {}};
+    matrixWorldInverse: {elements: identity}, projectionMatrix: {elements: [.002, 0, 0, 0, 0, .002, 0, 0, 0, 0, .002, .002, 0, 0, 0, 1]}, updateMatrixWorld() {}, updateProjectionMatrix() {}};
   const control = {target: vector(), update() {}};
   const graph = {config, camera: () => camera, controls: () => control, disposed: 0,
     cameraPosition(position, target) { config.cameraWrites = (config.cameraWrites || 0) + 1; Object.assign(camera.position, position); Object.assign(control.target, target); return graph; },
@@ -96,8 +97,21 @@ const first = created[0]; assert.equal(first.config.enableNodeDrag, false);
 assert.equal(first.config.nodeRelSize, 7); assert.equal(first.config.nodeVal({kind: "paper"}), 5);
 assert.equal(mounted.diagnostics().showLabels, false);
 const retainedNodes = first.config.data.nodes.length, retainedLinks = first.config.data.links.length;
+const topics = first.config.data.nodes.filter(n => n.kind === "topic");
+assert.ok(topics.every(n => first.config.nodeVisibility(n) === false));
+assert.ok(first.config.data.links.filter(e => e.kind === "topic-membership").every(e => first.config.linkVisibility(e)));
+const markers = host.children[0].children[2].children.filter(node => node.className === "atlas-spatial-topic-marker");
+assert.equal(markers.length, topics.length); assert.equal(markers[0].attributes["aria-label"], "Direction node: " + topics[0].label);
+assert.equal(markers[0].style.transform, "translate(-50%, -50%) rotate(45deg)");
+runLastFrame(); const spatialMarkers = mounted.diagnostics().topicMarkers;
+assert.ok(spatialMarkers.some(marker => marker.visible));
+first.camera().projectionMatrix.elements[12] = 3; runLastFrame();
+assert.ok(mounted.diagnostics().topicMarkers.every(marker => !marker.visible));
+assert.ok(markers.every(marker => marker.style.visibility === "hidden"));
+first.camera().projectionMatrix.elements[12] = 0; runLastFrame();
 assert.equal(mounted.setLabels(true), true); assert.equal(mounted.diagnostics().eligibleLabelIds.length, retainedNodes);
 assert.throws(() => mounted.setLabels("yes"), /boolean/); mounted.setLabels(false);
+assert.ok(topics.every(n => first.config.nodeVisibility(n) === false));
 assert.equal(host.children.length, 1); assert.equal(mounted.diagnostics().papers, 4);
 assert.equal(mounted.setFocus({kind: "paper", key: "stale"}), false);
 assert.equal(mounted.setFocus({kind: "paper", key: records[0].key}), true);
@@ -108,12 +122,17 @@ first.config.onNodeHover(null); assert.deepEqual(mounted.diagnostics().focus, fo
 assert.equal(first.config.data.nodes.length, retainedNodes); assert.equal(first.config.data.links.length, retainedLinks);
 first.config.onNodeClick(first.config.data.nodes.find(n => n.key === records[0].key));
 assert.deepEqual(selection, [{kind: "paper", key: records[0].key}]);
+markers[0].listeners.get("click")(); assert.deepEqual(selection.at(-1), {kind: "topic", key: topics[0].key});
+const lateMarkerClick = markers[0].listeners.get("click");
+markers[0].listeners.get("focus")(); assert.equal(mounted.diagnostics().hover, topics[0].id);
+markers[0].listeners.get("blur")(); assert.equal(mounted.diagnostics().hover, null);
 assert.equal(first.config.nodeLabel(first.config.data.nodes[0]).textContent, "Same title <script>");
 mounted.fit(); const saved = mounted.snapshot(); assert.ok(Number.isFinite(saved.position.z));
 first.camera().position.set(200, 140, 520); first.controls().target.set(30, -20, 20);
 const orbitPose = mounted.snapshot();
 mounted.setMode("2d"); const staleFit = [...frames.values()].at(-1);
 mounted.fit(); assert.equal(mounted.diagnostics().mode, 2);
+runLastFrame(); assert.notDeepEqual(mounted.diagnostics().topicMarkers.map(p => [p.x, p.y]), spatialMarkers.map(p => [p.x, p.y]));
 assert.equal(mounted.snapshot().target.z, 0); assert.ok(first.config.data.nodes.every(n => n.z === 0));
 const priorWrites = first.config.cameraWrites;
 mounted.setMode("3d"); assert.deepEqual(mounted.snapshot().position, orbitPose.position); assert.deepEqual(mounted.snapshot().target, orbitPose.target);
@@ -121,10 +140,12 @@ assert.equal(frames.size, 1); mounted.fit(); assert.ok(first.config.data.nodes.e
 const currentWrites = first.config.cameraWrites; staleFit(); assert.equal(first.config.cameraWrites, currentWrites);
 assert.ok(currentWrites > priorWrites);
 const remountPose = mounted.snapshot();
-const replacement = spatial.mount(host, {papers: records, model, mode: "3d", pose: remountPose});
+const replacement = spatial.mount(host, {papers: records, model, mode: "3d", pose: remountPose, language: "zh-Hant"});
 assert.equal(first.disposed, 1); assert.equal(mounted.diagnostics().destroyed, true);
 assert.deepEqual(replacement.snapshot(), remountPose); assert.equal(host.children.length, 1);
-first.config.onNodeClick(first.config.data.nodes[0]); assert.equal(selection.length, 1);
+assert.ok(host.children[0].children[2].children.find(node => node.className === "atlas-spatial-topic-marker").attributes["aria-label"].startsWith("方向節點："));
+first.config.onNodeClick(first.config.data.nodes[0]); lateMarkerClick(); assert.equal(selection.length, 2);
+assert.ok(markers.every(marker => marker.listeners.size === 0));
 first.config.onNodeHover(first.config.data.nodes[0]); assert.equal(mounted.diagnostics().hover, null);
 replacement.setMode("2d"); assert.deepEqual(replacement.snapshot().position, remountPose.poses[2].position); assert.equal(frames.size, 1);
 replacement.destroy(); replacement.destroy();

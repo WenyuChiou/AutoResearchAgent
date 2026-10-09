@@ -68,13 +68,93 @@ const malicious = '<script>globalThis.executed = true</script><img src=x onerror
 const hostile = records.map(p => ({...p, findings: {question: malicious}}));
 assert.ok(!association.tokens(malicious).includes("executed"));
 assert.ok(association.build(hostile).lexical.every(link => link.shared_terms.every(term => !/[<>]/.test(term))));
+
+// Direct paper relations merge recorded and computed bases into one version-bound card.
+const selectedKey = association.key(records[0]), related = association.related(records, selectedKey);
+assert.equal(related.length, 2);
+assert.deepEqual(related[0].shared_topics, ["Y"]);
+assert.deepEqual(related[0].shared_methods, ["Shared"]);
+assert.equal(related[0].paper.key, association.key(records[1]));
+assert.equal(related[0].paper.title, records[1].title);
+assert.notEqual(related[0].paper.key, selectedKey);
+assert.equal(related[0].lexical.score, 1);
+assert.equal(related[0].lexical.basis, "tf-idf-cosine-v1");
+assert.ok(related[0].lexical.shared_terms.includes("retirement"));
+assert.equal(new Set(related.map(row => row.paper.key)).size, related.length);
+const crossTopic = related.find(row => row.paper.key === association.key(records[2]));
+assert.deepEqual(crossTopic.shared_topics, []); assert.deepEqual(crossTopic.shared_methods, []);
+assert.ok(crossTopic.lexical.score > 0 && crossTopic.lexical.shared_terms.includes("household"));
+assert.deepEqual(association.related(records, selectedKey, {computed: false}), [
+  {...related[0], lexical: null}
+]);
+assert.deepEqual(association.related(records, selectedKey, {neighbors: 0}), [
+  {...related[0], lexical: null}
+]);
+assert.deepEqual(association.related([...records].reverse(), selectedKey), related);
+assert.deepEqual(association.related(retainedCells, selectedKey).map(row => ({...row, paper: row.paper.key})),
+  related.map(row => ({...row, paper: row.paper.key})));
+assert.deepEqual(association.related(records.map(p => ({...p, key: "wrong-key"})), selectedKey), related);
+assert.deepEqual(association.related(records, "wrong-key"), []);
+assert.deepEqual(association.related([], selectedKey), []);
+assert.deepEqual(association.related([records[0]], selectedKey), []);
+assert.equal(JSON.stringify(records), before);
+
+// A topic-aggregate edge or a bridge paper never creates a direct relation between its members.
+const bridge = [paper("bridge", "v1", ["X", "Y"], [], ""),
+  paper("left", "v1", "X", [], ""), paper("right", "v1", "Y", [], "")];
+assert.ok(association.build(bridge).recorded.some(edge => edge.from.type === "topic"));
+assert.deepEqual(association.related(bridge, association.key(bridge[1])).map(row => row.paper.key),
+  [association.key(bridge[0])]);
+const unknowns = [paper("unknown-a", "v1", ["Unknown", "未知"], "Unverified", ""),
+  paper("unknown-b", "v1", ["Unknown", "未知"], "Unverified", "")];
+assert.deepEqual(association.related(unknowns, association.key(unknowns[0]), {threshold: 0}), []);
+assert.deepEqual(association.related(noOverlap, association.key(noOverlap[0]), {threshold: 0}), []);
+
+// Recorded relations rank first, then recorded counts, cosine values and canonical keys.
+const ranked = [paper("selected", "v1", ["X", "Y"], ["M", "N"], "retirement household income"),
+  paper("many", "v1", ["X", "Y"], "M", "galaxy photon telescope"),
+  paper("high-z", "v1", "X", [], "retirement household income"),
+  paper("high-a", "v1", "X", [], "retirement household income"),
+  paper("low", "v1", [], "N", "galaxy photon telescope"),
+  paper("computed", "v1", "Z", "Other", "retirement household income")];
+const ranking = association.related(ranked, association.key(ranked[0]), {neighbors: 4});
+assert.deepEqual(ranking.map(row => row.paper.work_id), ["many", "high-a", "high-z", "low", "computed"]);
+
+// Pure output preserves literal source text; HTML-looking titles never become executable code.
+function freeze(value) {
+  if (value && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); }
+  return value;
+}
+const frozen = freeze(hostile.map(p => ({...p, title: malicious}))), frozenBefore = JSON.stringify(frozen);
+const inert = association.related(frozen, selectedKey);
+assert.equal(inert[0].paper.title, malicious);
+assert.equal(inert[0].paper.findings.question, malicious);
+assert.ok(inert.every(row => row.lexical?.shared_terms.every(term => !/[<>]/.test(term))));
+assert.equal(JSON.stringify(frozen), frozenBefore);
+assert.equal(globalThis.executed, undefined);
+
 const context = {window: {}};
 vm.runInNewContext(fs.readFileSync(require.resolve("../references/research-workspace/atlas/atlas-associations.js"), "utf8"), context);
 assert.equal(typeof context.window.AtlasAssociations.build, "function");
+assert.equal(typeof context.window.AtlasAssociations.related, "function");
 assert.equal(context.executed, undefined);
 // More than two possible neighbors stays bounded by the union of each paper's top two.
 const bounded = Array.from({length: 12}, (_, i) => paper(`N${i}`, "v1", [], [],
   `shared household spending retirement ${i % 2 ? "wealth" : "income"} detail${i}`));
 assert.ok(association.lexical(bounded).length <= bounded.length * 2);
 assert.deepEqual(association.lexical(bounded), association.lexical([...bounded].reverse()));
+
+// Related cards are exactly the symmetric union of the graph's direct paper edges.
+const options = {neighbors: 2, threshold: .09}, graph = association.build([...records, ...bounded], options);
+const graphRecords = [...records, ...bounded], graphBefore = JSON.stringify(graphRecords);
+for (const p of graphRecords) {
+  const id = association.key(p), cards = association.related(graphRecords, id, options);
+  const expected = [...new Set([...graph.recorded, ...graph.lexical]
+    .filter(edge => edge.from.type === "paper" && edge.to.type === "paper")
+    .flatMap(edge => edge.from.key === id ? [edge.to.key] : edge.to.key === id ? [edge.from.key] : []))].sort();
+  assert.deepEqual(cards.map(row => row.paper.key).sort(), expected);
+  for (const card of cards) assert.ok(association.related(graphRecords, card.paper.key, options)
+    .some(row => row.paper.key === id));
+}
+assert.equal(JSON.stringify(graphRecords), graphBefore);
 console.log("Atlas associations passed: literal memberships, distinct versions, lexical cross-topic links, Chinese, bounds, inert source text.");

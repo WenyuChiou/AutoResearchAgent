@@ -4,6 +4,7 @@ const plugin = path.resolve(__dirname, ".."), atlas = path.join(plugin, "referen
 const ui = fs.readFileSync(process.argv[2] || path.join(atlas, "atlas-ui.js"), "utf8");
 const host = fs.readFileSync(path.join(plugin, "cli/research_workspace_native/web/atlas-host.js"), "utf8");
 const model = require(path.join(atlas, "atlas-model.js"));
+const associations = require(path.join(atlas, "atlas-associations.js"));
 const flatten = node => node.children.flatMap(child => [child, ...flatten(child)]);
 class Element {
   constructor(tag) {
@@ -69,7 +70,7 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
   }
   const before = JSON.stringify(payload);
   const scrollCalls = [];
-  const window = {WORKSPACE_VIEW: payload, AtlasModel: model, innerWidth: 1200, scrollY: 0, scrollTo(value) { this.scrollY = value.top; scrollCalls.push({...value}); }, WORKSPACE_HOST: {cases: [], current_case: "fixture", maintenance_enabled: false, connection: {status: "not-checked"}}};
+  const window = {WORKSPACE_VIEW: payload, AtlasModel: model, AtlasAssociations: associations, innerWidth: 1200, scrollY: 0, scrollTo(value) { this.scrollY = value.top; scrollCalls.push({...value}); }, WORKSPACE_HOST: {cases: [], current_case: "fixture", maintenance_enabled: false, connection: {status: "not-checked"}}};
   const context = vm.createContext({window, document, location: {origin: "http://127.0.0.1", href: "http://127.0.0.1/atlas.html"}, URL, sessionStorage: {getItem: () => null}});
   if (hostFirst) vm.runInContext(host, context);
   vm.runInContext(ui, context);
@@ -130,6 +131,13 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
     equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "return preserves exact second-page work/version identities");
     equal(Boolean(flatten(details()).find(node => node.textContent === backLabel)), false, "return clears its one-shot back control");
     rows()[0].onclick(); contains(details().textContent, selectedTitle, "reopening the same library paper does not toggle its details away");
+    const filteredRelated = flatten(details()).find(node => node.dataset.relatedPaper === '["second","v1"]');
+    equal(Boolean(filteredRelated), true, "related versions include targets outside the library filter"); filteredRelated.onclick();
+    contains(details().textContent, "Second original title", "related click opens a target hidden by library filters");
+    equal(selectors().map(node => node.value).join("/"), "Direction A/Shared original method/unbound/title", "related navigation preserves library filters and ordering");
+    equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "related navigation preserves the saved library page");
+    equal(flatten(document.getElementById("atlas-network")).find(node => node.dataset.nodeKey === 'paper:["second","v1"]').attributes["aria-pressed"], "true", "related target gets exact graph focus despite filters");
+    rows()[0].onclick();
     const summaryB = () => flatten(ids["atlas-content"]).find(node => node.className === "atlas-topic-card" && node.textContent.includes("Direction B"));
     const graphNode = key => flatten(ids["atlas-content"]).find(node => node.dataset.nodeKey === key);
     equal(Boolean(graphNode("topic:Direction B")), false, "library direction A initially limits the graph to its own context");
@@ -219,6 +227,13 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
   contains(summary.textContent, "Original English title", "summary has its own short paper list");
   const paperNode = () => graphNodes().find(node => node.dataset.nodeKey === 'paper:["fixture","v1"]');
   paperNode().onclick(); equal(paperNode().attributes["aria-pressed"], "true", "paper click opens its own details");
+  const relatedCard = flatten(ids["atlas-content"]).find(node => node.dataset.relatedPaper === '["second","v1"]');
+  equal(Boolean(relatedCard), true, "right detail exposes exact related paper version");
+  contains(flatten(ids["atlas-content"]).find(node => node.className === "atlas-related").textContent, "Shared original method", "related basis retains literal original method");
+  relatedCard.onclick();
+  contains(document.getElementById("atlas-paper-detail").textContent, "Second original title", "related paper opens upper detail");
+  equal(document.getElementById("atlas-paper-detail").lastScrollIntoView.block, "start", "related paper scrolls to upper detail");
+  paperNode().onclick();
   equal(coordinates(), originalCoordinates, "paper selection preserves all graph positions");
   const toggle = () => flatten(ids["atlas-content"]).find(node => node.tagName === "input" && node.type === "checkbox");
   toggle().checked = true; toggle().onchange();

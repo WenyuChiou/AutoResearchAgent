@@ -10,6 +10,15 @@
   const words = {
     computedLinks: ["Content similarity (computed)", "内容相近（自动计算）", "內容相近（自動計算）"],
     showAllNames: ["Show all names", "显示全部名称", "顯示全部名稱"],
+    sharedTopics: ["Shared research directions", "共同研究方向", "共同研究方向"],
+    paperShape: ["Paper", "论文", "論文"],
+    topicShape: ["Research direction", "研究方向", "研究方向"],
+    methodShape: ["Method", "方法", "方法"],
+    sharedMethods: ["Same recorded method labels", "相同方法标签", "相同方法標籤"],
+    computedBasis: ["Saved findings and topic labels · computed text cosine", "已保存概要及方向标签 · 计算出的文本余弦相似度", "已保存概要及方向標籤 · 計算出的文字餘弦相似度"],
+    sharedTerms: ["Shared normalized terms", "共有词（规范化后）", "共有詞（正規化後）"],
+    moreRelated: ["More related papers", "更多相关论文", "更多相關論文"],
+    noRelated: ["No recorded or qualifying computed paper links in this collection.", "此文献集中暂无已记录或达到显示条件的计算关联。", "此文獻集中暫無已記錄或達到顯示條件的計算關聯。"],
     overlapLink: ["Shared recorded classification", "已记录分类交集", "已記錄分類交集"],
     spatialHelp: ["Hover or select to reveal related names · drag to rotate · scroll to zoom · select the same node to clear focus", "悬停或点击显示相关名称 · 拖动旋转 · 滚轮缩放 · 再次点击同一节点取消选中", "懸停或點選顯示相關名稱 · 拖曳旋轉 · 滾輪縮放 · 再次點選同一節點取消選取"],
     spatialBasis: ["Solid lines show recorded memberships or intersections. Dashed method links and dotted computed content links have separate meanings. Distance serves layout; content cosine is not scientific evidence strength.", "实线表示已记录的归属或交集；虚线表示方法归属，点线表示自动计算的内容相近。距离用于排版；内容余弦相似度不代表科学证据强弱。", "實線表示已記錄的歸屬或交集；虛線表示方法歸屬，點線表示自動計算的內容相近。距離用於排版；內容餘弦相似度不代表科學證據強弱。"],
@@ -457,12 +466,37 @@
     sourceAccess(parent, paper);
     parent.append(el("h3", t("findings")));
     kv(parent, ["question", "data", "method", "main_findings", "limitations", "relevance", "transferability"].map((name, i) => [t("fields")[i], paper.findings?.[name]]));
+    relatedPapers(parent, paper);
     disclosure(parent, t("status"), paper.selection);
     disclosure(parent, t("sources"), paper.sources);
     const ledger = el("details"); ledger.append(el("summary", t("ledger"))); ledgerContent(ledger, paper); parent.append(ledger);
     disclosure(parent, t("claims"), {claims: paper.claims, relations: paper.relations});
     disclosure(parent, t("provenance"), {project_id: index.project_id, index_sha256: payload.index_sha256, provenance: index.provenance, work_id: paper.work_id, version_id: paper.version_id, source_ids: paper.source_ids});
     disclosure(parent, t("raw"), index.papers.find(row => model.key(row) === paper.key));
+  }
+  function relatedPapers(parent, paper) {
+    const rows = window.AtlasAssociations?.related(papers, paper.key, {neighbors: 2, threshold: .09, computed: state.graphSettings.computed}) || [];
+    const section = el("section", undefined, "atlas-related"); section.append(el("h3", `${t("related")} · ${rows.length}`));
+    const append = (container, row) => {
+      const card = el("div", undefined, "atlas-related-paper");
+      const open = button(row.paper.title, () => {
+        focusSummary("paper", row.paper.key); state.fitNext = true; render();
+        document.getElementById("atlas-paper-detail")?.scrollIntoView({behavior: "smooth", block: "start"});
+      }); open.dataset.relatedPaper = row.paper.key; card.append(open);
+      card.append(source("p", `${row.paper.work_id} · ${row.paper.version_id} · ${text(row.paper.year)}`, "atlas-small"));
+      for (const [label, values] of [["sharedTopics", row.shared_topics], ["sharedMethods", row.shared_methods]]) {
+        if (values.length) {const line = el("p", undefined, "atlas-small"); line.append(el("strong", `${t(label)}: `), source("span", values.join(" / "))); card.append(line);}
+      }
+      if (row.lexical) {
+        card.append(el("p", `${t("computedBasis")} ${(100 * row.lexical.score).toFixed(1)}%`, "atlas-small"));
+        const terms = el("p", undefined, "atlas-small"); terms.append(el("span", `${t("sharedTerms")}: `), source("span", row.lexical.shared_terms.join(" / "))); card.append(terms);
+      }
+      container.append(card);
+    };
+    if (!rows.length) section.append(el("p", t("noRelated"), "atlas-small"));
+    rows.slice(0, 5).forEach(row => append(section, row));
+    if (rows.length > 5) {const more = el("details"); more.append(el("summary", `${t("moreRelated")} · ${rows.length - 5}`)); rows.slice(5).forEach(row => append(more, row)); section.append(more);}
+    parent.append(section);
   }
   function choice(label, value, options, action) {
     const field = el("label", label), select = el("select");

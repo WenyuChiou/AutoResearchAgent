@@ -150,7 +150,8 @@
     Object.assign(wire.style, {position: "absolute", inset: "0", width: "100%", height: "100%", pointerEvents: "none"});
     shell.append(canvas, wire, overlay); host.append(shell);
     let graph, mode = options.mode === 2 || options.mode === "2d" ? 2 : 3, dead = false, focus = null, hover = null, showLabels = options.showLabels === true, frame = 0, pendingFit = 0, generation = 0, labels = {shown: [], hidden: []}, lastPose = null;
-    const faults = [], controls = [], labelById = new Map(), modePoses = new Map();
+    const faults = [], controls = [], labelById = new Map(), markerById = new Map(), modePoses = new Map();
+    let topicMarkers = [];
     const copyPose = (pose, dimension) => ({position: point(pose.position), target: point(pose.target),
       up: finite(pose.up) ? point(pose.up) : {x: 0, y: 1, z: 0}, mode: dimension, zoom: pose.zoom});
     Object.entries(options.pose?.poses || {}).forEach(([dimension, pose]) => {
@@ -161,9 +162,17 @@
     const related = n => !focus || selected(n) || source.links.some(e => (e.source.id || e.source) === id(focus.kind, focus.key) && (e.target.id || e.target) === n.id || (e.target.id || e.target) === id(focus.kind, focus.key) && (e.source.id || e.source) === n.id);
     const activePaper = () => byId.get(hover)?.kind === "paper" ? byId.get(hover).key : focus?.kind === "paper" ? focus.key : null;
     const visible = n => showLabels || n.kind !== "method" || n.ids.length > 1 || selected(n) || n.id === hover || n.ids.includes(activePaper());
+    const meshVisible = n => n.kind !== "topic" && visible(n);
     const lexical = edge => edge.kind === "content-similarity" || edge.kind.startsWith("lexical-");
     const dashed = edge => edge.kind.includes("method") || lexical(edge);
     const select = n => { if (!dead) options.onSelect?.({kind: n.kind, key: n.key}); };
+    function bindNode(button, n) {
+      const callback = () => select(n); button.addEventListener("click", callback); controls.push([button, "click", callback]);
+      for (const name of ["pointerenter", "focus", "pointerleave", "blur"]) {
+        const update = () => { if (!dead) { hover = ["pointerenter", "focus"].includes(name) ? n.id : null; graph.nodeVisibility(meshVisible); } };
+        button.addEventListener(name, update); controls.push([button, name, update]);
+      }
+    }
     const snapshot = () => {
       if (dead || !graph) return lastPose;
       const camera = graph.camera(), target = graph.controls().target;
@@ -197,13 +206,13 @@
       if (value) value = {kind: value.kind || value.type, key: value.key};
       if (value && !byId.has(id(value.kind, value.key))) return false;
       focus = value ? {kind: value.kind, key: value.key} : null;
-      graph.nodeVisibility(visible).nodeColor(n => related(n) ? n.color : "#3c4b5e");
+      graph.nodeVisibility(meshVisible).nodeColor(n => related(n) ? n.color : "#3c4b5e");
       return true;
     }
     function setLabels(value) {
       if (dead) return false;
       if (typeof value !== "boolean") throw new TypeError("Label visibility must be boolean");
-      showLabels = value; graph.nodeVisibility(visible); return true;
+      showLabels = value; graph.nodeVisibility(meshVisible); return true;
     }
     function setMode(value) {
       if (dead) return false;
@@ -221,6 +230,16 @@
     function drawLabels() {
       if (dead) return;
       const viewport = size(), camera = graph.camera(); camera.updateMatrixWorld();
+      topicMarkers = [];
+      markerById.forEach((button, key) => {
+        const n = byId.get(key), location = project(point(n, mode), camera, viewport.width, viewport.height);
+        const shown = !!location && location.x >= 13 && location.x <= viewport.width - 13 && location.y >= 13 && location.y <= viewport.height - 13;
+        const emphasized = related(n) || hover === n.id;
+        Object.assign(button.style, {visibility: shown ? "visible" : "hidden", left: `${location?.x || 0}px`, top: `${location?.y || 0}px`,
+          opacity: emphasized ? ".95" : ".32", boxShadow: selected(n) || hover === n.id ? `0 0 9px ${n.color}` : "none"});
+        button.setAttribute("aria-pressed", String(selected(n)));
+        topicMarkers.push({id: n.id, x: location?.x ?? null, y: location?.y ?? null, visible: shown});
+      });
       wire.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
       wireByLink.forEach((line, edge) => {
         const a = typeof edge.source === "object" ? edge.source : byId.get(edge.source), b = typeof edge.target === "object" ? edge.target : byId.get(edge.target);
@@ -233,7 +252,7 @@
         const location = project(point(n, mode), camera, viewport.width, viewport.height), button = labelById.get(n.id);
         const width = button.offsetWidth || 120, height = button.offsetHeight || 21;
         return {id: n.id, selected: selected(n), projectable: !!location, priority: selected(n) ? 0 : hover === n.id ? 1 : n.kind === "topic" ? 2 : n.kind === "paper" ? 3 : 4,
-          box: {x: (location?.x || 0) - width / 2, y: (location?.y || 0) + 8, width, height}};
+          box: {x: (location?.x || 0) - width / 2, y: (location?.y || 0) + (n.kind === "topic" ? 18 : 8), width, height}};
       });
       labels = resolveLabels(items, viewport.width, viewport.height);
       labelById.forEach(button => { button.style.visibility = "hidden"; });
@@ -253,16 +272,17 @@
     let observer;
     const api = {setFocus, setLabels, fit, setMode, destroy, snapshot, diagnostics: () => ({mode, destroyed: dead, focus, hover, showLabels, nodes: source.nodes.length, links: source.links.length,
       papers: source.nodes.filter(n => n.kind === "paper").length, camera: snapshot(), labelsVisible: labels.shown.length, labelsHidden: source.nodes.length - labels.shown.length, labelsOmittedByLod: labels.hidden.length,
-      visibleLabelIds: labels.shown.map(item => item.id), eligibleLabelIds: eligibleLabels(source.nodes, source.links, {focus, hover, showLabels}), labelRects: labels.shown.map(item => ({id: item.id, ...item.box})), faults: [...faults]})};
+      visibleLabelIds: labels.shown.map(item => item.id), eligibleLabelIds: eligibleLabels(source.nodes, source.links, {focus, hover, showLabels}), labelRects: labels.shown.map(item => ({id: item.id, ...item.box})),
+      topicMarkers: topicMarkers.map(marker => ({...marker})), faults: [...faults]})};
     try {
       graph = root.ForceGraph3D()(canvas);
       graph.forceEngine("d3").enableNodeDrag(false).showNavInfo(false).backgroundColor("#0e1827")
         .numDimensions(mode).nodeId("id").nodeRelSize(7).nodeVal(n => n.kind === "paper" ? 5 : n.kind === "topic" ? 8 : 2.5)
         .nodeColor(n => n.color).nodeOpacity(.96).nodeLabel(n => { const text = document.createElement("div"); text.textContent = n.title || n.label; return text; })
-        .nodeVisibility(visible).linkVisibility(edge => !dashed(edge) && visible(typeof edge.source === "object" ? edge.source : byId.get(edge.source)) && visible(typeof edge.target === "object" ? edge.target : byId.get(edge.target)))
+        .nodeVisibility(meshVisible).linkVisibility(edge => !dashed(edge) && visible(typeof edge.source === "object" ? edge.source : byId.get(edge.source)) && visible(typeof edge.target === "object" ? edge.target : byId.get(edge.target)))
         .linkColor(edge => lexical(edge) ? "#5b7894" : edge.kind.startsWith("recorded-") ? "#b6a0c9" : edge.kind.includes("method") ? "#8798ab" : (byId.get(edge.target.id || edge.target)?.color || "#779fc5"))
         .linkOpacity(.7).linkWidth(edge => edge.kind === "topic-membership" ? .8 : .45)
-        .onNodeClick(select).onNodeHover(n => { if (!dead) { hover = n?.id || null; graph.nodeVisibility(visible); } }).cooldownTicks(0).graphData(source);
+        .onNodeClick(select).onNodeHover(n => { if (!dead) { hover = n?.id || null; graph.nodeVisibility(meshVisible); } }).cooldownTicks(0).graphData(source);
       source.links.filter(dashed).forEach(edge => {
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("stroke", lexical(edge) ? "#7595b8" : "#a4b4c8");
@@ -271,16 +291,20 @@
         line.setAttribute("opacity", ".64"); wire.append(line); wireByLink.set(edge, line);
       });
       source.nodes.forEach(n => {
+        if (n.kind === "topic") {
+          const marker = document.createElement("button"), prefix = options.language === "zh-Hans" ? "方向节点：" : options.language === "zh-Hant" ? "方向節點：" : "Direction node: ";
+          marker.type = "button"; marker.className = "atlas-spatial-topic-marker"; marker.title = n.label;
+          marker.setAttribute("aria-label", prefix + n.label); marker.setAttribute("data-node-key", n.id);
+          Object.assign(marker.style, {position: "absolute", pointerEvents: "auto", width: "18px", height: "18px", minWidth: "0", minHeight: "0",
+            padding: "0", border: `1px solid ${n.color}`, borderRadius: "2px", background: n.color, cursor: "pointer", visibility: "hidden", transform: "translate(-50%, -50%) rotate(45deg)"});
+          bindNode(marker, n); overlay.append(marker); markerById.set(n.id, marker);
+        }
         const button = document.createElement("button"); button.type = "button"; button.className = `atlas-spatial-label atlas-spatial-${n.kind}`;
         button.textContent = n.kind === "paper" ? n.label : n.label.length > 30 ? n.label.slice(0, 29) + "…" : n.label;
         button.title = n.title || n.label; button.setAttribute("aria-label", n.title || n.label);
         Object.assign(button.style, {position: "absolute", pointerEvents: "auto", whiteSpace: "nowrap", color: n.color,
           font: `${n.kind === "method" ? 12 : 14}px system-ui`, border: "0", background: "transparent", padding: "2px 3px", cursor: "pointer", textShadow: "0 1px 3px #0e1827"});
-        const callback = () => select(n); button.addEventListener("click", callback); controls.push([button, "click", callback]);
-        for (const name of ["pointerenter", "focus", "pointerleave", "blur"]) {
-          const update = () => { if (!dead) { hover = ["pointerenter", "focus"].includes(name) ? n.id : null; graph.nodeVisibility(visible); } };
-          button.addEventListener(name, update); controls.push([button, name, update]);
-        }
+        bindNode(button, n);
         overlay.append(button); labelById.set(n.id, button);
       });
       const resize = () => { if (!dead) { const {width, height} = size(); graph.width(width).height(height); } };

@@ -347,3 +347,12 @@ summary:focus-visible { outline: 3px solid #567fa2; outline-offset: 3px; }
 .atlas-comparison-matrix details { font-size: 13px; }
 .atlas-comparison-matrix td:nth-child(2n+1) { background: #fcfcf8; }
 @media (max-width: 980px) { .atlas-spatial-host { height: 520px; } }
+.atlas-related { margin:20px 0; padding-top:14px; border-top:1px solid #dfe5e2; }
+.atlas-related-paper { padding:12px 0; border-bottom:1px solid #e7ece9; }
+.atlas-related-paper > button { text-align:left; color:#17636a; font-weight:600; }
+.atlas-related-paper p { margin:6px 0; overflow-wrap:anywhere; }
+.atlas-node-legend { display:flex; flex-wrap:wrap; gap:16px; font-size:14px; color:#526776; margin:10px 0; }
+.atlas-node-legend span { display:inline-flex; align-items:center; gap:7px; }
+.atlas-node-legend i { display:inline-block; width:12px; height:12px; background:#638793; border-radius:50%; }
+.atlas-node-legend i[data-node-kind="topic"] { border-radius:2px; transform:rotate(45deg); background:#6eada9; }
+.atlas-node-legend i[data-node-kind="method"] { width:7px; height:7px; background:#9c93a8; }
