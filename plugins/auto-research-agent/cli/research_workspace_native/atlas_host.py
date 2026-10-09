@@ -1,7 +1,9 @@
 """Serve pinned atlas views, a cached Codex check and an optional feedback inbox.
 
-The host never creates/resumes threads, dispatches turns or changes research data.
-Its loopback bootstrap is for one local user, not multi-tenant authentication.
+The default host has no native registrations. Optional trusted server-owned
+runtime bindings expose an existing facade; this host never starts a process,
+creates/resumes threads or starts its pump. Its loopback bootstrap is for one
+local user, not multi-tenant authentication.
 """
 
 import argparse
@@ -149,7 +151,7 @@ def _snapshot_views(config):
 
 
 class AtlasHost(SessionHttpServer):
-    """Reuse accepted socket bounds with an empty, inaccessible native facade."""
+    """Read-only by default; explicit runtime ownership is transferred on success."""
 
     def __init__(
         self,
@@ -161,10 +163,56 @@ class AtlasHost(SessionHttpServer):
         maintenance_inbox=None,
         presentation=None,
         capability_state=None,
+        native_runtime=None,
+        credential=None,
+        native_script=None,
         **options,
     ):
-        self.credential = secrets.token_urlsafe(32)
+        self.credential = (
+            credential if credential is not None else secrets.token_urlsafe(32)
+        )
+        token_authenticator({self.credential: "local-viewer"})  # Validate token syntax.
         self.authenticate = token_authenticator({self.credential: "local-viewer"})
+        api = SessionApi(authenticate=self.authenticate)
+        self.native_runtime, self.native_cases = native_runtime, {}
+        self._native_owned = False
+        self._native_closed = False
+        self.native_shutdown = None
+        if native_runtime is not None:
+            if (
+                credential is None
+                or not isinstance(native_runtime.api, SessionApi)
+                or not callable(native_runtime.bindings)
+                or not callable(native_runtime.shutdown)
+            ):
+                raise ValueError("explicit server runtime and credential required")
+            api = native_runtime.api
+            self.authenticate = api._authenticate
+            registrations = native_runtime.bindings()
+            if not isinstance(registrations, dict) or not 1 <= len(registrations) <= 16:
+                raise ValueError("bounded native registrations required")
+            for project_ref, declared in registrations.items():
+                with api._access(self.credential, project_ref) as (_, _, binding, _):
+                    actual = {
+                        name: binding[name]
+                        for name in ("project_id", "index_sha256", "input_version")
+                    }
+                    if declared != actual:
+                        raise ValueError("runtime registration differs")
+                    matches = [
+                        row
+                        for row in views
+                        if row["project_id"] == actual["project_id"]
+                        and row["index_sha256"] == actual["index_sha256"]
+                    ]
+                    if not matches:
+                        raise ValueError("native registration has no bound atlas view")
+                    for row in matches:
+                        if row["ref"] in self.native_cases:
+                            raise ValueError("ambiguous native case registration")
+                        self.native_cases[row["ref"]] = dict(
+                            actual, project_ref=project_ref
+                        )
         self.connection_check = deepcopy(connection or {"status": "not-checked"})
         self.presentation = deepcopy(
             presentation or dict(language="en", density="comfortable")
@@ -187,6 +235,24 @@ class AtlasHost(SessionHttpServer):
             ("atlas-host.css", "/host-panel.css"),
         ):
             self._assets[route] = (assets / filename).read_bytes()
+        native_scripts, native_style = [], ""
+        if native_script is not None:
+            if (
+                not isinstance(native_script, bytes)
+                or not 0 < len(native_script) <= 256 * 1024
+            ):
+                raise ValueError("bounded trusted native script required")
+            self._assets["/native-atlas-chat.js"] = native_script
+            native_scripts = ["/native-atlas-chat.js"]
+        elif native_runtime is not None:
+            for filename in (
+                "session-panel.css",
+                "session-panel.js",
+                "native-atlas-chat.js",
+            ):
+                self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
+            native_style = '<link rel="stylesheet" href="/session-panel.css">'
+            native_scripts = ["/session-panel.js", "/native-atlas-chat.js"]
         self.host_binding = {
             "kind": "WorkspaceAtlasHostOverlay",
             "execution_authority": False,
@@ -217,8 +283,15 @@ class AtlasHost(SessionHttpServer):
             text = text.replace(
                 "</body>",
                 '<link rel="stylesheet" href="/host-panel.css">'
-                '<script src="/host-bootstrap/' + row["ref"] + '.js"></script>'
-                '<script src="/host-panel.js"></script></body>',
+                + native_style
+                + (
+                    '<script src="/host-bootstrap/' + row["ref"] + '.js"></script>'
+                    '<script src="/host-panel.js"></script>'
+                )
+                + "".join(
+                    '<script src="' + route + '"></script>' for route in native_scripts
+                )
+                + "</body>",
             )
             self._assets[route] = text.encode("utf-8")
         self.host_binding["served_files"] = {
@@ -257,9 +330,9 @@ class AtlasHost(SessionHttpServer):
                     for row in views
                 },
             )
-        # No registered controller; /api/native routes are not exposed below.
         try:
-            super().__init__(SessionApi(authenticate=self.authenticate), **options)
+            super().__init__(api, **options)
+            self._native_owned = native_runtime is not None
         except BaseException:
             if self.maintenance is not None and self._maintenance_owned:
                 self.maintenance.close()
@@ -296,12 +369,36 @@ class AtlasHost(SessionHttpServer):
         try:
             super().server_close()
         finally:
-            if self.maintenance is not None and self._maintenance_owned:
-                self.maintenance.close()
+            try:
+                if self._native_owned and not self._native_closed:
+                    self._native_closed = True
+                    try:
+                        self.native_shutdown = self.native_runtime.shutdown(timeout=10)
+                    except BaseException as error:
+                        self.native_shutdown = {
+                            "status": "unknown",
+                            "error": type(error).__name__,
+                        }
+                        raise
+            finally:
+                if self.maintenance is not None and self._maintenance_owned:
+                    self.maintenance.close()
 
 
 class AtlasHandler(SessionHandler):
+    def _native(self, method):
+        match = re.fullmatch(
+            r"/api/native/projects/([A-Za-z0-9_-]{1,128})(?:/.*)?", self.path
+        )
+        allowed = {row["project_ref"] for row in self.server.native_cases.values()}
+        if match is None or match.group(1) not in allowed:
+            self._reply(404, {"error": "native-project-unavailable"})
+        else:
+            self._handle(method)
+
     def do_GET(self):
+        if self.path.startswith("/api/native/"):
+            return self._native("GET")
         try:
             for name in ("Host", "Origin", "Content-Length", "Transfer-Encoding"):
                 if len(self.headers.get_all(name, [])) > 1:
@@ -383,6 +480,28 @@ class AtlasHandler(SessionHandler):
                     .encode()
                     + b";\n"
                 )
+                native = self.server.native_cases.get(ref)
+                bootstrap = dict(
+                    credential=self.server.credential,
+                    current_case=ref,
+                    enabled=native is not None,
+                    project_ref=native["project_ref"] if native else None,
+                    index_sha256=native["index_sha256"]
+                    if native
+                    else next(
+                        row["index_sha256"]
+                        for row in self.server.views
+                        if row["ref"] == ref
+                    ),
+                    input_version=native["input_version"] if native else None,
+                )
+                raw += (
+                    b"window.WORKSPACE_NATIVE_ATLAS="
+                    + json.dumps(bootstrap, ensure_ascii=True, allow_nan=False)
+                    .replace("<", "\\u003c")
+                    .encode()
+                    + b";\n"
+                )
             else:
                 raw = self.server._assets.get(self.path)
             if raw is None:
@@ -434,6 +553,8 @@ class AtlasHandler(SessionHandler):
         return length
 
     def do_POST(self):
+        if self.path.startswith("/api/native/"):
+            return self._native("POST")
         try:
             match = re.fullmatch(r"/api/maintenance/([A-Za-z0-9_-]{1,64})", self.path)
             if not match:

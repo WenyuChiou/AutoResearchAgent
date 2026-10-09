@@ -175,3 +175,17 @@ Cleanup failures, surviving workers or receipt persistence failures cannot repor
 This synthetic host remains separate from the true Stage1 package and actual native acceptance.
 
 Opt-in browser driver requires explicit --repo/--python/--playwright/--browser/--reference/--temp/--scope/--output; ordinary Python discovery does not launch it.
+
+HTML integration adds explicit bootstrap/context, owned process deadlines and passive session ownership.
+OwnedProcessChannel requires a trusted unsent spawn intent and separate source/admission gates; viewing never creates it.
+The shared host_config entry resolves already registered runtimes and requires their explicit credential.
+Missing references remain unavailable. Successful AtlasHost construction transfers runtime shutdown ownership; failed construction does not.
+Feedback inbox references remain borrowed, and closing a host preserves their embedding ownership.
+
+Message offers publish max_text_bytes and advance the saved revision when first recorded.
+Prepare rereads the same source binding and enables Send only after the offer and view revisions agree.
+NativeKnownUnsent.v1 receipts are issued only for verified message offers/identities/sources, never-admitted keys and explicit pre-admission validation refusals.
+The receipt binds project_ref, index_sha256, input_version, client_key, offer_ref and offer_sha256.
+The UI removes only the matching local intent; timeout, missing response and uncertain outcomes retain the original key and recover by GET.
+Transcript projections retain literal text, partial windows, failures and unknown state; dispatch is not completion.
+Synthetic fake-child and injected-channel tests do not establish native authentication or research quality.

@@ -125,7 +125,7 @@ class AtlasFeedbackTests(unittest.TestCase):
             self.request(server, "POST", "/api/native/projects/stage1/answers", body)[
                 0
             ],
-            405,
+            404,
         )
         self.assertEqual(self.request(server, "GET", "/api/maintenance/stage1")[1], [])
 

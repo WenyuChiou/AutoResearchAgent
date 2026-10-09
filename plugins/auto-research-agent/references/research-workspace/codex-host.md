@@ -66,3 +66,9 @@ GitHub, restart paused automations, rerun research or automatically fetch packag
 Feedback history uses bounded pages (up to 100 records) with a validated sequence cursor.
 The drawer can read the next page; reload and recovery issue GET requests only.
 New feedback checks the request deadline before insertion and immediately before commit.
+
+The C increment connects existing trusted runtime objects via HostRegistry, with an explicit credential.
+The host validates registered project/index/input identities against saved views before opening a socket.
+Opening or refreshing the UI does not bootstrap a process or start a turn; explicit preparation reads an offer.
+Message controls reconcile that offer revision and its max_text_bytes before Send.
+Only a matching NativeKnownUnsent.v1 refusal releases a browser intent. Unknown outcomes keep the same key and recover by GET.
