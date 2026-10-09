@@ -142,7 +142,10 @@
     concepts: ["Concepts", "概念", "概念"], plan: ["Plan", "规划", "規劃"], execute: ["Execute", "执行", "執行"],
     extract: ["Extract", "提取", "擷取"], validate: ["Validate", "验证", "驗證"], gate: ["Gate", "审查门槛", "審查門檻"], checkpoint: ["Checkpoint", "保存记录", "儲存紀錄"]
   };
-  const state = {language: "en", stage: 1, scope: "working", sort: "recorded", mode: "library", topic: "", method: "", pair: [], paper: null, page: 0, graphPage: 0, groupPage: 0, neighborsPage: 0, ledgerPage: 0, text: "", status: "", tab: "sets", selected: new Set(), comparePage: 0, candidatePage: 0, libraryOpen: false, network: "global", similarity: false, zoom: 1, workflow: {1: 1, 2: 1}, productOpen: false, stage2Paper: null};
+  const languageControl = document.getElementById("atlas-language");
+  const interfaceLanguage = value => ["en", "zh-Hans", "zh-Hant"].includes(value) ? value : "en";
+  const state = {language: interfaceLanguage(languageControl?.value), stage: 1, scope: "working", sort: "recorded", mode: "library", topic: "", method: "", pair: [], paper: null, page: 0, graphPage: 0, groupPage: 0, neighborsPage: 0, ledgerPage: 0, text: "", status: "", tab: "sets", selected: new Set(), comparePage: 0, candidatePage: 0, libraryOpen: false, network: "global", similarity: false, zoom: 1, workflow: {1: 1, 2: 1}, productOpen: false, stage2Paper: null};
+  if (languageControl) languageControl.value = state.language;
   const locale = () => ["en", "zh-Hans", "zh-Hant"].indexOf(state.language);
   const t = name => words[name]?.[locale()] ?? name;
   const caption = name => fieldLabels[name]?.[locale()] ?? name;
@@ -565,6 +568,6 @@
   }
   const originalRender = render;
   function refresh() { originalRender(); document.querySelectorAll("[data-atlas-label]").forEach(control => { const label = control.querySelector("span"); if (label) label.textContent = t(control.dataset.atlasLabel); }); }
-  document.getElementById("atlas-language").onchange = event => { state.language = event.target.value; refresh(); };
+  languageControl.onchange = event => { state.language = interfaceLanguage(event.target.value); languageControl.value = state.language; refresh(); };
   refresh();
 })();
