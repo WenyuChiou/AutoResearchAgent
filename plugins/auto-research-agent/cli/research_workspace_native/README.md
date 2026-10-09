@@ -198,3 +198,12 @@ controller's independent admission still applies. The browser cannot supply this
 paths or permits. Saving scope or requesting the next stage is not execution authority.
 
 python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_atlas_scope_approval.py -v
+
+AtlasHost(stage_actions=...) exposes trusted saved-input StageActions over the same
+loopback host. The stage panel checks Stage1 checkpoint / Stage2 completion and
+records review, hold or request-next decisions without starting research. Every
+action binds project/index/input/source hashes, with intent-before-execution and
+GET-only recovery. Missing stage input stays missing; a WorkspaceStageReviewRecord
+is neither native-user attestation nor permission to execute the next stage.
+Run test_workspace_stage_http, test_workspace_stage_storage and test_workspace_stage_panel
+for repository-case HTTP/SQLite and synthetic DOM checks.

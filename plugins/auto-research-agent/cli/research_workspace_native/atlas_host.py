@@ -22,6 +22,7 @@ from .session_api import SessionApi, SessionApiError
 from .transport import _decode
 from .harness_host import bind_operations, handle_operations
 from .harness_ops import ACTIONS
+from .stage_http import bind_stages, handle_stages
 from .scope_api import ScopeApi
 from .scope_http import ScopeWikiSessionHandler
 
@@ -170,6 +171,7 @@ class AtlasHost(SessionHttpServer):
         native_runtime=None,
         scope_api=None,
         harness_ops=None,
+        stage_actions=None,
         credential=None,
         native_script=None,
         **options,
@@ -225,6 +227,9 @@ class AtlasHost(SessionHttpServer):
             or scope_api.api is not api
         ):
             raise ValueError("scope requires the same explicit native runtime")
+        self.stage_actions = stage_actions
+        self.stage_cases = bind_stages(stage_actions, files, views, credential)
+        self._stage_owned = self._stage_closed = False
         self.scope_api = scope_api
         self.harness_ops = harness_ops
         self.harness_cases = bind_operations(harness_ops, files, views, credential)
@@ -258,6 +263,12 @@ class AtlasHost(SessionHttpServer):
                 self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
             harness_script = '<script src="/harness-panel.js"></script>'
             harness_style = '<link rel="stylesheet" href="/harness-panel.css">'
+        stage_script, stage_style = "", ""
+        if stage_actions is not None:
+            for filename in ("stage-panel.js", "stage-panel.css"):
+                self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
+            stage_script = '<script src="/stage-panel.js"></script>'
+            stage_style = '<link rel="stylesheet" href="/stage-panel.css">'
         native_scripts, native_style = [], ""
         if native_script is not None:
             if (
@@ -287,6 +298,10 @@ class AtlasHost(SessionHttpServer):
             "kind": "WorkspaceAtlasHostOverlay",
             "execution_authority": False,
             "harness_operations": deepcopy(self.harness_cases),
+            "stage_operations": deepcopy(self.stage_cases),
+            "stage_operation_scope": "offline-saved-stage-input"
+            if self.stage_cases
+            else "disabled",
             "harness_operation_scope": "offline-saved-input"
             if self.harness_cases
             else "disabled",
@@ -322,8 +337,10 @@ class AtlasHost(SessionHttpServer):
                 '<link rel="stylesheet" href="/host-panel.css">'
                 + native_style
                 + harness_style
+                + stage_style
                 + ('<script src="/host-bootstrap/' + row["ref"] + '.js"></script>')
                 + harness_script
+                + stage_script
                 + '<script src="/host-panel.js"></script>'
                 + "".join(
                     '<script src="' + route + '"></script>' for route in native_scripts
@@ -371,6 +388,7 @@ class AtlasHost(SessionHttpServer):
             super().__init__(api, **options)
             self._native_owned = native_runtime is not None
             self._harness_owned = harness_ops is not None
+            self._stage_owned = stage_actions is not None
         except BaseException:
             if self.maintenance is not None and self._maintenance_owned:
                 self.maintenance.close()
@@ -424,8 +442,13 @@ class AtlasHost(SessionHttpServer):
                         self._harness_closed = True
                         self.harness_ops.close()
                 finally:
-                    if self.maintenance is not None and self._maintenance_owned:
-                        self.maintenance.close()
+                    try:
+                        if self._stage_owned and not self._stage_closed:
+                            self._stage_closed = True
+                            self.stage_actions.close()
+                    finally:
+                        if self.maintenance is not None and self._maintenance_owned:
+                            self.maintenance.close()
 
 
 class AtlasHandler(SessionHandler):
@@ -446,6 +469,8 @@ class AtlasHandler(SessionHandler):
                 self._handle(method)
 
     def do_GET(self):
+        if self.path.startswith("/api/stages/"):
+            return handle_stages(self, "GET")
         if self.path.startswith("/api/harness/"):
             return handle_operations(self, "GET")
         if self.path.startswith("/api/native/"):
@@ -548,6 +573,23 @@ class AtlasHandler(SessionHandler):
                     .encode()
                     + b";\n"
                 )
+                stage = self.server.stage_cases.get(ref)
+                raw += (
+                    b"window.WORKSPACE_STAGE_ACTIONS="
+                    + json.dumps(
+                        dict(
+                            enabled=stage is not None,
+                            project_ref=ref if stage else None,
+                            index_sha256=stage["index_sha256"] if stage else None,
+                            input_version=stage["input_version"] if stage else None,
+                        ),
+                        ensure_ascii=True,
+                        allow_nan=False,
+                    )
+                    .replace("<", "\\u003c")
+                    .encode()
+                    + b";\n"
+                )
                 bootstrap = dict(
                     credential=self.server.credential,
                     current_case=ref,
@@ -620,6 +662,8 @@ class AtlasHandler(SessionHandler):
         return length
 
     def do_POST(self):
+        if self.path.startswith("/api/stages/"):
+            return handle_stages(self, "POST")
         if self.path.startswith("/api/harness/"):
             return handle_operations(self, "POST")
         if self.path.startswith("/api/native/"):
