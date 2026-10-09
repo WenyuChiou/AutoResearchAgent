@@ -1,0 +1,164 @@
+{
+  "kind": "WorkspaceInterfaceContract",
+  "contract_version": "1.0.0",
+  "status": "private-candidate-not-accepted-main",
+  "boundary": "Semantic data and actions are stable; graph layout, category colors, line styles, panels and font size remain renderer choices.",
+  "pins": {
+    "observed_accepted_main": "66b934be8e89631e6f6ab24ae02c0be98bac1cef",
+    "retained_protocol": "b5d805789d4033c911868f49118a264a7ab3d067",
+    "pending_message_api_source": "457c9fd2ea5a84a82b18b00830bea7e3f45faf3d",
+    "pending_process_stack_tip": "ca18c674eaf033295cadb5bcbabecc4b6a63ea3a",
+    "accepted_main_does_not_imply_pending_source_acceptance": true
+  },
+  "view": {
+    "global": "window.WORKSPACE_VIEW",
+    "model": "window.AtlasModel",
+    "required": ["index", "index_sha256", "note_paths", "literature_selection"],
+    "optional": ["source_availability", "stage2", "stage2_comparison"],
+    "supported_index_schema_versions": ["1.0.0", "2.0.0", "3.0.0"],
+    "index_kind": "WorkspaceIndex",
+    "base_status": "partial-review-only",
+    "identities": {
+      "paper": ["project_id", "work_id", "version_id"],
+      "source": ["source_id", "source_version", "raw_sha256", "text_sha256"],
+      "index_sha256": "SHA256 of exact workspace-index.json bytes",
+      "records_sha256": "Hash of canonical records, not native input_version",
+      "input_version": "Absent in static index stays Unknown; preserve ResearchBrief and native namespaces without coercion",
+      "manifest_sha256": "External exact-byte inventory binding",
+      "presentation_version": "Visual asset version only, not scientific input or rubric version"
+    },
+    "normalized_stage1": {
+      "adapter": "AtlasModel.papers(payload)",
+      "key": "JSON.stringify([work_id, version_id]); scope to project/case outside key",
+      "fields": ["key", "topics", "methods", "notePath", "selection", "screening", "sources", "claims", "relations", "rawSearch", "discovery"],
+      "source_text": "Preserve literal source/user text; translate interface labels only",
+      "discovery_current": {"count": null, "first_result_position": null, "round": null, "backend_attempts": null},
+      "typed_ledger_projection": "not-implemented; raw search/screening is not typed discovery/decision history",
+      "similarity": {"unit": "method-tag Jaccard 0..1", "formula": "shared recorded methods / union recorded methods", "zero_edge": "omitted", "not": ["semantic similarity", "evidence strength", "scientific support"]},
+      "group_counts": "Distinct work/version keys with a known recorded label; overlapping topics are not disjoint coverage bins",
+      "relevance": "No fabricated score; show source-bound score/rationale only if an adapter supplies its unit and identity"
+    },
+    "literature_selection": {
+      "kind": "WorkspaceLiteratureSelection", "schema_version": "1.0.0", "rule_version": "1.1.0",
+      "row_fields": ["work_id", "version_id", "citation_key", "source_ids", "eligible_source_ids", "status", "reasons", "source_binding_references"],
+      "statuses": ["included", "excluded", "pending"],
+      "counts": ["screened", "included", "excluded", "pending"],
+      "count_unit": "work/version rows; not researcher formal distinct-work target",
+      "excluded": "Retain row, reason, sources and bibliography; do not delete history",
+      "eligibility": "Readable complete body plus checked source identity/version; individual unknown claims remain visible",
+      "does_not_grant": ["coverage complete", "official Stage2 import", "scientific readiness", "execution authority"]
+    },
+    "normalized_stage2": {
+      "adapter": "build_comparison_view(payload.stage2); AtlasModel.stage2Papers(payload)",
+      "required": ["schema_version", "literature", "directions", "comparison", "evidence", "resources", "research_tables"],
+      "schema_version": "1.0.0",
+      "optional": ["prior_work_reviews", "prior_work_source_levels", "supplemental_literature"],
+      "paper_key": "work_id/version_id in the Stage2 source packet; never join Stage1 by title",
+      "direction_key": ["candidate_id", "version"],
+      "cell": ["text", "field"],
+      "cell_fields": ["question", "data", "method", "findings", "validation", "limitations", "relevance", "geography", "population", "concepts"],
+      "route_fields": ["question", "opportunity", "value", "approach", "requirements", "limitations", "disposition", "reason", "next_step", "evidence_ids", "checks"],
+      "bridge_kind": "WorkspaceStage2BridgeReceipt",
+      "bridge_association": "explicit-operator-selected-binding",
+      "original_stage1_lineage_attested": false,
+      "bridge_does_not_grant": ["Stage3 authority", "native import", "original producer lineage"]
+    }
+  },
+  "stage1_intake": {
+    "source": "Confirmed ResearchBrief decision history, with project/input-version/original-answer binding",
+    "brief_schema_version": "1.1.0",
+    "brief_input_version": "Nonblank string or positive integer; preserve exact JSON type in every answer binding",
+    "native_input_version": "SessionApi registration requires 64 lowercase hex characters; not necessarily the brief's original scalar",
+    "version_mapping": "No implicit conversion/hash: a trusted adapter must record explicit source-bound lineage if namespaces differ; config compiler supplies none",
+    "current_main_proposal": "At least 30 final formally usable distinct works for new briefs",
+    "proposal_is_not_confirmation": true,
+    "explicit_researcher_target_overrides": true,
+    "historical_targets": "Preserve frozen package targets; no retrospective 30 assignment",
+    "screening_bibliography": "Retain wider search candidates separately",
+    "target_is_not": ["hard maximum", "search filter", "budget grant", "coverage or stop sufficiency"],
+    "selected_ui_focus": "30-40 retained papers is a viewing preference, not a research or evaluation rule"
+  },
+  "typed_ledger_extension": {
+    "status": "source-contract-known-adapter-not-implemented",
+    "discovery_fields": ["discovery_id", "query_id", "attempt_id", "completion_id", "record_index", "version_id", "record", "source_ref"],
+    "distinct_counts": ["discovery_id", "query_id", "attempt_id"],
+    "record_index": "Backend result position; never relevance or global discovery rank",
+    "decision_fields": ["subject_id", "prior_decision", "new_decision", "reason_code", "rationale", "evidence_refs", "reverses_event_id"],
+    "event_context": ["event_id", "run_id", "stage_run_id", "sequence", "actor", "actor_type", "authorization"],
+    "reversal": "Append source event link; retain prior event",
+    "raw_screening_is_not_decision_event": true
+  },
+  "metrics": {
+    "common": {"zero": "Observed assessed zero only", "unknown": "null/Unknown, not zero", "technical_failure": "Separate from scientific judgment", "stale": "Keep old value with its original input/source/rubric/judge hashes; never relabel current", "composite_quality": "unsupported"},
+    "stage1": {
+      "rubric_id": "stage1-general-v3", "dimensions": ["P1", "P2", "P3"],
+      "criterion_counts": {"P1": 3, "P2": 4, "P3": 3},
+      "criterion_unit": "0, 1, 2 or null",
+      "aggregation": "Equal-weight criterion points, frozen applicability rationale, assessed fraction and unknown bounds",
+      "empty_denominator": "null, not 100", "recall_gold_denominator": "none in general v3",
+      "legacy": "Historical v1/v2 rubric IDs and denominators remain separate"
+    },
+    "stage2": {
+      "route": "daily_v3", "rubric_id": "stage2-general-v3",
+      "dimension_fields": ["score", "sum", "max", "assessed", "required"],
+      "dimensions": ["P4", "P5", "P6"], "fixed_max": 6, "required_each": 3,
+      "score_unit": "percentage 0..100", "formula": "round(100 * sum / 6, 6) when all 3 final rows assessed",
+      "required_null": "sum and score null; denominator never shrinks",
+      "row_fields": ["criterion_id", "final", "judges", "disagreement"], "judge_roles": ["R1", "R2", "ADJ"],
+      "criteria": ["P4V3.FIDELITY", "P4V3.COMPARABILITY", "P4V3.SYNTHESIS", "P5V3.PRECEDENT", "P5V3.CONTRIBUTION", "P5V3.REVISION", "P6V3.VALUE", "P6V3.FEASIBILITY", "P6V3.CHOICE"],
+      "evaluation_status": ["completed", "audit-required", "failed"],
+      "audit-required": "Provisional pending independent audit, even when numbers are present",
+      "provenance_fields": ["selection_sha256", "source_sha256", "rubric_sha256", "bundle_sha256"],
+      "candidate_checker": "Separate 0-2 property checker; not the independent package dimension percentage"
+    }
+  },
+  "native": {
+    "scope": "Existing explicitly registered server-owned session; default disabled",
+    "schema_contract": {"version": "native-atlas-v1.0.0", "sha256": "d1bb4ed8828f39c6719a5cddb8ebe36ae33f3444aeef27afa309b1fb13205ac6", "status": "pending-private-candidate"},
+    "bootstrap_global": "window.WORKSPACE_NATIVE_ATLAS",
+    "bootstrap_fields": ["credential", "current_case", "enabled", "project_ref", "index_sha256", "input_version"],
+    "credential": "Memory only, never URL or browser storage",
+    "server_binding": ["project_id", "index_sha256", "input_version", "source_root", "principal", "owner", "connection_id", "thread_id"],
+    "browser_must_not_supply": ["root", "owner", "epoch", "thread", "RPC", "model", "permit", "executable", "budget", "source path"],
+    "routes": {
+      "GET /api/native/projects/{ref}": "Passive saved view; no launch/pump/resend",
+      "GET /api/native/projects/{ref}/offer": "Explicit durable local offer publication; zero native I/O",
+      "POST /api/native/projects/{ref}/messages": "key/revision/offer_ref/offer_sha256/text exactly",
+      "POST /api/native/projects/{ref}/answers": "key/revision/index_sha256/input_version/request_ref/request_sha256/result exactly",
+      "POST /api/native/projects/{ref}/interrupts": "key/revision/index_sha256/input_version/action_ref/action_sha256 exactly",
+      "GET /api/native/projects/{ref}/actions/{action_ref}": "Saved action only"
+    },
+    "view_fields": ["project_ref", "index_sha256", "input_version", "revision", "failure", "requests", "actions", "operations"],
+    "transcript": {
+      "status": "optional-additive-pending-projection", "schema_version": "1.0.0",
+      "entry_fields": ["entry_ref", "action_ref", "role", "kind", "status", "text", "failure", "frame_refs"],
+      "frame_reference_fields": ["frame_sequence", "raw_sha256"],
+      "window": {"event_limit": 128, "entry_limit": 128, "text_byte_limit": 65536},
+      "window_status_fields": ["truncated", "omitted_frames"],
+      "absent": "No reply projection capability", "unknown_version": "Reject projection; never infer completion",
+      "boundary": "Observed literal item text only; item completed is not turn/research success; raw frame journal remains source"
+    },
+    "limits": {"text_utf8_bytes_max": 16384, "max_starts_range": [1, 128], "timeout_seconds_range": [1, 30], "http_body_bytes": 262144, "http_response_bytes": 1048576},
+    "limit_meaning": "Trusted offer may lower limits; max_starts counts API attempts, not model token/cost budget",
+    "idempotency": "Same principal/project/key and semantic payload reads old action; changed payload rejects; refresh/lost response GET only",
+    "integer_boundary": "Server revisions signed i64; browser rejects values outside JS safe integer range",
+    "status_separation": ["answer-sent", "request-resolved", "write-observed", "dispatched", "completed", "execution-unknown"],
+    "transport_security": "Loopback exact Host, Bearer, mandatory POST Origin, project principal allowlist and absolute request deadline",
+    "does_not_prove": ["actual Codex authentication", "Windows process-tree containment", "model authority", "research budget", "scientific acceptance"]
+  },
+  "capabilities": {
+    "implementation_state": "Report per source/head/test boundary; pending source is not accepted main",
+    "configured_state": "Declared settings are not admitted bindings",
+    "observed_state": "Probe result, write observation, resolved request and terminal turn are separate",
+    "maintenance": "Optional bound inbox: stage1..6, UTF-8 max 4000 bytes, exact key replay, recorded-not-dispatched",
+    "automatic_ui_repair": "not-implemented; requires separate task, isolated changes, tests, PR and preview",
+    "unsupported_execution": ["protected import/resume", "new model authority", "automatic search", "automatic judging", "automatic merge", "frozen baseline rerun"]
+  },
+  "evolution": {
+    "config": "Exact supported major/schema; unknown mode/authority/action field rejects",
+    "readonly_data": "Preserve original fields and source paths; unknown status displays Unknown and disables actions",
+    "responses": "Current wire schema stays strict; future additive readonly fields require an updated compatible schema/version before they may be ignored by the renderer",
+    "semantic_change": "New version + adapter and independent validation; no silent reinterpretation",
+    "visual_change": "Renderer/CSS/translation only; no score regeneration, input activation or runtime change"
+  }
+}
