@@ -240,3 +240,9 @@ binding/admission and the controller guard remain independent. API-only unknown
 or uncertain native dispatch blocks new keys after reopen; no automatic retry or
 API retirement is provided. Conservative byte/start limits are not token/cost
 authorization. HTTP/UI, actual native authentication and research remain separate.
+
+### Process deadline helper (implementation-only)
+
+`process_deadline.Deadline` bounds store/SQLite lock waits and readonly guards.
+Verifier workers cannot be forcibly cancelled and must never mutate caller state.
+Neutral fake-child fixtures do not grant native process or model authority.

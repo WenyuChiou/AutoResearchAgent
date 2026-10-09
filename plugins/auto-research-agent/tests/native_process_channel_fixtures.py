@@ -1,0 +1,152 @@
+"""Neutral fake-child setup; process import is delayed until explicit factory use."""
+
+import hashlib
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+import time
+
+sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
+from research_workspace_native.frame_journal import FrameJournal
+
+
+class OwnedProcessCase(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name).resolve()
+        self.cwd = self.root / "fake-only"
+        self.cwd.mkdir()
+        self.child = self.cwd / "app-server"
+        self.child.write_text(
+            "import sys\nprint('synthetic-stderr',file=sys.stderr,flush=True)\nfor line in sys.stdin.buffer:\n sys.stdout.buffer.write(b'synthetic:'+line);sys.stdout.buffer.flush()\n",
+            encoding="utf8",
+        )
+        self.path = self.root / "synthetic-process.sqlite"
+        self.store = FrameJournal(self.path)
+        self.addCleanup(self.store.close)
+        self.store.bind_project("alpha", "a" * 64)
+        self.owner = self.store.acquire_owner("alpha", "synthetic-process")
+        self.payload = dict(
+            executable=sys.executable,
+            executable_sha256=hashlib.sha256(
+                Path(sys.executable).read_bytes()
+            ).hexdigest(),
+            cwd=str(self.cwd),
+            input_version="b" * 64,
+        )
+        self.store.record_intent(
+            "alpha",
+            self.owner,
+            "spawn",
+            "app-server/spawn",
+            self.payload,
+            self.state()["revision"],
+        )
+        self.owned = []
+        self.addCleanup(self.cleanup)
+
+    def state(self):
+        return self.store.snapshot("alpha")
+
+    def cleanup(self):
+        for channel in self.owned:
+            channel.close()
+            channel.reap()
+
+    def channel(self, **changes):
+        from research_workspace_native.process_channel import OwnedProcessChannel
+
+        options = dict(
+            store=self.store,
+            project_id="alpha",
+            owner=self.owner,
+            connection_id="synthetic-epoch",
+            index_sha256="a" * 64,
+            input_version="b" * 64,
+            intent_key="spawn",
+            verify_binding=lambda: True,
+            admit_spawn=lambda offer: True,
+            lifetime=10,
+        )
+        options.update(changes)
+        channel = OwnedProcessChannel(**options)
+        self.owned.append(channel)
+        return channel
+
+    def _assert_write_lock_and_expired_journal_wait_do_not_dispatch(self):
+        from unittest.mock import patch
+
+        channel = self.channel()
+        with patch.object(
+            channel.process.stdin, "write", wraps=channel.process.stdin.write
+        ) as write:
+            channel._writes.acquire()
+            try:
+                with self.assertRaises(TimeoutError):
+                    channel.write(b"never", 0.05)
+            finally:
+                channel._writes.release()
+            observe = channel._observe
+
+            def delayed(event, **payload):
+                if event == "write-intent":
+                    time.sleep(0.1)
+                return observe(event, **payload)
+
+            with patch.object(channel, "_observe", side_effect=delayed):
+                with self.assertRaises(TimeoutError):
+                    channel.write(b"never", 0.05)
+            write.assert_not_called()
+
+    def _assert_zero_timeout_consumes_already_buffered_stdout(self):
+        channel = self.channel()
+        channel.write(b"ready\n", 1)
+        until = time.monotonic() + 2
+        while channel._stdout.empty() and time.monotonic() < until:
+            time.sleep(0.01)
+        self.assertEqual(channel.read(262144, 0), b"synthetic:ready\n")
+
+    def _assert_real_fake_child_recording_bootstrap_and_same_transport_handoff(self):
+        from research_workspace_native.bootstrap import BootstrapSession
+        from research_workspace_native.controller import InjectedSessionController
+
+        self.child.write_text(
+            "import sys,json\nfor line in sys.stdin.buffer:\n m=json.loads(line);method=m['method']\n if method=='initialized':continue\n p=m['params']\n r={'userAgent':'synthetic-server'} if method=='initialize' else {'requiresOpenaiAuth':True,'account':{'type':'apiKey'}} if method=='account/read' else {'thread':{'id':'synthetic-thread'},'cwd':p['cwd'],'model':p['model'],'approvalPolicy':p['approvalPolicy'],'sandbox':{'type':'readOnly','networkAccess':False}}\n print(json.dumps({'id':m['id'],'result':r}),flush=True)\n",
+            encoding="utf8",
+        )
+        channel = self.channel()
+        self.store.record_intent(
+            "alpha",
+            self.owner,
+            "new-session",
+            "thread/start",
+            dict(
+                cwd=str(self.cwd),
+                model="synthetic-model",
+                approvalPolicy="on-request",
+                sandbox="read-only",
+            ),
+            self.state()["revision"],
+        )
+        boot = BootstrapSession(
+            store=self.store,
+            project_id="alpha",
+            owner=self.owner,
+            connection_id="synthetic-epoch",
+            index_sha256="a" * 64,
+            input_version="b" * 64,
+            intent_key="new-session",
+            channel=channel,
+            verify_binding=lambda: True,
+            admit_lifecycle=lambda offer: True,
+        )
+        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=2)
+        controller = InjectedSessionController.adopt_ready(
+            boot, admit_action=lambda action: False
+        )
+        self.assertIs(controller.transport, boot.transport)
+        self.assertEqual(self.state()["thread_id"], "synthetic-thread")
+        controller.close()
+        self.assertTrue(channel.reap()["leader_reaped"])
