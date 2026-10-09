@@ -70,6 +70,30 @@ quoted contribution, decision role, omission consequence and alternatives with
 `PYTHONPATH`. A valid binding is not a
 scientific endorsement; the independent evaluator makes its own verdict.
 
+## Final delivery and timing
+
+A candidate checkpoint is an intermediate Stage 1 artifact. Final Stage 1
+delivery includes the confirmed formal-work target, readable complete sources
+with checked identities/versions, source-bound claims and coverage decisions,
+filing and editable cross-format reports, an accepted Stage 1-to-2 handoff, and
+actual HTML operation acceptance. A search, parser run, count or valid saved
+HTML inventory alone cannot finish this chain. Keep unresolved claims, excluded
+works and remaining needs visible; do not infer scientific sufficiency from count.
+
+Use `research_workspace.final_delivery` to inspect the saved selection and
+projection prerequisites. It recomputes source admission and distinct works,
+checks the confirmed intake and exports, and lists the remaining semantic,
+lineage, coverage, handoff and browser checks. It never creates final acceptance
+or grants import/execution authority. See the workspace CLI instructions.
+
+Measure intake, search, acquisition, reading/screening, identity/version checking,
+filing/export, handoff and actual HTML acceptance separately. Record engineering
+repair and CI waiting separately from research. Preserve timestamped evidence
+references; union parallel intervals instead of summing them as elapsed time.
+An unfinished or unmeasured phase remains pending or unknown, never zero.
+Report the end-to-end duration only after this complete chain is accepted;
+candidate inspection and submission to CI are intermediate timings.
+
 ## Native capability and completion
 
 Keep Codex's available native search, source reading, reasoning and tool choice.
