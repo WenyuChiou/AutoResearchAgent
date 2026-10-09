@@ -95,6 +95,13 @@ Controller 先確認原生呼叫完成，才進入成功紀錄查核及擷取；
 
 ## 日常執行預檢與失敗恢復
 
+日常執行的 environment replay 先以外部 receipt 核對全部封存 bytes，再用
+完整 session 身分資料選出本次紀錄。其他已確認身分的舊紀錄若只有工具或
+訊息內容截斷，保留該失敗，不阻擋本次完整紀錄的查核。本次日誌仍須嚴格
+解析；來源身分不明、metadata 損壞、重複本次 session、權限或 runtime 不符
+仍拒絕。正式 A/B 的日誌解析不變；缺少 inventory 仍是 unknown。
+這是唯讀查核修復，不重跑原生呼叫，也不代表完整預演或研究改善。
+
 每個實際使用的 profile／workspace 都須有相符的原生呼叫證據。
 日常 production probe v1.1 可保留相對的 `source_path` 作為封包索引，
 同時使用絕對的 `command_path` 讀取檔案。兩者必須指向已固定 workspace 的同一檔案；
