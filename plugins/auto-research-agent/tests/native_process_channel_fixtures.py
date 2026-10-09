@@ -106,7 +106,14 @@ class OwnedProcessCase(unittest.TestCase):
         until = time.monotonic() + 2
         while channel._stdout.empty() and time.monotonic() < until:
             time.sleep(0.01)
-        self.assertEqual(channel.read(262144, 0), b"synthetic:ready\n")
+        self.assertFalse(channel._stdout.empty(), "fake stdout was not ready")
+        # A zero-time read must not wait for another thread's journal ownership.
+        # Reserve the reentrant journal lock before measuring that read contract.
+        self.assertTrue(self.store._lock.acquire(timeout=2), "journal was not ready")
+        try:
+            self.assertEqual(channel.read(262144, 0), b"synthetic:ready\n")
+        finally:
+            self.store._lock.release()
 
     def _assert_real_fake_child_recording_bootstrap_and_same_transport_handoff(self):
         from research_workspace_native.bootstrap import BootstrapSession

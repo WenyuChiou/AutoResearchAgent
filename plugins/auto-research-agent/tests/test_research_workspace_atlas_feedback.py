@@ -119,12 +119,12 @@ class AtlasFeedbackTests(unittest.TestCase):
         self.assertEqual(
             self.request(server, "POST", "/api/maintenance/missing", body)[0], 409
         )
-        self.assertEqual(
-            self.request(server, "POST", "/api/native/projects/stage1/answers", body)[
-                0
-            ],
-            405,
+        status, rejected = self.request(
+            server, "POST", "/api/native/projects/stage1/answers", body
         )
+        self.assertEqual(status, 404)
+        self.assertEqual(rejected, {"error": "native-project-unavailable"})
+        self.assertEqual(server.api._projects, {})
         self.assertEqual(self.request(server, "GET", "/api/maintenance/stage1")[1], [])
 
 
