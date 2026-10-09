@@ -276,3 +276,12 @@ Saved transcript projection reads accepted frames and durable intents only.
 Its optional version 1.0.0 uses typed sequence/hash references and a bounded
 window. Literal item text, tool failure and turn terminal remain separate;
 GET does not pump, launch, write state or prove native/model delivery.
+
+### Source-bound atlas conversation controls
+
+An explicitly supplied ready runtime loads the bundled question/message drawer.
+No supplied runtime means no native controls. Credentials remain in memory;
+refresh and lost responses read history only. Saved assistant text and tool/turn
+failures use typed sequence/hash references; an unknown transcript version
+disables sending. The ordinary CLI still creates no native runtime.
+The UI maintenance inbox records feedback and does not execute automatic repairs.

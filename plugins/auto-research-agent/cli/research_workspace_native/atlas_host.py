@@ -214,6 +214,7 @@ class AtlasHost(SessionHttpServer):
             ("atlas-host.css", "/host-panel.css"),
         ):
             self._assets[route] = (assets / filename).read_bytes()
+        native_scripts, native_style = [], ""
         if native_script is not None:
             if (
                 not isinstance(native_script, bytes)
@@ -221,6 +222,16 @@ class AtlasHost(SessionHttpServer):
             ):
                 raise ValueError("bounded trusted native script required")
             self._assets["/native-atlas-chat.js"] = native_script
+            native_scripts = ["/native-atlas-chat.js"]
+        elif native_runtime is not None:
+            for filename in (
+                "session-panel.css",
+                "session-panel.js",
+                "native-atlas-chat.js",
+            ):
+                self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
+            native_style = '<link rel="stylesheet" href="/session-panel.css">'
+            native_scripts = ["/session-panel.js", "/native-atlas-chat.js"]
         self.host_binding = {
             "kind": "WorkspaceAtlasHostOverlay",
             "execution_authority": False,
@@ -236,12 +247,13 @@ class AtlasHost(SessionHttpServer):
             text = text.replace(
                 "</body>",
                 '<link rel="stylesheet" href="/host-panel.css">'
-                '<script src="/host-bootstrap/' + row["ref"] + '.js"></script>'
-                '<script src="/host-panel.js"></script>'
+                + native_style
                 + (
-                    '<script src="/native-atlas-chat.js"></script>'
-                    if native_script
-                    else ""
+                    '<script src="/host-bootstrap/' + row["ref"] + '.js"></script>'
+                    '<script src="/host-panel.js"></script>'
+                )
+                + "".join(
+                    '<script src="' + route + '"></script>' for route in native_scripts
                 )
                 + "</body>",
             )

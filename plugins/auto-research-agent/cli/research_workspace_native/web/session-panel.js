@@ -1,6 +1,9 @@
 /* A separate injected session overlay. Research records and source text stay unchanged. */
 (() => {
   "use strict";
+  const atlas = window.WORKSPACE_NATIVE_ATLAS;
+  delete window.WORKSPACE_NATIVE_ATLAS;
+  if (atlas && atlas.enabled !== true) return;
   const rows = {
     title: ["Session discussion & history", "会话对话与历史", "工作階段對話與歷史"],
     boundary: ["Injected session overlay · native authentication and live research are not verified. The Wiki above remains an offline reference.", "注入会话覆盖层 · 原生认证和真实研究尚未验收。上方 Wiki 仍为离线参考。", "注入工作階段覆蓋層 · 原生認證與實際研究尚未驗收。上方 Wiki 仍為離線參考。"],
@@ -77,6 +80,7 @@
   history.id = "native-history";
   document.querySelector(".footer-note")?.before(root);
   if (!root.isConnected) document.body.append(root);
+  if (atlas) document.getElementById("host-panel")?.prepend(root);
   let credential = "", project = "", view = null, busy = false, generation = 0, readSequence = 0;
   const drafts = new Map(), extensions = []; let noticeKey = null;
   const locale = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
@@ -174,7 +178,7 @@
     try {loaded = await request("GET");}
     catch (error) {if (current !== generation || sequence !== readSequence) return; throw error;}
     if (current !== generation || sequence !== readSequence || (view && loaded.revision < view.revision)) return;
-    if (loaded.project_ref !== project || (view && (loaded.index_sha256 !== view.index_sha256 ||
+    if (!Number.isSafeInteger(loaded.revision) || loaded.revision < 0 || !Array.isArray(loaded.requests) || !Array.isArray(loaded.actions) || !Array.isArray(loaded.operations) || loaded.project_ref !== project || (atlas && (loaded.index_sha256 !== atlas.index_sha256 || loaded.input_version !== atlas.input_version)) || (view && (loaded.index_sha256 !== view.index_sha256 ||
       loaded.input_version !== view.input_version))) throw Error("binding-changed");
     view = loaded; render();
   };
@@ -210,17 +214,30 @@
   refreshButton.onclick = async () => {try {await refresh();} catch {showNotice("error");}};
   disconnect.onclick = () => {if (busy) return; generation++; credential = ""; view = null; drafts.clear(); render(); showNotice(null);};
   window.NativePanel = {extend(factory) {
-    extensions.push(factory({root, available: () => Boolean(view) && !busy, read: async suffix => {
-      if (!/^\/scope(?:\/versions\/[0-9a-f]{64})?$/.test(suffix) || !view) throw Error("invalid-scope-read");
+    const extension = factory({root, available: () => Boolean(view) && !view.failure && !busy, read: async suffix => {
+      if (!/^(?:\/scope(?:\/versions\/[0-9a-f]{64})?|\/offer|\/transcript)$/.test(suffix) || !view) throw Error("invalid-scope-read");
       const current = generation, value = await request("GET", suffix);
       if (current !== generation) throw Error("stale-display");
       return value;
     }, write: async (suffix, body) => {
-      if (!/^\/scope\/(versions|reviews)$/.test(suffix) || !view || busy) throw Error("scope-write-blocked");
+      if (!/^(?:\/scope\/(versions|reviews)|\/messages)$/.test(suffix) || !view || busy) throw Error("scope-write-blocked");
       busy = true;
       try {return await request("POST", suffix, body);}
       finally {busy = false; await refresh();}
-    }}));
+    }});
+    extensions.push(extension);
+    if (view) extension.refresh(view);
   }};
+  if (atlas) {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(atlas.project_ref || "") ||
+        !/^[a-f0-9]{64}$/.test(atlas.index_sha256 || "") ||
+        !/^[a-f0-9]{64}$/.test(atlas.input_version || "") ||
+        typeof atlas.credential !== "string" || !atlas.credential) {
+      root.remove(); return;
+    }
+    credential = atlas.credential; project = atlas.project_ref;
+    connection.hidden = true;
+    refresh().catch(() => showNotice("error")); // GET only; no launcher or resend.
+  }
   translate();
 })();
