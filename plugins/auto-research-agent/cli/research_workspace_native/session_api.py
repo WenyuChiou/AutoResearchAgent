@@ -21,6 +21,7 @@ from stage1_deliverable.common import canonical, private_output, sha
 from .controller import InjectedSessionController
 from .store import JournalError
 from .transport import validate_answer
+from .transcript import project_transcript
 
 
 class SessionApiError(JournalError):
@@ -399,6 +400,9 @@ class SessionApi:
                 requests=requests,
                 actions=actions,
                 operations=operations,
+                transcript=project_transcript(
+                    controller.store, state, binding, principal, self._ref
+                ),
             )
 
     def action(self, credential, project_ref, action_ref):

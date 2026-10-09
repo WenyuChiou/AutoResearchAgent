@@ -271,3 +271,8 @@ An unbound case has no native controls; input version is not the records hash.
 The existing Host/Origin/JSON/deadline guards apply to ordinary messages as well.
 Construction failure retains borrowed-runtime ownership with its caller.
 Persisted transcript, webpage controls and actual native acceptance remain separate.
+
+Saved transcript projection reads accepted frames and durable intents only.
+Its optional version 1.0.0 uses typed sequence/hash references and a bounded
+window. Literal item text, tool failure and turn terminal remain separate;
+GET does not pump, launch, write state or prove native/model delivery.
