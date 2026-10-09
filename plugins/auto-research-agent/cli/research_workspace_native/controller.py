@@ -17,6 +17,16 @@ from .write_observation import observe_frame_write
 
 
 class InjectedSessionController(BoundControllerContext):
+    @classmethod
+    def adopt_ready(cls, ready, *, admit_action):
+        from .bootstrap import BootstrapSession
+
+        _require(
+            cls is InjectedSessionController and type(ready) is BootstrapSession,
+            "server-owned bootstrap session required",
+        )
+        return ready._adopt(cls, admit_action)
+
     def __init__(
         self,
         *,

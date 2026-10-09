@@ -208,3 +208,25 @@ Focused verification uses fake channels and real SQLite only:
 
 No process launch, account proof, research, model turn, import, resume, reconnect,
 or budget is provided. Ordinary controller constructors retain their guards.
+
+# Injected lifecycle and same-transport handoff: implementation-only
+
+`BootstrapSession.open_thread` follows initialize, initialized, account/read and
+one explicitly admitted thread/start over the same transport. It verifies the
+typed RPC responses, account enum shape, submitted cwd/model/approval policy and
+effective readOnly sandbox with literal networkAccess false. This observation
+does not authenticate a process, create execution authority or test a model.
+
+`InjectedSessionController.adopt_ready` consumes a ready session once. It retains
+the initialized transport, byte recording, used IDs, raw frames and unparsed
+buffer. Late admission/source/owner failures close the channel and preserve
+uncertainty. No failed attempt automatically sends again or opens a new channel.
+
+`recover_thread` completes only a retained completed reply's local thread binding
+after a crash window; it cannot resume, import or send. Actual authenticated
+launcher, production API start offer, continuous event pump and webpage transcript
+integration remain separate work. No actual Codex or paid model call was made.
+
+Focused verification uses fake channels and real SQLite:
+
+`python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_bootstrap.py -v`
