@@ -25,7 +25,9 @@ VENDOR_LOCK_SHA256 = "525d239cf5de21effbb0b3d86b4be9f0876cf8d24907409a07b8587e27
 def atlas_asset_files():
     """Read only the fixed assets and reject changed vendor provenance or bytes."""
     try:
-        files = {name: safe_path(ATLAS_ROOT, name).read_bytes() for name in ATLAS_ASSETS}
+        files = {
+            name: safe_path(ATLAS_ROOT, name).read_bytes() for name in ATLAS_ASSETS
+        }
     except OSError as error:
         raise ValueError("atlas asset missing or unreadable") from error
     lock_name = "vendor/vendor-lock.json"

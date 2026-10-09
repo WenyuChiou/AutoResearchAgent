@@ -129,7 +129,11 @@ class WorkspaceAtlasAssetTests(unittest.TestCase):
         )
         self.assertEqual(
             binding["files"],
-            {name: sha(raw) for name, raw in files.items() if name != "atlas-binding.json"},
+            {
+                name: sha(raw)
+                for name, raw in files.items()
+                if name != "atlas-binding.json"
+            },
         )
         self.assertEqual(set(atlas.atlas_asset_files()), set(atlas.ATLAS_ASSETS))
         lock_raw = files["vendor/vendor-lock.json"]
@@ -137,32 +141,48 @@ class WorkspaceAtlasAssetTests(unittest.TestCase):
         lock = json.loads(lock_raw)
         self.assertFalse(lock["verification"]["npm_lifecycle_executed"])
         package = lock["packages"][0]
-        self.assertEqual((package["name"], package["version"], package["license"]),
-                         ("3d-force-graph", "1.80.1", "MIT"))
+        self.assertEqual(
+            (package["name"], package["version"], package["license"]),
+            ("3d-force-graph", "1.80.1", "MIT"),
+        )
         for name, row in package["files"].items():
-            self.assertEqual((sha(files[name]), len(files[name])),
-                             (row["sha256"], row["bytes"]))
+            self.assertEqual(
+                (sha(files[name]), len(files[name])), (row["sha256"], row["bytes"])
+            )
         notices = lock["packages"][1]
         self.assertEqual(notices["embedded_versions"], "not-attested")
         self.assertEqual(len(notices["license_sources"]), 34)
-        self.assertIn(b"Exact versions embedded in the upstream prebuilt UMD are not attested.",
-                      files["vendor/THIRD_PARTY_LICENSES.txt"])
+        self.assertIn(
+            b"Exact versions embedded in the upstream prebuilt UMD are not attested.",
+            files["vendor/THIRD_PARTY_LICENSES.txt"],
+        )
         vendor = files["vendor/3d-force-graph-1.80.1.min.js"]
-        self.assertTrue(vendor.startswith(
-            b"// Version 1.80.1 3d-force-graph - https://github.com/vasturiano/3d-force-graph\n"
-        ))
+        self.assertTrue(
+            vendor.startswith(
+                b"// Version 1.80.1 3d-force-graph - https://github.com/vasturiano/3d-force-graph\n"
+            )
+        )
         self.assertNotIn(b"\r\n", vendor)
-        self.assertIn(b"Copyright (c) 2017 Vasco Asturiano",
-                      files["vendor/3d-force-graph-LICENSE.txt"])
+        self.assertIn(
+            b"Copyright (c) 2017 Vasco Asturiano",
+            files["vendor/3d-force-graph-LICENSE.txt"],
+        )
 
     def test_scripts_load_in_order_from_same_origin_without_csp_weakening(self):
         inventory = ScriptInventory()
         inventory.feed(atlas.atlas_files(payload())["atlas.html"].decode("utf-8"))
-        self.assertEqual(inventory.sources, [
-            "./atlas-data.js", "./atlas-model.js",
-            "./vendor/3d-force-graph-1.80.1.min.js", "./atlas-associations.js",
-            "./atlas-spatial.js", "./atlas-network.js", "./atlas-ui.js",
-        ])
+        self.assertEqual(
+            inventory.sources,
+            [
+                "./atlas-data.js",
+                "./atlas-model.js",
+                "./vendor/3d-force-graph-1.80.1.min.js",
+                "./atlas-associations.js",
+                "./atlas-spatial.js",
+                "./atlas-network.js",
+                "./atlas-ui.js",
+            ],
+        )
         self.assertIn("script-src 'self'", inventory.csp)
         self.assertIn("connect-src 'none'", inventory.csp)
         self.assertNotIn("unsafe-eval", inventory.csp)
@@ -172,8 +192,10 @@ class WorkspaceAtlasAssetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             assets = self.asset_copy(Path(directory))
             with patch.object(atlas, "ATLAS_ROOT", assets):
-                for name in ("vendor/3d-force-graph-1.80.1.min.js",
-                             "vendor/3d-force-graph-LICENSE.txt"):
+                for name in (
+                    "vendor/3d-force-graph-1.80.1.min.js",
+                    "vendor/3d-force-graph-LICENSE.txt",
+                ):
                     target = assets / name
                     original = target.read_bytes()
                     target.unlink()
@@ -210,32 +232,46 @@ class WorkspaceAtlasAssetTests(unittest.TestCase):
             worker = threading.Thread(target=server.serve_forever, daemon=True)
             worker.start()
             try:
-                for name in ("vendor/3d-force-graph-1.80.1.min.js", "vendor/vendor-lock.json"):
-                    client = http.client.HTTPConnection("127.0.0.1", server.server_port,
-                                                        timeout=3)
+                for name in (
+                    "vendor/3d-force-graph-1.80.1.min.js",
+                    "vendor/vendor-lock.json",
+                ):
+                    client = http.client.HTTPConnection(
+                        "127.0.0.1", server.server_port, timeout=3
+                    )
                     try:
                         client.request("GET", "/views/assets/" + name)
                         response = client.getresponse()
                         self.assertEqual(response.status, 200)
                         self.assertEqual(response.read(), expected[name])
-                        self.assertEqual(response.getheader("Cross-Origin-Resource-Policy"),
-                                         "same-origin")
-                        self.assertEqual(response.getheader("X-Content-Type-Options"),
-                                         "nosniff")
-                        self.assertEqual(response.getheader("Content-Type"),
-                                         "text/javascript" if name.endswith(".js")
-                                         else "application/json")
+                        self.assertEqual(
+                            response.getheader("Cross-Origin-Resource-Policy"),
+                            "same-origin",
+                        )
+                        self.assertEqual(
+                            response.getheader("X-Content-Type-Options"), "nosniff"
+                        )
+                        self.assertEqual(
+                            response.getheader("Content-Type"),
+                            "text/javascript"
+                            if name.endswith(".js")
+                            else "application/json",
+                        )
                     finally:
                         client.close()
                 self.assertNotIn("/views/assets/vendor/unregistered.js", server._assets)
                 for route, headers, status in (
                     ("/views/assets/vendor/unregistered.js", {}, 404),
                     ("/views/assets/vendor/../atlas-ui.js", {}, 404),
-                    ("/views/assets/vendor/vendor-lock.json",
-                     {"Origin": "https://foreign.example"}, 403),
+                    (
+                        "/views/assets/vendor/vendor-lock.json",
+                        {"Origin": "https://foreign.example"},
+                        403,
+                    ),
                 ):
-                    client = http.client.HTTPConnection("127.0.0.1", server.server_port,
-                                                        timeout=3)
+                    client = http.client.HTTPConnection(
+                        "127.0.0.1", server.server_port, timeout=3
+                    )
                     try:
                         client.request("GET", route, headers=headers)
                         response = client.getresponse()
