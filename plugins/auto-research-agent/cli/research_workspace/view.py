@@ -416,10 +416,7 @@ def _write_view(
                 Path(__file__).with_name(name).read_bytes()
             )
         manifest["ui_sources"].update(
-            {
-                name: sha(files[name])
-                for name in (*ATLAS_ASSETS, "atlas-model.js")
-            }
+            {name: sha(files[name]) for name in (*ATLAS_ASSETS, "atlas-model.js")}
         )
     if repaired:
         from .closeout import runtime_binding
