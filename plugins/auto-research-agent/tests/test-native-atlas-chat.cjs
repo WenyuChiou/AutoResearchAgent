@@ -247,7 +247,7 @@ async function test(name, callback) {
   });
   await test("matching typed known-unsent receipt clears only its own intent and permits explicit retry", async () => {
     const prior = {key: "88888888-8888-8888-8888-888888888888", target: "3".repeat(64), offer_sha256: "4".repeat(64)};
-    const value = copy(fixture); value.actions.push({client_key: prior.key, kind: "message", target_ref: prior.target, status: "completed"});
+    const value = {...copy(fixture), project_id: "fixture-project"}; value.actions.push({client_key: prior.key, kind: "message", target_ref: prior.target, status: "completed"});
     const ledger = `native-message-intents:${value.project_ref}:${value.index_sha256}:${value.input_version}`;
     const storage = new Map([[ledger, JSON.stringify([prior])]]);
     const hooks = {post: body => rejected(knownUnsent(body))};
@@ -267,7 +267,7 @@ async function test(name, callback) {
       value => {delete value.operation; return value;}, ...["schema_version", "status", "operation", "project_ref",
         "index_sha256", "input_version", "client_key", "offer_ref", "offer_sha256"].map(field => value => ({...value, [field]: "wrong"}))];
     for (const change of changes) {
-      const state = await mount({hooks: {post: body => rejected(change(knownUnsent(body)))}});
+      const state = await mount({view: {...copy(fixture), project_id: "fixture-project"}, hooks: {post: body => rejected(change(knownUnsent(body)))}});
       await prepare(state); await send(state); const saved = copy(intents(state));
       assert.equal(JSON.parse(saved[0][1]).length, 1);
       await state.refresh(); await prepare(state); await send(state);
@@ -279,7 +279,7 @@ async function test(name, callback) {
     const outcomes = [() => {throw Error("synthetic-timeout");}, () => ({ok: true, json: async () => {throw Error("synthetic-lost-body");}}),
       () => response(null), () => response({client_key: "wrong", status: "completed"})];
     for (const post of outcomes) {
-      const state = await mount({hooks: {post}}); await prepare(state); await send(state);
+      const state = await mount({view: {...copy(fixture), project_id: "fixture-project"}, hooks: {post}}); await prepare(state); await send(state);
       assert.equal(state.document.getElementById("native-chat-text").value, "Explicit message");
       const saved = copy(intents(state)); await state.refresh(); await send(state);
       assert.deepEqual(intents(state), saved); assert.equal(posts(state).length, 1);

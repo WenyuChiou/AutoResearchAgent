@@ -47,8 +47,9 @@
     const hash = value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
     const exact = (value, fields) => value !== null && typeof value === "object" &&
       !Array.isArray(value) && Object.keys(value).sort().join() === [...fields].sort().join();
-    const sameBinding = (first, second) => Boolean(first && second) &&
-      ["project_ref", "project_id", "index_sha256", "input_version"].every(name => first[name] === second[name]);
+    const sameReceiptBinding = (first, second) => Boolean(first && second) &&
+      ["project_ref", "index_sha256", "input_version"].every(name => first[name] === second[name]);
+    const sameBinding = (first, second) => sameReceiptBinding(first, second) && first.project_id === second.project_id;
     const validText = value => {
       if (typeof value !== "string") return false;
       for (let n = 0; n < value.length; n++) {
@@ -210,7 +211,7 @@
           if (exact(receipt, ["schema_version", "status", "operation", "project_ref", "index_sha256",
             "input_version", "client_key", "offer_ref", "offer_sha256"]) &&
               receipt.schema_version === "NativeKnownUnsent.v1" && receipt.status === "known-unsent" &&
-              receipt.operation === "message" && sameBinding(receipt, binding) &&
+              receipt.operation === "message" && sameReceiptBinding(receipt, binding) &&
               receipt.client_key === body.key && receipt.offer_ref === body.offer_ref &&
               receipt.offer_sha256 === body.offer_sha256) {
             try {

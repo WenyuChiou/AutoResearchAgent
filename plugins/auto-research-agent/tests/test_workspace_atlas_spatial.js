@@ -62,7 +62,12 @@ const onDemand = {id: "active", priority: 0, selected: true, projectable: true, 
 const clearLabel = spatial.resolveLabels([onDemand], 320, 320, [iconBox]);
 assert.equal(clearLabel.shown.length, 1);
 assert.ok(clearLabel.shown[0].box.y + clearLabel.shown[0].box.height < iconBox.y);
-assert.deepEqual(spatial.resolveLabels([{...onDemand, priority: 3, selected: false}], 320, 320, [iconBox]).hidden, ["active"]);
+for (const priority of [2, 3]) {
+  const alternative = spatial.resolveLabels([{...onDemand, priority, selected: false}], 320, 320, [iconBox]);
+  assert.equal(alternative.shown.length, 1);
+  assert.ok(alternative.shown[0].box.y + alternative.shown[0].box.height < iconBox.y);
+}
+assert.deepEqual(spatial.resolveLabels([{...onDemand, priority: 4, selected: false}], 320, 320, [iconBox]).hidden, ["active"]);
 assert.deepEqual(onDemand.box, {x: 120, y: 155, width: 80, height: 20});
 
 // Injected DOM/runtime: actual WebGL/browser acceptance remains a separate check.

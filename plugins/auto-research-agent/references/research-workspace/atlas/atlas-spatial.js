@@ -138,7 +138,7 @@
       const box = {...item.box};
       if (item.selected && item.projectable) { box.x = Math.max(4, Math.min(width - box.width - 4, box.x)); box.y = Math.max(4, Math.min(height - box.height - 4, box.y)); }
       const choices = [box];
-      if (item.anchor && item.priority <= 1) {
+      if (item.anchor && item.priority <= 3) {
         const {x, y, radius} = item.anchor;
         choices.push({...box, x: x - box.width / 2, y: y - radius - box.height - 7},
           {...box, x: x + radius + 7, y: y - box.height / 2}, {...box, x: x - radius - box.width - 7, y: y - box.height / 2});
