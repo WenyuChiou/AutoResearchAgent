@@ -253,3 +253,11 @@ Neutral fake-child fixtures do not grant native process or model authority.
 trusted admission before fixed stdio startup. Inspect cleanup leader/errors;
 caller gates and file hashes do not attest native authority or Windows containment.
 Tests run fake OS children, never actual Codex/model/research.
+
+### Explicit server owner (implementation-only)
+
+`ServerSessionRegistry` publishes only previously admitted ready controllers.
+`ServerSessionOwner.start()` explicitly starts one pump; HTTP GET never does.
+Source bindings are rechecked after callbacks. Shutdown first attempts physical
+leader cleanup, preserves failed evidence and retains a slot after failed cleanup.
+Fake OS-child tests do not prove actual Codex, model authority or Windows containment.
