@@ -45,6 +45,18 @@
     const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
     const round = value => Math.round(value * 1000) / 1000;
     const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+    const spatial = options.spatial && typeof options.spatial === "object";
+    const degrees = (value, limit) => Number.isFinite(value) ? clamp(value, -limit, limit) * Math.PI / 180 : 0;
+    const yaw = degrees(options.spatial?.yaw, 18), pitch = degrees(options.spatial?.pitch, 12);
+    const project = (point, depth, centerY) => {
+      if (!spatial) return point;
+      const dx = point.x - 300, dy = point.y - centerY;
+      const x = dx * Math.cos(yaw) + depth * Math.sin(yaw);
+      const z = -dx * Math.sin(yaw) + depth * Math.cos(yaw);
+      const y = dy * Math.cos(pitch) - z * Math.sin(pitch);
+      const scale = 1000 / (1000 - dy * Math.sin(pitch) - z * Math.cos(pitch));
+      return {x: 300 + x * scale, y: centerY + y * scale};
+    };
     const ordered = [...records].sort((a, b) => compare(a.key, b.key));
     const classified = groups(ordered).map(group => ({...group, ids: [...group.ids].sort(compare)}))
       .sort((a, b) => compare(a.key, b.key));
@@ -60,66 +72,91 @@
       assigned.get(first).push(paper);
     }
     if (assigned.has("")) classified.push({key: "", label: "", ids: assigned.get("").map(paper => paper.key)});
-    const ring = classified.flatMap(group => assigned.get(group.key));
-    const count = ring.length;
-    const paperNodes = ring.map((paper, index) => {
-      const angle = -Math.PI * .75 + index * Math.PI * 2 / Math.max(count, 1);
-      /* Radial staggering keeps 30–48 nodes on the same network rather than
-         switching to category grids, and separates neighboring node labels. */
-      const radius = count > 24 && index % 2 ? .82 : 1;
-      const groupKeys = tags(paper.topics).filter(label => groupByKey.has(label)).sort(compare);
-      return {key: paper.key, x: round(300 + Math.cos(angle) * 230 * radius),
-        y: round(270 + Math.sin(angle) * 205 * radius), groupKeys,
-        primaryGroupKey: primary.get(paper.key), labelSide: Math.cos(angle) < -.2 ? "left" : Math.cos(angle) > .2 ? "right" : "center"};
-    });
-    const paperByKey = new Map(paperNodes.map(paper => [paper.key, paper]));
-    const halos = classified.map((group, index) => {
-      const local = assigned.get(group.key);
-      const members = (local.length ? local.map(paper => paper.key) : group.ids).map(id => paperByKey.get(id));
-      const x = members.reduce((sum, paper) => sum + paper.x, 0) / members.length;
-      const y = members.reduce((sum, paper) => sum + paper.y, 0) / members.length;
-      const extentX = Math.max(...members.map(paper => Math.abs(paper.x - x)));
-      const extentY = Math.max(...members.map(paper => Math.abs(paper.y - y)));
-      return {...group, x: round(x), y: round(y),
-        rx: round(clamp(extentX + 46, 62, 250)), ry: round(clamp(extentY + 48, 62, 225)),
-        colorIndex: group.key ? index % 6 : -1};
-    });
     const hash = value => {
       let result = 2166136261;
       for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619);
       return result >>> 0;
     };
     const literalMethods = ordered.map(paper => ({...paper, methods: tags(paper.methods)}));
-    const displayed = groups(literalMethods, "methods").filter(group => options.singleMethods === true || group.ids.length > 1)
+    const allMethods = groups(literalMethods, "methods")
       .sort((a, b) => b.ids.length - a.ids.length || compare(a.key, b.key));
-    const occupied = [...paperNodes];
-    const methods = displayed.map(method => {
-      const members = method.ids.map(id => paperByKey.get(id)), seed = hash(method.key);
-      const mx = members.reduce((sum, paper) => sum + paper.x, 0) / members.length;
-      const my = members.reduce((sum, paper) => sum + paper.y, 0) / members.length;
-      /* Literal membership locates a visual target, not a scientific distance.
-         Single-paper methods stay near their paper; shared hubs settle between
-         their members. Keyed offsets avoid a mechanically centered circle. */
-      const inward = members.length === 1 ? .68 + (seed % 13) / 100 : .60;
-      const target = {x: 300 + (mx - 300) * inward + ((seed >>> 4) % 29 - 14),
-        y: 270 + (my - 270) * inward + ((seed >>> 12) % 29 - 14)};
-      let position = null, best = null, bestClearance = -1;
-      /* A bounded deterministic spiral resolves marker collisions. Selection
-         never enters this calculation and no source record is modified. */
-      for (let step = 0; step < 1024; step++) {
-        const angle = (seed % 6283) / 1000 + step * 2.399963229728653;
-        const radius = Math.sqrt(step) * 5.5;
-        const candidate = {x: round(clamp(target.x + Math.cos(angle) * radius, 50, 550)),
-          y: round(clamp(target.y + Math.sin(angle) * radius, 55, 485))};
-        const clearance = Math.min(Infinity, ...occupied.map(node => Math.hypot(candidate.x - node.x, candidate.y - node.y)));
-        if (clearance > bestClearance) {best = candidate; bestClearance = clearance;}
-        if (clearance >= 36) {position = candidate; break;}
-      }
-      const node = {...method, ids: [...method.ids].sort(compare), ...(position || best)};
-      occupied.push(node);
-      return node;
-    });
-    return {width: 600, height: 540, papers: paperNodes, groups: halos, methods};
+    const sharedByPaper = new Map(ordered.map(paper => [paper.key, allMethods
+      .filter(method => method.ids.length > 1 && method.ids.includes(paper.key)).map(method => method.key).join("\n")]));
+    assigned.forEach(members => members.sort((a, b) => compare(sharedByPaper.get(a.key), sharedByPaper.get(b.key)) || compare(a.key, b.key)));
+    const ring = classified.flatMap(group => assigned.get(group.key)), count = ring.length;
+    /* Plan with every literal method, even when some are not displayed, so a
+       focus change or visibility toggle cannot move paper/caption positions. */
+    let height = Math.max(816, Math.ceil((count * 98 * 74 + classified.length * 142 * 68 + allMethods.length * 48 * 48) / 400));
+    const intersects = (a, b, gap = 0) => a.x < b.x + b.width + gap && a.x + a.width + gap > b.x &&
+      a.y < b.y + b.height + gap && a.y + a.height + gap > b.y;
+    let result;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const occupied = [], centerY = height / 2;
+      const place = (target, width, boxHeight, topOffset, seed) => {
+        let best, bestPenalty = Infinity;
+        for (let step = 0; step < 2048; step++) {
+          const angle = (seed % 6283) / 1000 + step * 2.399963229728653;
+          const radius = Math.sqrt(step) * 10;
+          /* The second bounded pass covers the whole canvas rather than
+             accepting an overlap when the nearest neighborhood is crowded. */
+          const rawX = step < 1024 ? target.x + Math.cos(angle) * radius : 12 + width / 2 + ((step * .754877666 + (seed % 997) / 997) % 1) * (576 - width);
+          const rawY = step < 1024 ? target.y + Math.sin(angle) * radius : 12 + topOffset + ((step * .569840291 + (seed % 991) / 991) % 1) * (height - 24 - boxHeight);
+          const x = round(clamp(rawX, 12 + width / 2, 588 - width / 2));
+          const y = round(clamp(rawY, 12 + topOffset, height - 12 - boxHeight + topOffset));
+          const labelBox = {x: round(x - width / 2), y: round(y - topOffset), width, height: boxHeight};
+          let penalty = 0;
+          for (const other of occupied) if (intersects(labelBox, other, 10)) {
+            penalty += Math.max(0, Math.min(labelBox.x + width + 10, other.x + other.width + 10) - Math.max(labelBox.x, other.x)) *
+              Math.max(0, Math.min(labelBox.y + boxHeight + 10, other.y + other.height + 10) - Math.max(labelBox.y, other.y));
+          }
+          if (penalty < bestPenalty) {best = {x, y, labelBox}; bestPenalty = penalty;}
+          if (!penalty) break;
+        }
+        occupied.push(best.labelBox);
+        return best;
+      };
+      const baseTargets = new Map();
+      const paperNodes = ring.map((paper, index) => {
+        const seed = hash(paper.key), angle = -Math.PI * .75 + index * Math.PI * 2 / Math.max(count, 1);
+        const target = {x: 300 + Math.cos(angle) * 230 + seed % 13 - 6,
+          y: centerY + Math.sin(angle) * (centerY - 90) + (seed >>> 8) % 15 - 7};
+        baseTargets.set(paper.key, target);
+        return {key: paper.key, ...place(project(target, seed % 41 - 20, centerY), 88, 64, 15, seed),
+          groupKeys: tags(paper.topics).filter(label => groupByKey.has(label)).sort(compare),
+          primaryGroupKey: primary.get(paper.key), labelSide: "center"};
+      });
+      const paperByKey = new Map(paperNodes.map(paper => [paper.key, paper]));
+      const halos = classified.map((group, index) => {
+        const local = assigned.get(group.key);
+        const members = (local.length ? local.map(paper => paper.key) : group.ids).map(id => paperByKey.get(id));
+        const x = members.reduce((sum, paper) => sum + paper.x, 0) / members.length;
+        const y = members.reduce((sum, paper) => sum + paper.y, 0) / members.length;
+        const baseMembers = members.map(paper => baseTargets.get(paper.key));
+        const bx = baseMembers.reduce((sum, paper) => sum + paper.x, 0) / baseMembers.length;
+        const by = baseMembers.reduce((sum, paper) => sum + paper.y, 0) / baseMembers.length;
+        const caption = place(project({x: 300 + (bx - 300) * .58, y: centerY + (by - centerY) * .58}, -40, centerY), 132, 58, 29, hash(group.key));
+        return {...group, x: round(x), y: round(y), labelX: caption.x, labelY: caption.y, labelBox: caption.labelBox,
+          rx: round(clamp(Math.max(...members.map(paper => Math.abs(paper.x - x))) + 46, 62, 250)),
+          ry: round(clamp(Math.max(...members.map(paper => Math.abs(paper.y - y))) + 48, 62, centerY - 18)),
+          colorIndex: group.key ? index % 6 : -1};
+      });
+      const allPlacedMethods = allMethods.map(method => {
+        const members = method.ids.map(id => baseTargets.get(id)), seed = hash(method.key);
+        const mx = members.reduce((sum, paper) => sum + paper.x, 0) / members.length;
+        const my = members.reduce((sum, paper) => sum + paper.y, 0) / members.length;
+        const inward = members.length === 1 ? .78 : .60;
+        const target = {x: 300 + (mx - 300) * inward + ((seed >>> 4) % 29 - 14),
+          y: centerY + (my - centerY) * inward + ((seed >>> 12) % 29 - 14)};
+        return {...method, ids: [...method.ids].sort(compare), ...place(project(target, 40, centerY), 38, 38, 13, seed)};
+      });
+      let labelCollisionCount = 0;
+      occupied.forEach((box, index) => occupied.slice(index + 1).forEach(other => {if (intersects(box, other, 6)) labelCollisionCount++;}));
+      result = {width: 600, height, papers: paperNodes, groups: halos,
+        methods: allPlacedMethods.filter(method => options.singleMethods === true || method.ids.length > 1), labelCollisionCount};
+      if (!labelCollisionCount) break;
+      height = Math.ceil(height * 1.2);
+    }
+    return result;
   }
   function intersection(records, groupKeys, field = "topics") {
     return records.filter(p => groupKeys.every(k => rows(p[field]).includes(k)));

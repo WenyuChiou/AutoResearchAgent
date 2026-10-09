@@ -29,7 +29,7 @@ class Element {
   querySelector(selector) {
     return flatten(this).find(node => selector === "span" ? node.tagName === "span" : selector === "details" ? node.tagName === "details" : selector === 'option[value="relevance"]' ? node.tagName === "option" && node.value === "relevance" : false);
   }
-  scrollIntoView() {}
+  scrollIntoView(options) { this.lastScrollIntoView = options; }
   focus() {}
 }
 let checks = 0;
@@ -40,7 +40,7 @@ const labels = {
   "zh-Hans": ["文献知识网络", "比较文献，探索研究方向", "项目文件", "Codex 与反馈"],
   "zh-Hant": ["文獻知識網絡", "比較文獻，探索研究方向", "專案檔案", "Codex 與回饋"]
 };
-function runCase(initial, hostFirst, dense = false, boundaries = false) {
+function runCase(initial, hostFirst, dense = false, boundaries = false, options = {}) {
   const body = new Element("body"), ids = {};
   for (const id of ["atlas-content", "atlas-stages", "atlas-language-label", "atlas-language", "atlas-original", "atlas-project", "atlas-status", "atlas-footer", "atlas-view-files"]) {
     const node = new Element(id === "atlas-language" ? "select" : "div"); node.id = id; ids[id] = node; body.append(node);
@@ -62,8 +62,13 @@ function runCase(initial, hostFirst, dense = false, boundaries = false) {
     payload.index.papers[0].classification.method = ["Shared original method", "Unique recorded method"];
     payload.index.papers.push({work_id: "unclassified", version_id: "v2", title: "Unclassified retained title", source_ids: [], classification: {topic_cluster: "Unknown", method: "Unknown"}});
   }
+  if (Object.hasOwn(options, "fixture")) {
+    payload.fixture = options.fixture; payload.fixture_notice = "Synthetic routes and judgments; retained paper identities only.";
+    payload.stage2 = {evaluation: {evaluation_status: "audit-required", dimensions: {P4: {score: 83.33333333333333, sum: 5, max: 6, assessed: 3, required: 3}}, rows: []}};
+  }
   const before = JSON.stringify(payload);
-  const window = {WORKSPACE_VIEW: payload, AtlasModel: model, innerWidth: 1200, WORKSPACE_HOST: {cases: [], current_case: "fixture", maintenance_enabled: false, connection: {status: "not-checked"}}};
+  const scrollCalls = [];
+  const window = {WORKSPACE_VIEW: payload, AtlasModel: model, innerWidth: 1200, scrollY: 0, scrollTo(value) { this.scrollY = value.top; scrollCalls.push({...value}); }, WORKSPACE_HOST: {cases: [], current_case: "fixture", maintenance_enabled: false, connection: {status: "not-checked"}}};
   const context = vm.createContext({window, document, location: {origin: "http://127.0.0.1", href: "http://127.0.0.1/atlas.html"}, URL, sessionStorage: {getItem: () => null}});
   if (hostFirst) vm.runInContext(host, context);
   vm.runInContext(ui, context);
@@ -79,6 +84,51 @@ function runCase(initial, hostFirst, dense = false, boundaries = false) {
     contains(body.textContent, "Original English topic", "source text remains in its recorded language");
   };
   check(labels[initial] ? initial : "en", 1);
+  if (Object.hasOwn(options, "fixture")) {
+    const notices = {en: "Simulated interface example", "zh-Hans": "界面模拟示例", "zh-Hant": "介面模擬範例"};
+    const reports = {en: ["Open simulated Stage 2 report", "Original verified Stage 2 report & evaluation"], "zh-Hans": ["查看模拟 Stage 2 报告", "原始已验证 Stage 2 报告与评估"], "zh-Hant": ["檢視模擬 Stage 2 報告", "原始已驗證 Stage 2 報告與評估"]};
+    for (const language of ["en", "zh-Hans", "zh-Hant"]) {
+      ids["atlas-language"].change(language);
+      ids["atlas-stages"].children[1].onclick(); check(language, 2);
+      const banners = flatten(ids["atlas-content"]).filter(node => node.className.includes("atlas-fixture-notice"));
+      equal(banners.length, payload.fixture === true ? 1 : 0, "only literal true marks the visible simulated interface");
+      if (payload.fixture === true) contains(banners[0].textContent, notices[language], "simulated judgment warning follows the selected language");
+      const report = flatten(ids["atlas-content"]).find(node => node.tagName === "a" && node.href === "./stage2/report-reader.html");
+      equal(report.textContent, reports[language][payload.fixture === true ? 0 : 1], "fixture reports cannot be labelled as verified original evaluations");
+      contains(document.getElementById("atlas-assessment").textContent, "P4: 83.3% (5/6)", "score presentation rounds its percentage while retaining the six-point unit");
+      equal(JSON.stringify(payload), before, "fixture marker, raw notice and raw score remain unchanged by language and stage navigation");
+    }
+    return;
+  }
+  if (options.library) {
+    const archiveLabel = {en: "Screening archive", "zh-Hans": "筛选档案", "zh-Hant": "篩選檔案"}[initial];
+    const backLabel = {en: "Back to whole library", "zh-Hans": "返回完整文献库", "zh-Hant": "返回完整文獻庫"}[initial];
+    const nextLabel = {en: "Next", "zh-Hans": "下一页", "zh-Hant": "下一頁"}[initial];
+    const archiveButton = () => flatten(ids["atlas-content"]).find(node => node.tagName === "button" && node.textContent.startsWith(archiveLabel));
+    archiveButton().onclick();
+    const library = () => document.getElementById("atlas-library"), selectors = () => flatten(library()).filter(node => node.tagName === "select");
+    library().open = true; library().ontoggle();
+    const search = flatten(library()).find(node => node.tagName === "input" && node.type === "search"); search.change("Retained");
+    selectors()[0].change("Direction A"); selectors()[1].change("Shared original method"); selectors()[2].change("unbound"); selectors()[3].change("title");
+    flatten(library()).find(node => node.tagName === "button" && node.textContent === nextLabel).onclick();
+    const rows = () => flatten(library()).filter(node => node.className === "atlas-paper"), retainedKeys = rows().map(node => node.dataset.paperKey).join("/"), selected = rows()[0];
+    const selectedTitle = selected.children.find(node => node.tagName === "strong").textContent;
+    window.scrollY = 1843; selected.onclick();
+    const details = () => flatten(ids["atlas-content"]).find(node => node.className.includes("atlas-detail-panel"));
+    contains(details().textContent, selectedTitle, "whole-library paper opens the same upper detailed paper view");
+    equal(document.getElementById("atlas-network").lastScrollIntoView.block, "start", "library selection scrolls directly to the network detail");
+    equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "opening upper details preserves the current library page");
+    window.scrollY = 240; flatten(details()).find(node => node.tagName === "button" && node.textContent === backLabel).onclick();
+    equal(window.scrollY, 1843, "back to library restores the recorded scroll position"); equal(scrollCalls.at(-1).behavior, "auto", "return uses exact restoration rather than a moving smooth destination");
+    equal(library().open, true, "return leaves the library expanded"); equal(archiveButton().attributes["aria-pressed"], "true", "return preserves archive scope");
+    equal(flatten(library()).find(node => node.type === "search").value, "Retained", "return preserves the search text");
+    equal(selectors().map(node => node.value).join("/"), "Direction A/Shared original method/unbound/title", "return preserves direction, method, status and ordering");
+    equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "return preserves exact second-page work/version identities");
+    equal(Boolean(flatten(details()).find(node => node.textContent === backLabel)), false, "return clears its one-shot back control");
+    rows()[0].onclick(); contains(details().textContent, selectedTitle, "reopening the same library paper does not toggle its details away");
+    equal(JSON.stringify(payload), before, "library navigation and return cannot change canonical paper records");
+    return;
+  }
   if (boundaries) {
     const resetLabel = {en: "Reset network", "zh-Hans": "返回全图", "zh-Hant": "返回全圖"}[initial];
     flatten(ids["atlas-content"]).find(node => node.tagName === "button" && node.textContent === resetLabel).onclick();
@@ -185,4 +235,6 @@ function runCase(initial, hostFirst, dense = false, boundaries = false) {
 for (const initial of ["zh-Hans", "zh-Hant", "invalid"]) for (const hostFirst of [true, false]) runCase(initial, hostFirst);
 runCase("en", false, true);
 for (const language of ["en", "zh-Hans", "zh-Hant"]) runCase(language, false, false, true);
+for (const language of ["en", "zh-Hans", "zh-Hant"]) runCase(language, false, true, false, {library: true});
+for (const fixture of [true, false, "true"]) runCase("en", false, false, false, {fixture});
 console.log(`Atlas language DOM regression: ${checks} assertions passed; synthetic DOM and inert host only.`);

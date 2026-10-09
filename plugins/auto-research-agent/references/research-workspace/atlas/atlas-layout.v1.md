@@ -1,7 +1,7 @@
 # Stage 1 network layout contract v1
 
 `AtlasModel.networkLayout(records, {singleMethods: true})` is the pure layout
-engine. The renderer consumes its 600 × 540 coordinates, literal category
+engine. The renderer consumes its 600-wide, at least 816-high coordinates, literal category
 memberships, method memberships and color indices. It does not create sources,
 claims, citations, embeddings or evaluation scores.
 
@@ -15,6 +15,12 @@ The default method inventory contains shared labels. `singleMethods: true`
 also provides coordinates for exact single-paper labels. The renderer can show
 shared hubs and explicitly focused methods without changing paper positions.
 Dense arbitrary tag inventories are not guaranteed collision-free.
+
+Label rectangles reserve 88 × 64 units for papers, 38 × 38 for method aliases,
+and 132 × 58 for category captions, with six-unit separation. The renderer must
+keep the canvas at least 600 pixels wide or scale the labels accordingly.
+Optional bounded `spatial: {yaw, pitch}` projects display targets before the same
+packing step. It is a layout projection, not a WebGL camera or evidence metric.
 
 Solid links identify recorded direction membership; dashed links identify
 recorded methods; dotted percentages use literal method-label Jaccard. Layout
