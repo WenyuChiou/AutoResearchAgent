@@ -34,6 +34,7 @@ from stage2_workflow.store import (
 
 from stage2_live import review_models
 from stage2_live.environment import (
+    CONTROLLER_ROLE_POLICY_VERSIONS,
     environment_key,
     native_for_environment,
     preflight_for_environment,
@@ -64,6 +65,7 @@ from stage2_live.workspace_admission import admit_verified_preflight_workspace
 
 VERSION = "1.0.0"
 ROLE_POLICY_VERSION = "1.1.0"
+DEFERRED_ROLE_POLICY_VERSION = "1.2.0"
 ROLES = ("challenger", "feasibility")
 
 
@@ -307,7 +309,7 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
         "workspaces",
     }
     allowed = {"execution_preflights", "execution_inventories", "followup_policy"}
-    role_policy = spec.get("schema_version") == ROLE_POLICY_VERSION
+    role_policy = spec.get("schema_version") in CONTROLLER_ROLE_POLICY_VERSIONS
     if "schema_version" in spec and not role_policy:
         raise Stage2Error("controller-spec-version-unsupported")
     if role_policy:
@@ -442,6 +444,11 @@ def _settings_binding(spec, adapter):
                 spec["execution_policies"]
             )
             settings["workspaces_sha256"] = canonical_hash(spec["workspaces"])
+        elif spec.get("schema_version") == DEFERRED_ROLE_POLICY_VERSION:
+            settings.update(
+                binding_version="per-action-environment-v1",
+                followup_policy_sha256=canonical_hash(spec.get("followup_policy")),
+            )
         return settings
     native = spec["native"]
     bindings = {
@@ -460,19 +467,52 @@ def _settings_binding(spec, adapter):
         "preflight_inventory_receipt_sha256": canonical_hash(
             spec["preflight"]["inventory_receipt"]
         ),
-        "execution_preflights_sha256": canonical_hash(
-            spec.get("execution_preflights", {})
-        ),
-        "execution_inventories_sha256": canonical_hash(
-            spec.get("execution_inventories", {})
-        ),
     }
+    if spec.get("schema_version") != DEFERRED_ROLE_POLICY_VERSION:
+        bindings["execution_preflights_sha256"] = canonical_hash(
+            spec.get("execution_preflights", {})
+        )
+        bindings["execution_inventories_sha256"] = canonical_hash(
+            spec.get("execution_inventories", {})
+        )
     if spec.get("schema_version") == ROLE_POLICY_VERSION:
         bindings["execution_policies_sha256"] = canonical_hash(
             spec["execution_policies"]
         )
         bindings["workspaces_sha256"] = canonical_hash(spec["workspaces"])
+    elif spec.get("schema_version") == DEFERRED_ROLE_POLICY_VERSION:
+        bindings.update(
+            binding_version="per-action-environment-v1",
+            followup_policy_sha256=canonical_hash(spec.get("followup_policy")),
+        )
     return {"mode": "native", "formal_ready": False, "bindings": bindings}
+
+
+def _action_settings(spec, settings, role_keys):
+    """Bind a v1.2 action only to the environments it will actually use."""
+    if spec.get("schema_version") != DEFERRED_ROLE_POLICY_VERSION:
+        return settings
+    bound = copy.deepcopy(settings)
+    environments = {}
+    for role_key in sorted(set(role_keys)):
+        paths = _isolated_paths(spec, role_key)
+        key = environment_key(paths["home"], paths["workspace"])
+        native = native_for_environment(spec, paths["home"], paths["workspace"])
+        preflight = preflight_for_environment(spec, paths["home"], paths["workspace"])
+        profile = Path(paths["home"]) / "config.toml"
+        environments[role_key] = {
+            "environment_key": key,
+            "home": paths["home"],
+            "workspace": paths["workspace"],
+            "policy_sha256": canonical_hash(native["policy_bindings"]),
+            "profile_config": _tree_binding(profile),
+            "preflight_sha256": canonical_hash(preflight),
+            "preflight_inventory_receipt_sha256": canonical_hash(
+                preflight.get("inventory_receipt")
+            ),
+        }
+    bound["environment_bindings"] = environments
+    return bound
 
 
 def _artifact_value(state, result):
@@ -938,7 +978,7 @@ def _run_controller_impl(
         research_id,
         "stage2-ideation-native",
         {"task_sha256": canonical_hash(task)},
-        settings,
+        _action_settings(spec, settings, ["research"]),
         base_hash,
         lambda: adapter.research(
             {
@@ -972,7 +1012,7 @@ def _run_controller_impl(
             "raw_sha256": hashlib.sha256(raw.encode()).hexdigest(),
             "packet_sha256": canonical_hash(packet),
         },
-        settings,
+        _action_settings(spec, settings, ["extractor"]),
         base_hash,
         lambda: adapter.extract(
             {
@@ -1119,7 +1159,11 @@ def _run_controller_impl(
             action_id,
             "stage2-independent-review",
             {"view_sha256": assignment["view_sha256"], "role": role},
-            settings,
+            _action_settings(
+                spec,
+                settings,
+                [allocated[(candidate_id, role)], "extractor"],
+            ),
             snapshot_sha256,
             lambda a=assignment, p=paths, aid=action_id: adapter.review(
                 {
@@ -1190,7 +1234,11 @@ def _run_controller_impl(
             action_id,
             "stage2-review-reconciliation",
             {"task_sha256": canonical_hash(task)},
-            settings,
+            _action_settings(
+                spec,
+                settings,
+                [allocated[(candidate_id, None)], "extractor"],
+            ),
             snapshot_sha256,
             lambda cid=candidate_id, rs=candidate_reviews, t=task, p=paths, aid=action_id: (
                 adapter.resolve(
@@ -1490,7 +1538,7 @@ def _verify_referenced_environment(spec, capture_dir, receipt, expected_paths=No
     own_preflight = preflight_for_environment(
         spec, stable["codex_home"], stable["workspace"]
     )
-    if spec.get("schema_version") == ROLE_POLICY_VERSION:
+    if spec.get("schema_version") in CONTROLLER_ROLE_POLICY_VERSIONS:
         if expected_paths is None or any(
             stable.get(field) != expected_paths[name]
             for field, name in (("codex_home", "home"), ("workspace", "workspace"))
@@ -1530,7 +1578,7 @@ def _verify_action_environments(spec, state, values):
         else:
             raise Stage2Error(f"controller-unrecognized-capture-action: {kind}")
         expected_paths = None
-        if spec.get("schema_version") == ROLE_POLICY_VERSION:
+        if spec.get("schema_version") in CONTROLLER_ROLE_POLICY_VERSIONS:
             if kind == "stage2-ideation-native":
                 key = "research"
             else:
@@ -1756,7 +1804,8 @@ def verify_controller(
         not isinstance(manifest, dict)
         or set(manifest) not in allowed
         or manifest["kind"] != "Stage2ControllerManifest"
-        or manifest["schema_version"] not in {VERSION, ROLE_POLICY_VERSION}
+        or manifest["schema_version"]
+        not in {VERSION, ROLE_POLICY_VERSION, DEFERRED_ROLE_POLICY_VERSION}
         or manifest["manifest_sha256"]
         != canonical_hash(
             {key: value for key, value in manifest.items() if key != "manifest_sha256"}
