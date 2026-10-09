@@ -246,3 +246,10 @@ authorization. HTTP/UI, actual native authentication and research remain separat
 `process_deadline.Deadline` bounds store/SQLite lock waits and readonly guards.
 Verifier workers cannot be forcibly cancelled and must never mutate caller state.
 Neutral fake-child fixtures do not grant native process or model authority.
+
+### Owned stdio channel (implementation-only)
+
+`process_channel.OwnedProcessChannel` requires server-owned bindings and explicit
+trusted admission before fixed stdio startup. Inspect cleanup leader/errors;
+caller gates and file hashes do not attest native authority or Windows containment.
+Tests run fake OS children, never actual Codex/model/research.
