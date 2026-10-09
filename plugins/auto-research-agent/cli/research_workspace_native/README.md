@@ -230,3 +230,13 @@ integration remain separate work. No actual Codex or paid model call was made.
 Focused verification uses fake channels and real SQLite:
 
 `python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace_native_bootstrap.py -v`
+
+### Ordinary message offers (implementation-only)
+
+`SessionApi.register(..., start_offer=trusted_callback)` optionally binds a
+server-owned offer. `offer()` saves its exact identities without native I/O;
+`message()` accepts only key, revision, opaque offer ref/hash and text. Server
+binding/admission and the controller guard remain independent. API-only unknown
+or uncertain native dispatch blocks new keys after reopen; no automatic retry or
+API retirement is provided. Conservative byte/start limits are not token/cost
+authorization. HTTP/UI, actual native authentication and research remain separate.

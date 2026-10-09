@@ -3,7 +3,11 @@
 Trusted bootstrap supplies identity/source checks; neither callback proves native
 authentication or lifecycle admission. Reads never pump. A persisted API intent
 is never retried, including a crash before the controller records its own intent.
-Scope changes, starts, launchers and reconnection are deliberately absent.
+Ordinary text starts require a separately configured trusted, version-bound
+offer. This facade supplies no native authentication, model authority, token
+budget enforcement, launcher, scope activation or automatic reconnection.
+It exposes no retirement: API-only unknowns require server reconciliation, and
+settled/retired journal evidence must agree with the saved controller action.
 """
 
 from contextlib import contextmanager
@@ -42,10 +46,30 @@ def _pick(value, fields):
     return {k: deepcopy(value[k]) for k in fields.split() if k in value}
 
 
+def _unsettled_messages(state):
+    for key, item in state.get("session_api_actions", {}).items():
+        if item["kind"] != "message":
+            continue
+        action = state.get("controller_actions", {}).get(key, {})
+        intent = state["intents"].get(key)
+        if action.get("status") == "refused" and intent is None:
+            continue
+        if (
+            action.get("status") in {"completed", "retired"}
+            and intent is not None
+            and intent["method"] == "turn/start"
+            and intent["status"] == action["status"]
+        ):
+            continue
+        return True
+    return False
+
+
 class SessionApi:
     def __init__(self, *, authenticate):
         _check(callable(authenticate), "identity-check-required")
         self._authenticate, self._projects = authenticate, {}
+        self._start_offers = {}
         self._lock = threading.RLock()
 
     def register(
@@ -58,6 +82,7 @@ class SessionApi:
         index_sha256,
         input_version,
         verify_source,
+        start_offer=None,
     ):
         """Trusted startup only; all roots and controller identities stay server-side."""
         _check(
@@ -88,6 +113,7 @@ class SessionApi:
             thread_id=controller.thread_id,
         )
         registration = (controller, frozenset(principals), binding, verify_source)
+        _check(start_offer is None or callable(start_offer), "invalid-start-offer")
         with self._lock, controller.store._lock:
             _check(
                 project_ref not in self._projects
@@ -116,6 +142,101 @@ class SessionApi:
                 )
                 current["session_api_binding"] = deepcopy(binding)
             self._projects[project_ref] = registration
+            self._start_offers[project_ref] = start_offer
+
+    def _message_offer(self, controller, principal, binding):
+        callback = self._start_offers.get(binding["project_ref"])
+        _check(callable(callback), "message-disabled", 403)
+        context = dict(
+            binding,
+            principal=principal,
+            owner=controller.owner,
+            connection_id=controller.connection_id,
+        )
+        try:
+            offer = deepcopy(callback(deepcopy(context)))
+        except Exception:
+            raise SessionApiError("start-offer-unavailable", 403) from None
+        fields = {
+            "project_id",
+            "index_sha256",
+            "input_version",
+            "source_root",
+            "model",
+            "limits",
+            "permit_sha256",
+        }
+        _check(
+            isinstance(offer, dict) and set(offer) == fields,
+            "start-offer-unavailable",
+            403,
+        )
+        _check(
+            all(offer[name] == binding[name] for name in fields & set(binding)),
+            "start-offer-binding-differs",
+        )
+        limits = offer["limits"]
+        _check(
+            _text(offer["model"])
+            and _hash(offer["permit_sha256"])
+            and isinstance(limits, dict)
+            and set(limits) == {"max_text_bytes", "max_starts", "timeout_seconds"}
+            and all(type(value) is int for value in limits.values())
+            and 1 <= limits["max_text_bytes"] <= 16384
+            and 1 <= limits["max_starts"] <= 128
+            and 1 <= limits["timeout_seconds"] <= 30,
+            "invalid-start-offer-limits",
+            403,
+        )
+        document = dict(
+            offer,
+            **{
+                name: context[name]
+                for name in (
+                    "principal",
+                    "owner",
+                    "connection_id",
+                    "thread_id",
+                    "project_ref",
+                )
+            },
+        )
+        digest = sha(canonical(document))
+        return dict(
+            offer_ref=self._ref(binding, "start-offer", digest),
+            offer_sha256=digest,
+            document=document,
+        )
+
+    def offer(self, credential, project_ref):
+        """Read an explicit server offer; no native I/O or controller intent occurs."""
+        with self._access(credential, project_ref) as (
+            controller,
+            principal,
+            binding,
+            state,
+        ):
+            offer = self._message_offer(controller, principal, binding)
+            existing = state.get("session_api_start_offers", {}).get(offer["offer_ref"])
+            if existing is None:
+                with controller.store._edit(
+                    controller.project_id,
+                    controller.owner,
+                    state["revision"],
+                    "session-api-start-offer",
+                    offer,
+                ) as current:
+                    offers = current.setdefault("session_api_start_offers", {})
+                    _check(len(offers) < 128, "start-offer-bound-exceeded")
+                    offers[offer["offer_ref"]] = offer
+                state = controller._context()
+            else:
+                _check(existing == offer, "saved-start-offer-differs")
+            return dict(
+                offer_ref=offer["offer_ref"],
+                offer_sha256=offer["offer_sha256"],
+                revision=state["revision"],
+            )
 
     @staticmethod
     def _source(registration):
@@ -197,7 +318,8 @@ class SessionApi:
             kind=item["kind"],
             client_key=item["request"]["key"],
             target_ref=item["request"].get(
-                "request_ref", item["request"].get("action_ref")
+                "request_ref",
+                item["request"].get("action_ref", item["request"].get("offer_ref")),
             ),
             status=observed.get("status", "dispatch-unobserved"),
             replayed=replayed,
@@ -276,6 +398,9 @@ class SessionApi:
     def interrupt(self, credential, project_ref, body):
         return self._submit(credential, project_ref, "interrupt", body)
 
+    def message(self, credential, project_ref, body):
+        return self._submit(credential, project_ref, "message", body)
+
     def _submit(self, credential, project_ref, kind, body):
         with self._access(credential, project_ref) as (
             controller,
@@ -284,11 +409,17 @@ class SessionApi:
             state,
         ):
             extra = (
-                {"request_ref", "request_sha256", "result"}
-                if kind == "answer"
-                else {"action_ref", "action_sha256"}
+                {"offer_ref", "offer_sha256", "text"}
+                if kind == "message"
+                else (
+                    {"request_ref", "request_sha256", "result"}
+                    if kind == "answer"
+                    else {"action_ref", "action_sha256"}
+                )
             )
-            fields = {"key", "revision", "index_sha256", "input_version"} | extra
+            fields = {"key", "revision"} | extra
+            if kind != "message":
+                fields |= {"index_sha256", "input_version"}
             _check(
                 isinstance(body, dict) and set(body) == fields,
                 "invalid-action-fields",
@@ -302,7 +433,8 @@ class SessionApi:
                 400,
             )
             _check(
-                body["index_sha256"] == binding["index_sha256"]
+                kind == "message"
+                or body["index_sha256"] == binding["index_sha256"]
                 and body["input_version"] == binding["input_version"],
                 "source-version-differs",
             )
@@ -331,7 +463,71 @@ class SessionApi:
                 and key not in state.get("controller_actions", {}),
                 "existing-controller-action",
             )
-            if kind == "answer":
+            if kind == "message":
+                _check(
+                    not _unsettled_messages(state),
+                    "message-reconciliation-required",
+                )
+                _check(not controller.failure, "session-stopped")
+                controller.transport._healthy()
+                _check(
+                    controller.transport.verify_binding() is not False,
+                    "runtime-check-failed",
+                )
+                _check(
+                    _hash(body["offer_ref"]) and _hash(body["offer_sha256"]),
+                    "invalid-start-offer-identity",
+                    400,
+                )
+                offer = state.get("session_api_start_offers", {}).get(body["offer_ref"])
+                _check(offer is not None, "start-offer-unavailable", 404)
+                _check(
+                    offer["offer_sha256"] == body["offer_sha256"],
+                    "start-offer-hash-differs",
+                )
+                _check(
+                    offer == self._message_offer(controller, principal, binding),
+                    "start-offer-expired",
+                )
+                limits = offer["document"]["limits"]
+                _check(
+                    isinstance(body["text"], str)
+                    and body["text"].strip()
+                    and len(body["text"].encode("utf-8")) <= limits["max_text_bytes"],
+                    "invalid-message-text",
+                    400,
+                )
+                _check(
+                    sum(
+                        item["kind"] == "message"
+                        for item in state.get("session_api_actions", {}).values()
+                    )
+                    < limits["max_starts"],
+                    "start-budget-exhausted",
+                    403,
+                )
+                _check(
+                    not any(
+                        item["method"] == "turn/start"
+                        and item["status"] not in {"completed", "retired"}
+                        for item in state["intents"].values()
+                    ),
+                    "start-in-progress",
+                )
+                _check(
+                    not any(
+                        item["status"] != "request-resolved"
+                        for item in state["requests"].values()
+                    ),
+                    "native-reply-required",
+                )
+                params = dict(
+                    threadId=controller.thread_id,
+                    cwd=offer["document"]["source_root"],
+                    model=offer["document"]["model"],
+                    input=[dict(type="text", text=body["text"], text_elements=[])],
+                )
+            elif kind == "answer":
                 matches = [
                     (k, row)
                     for k, row in state["requests"].items()
@@ -385,6 +581,8 @@ class SessionApi:
                 connection_id=controller.connection_id,
                 failure=None,
             )
+            if kind == "message":
+                entry["start_offer"] = deepcopy(offer)
             with controller.store._edit(
                 controller.project_id,
                 controller.owner,
@@ -401,6 +599,18 @@ class SessionApi:
                 if kind == "answer":
                     controller.answer(
                         key, request_key, body["request_sha256"], result, revision
+                    )
+                elif kind == "message":
+                    _check(
+                        offer == self._message_offer(controller, principal, binding),
+                        "start-offer-expired",
+                    )
+                    controller.client_action(
+                        key,
+                        "turn/start",
+                        params,
+                        revision,
+                        timeout=limits["timeout_seconds"],
                     )
                 else:
                     controller.client_action(key, "turn/interrupt", params, revision)
