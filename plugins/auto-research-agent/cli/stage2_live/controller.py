@@ -178,6 +178,106 @@ def _snapshot_hash(snapshot):
     return snapshot["event"]["payload"]["snapshot_sha256"]
 
 
+def _continuation_snapshot_sha256(spec):
+    """Return the opt-in v1.2 continuation target after strict shape checks."""
+
+    if "continuation_snapshot_sha256" not in spec:
+        return None
+    value = spec["continuation_snapshot_sha256"]
+    if spec.get("schema_version") != DEFERRED_ROLE_POLICY_VERSION:
+        raise Stage2Error("controller-continuation-requires-v1.2")
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(char not in "0123456789abcdef" for char in value)
+    ):
+        raise Stage2Error("controller-continuation-snapshot-invalid")
+    return value
+
+
+def _select_continuation_snapshot(state, base, matching, requested):
+    """Select an explicit latest descendant after the original ideation snapshot."""
+
+    if requested is None:
+        return matching[-1] if matching else None
+    snapshots = state["snapshots"]
+    hashes = [_snapshot_hash(row) for row in snapshots]
+    try:
+        base_index = hashes.index(_snapshot_hash(base))
+    except ValueError as error:
+        raise Stage2Error("controller-base-snapshot-not-found") from error
+    try:
+        target_index = hashes.index(requested)
+    except ValueError as error:
+        raise Stage2Error("controller-continuation-snapshot-not-found") from error
+    ideation_indexes = [
+        hashes.index(_snapshot_hash(row))
+        for row in matching
+        if hashes.index(_snapshot_hash(row)) > base_index
+    ]
+    if not ideation_indexes:
+        raise Stage2Error("controller-continuation-ideation-snapshot-missing")
+    if target_index <= min(ideation_indexes):
+        raise Stage2Error("controller-continuation-must-follow-ideation")
+    if target_index != len(snapshots) - 1:
+        raise Stage2Error("controller-continuation-snapshot-stale")
+    return snapshots[target_index]
+
+
+def _workflow_snapshot_view_at_head(state, historical_head):
+    """Return only the snapshot lineage retained at a verified historical head."""
+
+    if historical_head == state["head_sha256"]:
+        return state
+    event_index = next(
+        (
+            index
+            for index, event in enumerate(state["events"])
+            if event["event_sha256"] == historical_head
+        ),
+        None,
+    )
+    if event_index is None:
+        raise Stage2Error("controller-workflow-head-not-retained")
+    events = state["events"][: event_index + 1]
+    snapshot_count = sum(event["event_type"] == "snapshot_added" for event in events)
+    snapshots = state["snapshots"][:snapshot_count]
+    if not snapshots:
+        raise Stage2Error("controller-workflow-head-before-initial-snapshot")
+    return {
+        **state,
+        "events": events,
+        "head_sha256": historical_head,
+        "snapshots": snapshots,
+        "latest_snapshot": snapshots[-1],
+    }
+
+
+def _extracted_next_packet(value):
+    packet = value.get("next_packet") if isinstance(value, dict) else None
+    packet = packet.get("packet") if isinstance(packet, dict) else None
+    if not isinstance(packet, dict):
+        raise Stage2Error("controller-extraction-next-packet-missing")
+    return packet
+
+
+def _matching_ideation_snapshots(state, next_packet):
+    if next_packet.get("schema_version") == "2.4.0":
+        basis_sha256 = _prior_work_basis_sha256(next_packet)
+        return [
+            row
+            for row in state["snapshots"]
+            if row["packet"].get("schema_version") == "2.4.0"
+            and _prior_work_basis_sha256(row["packet"]) == basis_sha256
+        ]
+    packet_sha256 = canonical_hash(next_packet)
+    return [
+        row
+        for row in state["snapshots"]
+        if canonical_hash(row["packet"]) == packet_sha256
+    ]
+
+
 def _portable_input_path(root, relative):
     posix = PurePosixPath(relative)
     windows = PureWindowsPath(relative)
@@ -319,6 +419,8 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
             "execution_preflights",
             "execution_inventories",
         }
+    if spec.get("schema_version") == DEFERRED_ROLE_POLICY_VERSION:
+        allowed.add("continuation_snapshot_sha256")
     extras = set(spec) - required
     if (
         not required.issubset(spec)
@@ -326,6 +428,7 @@ def _validate_spec(spec, packet, snapshot_sha256, *, synthetic):
         or (("execution_preflights" in extras) != ("execution_inventories" in extras))
     ):
         raise Stage2Error("controller-spec-shape")
+    _continuation_snapshot_sha256(spec)
     _material_followup_policy(spec.get("followup_policy"))
     if spec["confirmed_brief_sha256"] != canonical_hash(packet["brief"]):
         raise Stage2Error("controller-brief-not-confirmed")
@@ -523,6 +626,65 @@ def _artifact_value(state, result):
     if _file_sha(path) != row["sha256"]:
         raise Stage2Error("controller-action-summary-hash-mismatch")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _require_saved_ideation_unit(
+    state, action_id, action_kind, inputs, settings, snapshot_sha256
+):
+    """Load a complete immutable unit without creating or invoking it."""
+
+    existing = state["actions"].get(action_id)
+    if existing is None:
+        raise Stage2Error(f"controller-continuation-unit-missing: {action_id}")
+    request = existing["request"]
+    if (
+        request["action_kind"] != action_kind
+        or request["inputs"] != inputs
+        or request["settings"] != settings
+        or request["snapshot_sha256"] != snapshot_sha256
+    ):
+        raise Stage2Error(f"controller-action-binding-changed: {action_id}")
+    result = existing["result"]
+    if result is None or result["status"] != "complete":
+        raise Stage2Error(f"controller-continuation-unit-incomplete: {action_id}")
+    return _artifact_value(state, result)
+
+
+def _preflight_continuation(state, base, spec, settings, task, packet, source_root):
+    """Prove the explicit target and saved ideation units before model access."""
+
+    requested = _continuation_snapshot_sha256(spec)
+    if requested is None:
+        return None
+    base_hash = _snapshot_hash(base)
+    research_id = f"ideation-{base_hash[:16]}"
+    research_value = _require_saved_ideation_unit(
+        state,
+        research_id,
+        "stage2-ideation-native",
+        {"task_sha256": canonical_hash(task)},
+        _action_settings(spec, settings, ["research"]),
+        base_hash,
+    )
+    raw = research_value.get("raw_proposal")
+    if not isinstance(raw, str):
+        raise Stage2Error("controller-research-output-missing")
+    extraction_id = f"extraction-{base_hash[:16]}"
+    extraction_value = _require_saved_ideation_unit(
+        state,
+        extraction_id,
+        "stage2-ideation-extraction",
+        {
+            "raw_sha256": hashlib.sha256(raw.encode()).hexdigest(),
+            "packet_sha256": canonical_hash(packet),
+        },
+        _action_settings(spec, settings, ["extractor"]),
+        base_hash,
+    )
+    next_packet = _extracted_next_packet(extraction_value)
+    validate_packet(next_packet, source_root)
+    matching = _matching_ideation_snapshots(state, next_packet)
+    return _select_continuation_snapshot(state, base, matching, requested)
 
 
 def _execute_unit(
@@ -971,6 +1133,9 @@ def _run_controller_impl(
     source_root = materialize_snapshot_input_root(base, controller_dir)
 
     task = build_research_task(packet, base_hash)
+    continuation_snapshot = _preflight_continuation(
+        state, base, spec, settings, task, packet, source_root
+    )
     research_id = f"ideation-{base_hash[:16]}"
     research = _execute_unit(
         run_dir,
@@ -1033,29 +1198,22 @@ def _run_controller_impl(
             adapter,
             [research, extraction],
         )
-    envelope = extraction["value"].get("next_packet")
-    next_packet = envelope.get("packet") if isinstance(envelope, dict) else None
-    if not isinstance(next_packet, dict):
-        raise Stage2Error("controller-extraction-next-packet-missing")
+    next_packet = _extracted_next_packet(extraction["value"])
     validate_packet(next_packet, source_root)
 
     state = inspect_workflow(run_dir)
-    matching = [
-        row
-        for row in state["snapshots"]
-        if canonical_hash(row["packet"]) == canonical_hash(next_packet)
-    ]
-    if next_packet.get("schema_version") == "2.4.0":
-        basis_sha256 = _prior_work_basis_sha256(next_packet)
-        matching = [
-            row
-            for row in state["snapshots"]
-            if row["packet"].get("schema_version") == "2.4.0"
-            and _prior_work_basis_sha256(row["packet"]) == basis_sha256
-        ]
-    if matching:
-        review_snapshot = matching[-1]
+    matching = _matching_ideation_snapshots(state, next_packet)
+    continuation_sha256 = _continuation_snapshot_sha256(spec)
+    selected = (
+        continuation_snapshot
+        if continuation_snapshot is not None
+        else _select_continuation_snapshot(state, base, matching, None)
+    )
+    if selected is not None:
+        review_snapshot = selected
     else:
+        if continuation_sha256 is not None:
+            raise Stage2Error("controller-continuation-ideation-snapshot-missing")
         if _snapshot_hash(state["latest_snapshot"]) != base_hash:
             raise Stage2Error("controller-next-snapshot-conflict")
         packet_path = controller_dir / "packets" / f"{canonical_hash(next_packet)}.json"
@@ -1941,6 +2099,42 @@ def verify_controller(
             values[action_id] = _artifact_value(state, result)
     if expected_rows != manifest["action_summaries"]:
         raise Stage2Error("controller-action-summary-binding-mismatch")
+    continuation_sha256 = _continuation_snapshot_sha256(spec)
+    if continuation_sha256 is not None:
+        continuation_state = _workflow_snapshot_view_at_head(state, historical_head)
+        extraction_values = [
+            value
+            for action_id, value in values.items()
+            if state["actions"][action_id]["request"]["action_kind"]
+            == "stage2-ideation-extraction"
+        ]
+        if len(extraction_values) != 1:
+            raise Stage2Error("controller-continuation-extraction-action-invalid")
+        matching = _matching_ideation_snapshots(
+            continuation_state, _extracted_next_packet(extraction_values[0])
+        )
+        continuation = _select_continuation_snapshot(
+            continuation_state, base, matching, continuation_sha256
+        )
+        if _snapshot_hash(continuation) != continuation_sha256:
+            raise Stage2Error("controller-continuation-snapshot-binding-mismatch")
+        for action_id in values:
+            request = state["actions"][action_id]["request"]
+            if (
+                request["action_kind"]
+                not in {
+                    "stage2-ideation-native",
+                    "stage2-ideation-extraction",
+                }
+                and request["snapshot_sha256"] != continuation_sha256
+            ):
+                raise Stage2Error("controller-continuation-action-binding-mismatch")
+        if (
+            "prior_work_completion" in manifest
+            and manifest["prior_work_completion"]["snapshot_sha256"]
+            != continuation_sha256
+        ):
+            raise Stage2Error("controller-continuation-prior-work-binding-mismatch")
     authentic = modes == {"native"} and manifest["adapter_mode"] == "native"
     synthetic = (
         modes == {"synthetic-test-only"}
