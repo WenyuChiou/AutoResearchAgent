@@ -20,6 +20,7 @@
       reviewed: ["Reviewed", "已审阅", "已審閱"],
       changes: ["Changes requested", "需要修改", "需要修改"],
       note: ["Review note", "审阅意见", "審閱意見"],
+      rejected: ["This decision was not applied because the project changed. Review the current version and submit a new decision explicitly.", "项目已变化，此决定未应用。请核对当前版本后明确提交新的决定。", "專案已變化，此決定未套用。請核對目前版本後明確提交新的決定。"],
       held: ["Local intent retained. Read history to recover; do not resubmit.", "本地意图已保留，请读取历史恢复，不要重新提交。", "本機意圖已保留，請讀取歷史恢復，不要重新提交。"],
       unavailable: ["Scope overlay unavailable for this session", "本会话的范围覆盖层不可用", "本工作階段的範圍覆蓋層不可用"],
       large: ["Decision is too large or local intent storage is unavailable", "决定过长或本地意图存储不可用", "決定過長或本機意圖儲存不可用"],
@@ -51,11 +52,25 @@
     const intents = () => {
       const records = JSON.parse(sessionStorage.getItem(ledgerName()) || "[]");
       if (!Array.isArray(records) || records.length > 128 || records.some(r => !r ||
-        Object.keys(r).sort().join() !== "key,kind,target" || !/^[a-z0-9-]{36}$/.test(r.key) ||
-        !/^[0-9a-f]{64}$/.test(r.target) || !["versions", "reviews"].includes(r.kind))) throw Error("local-intents-invalid");
+        !["key,kind,target", "key,kind,request,request_sha256,target"].includes(Object.keys(r).sort().join()) || !/^[a-z0-9-]{36}$/.test(r.key) ||
+        !/^[0-9a-f]{64}$/.test(r.target) || !["versions", "reviews"].includes(r.kind) ||
+        (r.request !== undefined && (!r.request || !/^[0-9a-f]{64}$/.test(r.request_sha256) || r.request.key !== r.key ||
+          r.request.index_sha256 !== view.index_sha256 || r.request.input_version !== view.input_version ||
+          (r.kind === "versions" ? r.request.parent_ref : r.request.version_ref) !== r.target)))) throw Error("local-intents-invalid");
       return records;
     };
-    const held = kind => intents().some(r => r.kind === kind && r.target === selected &&
+    const stable = value => JSON.stringify(value, (_key, item) => item && typeof item === "object" && !Array.isArray(item) ?
+      Object.fromEntries(Object.keys(item).sort().map(k => [k, item[k]])) : item);
+    const digest = async value => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(stable(value))))].map(b => b.toString(16).padStart(2, "0")).join("");
+    const rejected = local => local.request && history.actions.find(a => a.client_key === local.key &&
+      a.kind === (local.kind === "versions" ? "append" : "review") && a.status === "rejected-known-unsent" &&
+      a.failure === "stale-revision" && a.execution_authorized === false && a.version_ref === local.target &&
+      a.submitted_request_sha256 === local.request_sha256 &&
+      /^[0-9a-f]{64}$/.test(a.action_ref) && /^[0-9a-f]{64}$/.test(a.request_sha256) &&
+      a.version_sha256 === (local.kind === "versions" ? local.request.parent_sha256 : local.request.version_sha256) &&
+      a.submitted_revision === local.request.revision && Number.isSafeInteger(a.observed_revision) &&
+      a.observed_revision > a.submitted_revision && stable(a.submitted_request) === stable(local.request));
+    const held = kind => intents().some(r => r.kind === kind && r.target === selected && !rejected(r) &&
       !history.actions.some(a => a.client_key === r.key && ["version-saved", "review-recorded"].includes(a.status)));
     const field = (parent, key, tag = "textarea") => {
       const label = el("label", parent); translated("span", label, key);
@@ -123,6 +138,9 @@
         const card = el("article", content);
         el("p", card, action.kind + " · " + action.status + (action.decision ? " · " + action.decision : ""));
         if (action.note) el("p", card, action.note);
+        if (action.failure) el("p", card, action.failure);
+        if (action.status === "rejected-known-unsent") translated("p", card,
+          intents().some(local => local.key === action.client_key && rejected(local) === action) ? "rejected" : "held");
         observations(card, action);
       }
       for (const local of intents()) if (!history.actions.some(a => a.client_key === local.key)) {
@@ -150,15 +168,19 @@
     const submit = async (kind, body) => {
       if (busy || loading || !available() || !history || !snapshot || selected !== snapshot.version_ref || held(kind)) return;
       const key = crypto.randomUUID();
-      const submittedBinding = view;
-      body = {key, revision: history.revision, index_sha256: view.index_sha256, input_version: view.input_version, confirmed: true, ...body};
+      const submittedBinding = view, submittedSequence = sequence;
+      body = {key, revision: Number.isSafeInteger(snapshot.revision) && snapshot.revision >= history.revision ? snapshot.revision : history.revision, index_sha256: view.index_sha256, input_version: view.input_version, confirmed: true, ...body};
+      busy = true; render();
+      let requestHash;
       try {
         const previous = intents(), encoded = JSON.stringify(body);
         if (previous.length >= 128 || /\\u[dD][89aAbBcCdDeEfF][0-9a-fA-F]{2}/.test(encoded) || new TextEncoder().encode(encoded).length > 32768) throw Error("scope-body-bound");
-        sessionStorage.setItem(ledgerName(), JSON.stringify([...previous, {key, kind, target: selected}]));
+        requestHash = await digest(body);
+        if (!view || sequence !== submittedSequence || ["project_ref", "index_sha256", "input_version"].some(k => view[k] !== submittedBinding[k])) throw Error("scope-view-changed");
+        sessionStorage.setItem(ledgerName(), JSON.stringify([...previous, {key, kind, target: selected, request: body, request_sha256: requestHash}]));
         if (!intents().some(r => r.key === key)) throw Error("intent-unobserved");
-      } catch {showNotice("large"); return;}
-      busy = true; showNotice("held");
+      } catch (error) {busy = false; render(); showNotice("large", error.message); return;}
+      showNotice("held");
       try {await write("/scope/" + kind, body); if (kind === "versions") selected = null;}
       catch (error) {showNotice("held", error.code || error.message);}
       finally {
@@ -170,6 +192,8 @@
             history.versions.some(v => v.version_ref === a.version_ref && v.sha256 === a.version_sha256 &&
               (kind === "versions" ? v.parent_ref === body.parent_ref : v.version_ref === body.version_ref)));
         if (saved) showNotice("saved", saved.status);
+        else if (history && view && ["project_ref", "index_sha256", "input_version"].every(k => view[k] === submittedBinding[k]) &&
+          rejected({key, kind, target: kind === "versions" ? body.parent_ref : body.version_ref, request: body, request_sha256: requestHash})) showNotice("rejected", "stale-revision");
       }
     };
     translate();

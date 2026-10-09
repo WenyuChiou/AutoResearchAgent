@@ -45,7 +45,7 @@ async function mount(locale, observed = true) {
   const calls = [], storage = new Map(), observers = [];
   const window = {WORKSPACE_NATIVE_ATLAS: {enabled: true, credential: "memory-only", project_ref: base.project_ref,
     index_sha256: base.index_sha256, input_version: base.input_version}};
-  const context = vm.createContext({window, document, TextEncoder, crypto: {randomUUID: () => "12345678-1234-1234-1234-123456789abc"},
+  const context = vm.createContext({window, document, TextEncoder, crypto: {randomUUID: () => "12345678-1234-1234-1234-123456789abc", subtle: {digest: async (_algorithm, bytes) => Uint8Array.from(require("node:crypto").createHash("sha256").update(bytes).digest()).buffer}},
     sessionStorage: {getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v)},
     MutationObserver: class {constructor(callback) {observers.push(callback);} observe() {}},
     fetch: async (url, options) => {

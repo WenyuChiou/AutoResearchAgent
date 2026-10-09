@@ -57,6 +57,9 @@
         "no production launcher, frozen input access, model calls or scientific score changes"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_scope_stale_recovery.py",
+        "plugins/auto-research-agent/tests/test_scope_stale_ui.py",
+        "plugins/auto-research-agent/tests/test-scope-stale.cjs",
         "plugins/auto-research-agent/tests/test-native-readable.cjs",
         "plugins/auto-research-agent/tests/test_native_readable.py",
         "plugins/auto-research-agent/tests/atlas_native_demo.py",
