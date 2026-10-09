@@ -20,6 +20,14 @@ read and write probe, explicitly supply the executor's `workdir`, `shell` and
 `login=false`; a successful command using an implicit working directory is not
 the required witness. Keep the original rejected call if this binding is missing.
 
+The POSIX write witness uses the exact literal form `printf %s NONCE > PATH`
+or `printf '%s' NONCE > PATH`. Construct `NONCE` and `PATH` with Python's
+`shlex.quote` and pass that spelling unchanged, together with the matching
+`workdir`, `shell` and `login=false`. Extra cosmetic quotes around an already
+shell-safe nonce are not the exact accepted spelling, even if they write the
+same bytes. Preserve a rejected witness and correct the next probe prompt;
+do not change authenticated arguments or relax the validator.
+
 The first controller call may retain only the read/write probe files from its
 matching verified preflight. Their current bytes must match the authenticated
 workspace archive. Unrelated files, changed probes, links and collisions with
@@ -46,6 +54,27 @@ runtime/configuration, source inputs or snapshot still rejects replay. Every
 provisioned environment must pass the existing validation before execution;
 roles cannot share or nest their home/workspace directories. A missing reviewer
 still blocks delivery and never counts as agreement.
+
+### Continue after a source update or candidate revision
+
+Controller `1.2.0` may explicitly name `continuation_snapshot_sha256` after
+validated ideation. It must identify the verified latest append-only descendant
+in the same workflow. Keep the original `base_snapshot_sha256`; changing the
+base would describe new generation rather than continuing the saved work.
+
+The original research and extraction keep their input, runtime, policy and
+proof bindings. The target supplies the current sources and candidate versions
+for new checks. Changed sources require current prior-work records; revised
+candidates cannot borrow earlier reviews. A foreign, stale or pre-ideation
+target fails before it can replace the research evidence. Omitting this field
+retains the existing behavior; older controller versions reject the new field.
+
+Verification uses the snapshot lineage at a retained receipt's recorded workflow
+head. Later valid snapshots do not invalidate that receipt; a new execution still
+requires the current latest target.
+
+This is a tested continuation interface, not a completed live workflow,
+scientific improvement or permission to choose a direction for the researcher.
 
 Keep original captures and all failed attempts. Do not change an existing `1.1.0`
 run to `1.2.0` to make an old result pass. Deterministic resume tests establish

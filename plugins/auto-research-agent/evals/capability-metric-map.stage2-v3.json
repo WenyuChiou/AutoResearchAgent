@@ -372,6 +372,10 @@
       "deferred_role_action_binding_contract": "Opt-in controller specification1.2 binds each action to its actual isolated environments and immutable common runtime/input/proof settings. Candidate-dependent reviewer slots can be provisioned after validated extraction without rerunning completed unrelated calls. Every provisioned environment still passes strict policy/preflight verification; changed used bindings reject replay. Legacy1.1 retains complete-map binding. No fixed scientific candidate count, permission relaxation, human selection, formal readiness or scientific-quality improvement is inferred.",
       "deferred_role_action_binding_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_deferred_role_binding.py"
+      ],
+      "review_snapshot_continuation_contract": "Opt-in explicit controller1.2 continuation target names the verified latest append-only descendant of the original validated ideation snapshot. Original research/extraction byte, input, runtime, policy and proof bindings remain immutable; changed target sources/candidates receive fresh source-set/candidate-version-bound checks, and stale dossiers or reviews cannot certify them. Foreign, stale and pre-ideation targets fail closed. Legacy and absent-field behavior remain unchanged. Controlled call-count tests do not attest real execution, human choice, formal readiness or scientific improvement.",
+      "review_snapshot_continuation_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_continuation.py"
       ]
     },
     {
