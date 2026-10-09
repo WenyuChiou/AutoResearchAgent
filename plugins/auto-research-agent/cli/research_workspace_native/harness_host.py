@@ -159,7 +159,10 @@ def handle_operations(handler, method):
         handler._remaining()
         handler._reply(200, result)
     except SessionApiError as error:
-        handler._reply(error.status, {"error": error.code})
+        result = {"error": error.code}
+        if error.receipt is not None:
+            result["receipt"] = error.receipt
+        handler._reply(error.status, result)
     except (TimeoutError, OSError):
         handler.close_connection = True  # Saved actions remain queryable.
     except Exception:

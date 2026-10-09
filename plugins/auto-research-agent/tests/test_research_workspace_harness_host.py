@@ -4,6 +4,8 @@ from copy import deepcopy
 import http.client
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -23,7 +25,8 @@ class HarnessHostTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root, self.token = Path(temporary.name).resolve(), "local-" + "t" * 40
         value = payload()
-        self.raw = canonical(value["index"])
+        # Saved file bytes and canonical input identity are distinct bindings.
+        self.raw = canonical(value["index"]) + b"\n"
         projection = atlas_files(value)
         self.files = {"/views/alpha/" + name: raw for name, raw in projection.items()}
         self.files["/views/alpha/workspace-index.json"] = self.raw
@@ -214,7 +217,69 @@ class HarnessHostTests(unittest.TestCase):
                 self.call("/api/harness/projects/alpha", body=b"x")[0], 400
             )
             self.assertEqual(producer.call_count, 0)
-            self.assertEqual(json.loads(self.call()[2])["history_count"], 0)
+            history = json.loads(self.call()[2])
+            self.assertEqual(history["history_count"], 1)
+            self.assertEqual(history["history"][0]["status"], "rejected-known-unsent")
+
+    def test_stale_http_receipt_and_get_bind_same_unsent_request(self):
+        stale = self.request(key="stale-tab")
+        self.assertEqual(self.post(self.request(key="other-tab"))[0], 200)
+        before = json.loads(self.call()[2])
+        with patch.object(
+            self.service, "_produce", wraps=self.service._produce
+        ) as producer:
+            status, _, raw = self.post(stale)
+            self.assertEqual(status, 409)
+            error = json.loads(raw)
+            self.assertEqual(error["error"], "stale-revision")
+            receipt = error["receipt"]
+            self.assertEqual(receipt["status"], "rejected-known-unsent")
+            self.assertEqual(receipt["request"], stale)
+            self.assertEqual(
+                receipt["request_sha256"],
+                sha(canonical(dict(project_ref="alpha", **stale))),
+            )
+            self.assertEqual(
+                receipt["rejection"]["observed_revision"], before["revision"]
+            )
+            status, _, raw = self.call("/api/harness/projects/alpha/actions/stale-tab")
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(raw), receipt)
+            status, _, raw = self.post(stale)
+            self.assertEqual(status, 409)
+            self.assertEqual(json.loads(raw)["receipt"], receipt)
+            status, _, raw = self.post(
+                dict(stale, expected_revision=before["revision"] + 1)
+            )
+            self.assertEqual(status, 409)
+            self.assertNotIn("receipt", json.loads(raw))
+            producer.assert_not_called()
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js is unavailable")
+    def test_actual_http_refusal_recovers_in_real_ui_without_post(self):
+        stale = self.request(key="old-tab")
+        self.assertEqual(self.post(self.request(key="other-tab"))[0], 200)
+        self.assertEqual(self.post(stale)[0], 409)
+        final = json.loads(self.call()[2])
+        fixture = self.root / "actual-refusal.json"
+        fixture.write_text(
+            json.dumps(dict(final=final, pending=stale, expected_records=2)),
+            encoding="utf-8",
+        )
+        source = Path(__file__).with_name("test_harness_panel.cjs")
+        panel = (
+            source.parent.parent / "cli/research_workspace_native/web/harness-panel.js"
+        )
+        result = subprocess.run(
+            [shutil.which("node"), str(source), str(panel), str(fixture)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "actual offline Harness producer/refusal receipts accepted", result.stdout
+        )
 
     def test_response_loss_recovery_is_get_only_and_deadline_is_server_owned(self):
         request = self.request()
