@@ -11,6 +11,8 @@ from stage2_common import Stage2Error
 PROPOSAL_PATH = "archive/workspace-end/stage2_proposal.md"
 START_PROPOSAL_PATH = "archive/workspace-start/stage2_proposal.md"
 MAX_PROPOSAL_BYTES = 100 * 1024
+RECOVERY_PROPOSAL_PATH = "archive/workspace-end/output.txt"
+RECOVERY_START_PATH = "archive/workspace-start/output.txt"
 
 
 def _sha256(raw):
@@ -112,5 +114,84 @@ def choose_captured_proposal(capture_dir, capture_record):
             "kind": "final-answer",
             "path": "final.txt",
             "sha256": digest,
+        },
+    }
+
+
+def recover_captured_proposal(capture_dir, capture_record, *, expected_sha256):
+    """Explicitly recover a legacy output.txt from an already verified capture.
+
+    This is not an automatic fallback. The caller must authenticate the original
+    native capture first, select its exact artifact digest, and retain this
+    provenance with a new extraction action. Saved capture/actions stay intact.
+    """
+
+    if not isinstance(capture_record, dict):
+        raise Stage2Error("native-proposal-recovery-record-shape")
+    inventory = capture_record.get("archived_files")
+    snapshots = [
+        capture_record.get(name) for name in ("workspace_start", "workspace_end")
+    ]
+    if not all(isinstance(value, dict) for value in snapshots):
+        raise Stage2Error("native-proposal-recovery-inventory-shape")
+    start, end = [value.get("files") for value in snapshots]
+    if not all(isinstance(value, dict) for value in (inventory, start, end)):
+        raise Stage2Error("native-proposal-recovery-inventory-shape")
+    receipt = capture_record.get("record_sha256_receipt")
+    if capture_record.get("status") != "complete" or (
+        not isinstance(receipt, str)
+        or len(receipt) != 64
+        or any(char not in "0123456789abcdef" for char in receipt)
+    ):
+        raise Stage2Error("native-proposal-recovery-capture-incomplete")
+    if PROPOSAL_PATH in inventory or "stage2_proposal.md" in end:
+        raise Stage2Error("native-proposal-recovery-canonical-artifact-present")
+    if (
+        not isinstance(expected_sha256, str)
+        or len(expected_sha256) != 64
+        or any(char not in "0123456789abcdef" for char in expected_sha256)
+        or inventory.get(RECOVERY_PROPOSAL_PATH) != expected_sha256
+        or end.get("output.txt") != expected_sha256
+    ):
+        raise Stage2Error("native-proposal-recovery-artifact-binding-mismatch")
+
+    previous_sha256 = start.get("output.txt")
+    if ("output.txt" in start) != (RECOVERY_START_PATH in inventory):
+        raise Stage2Error("native-proposal-recovery-start-binding-mismatch")
+    if "output.txt" in start:
+        if (
+            not isinstance(previous_sha256, str)
+            or len(previous_sha256) != 64
+            or any(char not in "0123456789abcdef" for char in previous_sha256)
+            or inventory[RECOVERY_START_PATH] != previous_sha256
+        ):
+            raise Stage2Error("native-proposal-recovery-start-binding-mismatch")
+        path = _regular_unaliased(
+            Path(capture_dir) / RECOVERY_START_PATH, capture_dir, "recovery-start"
+        )
+        try:
+            original = path.read_bytes()
+        except OSError as error:
+            raise Stage2Error("native-proposal-recovery-start-unreadable") from error
+        if len(original) > MAX_PROPOSAL_BYTES:
+            raise Stage2Error("native-proposal-recovery-start-oversize")
+        if _sha256(original) != previous_sha256:
+            raise Stage2Error("native-proposal-recovery-start-sha256-mismatch")
+        if previous_sha256 == expected_sha256:
+            raise Stage2Error("native-proposal-recovery-unchanged-input")
+
+    original_proposal = choose_captured_proposal(capture_dir, capture_record)
+    text, digest = _captured_text(
+        capture_dir, RECOVERY_PROPOSAL_PATH, expected_sha256, "recovery-artifact"
+    )
+    return {
+        "text": text,
+        "provenance": {
+            "kind": "recovered-workspace-artifact",
+            "path": RECOVERY_PROPOSAL_PATH,
+            "sha256": digest,
+            "previous_sha256": previous_sha256,
+            "record_sha256_receipt": receipt,
+            "original_proposal_sha256": original_proposal["provenance"]["sha256"],
         },
     }
