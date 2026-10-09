@@ -407,6 +407,7 @@ def attach_rerun(
     expected_manifest_sha256,
     *,
     expected_body_review_acceptance_hashes=None,
+    expected_whole_source_review_acceptance_hashes=None,
 ):
     """Accept an externally bound rerun without altering frozen claims or scores."""
     from .projection import validate_index
@@ -459,6 +460,16 @@ def attach_rerun(
     )
     if reviews:
         result["source_rerun"]["body_reviews"] = reviews
+    from .whole_source_review import attach_whole_source_reviews
+
+    source_reviews = attach_whole_source_reviews(
+        manifest["data"]["rows"],
+        evidence,
+        files,
+        expected_whole_source_review_acceptance_hashes,
+    )
+    if source_reviews:
+        result["source_rerun"]["whole_source_reviews"] = source_reviews
     validate_rerun_index(result)
     for row in result["source_rerun"]["data"]["rows"]:
         if row.get("raw_path"):
@@ -717,6 +728,9 @@ def validate_rerun_index(index):
     from .body_review_attachment import validate_body_reviews
 
     validate_body_reviews(extension)
+    from .whole_source_review import validate_whole_source_reviews
+
+    validate_whole_source_reviews(extension)
     return index
 
 

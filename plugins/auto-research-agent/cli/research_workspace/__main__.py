@@ -23,6 +23,9 @@ def main():
     parser.add_argument("--source-rerun-root")
     parser.add_argument("--expected-source-rerun-manifest-sha256")
     parser.add_argument("--expected-body-review-acceptance-sha256", action="append")
+    parser.add_argument(
+        "--expected-whole-source-review-acceptance-sha256", action="append"
+    )
     parser.add_argument("--stage2-delivery")
     parser.add_argument("--stage2-bridge")
     parser.add_argument("--expected-stage2-bridge-sha256")
@@ -50,10 +53,15 @@ def main():
                 index,
                 *rerun_supplied,
                 expected_body_review_acceptance_hashes=args.expected_body_review_acceptance_sha256,
+                expected_whole_source_review_acceptance_hashes=args.expected_whole_source_review_acceptance_sha256,
             )
             options["source_rerun_root"] = args.source_rerun_root
         elif args.expected_body_review_acceptance_sha256:
             raise DeliverableError("Body review acceptance requires a source rerun")
+        elif args.expected_whole_source_review_acceptance_sha256:
+            raise DeliverableError(
+                "Whole source review acceptance requires a source rerun"
+            )
         supplied = (
             args.stage2_delivery,
             args.stage2_bridge,
