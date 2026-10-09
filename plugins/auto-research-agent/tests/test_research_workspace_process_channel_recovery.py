@@ -43,20 +43,33 @@ class ObservationTests(OwnedProcessCase):
     def test_post_spawn_database_busy_cannot_delay_lease_cleanup(self):
         blocker = sqlite3.connect(self.path)
         spawn = module.subprocess.Popen
-        processes = []
+        processes, blocked_at, startup_deadlines = [], [], []
+        deadline = module.Deadline
+
+        def bounded_startup(timeout, lease):
+            # Isolate the post-spawn database budget from physical binary hashing
+            # and synchronous OS process creation on loaded platform runners.
+            value = deadline(min(timeout, 0.3), lease)
+            startup_deadlines.append(value)
+            return value
 
         def after_spawn(*args, **kwargs):
             process = spawn(*args, **kwargs)
             processes.append(process)
             blocker.execute("BEGIN IMMEDIATE")
+            blocked_at.append(time.monotonic())
             return process
 
         try:
-            start = time.monotonic()
-            with patch.object(module.subprocess, "Popen", side_effect=after_spawn):
+            with (
+                patch.object(module.subprocess, "Popen", side_effect=after_spawn),
+                patch.object(module, "Deadline", side_effect=bounded_startup),
+            ):
                 with self.assertRaises(ValueError):
-                    self.channel(lifetime=0.3)
-            self.assertLess(time.monotonic() - start, 0.8)
+                    self.channel(lifetime=10)
+            self.assertEqual(len(processes), 1, "must reach the post-spawn boundary")
+            self.assertEqual(len(startup_deadlines), 1)
+            self.assertLess(time.monotonic() - blocked_at[0], 0.8)
             until = time.monotonic() + 1
             while processes[0].poll() is None and time.monotonic() < until:
                 time.sleep(0.01)

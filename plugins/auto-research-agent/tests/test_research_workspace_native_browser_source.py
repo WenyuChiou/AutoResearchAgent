@@ -56,6 +56,7 @@ print(json.dumps(bound.receipt()))
             [sys.executable, "-B", "-X", "utf8", "-c", script],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=20,
             env=env,
         )
