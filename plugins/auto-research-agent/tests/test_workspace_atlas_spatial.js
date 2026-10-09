@@ -80,7 +80,8 @@ const created = [];
 global.ForceGraph3D = () => () => {
   const config = {}, camera = {position: vector(), up: vector(), fov: 50, zoom: 1,
     matrixWorldInverse: {elements: identity}, projectionMatrix: {elements: [.002, 0, 0, 0, 0, .002, 0, 0, 0, 0, .002, .002, 0, 0, 0, 1]}, updateMatrixWorld() {}, updateProjectionMatrix() {}};
-  const control = {target: vector(), update() {}};
+  const control = {target: vector(), noRotate: false, staticMoving: false, dynamicDampingFactor: .2, update() {},
+    trackballGesture() { if (!this.noRotate) camera.position.x += 5; }};
   const graph = {config, camera: () => camera, controls: () => control, disposed: 0,
     cameraPosition(position, target) { config.cameraWrites = (config.cameraWrites || 0) + 1; Object.assign(camera.position, position); Object.assign(control.target, target); return graph; },
     pauseAnimation() { config.paused = true; return graph; }, _destructor() { graph.disposed++; },
@@ -132,13 +133,18 @@ first.camera().position.set(200, 140, 520); first.controls().target.set(30, -20,
 const orbitPose = mounted.snapshot();
 mounted.setMode("2d"); const staleFit = [...frames.values()].at(-1);
 mounted.fit(); assert.equal(mounted.diagnostics().mode, 2);
+assert.equal(mounted.diagnostics().navigation.noRotate, true); assert.equal(first.controls().enableRotate, false);
+const planarPose = mounted.snapshot().position; first.controls().trackballGesture(); assert.deepEqual(mounted.snapshot().position, planarPose);
 runLastFrame(); assert.notDeepEqual(mounted.diagnostics().topicMarkers.map(p => [p.x, p.y]), spatialMarkers.map(p => [p.x, p.y]));
 assert.equal(mounted.snapshot().target.z, 0); assert.ok(first.config.data.nodes.every(n => n.z === 0));
 const priorWrites = first.config.cameraWrites;
 mounted.setMode("3d"); assert.deepEqual(mounted.snapshot().position, orbitPose.position); assert.deepEqual(mounted.snapshot().target, orbitPose.target);
+assert.equal(mounted.diagnostics().navigation.noRotate, false); assert.equal(first.controls().enableRotate, true);
+assert.equal(first.controls().staticMoving, false); assert.equal(first.controls().dynamicDampingFactor, .2);
 assert.equal(frames.size, 1); mounted.fit(); assert.ok(first.config.data.nodes.every(n => Number.isFinite(n.z)));
 const currentWrites = first.config.cameraWrites; staleFit(); assert.equal(first.config.cameraWrites, currentWrites);
 assert.ok(currentWrites > priorWrites);
+const rotatingPose = mounted.snapshot().position; first.controls().trackballGesture(); assert.equal(mounted.snapshot().position.x, rotatingPose.x + 5);
 const remountPose = mounted.snapshot();
 const replacement = spatial.mount(host, {papers: records, model, mode: "3d", pose: remountPose, language: "zh-Hant"});
 assert.equal(first.disposed, 1); assert.equal(mounted.diagnostics().destroyed, true);

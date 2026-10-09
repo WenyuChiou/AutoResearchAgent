@@ -183,7 +183,7 @@
     };
     function applyPose(pose) {
       if (!finite(pose?.position) || !finite(pose?.target)) throw new TypeError("Non-finite camera restore");
-      const control = graph.controls(); control.enableRotate = mode === 3; control.enableDamping = false;
+      const control = graph.controls(); control.noRotate = mode !== 3; control.enableRotate = mode === 3; control.enableDamping = false;
       graph.camera().up.set(...axes.map(a => (finite(pose.up) ? pose.up : {x: 0, y: 1, z: 0})[a]));
       if (Number.isFinite(pose.zoom) && pose.zoom > 0) { graph.camera().zoom = pose.zoom; graph.camera().updateProjectionMatrix(); }
       graph.cameraPosition(pose.position, pose.target, 0); control.update();
@@ -273,7 +273,8 @@
     const api = {setFocus, setLabels, fit, setMode, destroy, snapshot, diagnostics: () => ({mode, destroyed: dead, focus, hover, showLabels, nodes: source.nodes.length, links: source.links.length,
       papers: source.nodes.filter(n => n.kind === "paper").length, camera: snapshot(), labelsVisible: labels.shown.length, labelsHidden: source.nodes.length - labels.shown.length, labelsOmittedByLod: labels.hidden.length,
       visibleLabelIds: labels.shown.map(item => item.id), eligibleLabelIds: eligibleLabels(source.nodes, source.links, {focus, hover, showLabels}), labelRects: labels.shown.map(item => ({id: item.id, ...item.box})),
-      topicMarkers: topicMarkers.map(marker => ({...marker})), faults: [...faults]})};
+      topicMarkers: topicMarkers.map(marker => ({...marker})), navigation: graph ? {noRotate: graph.controls().noRotate, enableRotate: graph.controls().enableRotate,
+        staticMoving: graph.controls().staticMoving, dynamicDampingFactor: graph.controls().dynamicDampingFactor} : null, faults: [...faults]})};
     try {
       graph = root.ForceGraph3D()(canvas);
       graph.forceEngine("d3").enableNodeDrag(false).showNavInfo(false).backgroundColor("#0e1827")
