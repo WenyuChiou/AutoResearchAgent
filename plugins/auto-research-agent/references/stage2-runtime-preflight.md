@@ -15,6 +15,72 @@ When a native tool yields, retain its handle and wait for terminal completion
 within the execution policy before deciding success. Bind search evidence to
 the actual search call; a later page-open event is a different action.
 
+Production v1.2 uses authenticated native tool arguments and results. For each
+read and write probe, explicitly supply the executor's `workdir`, `shell` and
+`login=false`; a successful command using an implicit working directory is not
+the required witness. Keep the original rejected call if this binding is missing.
+
+The POSIX write witness uses the exact literal form `printf %s NONCE > PATH`
+or `printf '%s' NONCE > PATH`. Construct `NONCE` and `PATH` with Python's
+`shlex.quote` and pass that spelling unchanged, together with the matching
+`workdir`, `shell` and `login=false`. Extra cosmetic quotes around an already
+shell-safe nonce are not the exact accepted spelling, even if they write the
+same bytes. Preserve a rejected witness and correct the next probe prompt;
+do not change authenticated arguments or relax the validator.
+
+The first controller call may retain only the read/write probe files from its
+matching verified preflight. Their current bytes must match the authenticated
+workspace archive. Unrelated files, changed probes, links and collisions with
+the controller's `input.json` or `sources` are rejected. Preserve the probe files
+and receipts rather than deleting or moving them to make a workspace look empty.
+An empty workspace keeps its existing behavior. Admitting these files is an
+execution compatibility check, not proof of complete research or formal A/B.
+
+### Provision reviewers after candidates are known
+
+Controller specification `1.2.0` lets an action bind the environments it actually
+uses. This is a controller contract; it is distinct from production probe `1.2.0`.
+The existing `1.1.0` controller keeps its historical complete-map binding.
+
+Start a new `1.2.0` controller with verified, separate research and extraction
+environments. After validated extraction reveals the candidates, `needs-workspace`
+lists the missing reviewer and resolution slots. Provision those environments,
+save their real preflight evidence, and resume the same workflow. Do not choose a
+candidate count just to make the environment setup easier.
+
+Adding a later role does not invalidate a completed action that never used it.
+Changing an environment that action did use, its policy or proof, the common
+runtime/configuration, source inputs or snapshot still rejects replay. Every
+provisioned environment must pass the existing validation before execution;
+roles cannot share or nest their home/workspace directories. A missing reviewer
+still blocks delivery and never counts as agreement.
+
+### Continue after a source update or candidate revision
+
+Controller `1.2.0` may explicitly name `continuation_snapshot_sha256` after
+validated ideation. It must identify the verified latest append-only descendant
+in the same workflow. Keep the original `base_snapshot_sha256`; changing the
+base would describe new generation rather than continuing the saved work.
+
+The original research and extraction keep their input, runtime, policy and
+proof bindings. The target supplies the current sources and candidate versions
+for new checks. Changed sources require current prior-work records; revised
+candidates cannot borrow earlier reviews. A foreign, stale or pre-ideation
+target fails before it can replace the research evidence. Omitting this field
+retains the existing behavior; older controller versions reject the new field.
+
+Verification uses the snapshot lineage at a retained receipt's recorded workflow
+head. Later valid snapshots do not invalidate that receipt; a new execution still
+requires the current latest target.
+
+This is a tested continuation interface, not a completed live workflow,
+scientific improvement or permission to choose a direction for the researcher.
+
+Keep original captures and all failed attempts. Do not change an existing `1.1.0`
+run to `1.2.0` to make an old result pass. Deterministic resume tests establish
+this execution behavior only; real probes, complete research delivery, human
+selection and formal A/B remain separate checks.
+
 The reconstructed report is `Stage2ProductionRuntimePreflight`, with
 `validation_scope=production-single`. Missing inventory information stays in
 `observations`; malformed or mismatched supplied evidence still fails.
@@ -98,6 +164,8 @@ proof rules remain unchanged.
   metadata 不等於完整工具清單，也不等於實體隔離證明。
 - 原始紀錄與外部 hash 保留；設定或執行版本變更後重新核對，不能沿用舊通過旗標。
 - 通過四項能力，只證明執行入口可用。完整研究預演與研究品質改善仍分別驗收。
+- 讀寫 probe 明確指定工作目錄與 shell；不要依賴工具預設值。正式呼叫只可
+  保留已核對的 probe 檔案，其他檔案或改動仍拒絕，原失敗與證據不刪除。
 
 ### 第一次使用與之後恢復
 

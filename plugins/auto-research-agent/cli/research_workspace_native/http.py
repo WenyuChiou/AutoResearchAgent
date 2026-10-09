@@ -16,7 +16,7 @@ MAX_BODY = 256 * 1024
 MAX_RESPONSE = 1024 * 1024
 REF = r"[A-Za-z0-9_-]{1,128}"
 ROUTE = re.compile(
-    rf"/api/native/projects/({REF})(?:/(answers|interrupts|actions)/?({REF})?)?"
+    rf"/api/native/projects/({REF})(?:/(answers|interrupts|actions|offer|messages)/?({REF})?)?"
 )
 
 
@@ -131,6 +131,7 @@ class SessionHandler(BaseHTTPRequestHandler):
         if remaining <= 0:
             raise TimeoutError("absolute request deadline expired")
         self.connection.settimeout(remaining)
+        return remaining
 
     def handle(self):
         try:
@@ -199,6 +200,10 @@ class SessionHandler(BaseHTTPRequestHandler):
         return token, length
 
     def _handle(self, method):
+        with self.server.api.admission_guard(self._remaining):
+            self._handle_guarded(method)
+
+    def _handle_guarded(self, method):
         try:
             credential, length = self._headers(method)
             match = ROUTE.fullmatch(self.path)
@@ -206,16 +211,20 @@ class SessionHandler(BaseHTTPRequestHandler):
                 raise SessionApiError("unknown-route", 404)
             project_ref, operation, action_ref = match.groups()
             if method == "GET":
-                if length or (operation and operation != "actions"):
+                if length or (operation and operation not in {"actions", "offer"}):
                     raise SessionApiError("invalid-read-request", 400)
                 if operation == "actions":
                     if not action_ref:
                         raise SessionApiError("action-ref-required", 400)
                     result = self.server.api.action(credential, project_ref, action_ref)
+                elif operation == "offer":
+                    if action_ref:
+                        raise SessionApiError("invalid-offer-route", 400)
+                    result = self.server.api.offer(credential, project_ref)
                 else:
                     result = self.server.api.view(credential, project_ref)
             else:
-                if operation not in {"answers", "interrupts"} or action_ref:
+                if operation not in {"answers", "interrupts", "messages"} or action_ref:
                     raise SessionApiError("unknown-write-route", 404)
                 if self.headers.get("Content-Type", "").lower() != "application/json":
                     raise SessionApiError("json-content-type-required", 415)
@@ -231,16 +240,19 @@ class SessionHandler(BaseHTTPRequestHandler):
                     raise SessionApiError("invalid-json", 400) from None
                 if not isinstance(body, dict):
                     raise SessionApiError("object-body-required", 400)
-                handler = (
-                    self.server.api.answer
-                    if operation == "answers"
-                    else self.server.api.interrupt
-                )
+                handler = {
+                    "answers": self.server.api.answer,
+                    "interrupts": self.server.api.interrupt,
+                    "messages": self.server.api.message,
+                }[operation]
                 self._remaining()
                 result = handler(credential, project_ref, body)
             self._reply(200, result)
         except SessionApiError as error:
-            self._reply(error.status, {"error": error.code})
+            value = {"error": error.code}
+            if error.receipt is not None:
+                value["receipt"] = error.receipt
+            self._reply(error.status, value)
         except ConnectionError:
             return  # The durable action remains queryable after response loss.
         except JournalError:

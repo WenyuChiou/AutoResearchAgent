@@ -17,6 +17,9 @@ def main():
     parser.add_argument("--project-id", required=True)
     parser.add_argument("--expected-manifest-sha256", required=True)
     parser.add_argument("--reference-root", required=True)
+    parser.add_argument(
+        "--atlas", action="store_true", help="Include the read-only evidence atlas"
+    )
     parser.add_argument("--repair-root")
     parser.add_argument("--expected-repair-manifest-sha256")
     parser.add_argument("--expected-repair-review-sha256")
@@ -39,7 +42,7 @@ def main():
             expected_repair_manifest_sha256=args.expected_repair_manifest_sha256,
             expected_repair_review_sha256=args.expected_repair_review_sha256,
         )
-        options = {}
+        options = {"atlas": args.atlas}
         rerun_supplied = (
             args.source_rerun_root,
             args.expected_source_rerun_manifest_sha256,

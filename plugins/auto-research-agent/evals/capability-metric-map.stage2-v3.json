@@ -364,7 +364,23 @@
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B."
+      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B.",
+      "preflight_workspace_admission_contract": "First controller capture admits only read/write probe files bound to its authenticated matching preflight and archived hashes. Changed, unrelated, linked or task-reserved paths fail closed. Probe evidence is preserved; empty legacy workspaces remain compatible. This does not attest research completion, formal isolation or scientific improvement.",
+      "preflight_workspace_admission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_preflight_workspace_admission.py"
+      ],
+      "deferred_role_action_binding_contract": "Opt-in controller specification1.2 binds each action to its actual isolated environments and immutable common runtime/input/proof settings. Candidate-dependent reviewer slots can be provisioned after validated extraction without rerunning completed unrelated calls. Every provisioned environment still passes strict policy/preflight verification; changed used bindings reject replay. Legacy1.1 retains complete-map binding. No fixed scientific candidate count, permission relaxation, human selection, formal readiness or scientific-quality improvement is inferred.",
+      "deferred_role_action_binding_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_deferred_role_binding.py"
+      ],
+      "review_snapshot_continuation_contract": "Opt-in explicit controller1.2 continuation target names the verified latest append-only descendant of the original validated ideation snapshot. Original research/extraction byte, input, runtime, policy and proof bindings remain immutable; changed target sources/candidates receive fresh source-set/candidate-version-bound checks, and stale dossiers or reviews cannot certify them. Foreign, stale and pre-ideation targets fail closed. Legacy and absent-field behavior remain unchanged. Controlled call-count tests do not attest real execution, human choice, formal readiness or scientific improvement.",
+      "review_snapshot_continuation_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_continuation.py"
+      ],
+      "captured_proposal_recovery_contract": "Explicit recovery of a selected, authenticated legacy output.txt checks exact end/start archive and workspace hashes, changed seed bytes, complete capture receipt, regular unaliased UTF-8 bounded content and original final-answer provenance. Default selection never guesses an alternate artifact. Recovery creates a new no-tool extraction and immutable descendant; original generation, extraction and capture remain intact. Existing v1.2 continuation selects that latest validated descendant; scientific validity and formal readiness are not implied.",
+      "captured_proposal_recovery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_proposal.py"
+      ]
     },
     {
       "capability_id": "cli:stage2-workflow",
@@ -654,6 +670,10 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "full_proposal_artifact_contract": "Native research tasks request the complete prose, comparison matrix and references in stage2_proposal.md in the assigned workspace. A brief final link is not the extraction input; when writing is unavailable the full final answer remains the compatibility fallback. No topic, candidate, resource or scientific quota is introduced.",
+      "full_proposal_artifact_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_proposal.py"
       ]
     },
     {
@@ -703,7 +723,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_view.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_html.py",
-        "plugins/auto-research-agent/tests/test_workspace_stage_navigation.py"
+        "plugins/auto-research-agent/tests/test_workspace_stage_navigation.py",
+        "plugins/auto-research-agent/tests/test_workspace_atlas.py"
       ],
       "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
       "topic_table_test_refs": [

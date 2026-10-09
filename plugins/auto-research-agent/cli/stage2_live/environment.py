@@ -25,6 +25,8 @@ from .native_policy import (
     verify_named_runtime,
 )
 
+CONTROLLER_ROLE_POLICY_VERSIONS = frozenset({"1.1.0", "1.2.0"})
+
 
 def environment_key(home, workspace):
     return canonical_hash(
@@ -33,9 +35,9 @@ def environment_key(home, workspace):
 
 
 def native_for_environment(spec, home, workspace):
-    """Resolve a frozen per-role policy only in explicit controller v1.1."""
+    """Resolve a frozen per-role policy only in explicit role-policy controllers."""
     native = copy.deepcopy(spec["native"])
-    if spec.get("schema_version") != "1.1.0":
+    if spec.get("schema_version") not in CONTROLLER_ROLE_POLICY_VERSIONS:
         return native
     policy = spec.get("execution_policies", {}).get(environment_key(home, workspace))
     if (

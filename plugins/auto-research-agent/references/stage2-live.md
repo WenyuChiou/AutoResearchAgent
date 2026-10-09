@@ -123,6 +123,19 @@ If a native session directory is absent, report it as missing. The CLI stdout
 stream may still establish completion, but that does not establish complete child
 tool provenance. Authentication files are never included in the session archive.
 
+### 舊捕捉中 `output.txt` 提案的明確復原
+
+若已完成且已驗證的舊 capture 把完整提案寫進 `output.txt`，但 final 只留下摘要，
+先核對原始 capture、外部保留的 record receipt、workspace 起訖 inventory 與檔案 hash。
+只有操作者明確指定原始且確實已變更的 `archive/workspace-end/output.txt` 時才復原；
+若已存在較優先的 `stage2_proposal.md`、起始檔未對上、內容未變或檔案無效，就拒絕。
+接著用現有無工具擷取建立新的 extraction 與 receipt，並把通過驗證的不可變後代
+snapshot 追加到 workflow，保留全部候選。既有 `continuation_snapshot_sha256` 可選取
+這個最新後代繼續執行。不得覆寫舊 capture、已保存的 action／proof，也不得重跑生成。
+已開始的 workflow 維持原本凍結的程式、prompt、角色及 runtime 綁定；新版提案
+指令不能冒充舊呼叫的輸入。新執行才採用新的程式版本與相符的能力證明。
+檔名指示只適用明確啟用比較整理的 packet 2.2–2.4；2.0／2.1 任務文字保持原樣。
+
 ## What remains before formal A/B
 
 ### What counts as completed Stage 2

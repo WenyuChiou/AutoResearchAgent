@@ -72,7 +72,9 @@ def _literature(source):
     )
 
 
-def render_view(index_path, output, reference_root, expected_index_sha256):
+def render_view(
+    index_path, output, reference_root, expected_index_sha256, *, atlas=False
+):
     """Bind an externally approved index and pinned presentation assets to a new view."""
     index_path = private_output(index_path)
     raw = Path(index_path).read_bytes()
@@ -82,6 +84,8 @@ def render_view(index_path, output, reference_root, expected_index_sha256):
     options = {}
     if index.get("schema_version") == "3.0.0":
         options["source_rerun_root"] = Path(index_path).parent / "source-rerun"
+    if atlas:
+        options["atlas"] = True
     return _write_view(index, raw, reference_root, output, **options)
 
 
@@ -94,6 +98,7 @@ def write_workspace(
     stage2_bridge=None,
     expected_stage2_bridge_sha256=None,
     source_rerun_root=None,
+    atlas=False,
 ):
     """Write a freshly projected index with its canonical-byte receipt."""
     return _write_view(
@@ -105,6 +110,7 @@ def write_workspace(
         stage2_bridge=stage2_bridge,
         expected_stage2_bridge_sha256=expected_stage2_bridge_sha256,
         source_rerun_root=source_rerun_root,
+        atlas=atlas,
     )
 
 
@@ -118,6 +124,7 @@ def _write_view(
     stage2_bridge=None,
     expected_stage2_bridge_sha256=None,
     source_rerun_root=None,
+    atlas=False,
 ):
     validate_index(index)
     if index["schema_version"] in {"2.0.0", "3.0.0"}:
@@ -313,6 +320,15 @@ def _write_view(
         **stage2_files,
     }
     files.update(selection_files(index))
+    if atlas:
+        from .atlas import atlas_files
+
+        files.update(atlas_files(payload))
+        files["index.html"] = files["index.html"].replace(
+            b"</header>",
+            b'<p><a href="atlas.html">Open literature map and comparison atlas</a></p></header>',
+            1,
+        )
     if repaired:
         from .closeout import closeout_files
 
@@ -392,6 +408,19 @@ def _write_view(
             )
         },
     }
+    if atlas:
+        manifest["rebuild"]["atlas"] = True
+        manifest["atlas_binding_sha256"] = sha(files["atlas-binding.json"])
+        for name in ("atlas.py", "atlas_model.py"):
+            manifest["adapter_sources"][name] = sha(
+                Path(__file__).with_name(name).read_bytes()
+            )
+        manifest["ui_sources"].update(
+            {
+                name: sha(files[name])
+                for name in ("atlas.html", "atlas.css", "atlas-model.js", "atlas-ui.js")
+            }
+        )
     if repaired:
         from .closeout import runtime_binding
 
@@ -487,11 +516,18 @@ def main():
     parser.add_argument(
         "--output", required=True, help="New directory outside every Git checkout"
     )
+    parser.add_argument(
+        "--atlas", action="store_true", help="Include the read-only evidence atlas"
+    )
     args = parser.parse_args()
     print(
         json.dumps(
             render_view(
-                args.index, args.output, args.reference_root, args.expected_index_sha256
+                args.index,
+                args.output,
+                args.reference_root,
+                args.expected_index_sha256,
+                atlas=args.atlas,
             )
         )
     )

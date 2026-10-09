@@ -214,7 +214,12 @@ def validate_receipt_shape(result):
 
 
 def receipt_digest(result):
-    """The public source-fetch-result/v1 canonical receipt serialization."""
+    """Match v1 serialization in the immutable merged SDK pin.
+
+    That SDK does not replay diagnostics. Their exact bytes remain bound by
+    source-result, archive and package hashes; a newer checksum variant must
+    not be accepted or silently converted under this runtime.
+    """
     return sha(
         canonical(
             {

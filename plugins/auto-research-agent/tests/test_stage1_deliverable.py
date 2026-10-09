@@ -24,6 +24,7 @@ sys.path.insert(0, str(PLUGIN / "cli"))
 from stage1_deliverable import package, sources, views  # noqa: E402
 from stage1_deliverable.common import (  # noqa: E402
     DeliverableError,
+    canonical,
     inventory,
     preflight,
     read_json,
@@ -124,6 +125,77 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.inputs = self.root / "input"
         self.inputs.mkdir()
         self.output = self.root / "package"
+
+    def test_empty_diagnostics_preserve_the_legacy_source_receipt(self):
+        self.make_records()
+        result = read_json(self.inputs / "source/source-fetch-result.json")
+        result.pop("diagnostics", None)
+        legacy = sources.receipt_digest(result)
+        self.assertEqual(legacy, result["receipt_sha256"])
+        result["diagnostics"] = {}
+        self.assertEqual(sources.receipt_digest(result), legacy)
+
+    def test_nonempty_legacy_diagnostics_replay_against_pinned_sdk(self):
+        records = self.make_records()
+        path = self.inputs / "source/source-fetch-result.json"
+        result = read_json(path)
+        result["diagnostics"] = {"body_completeness": "pending", "pages_total": 3}
+        self.assertEqual(result["receipt_sha256"], sources.receipt_digest(result))
+        write_json(path, result)
+        records["sources"][0]["result_sha256"] = sha(path.read_bytes())
+        archive = self.root / "diagnostics-archive"
+        sources.stage_source(records["sources"][0], self.inputs, archive)
+        self.assertEqual((archive / "original.json").read_bytes(), path.read_bytes())
+        replayed, _, observation = sources.validate_archive(archive)
+        self.assertEqual(replayed, result)
+        self.assertEqual(observation["returncode"], 0)
+        self.assertFalse(observation["network_acquisition"])
+
+    def test_diagnostics_file_tamper_rejects_before_sdk_replay(self):
+        records = self.make_records()
+        path = self.inputs / "source/source-fetch-result.json"
+        result = read_json(path)
+        result["diagnostics"] = {"body_completeness": "pending"}
+        write_json(path, result)
+        records["sources"][0]["result_sha256"] = sha(path.read_bytes())
+        result["diagnostics"]["body_completeness"] = "confirmed"
+        write_json(path, result)
+        with patch("stage1_deliverable.sources.subprocess.run") as replay:
+            with self.assertRaisesRegex(DeliverableError, "source result changed"):
+                sources.stage_source(
+                    records["sources"][0], self.inputs, self.root / "tampered-archive"
+                )
+        replay.assert_not_called()
+
+    def test_new_diagnostics_checksum_rejects_under_legacy_sdk_pin(self):
+        self.make_records()
+        result = read_json(self.inputs / "source/source-fetch-result.json")
+        result["diagnostics"] = {"body_completeness": "pending"}
+        result["receipt_sha256"] = sha(
+            canonical(
+                {
+                    "schema_version": "source-fetch-result/v1",
+                    "request": result["request"],
+                    "attempts": [
+                        {key: a[key] for key in sources.ATTEMPT_FIELDS}
+                        for a in result["attempts"]
+                    ],
+                    "extracted_text_sha256": result["extracted_text_sha256"],
+                    "result": {
+                        key: result.get(key)
+                        for key in (*sources.RESULT_FIELDS, "diagnostics")
+                    },
+                }
+            )
+        )
+        self.assertNotEqual(result["receipt_sha256"], sources.receipt_digest(result))
+        archive = self.root / "diagnostics-archive"
+        archive.mkdir()
+        write_json(archive / "original.json", result)
+        with patch("stage1_deliverable.sources.subprocess.run") as replay:
+            with self.assertRaisesRegex(DeliverableError, "original source receipt"):
+                sources.validate_archive(archive)
+        replay.assert_not_called()
 
     def make_records(self, raw=HTML, content_type="text/html", status=200, title=TITLE):
         with (
