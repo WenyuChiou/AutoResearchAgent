@@ -22,6 +22,8 @@ from .session_api import SessionApi, SessionApiError
 from .transport import _decode
 from .harness_host import bind_operations, handle_operations
 from .harness_ops import ACTIONS
+from .scope_api import ScopeApi
+from .scope_http import ScopeWikiSessionHandler
 
 REF = re.compile(r"[A-Za-z0-9_-]{1,64}")
 HASH = re.compile(r"[0-9a-f]{64}")
@@ -166,6 +168,7 @@ class AtlasHost(SessionHttpServer):
         presentation=None,
         capability_state=None,
         native_runtime=None,
+        scope_api=None,
         harness_ops=None,
         credential=None,
         native_script=None,
@@ -216,6 +219,13 @@ class AtlasHost(SessionHttpServer):
                         self.native_cases[row["ref"]] = dict(
                             actual, project_ref=project_ref
                         )
+        if scope_api is not None and (
+            native_runtime is None
+            or not isinstance(scope_api, ScopeApi)
+            or scope_api.api is not api
+        ):
+            raise ValueError("scope requires the same explicit native runtime")
+        self.scope_api = scope_api
         self.harness_ops = harness_ops
         self.harness_cases = bind_operations(harness_ops, files, views, credential)
         self._harness_owned = False
@@ -266,6 +276,13 @@ class AtlasHost(SessionHttpServer):
                 self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
             native_style = '<link rel="stylesheet" href="/session-panel.css">'
             native_scripts = ["/session-panel.js", "/native-atlas-chat.js"]
+        if scope_api is not None:
+            if "/session-panel.js" not in native_scripts:
+                raise ValueError("scope requires the standard session panel")
+            for filename in ("session-scope.js", "session-scope.css"):
+                self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
+            native_style += '<link rel="stylesheet" href="/session-scope.css">'
+            native_scripts.append("/session-scope.js")
         self.host_binding = {
             "kind": "WorkspaceAtlasHostOverlay",
             "execution_authority": False,
@@ -420,7 +437,13 @@ class AtlasHandler(SessionHandler):
         if match is None or match.group(1) not in allowed:
             self._reply(404, {"error": "native-project-unavailable"})
         else:
-            self._handle(method)
+            if ScopeWikiSessionHandler._is_scope(self):
+                if self.server.scope_api is None:
+                    self._reply(404, {"error": "scope-unavailable"})
+                else:
+                    ScopeWikiSessionHandler._scope(self, method)
+            else:
+                self._handle(method)
 
     def do_GET(self):
         if self.path.startswith("/api/harness/"):
