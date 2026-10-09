@@ -28,6 +28,30 @@ and receipts rather than deleting or moving them to make a workspace look empty.
 An empty workspace keeps its existing behavior. Admitting these files is an
 execution compatibility check, not proof of complete research or formal A/B.
 
+### Provision reviewers after candidates are known
+
+Controller specification `1.2.0` lets an action bind the environments it actually
+uses. This is a controller contract; it is distinct from production probe `1.2.0`.
+The existing `1.1.0` controller keeps its historical complete-map binding.
+
+Start a new `1.2.0` controller with verified, separate research and extraction
+environments. After validated extraction reveals the candidates, `needs-workspace`
+lists the missing reviewer and resolution slots. Provision those environments,
+save their real preflight evidence, and resume the same workflow. Do not choose a
+candidate count just to make the environment setup easier.
+
+Adding a later role does not invalidate a completed action that never used it.
+Changing an environment that action did use, its policy or proof, the common
+runtime/configuration, source inputs or snapshot still rejects replay. Every
+provisioned environment must pass the existing validation before execution;
+roles cannot share or nest their home/workspace directories. A missing reviewer
+still blocks delivery and never counts as agreement.
+
+Keep original captures and all failed attempts. Do not change an existing `1.1.0`
+run to `1.2.0` to make an old result pass. Deterministic resume tests establish
+this execution behavior only; real probes, complete research delivery, human
+selection and formal A/B remain separate checks.
+
 The reconstructed report is `Stage2ProductionRuntimePreflight`, with
 `validation_scope=production-single`. Missing inventory information stays in
 `observations`; malformed or mismatched supplied evidence still fails.

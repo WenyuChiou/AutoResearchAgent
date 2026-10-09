@@ -368,6 +368,10 @@
       "preflight_workspace_admission_contract": "First controller capture admits only read/write probe files bound to its authenticated matching preflight and archived hashes. Changed, unrelated, linked or task-reserved paths fail closed. Probe evidence is preserved; empty legacy workspaces remain compatible. This does not attest research completion, formal isolation or scientific improvement.",
       "preflight_workspace_admission_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_preflight_workspace_admission.py"
+      ],
+      "deferred_role_action_binding_contract": "Opt-in controller specification1.2 binds each action to its actual isolated environments and immutable common runtime/input/proof settings. Candidate-dependent reviewer slots can be provisioned after validated extraction without rerunning completed unrelated calls. Every provisioned environment still passes strict policy/preflight verification; changed used bindings reject replay. Legacy1.1 retains complete-map binding. No fixed scientific candidate count, permission relaxation, human selection, formal readiness or scientific-quality improvement is inferred.",
+      "deferred_role_action_binding_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_deferred_role_binding.py"
       ]
     },
     {
