@@ -1,7 +1,9 @@
 """Loopback routes for trusted, saved-input Harness operations; no model calls."""
 
+from contextlib import closing
 from pathlib import Path
 import re
+import sqlite3
 from urllib.parse import parse_qs
 
 from stage1_deliverable.common import private_output, sha
@@ -38,12 +40,15 @@ def bind_operations(service, files, views, credential):
     return bindings
 
 
-def create_harness_operations(files, views, root, credential):
-    """Construct from already verified snapshots in an exclusive private root.
+def create_harness_operations(files, views, root, credential, *, reuse=False):
+    """Construct from verified snapshots; explicitly reuse an unchanged journal.
 
     This is a trusted embedding helper, not a path/factory accepted over HTTP.
     A failed construction retains its root; never overwrite an earlier attempt.
+    Reuse changes owner/credential only, not saved action or source identities.
     """
+    if type(reuse) is not bool:
+        raise ValueError("explicit boolean reuse required")
     authenticate = token_authenticator({credential: "local-viewer"})
     registrations = {}
     for row in views:
@@ -62,9 +67,35 @@ def create_harness_operations(files, views, root, credential):
             principals=["local-viewer"],
         )
     root = private_output(root)
-    root.mkdir(exist_ok=False)
+    database = root / "operations.sqlite3"
+    if reuse:
+        if not root.is_dir() or not private_output(database).is_file():
+            raise ValueError("existing regular operations database required")
+        expected = {
+            "harness-ops-" + sha(ref.encode())[:32]: dict(
+                project_ref=ref,
+                index_sha256=value["index_sha256"],
+                output_root=private_output(value["output_root"]).resolve().as_posix(),
+            )
+            for ref, value in registrations.items()
+        }
+        with closing(
+            sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)
+        ) as saved:
+            rows = saved.execute("SELECT id,state FROM projects").fetchall()
+            if {row[0] for row in rows} != set(expected):
+                raise ValueError("saved Harness registration set differs")
+            for project_id, raw in rows:
+                state = _decode(raw)
+                if (
+                    state.get("harness_ops_binding") != expected[project_id]
+                    or state.get("index_sha256") != expected[project_id]["index_sha256"]
+                ):
+                    raise ValueError("saved Harness operation binding differs")
+    else:
+        root.mkdir(exist_ok=False)
     return HarnessOps(
-        root / "operations.sqlite3",
+        database,
         registrations=registrations,
         authenticate=authenticate,
     )

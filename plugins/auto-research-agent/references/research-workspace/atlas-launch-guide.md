@@ -10,20 +10,27 @@ These review slices start from main `1aa3b71f`; they are not yet merged or
 accepted by the core team. Native runtime guards from that main are retained.
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-selected-relation-basis-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --branch codex/atlas-harness-launch-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
 From the repository root, use Python with the plugin test requirements installed:
 
 ```powershell
-python -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/attempt-1 --serve --open
+python -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/attempt-1 --serve --harness-operations --open
 ```
 
 Choose a new output directory outside every Git checkout. On Windows, use a short,
 writable `TEMP`/`TMP` directory outside Git if the local environment requires it.
 The command prints a loopback URL and `fixture-receipt.json`; keep the terminal
 running and open that URL. Stop with Ctrl+C. A previous output is never overwritten.
+
+With `--harness-operations`, each case has three real repository operations:
+validate the saved workspace, derive its conservative literature selection, and
+export its literature files. The outputs and operation history are retained in
+`attempt-1/harness-operations`; source snapshots remain unchanged. These are
+saved-input functions, not searches, Stage 2 generation, scientific evaluation
+or a native Codex session. The fixture launcher registers no native runtime.
 
 The graph initially shows no relationships. Select a paper, direction or method
 to reveal its direct connections; select it again to clear. Hover reads names
@@ -42,13 +49,21 @@ To reopen saved outputs without rebuilding, read the `config` and
 
 ```powershell
 Set-Location plugins/auto-research-agent/cli
-python -B -X utf8 -m research_workspace_native.atlas_host --config C:/ara-review-data/attempt-1/host.json --config-sha256 <CONFIG_SHA256> --open
+python -B -X utf8 -m research_workspace_native.atlas_host --config C:/ara-review-data/attempt-1/host.json --config-sha256 <CONFIG_SHA256> --harness-operations-root C:/ara-review-data/attempt-1/harness-operations --harness-operations-reuse --open
 ```
 
 The host snapshots only files listed by each pinned manifest. It has no arbitrary
 filesystem route. Research records remain immutable; `host-binding.json` identifies
 the served overlay separately. An unavailable Codex panel is the expected fixture
 state. A static `file:///` page cannot own a server-side Codex session.
+
+Reuse is explicit and requires the existing private directory and regular
+`operations.sqlite3`. Every saved project/ref/input hash/output root must match
+the pinned views; changed, dropped or added registrations are rejected. A new
+server credential and process-held owner replace the closed owner. Existing
+attempts and failures stay saved; unfinished attempts become `execution-unknown`.
+Reading history does not recompute anything. A saved key never automatically
+resubmits. Without `--harness-operations-reuse`, an existing root is rejected.
 
 # Attach an already admitted server session
 

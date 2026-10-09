@@ -8,6 +8,7 @@ import argparse
 import json
 from pathlib import Path
 import shutil
+import secrets
 import sys
 import webbrowser
 
@@ -17,6 +18,7 @@ sys.path[:0] = [str(PLUGIN / "cli"), str(PLUGIN / "tests")]
 from research_workspace.stage2_import import prepare_stage2_bridge  # noqa: E402
 from research_workspace.view import write_workspace  # noqa: E402
 from research_workspace_native.atlas_host import AtlasHost, load_views  # noqa: E402
+from research_workspace_native.harness_host import create_harness_operations  # noqa: E402
 from stage1_deliverable.common import canonical, private_output, sha  # noqa: E402
 from test_research_workspace_view import fixture_index  # noqa: E402
 from test_stage2_content_delivery import ContentDeliveryTests  # noqa: E402
@@ -98,14 +100,36 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--serve", action="store_true")
+    parser.add_argument("--harness-operations", action="store_true")
     parser.add_argument("--open", action="store_true")
     parser.add_argument("--port", type=int, default=0)
     args = parser.parse_args()
     if args.open and not args.serve:
         parser.error("--open requires --serve")
+    if args.harness_operations and not args.serve:
+        parser.error("--harness-operations requires --serve")
     files, views = build(args.output)
     if args.serve:
-        server = AtlasHost(files=files, views=views, port=args.port)
+        credential, operations = secrets.token_urlsafe(32), None
+        if args.harness_operations:
+            operations = create_harness_operations(
+                files,
+                views,
+                private_output(args.output) / "harness-operations",
+                credential,
+            )
+        try:
+            server = AtlasHost(
+                files=files,
+                views=views,
+                port=args.port,
+                credential=credential,
+                harness_ops=operations,
+            )
+        except BaseException:
+            if operations is not None:
+                operations.close()
+            raise
         print(server.expected_origin + "/", flush=True)
         if args.open:
             webbrowser.open(server.expected_origin + "/")

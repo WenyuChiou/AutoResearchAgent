@@ -655,7 +655,10 @@ def main():
     parser.add_argument("--probe-root", type=Path)
     parser.add_argument("--maintenance-db", type=Path)
     parser.add_argument("--harness-operations-root", type=Path)
+    parser.add_argument("--harness-operations-reuse", action="store_true")
     args = parser.parse_args()
+    if args.harness_operations_reuse and args.harness_operations_root is None:
+        parser.error("--harness-operations-reuse requires --harness-operations-root")
     from .host_config import load_config, create_host
 
     config = load_config(
@@ -684,7 +687,11 @@ def main():
         from .harness_host import create_harness_operations
 
         operations = create_harness_operations(
-            config["files"], config["views"], args.harness_operations_root, credential
+            config["files"],
+            config["views"],
+            args.harness_operations_root,
+            credential,
+            reuse=args.harness_operations_reuse,
         )
     try:
         server = create_host(
