@@ -49,7 +49,9 @@ class OwnersTests(OwnedProcessCase):
         self.registry = SessionOwners(api=self.api)
         self.addCleanup(self.registry.shutdown)
         self.source_ok = True
-        self.channel_raw = self.channel()
+        # Ownership assertions do not impose a two-second child-startup bound.
+        # Match the existing positive bootstrap fixture's bounded setup allowance.
+        self.channel_raw = self.channel(lifetime=30)
         self.store.record_intent(
             "alpha",
             self.owner,
@@ -75,7 +77,7 @@ class OwnersTests(OwnedProcessCase):
             verify_binding=lambda: True,
             admit_lifecycle=lambda offer: True,
         )
-        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=2)
+        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=10)
         self.controller = InjectedSessionController.adopt_ready(
             boot, admit_action=lambda action: True
         )
@@ -361,6 +363,23 @@ class OwnersTests(OwnedProcessCase):
             release.set()
             worker.join(3)
         self.assertTrue(owner.shutdown(3)["leader_reaped"])
+
+
+class OwnerStartupTests(unittest.TestCase):
+    def test_slow_fake_child_preserves_attach_refusals(self):
+        result = unittest.TestResult()
+        case = OwnersTests(
+            "test_literal_attach_binding_and_cross_registry_duplicates_refused"
+        )
+        with patch.dict(
+            case.setUp.__globals__,
+            SCRIPT="import time\ntime.sleep(2.25)\n" + SCRIPT,
+        ):
+            case.run(result)
+        self.assertEqual(result.testsRun, 1)
+        self.assertEqual(result.errors, [])
+        self.assertEqual(result.failures, [])
+        self.assertEqual(result.skipped, [])
 
 
 if __name__ == "__main__":
