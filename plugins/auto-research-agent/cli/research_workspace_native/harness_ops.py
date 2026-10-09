@@ -194,7 +194,10 @@ class HarnessOps:
                 scientific_admission=False,
                 history=[
                     _public(row)
-                    for row in list(state["intents"].values())[-HISTORY_LIMIT:]
+                    for row in sorted(
+                        state["intents"].values(),
+                        key=lambda row: (row["intent_revision"], row["key"]),
+                    )[-HISTORY_LIMIT:]
                 ],
                 history_count=len(state["intents"]),
                 history_limit=HISTORY_LIMIT,
