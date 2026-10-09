@@ -2,8 +2,10 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import json
 import sqlite3
 import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -49,7 +51,9 @@ class OwnersTests(OwnedProcessCase):
         self.registry = SessionOwners(api=self.api)
         self.addCleanup(self.registry.shutdown)
         self.source_ok = True
-        self.channel_raw = self.channel()
+        # Ownership assertions do not impose a two-second child-startup bound.
+        # Match the existing positive bootstrap fixture's bounded setup allowance.
+        self.channel_raw = self.channel(lifetime=30)
         self.store.record_intent(
             "alpha",
             self.owner,
@@ -75,7 +79,7 @@ class OwnersTests(OwnedProcessCase):
             verify_binding=lambda: True,
             admit_lifecycle=lambda offer: True,
         )
-        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=2)
+        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=10)
         self.controller = InjectedSessionController.adopt_ready(
             boot, admit_action=lambda action: True
         )
@@ -159,6 +163,16 @@ class OwnersTests(OwnedProcessCase):
                 self.api.view("token", "project-ref")
                 self.api.action("token", "project-ref", result["action_ref"])
             self.assertEqual(writes.call_count, before)
+
+        def terminal_saved():
+            status = owner.status()
+            self.assertFalse(status["failure"], status)
+            return (
+                self.state()["turns"].get("synthetic-turn", {}).get("status")
+                == "completed"
+            )
+
+        self.wait(terminal_saved)  # Request resolution and turn terminal are separate.
         self.assertIn("synthetic-turn", self.state()["turns"])
         self.assertTrue(owner.shutdown()["leader_reaped"])
         self.assertTrue(owner.status()["cleanup_observed"])
@@ -361,6 +375,108 @@ class OwnersTests(OwnedProcessCase):
             release.set()
             worker.join(3)
         self.assertTrue(owner.shutdown(3)["leader_reaped"])
+
+
+class OwnerStartupTests(unittest.TestCase):
+    def run_owner_case(self, method, script, configure=None):
+        result = unittest.TestResult()
+        case = OwnersTests(method)
+        if configure is not None:
+            configure(case)
+        with patch.dict(case.setUp.__globals__, SCRIPT=script):
+            case.run(result)
+        self.assertEqual(result.testsRun, 1)
+        self.assertEqual(result.errors, [])
+        self.assertEqual(result.failures, [])
+        self.assertEqual(result.skipped, [])
+
+    def test_slow_fake_child_preserves_attach_refusals(self):
+        self.run_owner_case(
+            "test_literal_attach_binding_and_cross_registry_duplicates_refused",
+            "import time\ntime.sleep(2.25)\n" + SCRIPT,
+        )
+
+    def test_resolved_request_waits_for_independent_turn_terminal(self):
+        terminal = "  emit({'method':'turn/completed'"
+        self.assertEqual(SCRIPT.count(terminal), 1)
+        repository = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(prefix="owner-terminal-gate-") as directory:
+            gate = Path(directory, "release-terminal")
+            self.assertFalse(gate.parent.resolve().is_relative_to(repository))
+            gated = SCRIPT.replace("import json,sys,time", "import json,os,sys,time", 1)
+            gate_wait = (
+                f"  while not os.path.exists({json.dumps(str(gate))}):\n"
+                "   time.sleep(.01)\n"
+            )
+            gated = gated.replace(terminal, gate_wait + terminal, 1)
+            self.assertNotEqual(gated, SCRIPT)
+            phases = []
+            answer_barriers = []
+            expected_phases = ["question", "request-resolution", "terminal"]
+
+            def configure(case):
+                original_set_up = case.setUp
+                original_wait = case.wait
+                original_tear_down = case.tearDown
+
+                def request_resolved():
+                    return any(
+                        row["status"] == "request-resolved"
+                        for row in case.state()["requests"].values()
+                    )
+
+                def set_up():
+                    original_set_up()
+                    original_answer = case.api.answer
+
+                    def answer(*args, **kwargs):
+                        result = original_answer(*args, **kwargs)
+                        if not answer_barriers:
+                            original_wait(request_resolved)
+                            state = case.state()
+                            self.assertNotIn("synthetic-turn", state["turns"])
+                            self.assertFalse(gate.exists())
+                            answer_barriers.append("resolved-before-second-wait")
+                        return result
+
+                    case.api.answer = answer
+
+                def wait(predicate, timeout=3):
+                    self.assertLess(len(phases), len(expected_phases))
+                    phase = expected_phases[len(phases)]
+                    phases.append(phase)
+                    state = case.state()
+                    if phase in {"request-resolution", "terminal"}:
+                        self.assertTrue(request_resolved())
+                        self.assertNotIn("synthetic-turn", state["turns"])
+                        self.assertFalse(gate.exists())
+                    if phase == "terminal":
+                        gate.touch()
+                    original_wait(predicate, timeout)
+                    if phase == "request-resolution":
+                        self.assertFalse(gate.exists())
+                        self.assertNotIn("synthetic-turn", case.state()["turns"])
+                    elif phase == "terminal":
+                        self.assertEqual(
+                            case.state()["turns"]["synthetic-turn"]["status"],
+                            "completed",
+                        )
+
+                def tear_down():
+                    gate.touch(exist_ok=True)
+                    original_tear_down()
+
+                case.setUp = set_up
+                case.wait = wait
+                case.tearDown = tear_down
+
+            self.run_owner_case(
+                "test_get_is_passive_explicit_single_pump_receives_question_and_answer",
+                gated,
+                configure,
+            )
+            self.assertEqual(answer_barriers, ["resolved-before-second-wait"])
+            self.assertEqual(phases, expected_phases)
 
 
 if __name__ == "__main__":
