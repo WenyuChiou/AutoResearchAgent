@@ -150,6 +150,10 @@ summary:focus-visible { outline: 3px solid #567fa2; outline-offset: 3px; }
 .atlas-split > .atlas-panel, .atlas-network-split > .atlas-panel { border: 0; border-radius: 0; margin-bottom: 0; }
 .atlas-split > .atlas-panel:last-child, .atlas-network-split > .atlas-panel:last-child { border-left: 1px solid var(--line); }
 .atlas-detail-panel h3 { font-size: 22px; line-height: 1.4; }
+.atlas-network-split > .atlas-detail-panel {
+  min-height: 0; max-height: 900px; overflow-y: auto;
+  overscroll-behavior-y: contain; scrollbar-gutter: stable;
+}
 .atlas-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: -20px -20px 18px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
 .atlas-panel-head h2 { margin-bottom: 0; }
 .atlas-card { border-top-width: 3px; }
