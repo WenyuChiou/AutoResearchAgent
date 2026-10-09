@@ -71,6 +71,23 @@ class SessionApi:
         self._authenticate, self._projects = authenticate, {}
         self._start_offers = {}
         self._lock = threading.RLock()
+        self._guards = threading.local()
+
+    @contextmanager
+    def admission_guard(self, check):
+        """Trusted transport deadline, not a browser permit or execution grant."""
+        _check(callable(check), "deadline-check-required")
+        previous = getattr(self._guards, "check", None)
+        self._guards.check = check
+        try:
+            yield
+        finally:
+            self._guards.check = previous
+
+    def _admission_check(self, limit=10):
+        check = getattr(self._guards, "check", None)
+        remaining = check() if check else None
+        return min(limit, remaining) if remaining is not None else limit
 
     def register(
         self,
@@ -269,7 +286,9 @@ class SessionApi:
         )
         controller, _, binding, _ = registration
         with controller.store._lock:
+            self._admission_check()
             self._source(registration)
+            self._admission_check()
             try:
                 state = controller._context()
                 _check(
@@ -277,7 +296,7 @@ class SessionApi:
                     "saved-source-binding-differs",
                 )
                 yield controller, principal, binding, state
-            except SessionApiError:
+            except (SessionApiError, TimeoutError, ConnectionError):
                 raise
             except Exception:
                 raise SessionApiError("session-unavailable") from None
@@ -583,6 +602,7 @@ class SessionApi:
             )
             if kind == "message":
                 entry["start_offer"] = deepcopy(offer)
+            self._admission_check()
             with controller.store._edit(
                 controller.project_id,
                 controller.owner,
@@ -598,7 +618,13 @@ class SessionApi:
                 revision = controller._context()["revision"]
                 if kind == "answer":
                     controller.answer(
-                        key, request_key, body["request_sha256"], result, revision
+                        key,
+                        request_key,
+                        body["request_sha256"],
+                        result,
+                        revision,
+                        timeout=self._admission_check(),
+                        pre_dispatch=self._admission_check,
                     )
                 elif kind == "message":
                     _check(
@@ -610,10 +636,18 @@ class SessionApi:
                         "turn/start",
                         params,
                         revision,
-                        timeout=limits["timeout_seconds"],
+                        timeout=self._admission_check(limits["timeout_seconds"]),
+                        pre_dispatch=self._admission_check,
                     )
                 else:
-                    controller.client_action(key, "turn/interrupt", params, revision)
+                    controller.client_action(
+                        key,
+                        "turn/interrupt",
+                        params,
+                        revision,
+                        timeout=self._admission_check(),
+                        pre_dispatch=self._admission_check,
+                    )
             except Exception as error:
                 with controller.store._edit(
                     controller.project_id,

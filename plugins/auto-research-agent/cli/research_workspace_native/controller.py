@@ -193,7 +193,14 @@ class InjectedSessionController(BoundControllerContext):
         raise ControllerError(self.failure) from error
 
     def answer(
-        self, key, request_key, request_sha256, result, expected_revision, timeout=10
+        self,
+        key,
+        request_key,
+        request_sha256,
+        result,
+        expected_revision,
+        timeout=10,
+        pre_dispatch=None,
     ):
         with self.store._lock:
             state = self._context()
@@ -244,6 +251,8 @@ class InjectedSessionController(BoundControllerContext):
                 if row["status"] != "dispatching":
                     return self._save(key, row["status"], row["evidence"])
                 self.outgoing = None
+                if pre_dispatch is not None:
+                    timeout = pre_dispatch(timeout)
                 self.transport.answer(
                     wire["id"],
                     result,
@@ -271,7 +280,9 @@ class InjectedSessionController(BoundControllerContext):
             except BaseException as error:
                 self._fault(key, error, first)
 
-    def client_action(self, key, method, params, expected_revision, timeout=10):
+    def client_action(
+        self, key, method, params, expected_revision, timeout=10, pre_dispatch=None
+    ):
         with self.store._lock:
             _require(
                 method in {"turn/start", "turn/interrupt"}, "unsupported controller RPC"
@@ -324,6 +335,8 @@ class InjectedSessionController(BoundControllerContext):
                 )
                 _require(row["status"] == "dispatching", "dispatch transition refused")
                 self.outgoing = None
+                if pre_dispatch is not None:
+                    timeout = pre_dispatch(timeout)
                 self.transport.send_request(
                     method, params, request_id=rpc_id, timeout=timeout
                 )

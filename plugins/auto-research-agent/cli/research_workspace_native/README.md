@@ -261,3 +261,13 @@ Tests run fake OS children, never actual Codex/model/research.
 Source bindings are rechecked after callbacks. Shutdown first attempts physical
 leader cleanup, preserves failed evidence and retains a slot after failed cleanup.
 Fake OS-child tests do not prove actual Codex, model authority or Windows containment.
+
+### Atlas message HTTP adapter (implementation-only)
+
+`AtlasHost(native_runtime=..., credential=...)` can reuse a previously admitted
+server-owned API. Host construction never starts a process or pump. The browser
+receives only opaque project/version/offer references and an in-memory credential.
+An unbound case has no native controls; input version is not the records hash.
+The existing Host/Origin/JSON/deadline guards apply to ordinary messages as well.
+Construction failure retains borrowed-runtime ownership with its caller.
+Persisted transcript, webpage controls and actual native acceptance remain separate.

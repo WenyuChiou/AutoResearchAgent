@@ -172,7 +172,9 @@ class AtlasHostTests(unittest.TestCase):
             status, headers, raw = self.get(server, "/host-bootstrap/" + ref + ".js")
             self.assertEqual(status, 200)
             self.assertEqual(headers["Cache-Control"], "no-store")
-            data = json.loads(raw.decode()[len("window.WORKSPACE_HOST=") : -2])
+            data = json.loads(
+                raw.decode().splitlines()[0][len("window.WORKSPACE_HOST=") : -1]
+            )
             self.assertEqual(data["current_case"], ref)
             self.assertEqual(len(data["cases"]), 2)
         for headers in (
