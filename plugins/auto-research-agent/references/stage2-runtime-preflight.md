@@ -15,6 +15,19 @@ When a native tool yields, retain its handle and wait for terminal completion
 within the execution policy before deciding success. Bind search evidence to
 the actual search call; a later page-open event is a different action.
 
+Production v1.2 uses authenticated native tool arguments and results. For each
+read and write probe, explicitly supply the executor's `workdir`, `shell` and
+`login=false`; a successful command using an implicit working directory is not
+the required witness. Keep the original rejected call if this binding is missing.
+
+The first controller call may retain only the read/write probe files from its
+matching verified preflight. Their current bytes must match the authenticated
+workspace archive. Unrelated files, changed probes, links and collisions with
+the controller's `input.json` or `sources` are rejected. Preserve the probe files
+and receipts rather than deleting or moving them to make a workspace look empty.
+An empty workspace keeps its existing behavior. Admitting these files is an
+execution compatibility check, not proof of complete research or formal A/B.
+
 The reconstructed report is `Stage2ProductionRuntimePreflight`, with
 `validation_scope=production-single`. Missing inventory information stays in
 `observations`; malformed or mismatched supplied evidence still fails.
@@ -98,6 +111,8 @@ proof rules remain unchanged.
   metadata 不等於完整工具清單，也不等於實體隔離證明。
 - 原始紀錄與外部 hash 保留；設定或執行版本變更後重新核對，不能沿用舊通過旗標。
 - 通過四項能力，只證明執行入口可用。完整研究預演與研究品質改善仍分別驗收。
+- 讀寫 probe 明確指定工作目錄與 shell；不要依賴工具預設值。正式呼叫只可
+  保留已核對的 probe 檔案，其他檔案或改動仍拒絕，原失敗與證據不刪除。
 
 ### 第一次使用與之後恢復
 
