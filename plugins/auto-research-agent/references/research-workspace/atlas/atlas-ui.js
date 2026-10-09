@@ -88,6 +88,41 @@
     inputs: ["Required inputs", "所需输入", "所需輸入"],
     outputs: ["Expected outputs", "预期输出", "預期輸出"],
     flow: ["Recorded stage workflow", "已记录阶段工作流", "已記錄階段工作流"],
+    workbench: ["Workspace", "工作台", "工作臺"], files: ["Project files", "项目文件", "專案檔案"],
+    history: ["Activity", "操作历史", "操作歷史"], settings: ["Settings", "设置", "設定"],
+    networkTitle: ["Literature knowledge network", "文献知识网络", "文獻知識網絡"],
+    networkSubtitle: ["Papers, methods and directions in one view. Select a node to read its bound record.", "论文、方法与方向在同一张图上；点击节点，查看已绑定的记录。", "論文、方法與方向在同一張圖上；點選節點，檢視已綁定的紀錄。"],
+    stage2Title: ["Compare evidence, explore directions", "比较文献，探索研究方向", "比較文獻，探索研究方向"],
+    globalNetwork: ["Global network", "全局网络", "全域網絡"], localNetwork: ["Local network", "局部网络", "局部網絡"],
+    fit: ["Fit view", "适合画面", "符合畫面"],
+    similarity: ["Method-label similarity", "方法标签相似度", "方法標籤相似度"],
+    workflow: ["Within-stage workflow", "阶段内工作流", "階段內工作流程"],
+    viewOnly: ["Artifact browsing · no research is started", "产物浏览 · 不启动研究", "產物瀏覽 · 不啟動研究"],
+    workflow1: [["Confirm scope", "Search & read", "Check evidence", "Coverage & stop", "Package & review"], ["确定范围", "搜索与阅读", "核对证据", "覆盖与停止", "整理与审阅"], ["確認範圍", "搜尋與閱讀", "核對證據", "涵蓋與停止", "整理與審閱"]],
+    products1: [["Research brief", "Literature catalog", "Claims & sources", "Coverage record", "Versioned literature package"], ["研究范围", "文献目录", "主张与来源", "覆盖记录", "版本化文献包"], ["研究範圍", "文獻目錄", "主張與來源", "涵蓋紀錄", "版本化文獻套件"]],
+    workflow2: [["Bind literature", "Compare topics", "Explore routes", "Independent review", "Choose & hand off"], ["绑定文献", "比较主题", "探索路线", "独立审阅", "选择与交接"], ["綁定文獻", "比較主題", "探索路線", "獨立審閱", "選擇與交接"]],
+    products2: [["Source-bound input", "Comparison record", "Candidate routes", "Assessment & comments", "Selection package"], ["来源绑定输入", "比较记录", "候选路线", "评估与评语", "选择包"], ["來源綁定輸入", "比較紀錄", "候選路線", "評估與評語", "選擇套件"]],
+    loop1: ["When evidence is missing: coverage review → search & reading; previous attempts are retained.", "需要补充证据时：覆盖检查 → 搜索与阅读；原尝试保留。", "需要補充證據時：涵蓋檢查 → 搜尋與閱讀；原嘗試保留。"],
+    loop2: ["When comparison needs revision: review → source checks → revised comparison; previous versions are retained.", "需要修订比较时：审阅 → 核对来源 → 新版比较；旧版本保留。", "需要修訂比較時：審閱 → 核對來源 → 新版比較；舊版本保留。"],
+    artifactPreview: ["Artifact preview", "产物预览", "產物預覽"], nextConsumer: ["Next consumer", "下一个流程", "下一個流程"],
+    process: ["Process & decisions", "过程与决策", "過程與決策"],
+    discoveryLedger: ["Discovery & screening record", "发现与筛选记录", "發現與篩選紀錄"],
+    discoveryCount: ["Discovery count / distinct queries / backend attempts", "发现次数／涉及查询数／后端尝试数", "發現次數／涉及查詢數／後端嘗試數"],
+    firstFound: ["First discovery: query / attempt / result position", "首次记录：查询／尝试／结果位置", "首次紀錄：查詢／嘗試／結果位置"],
+    rounds: ["Coverage round", "覆盖轮次", "涵蓋輪次"], decisionHistory: ["Decision versions & reversal history", "决定版本与撤回历史", "決定版本與撤回歷史"],
+    sourceBinding: ["Project / input version / source binding", "项目／输入版本／来源绑定", "專案／輸入版本／來源綁定"],
+    noRank: ["Result position is not quality rank. Search attempts, screening decisions and source reads are separate records; missing receipts stay Unknown.", "结果位置不等于质量排名。检索尝试、筛选决定与来源阅读分别记录；缺失回执保持未知。", "結果位置不等於品質排名。搜尋嘗試、篩選決定及來源閱讀分別記錄；缺少回執保持未知。"],
+    topicCounts: ["Literature by direction", "各方向文献", "各方向文獻"],
+    countsNote: ["Counts show recorded label membership, not research coverage. A paper may belong to several directions.", "篇数表示已记录标签的归属，不等于研究覆盖率；同一论文可属于多个方向。", "篇數表示已記錄標籤的歸屬，不等於研究涵蓋率；同一論文可屬於多個方向。"],
+    compactCollection: ["Use the accepted working collection for reading; every screened version and exclusion reason stays in the archive. No fixed paper limit is imposed.", "日常阅读使用已纳入的工作文献集；全部筛选版本与排除原因留在档案中，不设固定篇数上限。", "日常閱讀使用已納入的工作文獻集；全部篩選版本及排除原因留在檔案中，不設固定篇數上限。"],
+    formalWorks: ["Formally included distinct works", "正式纳入的不同作品", "正式納入的不同作品"],
+    unboundTarget: ["Confirmed formal target: Unknown — ResearchBrief is not bound to this view. This count does not establish coverage or permission to start Stage 2.", "已确认正式目标：未知——此视图尚未绑定 ResearchBrief。数量不代表覆盖充分，也不授予 Stage 2 执行权限。", "已確認正式目標：未知——此檢視尚未綁定 ResearchBrief。數量不代表涵蓋充分，也不授予 Stage 2 執行權限。"],
+    auditRecords: ["review records", "条审阅记录", "筆審閱紀錄"],
+    relatedRoutes: ["Routes using these papers", "引用这些论文的路线", "引用這些論文的路線"],
+    compareChosen: ["Compare these papers", "比较这些论文", "比較這些論文"],
+    relevanceRank: ["Recorded relevance rank", "已记录相关度排名", "已記錄相關度排名"],
+    noRouteBinding: ["No exact work/version evidence link is recorded for these papers.", "这些论文尚未记录精确的作品／版本证据关联。", "這些論文尚未記錄精確的作品／版本證據關聯。"],
+    routeGraphNote: ["Lines identify the candidate's recorded evidence links to exact paper versions. They do not certify support or feasibility.", "连线表示候选路线与精确论文版本之间已记录的证据引用，不证明证据支持或可行性。", "連線表示候選路線與精確論文版本之間已記錄的證據引用，不證明證據支持或可行性。"],
     reserved: ["Stage contract preview · this companion performs no execution", "阶段契约预览 · 此图谱不执行研究", "階段契約預覽 · 此圖譜不執行研究"]
   };
   const fieldLabels = {
@@ -107,7 +142,7 @@
     concepts: ["Concepts", "概念", "概念"], plan: ["Plan", "规划", "規劃"], execute: ["Execute", "执行", "執行"],
     extract: ["Extract", "提取", "擷取"], validate: ["Validate", "验证", "驗證"], gate: ["Gate", "审查门槛", "審查門檻"], checkpoint: ["Checkpoint", "保存记录", "儲存紀錄"]
   };
-  const state = {language: "en", stage: 1, scope: "working", sort: "recorded", mode: "library", topic: "", method: "", pair: [], paper: null, page: 0, graphPage: 0, groupPage: 0, neighborsPage: 0, text: "", status: "", tab: "sets", selected: new Set(), comparePage: 0, candidatePage: 0, libraryOpen: false};
+  const state = {language: "en", stage: 1, scope: "working", sort: "recorded", mode: "library", topic: "", method: "", pair: [], paper: null, page: 0, graphPage: 0, groupPage: 0, neighborsPage: 0, ledgerPage: 0, text: "", status: "", tab: "sets", selected: new Set(), comparePage: 0, candidatePage: 0, libraryOpen: false, network: "global", similarity: false, zoom: 1, workflow: {1: 1, 2: 1}, productOpen: false, stage2Paper: null};
   const locale = () => ["en", "zh-Hans", "zh-Hant"].indexOf(state.language);
   const t = name => words[name]?.[locale()] ?? name;
   const caption = name => fieldLabels[name]?.[locale()] ?? name;
@@ -159,7 +194,7 @@
   }
   function choosePaper(key) {
     if (!papers.some(p => p.key === key)) state.scope = "archive";
-    state.paper = key; state.mode = "paper"; state.neighborsPage = 0; render();
+    state.paper = key; state.neighborsPage = 0; render();
   }
   function ordered(rows) {
     if (state.sort === "title") return [...rows].sort((a, b) => String(a.title).localeCompare(String(b.title)) || a.key.localeCompare(b.key));
@@ -170,7 +205,7 @@
     const row = el("div", undefined, "atlas-row"), control = button("", action);
     control.className = "atlas-paper"; control.dataset.paperKey = paper.key;
     control.append(source("span", `${paper.work_id} · ${paper.year ?? t("unknown")} · ${paper.selection?.status ?? t("unknown")}`, "atlas-small"), source("strong", paper.title));
-    control.append(source("span", `${t("relevance")}: ${text(paper.findings?.relevance)}`, "atlas-small"));
+    control.append(source("span", `${t("relevance")}: ${text(paper.findings?.relevance ?? paper.cells?.relevance?.text)}`, "atlas-small"));
     row.append(control); parent.append(row); return row;
   }
   function contextRows() {
@@ -178,43 +213,50 @@
     return state.method ? rows.filter(p => p.methods.includes(state.method)) : rows;
   }
   function graph(parent, nodes, edges) {
-    const box = el("div", undefined, "atlas-graph"), svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const box = el("div", undefined, "atlas-graph"), layer = el("div", undefined, "atlas-graph-layer"), svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    layer.style.transform = `scale(${state.zoom})`;
     svg.setAttribute("viewBox", "0 0 600 470"); svg.setAttribute("aria-hidden", "true");
     edges.forEach(([a, b]) => {
       const line = document.createElementNS(svg.namespaceURI, "line");
       Object.entries({x1: a.x, y1: a.y, x2: b.x, y2: b.y}).forEach(([name, value]) => line.setAttribute(name, value)); svg.append(line);
     });
-    box.append(svg);
+    layer.append(svg);
     nodes.forEach(node => {
       const control = button("", node.action); control.className = `atlas-node ${node.type || ""}`;
       control.style.left = `${node.x / 6}%`; control.style.top = `${node.y / 4.7}%`; control.style.setProperty("--category", node.color || colors[0]);
       control.append(source("span", node.label)); if (node.count !== undefined) control.append(el("strong", node.count));
-      control.title = text(node.label);
-      control.setAttribute("aria-label", `${text(node.label)} ${node.count ?? ""}`); box.append(control);
-    }); parent.append(box);
+      control.title = text(node.title || node.label);
+      if (node.selected) control.setAttribute("aria-pressed", "true");
+      control.setAttribute("aria-label", `${text(node.label)} ${node.count ?? ""}`); layer.append(control);
+    }); box.append(layer); parent.append(box);
   }
   function groupGraph(parent) {
-    const topicMode = state.mode === "topic", rows = topicMode ? papers.filter(p => p.topics.includes(state.topic)) : papers;
-    const groups = model.groups(rows, topicMode ? "methods" : "topics"), page = pagination(parent, groups.length, 6, "groupPage"), shown = groups.slice(page * 6, page * 6 + 6);
-    const center = {x: 300, y: 235, label: topicMode ? state.topic : t("library"), count: rows.length, type: "atlas-center", action: () => changeContext("library")};
-    const nodes = [center], edges = [];
-    shown.forEach((group, i) => {
+    const rows = contextRows(), page = pagination(parent, rows.length, 48, "graphPage"), shown = ordered(rows).slice(page * 48, page * 48 + 48);
+    const groups = model.groups(shown), methods = model.groups(shown, "methods"), nodes = [], edges = [];
+    const groupNodes = new Map();
+    groups.slice(0, 6).forEach((group, i, drawn) => {
+      const angle = i * Math.PI * 2 / Math.max(drawn.length, 1) - Math.PI / 2;
+      const node = {x: 300 + Math.cos(angle) * 112, y: 230 + Math.sin(angle) * 90, label: group.label, count: group.ids.length, color: colors[i % 6], type: "atlas-topic-node", action: () => changeContext("topic", group.key)};
+      groupNodes.set(group.key, node); nodes.push(node);
+    });
+    const paperNodes = new Map();
+    shown.forEach((paper, i) => {
       const angle = i * Math.PI * 2 / Math.max(shown.length, 1) - Math.PI / 2;
-      const node = {x: 300 + Math.cos(angle) * 205, y: 235 + Math.sin(angle) * 165, label: group.label, count: group.ids.length, color: colors[(page * 6 + i) % 6], type: topicMode ? "atlas-method" : "", action: () => { if (topicMode) { state.method = group.key; state.graphPage = 0; render(); } else changeContext("topic", group.key); }};
-      nodes.push(node); edges.push([center, node]);
+      const ring = shown.length > 20 && i % 2 ? 105 : 195;
+      const category = groups.findIndex(group => paper.topics.includes(group.key));
+      const node = {x: 300 + Math.cos(angle) * ring, y: 230 + Math.sin(angle) * ring * .78, label: paper.work_id, title: paper.title, color: colors[Math.max(0, category) % 6], selected: paper.key === state.paper, type: "atlas-paper-node", action: () => choosePaper(paper.key)};
+      nodes.push(node); paperNodes.set(paper.key, node);
+      paper.topics.forEach(topic => { if (groupNodes.has(topic)) edges.push([node, groupNodes.get(topic)]); });
+    });
+    methods.slice(0, 3).forEach((method, i, drawn) => {
+      const node = {x: 150 + i * 300 / Math.max(1, drawn.length - 1), y: 425, label: method.label, count: method.ids.length, color: "#9a8655", type: "atlas-method", action: () => { state.method = method.key; state.graphPage = 0; render(); }};
+      nodes.push(node); method.ids.forEach(key => { if (paperNodes.has(key)) edges.push([node, paperNodes.get(key)]); });
     });
     graph(parent, nodes, edges); parent.append(el("p", t("graphNote"), "atlas-small"));
-    const all = el("details"), buttons = el("div", undefined, "atlas-actions"); all.append(el("summary", `${t("allGroups")} · ${groups.length}`));
-    groups.forEach(group => buttons.append(button(`${group.label} · ${group.ids.length}`, () => { if (topicMode) { state.method = group.key; state.graphPage = 0; render(); } else changeContext("topic", group.key); })));
+    const all = el("details"), buttons = el("div", undefined, "atlas-actions"); all.append(el("summary", `${t("allGroups")} · ${model.groups(rows).length}`));
+    model.groups(rows).forEach(group => buttons.append(button(`${group.label} · ${group.ids.length}`, () => changeContext("topic", group.key))));
+    model.groups(rows, "methods").forEach(group => buttons.append(button(`${group.label} · ${group.ids.length}`, () => { state.method = group.key; state.graphPage = 0; render(); })));
     all.append(buttons); parent.append(all);
-    if (!topicMode) {
-      parent.append(button(`${t("unclassified")} · ${papers.filter(p => !p.topics.length).length}`, () => changeContext("unknown")));
-      const shared = el("details"), pairs = el("div", undefined, "atlas-actions"); shared.append(el("summary", t("shared")));
-      shown.forEach((a, i) => shown.slice(i + 1).forEach(b => {
-        const count = model.intersection(papers, [a.key, b.key]).length;
-        if (count) pairs.append(button(`${a.label} × ${b.label} · ${count}`, () => { state.pair = [a.key, b.key]; changeContext("shared"); }));
-      })); shared.append(pairs); parent.append(shared);
-    }
   }
   function paperGraph(parent, paper) {
     const neighbors = model.local(papers, paper.key).filter(row => row.similarity > 0), n = neighbors.length;
@@ -251,10 +293,7 @@
     });
     if (typeof paper.notePath === "string" && /^wiki\/[a-f0-9]{64}\.md$/.test(paper.notePath)) access.append(link(t("note"), `./${paper.notePath}`, true));
     disclosure(access, t("sources"), paper.sources); parent.append(access);
-    const ledger = el("details"); ledger.append(el("summary", t("ledger")));
-    kv(ledger, [[t("discovery"), null]]); ledger.append(el("p", t("discoveryNote"), "atlas-small"));
-    (paper.screening || []).forEach(row => { const item = el("section", undefined, "atlas-note"); kv(item, [["Decision", row.decision_id], ["Status", row.status], ["Reason", row.reason], ["Query", row.query], ["Discovery path", row.discovery_path], ["Observed at", row.observed_at]]); disclosure(item, t("raw"), row); ledger.append(item); });
-    disclosure(ledger, t("searchRecords"), paper.rawSearch); parent.append(ledger);
+    const ledger = el("details"); ledger.append(el("summary", t("ledger"))); ledgerContent(ledger, paper); parent.append(ledger);
     disclosure(parent, t("claims"), {claims: paper.claims, relations: paper.relations});
     disclosure(parent, t("provenance"), {project_id: index.project_id, index_sha256: payload.index_sha256, provenance: index.provenance, work_id: paper.work_id, version_id: paper.version_id, source_ids: paper.source_ids});
     disclosure(parent, t("raw"), index.papers.find(row => model.key(row) === paper.key));
@@ -264,20 +303,91 @@
     options.forEach(([key, caption]) => { const option = source("option", caption); option.value = key; select.append(option); });
     select.value = value; select.onchange = () => action(select.value); field.append(select); return field;
   }
+  function workflow() {
+    const number = state.stage, names = t(`workflow${number}`), products = t(`products${number}`), selected = state.workflow[number], box = panel(t("workflow"));
+    box.classList.add("atlas-workflow"); box.append(el("p", t("viewOnly"), "atlas-small"));
+    const strip = el("div", undefined, "atlas-workflow-strip");
+    names.forEach((name, i) => {
+      const step = button("", () => { state.workflow[number] = i; state.productOpen = !state.productOpen || selected !== i; render(); }, selected === i);
+      step.className = "atlas-workflow-step"; step.dataset.workflowStep = i;
+      const title = el("span"); title.append(el("strong", name), el("small", products[i]));
+      const miniature = el("span", undefined, `atlas-workflow-mini atlas-workflow-mini-${i}`);
+      for (let j = 0; j < 3; j++) miniature.append(el("i"));
+      title.append(miniature); step.append(el("b", i + 1), title); strip.append(step);
+    }); box.append(strip, el("p", t(`loop${number}`), "atlas-small"));
+    if (state.productOpen) {
+      const product = el("div", undefined, "atlas-workflow-product"); product.append(el("h3", `${t("artifactPreview")} · ${products[selected]}`));
+      const stage = (index.stages || []).find(row => row.stage === number);
+      const data = number === 1 ? [
+        {topic: index.topic, input: stage?.required_inputs, provenance: index.provenance},
+        {paper_versions: archive.length, source_records: (index.sources || []).length},
+        {claims: index.claims, source_records: index.sources},
+        {coverage: index.coverage, original_documents: index.coverage_documents},
+        {selection: payload.literature_selection, provenance: index.provenance}
+      ][selected] : [
+        payload.stage2?.bridge_receipt, payload.stage2_comparison?.comparison,
+        payload.stage2_comparison?.directions, payload.stage2?.evaluation, payload.stage2?.selection
+      ][selected];
+      if (number === 1 && selected === 1) product.append(button(`${t("library")} · ${archive.length}`, () => document.getElementById("atlas-network")?.scrollIntoView({behavior: "smooth"})));
+      if (number === 1 && selected === 4) product.append(link(t("screeningBib"), "./literature/screening.bib", true), link(t("includedBib"), "./literature/included.bib", true));
+      if (number === 2 && payload.stage2) product.append(link(t("report"), "./stage2/report-reader.html"));
+      disclosure(product, t("raw"), data);
+      const chain = el("div", undefined, "atlas-product-chain");
+      for (const [label, value] of [[t("inputs"), stage?.required_inputs], [t("outputs"), products[selected]], [t("nextConsumer"), selected < 4 ? names[selected + 1] : `Stage ${number + 1}`]]) {
+        const item = el("div"); item.append(el("small", label), source("p", value)); chain.append(item);
+      } product.append(chain); box.append(product);
+    } content.append(box);
+  }
+  function ledgerContent(parent, paper) {
+    parent.append(source("h3", `${t("discoveryLedger")} · ${paper.work_id}`));
+    const fields = el("div", undefined, "atlas-ledger-grid");
+    const rows = [[t("sourceBinding"), `${index.project_id} · ${paper.work_id} / ${paper.version_id}`],
+      [t("discoveryCount"), paper.discovery?.count], [t("firstFound"), paper.discovery?.first_result_position], [t("rounds"), paper.discovery?.round],
+      [t("status"), paper.selection?.status], [t("relevance"), paper.findings?.relevance], [t("relevanceRank"), null],
+      ["Reason", paper.selection?.reasons?.length ? paper.selection.reasons : null], [t("decisionHistory"), (paper.screening || []).length ? paper.screening.map(row => ({decision_id: row.decision_id, status: row.status, reason: row.reason, observed_at: row.observed_at})) : null]];
+    rows.forEach(([label, value]) => { const field = el("div"); field.append(el("dt", caption(label)), source("dd", value)); fields.append(field); });
+    parent.append(fields, el("p", t("noRank"), "atlas-small"));
+    disclosure(parent, t("sourceBinding"), {project_id: index.project_id, work_id: paper.work_id, version_id: paper.version_id, index_sha256: payload.index_sha256});
+    (paper.screening || []).forEach(row => { const item = el("details"); item.append(el("summary", `${text(row.decision_id)} · ${text(row.status)} · ${text(row.reason)}`)); kv(item, [["Query", row.query], ["Discovery path", row.discovery_path], ["Observed at", row.observed_at]]); disclosure(item, t("raw"), row); parent.append(item); });
+    disclosure(parent, t("searchRecords"), paper.rawSearch);
+  }
+  function processPanel() {
+    const box = panel(t("process")); box.id = "atlas-process"; box.classList.add("atlas-process");
+    const chips = el("div", undefined, "atlas-actions atlas-paper-chips"), page = pagination(box, archive.length, 12, "ledgerPage");
+    archive.slice(page * 12, page * 12 + 12).forEach(paper => chips.append(button(paper.work_id, () => choosePaper(paper.key), paper.key === state.paper)));
+    box.append(chips); const chosen = archive.find(p => p.key === state.paper) || papers[0];
+    if (chosen) { const ledger = el("div", undefined, "atlas-process-ledger"); ledgerContent(ledger, chosen); box.append(ledger); }
+    else box.append(el("p", t("unknown")));
+    content.append(box);
+  }
+  function topicCounts() {
+    const box = panel(t("topicCounts")), cards = el("div", undefined, "atlas-topic-cards"), groups = model.groups(papers), maximum = Math.max(1, ...groups.map(group => group.ids.length));
+    groups.forEach((group, i) => {
+      const card = button("", () => changeContext("topic", group.key), state.topic === group.key); card.className = "atlas-topic-card"; card.style.setProperty("--category", colors[i % 6]);
+      card.append(source("strong", group.label), el("b", group.ids.length)); const track = el("span", undefined, "atlas-track"), fill = el("span"); fill.style.width = `${group.ids.length / maximum * 100}%`; track.append(fill); card.append(track); cards.append(card);
+    }); box.append(cards, el("p", t("countsNote"), "atlas-small"));
+    if (state.mode === "topic") { const list = el("div", undefined, "atlas-topic-list"), rows = contextRows(), page = pagination(list, rows.length, 6, "groupPage"); rows.slice(page * 6, page * 6 + 6).forEach(paper => paperRow(list, paper)); box.append(list); }
+    content.append(box);
+  }
   function stage1() {
+    workflow(); processPanel();
     const scope = el("div", undefined, "atlas-actions atlas-tabs"), included = archive.filter(p => p.selection?.status === "included"), pending = archive.filter(p => p.selection?.status === "pending");
     scope.append(button(`${t("working")} · ${(included.length ? included : pending.length ? pending : archive).length}`, () => { state.scope = "working"; changeContext("library"); }, state.scope === "working"), button(`${t("archive")} · ${archive.length}`, () => { state.scope = "archive"; changeContext("library"); }, state.scope === "archive")); content.append(scope);
+    content.append(el("p", `${t("formalWorks")}: ${new Set(included.map(p => p.work_id)).size} · ${t("unboundTarget")}`, "atlas-small"));
     if (state.scope === "working" && !included.length) content.append(el("p", t(pending.length ? "noIncluded" : "archiveFallback"), "atlas-note"));
     const actions = el("div", undefined, "atlas-actions"); actions.append(button(t("library"), () => changeContext("library")));
     if (state.topic) actions.append(source("span", state.topic, "atlas-small")); if (state.method) actions.append(source("span", state.method, "atlas-small")); content.append(actions);
-    const split = el("div", undefined, "atlas-split"), graphPanel = panel(state.mode === "paper" ? t("related") : t("topics")), detailPanel = panel(state.mode === "paper" ? t("detail") : t("library"));
-    const selected = papers.find(p => p.key === state.paper);
-    if (state.mode === "paper" && selected) { paperGraph(graphPanel, selected); paperDetail(detailPanel, selected); }
-    else {
-      groupGraph(graphPanel); const rows = contextRows(), page = pagination(detailPanel, rows.length, 6, "graphPage");
-      ordered(rows).slice(page * 6, page * 6 + 6).forEach(p => paperRow(detailPanel, p));
-    }
+    const split = el("div", undefined, "atlas-split atlas-network-split"), graphPanel = panel(t("networkTitle")), detailPanel = panel(t("detail")); split.id = "atlas-network"; detailPanel.classList.add("atlas-detail-panel");
+    const selected = papers.find(p => p.key === state.paper) || contextRows()[0];
+    const networkActions = el("div", undefined, "atlas-actions atlas-network-actions");
+    for (const [mode, label] of [["global", "globalNetwork"], ["local", "localNetwork"]]) networkActions.append(button(t(label), () => { state.network = mode; state.similarity = mode === "local"; render(); }, state.network === mode));
+    const toggle = el("label", undefined, "atlas-check"), similarityInput = el("input"); similarityInput.type = "checkbox"; similarityInput.checked = state.similarity;
+    similarityInput.onchange = () => { state.similarity = similarityInput.checked; state.network = similarityInput.checked ? "local" : "global"; render(); }; toggle.append(similarityInput, el("span", t("similarity"))); networkActions.append(toggle);
+    networkActions.append(button("−", () => { state.zoom = Math.max(.5, state.zoom - .25); render(); }), el("span", `${Math.round(state.zoom * 100)}%`, "atlas-small"), button("+", () => { state.zoom = Math.min(2, state.zoom + .25); render(); }), button(t("fit"), () => { state.zoom = 1; render(); })); graphPanel.append(networkActions);
+    if (state.network === "local" && selected) paperGraph(graphPanel, selected); else groupGraph(graphPanel);
+    if (selected) paperDetail(detailPanel, selected); else detailPanel.append(el("p", t("unknown")));
     split.append(graphPanel, detailPanel); content.append(split);
+    topicCounts(); content.append(el("p", t("compactCollection"), "atlas-small"));
     const library = el("details"); library.id = "atlas-library"; library.open = state.libraryOpen; library.ontoggle = () => { state.libraryOpen = library.open; }; library.append(el("summary", `${t("library")} · ${papers.length}`));
     const filters = el("div", undefined, "atlas-filters"), search = el("label", t("search")), input = el("input"); input.value = state.text; input.type = "search"; input.onchange = () => { state.text = input.value; state.page = 0; render(); }; search.append(input); filters.append(search);
     filters.append(choice(t("topics"), state.topic, [["", t("all")], ...model.groups(papers, "topics").map(g => [g.key, g.label])], value => { state.topic = value; state.mode = value ? "topic" : "library"; state.page = 0; render(); }));
@@ -287,22 +397,53 @@
     const rows = model.filter(papers, {text: state.text, topic: state.topic, method: state.method, status: state.status}), page = pagination(library, rows.length, 12, "page");
     ordered(rows).slice(page * 12, page * 12 + 12).forEach(p => paperRow(library, p)); content.append(library);
     if (state.scope === "archive") { content.append(el("p", t("archiveNote"), "atlas-small")); disclosure(content, t("searchRecords"), index.search || []); }
-    const downloads = panel(t("exports")), links = el("div", undefined, "atlas-actions");
+    const downloads = panel(t("exports")), links = el("div", undefined, "atlas-actions"); downloads.id = "atlas-exports";
     links.append(link(t("bib"), "./references.bib", true), link(t("screeningBib"), "./literature/screening.bib", true), link(t("includedBib"), "./literature/included.bib", true), link(t("original"), "./index.html")); downloads.append(links); content.append(downloads);
   }
   function directionSets() {
-    const rows = model.stage2Papers(payload), groups = model.groups(rows, "topics"), cards = el("div", undefined, "atlas-cards"), page = pagination(content, groups.length, 6, "groupPage");
+    const rows = model.stage2Papers(payload), groups = model.groups(rows, "topics"), layout = el("div", undefined, "atlas-split"), catalog = panel(t("directionSets")), detail = panel(t("related")), cards = el("div", undefined, "atlas-topic-cards"), page = pagination(catalog, groups.length, 6, "groupPage");
     const maximum = Math.max(1, ...groups.map(g => g.ids.length));
     groups.slice(page * 6, page * 6 + 6).forEach((group, i) => {
       const card = el("article", undefined, "atlas-card"); card.style.setProperty("--category", colors[i % 6]);
-      card.append(button(group.label, () => { state.selected = new Set(group.ids); state.tab = "comparison"; state.comparePage = 0; render(); }), el("p", `${group.ids.length} ${t("records")}`, "atlas-tally"));
+      card.append(button(group.label, () => { state.selected = new Set(group.ids); state.stage2Paper = null; state.comparePage = 0; render(); }), el("p", `${group.ids.length} ${t("records")}`, "atlas-tally"));
       const track = el("div", undefined, "atlas-track"), fill = el("span"); fill.style.width = `${group.ids.length / maximum * 100}%`; track.append(fill); card.append(track); cards.append(card);
-    }); content.append(el("p", t("setNote"), "atlas-note"), cards);
+    }); catalog.append(el("p", t("setNote"), "atlas-small"), cards);
+    const unclassified = rows.filter(row => !row.topics.length);
+    const unclassifiedControl = button(`${t("unclassified")} · ${unclassified.length}`, () => { state.selected = new Set(unclassified.map(row => row.key)); state.comparePage = 0; render(); }); unclassifiedControl.disabled = !unclassified.length; catalog.append(unclassifiedControl);
+    const related = state.selected.size ? rows.filter(row => state.selected.has(row.key)) : rows, relatedPage = pagination(detail, related.length, 6, "comparePage"), shown = related.slice(relatedPage * 6, relatedPage * 6 + 6);
+    shown.forEach(row => paperRow(detail, row, () => { state.stage2Paper = row.key; render(); }));
+    if (related.length) detail.append(button(t("compareChosen"), () => { state.selected = new Set(related.map(row => row.key)); state.tab = "comparison"; state.comparePage = 0; render(); }));
+    const selected = rows.find(row => row.key === state.stage2Paper);
+    if (selected) {
+      const note = el("div", undefined, "atlas-stage2-detail"); stage2Detail(note, selected);
+      detail.append(note);
+    } layout.append(catalog, detail); content.append(layout);
     const shared = panel(t("shared"));
     groups.slice(page * 6, page * 6 + 6).forEach((a, i, shown) => shown.slice(i + 1).forEach(b => {
       const matched = model.intersection(rows, [a.key, b.key]);
       if (matched.length) shared.append(button(`${a.label} × ${b.label} · ${matched.length}`, () => { state.selected = new Set(matched.map(p => p.key)); state.tab = "comparison"; state.comparePage = 0; render(); }));
     })); content.append(shared);
+  }
+  function evidenceFor(view, paper) {
+    return (view?.evidence || []).filter(item => (paper.evidence_ids || []).includes(item.evidence_id) && item.work_id === paper.work_id && item.version_id === paper.version_id && (paper.source_ids || []).includes(item.source_id));
+  }
+  function stage2Detail(parent, row) {
+    parent.append(source("h3", row.title));
+    kv(parent, [["Work / version", [row.work_id, row.version_id]], ["Source IDs", row.source_ids], ["Evidence level", row.evidence_level]]);
+    Object.entries(row.cells || {}).forEach(([name, cell]) => { const field = el("section", undefined, "atlas-compare-field"); field.append(el("h4", caption(name)), source("p", cell?.text)); disclosure(field, t("provenance"), cell?.field); parent.append(field); });
+    const packet = payload.stage2?.selection?.evaluation_packet, original = (packet?.literature || []).find(paper => paper.work_id === row.work_id && paper.version_id === row.version_id);
+    const publicUrl = safeUrl(original?.url); if (publicUrl) parent.append(link(t("publicLink"), publicUrl));
+    kv(parent, [["Recorded URL", original?.url]]);
+    disclosure(parent, t("sources"), (packet?.sources || []).filter(item => (row.source_ids || []).includes(item.source_id)));
+    disclosure(parent, t("evidence"), evidenceFor(payload.stage2_comparison, row));
+    disclosure(parent, t("raw"), row);
+  }
+  function relatedRoutes(parent, view, selected) {
+    const ids = new Set(selected.flatMap(row => evidenceFor(view, row).map(item => item.evidence_id))), evidence = (view.evidence || []).filter(row => ids.has(row.evidence_id));
+    const routes = (view.directions || []).filter(row => evidence.some(item => (row.evidence_ids || []).includes(item.evidence_id)));
+    const box = panel(t("relatedRoutes"));
+    routes.forEach(row => box.append(button(`${row.candidate_id} · v${row.version} · ${text(row.question)}`, () => { state.candidatePage = Math.floor((view.directions || []).indexOf(row) / 3); state.tab = "candidates"; render(); })));
+    if (!routes.length) box.append(el("p", t("noRouteBinding"), "atlas-small")); parent.append(box);
   }
   function comparisons(view) {
     const literature = view.literature || [], library = panel(t("comparison")), page = pagination(library, literature.length, 8, "page");
@@ -314,11 +455,7 @@
     }); library.append(button(t("clear"), () => { state.selected.clear(); render(); })); content.append(library);
     const selected = literature.filter(row => state.selected.has(row.key)), selectedPanel = panel(`${t("selected")} · ${selected.length}`), focusPage = pagination(selectedPanel, selected.length, 4, "comparePage"), cards = el("div", undefined, "atlas-cards atlas-comparison");
     selected.slice(focusPage * 4, focusPage * 4 + 4).forEach(row => {
-      const card = el("article", undefined, "atlas-card"); card.append(source("h3", row.title));
-      kv(card, [["Work / version", [row.work_id, row.version_id]], ["Evidence level", row.evidence_level]]);
-      Object.entries(row.cells || {}).forEach(([name, cell]) => { const field = el("details"); field.append(el("summary", caption(name)), source("p", cell?.text), source("small", cell?.field)); card.append(field); });
-      disclosure(card, t("evidence"), (view.evidence || []).filter(e => (row.evidence_ids || []).includes(e.evidence_id)));
-      disclosure(card, t("raw"), row); cards.append(card);
+      const card = el("article", undefined, "atlas-card"); stage2Detail(card, row); cards.append(card);
     }); selectedPanel.append(cards); content.append(selectedPanel);
     const focused = selected.slice(focusPage * 4, focusPage * 4 + 4), relationships = panel(t("related"));
     focused.forEach((a, i) => focused.slice(i + 1).forEach(b => {
@@ -326,12 +463,24 @@
       const association = !pa?.methods.length || !pb?.methods.length ? t("unknown") : methods.length ? methods.join(" / ") : t("noRelations");
       relationships.append(source("p", `${text(a.title)} ↔ ${text(b.title)} · ${association}`, "atlas-small"));
     })); content.append(relationships);
+    relatedRoutes(content, view, selected);
   }
   function candidates(view) {
     const rows = view.directions || [], page = pagination(content, rows.length, 3, "candidatePage"), cards = el("div", undefined, "atlas-cards");
     rows.slice(page * 3, page * 3 + 3).forEach((row, i) => {
       const card = el("article", undefined, "atlas-card"); card.style.setProperty("--category", colors[i % 6]);
       card.append(source("p", `${row.candidate_id} · v${row.version}`, "atlas-small"), source("h3", row.question));
+      const bound = (view.evidence || []).filter(item => (row.evidence_ids || []).includes(item.evidence_id));
+      const linked = (view.literature || []).filter(paper => evidenceFor(view, paper).some(item => bound.includes(item)));
+      if (linked.length) {
+        const center = {x: 300, y: 230, label: row.candidate_id, type: "atlas-center", action: () => card.querySelector("details")?.setAttribute("open", "")}, nodes = [center], edges = [];
+        linked.slice(0, 6).forEach((paper, i, drawn) => {
+          const angle = i * Math.PI * 2 / drawn.length - Math.PI / 2;
+          const node = {x: 300 + Math.cos(angle) * 185, y: 230 + Math.sin(angle) * 150, label: paper.work_id, title: paper.title, type: "atlas-paper-node", color: colors[i % 6], action: () => { state.selected = new Set([paper.key]); state.tab = "comparison"; state.comparePage = 0; render(); }};
+          nodes.push(node); edges.push([node, center]);
+        }); graph(card, nodes, edges); card.append(el("p", t("routeGraphNote"), "atlas-small"));
+        const all = el("details"); all.append(el("summary", `${t("related")} · ${linked.length}`)); linked.forEach(paper => paperRow(all, paper, () => { state.selected = new Set([paper.key]); state.tab = "comparison"; state.comparePage = 0; render(); })); card.append(all);
+      }
       kv(card, [["Opportunity", row.opportunity], ["Value", row.value], ["Approach", row.approach], ["Disposition", row.disposition], ["Reason", row.reason], ["Next step", row.next_step]]);
       disclosure(card, t("checks"), {checks: row.checks, limitations: row.limitations, requirements: row.requirements, prior_work_review: row.prior_work_review});
       const evidence = el("details"); evidence.append(el("summary", `${t("evidence")} · ${(row.evidence_ids || []).length}`));
@@ -342,6 +491,12 @@
     disclosure(content, t("checks"), {bridge: payload.stage2?.bridge_receipt, evaluation: payload.stage2?.evaluation, comparison: view.comparison, resources: view.resources, research_tables: view.research_tables});
   }
   function stage2() {
+    workflow();
+    const process = panel(t("process")); process.id = "atlas-process";
+    const bridge = payload.stage2?.bridge_receipt;
+    kv(process, [[t("sourceBinding"), bridge ? `${bridge.project_id} · ${bridge.selection_sha256?.slice(0, 16) || t("unknown")}` : null], [t("checks"), payload.stage2_comparison?.comparison]]);
+    disclosure(process, t("sourceBinding"), bridge);
+    disclosure(process, t("decisionHistory"), {selection: payload.stage2?.selection, prior_work_reviews: payload.stage2_comparison?.prior_work_reviews}); content.append(process);
     if (payload.stage2) {
       const evaluation = payload.stage2.evaluation, summary = panel(t("assessment")); summary.id = "atlas-assessment";
       kv(summary, [[t("evaluationStatus"), evaluation?.evaluation_status]]);
@@ -352,7 +507,8 @@
       }
       summary.append(el("p", t("recordedScores"), "atlas-small"), scores);
       const audits = (evaluation?.rows || []).map(row => `${text(row.criterion_id)}: ${text(row.final?.audit_status)}`);
-      kv(summary, [[t("auditStatus"), audits.length ? audits.join(" · ") : null]]);
+      kv(summary, [[t("auditStatus"), audits.length ? `${audits.length} ${t("auditRecords")}` : null]]);
+      disclosure(summary, t("auditStatus"), audits);
       if (evaluation?.evaluation_status === "audit-required") summary.append(el("p", t("auditPending"), "atlas-note"));
       if (evaluation?.evaluation_status === "failed" || !evaluation) summary.append(el("p", t("assessmentFailed"), "atlas-note"));
       summary.append(el("p", t("importNote"), "atlas-small"));
@@ -370,6 +526,7 @@
   }
   function later() {
     const stage = (index.stages || []).find(row => row.stage === state.stage), card = panel(t("reserved"));
+    card.id = "atlas-process";
     if (!stage) { card.append(el("p", t("unknown"))); content.append(card); return; }
     card.append(source("p", stage.purpose));
     kv(card, [[t("inputs"), stage.required_inputs], [t("outputs"), stage.expected_deliverables], ["Support status", stage.support_status], ["Execution enabled", stage.execution_enabled]]);
@@ -385,18 +542,29 @@
   function render() {
     const included = archive.filter(p => p.selection?.status === "included"), pending = archive.filter(p => p.selection?.status === "pending");
     papers = state.scope === "archive" ? archive : included.length ? included : pending.length ? pending : archive;
+    if (!state.paper && papers.length) state.paper = papers[0].key;
+    document.documentElement.dataset.atlasStage = String(state.stage);
     document.documentElement.lang = state.language; content.replaceChildren();
     const nav = document.getElementById("atlas-stages"); nav.replaceChildren();
-    t("stages").forEach((label, i) => nav.append(button(`${i + 1}  ${label}`, () => { state.stage = i + 1; state.groupPage = 0; state.page = 0; render(); }, state.stage === i + 1)));
+    t("stages").forEach((label, i) => { const control = button("", () => { state.stage = i + 1; state.groupPage = 0; state.page = 0; render(); }, state.stage === i + 1); control.append(el("span", i + 1, "atlas-stage-number"), el("span", label)); nav.append(control); });
     document.getElementById("atlas-language-label").textContent = t("language");
     document.getElementById("atlas-original").textContent = t("original");
     document.getElementById("atlas-project").textContent = text(index.topic); document.getElementById("atlas-project").translate = false;
     document.getElementById("atlas-status").textContent = `${index.project_id} · ${index.status}`;
     document.getElementById("atlas-footer").textContent = `${t("readOnly")} · SHA-256 ${payload.index_sha256}`;
-    const heading = el("div", undefined, "atlas-heading"); heading.append(el("p", `STAGE 0${state.stage} / 06`, "atlas-eyebrow"), el("h1", t("stages")[state.stage - 1])); content.append(heading);
+    const heading = el("div", undefined, "atlas-heading"); heading.append(el("p", `STAGE 0${state.stage} / 06 · ${t("stages")[state.stage - 1]}`, "atlas-eyebrow"), el("h1", state.stage === 1 ? t("networkTitle") : state.stage === 2 ? t("stage2Title") : t("stages")[state.stage - 1]));
+    if (state.stage === 1) heading.append(el("p", t("networkSubtitle"), "atlas-subtitle")); content.append(heading);
     if (state.stage === 1) stage1(); else if (state.stage === 2) stage2(); else later();
     if (state.stage <= 2) contract();
   }
-  document.getElementById("atlas-language").onchange = event => { state.language = event.target.value; render(); };
-  render();
+  for (const [id, label] of [["atlas-view-workbench", "workbench"], ["atlas-view-files", "files"], ["atlas-view-history", "history"], ["atlas-view-settings", "settings"]]) {
+    const control = document.getElementById(id); if (!control) continue;
+    if (id === "atlas-view-files") control.onclick = event => { event.preventDefault(); state.stage = 1; render(); document.getElementById("atlas-exports")?.scrollIntoView({behavior: "smooth"}); };
+    if (id === "atlas-view-history") control.onclick = event => { event.preventDefault(); if (state.stage > 2) state.stage = 1; render(); document.getElementById("atlas-process")?.scrollIntoView({behavior: "smooth"}); };
+    control.dataset.atlasLabel = label;
+  }
+  const originalRender = render;
+  function refresh() { originalRender(); document.querySelectorAll("[data-atlas-label]").forEach(control => { const label = control.querySelector("span"); if (label) label.textContent = t(control.dataset.atlasLabel); }); }
+  document.getElementById("atlas-language").onchange = event => { state.language = event.target.value; refresh(); };
+  refresh();
 })();

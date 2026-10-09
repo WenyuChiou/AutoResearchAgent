@@ -25,9 +25,9 @@ def atlas_files(payload):
     files["atlas-binding.json"] = canonical(
         {
             "kind": "WorkspaceEvidenceAtlas",
-            "presentation_version": "1.0.0",
-            "design_reference": "reviewed-local-v9",
-            "design_sha256": "e0e3da65acb96cc2d1901c5f5b77f4619f999302d367247d4c6c59991ae4dbd9",
+            "presentation_version": "1.1.0",
+            "design_reference": "reviewed-local-v6",
+            "design_sha256": "a3dfafeafb5890a9e82cff4b42f77c04aca19699e5ded09e453d45be9e485540",
             "project_id": payload["index"]["project_id"],
             "index_sha256": payload["index_sha256"],
             "stage2_attachment_sha256": (

@@ -19,7 +19,7 @@ class AtlasHostTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.entries, self.outputs = [], []
         for ref in ("stage1", "stage2"):
             folder = self.root / ref

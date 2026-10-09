@@ -56,7 +56,7 @@ for raw in sys.stdin.buffer:
 class CodexProbeTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()
         self.cwd = self.root / "cwd"
         self.cwd.mkdir()
         self.receipt = self.root / "receipt.jsonl"

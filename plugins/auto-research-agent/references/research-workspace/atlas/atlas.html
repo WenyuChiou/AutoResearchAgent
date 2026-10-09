@@ -10,16 +10,23 @@
 <body>
   <div class="atlas-shell">
     <aside class="atlas-sidebar">
-      <a class="atlas-brand" href="./index.html">harness<span>RESEARCH STUDIO</span></a>
+      <a class="atlas-brand" href="./index.html"><span class="atlas-logo" aria-hidden="true">h</span><span><strong>harness</strong><small>RESEARCH<br>STUDIO</small></span></a>
+      <nav class="atlas-workspace-nav" aria-label="Workspace">
+        <a id="atlas-view-workbench" href="#atlas-content" aria-current="page"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"></rect><path d="M3 8h14M8 8v9"></path></svg><span>Workbench</span></a>
+        <a id="atlas-view-files" href="#atlas-exports"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 6.5h6l2-2h7v12h-15z"></path></svg><span>Project files</span></a>
+        <a id="atlas-view-history" href="#atlas-process"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9a7 7 0 1 1 1 5M3 3v6h6M10 6v5l3 2"></path></svg><span>Activity</span></a>
+        <a id="atlas-view-settings" href="./index.html"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 15h14"></path><circle cx="7" cy="5" r="2"></circle><circle cx="13" cy="15" r="2"></circle></svg><span>Settings</span></a>
+      </nav>
+      <p id="atlas-pipeline-label" class="atlas-nav-label">RESEARCH<br>PIPELINE</p>
       <nav id="atlas-stages" aria-label="Research stages"></nav>
       <a id="atlas-original" href="./index.html">Original workspace · session &amp; scope</a>
     </aside>
     <div class="atlas-main">
       <header class="atlas-topbar">
-        <div><strong id="atlas-project"></strong><p id="atlas-status"></p></div>
-        <label><span id="atlas-language-label">Language</span>
+        <div class="atlas-project-name"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 6.5h6l2-2h7v12h-15z"></path></svg><strong id="atlas-project"></strong></div>
+        <div class="atlas-topbar-controls"><p id="atlas-status"></p><label><span id="atlas-language-label">Language</span>
           <select id="atlas-language"><option value="en">English</option><option value="zh-Hans">简体中文</option><option value="zh-Hant">繁體中文</option></select>
-        </label>
+        </label></div>
       </header>
       <main id="atlas-content"></main>
       <footer id="atlas-footer"></footer>
