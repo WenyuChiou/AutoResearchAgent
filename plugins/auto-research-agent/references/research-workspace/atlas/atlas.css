@@ -317,7 +317,7 @@ summary:focus-visible { outline: 3px solid #567fa2; outline-offset: 3px; }
 .atlas-graph-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 15px; margin: 12px 0; }
 .atlas-graph-legend > span { display: flex; align-items: center; gap: 7px; }
 .atlas-graph-legend i { width: 24px; border-top: 2px solid #397d7c; }
-.atlas-graph-legend i[data-kind="method"] { border-color: #a48644; border-top-style: dashed; }
+.atlas-graph-legend i[data-kind="method"] { border-color: #a4b4c8; border-top-style: dashed; }
 .atlas-graph-legend i[data-kind="similarity"] { border-color: #567fa2; border-top-style: dotted; }
 .atlas-process > summary { color: var(--muted); font-size: 17px; }
 .atlas-process:not([open]) { margin: 18px 0; padding: 13px 20px; }
@@ -353,6 +353,18 @@ summary:focus-visible { outline: 3px solid #567fa2; outline-offset: 3px; }
 .atlas-related-paper p { margin:6px 0; overflow-wrap:anywhere; }
 .atlas-node-legend { display:flex; flex-wrap:wrap; gap:16px; font-size:14px; color:#526776; margin:10px 0; }
 .atlas-node-legend span { display:inline-flex; align-items:center; gap:7px; }
-.atlas-node-legend i { display:inline-block; width:12px; height:12px; background:#638793; border-radius:50%; }
+.atlas-node-legend i { display:inline-block; width:17px; height:17px; background:#638793; border-radius:50%; }
 .atlas-node-legend i[data-node-kind="topic"] { border-radius:2px; transform:rotate(45deg); background:#6eada9; }
-.atlas-node-legend i[data-node-kind="method"] { width:7px; height:7px; background:#9c93a8; }
+.atlas-node-legend i[data-node-kind="method"] { width:17px; height:17px; border-radius:1px; background:#9c93a8; }
+.atlas-node-legend i[data-node-shape="cube"] { clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background:conic-gradient(from 30deg,#b3a8bf 0 33%,#82758d 33% 66%,#d2c8da 66%); }
+#atlas-stage-review { border-top:3px solid #397d7c; }
+.atlas-review-choices { display:flex; gap:12px; flex-wrap:wrap; margin:18px 0; }
+.atlas-review-choices button { padding:11px 18px; }
+.atlas-review-choices button[aria-pressed="true"] { background:#e9f3f1; border-color:#397d7c; color:#245957; }
+#atlas-stage-review label { display:block; font-size:16px; color:var(--muted); }
+#atlas-stage-review textarea { display:block; box-sizing:border-box; width:100%; margin:9px 0 14px; padding:12px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); font-family:inherit; font-size:16px; line-height:1.65; resize:vertical; }
+.atlas-screening-record { border-left:3px solid #85aba5; padding:12px 16px; margin:12px 0; background:#f5f8f4; }
+.atlas-screening-record dl { grid-template-columns:minmax(120px,30%) minmax(0,1fr); font-size:15px; }
+.atlas-screening-record dt { color:var(--muted); }
+.atlas-source-receipt { margin:12px 0; }
+.atlas-source-receipt dd { overflow-wrap:anywhere; font-size:14px; }

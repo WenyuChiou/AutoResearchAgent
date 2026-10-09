@@ -187,6 +187,11 @@
     try {loaded = await request("GET");}
     catch (error) {if (current !== generation || sequence !== readSequence) return; throw error;}
     if (current !== generation || sequence !== readSequence || (view && loaded.revision < view.revision)) return;
+    if (Object.hasOwn(loaded, "project_id") && (typeof loaded.project_id !== "string" ||
+        !loaded.project_id || loaded.project_id.length > 128 ||
+        (atlas && window.WORKSPACE_VIEW?.index?.project_id !== undefined &&
+          loaded.project_id !== window.WORKSPACE_VIEW.index.project_id))) throw Error("project-binding-changed");
+    if (view && Object.hasOwn(view, "project_id") && loaded.project_id !== view.project_id) throw Error("project-binding-changed");
     if (!Number.isSafeInteger(loaded.revision) || loaded.revision < 0 || !Array.isArray(loaded.requests) || !Array.isArray(loaded.actions) || !Array.isArray(loaded.operations) || loaded.project_ref !== project || (atlas && (loaded.index_sha256 !== atlas.index_sha256 || loaded.input_version !== atlas.input_version)) || (view && (loaded.index_sha256 !== view.index_sha256 ||
       loaded.input_version !== view.input_version))) throw Error("binding-changed");
     view = loaded; render(); return loaded;

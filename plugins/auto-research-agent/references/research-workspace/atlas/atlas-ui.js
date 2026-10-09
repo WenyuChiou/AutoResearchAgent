@@ -13,7 +13,34 @@
     sharedTopics: ["Shared research directions", "共同研究方向", "共同研究方向"],
     paperShape: ["Paper", "论文", "論文"],
     topicShape: ["Research direction", "研究方向", "研究方向"],
-    methodShape: ["Method", "方法", "方法"],
+    methodShape: ["Method · cube / square", "方法 · 立方体／方块", "方法 · 立方體／方塊"],
+    stageReview: ["Review this stage with Codex", "与 Codex 审阅本阶段", "與 Codex 審閱本階段"],
+    reviewHint: ["Choose a review request. Codex checks the current sources and unresolved items before any next-stage decision.", "选择审阅意向，让 Codex 核对当前来源和未解决事项，再判断是否进入下一阶段。", "選擇審閱意向，讓 Codex 核對目前來源與未解事項，再判斷是否進入下一階段。"],
+    reviewRevise: ["Keep improving", "继续补充", "繼續補充"],
+    reviewNext: ["Request the next stage", "申请进入下一阶段", "申請進入下一階段"],
+    reviewHold: ["Hold this stage", "暂缓推进", "暫緩推進"],
+    reviewComment: ["Your notes for this review", "给本次审阅的补充说明", "給本次審閱的補充說明"],
+    reviewPrepare: ["Prepare in Codex", "准备交给 Codex", "準備交給 Codex"],
+    reviewBoundary: ["This prepares a message, not an approval or execution. Sending still requires the connected, source-bound session and its normal permissions.", "此处只准备消息，不代表核准或执行。提交仍需已连接、来源绑定的会话及其正常权限。", "此處僅準備訊息，不代表核准或執行。提交仍需已連線、來源綁定的工作階段及其正常權限。"],
+    reviewPrepared: ["Draft placed in the connected conversation. Review it there before sending.", "草稿已放入已连接的对话，请在对话框核对后提交。", "草稿已放入已連線的對話，請在對話框核對後提交。"],
+    reviewDisconnected: ["No matching Codex session accepted this draft. The text is kept below for copying; connect the original workspace first.", "没有匹配的 Codex 会话接收草稿。文字保留在下方供复制，请先连接原工作台。", "沒有相符的 Codex 工作階段接收草稿。文字保留在下方供複製，請先連線原工作臺。"],
+    reviewMissing: ["Check evidence gaps and saved gate decisions; list what is needed. Do not start a new stage, search or model call from this review request alone.", "请检查证据缺口和已保存的阶段门槛决定，列明还需要什么。不要仅凭这条审阅请求启动新阶段、搜索或模型调用。", "請檢查證據缺口與已儲存的階段門檻決定，列明仍需什麼。不要僅憑這條審閱請求啟動新階段、搜尋或模型呼叫。"],
+    previewNext: ["Preview Stage 2", "预览 Stage 2", "預覽 Stage 2"],
+    savedTrail: ["Saved screening trail", "已保存的筛选溯源", "已儲存的篩選溯源"],
+    sourceReceipt: ["Saved source receipt", "已保存来源回执", "已儲存來源回執"],
+    sourceAcquired: ["Source acquisition time", "来源取得时间", "來源取得時間"],
+    sourceState: ["Access / identity", "存取状态／身份核对", "存取狀態／身分核對"],
+    receiptBinding: ["Original receipt file hash", "原始回执文件哈希", "原始回執檔案雜湊"],
+    sourceAttempts: ["Saved source acquisition attempts", "已保存来源取得尝试", "已儲存來源取得嘗試"],
+    missingDiscovery: ["This package did not record per-paper search counts, first discovery order or a relevance ranking. These are unavailable, not zero or rejection.", "此包未记录逐篇检索次数、首次发现顺序或相关度排名。这些信息缺失，不表示零次或被排除。", "此封包未記錄逐篇搜尋次數、首次發現順序或相關度排名。這些資訊缺漏，不表示零次或被排除。"],
+    historicalScreen: ["Historical screening decision", "原筛选决定", "原篩選決定"],
+    currentAdmission: ["Current source selection", "当前来源纳入状态", "目前來源納入狀態"],
+    recordedReason: ["Recorded reason", "已记录理由", "已記錄理由"],
+    discoveryPath: ["Saved discovery path", "已保存发现路径", "已儲存發現路徑"],
+    recordedAt: ["Recorded time", "记录时间", "紀錄時間"],
+    queryPointer: ["Recorded query / document pointer", "已记录查询／文档指向", "已記錄查詢／文件指向"],
+    separateSelection: ["Historical screening and current source admission are separate. A historical inclusion does not complete source review.", "原筛选决定与当前来源纳入分别记录。原来纳入不代表来源审查已完成。", "原篩選決定與目前來源納入分開記錄。原先納入不代表來源審查已完成。"],
+    historyMissing: ["No saved screening decision is bound to this work/version.", "此论文版本没有绑定的筛选决定记录。", "此論文版本沒有綁定的篩選決定紀錄。"],
     sharedMethods: ["Same recorded method labels", "相同方法标签", "相同方法標籤"],
     computedBasis: ["Saved findings and topic labels · computed text cosine", "已保存概要及方向标签 · 计算出的文本余弦相似度", "已保存概要及方向標籤 · 計算出的文字餘弦相似度"],
     sharedTerms: ["Shared normalized terms", "共有词（规范化后）", "共有詞（正規化後）"],
@@ -184,6 +211,8 @@
   state.libraryReturn = null;
   state.graphSettings = {mode: 3, computed: true, showLabels: false}; state.graphPose = {}; state.planarFallback = false; state.fitNext = false;
   state.stage2Focus = null;
+  state.reviews = {1: {choice: "reviewRevise", note: "", draft: "", accepted: false}, 2: {choice: "reviewRevise", note: "", draft: "", accepted: false}};
+  let reviewSerial = 0;
   let activeNetwork = null, activeNetworkStage = 1;
   function sharedNetwork(parent, rows, onSelect, focus) {
     if (!window.AtlasNetwork) return;
@@ -452,6 +481,15 @@
     const access = el("section", undefined, "atlas-access"); access.append(el("h4", t("access")));
     const url = safeUrl(paper.url); if (url) access.append(link(t("publicLink"), url));
     kv(access, [["Recorded URL", paper.url], ["Recorded DOI", paper.doi], ["Source IDs", paper.source_ids]]);
+    for (const row of paper.sources || []) {
+      if (row.work_id !== paper.work_id || row.version_id !== paper.version_id) continue;
+      const receipt = row.receipt, saved = el("details", undefined, "atlas-source-receipt");
+      saved.append(source("summary", `${t("sourceReceipt")} · ${row.source_id}`));
+      kv(saved, [[t("sourceAcquired"), receipt?.retrieved_at], [t("sourceState"), [receipt?.status, receipt?.identity_status]],
+        ["Evidence level", receipt?.evidence_level], [t("sourceAttempts"), Array.isArray(row.attempts) ? row.attempts.length : null],
+        [t("receiptBinding"), row.result_sha256]]);
+      access.append(saved);
+    }
     const rerun = index.source_rerun;
     (rerun?.data?.rows || []).filter(row => row.work_id === paper.work_id && row.version_id === paper.version_id && paper.source_ids?.includes(row.source_id)).forEach(row => {
       const path = row.raw_path, accepted = typeof path === "string" && /^sources\/[A-Za-z0-9_-]+\/raw\.(pdf|html)$/.test(path);
@@ -540,15 +578,25 @@
   }
   function ledgerContent(parent, paper) {
     parent.append(source("h3", `${t("discoveryLedger")} · ${paper.work_id}`));
+    const screening = (paper.screening || []).filter(row => row.work_id === paper.work_id && row.version_id === paper.version_id);
+    const trail = el("section", undefined, "atlas-screening-trail");
+    trail.append(el("h4", t("savedTrail")));
+    if (!screening.length) trail.append(el("p", t("historyMissing"), "atlas-small"));
+    for (const row of screening) {
+      const card = el("article", undefined, "atlas-screening-record");
+      card.append(source("strong", `${text(row.decision_id)} · ${text(row.status)}`));
+      kv(card, [[t("recordedReason"), row.reason], [t("discoveryPath"), row.discovery_path], [t("recordedAt"), row.observed_at], [t("queryPointer"), row.query]]);
+      trail.append(card);
+    }
+    trail.append(el("p", t("separateSelection"), "atlas-small")); parent.append(trail);
     const fields = el("div", undefined, "atlas-ledger-grid");
     const rows = [[t("paperBinding"), `${index.project_id} · ${paper.work_id} / ${paper.version_id} · ${text(payload.index_sha256)}`],
-      [t("discoveryCount"), paper.discovery?.count], [t("firstFound"), paper.discovery?.first_result_position], [t("rounds"), paper.discovery?.round],
-      [t("status"), paper.selection?.status], [t("relevance"), paper.findings?.relevance], [t("relevanceRank"), null],
-      ["Reason", paper.selection?.reasons?.length ? paper.selection.reasons : null], [t("decisionHistory"), (paper.screening || []).length ? paper.screening.map(row => ({decision_id: row.decision_id, status: row.status, reason: row.reason, observed_at: row.observed_at})) : null]];
+      [t("currentAdmission"), paper.selection?.status], [t("relevance"), paper.findings?.relevance],
+      [t("recordedReason"), paper.selection?.reasons?.length ? paper.selection.reasons : null]];
     rows.forEach(([label, value]) => { const field = el("div"); field.append(el("dt", caption(label)), source("dd", value)); fields.append(field); });
-    parent.append(fields, el("p", t("noRank"), "atlas-small"));
+    parent.append(fields, el("p", t("missingDiscovery"), "atlas-note"), el("p", t("noRank"), "atlas-small"));
     disclosure(parent, t("paperBinding"), {project_id: index.project_id, work_id: paper.work_id, version_id: paper.version_id, index_sha256: payload.index_sha256});
-    (paper.screening || []).forEach(row => { const item = el("details"); item.append(el("summary", `${text(row.decision_id)} · ${text(row.status)} · ${text(row.reason)}`)); kv(item, [["Query", row.query], ["Discovery path", row.discovery_path], ["Observed at", row.observed_at]]); disclosure(item, t("raw"), row); parent.append(item); });
+    screening.forEach(row => { const item = el("details"); item.append(el("summary", `${text(row.decision_id)} · ${text(row.status)} · ${text(row.reason)}`)); kv(item, [["Query", row.query], ["Discovery path", row.discovery_path], ["Observed at", row.observed_at]]); disclosure(item, t("raw"), row); parent.append(item); });
     disclosure(parent, t("searchRecords"), paper.rawSearch);
   }
   function processPanel() {
@@ -601,6 +649,48 @@
     split.append(cards, list); box.append(split, el("p", t("countsNote"), "atlas-small"));
     content.append(box);
   }
+  function stageReview() {
+    const record = state.reviews[state.stage], box = panel(t("stageReview"));
+    box.id = "atlas-stage-review"; box.append(el("p", t("reviewHint"), "atlas-small"));
+    const choices = el("div", undefined, "atlas-review-choices");
+    for (const name of ["reviewRevise", "reviewNext", "reviewHold"]) {
+      const control = button(t(name), () => {record.choice = name; record.draft = ""; record.accepted = false; render();}, record.choice === name);
+      control.dataset.reviewChoice = name; choices.append(control);
+    }
+    const label = el("label", t("reviewComment")), note = el("textarea");
+    note.id = "atlas-review-note"; note.value = record.note; note.rows = 2; note.maxLength = 1600;
+    note.oninput = () => {record.note = note.value; record.draft = ""; record.accepted = false;}; label.append(note);
+    const actions = el("div", undefined, "atlas-actions");
+    const prepare = button(t("reviewPrepare"), () => {
+      record.draft = `${t("stageReview")} · Stage ${state.stage}\n${t(record.choice)}\n${index.topic}\nProject: ${index.project_id}\nWorkspaceIndex SHA-256: ${payload.index_sha256}\n${record.note}\n${t("reviewMissing")}`;
+      if (state.stage === 2 && payload.stage2) {
+        record.draft += `\nStage 2 selection SHA-256: ${text(payload.stage2.bridge_receipt?.selection_sha256)}\nStage 1 lineage attested: ${text(payload.stage2.bridge_receipt?.original_stage1_lineage_attested)}\nSimulated: ${payload.fixture === true || payload.stage2.fixture === true}`;
+      }
+      record.requestRef = `review-${++reviewSerial}`;
+      record.accepted = false;
+      if (typeof window.dispatchEvent === "function" && typeof window.CustomEvent === "function") {
+        window.dispatchEvent(new window.CustomEvent("atlas-stage-review-draft", {detail: {project_id: index.project_id, index_sha256: payload.index_sha256, stage: `stage${state.stage}`, text: record.draft, request_ref: record.requestRef}}));
+      }
+      render();
+      if (record.accepted) {
+        if (document.getElementById("host-panel")?.hidden) document.getElementById("host-open")?.click();
+        document.getElementById("native-session-panel")?.scrollIntoView({behavior: "smooth", block: "start"});
+      }
+    }); prepare.id = "atlas-review-prepare"; actions.append(prepare);
+    if (state.stage === 1) actions.append(button(t("previewNext"), () => {state.stage = 2; render();}));
+    box.append(choices, label, actions, el("p", t("reviewBoundary"), "atlas-small"));
+    if (record.draft) {
+      const status = el("p", t(record.accepted ? "reviewPrepared" : "reviewDisconnected"), "atlas-note"); status.setAttribute("role", "status");
+      const draft = el("textarea"); draft.id = "atlas-review-draft"; draft.value = record.draft; draft.readOnly = true; draft.rows = 4; draft.translate = false;
+      box.append(status, draft);
+    }
+    content.append(box);
+  }
+  if (typeof window.addEventListener === "function") window.addEventListener("atlas-stage-review-draft-result", event => {
+    const number = Number(event.detail?.stage?.replace?.(/^stage/, ""));
+    const record = state.reviews[number];
+    if (record?.draft && event.detail.project_id === index.project_id && event.detail.index_sha256 === payload.index_sha256 && event.detail.request_ref === record.requestRef) record.accepted = event.detail.accepted === true;
+  });
   function stage1() {
     const scope = el("div", undefined, "atlas-actions atlas-tabs"), included = archive.filter(p => p.selection?.status === "included"), pending = archive.filter(p => p.selection?.status === "pending");
     scope.append(button(`${t("working")} · ${(included.length ? included : pending.length ? pending : archive).length}`, () => { state.scope = "working"; changeContext("library"); }, state.scope === "working"), button(`${t("archive")} · ${archive.length}`, () => { state.scope = "archive"; changeContext("library"); }, state.scope === "archive")); content.append(scope);
@@ -627,7 +717,7 @@
     } else if (selected) paperDetail(detailPanel, selected);
     else detailPanel.append(el("p", t("selectNode"), "atlas-note"));
     split.append(graphPanel, detailPanel); content.append(split);
-    topicCounts(); workflow(); processPanel(); content.append(el("p", t("compactCollection"), "atlas-small"));
+    topicCounts(); stageReview(); workflow(); processPanel(); content.append(el("p", t("compactCollection"), "atlas-small"));
     const library = el("details"); library.id = "atlas-library"; library.open = state.libraryOpen; library.ontoggle = () => { state.libraryOpen = library.open; }; library.append(el("summary", `${t("library")} · ${papers.length}`));
     const filters = el("div", undefined, "atlas-filters"), search = el("label", t("search")), input = el("input"); input.value = state.text; input.type = "search"; input.onchange = () => { state.text = input.value; state.page = 0; render(); }; search.append(input); filters.append(search);
     filters.append(choice(t("topics"), state.topic, [["", t("all")], ...model.groups(papers, "topics").map(g => [g.key, g.label])], value => { state.topic = value; state.mode = value ? "topic" : "library"; state.page = 0; render(); }));
@@ -793,7 +883,7 @@
     if (view && state.tab === "sets") directionSets();
     else if (view && state.tab === "comparison") comparisons(view);
     else if (view) candidates(view);
-    workflow(); content.append(process);
+    stageReview(); workflow(); content.append(process);
   }
   function later() {
     const stage = (index.stages || []).find(row => row.stage === state.stage), card = panel(t("reserved"));
