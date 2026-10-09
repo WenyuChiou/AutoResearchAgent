@@ -192,6 +192,24 @@ class CodexProbeTests(unittest.TestCase):
 
     def test_blocked_write_deadline_cannot_dispatch_late_suffix(self):
         release, entered = threading.Event(), threading.Event()
+        expired, completed = threading.Event(), threading.Event()
+        queue_type = probe.queue.Queue
+
+        class CompletionQueue(queue_type):
+            def get(self, *args, **kwargs):
+                # Real scheduler delay is fixture setup, not the logical budget.
+                if not entered.wait(2):
+                    raise AssertionError("fixture writer did not enter")
+                if not expired.wait(2):
+                    raise AssertionError("fixture deadline did not expire")
+                raise probe.queue.Empty
+
+            def put(self, value, *args, **kwargs):
+                super().put(value, *args, **kwargs)
+                completed.set()
+
+        def clock():
+            return 11.0 if expired.is_set() else 10.0
 
         class BlockedPipe:
             calls = 0
@@ -199,7 +217,9 @@ class CodexProbeTests(unittest.TestCase):
             def write(self, raw):
                 self.calls += 1
                 entered.set()
-                release.wait(2)
+                expired.set()
+                if not release.wait(2):
+                    raise TimeoutError("fixture release missing")
                 return 1
 
         class Process:
@@ -207,18 +227,61 @@ class CodexProbeTests(unittest.TestCase):
             stdout = io.BytesIO()
 
         receipt = probe._Receipt(self.receipt)
-        exchange = probe._Exchange(Process(), receipt, time.monotonic() + 0.05)
-        start = time.monotonic()
-        try:
-            with self.assertRaises((probe.queue.Empty, TimeoutError)):
-                exchange.send(dict(method="initialized"))
-            self.assertTrue(entered.is_set())
-            self.assertLess(time.monotonic() - start, 0.5)
-        finally:
-            release.set()
-            time.sleep(0.05)
-            receipt.stream.close()
+        exchange = probe._Exchange(Process(), receipt, 10.05)
+        # Setup and receipt fsync cannot expire this controlled first-write case.
+        # The same 50 ms budget expires only after the first write has entered.
+        with (
+            patch.object(probe.time, "monotonic", side_effect=clock),
+            patch.object(probe.queue, "Queue", CompletionQueue),
+        ):
+            try:
+                with self.assertRaises((probe.queue.Empty, TimeoutError)):
+                    exchange.send(dict(method="initialized"))
+                self.assertTrue(entered.is_set())
+                self.assertTrue(expired.is_set())
+                self.assertFalse(completed.is_set())
+            finally:
+                release.set()
+                finished = completed.wait(2)
+                receipt.stream.close()
+        self.assertTrue(finished, "writer must finish before fixture teardown")
         self.assertEqual(Process.stdin.calls, 1)
+        self.assertNotIn("rpc-write-observed", self.receipt.read_text())
+
+    def test_expired_before_first_write_has_zero_calls(self):
+        completed = threading.Event()
+        queue_type = probe.queue.Queue
+
+        class CompletionQueue(queue_type):
+            def put(self, value, *args, **kwargs):
+                super().put(value, *args, **kwargs)
+                completed.set()
+
+        class NeverPipe:
+            calls = 0
+
+            def write(self, raw):
+                self.calls += 1
+                return len(raw)
+
+        class Process:
+            stdin = NeverPipe()
+            stdout = io.BytesIO()
+
+        receipt = probe._Receipt(self.receipt)
+        exchange = probe._Exchange(Process(), receipt, 9.95)
+        with (
+            patch.object(probe.time, "monotonic", return_value=10.0),
+            patch.object(probe.queue, "Queue", CompletionQueue),
+        ):
+            try:
+                with self.assertRaises(TimeoutError):
+                    exchange.send(dict(method="initialized"))
+            finally:
+                finished = completed.wait(2)
+                receipt.stream.close()
+        self.assertTrue(finished, "rejected writer must finish before teardown")
+        self.assertEqual(Process.stdin.calls, 0)
         self.assertNotIn("rpc-write-observed", self.receipt.read_text())
 
     def test_exited_leader_cannot_certify_descendant_cleanup(self):
