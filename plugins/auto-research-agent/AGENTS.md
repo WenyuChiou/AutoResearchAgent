@@ -19,6 +19,12 @@ Read these files in order. Do not rely on a summary from an earlier task.
 8. [Capability-to-metric registries](evals/capability-metric-map.v1.json) and
    [v3 extension](evals/capability-metric-map.v3.json)
 9. [Readiness and team workflow](evals/READINESS_AND_TEAM_WORKFLOW.zh-TW.md)
+10. [Stage E2E acceptance contract](references/stage-e2e-acceptance.md)
+
+Apply the E2E contract at every stage milestone, including Stage 2 delivery and
+Stage 3 intake. Preserve partial results, actual HTML-operation evidence and
+next-stage version bindings. This requirement does not run a live A/B or the
+whole research workflow for every small capability PR.
 
 For Stage 2 work, also read the [scientific contract](evals/stage2/SCIENTIFIC_CONTRACT.zh-TW.md),
 [checker rubric](evals/stage2/DIRECTION_CHECKER_RUBRIC.zh-TW.md) and

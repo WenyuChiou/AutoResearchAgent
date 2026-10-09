@@ -1,5 +1,10 @@
 # AutoResearchAgent fork routing
 
+For any research-stage request, read the plugin's `AGENTS.md` and
+[stage E2E acceptance contract](plugins/auto-research-agent/references/stage-e2e-acceptance.md).
+Every stage needs actual workflow, deliverable, HTML interaction and next-stage
+handoff evidence; passing tests alone never establishes stage completion.
+
 When work touches `plugins/auto-research-agent/`,
 `.github/scripts/validate_research_pr.py`,
 `.github/scripts/test_validate_research_pr.py`,
