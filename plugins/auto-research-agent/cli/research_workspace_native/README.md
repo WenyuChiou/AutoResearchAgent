@@ -207,3 +207,15 @@ GET-only recovery. Missing stage input stays missing; a WorkspaceStageReviewReco
 is neither native-user attestation nor permission to execute the next stage.
 Run test_workspace_stage_http, test_workspace_stage_storage and test_workspace_stage_panel
 for repository-case HTTP/SQLite and synthetic DOM checks.
+
+Trusted embeddings can call runtime_factory.compose_runtime with exact pinned
+runtime specs, authenticate and five server gates: verify_source, admit_spawn,
+admit_lifecycle, admit_attach and admit_action. enabled defaults to False. Optional
+approval_policy independently admits one exact saved approval. The runtime owns
+the existing process/bootstrap/controller/registry sequence; call start once,
+then pass it to AtlasHost(native_runtime=runtime, credential=credential).
+Successful host composition owns shutdown. Spec loading rejects previous journals,
+sidecars and cross-project source/store overlap; this is a bounded NEW session,
+not resume, multi-tenant authentication or proven process-tree containment.
+Runtime tests use actual Python fake children and HTTP/SQLite, never Codex/models.
+Run test_atlas_runtime_spec and test_atlas_runtime_factory for those offline cases.

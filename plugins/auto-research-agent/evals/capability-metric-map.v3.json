@@ -65,6 +65,7 @@
         "plugins/auto-research-agent/tests/test_workspace_stage_panel.cjs",
         "plugins/auto-research-agent/tests/atlas_native_runtime_fixtures.py",
         "plugins/auto-research-agent/tests/test_atlas_runtime_spec.py",
+        "plugins/auto-research-agent/tests/test_atlas_runtime_factory.py",
         "plugins/auto-research-agent/tests/test_atlas_scope_approval.py",
         "plugins/auto-research-agent/tests/test_research_workspace_harness_reuse.py",
         "plugins/auto-research-agent/tests/test_research_workspace_harness_host.py",
