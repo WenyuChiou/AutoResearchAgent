@@ -394,6 +394,19 @@
       item.append(sample, el("span", t(kind + "Link"))); box.append(item);
     }); parent.append(box);
   }
+  function planarBasis(parent, nodes, edges, similarity) {
+    const basis = el("details", undefined, "atlas-small atlas-relation-list"), selection = graphFocus();
+    const selectedNode = selection && nodes.find(node => node.key === `${selection.kind}:${selection.key}`);
+    basis.hidden = !selectedNode; basis.open = Boolean(selectedNode); basis.append(el("summary", t("graphBasis")));
+    if (selectedNode) {
+      edges.filter(([from, to]) => from === selectedNode || to === selectedNode).forEach(([from, to, meta]) => {
+        const row = el("p", `${from.title} ↔ ${to.title} · ${t(meta.kind + "Link")}${meta.label ? " · " + meta.label : ""}`); row.translate = false; basis.append(row);
+      });
+      basis.append(el("p", t("graphNote")), el("p", t("viewAliases")), el("p", t("sourceLinkMissing")));
+      if (similarity) basis.append(el("p", t("globalSimilarity")));
+    }
+    parent.append(basis);
+  }
   function groupGraph(parent) {
     const summaryFocus = Boolean(state.summaryGraphFocus), rows = summaryFocus ? papers : contextRows();
     const page = rows.length > 48 ? pagination(parent, rows.length, 48, summaryFocus ? "summaryGraphPage" : "graphPage") : 0, shown = ordered(rows).slice(page * 48, page * 48 + 48);
@@ -441,8 +454,7 @@
     graph(parent, nodes, edges, layout.groups.map(group => ({...group, color: palette.get(group.key)})), layout.height);
     legend(parent, state.similarity); parent.append(el("p", t("layoutNote"), "atlas-small"));
     if (state.similarity && !neighbors.length) parent.append(el("p", t("noRelations"), "atlas-small"));
-    const basis = el("details", undefined, "atlas-small"); basis.append(el("summary", t("graphBasis")), el("p", t("graphNote")), el("p", t("viewAliases")), el("p", t("sourceLinkMissing")));
-    if (state.similarity) basis.append(el("p", t("globalSimilarity"))); parent.append(basis);
+    planarBasis(parent, nodes, edges, state.similarity);
     const all = el("details"), buttons = el("div", undefined, "atlas-actions"); all.append(el("summary", `${t("allGroups")} · ${layout.groups.length}`));
     model.groups(rows).forEach(group => buttons.append(button(`${group.label} · ${group.ids.length}`, () => focusGroup("topic", group.key))));
     model.groups(rows, "methods").forEach(group => buttons.append(button(`${group.label} · ${group.ids.length}`, () => focusGroup("method", group.key))));
@@ -468,9 +480,10 @@
     indices.forEach((index, i) => {
       const related = neighbors[index], angle = i * Math.PI * 2 / Math.max(indices.length, 1) - Math.PI / 2, distance = 95 + 90 * (1 - related.similarity);
       const node = {x: 300 + Math.cos(angle) * distance, y: 220 + Math.sin(angle) * distance, key: "paper:" + related.paper.key, label: related.paper.work_id, title: related.paper.title, selected: state.networkFocus?.kind === "paper" && state.paper === related.paper.key, type: "atlas-paper-node", color: colors[i % 6], action: () => focusPaper(related.paper.key)};
-      nodes.push(node); edges.push([center, node, {kind: "similarity", color: "#567fa2"}]);
+      nodes.push(node); edges.push([center, node, {kind: "similarity", color: "#567fa2", label: `Jaccard ${(related.similarity * 100).toFixed(1)}%`}]);
     });
     graph(parent, nodes, edges); legend(parent, true); parent.append(el("p", t("localNote"), "atlas-small"));
+    planarBasis(parent, nodes, edges, true);
     if (!n) parent.append(el("p", t("noRelations"), "atlas-note"));
     const list = el("details"); list.append(el("summary", `${t("related")} · ${n}`));
     const page = pagination(list, n, 6, "neighborsPage");

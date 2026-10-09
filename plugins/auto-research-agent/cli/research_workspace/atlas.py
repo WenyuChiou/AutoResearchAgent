@@ -56,10 +56,10 @@ def atlas_files(payload):
     files["atlas-binding.json"] = canonical(
         {
             "kind": "WorkspaceEvidenceAtlas",
-            "presentation_version": "1.2.0",
+            "presentation_version": "1.3.0",
             "design_reference": "reviewed-local-v6",
             "design_contract_sha256": sha(
-                safe_path(ATLAS_ROOT, "atlas-layout.v2.md").read_bytes()
+                safe_path(ATLAS_ROOT, "atlas-layout.v3.md").read_bytes()
             ),
             "design_sha256": "a3dfafeafb5890a9e82cff4b42f77c04aca19699e5ded09e453d45be9e485540",
             "project_id": payload["index"]["project_id"],

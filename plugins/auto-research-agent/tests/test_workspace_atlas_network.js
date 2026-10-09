@@ -22,7 +22,8 @@ class Element {
   get isConnected() { return this.connected || Boolean(this.parent?.isConnected); }
 }
 const paper = (work, version, topic) => ({work_id: work, version_id: version,
-  title: "Literal <script> shared retirement consumption", authors: ["Original author"],
+  title: `${work} ${version}: Literal <script> shared retirement consumption`, authors: ["Original author"],
+  findings: {method: "Shared retirement consumption comparison"},
   classification: {topic_cluster: topic, method: ["Literal method"]}, source_ids: []});
 const payload = freeze({index: {papers: [paper("same", "v1", ["X", "Y"]),
   paper("same", "v2", ["Y"]), paper("other", "v1", ["X"])]}});
@@ -31,7 +32,7 @@ const canonicalLinks = associations.build(rows, {neighbors: 2, threshold: .09});
 const canonicalBefore = JSON.stringify(canonicalLinks);
 const topicColors = new Map([["X", "#123456"], ["Y", "#654321"]]);
 const paperAliases = new Map(rows.map((row, i) => [row.key, `P0${i + 1}`]));
-function runtime({connected = false, computed = true, showLabels = false, fail = false} = {}) {
+function runtime({connected = false, computed = true, showLabels = false, fail = false, focus = {kind: "paper", key: rows[0].key}, records = rows} = {}) {
   const pending = [], calls = [], selected = [], settingsCalls = [], fallbackCalls = [], associationOptions = [];
   const pose = freeze({position: {x: 10, y: 20, z: 30}, target: {x: 0, y: 0, z: 0}});
   const settings = {mode: 2, computed, showLabels};
@@ -51,8 +52,8 @@ function runtime({connected = false, computed = true, showLabels = false, fail =
   const document = {createElement: tag => new Element(tag)};
   vm.runInNewContext(source, {window: root, document});
   const parent = new Element("main"); parent.connected = connected;
-  const options = {papers: rows, model, language: "zh-Hans", t: key => "translated:" + key,
-    onSelect: value => selected.push(value), focus: {kind: "paper", key: rows[0].key},
+  const options = {papers: records, model, language: "zh-Hans", t: key => "translated:" + key,
+    onSelect: value => selected.push(value), focus,
     pose, settings, topicColors, paperAliases, onSettings: () => settingsCalls.push(settings.computed),
     onFallback: () => fallbackCalls.push("requested")};
   const mounted = root.AtlasNetwork.mount(parent, options);
@@ -104,6 +105,9 @@ assert.equal(live.options.settings.computed, false); assert.deepEqual(live.setti
 const labelControls = controls.children.filter(e => e.tag === "label");
 assert.equal(labelControls.length, 2);
 const labelInput = labelControls.find(e => e.children[0] !== input).children[0];
+const basisOf = value => value.parent.children.find(node => node.className === "atlas-relation-list");
+const relationRows = value => basisOf(value).children.filter(node => node.tag === "p");
+const liveBasis = relationRows(live).map(node => node.textContent);
 assert.equal(labelInput.checked, false);
 const retainedPose = JSON.stringify(live.mounted.snapshot());
 labelInput.checked = true; labelInput.onchange();
@@ -114,6 +118,7 @@ assert.deepEqual(instance.labels, [true, false]);
 assert.equal(live.calls.length, 1); assert.equal(instance.destroys, 0);
 assert.equal(JSON.stringify(live.mounted.snapshot()), retainedPose);
 assert.deepEqual(live.settingsCalls, [false]);
+assert.deepEqual(relationRows(live).map(node => node.textContent), liveBasis, "mode and label controls cannot expand relationship basis");
 assert.equal(JSON.stringify(rows), rowBefore); assert.equal(JSON.stringify(payload), before);
 live.mounted.destroy(); live.mounted.destroy();
 instance.options.onSelect({kind: "topic", key: "X"}); buttons[1].onclick(); buttons[2].onclick();
@@ -153,5 +158,39 @@ assert.equal(failed.mounted.snapshot(), failed.options.pose);
 assert.equal(failed.fallbackCalls.length, 0); errorHost.children[1].onclick();
 assert.deepEqual(failed.fallbackCalls, ["requested"]); assert.equal(failed.selected.length, 0);
 failed.mounted.destroy();
+
+// Textual basis uses the same exact typed focus as graph edges, never the default detail.
+for (const focus of [null, {kind: "paper", key: "same"}, {kind: "topic", key: "missing"}, {kind: "method", key: "X"}, {kind: "other", key: rows[0].key}]) {
+  const cleared = runtime({focus});
+  assert.equal(basisOf(cleared).hidden, true, "initial, stale or wrong-type selection hides basis");
+  assert.equal(relationRows(cleared).length, 0, "hidden basis cannot retain unrelated rows");
+  cleared.mounted.destroy();
+}
+const selectedPaper = runtime({computed: false, focus: {kind: "paper", key: rows[1].key}});
+assert.equal(basisOf(selectedPaper).hidden, false); assert.equal(basisOf(selectedPaper).open, true);
+const paperText = relationRows(selectedPaper).map(row => row.textContent);
+assert.equal(paperText.length, 4, "one recorded topic, one method and two incident paper overlaps");
+assert(paperText.every(text => text.includes(rows[1].title)), "each basis row must touch the selected exact paper version");
+assert(paperText.some(text => text.includes("translated:directionLink")));
+assert(paperText.some(text => text.includes("translated:methodLink")));
+assert.equal(paperText.some(text => text.startsWith("X ↔ Y")), false, "topic overlap is not incident to a paper node");
+assert(relationRows(selectedPaper).every(row => row.translate === false));
+assert(paperText.some(text => text.includes("<script>")), "source text is literal textContent rather than HTML");
+const selectedTopic = runtime({computed: false, focus: {kind: "topic", key: "X"}});
+assert.equal(relationRows(selectedTopic).length, 3, "topic basis has two memberships and its direct topic overlap");
+assert.equal(relationRows(selectedTopic).some(row => row.textContent.includes(rows[1].title)), false, "paper not classified under X is excluded");
+const selectedMethod = runtime({computed: false, focus: {type: "method", key: "Literal method"}});
+assert.equal(relationRows(selectedMethod).length, 3, "methods have recorded membership basis even without association extraLinks");
+assert(relationRows(selectedMethod).every(row => row.textContent.endsWith("Literal method · translated:methodLink")));
+const single = runtime({records: freeze([rows[0]]), computed: false, focus: {kind: "paper", key: rows[0].key}});
+assert.equal(relationRows(single).length, 3, "one paper still has its two recorded topics and unique method");
+const computedTopic = runtime({focus: {kind: "topic", key: "X"}});
+const computedText = relationRows(computedTopic).map(row => row.textContent);
+assert(computedText.some(text => text.includes("translated:computedLinks")), "computed incident relationships remain separately labelled");
+assert(computedText.every(text => text.startsWith("X ↔") || text.includes(" ↔ X ·")), "computed layers do not broaden typed selection");
+const noMetadata = runtime({records: freeze(model.papers({index: {papers: [{work_id: "unknown", version_id: "v1", title: "Unknown classification"}]}})), focus: {kind: "paper", key: '["unknown","v1"]'}});
+assert.equal(basisOf(noMetadata).hidden, false); assert.deepEqual(relationRows(noMetadata).map(row => row.textContent), ["translated:noRelations"], "missing metadata must not invent membership");
+const resetBasis = runtime({focus: null}); assert.equal(basisOf(resetBasis).hidden, true);
+for (const value of [selectedPaper, selectedTopic, selectedMethod, single, computedTopic, noMetadata, resetBasis]) value.mounted.destroy();
 assert.equal(JSON.stringify(rows), rowBefore); assert.equal(JSON.stringify(payload), before);
-console.log("atlas network lifecycle, microtasks, immutable links, mode, settings and fallback contracts passed");
+console.log("atlas network lifecycle, typed selection-only basis, microtasks, immutable links, mode, settings and fallback contracts passed");

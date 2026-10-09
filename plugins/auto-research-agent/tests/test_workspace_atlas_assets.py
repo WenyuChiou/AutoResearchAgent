@@ -122,10 +122,10 @@ class WorkspaceAtlasAssetTests(unittest.TestCase):
         self.assertEqual(value, before)
         self.assertEqual(emitted_data(files), before)
         binding = json.loads(files["atlas-binding.json"])
-        self.assertEqual(binding["presentation_version"], "1.2.0")
+        self.assertEqual(binding["presentation_version"], "1.3.0")
         self.assertEqual(
             binding["design_contract_sha256"],
-            sha((atlas.ATLAS_ROOT / "atlas-layout.v2.md").read_bytes()),
+            sha((atlas.ATLAS_ROOT / "atlas-layout.v3.md").read_bytes()),
         )
         self.assertEqual(
             binding["files"],

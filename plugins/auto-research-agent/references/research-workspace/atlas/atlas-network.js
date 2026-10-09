@@ -48,12 +48,24 @@
     const extraLinks = [...associations.recorded, ...(settings.computed ? [...associations.lexical, ...associations.lexicalTopics] : [])];
     const paperById = new Map(papers.map(p => [p.key, p]));
     const endpointTitle = p => p.type === "paper" ? paperById.get(p.key)?.title || p.key : p.key;
-    extraLinks.forEach(edge => {
+    const memberships = [
+      ...model.groups(papers).flatMap(group => group.ids.map(key => ({kind: "direction", from: {type: "paper", key}, to: {type: "topic", key: group.key}}))),
+      ...model.groups(papers, "methods").flatMap(group => group.ids.map(key => ({kind: "method", from: {type: "paper", key}, to: {type: "method", key: group.key}})))
+    ];
+    const selected = focus && {type: focus.kind || focus.type, key: focus.key};
+    const endpoints = [...memberships, ...extraLinks].flatMap(edge => [edge.from, edge.to]);
+    const matches = endpoint => selected && endpoint.type === selected.type && endpoint.key === selected.key;
+    const valid = Boolean(selected && (selected.type === "paper" ? paperById.has(selected.key) : endpoints.some(matches)));
+    relationBox.hidden = !valid; relationBox.open = valid;
+    const selectedLinks = valid ? [...memberships, ...extraLinks].filter(edge => matches(edge.from) || matches(edge.to)) : [];
+    selectedLinks.forEach(edge => {
       const row = document.createElement("p"), computed = edge.kind.startsWith("lexical"); row.translate = false;
       const terms = edge.shared_terms?.length ? edge.shared_terms : edge.shared_papers || [];
-      row.textContent = `${endpointTitle(edge.from)} ↔ ${endpointTitle(edge.to)} · ${computed ? t("computedLinks") + " " + (100 * edge.score).toFixed(1) + "%" : t("overlapLink")} · ${terms.join(" / ")}`;
+      const label = edge.kind === "direction" ? t("directionLink") : edge.kind === "method" ? t("methodLink") : computed ? t("computedLinks") + " " + (100 * edge.score).toFixed(1) + "%" : t("overlapLink");
+      row.textContent = `${endpointTitle(edge.from)} ↔ ${endpointTitle(edge.to)} · ${label}${terms.length ? " · " + terms.join(" / ") : ""}`;
       relationBox.append(row);
     });
+    if (valid && !selectedLinks.length) {const empty = document.createElement("p"); empty.textContent = t("noRelations"); relationBox.append(empty);}
     const note = document.createElement("p"); note.className = "atlas-small"; note.textContent = t("spatialBasis");
     parent.append(controls, host, help, shapes, legend, note, relationBox);
     const current = ++ticket;
