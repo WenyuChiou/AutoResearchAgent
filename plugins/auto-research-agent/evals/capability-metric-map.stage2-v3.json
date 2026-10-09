@@ -707,7 +707,8 @@
         "plugins/auto-research-agent/tests/test_research_workspace_stage2_presentation.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_view.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_html.py",
-        "plugins/auto-research-agent/tests/test_workspace_stage_navigation.py"
+        "plugins/auto-research-agent/tests/test_workspace_stage_navigation.py",
+        "plugins/auto-research-agent/tests/test_workspace_atlas.py"
       ],
       "topic_table_mechanism": "Opt-in packet2.2/extraction1.1 preserves brief-derived dimension definitions, complete source-bound work/version cells, unknown/absence separation and candidate-version resource inventories through immutable snapshots, editable proposal and Wiki projection; bindings do not attest scientific support, resource feasibility, human choice or improvement.",
       "topic_table_test_refs": [
