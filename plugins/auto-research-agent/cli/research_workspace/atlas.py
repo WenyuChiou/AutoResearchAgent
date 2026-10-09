@@ -59,7 +59,7 @@ def atlas_files(payload):
             "presentation_version": "1.2.0",
             "design_reference": "reviewed-local-v6",
             "design_contract_sha256": sha(
-                safe_path(ATLAS_ROOT, "atlas-layout.v1.md").read_bytes()
+                safe_path(ATLAS_ROOT, "atlas-layout.v2.md").read_bytes()
             ),
             "design_sha256": "a3dfafeafb5890a9e82cff4b42f77c04aca19699e5ded09e453d45be9e485540",
             "project_id": payload["index"]["project_id"],

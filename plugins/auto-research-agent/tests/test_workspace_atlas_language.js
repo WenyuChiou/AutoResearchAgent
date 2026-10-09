@@ -167,6 +167,7 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
   }
   const graphNodes = () => flatten(ids["atlas-content"]).filter(node => node.className.includes("atlas-node"));
   const lineKinds = () => flatten(ids["atlas-content"]).filter(node => node.tagName === "line").map(node => node.dataset.kind);
+  const visibleLines = () => flatten(ids["atlas-content"]).filter(node => node.tagName === "line" && node.style.display !== "none");
   const count = graphNodes().length;
   const coordinates = () => JSON.stringify(graphNodes().filter(node => node.className.includes("atlas-paper-node")).map(node => [node.dataset.nodeKey, node.style.left, node.style.top]));
   const originalCoordinates = coordinates();
@@ -213,11 +214,16 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
   equal(lineKinds().includes("direction"), true, "direction links retain their type");
   equal(lineKinds().includes("method"), true, "recorded method links retain their distinct type");
   const topicNode = () => graphNodes().find(node => node.dataset.nodeKey === "topic:Direction A");
+  equal(visibleLines().length, 0, "planar fallback initially conceals every relationship");
+  topicNode().onpointerenter(); equal(visibleLines().length, 0, "hover does not reveal planar relationships");
   topicNode().onclick();
+  equal(visibleLines().every(line => line.dataset.kind === "direction"), true, "direction selection reveals only its incident membership lines");
+  equal(visibleLines().length, dense ? 29 : 1, "the selected direction reveals all and only its recorded paper members");
   equal(graphNodes().length, count, "category selection must not replace the network with a subset");
   equal(coordinates(), originalCoordinates, "category selection keeps the v6 whole-canvas geometry");
   equal(topicNode().attributes["aria-pressed"], "true", "clicked category has focus");
   topicNode().onclick();
+  equal(visibleLines().length, 0, "clearing planar selection conceals relationships again");
   equal(graphNodes().length, count, "clicking the same category restores the complete graph");
   equal(topicNode().attributes["aria-pressed"], undefined, "same-category click clears focus");
   const categoryCard = () => flatten(ids["atlas-content"]).find(node => node.className === "atlas-topic-card" && node.textContent.includes("Direction A"));

@@ -125,7 +125,7 @@ class WorkspaceAtlasAssetTests(unittest.TestCase):
         self.assertEqual(binding["presentation_version"], "1.2.0")
         self.assertEqual(
             binding["design_contract_sha256"],
-            sha((atlas.ATLAS_ROOT / "atlas-layout.v1.md").read_bytes()),
+            sha((atlas.ATLAS_ROOT / "atlas-layout.v2.md").read_bytes()),
         )
         self.assertEqual(
             binding["files"],

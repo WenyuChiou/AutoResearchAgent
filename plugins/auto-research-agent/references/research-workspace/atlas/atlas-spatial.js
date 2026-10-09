@@ -160,6 +160,11 @@
     });
     return nodes.filter(n => found.has(n.id)).map(n => n.id);
   }
+  function incident(edge, focus) {
+    if (!focus) return false;
+    const key = id(focus.kind || focus.type, focus.key);
+    return (edge.source.id || edge.source) === key || (edge.target.id || edge.target) === key;
+  }
   const mounts = new WeakMap();
   function mount(host, options) {
     if (!host || typeof root.ForceGraph3D !== "function") throw new TypeError("Offline graph runtime unavailable");
@@ -184,11 +189,13 @@
     const size = () => ({width: Math.max(1, shell.clientWidth || host.clientWidth || 600), height: Math.max(1, shell.clientHeight || host.clientHeight || 640)});
     const selected = n => focus?.kind === n.kind && focus.key === n.key;
     const related = n => !focus || selected(n) || source.links.some(e => (e.source.id || e.source) === id(focus.kind, focus.key) && (e.target.id || e.target) === n.id || (e.target.id || e.target) === id(focus.kind, focus.key) && (e.source.id || e.source) === n.id);
-    const activePaper = () => byId.get(hover)?.kind === "paper" ? byId.get(hover).key : focus?.kind === "paper" ? focus.key : null;
+    const activePaper = () => focus?.kind === "paper" ? focus.key : byId.get(hover)?.kind === "paper" ? byId.get(hover).key : null;
     const visible = n => showLabels || n.kind !== "method" || n.ids.length > 1 || selected(n) || n.id === hover || n.ids.includes(activePaper());
     const meshVisible = n => n.kind === "paper" && visible(n);
     const lexical = edge => edge.kind === "content-similarity" || edge.kind.startsWith("lexical-");
     const dashed = edge => edge.kind.includes("method") || lexical(edge);
+    const shownEdge = edge => incident(edge, focus) && visible(typeof edge.source === "object" ? edge.source : byId.get(edge.source)) && visible(typeof edge.target === "object" ? edge.target : byId.get(edge.target));
+    const solidEdge = edge => !dashed(edge) && shownEdge(edge);
     const select = n => { if (!dead) options.onSelect?.({kind: n.kind, key: n.key}); };
     function bindNode(button, n) {
       const callback = () => select(n); button.addEventListener("click", callback); controls.push([button, "click", callback]);
@@ -230,7 +237,8 @@
       if (value) value = {kind: value.kind || value.type, key: value.key};
       if (value && !byId.has(id(value.kind, value.key))) return false;
       focus = value ? {kind: value.kind, key: value.key} : null;
-      graph.nodeVisibility(meshVisible).nodeColor(n => related(n) ? n.color : "#3c4b5e");
+      graph.nodeVisibility(meshVisible).nodeColor(n => related(n) ? n.color : "#3c4b5e").linkVisibility(solidEdge);
+      wireByLink.forEach((line, edge) => { if (!shownEdge(edge)) line.style.display = "none"; });
       return true;
     }
     function setLabels(value) {
@@ -281,7 +289,7 @@
       wire.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
       wireByLink.forEach((line, edge) => {
         const a = typeof edge.source === "object" ? edge.source : byId.get(edge.source), b = typeof edge.target === "object" ? edge.target : byId.get(edge.target);
-        const start = visible(a) && project(point(a, mode), camera, viewport.width, viewport.height), end = visible(b) && project(point(b, mode), camera, viewport.width, viewport.height);
+        const start = shownEdge(edge) && project(point(a, mode), camera, viewport.width, viewport.height), end = shownEdge(edge) && project(point(b, mode), camera, viewport.width, viewport.height);
         line.style.display = start && end ? "" : "none";
         if (start && end) { line.setAttribute("x1", start.x); line.setAttribute("y1", start.y); line.setAttribute("x2", end.x); line.setAttribute("y2", end.y); }
       });
@@ -310,7 +318,7 @@
       finally { shell.remove(); if (mounts.get(host) === api) mounts.delete(host); }
     }
     let observer;
-    const api = {setFocus, setLabels, fit, setMode, destroy, snapshot, diagnostics: () => ({mode, destroyed: dead, focus, hover, showLabels, nodes: source.nodes.length, links: source.links.length,
+    const api = {setFocus, setLabels, fit, setMode, destroy, snapshot, diagnostics: () => ({mode, destroyed: dead, focus, hover, showLabels, nodes: source.nodes.length, links: source.links.length, focusedRelations: source.links.filter(shownEdge).length,
       papers: source.nodes.filter(n => n.kind === "paper").length, camera: snapshot(), labelsVisible: labels.shown.length, labelsHidden: source.nodes.length - labels.shown.length, labelsOmittedByLod: labels.hidden.length,
       visibleLabelIds: labels.shown.map(item => item.id), eligibleLabelIds: eligibleLabels(source.nodes, source.links, {focus, hover, showLabels}), labelRects: labels.shown.map(item => ({id: item.id, ...item.box})),
       topicMarkers: topicMarkers.map(marker => ({...marker})), methodMarkers: methodMarkers.map(marker => ({...marker})), symbolRects: symbolRects.map(rect => ({...rect})), navigation: graph ? {noRotate: graph.controls().noRotate, enableRotate: graph.controls().enableRotate,
@@ -320,7 +328,7 @@
       graph.forceEngine("d3").enableNodeDrag(false).showNavInfo(false).backgroundColor("#0e1827")
         .numDimensions(mode).nodeId("id").nodeRelSize(9).nodeVal(n => n.kind === "paper" ? 8 : n.kind === "topic" ? 8 : 2.5)
         .nodeColor(n => n.color).nodeOpacity(.96).nodeLabel(n => { const text = document.createElement("div"); text.textContent = n.title || n.label; return text; })
-        .nodeVisibility(meshVisible).linkVisibility(edge => !dashed(edge) && visible(typeof edge.source === "object" ? edge.source : byId.get(edge.source)) && visible(typeof edge.target === "object" ? edge.target : byId.get(edge.target)))
+        .nodeVisibility(meshVisible).linkVisibility(solidEdge)
         .linkColor(edge => lexical(edge) ? "#5b7894" : edge.kind.startsWith("recorded-") ? "#b6a0c9" : edge.kind.includes("method") ? "#8798ab" : (byId.get(edge.target.id || edge.target)?.color || "#779fc5"))
         .linkOpacity(.7).linkWidth(edge => edge.kind === "topic-membership" ? .8 : .45)
         .onNodeClick(select).onNodeHover(n => { if (!dead) { hover = n?.id || null; graph.nodeVisibility(meshVisible); } }).cooldownTicks(0).graphData(source);
@@ -329,7 +337,7 @@
         line.setAttribute("stroke", lexical(edge) ? "#7595b8" : "#a4b4c8");
         line.setAttribute("stroke-width", lexical(edge) ? "1.2" : "1");
         line.setAttribute("stroke-dasharray", lexical(edge) ? "2 5" : "4 4");
-        line.setAttribute("opacity", ".64"); wire.append(line); wireByLink.set(edge, line);
+        line.setAttribute("opacity", ".64"); line.style.display = "none"; wire.append(line); wireByLink.set(edge, line);
       });
       source.nodes.forEach(n => {
         if (n.kind !== "paper") {
@@ -366,6 +374,6 @@
       mounts.set(host, api); frame = root.requestAnimationFrame(drawLabels); return api;
     } catch (error) { destroy(); throw error; }
   }
-  const api = {buildGraph, mount, fitCamera, resolveLabels, eligibleLabels, symbolBounds};
+  const api = {buildGraph, mount, fitCamera, resolveLabels, eligibleLabels, symbolBounds, incident};
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.AtlasSpatial = api;
 })(typeof window === "undefined" ? globalThis : window);

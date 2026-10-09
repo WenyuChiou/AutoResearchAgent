@@ -125,6 +125,7 @@
             "v3 attachment rejects changed manifests, source versions, artifact bytes, locators, metadata provenance and evidence or import upgrades",
             "v3 export rebuilds deterministic cross-format work/version/source identities and retains mixed read successes, failures and original states",
             "graph filter, selection, pan, zoom and drag preserve work/version identities and exact canonical exports; reference asset hashes supersede historical base provenance for rebuild",
+            "unselected 2D/3D and planar graphs show zero relations; selection reveals only incident recorded or separately labelled computed edges, hover cannot dispatch or expand relations, and clearing preserves the complete graph inventory",
             "formal selection admits only readable full text with confirmed work/source/version/hash binding and affirmative reconciled body extent; absent proof stays pending and inconsistent extent is excluded, while all screening records, diagnostics and Unknown claims remain unchanged",
             "external body-review acceptance and canonical result artifacts reject stale source/attempt/runtime/page or cached-result changes while preserving original automatic diagnostics and eligibility"
           ],

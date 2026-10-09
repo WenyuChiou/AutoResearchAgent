@@ -47,7 +47,7 @@
     moreRelated: ["More related papers", "更多相关论文", "更多相關論文"],
     noRelated: ["No recorded or qualifying computed paper links in this collection.", "此文献集中暂无已记录或达到显示条件的计算关联。", "此文獻集中暫無已記錄或達到顯示條件的計算關聯。"],
     overlapLink: ["Shared recorded classification", "已记录分类交集", "已記錄分類交集"],
-    spatialHelp: ["Hover or select to reveal related names · drag to rotate · scroll to zoom · select the same node to clear focus", "悬停或点击显示相关名称 · 拖动旋转 · 滚轮缩放 · 再次点击同一节点取消选中", "懸停或點選顯示相關名稱 · 拖曳旋轉 · 滾輪縮放 · 再次點選同一節點取消選取"],
+    spatialHelp: ["Select a node to reveal its connections · hover to read names · drag to rotate · scroll to zoom · select again to clear", "点击节点展开它的连线 · 悬停查看名称 · 拖动旋转 · 滚轮缩放 · 再次点击取消选中", "點選節點展開其連線 · 懸停檢視名稱 · 拖曳旋轉 · 滾輪縮放 · 再次點選取消選取"],
     spatialBasis: ["Solid lines show recorded memberships or intersections. Dashed method links and dotted computed content links have separate meanings. Distance serves layout; content cosine is not scientific evidence strength.", "实线表示已记录的归属或交集；虚线表示方法归属，点线表示自动计算的内容相近。距离用于排版；内容余弦相似度不代表科学证据强弱。", "實線表示已記錄的歸屬或交集；虛線表示方法歸屬，點線表示自動計算的內容相近。距離用於排版；內容餘弦相似度不代表科學證據強弱。"],
     spatialUnavailable: ["This browser could not initialize the 3D view. Paper details and the library remain available.", "此浏览器未能初始化 3D 视图。论文详情和文献库仍可使用。", "此瀏覽器未能初始化 3D 檢視。論文詳情及文獻庫仍可使用。"],
     planarFallback: ["Use the planar fallback", "使用平面备用视图", "使用平面備用檢視"],
@@ -365,8 +365,10 @@
       const key = nodes.some(node => node.key === requested) ? requested : null;
       const related = new Set(key ? [key] : []);
       lines.forEach(({line, label, a, b}) => {
-        const active = !key || a.key === key || b.key === key;
+        const active = Boolean(key && (a.key === key || b.key === key));
         if (active) {related.add(a.key); related.add(b.key);}
+        line.style.display = active ? "" : "none";
+        if (label) label.style.display = active ? "" : "none";
         line.dataset.related = String(Boolean(key && active)); line.dataset.muted = String(Boolean(key && !active));
         if (label) label.dataset.muted = String(Boolean(key && !active));
       });
@@ -379,8 +381,7 @@
       control.append(source("span", node.label)); if (node.sub) control.append(source("small", node.sub)); if (node.count !== undefined) control.append(el("strong", node.count));
       control.title = text(node.title || node.label); control.dataset.nodeKey = node.key || "";
       if (node.selected) control.setAttribute("aria-pressed", "true");
-      control.onpointerenter = control.onfocus = () => highlight(node.key);
-      control.onpointerleave = control.onblur = () => highlight(graphFocus() ? `${graphFocus().kind}:${graphFocus().key}` : null);
+      control.onpointerenter = control.onfocus = control.onpointerleave = control.onblur = () => highlight(graphFocus() ? `${graphFocus().kind}:${graphFocus().key}` : null);
       control.setAttribute("aria-label", `${text(node.title || node.label)} ${node.count ?? ""}`); layer.append(control); controls.push({control, node});
     });
     highlight(graphFocus() ? `${graphFocus().kind}:${graphFocus().key}` : null);
