@@ -137,4 +137,4 @@ assert.throws(() => spatial.mount(host, {papers: records, model}), /Injected set
 assert.equal(created.at(-1).disposed, 1); assert.equal(host.children.length, 0); assert.equal(frames.size, 0);
 global.ForceGraph3D = healthyFactory;
 assert.equal(JSON.stringify(input), before);
-console.log("atlas spatial identity, finite mode, selection, pose, LOD and disposal regressions passed");
+console.log("atlas spatial identity, finite mode, selection, pose, level-of-detail and disposal regressions passed");
