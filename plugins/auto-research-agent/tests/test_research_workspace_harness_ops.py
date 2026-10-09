@@ -252,6 +252,7 @@ class HarnessOpsTests(unittest.TestCase):
     def test_restart_completed_exact_key_get_has_no_producer_and_binding_stable(self):
         request = self.request()
         result = self.run_action(request)
+        self.run_action(self.request(key="a-second"))  # Reverse lexical key order.
         bindings = self.service.bindings()
         self.assertEqual(
             bindings["alpha"],
@@ -260,6 +261,8 @@ class HarnessOpsTests(unittest.TestCase):
         self.service.close()
         self.service = self.make()
         self.addCleanup(self.service.close)
+        history = self.service.view("token-a", "alpha")["history"]
+        self.assertEqual([row["key"] for row in history], ["first", "a-second"])
         with patch.object(
             ops,
             "validate_index",
