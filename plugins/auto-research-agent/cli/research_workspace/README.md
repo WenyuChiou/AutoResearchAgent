@@ -168,3 +168,12 @@ selection row; the original complete bibliography retains its existing keys.
 it does not attest the separately required visual/native acceptance. Coverage,
 scientific assessments, full-record exports and official Stage 2 eligibility
 remain unchanged. Rebuilding these exports performs no new research or reading.
+
+### v6 atlas interaction and presentation
+
+Direction and method lines remain distinct from derived method-label similarity.
+Graph nodes and direction count cards focus the complete network; clicking again
+or using Reset network clears focus. Process history and raw records are closed
+by default. Dense working collections keep separate paper-version positions.
+Stage 2 percentages, raw points out of six, three-criterion completeness and
+pending audit remain separate. These controls never change canonical artifacts.

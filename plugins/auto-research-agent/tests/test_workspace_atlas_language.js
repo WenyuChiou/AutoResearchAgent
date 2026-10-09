@@ -40,7 +40,7 @@ const labels = {
   "zh-Hans": ["文献知识网络", "比较文献，探索研究方向", "项目文件", "Codex 与反馈"],
   "zh-Hant": ["文獻知識網絡", "比較文獻，探索研究方向", "專案檔案", "Codex 與回饋"]
 };
-function runCase(initial, hostFirst) {
+function runCase(initial, hostFirst, dense = false) {
   const body = new Element("body"), ids = {};
   for (const id of ["atlas-content", "atlas-stages", "atlas-language-label", "atlas-language", "atlas-original", "atlas-project", "atlas-status", "atlas-footer", "atlas-view-files"]) {
     const node = new Element(id === "atlas-language" ? "select" : "div"); node.id = id; ids[id] = node; body.append(node);
@@ -53,7 +53,11 @@ function runCase(initial, hostFirst) {
     createElementNS: (namespace, tag) => { const node = new Element(tag); node.namespaceURI = namespace; return node; },
     querySelectorAll: () => flatten(body).filter(node => node.dataset.atlasLabel)
   };
-  const payload = {index: {topic: "Original English topic", papers: [{work_id: "fixture", version_id: "v1", title: "Original English title", source_ids: []}], stages: [], screening: [], sources: [], claims: []}, index_sha256: "1".repeat(64)};
+  const payload = {index: {topic: "Original English topic", papers: [
+    {work_id: "fixture", version_id: "v1", title: "Original English title", source_ids: [], classification: {topic_cluster: "Direction A", method: "Shared original method"}},
+    {work_id: "second", version_id: "v1", title: "Second original title", source_ids: [], classification: {topic_cluster: "Direction B", method: "Shared original method"}},
+  ], stages: [], screening: [], sources: [], claims: []}, index_sha256: "1".repeat(64)};
+  if (dense) for (let i = 0; i < 28; i++) payload.index.papers.push({work_id: `extra-${i}`, version_id: "v1", title: `Retained paper ${i}`, source_ids: [], classification: {topic_cluster: "Direction A", method: "Shared original method"}});
   const before = JSON.stringify(payload);
   const window = {WORKSPACE_VIEW: payload, AtlasModel: model, innerWidth: 1200, WORKSPACE_HOST: {cases: [], current_case: "fixture", maintenance_enabled: false, connection: {status: "not-checked"}}};
   const context = vm.createContext({window, document, location: {origin: "http://127.0.0.1", href: "http://127.0.0.1/atlas.html"}, URL, sessionStorage: {getItem: () => null}});
@@ -71,12 +75,51 @@ function runCase(initial, hostFirst) {
     contains(body.textContent, "Original English topic", "source text remains in its recorded language");
   };
   check(labels[initial] ? initial : "en", 1);
+  const graphNodes = () => flatten(ids["atlas-content"]).filter(node => node.className.includes("atlas-node"));
+  const lineKinds = () => flatten(ids["atlas-content"]).filter(node => node.tagName === "line").map(node => node.dataset.kind);
+  const count = graphNodes().length;
+  if (dense) {
+    const nodes = graphNodes().filter(node => node.className.includes("atlas-paper-node"));
+    equal(nodes.length, 30, "thirty paper versions remain drawn rather than silently truncated");
+    equal(new Set(nodes.map(node => `${node.style.left}/${node.style.top}`)).size, 30, "dense direction gives every paper a distinct position");
+  }
+  equal(document.getElementById("atlas-process").tagName, "details", "process history uses progressive disclosure");
+  equal(document.getElementById("atlas-process").open, false, "process history starts closed");
+  equal(lineKinds().includes("direction"), true, "direction links retain their type");
+  equal(lineKinds().includes("method"), true, "recorded method links retain their distinct type");
+  const topicNode = () => graphNodes().find(node => node.dataset.nodeKey === "topic:Direction A");
+  topicNode().onclick();
+  equal(graphNodes().length, count, "category selection must not replace the network with a subset");
+  equal(topicNode().attributes["aria-pressed"], "true", "clicked category has focus");
+  topicNode().onclick();
+  equal(graphNodes().length, count, "clicking the same category restores the complete graph");
+  equal(topicNode().attributes["aria-pressed"], undefined, "same-category click clears focus");
+  const categoryCard = () => flatten(ids["atlas-content"]).find(node => node.className === "atlas-topic-card" && node.textContent.includes("Direction A"));
+  categoryCard().onclick(); equal(graphNodes().length, count, "category count cards must preserve the whole graph too");
+  equal(topicNode().attributes["aria-pressed"], "true", "category count card and graph share one focus");
+  categoryCard().onclick(); equal(topicNode().attributes["aria-pressed"], undefined, "same category card clears graph focus");
+  const paperNode = () => graphNodes().find(node => node.dataset.nodeKey === 'paper:["fixture","v1"]');
+  paperNode().onclick(); equal(paperNode().attributes["aria-pressed"], "true", "paper click opens its own details");
+  paperNode().onclick(); equal(paperNode().attributes["aria-pressed"], undefined, "same-paper click clears focus");
+  equal(document.getElementById("atlas-process").open, false, "node navigation does not expand process history");
+  equal(JSON.stringify(payload), before, "node interactions cannot mutate retained research records");
   for (const language of ["en", "zh-Hans", "zh-Hant", "invalid"]) {
     ids["atlas-language"].change(language); check(labels[language] ? language : "en", 1);
   }
+  paperNode().onclick();
+  flatten(ids["atlas-content"]).find(node => node.tagName === "button" && node.textContent === "Local network").onclick();
+  equal(lineKinds().includes("similarity"), true, "local graph labels computed similarity links separately");
+  equal(graphNodes().every(node => node.dataset.nodeKey.startsWith("paper:")), true, "every local paper has an exact identity");
+  equal(paperNode().dataset.muted, "false", "local focused paper remains visible");
+  paperNode().onpointerenter(); equal(paperNode().dataset.muted, "false", "local hover uses exact paper identity");
+  paperNode().onclick(); equal(paperNode().attributes["aria-pressed"], undefined, "same local paper toggles back without library navigation");
+  equal(graphNodes().length, count, "same local paper restores the full classified network");
   ids["atlas-stages"].children[1].onclick(); check("en", 2);
+  equal(document.getElementById("atlas-process").tagName, "details", "Stage 2 process history also uses progressive disclosure");
+  equal(document.getElementById("atlas-process").open, false, "Stage 2 process history starts closed");
   ids["atlas-language"].change("zh-Hant"); check("zh-Hant", 2);
   equal(JSON.stringify(payload), before, "view changes cannot alter canonical records");
 }
 for (const initial of ["zh-Hans", "zh-Hant", "invalid"]) for (const hostFirst of [true, false]) runCase(initial, hostFirst);
+runCase("en", false, true);
 console.log(`Atlas language DOM regression: ${checks} assertions passed; synthetic DOM and inert host only.`);

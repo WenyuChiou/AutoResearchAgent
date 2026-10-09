@@ -258,3 +258,22 @@ summary:focus-visible { outline: 3px solid #567fa2; outline-offset: 3px; }
 @media (prefers-reduced-motion: no-preference) {
   button, .atlas-workspace-nav a { transition: background-color .14s, border-color .14s; }
 }
+
+/* v6 relationship grammar; category styling is presentation, never a score. */
+.atlas-cluster-background { opacity: .065; }
+.atlas-graph line { stroke: var(--edge, #567fa2); opacity: .7; stroke-width: 1.5; }
+.atlas-graph line[data-kind="method"] { stroke-dasharray: 5 4; }
+.atlas-graph line[data-kind="similarity"] { stroke-dasharray: 2 4; }
+.atlas-graph line[data-related="true"] { opacity: 1; stroke-width: 2.1; }
+.atlas-graph line[data-muted="true"] { opacity: .18; }
+.atlas-node[data-muted="true"]::before { opacity: .4; }
+.atlas-node.atlas-topic-node { min-height: 32px; width: 155px; gap: 1px; }
+.atlas-node.atlas-topic-node::before { display: none; }
+.atlas-node.atlas-topic-node strong { font-size: 14px; color: var(--muted); }
+.atlas-graph-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 15px; margin: 12px 0; }
+.atlas-graph-legend > span { display: flex; align-items: center; gap: 7px; }
+.atlas-graph-legend i { width: 24px; border-top: 2px solid #397d7c; }
+.atlas-graph-legend i[data-kind="method"] { border-color: #a48644; border-top-style: dashed; }
+.atlas-graph-legend i[data-kind="similarity"] { border-color: #567fa2; border-top-style: dotted; }
+.atlas-process > summary { color: var(--muted); font-size: 17px; }
+.atlas-process:not([open]) { margin: 18px 0; padding: 13px 20px; }
