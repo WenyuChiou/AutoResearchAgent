@@ -1,4 +1,4 @@
-"""Derive a conservative, read-only formal literature selection.
+"""Derive a conservative, read-only technical source selection.
 
 Selection is a view over a validated workspace index.  It does not repair source
 records, reassess claims, execute research, or promote a Stage 2 import.
@@ -362,11 +362,11 @@ def selection_files(index):
         )
     )
     markdown = [
-        "# Formal literature selection",
+        "# Source selection",
         "",
         "Read-only selection from validated work/version/source bindings. Claim assessments and coverage remain unchanged.",
         "",
-        f"Included: {selection['counts']['included']}; excluded: {selection['counts']['excluded']}; pending: {selection['counts']['pending']}.",
+        f"Technically eligible versions: {selection['counts']['included']}; excluded: {selection['counts']['excluded']}; pending: {selection['counts']['pending']}. These counts do not certify formal admission.",
         "",
     ]
     for row in selection["rows"]:
