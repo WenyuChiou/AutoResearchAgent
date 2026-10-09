@@ -1,5 +1,7 @@
 """Pinned configuration tests are offline; no child, native session or model."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from pathlib import Path
 import os
 import stat

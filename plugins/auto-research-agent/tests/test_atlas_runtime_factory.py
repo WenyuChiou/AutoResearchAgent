@@ -1,5 +1,7 @@
 """Repository cases + actual Python fake child/SQLite/HTTP, never Codex/models."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 import http.client
 import json
 from pathlib import Path

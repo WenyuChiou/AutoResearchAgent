@@ -1,5 +1,7 @@
 """Pure saved-input guard and actual Stage1/Stage2 offline producer tests."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from pathlib import Path
 import io
 import os

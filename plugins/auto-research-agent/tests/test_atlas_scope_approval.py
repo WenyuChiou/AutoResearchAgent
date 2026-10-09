@@ -1,5 +1,7 @@
 """Existing repository case composition, real HTTP/SQLite; no Codex/model calls."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 import http.client

@@ -1,5 +1,7 @@
 """Python fake child only; never Codex, models or actual commands."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from pathlib import Path
 import sys
 import tempfile
