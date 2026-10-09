@@ -364,7 +364,11 @@
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B."
+      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B.",
+      "preflight_workspace_admission_contract": "First controller capture admits only read/write probe files bound to its authenticated matching preflight and archived hashes. Changed, unrelated, linked or task-reserved paths fail closed. Probe evidence is preserved; empty legacy workspaces remain compatible. This does not attest research completion, formal isolation or scientific improvement.",
+      "preflight_workspace_admission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_preflight_workspace_admission.py"
+      ]
     },
     {
       "capability_id": "cli:stage2-workflow",
