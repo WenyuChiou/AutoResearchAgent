@@ -359,7 +359,12 @@
       "no_execution_trace_evidence_contract": "Explicit no-executed-tools-v1 retains actually offered native tools while requiring authenticated zero executed tools/children across all attempts. Strict empty-tool proof remains separate and unchanged. Saved inventory hashes and actual settings are evidence only, never execution permission or formal isolation/readiness.",
       "no_execution_trace_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_no_execution_trace_evidence.py"
-      ]
+      ],
+      "completion_evidence_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_completion.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ],
+      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B."
     },
     {
       "capability_id": "cli:stage2-workflow",
@@ -463,7 +468,12 @@
         "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py",
         "plugins/auto-research-agent/tests/test_stage2_prerequisites.py",
         "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
-      ]
+      ],
+      "completion_evidence_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_completion.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py"
+      ],
+      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B."
     },
     {
       "capability_id": "validator:research-pr-contract",

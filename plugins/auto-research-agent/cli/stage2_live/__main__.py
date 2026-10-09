@@ -74,6 +74,8 @@ def main(argv=None):
     control_check = commands.add_parser(
         "verify-controller", help="read-only controller verification"
     )
+    control_check.add_argument("--evaluation")
+    control_check.add_argument("--expected-evaluation-manifest-sha256")
     for option in ("controller-root", "receipt", "output"):
         control_check.add_argument("--" + option, required=True)
     action_extract = commands.add_parser(
@@ -391,7 +393,32 @@ def main(argv=None):
                     _read(args.spec),
                 )
             else:
-                result = verify_controller(args.controller_root, args.receipt)
+                verified = verify_controller(
+                    args.controller_root,
+                    args.receipt,
+                    evaluation_dir=args.evaluation,
+                    expected_evaluation_manifest_sha256=args.expected_evaluation_manifest_sha256,
+                )
+                # Internal inspection state contains Path objects and full source
+                # packets. Emit the explicit public receipt/status projection.
+                result = {
+                    key: verified[key]
+                    for key in (
+                        "kind",
+                        "schema_version",
+                        "manifest",
+                        "completion",
+                        "authentic_native_execution",
+                        "synthetic_test_only",
+                        "selection_ready",
+                        "stage2_complete",
+                        "model_call_verification",
+                        "model_call_blockers",
+                        "pilot_executable",
+                        "formal_ready",
+                        "formal_readiness_blocker",
+                    )
+                }
             _save(args.output, result)
         elif args.command == "extract-actions":
             from .action_extraction import run_action_extraction
