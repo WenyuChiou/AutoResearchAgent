@@ -97,6 +97,9 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
       const report = flatten(ids["atlas-content"]).find(node => node.tagName === "a" && node.href === "./stage2/report-reader.html");
       equal(report.textContent, reports[language][payload.fixture === true ? 0 : 1], "fixture reports cannot be labelled as verified original evaluations");
       contains(document.getElementById("atlas-assessment").textContent, "P4: 83.3% (5/6)", "score presentation rounds its percentage while retaining the six-point unit");
+      const stagePanels = flatten(ids["atlas-content"]), workflow = stagePanels.find(node => node.className.includes("atlas-workflow"));
+      equal(stagePanels.indexOf(report) < stagePanels.indexOf(workflow), true, "Stage 2 result precedes its workflow in every language");
+      equal(stagePanels.indexOf(workflow) < stagePanels.indexOf(document.getElementById("atlas-process")), true, "Stage 2 collapsed history follows workflow");
       equal(JSON.stringify(payload), before, "fixture marker, raw notice and raw score remain unchanged by language and stage navigation");
     }
     return;
@@ -135,7 +138,7 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
     summaryB().onclick();
     equal(graphNode("topic:Direction B").attributes["aria-pressed"], "true", "summary direction B is present and highlighted despite the library A filter");
     equal(graphNode('paper:["second","v1"]').dataset.muted, "false", "summary focus locates the target beyond the first 48-paper graph page");
-    equal(details().textContent, originalDetail, "summary focus keeps the independent main paper detail");
+    contains(details().textContent, "Second original title", "summary direction updates upper details with its recorded papers");
     equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "summary graph pagination cannot replace the current library page");
     equal(selectors().map(node => node.value).join("/"), "Direction A/Shared original method/unbound/title", "summary focus cannot clear saved library filters or ordering");
     summaryB().onclick();
@@ -144,7 +147,8 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
     summaryB().onclick();
     flatten(ids["atlas-content"]).find(node => node.dataset.summaryPaper === '["second","v1"]').onclick();
     equal(graphNode('paper:["second","v1"]').attributes["aria-pressed"], "true", "summary paper outside the library filter is highlighted at its exact graph identity");
-    equal(details().textContent, originalDetail, "summary paper focus cannot overwrite the main detailed selection");
+    contains(details().textContent, "Second original title", "summary paper updates the upper exact paper detail");
+    equal(details().lastScrollIntoView.block, "start", "summary paper scrolls directly to the upper detail panel");
     equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "summary paper focus retains the saved library page");
     equal(JSON.stringify(payload), before, "library navigation and return cannot change canonical paper records");
     return;
@@ -224,15 +228,16 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
   const mainTitle = () => flatten(ids["atlas-content"]).find(node => node.className.includes("atlas-detail-panel")).textContent;
   const selectedDetail = mainTitle();
   flatten(ids["atlas-content"]).find(node => node.className === "atlas-topic-card" && node.textContent.includes("Direction B")).onclick();
-  equal(mainTitle(), selectedDetail, "direction summary cannot replace the selected main paper details");
+  contains(mainTitle(), "Second original title", "direction summary updates upper details to its recorded papers");
   const summaryPaper = () => flatten(ids["atlas-content"]).find(node => node.dataset.summaryPaper === '["second","v1"]');
   summaryPaper().onclick(); equal(summaryPaper().attributes["aria-pressed"], "true", "summary paper toggles its own compact preview");
   equal(graphNodes().find(node => node.dataset.nodeKey === 'paper:["second","v1"]').attributes["aria-pressed"], "true", "summary paper highlights its exact graph node");
-  equal(mainTitle(), selectedDetail, "summary paper highlighting preserves the independent main detail");
+  contains(mainTitle(), "Second original title", "summary paper highlighting updates the upper detailed selection");
+  equal(document.getElementById("atlas-paper-detail").lastScrollIntoView.block, "start", "summary selection scrolls directly to upper details");
   equal(coordinates(), originalCoordinates, "summary paper highlighting does not rearrange the network");
-  summaryPaper().onclick(); equal(summaryPaper().attributes["aria-pressed"], "false", "summary preview can be closed locally");
+  summaryPaper().onclick(); equal(summaryPaper().attributes["aria-pressed"], "true", "reopening the same summary paper retains its detail");
   toggle().checked = false; toggle().onchange();
-  paperNode().onclick(); equal(paperNode().attributes["aria-pressed"], undefined, "same-paper click clears focus");
+  paperNode().onclick(); paperNode().onclick(); equal(paperNode().attributes["aria-pressed"], undefined, "same-paper graph click clears focus");
   equal(document.getElementById("atlas-process").open, false, "node navigation does not expand process history");
   equal(JSON.stringify(payload), before, "node interactions cannot mutate retained research records");
   for (const language of ["en", "zh-Hans", "zh-Hant", "invalid"]) {

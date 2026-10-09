@@ -321,3 +321,29 @@ summary:focus-visible { outline: 3px solid #567fa2; outline-offset: 3px; }
 .atlas-graph-legend i[data-kind="similarity"] { border-color: #567fa2; border-top-style: dotted; }
 .atlas-process > summary { color: var(--muted); font-size: 17px; }
 .atlas-process:not([open]) { margin: 18px 0; padding: 13px 20px; }
+
+/* Shared spatial figure surface inside the reviewed v6 evidence workspace. */
+.atlas-spatial-host { position: relative; height: clamp(440px, 55vh, 620px); min-width: 0; overflow: hidden; border-radius: 9px; background: #0e1827; color: #dce7ee; }
+.atlas-spatial-host canvas { display: block; }
+.atlas-spatial-host .atlas-note { background: #1c2b3c; color: #dce7ee; }
+.atlas-spatial-controls { margin: 8px 0 14px; }
+.atlas-spatial-controls button[aria-pressed="true"] { border-color: #397d7c; background: #edf4f2; }
+.atlas-spatial-controls .atlas-check { margin-left: auto; font-size: 14px; }
+.atlas-spatial-label { min-height: 0; font-size: 15px !important; line-height: 1.25; }
+.atlas-spatial-topic { font-weight: 550 !important; }
+.atlas-relation-list { font-size: 14px; }
+.atlas-relation-list[open] { max-height: 260px; overflow-y: auto; }
+.atlas-relation-list p { padding: 9px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.atlas-graph-legend i[data-kind="overlap"] { border-color: #87729b; }
+.atlas-access { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 18px 0; padding: 4px 0 15px; }
+.atlas-access h4 { margin: 12px 0 9px; font-size: 16px; font-weight: 550; }
+.atlas-access > a { display: block; margin: 7px 0; }
+.atlas-matrix-scroll { overflow-x: auto; }
+.atlas-comparison-matrix { table-layout: fixed; min-width: 700px; }
+.atlas-comparison-matrix th:first-child { width: 130px; background: #f3f6f2; }
+.atlas-comparison-matrix thead th { background: #eef4f2; color: var(--ink); }
+.atlas-comparison-matrix button { border: 0; background: transparent; padding: 0; text-align: left; font-size: 17px; font-weight: 550; }
+.atlas-comparison-matrix td { font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
+.atlas-comparison-matrix details { font-size: 13px; }
+.atlas-comparison-matrix td:nth-child(2n+1) { background: #fcfcf8; }
+@media (max-width: 980px) { .atlas-spatial-host { height: 520px; } }

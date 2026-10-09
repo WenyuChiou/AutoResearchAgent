@@ -321,7 +321,7 @@ def _write_view(
     }
     files.update(selection_files(index))
     if atlas:
-        from .atlas import atlas_files
+        from .atlas import ATLAS_ASSETS, atlas_files
 
         files.update(atlas_files(payload))
         files["index.html"] = files["index.html"].replace(
@@ -418,7 +418,7 @@ def _write_view(
         manifest["ui_sources"].update(
             {
                 name: sha(files[name])
-                for name in ("atlas.html", "atlas.css", "atlas-model.js", "atlas-ui.js")
+                for name in (*ATLAS_ASSETS, "atlas-model.js")
             }
         )
     if repaired:

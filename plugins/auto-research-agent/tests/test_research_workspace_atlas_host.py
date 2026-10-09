@@ -29,7 +29,9 @@ class AtlasHostTests(unittest.TestCase):
             files["workspace-index.json"] = canonical(value["index"])
             files["index.html"] = b"<h1>Original read-only workspace</h1>"
             for name, raw in files.items():
-                (folder / name).write_bytes(raw)
+                target = folder / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(raw)
             manifest = canonical(
                 dict(
                     kind="WorkspaceReadOnlyView",

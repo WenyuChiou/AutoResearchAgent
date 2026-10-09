@@ -129,6 +129,10 @@ This section precedes findings. Source attempts, historical decisions, claim
 records and raw provenance may remain collapsed. Preserve URL/path and hash
 guards, source access failures, Unknowns and exact work/version bindings.
 
+Stage 1 and Stage 2 put results first, then the within-stage workflow and collapsed
+process history. Future stages retain this order while choosing visualizations
+suited to their actual delivered artifacts.
+
 Stage 2 places the relation graph alongside its source-bound comparison matrix
 and recorded route cards. The matrix uses explicit comparison dimensions, clear
 row/column labels, readable cells and horizontal scrolling when needed. Route
