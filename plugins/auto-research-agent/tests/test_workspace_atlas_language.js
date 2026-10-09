@@ -58,6 +58,7 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
     {work_id: "second", version_id: "v1", title: "Second original title", source_ids: [], classification: {topic_cluster: "Direction B", method: "Shared original method"}},
   ], stages: [], screening: [], sources: [], claims: []}, index_sha256: "1".repeat(64)};
   if (dense) for (let i = 0; i < 28; i++) payload.index.papers.push({work_id: `extra-${i}`, version_id: "v1", title: `Retained paper ${i}`, source_ids: [], classification: {topic_cluster: "Direction A", method: "Shared original method"}});
+  if (options.library) for (let i = 28; i < 58; i++) payload.index.papers.push({work_id: `extra-${i}`, version_id: "v1", title: `Retained paper ${i}`, source_ids: [], classification: {topic_cluster: "Direction A", method: "Shared original method"}});
   if (boundaries) {
     payload.index.papers[0].classification.method = ["Shared original method", "Unique recorded method"];
     payload.index.papers.push({work_id: "unclassified", version_id: "v2", title: "Unclassified retained title", source_ids: [], classification: {topic_cluster: "Unknown", method: "Unknown"}});
@@ -126,6 +127,25 @@ function runCase(initial, hostFirst, dense = false, boundaries = false, options 
     equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "return preserves exact second-page work/version identities");
     equal(Boolean(flatten(details()).find(node => node.textContent === backLabel)), false, "return clears its one-shot back control");
     rows()[0].onclick(); contains(details().textContent, selectedTitle, "reopening the same library paper does not toggle its details away");
+    const summaryB = () => flatten(ids["atlas-content"]).find(node => node.className === "atlas-topic-card" && node.textContent.includes("Direction B"));
+    const graphNode = key => flatten(ids["atlas-content"]).find(node => node.dataset.nodeKey === key);
+    equal(Boolean(graphNode("topic:Direction B")), false, "library direction A initially limits the graph to its own context");
+    const originalDetail = details().textContent, graphCoordinates = () => flatten(document.getElementById("atlas-network")).filter(node => node.className.includes("atlas-paper-node")).map(node => [node.dataset.nodeKey, node.style.left, node.style.top]).join("/");
+    const originalGraph = graphCoordinates();
+    summaryB().onclick();
+    equal(graphNode("topic:Direction B").attributes["aria-pressed"], "true", "summary direction B is present and highlighted despite the library A filter");
+    equal(graphNode('paper:["second","v1"]').dataset.muted, "false", "summary focus locates the target beyond the first 48-paper graph page");
+    equal(details().textContent, originalDetail, "summary focus keeps the independent main paper detail");
+    equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "summary graph pagination cannot replace the current library page");
+    equal(selectors().map(node => node.value).join("/"), "Direction A/Shared original method/unbound/title", "summary focus cannot clear saved library filters or ordering");
+    summaryB().onclick();
+    equal(Boolean(graphNode("topic:Direction B")), false, "repeated summary category selection restores the original filtered graph");
+    equal(graphCoordinates(), originalGraph, "clearing summary focus restores the separate graph page and coordinates");
+    summaryB().onclick();
+    flatten(ids["atlas-content"]).find(node => node.dataset.summaryPaper === '["second","v1"]').onclick();
+    equal(graphNode('paper:["second","v1"]').attributes["aria-pressed"], "true", "summary paper outside the library filter is highlighted at its exact graph identity");
+    equal(details().textContent, originalDetail, "summary paper focus cannot overwrite the main detailed selection");
+    equal(rows().map(node => node.dataset.paperKey).join("/"), retainedKeys, "summary paper focus retains the saved library page");
     equal(JSON.stringify(payload), before, "library navigation and return cannot change canonical paper records");
     return;
   }

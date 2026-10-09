@@ -29,5 +29,8 @@ aliases are separate from discovery sequence and retained work/version IDs.
 
 The lower direction summary owns its short list and preview. Its selection can
 highlight the network, while the main detail panel keeps its own selection.
+Summary focus uses the retained scope and its own graph page, so a library topic
+filter cannot hide the requested direction. Clearing summary focus restores the
+library context without changing its saved filter, order, page or scroll.
 Future styling changes should reuse this contract. A layout behavior change
 requires a reviewed PR, updated regressions and a new layout-contract revision.

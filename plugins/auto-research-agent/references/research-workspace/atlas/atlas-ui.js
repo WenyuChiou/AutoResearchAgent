@@ -161,7 +161,7 @@
   const languageControl = document.getElementById("atlas-language");
   const interfaceLanguage = value => ["en", "zh-Hans", "zh-Hant"].includes(value) ? value : "en";
   const state = {language: interfaceLanguage(languageControl?.value), stage: 1, scope: "working", sort: "recorded", mode: "library", topic: "", method: "", pair: [], paper: null, page: 0, graphPage: 0, groupPage: 0, neighborsPage: 0, ledgerPage: 0, text: "", status: "", tab: "sets", selected: new Set(), comparePage: 0, candidatePage: 0, libraryOpen: false, network: "global", similarity: false, zoom: 1, workflow: {1: 1, 2: 1}, productOpen: false, stage2Paper: null, networkFocus: null, graphCleared: false, processOpen: false};
-  state.summaryTopic = null; state.summaryPaper = null; state.summaryPage = 0;
+  state.summaryTopic = null; state.summaryPaper = null; state.summaryPage = 0; state.summaryGraphPage = 0;
   state.summaryGraphFocus = null;
   const graphFocus = () => state.summaryGraphFocus || state.networkFocus;
   state.libraryReturn = null;
@@ -264,6 +264,12 @@
       state.networkFocus = null; state.paper = null; state.graphCleared = true; render();
     } else choosePaper(key);
   }
+  function focusSummary(kind, key) {
+    const rows = ordered(papers);
+    const index = rows.findIndex(paper => kind === "paper" ? paper.key === key : key ? paper.topics.includes(key) : !paper.topics.length);
+    state.summaryGraphPage = Math.max(0, Math.floor(index / 48));
+    state.summaryGraphFocus = {kind, key}; state.network = "global";
+  }
   function graph(parent, nodes, edges, clusters = [], height = 470) {
     const box = el("div", undefined, "atlas-graph"), layer = el("div", undefined, "atlas-graph-layer"), svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     layer.style.transform = `scale(${state.zoom})`;
@@ -325,7 +331,8 @@
     }); parent.append(box);
   }
   function groupGraph(parent) {
-    const rows = contextRows(), page = rows.length > 48 ? pagination(parent, rows.length, 48, "graphPage") : 0, shown = ordered(rows).slice(page * 48, page * 48 + 48);
+    const summaryFocus = Boolean(state.summaryGraphFocus), rows = summaryFocus ? papers : contextRows();
+    const page = rows.length > 48 ? pagination(parent, rows.length, 48, summaryFocus ? "summaryGraphPage" : "graphPage") : 0, shown = ordered(rows).slice(page * 48, page * 48 + 48);
     if (rows.length <= 48) parent.append(el("p", `${rows.length} ${t("records")}`, "atlas-small"));
     const layout = model.networkLayout(shown, {singleMethods: true}), nodes = [], edges = [], groupNodes = new Map();
     const palette = new Map(model.networkLayout(archive).groups.map(group => [group.key, group.colorIndex < 0 ? "#8b949a" : colors[group.colorIndex]]));
@@ -486,7 +493,12 @@
     const selected = groups.find(group => group.key === state.summaryTopic) || groups[0];
     const unit = Math.min(28, 72 / Math.sqrt(Math.max(1, ...groups.map(group => group.ids.length))));
     groups.forEach(group => {
-      const card = button("", () => {state.summaryTopic = group.key; state.summaryPaper = null; state.summaryPage = 0; state.summaryGraphFocus = {kind: "topic", key: group.key}; state.network = "global"; render();}, selected?.key === group.key); card.className = "atlas-topic-card"; card.style.setProperty("--category", palette.get(group.key) || "#8b949a");
+      const card = button("", () => {
+        state.summaryTopic = group.key; state.summaryPaper = null; state.summaryPage = 0;
+        if (state.summaryGraphFocus?.kind === "topic" && state.summaryGraphFocus.key === group.key) state.summaryGraphFocus = null;
+        else focusSummary("topic", group.key);
+        state.network = "global"; render();
+      }, selected?.key === group.key); card.className = "atlas-topic-card"; card.style.setProperty("--category", palette.get(group.key) || "#8b949a");
       const bubble = el("b", group.ids.length); bubble.style.width = bubble.style.height = `${unit * Math.sqrt(group.ids.length)}px`;
       card.append(bubble, source("strong", group.label)); cards.append(card);
     });
@@ -494,7 +506,7 @@
       list.append(source("h3", selected.label), el("p", `${selected.ids.length} ${t("related")}`, "atlas-small"));
       const rows = papers.filter(p => selected.ids.includes(p.key)), page = rows.length > 5 ? pagination(list, rows.length, 5, "summaryPage") : 0;
       rows.slice(page * 5, page * 5 + 5).forEach(paper => {
-        const control = button("", () => {state.summaryPaper = state.summaryPaper === paper.key ? null : paper.key; state.summaryGraphFocus = state.summaryPaper ? {kind: "paper", key: paper.key} : {kind: "topic", key: selected.key}; state.network = "global"; render();}, state.summaryPaper === paper.key); control.className = "atlas-summary-paper";
+        const control = button("", () => {state.summaryPaper = state.summaryPaper === paper.key ? null : paper.key; focusSummary(state.summaryPaper ? "paper" : "topic", state.summaryPaper || selected.key); render();}, state.summaryPaper === paper.key); control.className = "atlas-summary-paper";
         control.dataset.summaryPaper = paper.key; control.append(source("strong", paper.title), source("small", `${paper.work_id} · ${paper.year ?? t("unknown")}`)); list.append(control);
         if (state.summaryPaper === paper.key) {
           const preview = el("div", undefined, "atlas-summary-preview"); preview.append(source("p", paper.findings?.main_findings ?? paper.findings?.relevance));
