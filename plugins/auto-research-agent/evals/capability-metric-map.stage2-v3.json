@@ -376,6 +376,10 @@
       "review_snapshot_continuation_contract": "Opt-in explicit controller1.2 continuation target names the verified latest append-only descendant of the original validated ideation snapshot. Original research/extraction byte, input, runtime, policy and proof bindings remain immutable; changed target sources/candidates receive fresh source-set/candidate-version-bound checks, and stale dossiers or reviews cannot certify them. Foreign, stale and pre-ideation targets fail closed. Legacy and absent-field behavior remain unchanged. Controlled call-count tests do not attest real execution, human choice, formal readiness or scientific improvement.",
       "review_snapshot_continuation_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller_continuation.py"
+      ],
+      "captured_proposal_recovery_contract": "Explicit recovery of a selected, authenticated legacy output.txt checks exact end/start archive and workspace hashes, changed seed bytes, complete capture receipt, regular unaliased UTF-8 bounded content and original final-answer provenance. Default selection never guesses an alternate artifact. Recovery creates a new no-tool extraction and immutable descendant; original generation, extraction and capture remain intact. Existing v1.2 continuation selects that latest validated descendant; scientific validity and formal readiness are not implied.",
+      "captured_proposal_recovery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_proposal.py"
       ]
     },
     {
@@ -666,6 +670,10 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "full_proposal_artifact_contract": "Native research tasks request the complete prose, comparison matrix and references in stage2_proposal.md in the assigned workspace. A brief final link is not the extraction input; when writing is unavailable the full final answer remains the compatibility fallback. No topic, candidate, resource or scientific quota is introduced.",
+      "full_proposal_artifact_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_native_proposal.py"
       ]
     },
     {
