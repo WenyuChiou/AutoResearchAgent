@@ -60,6 +60,7 @@ from stage2_live.review_models import (
     extract_review,
     reconciliation_task,
 )
+from stage2_live.workspace_admission import admit_verified_preflight_workspace
 
 VERSION = "1.0.0"
 ROLE_POLICY_VERSION = "1.1.0"
@@ -629,15 +630,16 @@ class _ProductionAdapter:
             raise Stage2Error("controller-caller-workspace-home-required")
         preflight = preflight_for_environment(spec, home, workspace)
         native = native_for_environment(spec, home, workspace)
-        verify_environment_start(preflight, native, home, workspace)
+        verified_preflight = verify_environment_start(
+            preflight, native, home, workspace
+        )
         policy = native.get("extraction_policy")
         deadline = (
             {"timeout_seconds": _execution_policy(policy)["timeout_seconds"]}
             if policy is not None
             else {}
         )
-        if any(path.name != ".git" for path in workspace.iterdir()):
-            raise Stage2Error("controller-subject-workspace-must-start-empty")
+        admit_verified_preflight_workspace(workspace, preflight, verified_preflight)
         task_path = workspace / "input.json"
         _write_new(task_path, task)
         staged_sources = workspace / "sources"
