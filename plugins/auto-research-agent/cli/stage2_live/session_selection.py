@@ -11,6 +11,15 @@ class _TruncatedValue(ValueError):
         self.path = path
 
 
+def _unambiguous_members(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("ambiguous event member")
+        result[key] = value
+    return result
+
+
 def _partial_value(raw, offset, path, objects):
     """Parse the complete prefix without accepting duplicate object members."""
     decoder = json.JSONDecoder()
@@ -111,7 +120,7 @@ def select_production_session(capture_root, thread_id):
             if not line.strip():
                 continue
             try:
-                row = json.loads(line)
+                row = json.loads(line, object_pairs_hook=_unambiguous_members)
                 if not isinstance(row, dict):
                     raise ValueError("event is not an object")
             except ValueError as error:
