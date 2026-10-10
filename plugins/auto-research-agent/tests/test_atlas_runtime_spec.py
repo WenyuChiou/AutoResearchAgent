@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from research_workspace_native.runtime_spec import _load
+from research_workspace_native.runtime_spec import DENIED_THREAD_CONFIG, _load
 from research_workspace_native.codex_probe import _file_sha
 from stage1_deliverable.common import canonical, sha
 
@@ -69,6 +69,28 @@ class RuntimeSpecTests(unittest.TestCase):
         self.assertEqual(spec, self.spec)
         self.assertEqual(sha(path.read_bytes()), digest)
         self.assertFalse(Path(spec["store_path"]).exists())
+
+    def test_trusted_single_stage_unit_has_distinct_bounded_spec(self):
+        value = {
+            **self.spec,
+            "kind": "NativeStageUnitRuntimeSpec",
+            "thread_config": DENIED_THREAD_CONFIG,
+            "limits": {**self.spec["limits"], "max_text_bytes": 32768, "max_starts": 1},
+        }
+        self.assertEqual(self.load(value)[2], value)
+        for change in (
+            {"kind": "NativeAtlasRuntimeSpec"},
+            {"kind": "NativeStageUnitRuntimeSpec-untrusted"},
+            {"trusted_stage_unit": True},
+            {"thread_config": {**DENIED_THREAD_CONFIG, "web_search": "cached"}},
+            {"limits": {**value["limits"], "max_text_bytes": 32769}},
+            {"limits": {**value["limits"], "max_starts": 2}},
+        ):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                self.load({**value, **change})
+        with self.assertRaises(ValueError):
+            self.load({k: v for k, v in value.items() if k != "thread_config"})
+        self.assertFalse(Path(value["store_path"]).exists())
 
     def test_optional_handshake_budget_is_pinned_and_never_expands_lease(self):
         value = {**self.spec, "handshake_timeout_seconds": 10}

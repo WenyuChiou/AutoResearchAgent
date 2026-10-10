@@ -1,4 +1,8 @@
-"""Pinned private configuration only; no sessions, processes or model calls."""
+"""Pinned private configuration only; no sessions, processes or model calls.
+
+Only the distinct trusted single-stage-unit kind allows 32-KiB input. Ordinary
+Atlas specs keep their 16-KiB bound; neither kind grants admission or authority.
+"""
 
 from pathlib import Path
 import re
@@ -122,9 +126,12 @@ def _load(path, expected):
     if "notification_opt_out" in spec:
         _notification_opt_out(spec["notification_opt_out"])
     _require(
-        spec["kind"] == "NativeAtlasRuntimeSpec" and spec["schema_version"] == "1.0.0",
+        spec["kind"] in {"NativeAtlasRuntimeSpec", "NativeStageUnitRuntimeSpec"}
+        and spec["schema_version"] == "1.0.0",
         "unsupported runtime spec",
     )
+    if spec["kind"] == "NativeStageUnitRuntimeSpec":
+        _require("thread_config" in spec, "trusted stage unit tool denials required")
     for name in ("project_ref", "model"):
         _require(
             isinstance(spec[name], str)
@@ -201,7 +208,9 @@ def _load(path, expected):
     bounds = {
         "lifetime_seconds": 600,
         "max_stream_bytes": 1048576,
-        "max_text_bytes": 16384,
+        "max_text_bytes": 32768
+        if spec["kind"] == "NativeStageUnitRuntimeSpec"
+        else 16384,
         "max_starts": 128,
         "timeout_seconds": 30,
     }
@@ -217,6 +226,8 @@ def _load(path, expected):
     _require(
         limits["timeout_seconds"] <= limits["lifetime_seconds"], "timeout exceeds lease"
     )
+    if spec["kind"] == "NativeStageUnitRuntimeSpec":
+        _require(limits["max_starts"] == 1, "trusted stage unit requires one start")
     if "handshake_timeout_seconds" in spec:
         budget = spec["handshake_timeout_seconds"]
         _require(

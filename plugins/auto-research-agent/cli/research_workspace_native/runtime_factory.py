@@ -286,6 +286,11 @@ def compose_runtime(registrations, *, authenticate=None, gates=None, enabled=Fal
                 admit_attach=lambda a, g=gate: g("admit_attach", a),
                 start_offer=offer,
                 approval_policy=approval,
+                **(
+                    {"trusted_stage_unit": True}
+                    if spec["kind"] == "NativeStageUnitRuntimeSpec"
+                    else {}
+                ),
             )
             runtime._entries.append(dict(orphan, owner=owner, ref=spec["project_ref"]))
             orphan = None

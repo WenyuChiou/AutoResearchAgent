@@ -64,6 +64,7 @@
             "An example-only fixed legacy Stage2 controller demo saves a once-only intent before its bounded isolated SyntheticAdapter child; exact source/project/confirmation and absolute deadlines precede work, and GET, replay or owner recovery never restart it. Its new workflow and delivery are synthetic, independent of Stage1 and separate from daily_v3, model execution and scientific completion.",
             "saved source/version hashes and strict bounded pipeline tasks bind retained model receipts; partial/incomplete stage output is not scientific acceptance or a canonical Stage1 handoff",
             "one durable permit bounds calls to at most eight and total time to at most 900 seconds; exact-key history, response loss and reopen cannot reserve or write twice",
+            "an explicit trusted single-stage-unit spec preserves full UTF8 prompts up to 32768 bytes without enlarging ordinary UI/native 16384-byte prompts; source, permit, typed payload and durable admission remain bound; overflow rejects before reservation and same-key replay never resends",
             "actual HTTP responses including the final landing page and stage overlay assets match their served-file hashes; registration and GET produce zero injected model writes",
             "the opt-in independent fixed SyntheticAdapter demo uses real HTTP/SQLite/controller and a bounded isolated raw-source worker; a source-pinned saved report never grants native, research, model, scoring or Stage3 authority"
           ],
@@ -77,6 +78,8 @@
         "default passive and synthetic paths start no production launcher or model call; explicit local text requires its exact restricted permit, while frozen-input access, research authority and scientific score changes remain separate and ungranted"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
+        "plugins/auto-research-agent/tests/test_atlas_runtime_spec.py",
         "plugins/auto-research-agent/tests/test-stage-run-read-recovery.cjs",
         "plugins/auto-research-agent/tests/test_native_notification_opt_out.py",
         "plugins/auto-research-agent/tests/test_native_stage_pilot_launcher.py",

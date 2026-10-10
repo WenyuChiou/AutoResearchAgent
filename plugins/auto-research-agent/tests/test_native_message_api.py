@@ -56,7 +56,7 @@ class MessageApiTests(unittest.TestCase):
         }.get(token)
         self.api = SessionApi(authenticate=self.authenticate)
 
-    def project(self, name="a", enabled=True):
+    def project(self, name="a", enabled=True, trusted_stage_unit=False):
         root = self.root / name
         root.mkdir()
         index = root / "index.json"
@@ -98,6 +98,7 @@ class MessageApiTests(unittest.TestCase):
                     input_version=p.version,
                     thread_id=p.thread,
                     connection_id=p.epoch,
+                    **({"trusted_stage_unit": True} if trusted_stage_unit else {}),
                 )
                 and hashlib.sha256(index.read_bytes()).hexdigest() == p.hash
             )
@@ -112,7 +113,11 @@ class MessageApiTests(unittest.TestCase):
                 input_version=p.version,
                 source_root=root.as_posix(),
                 model="synthetic-model",
-                limits=dict(max_text_bytes=128, max_starts=2, timeout_seconds=3),
+                limits=dict(
+                    max_text_bytes=32768 if trusted_stage_unit else 128,
+                    max_starts=1 if trusted_stage_unit else 2,
+                    timeout_seconds=3,
+                ),
                 permit_sha256="a" * 64,
             )
             value.update(deepcopy(p.offer_changes))
@@ -128,9 +133,44 @@ class MessageApiTests(unittest.TestCase):
             input_version=p.version,
             verify_source=source,
             start_offer=offer if enabled else None,
+            trusted_stage_unit=trusted_stage_unit,
         )
         self.api.register(p.ref, **p.registration)
         return p
+
+    def test_only_trusted_registration_allows_full_stage_prompt_and_replay(self):
+        p = self.project("trusted", trusted_stage_unit=True)
+        body = self.body(p, text="文" * 10922 + "xx")
+        result = self.api.message("token-a", p.ref, body)
+        self.assertEqual(len(p.channel.sent), 1)
+        self.assertEqual(
+            p.channel.messages()[0]["params"]["input"][0]["text"], body["text"]
+        )
+        replay = self.api.message("token-a", p.ref, body)
+        self.assertIs(replay["replayed"], True)
+        self.assertEqual(
+            {k: v for k, v in replay.items() if k != "replayed"},
+            {k: v for k, v in result.items() if k != "replayed"},
+        )
+        self.assertEqual(len(p.channel.sent), 1)
+        with self.assertRaises(SessionApiError):
+            self.api.message("token-a", p.ref, {**body, "trusted_stage_unit": True})
+        self.assertEqual(len(p.channel.sent), 1)
+        self.assertIs(
+            p.store.snapshot(p.pid)["session_api_binding"]["trusted_stage_unit"], True
+        )
+
+    def test_ordinary_registration_keeps_16k_and_rejects_marker_or_truthy_optin(self):
+        p = self.project("ordinary")
+        p.offer_changes = {
+            "limits": dict(max_text_bytes=32768, max_starts=1, timeout_seconds=3)
+        }
+        with self.assertRaises(SessionApiError):
+            self.api.offer("token-a", p.ref)
+        other = SessionApi(authenticate=self.authenticate)
+        with self.assertRaises(SessionApiError):
+            other.register(p.ref, **{**p.registration, "trusted_stage_unit": 1})
+        self.assertEqual(p.channel.sent, [])
 
     def controller(self, p):
         p.controller = InjectedSessionController(

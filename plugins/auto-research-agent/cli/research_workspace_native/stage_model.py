@@ -55,6 +55,9 @@ class StageModel:
     ``admit`` must durably reserve the unit at phase=reserve and return literal
     True at every later phase without reserving another model call.
     ``runtime_factory`` is an explicit injected seam for synthetic tests only.
+    ``trusted_stage_unit=True`` selects a separately bound, single-start 32-KiB
+    stage-prompt spec; ordinary native/UI prompts retain the 16-KiB default.
+    Neither selection supplies execution authority or increases calls/time.
     """
 
     def __init__(
@@ -73,6 +76,7 @@ class StageModel:
         output_root,
         project_ref="repo-content-pilot",
         runtime_factory=compose_runtime,
+        trusted_stage_unit=False,
     ):
         _require(
             all(callable(v) for v in (authenticate, admit, runtime_factory)),
@@ -82,6 +86,9 @@ class StageModel:
             isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", model),
             "model required",
         )
+        _require(type(trusted_stage_unit) is bool, "literal stage unit opt-in required")
+        self.trusted_stage_unit = trusted_stage_unit
+        self.prompt_limit = 32768 if trusted_stage_unit else 16384
         _require(
             isinstance(project_ref, str)
             and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", project_ref),
@@ -137,6 +144,8 @@ class StageModel:
             stage_source_sha256=checked["stage_source_sha256"],
             stage_inputs=deepcopy(checked["stage_inputs"]),
         )
+        if trusted_stage_unit:
+            self.context["trusted_stage_unit"] = True
         self.context_sha256 = sha(canonical(self.context))
         self._lock, self._run_lock = threading.RLock(), threading.Lock()
         self._active, self._current, self._accepted = None, None, {}
@@ -244,7 +253,9 @@ class StageModel:
         _require(remaining >= 1, "unit deadline expired")
         checked = self.checked
         return dict(
-            kind="NativeAtlasRuntimeSpec",
+            kind="NativeStageUnitRuntimeSpec"
+            if self.trusted_stage_unit
+            else "NativeAtlasRuntimeSpec",
             schema_version="1.0.0",
             project_ref=self.ref,
             project_id=checked["project_id"],
@@ -266,7 +277,7 @@ class StageModel:
             limits=dict(
                 lifetime_seconds=remaining,
                 max_stream_bytes=1048576,
-                max_text_bytes=16384,
+                max_text_bytes=self.prompt_limit,
                 max_starts=1,
                 timeout_seconds=min(30, remaining),
             ),
@@ -279,9 +290,17 @@ class StageModel:
             "unit key required",
         )
         _require(
-            isinstance(prompt, str) and 0 < len(prompt.encode("utf8")) <= 16384,
+            isinstance(prompt, str)
+            and 0 < len(prompt.encode("utf8")) <= self.prompt_limit,
             "unit prompt bound exceeded",
         )
+        if self.trusted_stage_unit:
+            # The server adds bounded opaque offer/key/revision fields later.
+            # Reserve room without truncating escaped JSON source/schema text.
+            _require(
+                len(canonical(dict(text=prompt))) <= 65536 - 2048,
+                "unit serialized prompt bound exceeded",
+            )
         _require(
             type(deadline) in (int, float) and math.isfinite(deadline),
             "monotonic deadline required",

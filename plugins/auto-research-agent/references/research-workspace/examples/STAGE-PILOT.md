@@ -79,6 +79,14 @@ Time starts at the first reservation and includes native startup and model work.
 Failed or interrupted attempts count conservatively as reservations; actual
 usage/cost is recorded only when returned by the provider, otherwise Unknown.
 
+The trusted single-step producer uses the distinct, source/permit-bound
+`NativeStageUnitRuntimeSpec`: one start and a complete UTF-8 prompt up to 32 KiB,
+with a separately bounded 64-KiB serialized action envelope. Its required tool
+denials remain active. Ordinary Atlas chat retains its 16-KiB prompt and 32-KiB
+action envelope. Oversized prompts or escaped JSON reject before model reservation
+or I/O; the producer does not truncate Harness schemas, evidence or instructions.
+This input bound does not add calls, extend time, or supply execution authority.
+
 **validation-failed** retains the original output and may offer one separate
 repair within the same budget. **failed-or-unknown** or recovered unknown blocks
 automatic continuation. **budget-pending** requires a separately authorized next

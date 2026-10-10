@@ -181,6 +181,7 @@ class FakeRuntime:
         self.api = SessionApi(authenticate=authenticate)
         self.api.register(
             spec["project_ref"],
+            trusted_stage_unit=spec["kind"] == "NativeStageUnitRuntimeSpec",
             controller=self.controller,
             principals={"local-viewer"},
             source_root=spec["source_root"],
@@ -284,7 +285,7 @@ class StageModelFixture(unittest.TestCase):
         )
         self.allowed, self.mode, self.calls, self.events = True, "complete", [], []
 
-    def model(self):
+    def model(self, **options):
         from research_workspace_native.stage_model import StageModel
 
         def admit(event):
@@ -313,6 +314,7 @@ class StageModelFixture(unittest.TestCase):
             admit=admit,
             output_root=self.root / "outputs",
             runtime_factory=factory,
+            **options,
         )
         return self.instance
 

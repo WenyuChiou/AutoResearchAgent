@@ -16,12 +16,46 @@ from research_workspace.atlas import atlas_files
 from research_workspace_native.atlas_host import AtlasHost
 from research_workspace_native.frame_journal import FrameJournal
 from research_workspace_native.session_api import SessionApiError
+from research_workspace_native.runtime_spec import DENIED_THREAD_CONFIG
 from stage1_deliverable.common import canonical, sha
 
 from atlas_native_runtime_fixtures import CompositionCase, cross_project_case
 
 
 class CompositionTests(CompositionCase):
+    def test_trusted_stage_spec_is_propagated_through_real_factory_and_owner(self):
+        self.spec.update(
+            kind="NativeStageUnitRuntimeSpec",
+            thread_config=DENIED_THREAD_CONFIG,
+            limits={**self.spec["limits"], "max_text_bytes": 32768, "max_starts": 1},
+        )
+        self.pin = self.save()
+        runtime = self.compose()
+        runtime.start()
+        body, result = self.message("文" * 10922 + "xx")
+        self.assertIn(result["status"], {"write-observed", "dispatched"})
+        self.wait(lambda: bool(self.view()["operations"]))
+        self.wait(lambda: self.view()["operations"][0]["status"] == "completed")
+        store = runtime._entries[0]["store"]
+        self.assertIs(
+            store.snapshot(self.spec["project_id"])["session_api_binding"][
+                "trusted_stage_unit"
+            ],
+            True,
+        )
+        outgoing = [
+            json.loads(line)
+            for line in (self.source / "received.jsonl").read_bytes().splitlines()
+        ]
+        starts = [row for row in outgoing if row.get("method") == "turn/start"]
+        self.assertEqual(starts[0]["params"]["input"][0]["text"], body["text"])
+        self.assertEqual(len(starts), 1)
+        count = self.count()
+        self.assertIs(
+            runtime.api.message(self.token, "repo-case", body)["replayed"], True
+        )
+        self.assertEqual(self.count(), count)
+
     def test_disabled_missing_authority_and_duplicate_projects_do_not_spawn(self):
         with patch(
             "research_workspace_native.runtime_factory.OwnedProcessChannel.__init__"

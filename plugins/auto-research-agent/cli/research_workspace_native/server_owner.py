@@ -41,8 +41,10 @@ class SessionOwners:
         admit_attach,
         start_offer=None,
         approval_policy=None,
+        trusted_stage_unit=False,
     ):
         """Trusted configuration; pre-admission refusal leaves resources borrowed."""
+        _require(type(trusted_stage_unit) is bool, "literal stage unit opt-in required")
         _require(
             type(controller) is InjectedSessionController
             and type(owned_channel) is OwnedProcessChannel
@@ -105,6 +107,8 @@ class SessionOwners:
                     input_version=input_version,
                     verify_source=lambda value: self._source(verify_source, value),
                 )
+                if trusted_stage_unit:
+                    options["trusted_stage_unit"] = True
                 if start_offer is not None:
                     options["start_offer"] = start_offer
                 if approval_policy is not None:

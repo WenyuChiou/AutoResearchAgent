@@ -344,6 +344,7 @@ def prepare(args):
             credential=credential,
             admit=service.admit,
             output_root=output / "models",
+            trusted_stage_unit=True,
         )
         holder["model"] = model
         service.attach_model(model)
