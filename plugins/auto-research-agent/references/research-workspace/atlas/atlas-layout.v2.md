@@ -12,6 +12,18 @@ expand relationships or replace the selected node's relationships. Showing all
 names does not show all edges. Selecting the same node again clears focus and
 hides every relationship line.
 
+Projected names retain their exact typed identity and keyboard focus across
+title changes and redraws. Keep the focused name inside the viewport, preferring
+collision-free placement; when space is exhausted, retain that active control
+at the viewport boundary. This focus exception does not select a graph node or
+expand its relations. Other names retain normal collision avoidance.
+
+A projected name under the pointer retains its existing click target while its
+full title is revealed. Keep that target inside the viewport and preserve its
+size through activation; ordinary label placement resumes after pointer leave.
+Host resizing bounds both the reserved geometry and the actual name control.
+This temporary interaction exception does not select nodes or reveal edges.
+
 Graph edges remain in the complete canonical presentation inventory. Visibility
 does not remove papers, reseed positions, change memberships, recompute source
 evidence, change scores or perform any native/research action. Lower summary and

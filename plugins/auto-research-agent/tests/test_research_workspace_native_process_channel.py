@@ -173,14 +173,67 @@ class OwnedProcessTests(OwnedProcessCase):
         self.assertIn("ValueError", channel.failure)
 
     def test_blocked_write_timeout_retains_unknown_and_kills_without_resend(self):
+        from types import SimpleNamespace
+        import research_workspace_native.process_channel as module
+
         self.child.write_text("import time\ntime.sleep(30)\n", encoding="utf8")
-        channel = self.channel()
-        with self.assertRaisesRegex(ValueError, "unknown"):
-            channel.write(b"x" * 262144, 0.1)
-        self.assertTrue(channel.closed)
-        self.assertTrue(channel.reap()["leader_reaped"])
-        with self.assertRaises(ValueError):
-            channel.write(b"never", 1)
+        channel = self.channel(lifetime=30)
+        entered, returned = threading.Event(), threading.Event()
+        deadlines, expired = [], []
+        deadline, queue, raw_write = (
+            module.Deadline,
+            module.queue,
+            channel.process.stdin.write,
+        )
+        case = self
+
+        def capture_deadline(timeout, lease):
+            value = deadline(timeout, lease)
+            deadlines.append(value)
+            return value
+
+        def blocked_write(data):
+            entered.set()
+            try:
+                return raw_write(data)
+            finally:
+                returned.set()
+
+        class ResultAfterEntry(queue.Queue):
+            def get(self, *, timeout):
+                # Only the completion queue is replaced. Wait for the real OS
+                # write entry before expiring this operation, not its setup.
+                case.assertTrue(entered.wait(5), "must enter the real stdin write")
+                case.assertFalse(returned.is_set(), "write must still be blocked")
+                case.assertEqual(len(deadlines), 1)
+                deadlines[0].until = time.monotonic() - 1
+                expired.append(deadlines[0])
+                return super().get(timeout=deadlines[0].left())
+
+        data = b"x" * 262144
+        with (
+            patch.object(module, "Deadline", side_effect=capture_deadline),
+            patch.object(
+                module,
+                "queue",
+                SimpleNamespace(Queue=ResultAfterEntry, Empty=queue.Empty),
+            ),
+            patch.object(
+                channel.process.stdin, "write", side_effect=blocked_write
+            ) as write,
+        ):
+            with self.assertRaisesRegex(ValueError, "unknown") as failure:
+                channel.write(data, 10)
+            self.assertIsInstance(failure.exception.__cause__, queue.Empty)
+            self.assertEqual(expired, deadlines)
+            self.assertTrue(entered.is_set())
+            write.assert_called_once_with(data)
+            self.assertTrue(channel.closed)
+            self.assertTrue(channel.reap()["leader_reaped"])
+            self.assertTrue(returned.wait(2), "blocked writer must exit after reap")
+            with self.assertRaises(ValueError):
+                channel.write(b"never", 1)
+            write.assert_called_once_with(data)
 
     def test_reopen_keeps_history_and_never_spawns_again(self):
         channel = self.channel()

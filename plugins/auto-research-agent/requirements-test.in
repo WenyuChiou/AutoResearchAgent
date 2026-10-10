@@ -5,4 +5,4 @@ markdown-it-py==4.0.0
 openpyxl==3.1.5
 python-docx==1.2.0
 bibtexparser==1.4.4
-research-hub-pipeline @ git+https://github.com/WenyuChiou/research-hub@929bdd6d963acf4be5bc9d80ce3c5c0a0f77a834
+research-hub-pipeline @ git+https://github.com/WenyuChiou/research-hub@496a70415859a15031cb5da55d4495cb1d0a8e7d

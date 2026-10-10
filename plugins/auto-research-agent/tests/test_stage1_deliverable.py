@@ -1,6 +1,8 @@
 """Offline production exporter tests with real public source parser/CLI replay."""
 
 import copy
+import csv
+import io
 import json
 import os
 from pathlib import Path
@@ -17,6 +19,7 @@ from openpyxl import load_workbook
 from requests import Timeout
 from requests.structures import CaseInsensitiveDict
 from research_hub.source_fetch import fetch_public_source
+from docx import Document
 
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
@@ -24,6 +27,7 @@ sys.path.insert(0, str(PLUGIN / "cli"))
 from stage1_deliverable import package, sources, views  # noqa: E402
 from stage1_deliverable.common import (  # noqa: E402
     DeliverableError,
+    canonical,
     inventory,
     preflight,
     read_json,
@@ -124,6 +128,77 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.inputs = self.root / "input"
         self.inputs.mkdir()
         self.output = self.root / "package"
+
+    def test_empty_diagnostics_preserve_the_legacy_source_receipt(self):
+        self.make_records()
+        result = read_json(self.inputs / "source/source-fetch-result.json")
+        result.pop("diagnostics", None)
+        legacy = sources.receipt_digest(result)
+        self.assertEqual(legacy, result["receipt_sha256"])
+        result["diagnostics"] = {}
+        self.assertEqual(sources.receipt_digest(result), legacy)
+
+    def test_nonempty_sdk_diagnostics_archive_and_replay(self):
+        records = self.make_records(
+            raw=full_source_pdf(), content_type="application/pdf"
+        )
+        path = self.inputs / "source/source-fetch-result.json"
+        result = read_json(path)
+        self.assertTrue(result["diagnostics"])
+        self.assertEqual(result["receipt_sha256"], sources.receipt_digest(result))
+        archive = self.root / "diagnostics-archive"
+        sources.stage_source(records["sources"][0], self.inputs, archive)
+        self.assertEqual((archive / "original.json").read_bytes(), path.read_bytes())
+        replayed, _, observation = sources.validate_archive(archive)
+        self.assertEqual(replayed, result)
+        self.assertEqual(observation["returncode"], 0)
+        self.assertFalse(observation["network_acquisition"])
+
+    def test_tampered_diagnostics_reject_before_sdk_replay(self):
+        records = self.make_records()
+        path = self.inputs / "source/source-fetch-result.json"
+        result = read_json(path)
+        result["diagnostics"] = {"body_completeness": "pending"}
+        result["receipt_sha256"] = sources.receipt_digest(result)
+        write_json(path, result)
+        result["diagnostics"]["body_completeness"] = "confirmed"
+        write_json(path, result)
+        records["sources"][0]["result_sha256"] = sha(path.read_bytes())
+        with patch("stage1_deliverable.sources.subprocess.run") as replay:
+            with self.assertRaisesRegex(DeliverableError, "original source receipt"):
+                sources.stage_source(
+                    records["sources"][0], self.inputs, self.root / "tampered-archive"
+                )
+        replay.assert_not_called()
+
+    def test_unbound_legacy_diagnostics_reject_without_silent_conversion(self):
+        self.make_records()
+        result = read_json(self.inputs / "source/source-fetch-result.json")
+        result["diagnostics"] = {"body_completeness": "pending"}
+        result["receipt_sha256"] = sha(
+            canonical(
+                {
+                    "schema_version": "source-fetch-result/v1",
+                    "request": result["request"],
+                    "attempts": [
+                        {key: a[key] for key in sources.ATTEMPT_FIELDS}
+                        for a in result["attempts"]
+                    ],
+                    "extracted_text_sha256": result["extracted_text_sha256"],
+                    "result": {key: result.get(key) for key in sources.RESULT_FIELDS},
+                }
+            )
+        )
+        self.assertNotEqual(result["receipt_sha256"], sources.receipt_digest(result))
+        archive = self.root / "diagnostics-archive"
+        archive.mkdir()
+        write_json(archive / "original.json", result)
+        original = (archive / "original.json").read_bytes()
+        with patch("stage1_deliverable.sources.subprocess.run") as replay:
+            with self.assertRaisesRegex(DeliverableError, "original source receipt"):
+                sources.validate_archive(archive)
+        replay.assert_not_called()
+        self.assertEqual((archive / "original.json").read_bytes(), original)
 
     def make_records(self, raw=HTML, content_type="text/html", status=200, title=TITLE):
         with (
@@ -279,6 +354,106 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.make_records(full_source_pdf(), "application/pdf")
         report = self.build()
         self.assertEqual(report["counts"]["acquired_full_text"]["pdf"], 1)
+
+    def test_readable_reports_preserve_exact_evidence_and_offsets(self):
+        cases = (
+            (
+                "Exactsyntheticrawexcerpt keeps its extraction spacing.",
+                "Exactsyntheticrawexcerpt keeps its extraction spacing.",
+            ),
+            ("-0.5 kg", "'-0.5 kg"),
+            ("+0.5 kg", "'+0.5 kg"),
+            ("=1+1", "'=1+1"),
+            ("@reference", "'@reference"),
+            ("  -0.5 kg", "'  -0.5 kg"),
+        )
+        for number, (excerpt, csv_quote) in enumerate(cases):
+            with self.subTest(excerpt=excerpt):
+                self.inputs = self.root / f"input-{number}"
+                self.inputs.mkdir()
+                self.output = self.root / f"package-{number}"
+                raw = HTML.replace(
+                    b"</p></article>", excerpt.encode() + b"</p></article>"
+                )
+                records = self.make_records(raw)
+                result = read_json(self.inputs / "source/source-fetch-result.json")
+                text = Path(result["extracted_text_path"]).read_bytes().decode("utf-8")
+                claim = records["claims"][0]
+                start = text.index(excerpt)
+                claim.update(
+                    start=start,
+                    end=start + len(excerpt),
+                    quote=excerpt,
+                    locator=f"characters {start}:{start + len(excerpt)}",
+                )
+                before = copy.deepcopy(records)
+                report = self.build(records)
+                self.assertEqual(records, before)
+                self.assertEqual(
+                    read_json(self.output / "provenance_manifest.json")[
+                        "canonical_records"
+                    ],
+                    before,
+                )
+                rows = list(
+                    csv.DictReader(
+                        io.StringIO(
+                            (self.output / "claims_and_evidence.csv").read_text(
+                                "utf-8-sig"
+                            )
+                        )
+                    )
+                )
+                self.assertEqual(
+                    (
+                        rows[0]["claim_id"],
+                        rows[0]["quote"],
+                        rows[0]["start"],
+                        rows[0]["end"],
+                    ),
+                    (
+                        claim["claim_id"],
+                        csv_quote,
+                        str(start),
+                        str(start + len(excerpt)),
+                    ),
+                )
+                sheet = load_workbook(self.output / "literature_catalog.xlsx")["Claims"]
+                cells = dict(
+                    zip(next(sheet.values), list(sheet.values)[1], strict=True)
+                )
+                self.assertEqual(cells["quote"], excerpt)
+                doc = Document(self.output / "literature_review.docx")
+                paragraphs = [p.text for p in doc.paragraphs]
+                expected = (
+                    "Exact source excerpt retained unchanged: workbook Claims sheet "
+                    "and canonical records, claim_id claim1. CSV cells use formula-safe "
+                    "escaping. Original extraction spacing and character offsets are "
+                    "preserved for audit."
+                )
+                self.assertIn(expected, paragraphs)
+                markdown = (self.output / "literature_review.md").read_text("utf-8")
+                self.assertIn(expected, markdown)
+                self.assertNotIn(excerpt, markdown)
+                self.assertNotIn(excerpt, "\n".join(paragraphs))
+                self.assertIn(claim["text"], markdown)
+                self.assertIn(claim["locator"], markdown)
+                for style in ("Title", "Heading 1", "Heading 2", "Heading 3"):
+                    self.assertEqual(str(doc.styles[style].font.color.rgb), "000000")
+                self.assertEqual(doc.element.xpath(".//w:pBdr"), [])
+                self.assertEqual(doc.styles.element.xpath(".//w:pBdr"), [])
+                self.assertEqual(
+                    package.validate(self.output, report["manifest_sha256"])["status"],
+                    "passed",
+                )
+
+    def test_rehashed_readable_report_edit_rejects_semantic_replay(self):
+        self.make_records()
+        self.build()
+        path = self.output / "literature_review.md"
+        path.write_bytes(path.read_bytes() + b"\nAn unbound presentation change.\n")
+        with self.assertRaisesRegex(DeliverableError, "semantic replay differs"):
+            package.validate(self.output, self.rehash())
 
     def test_bibtex_special_characters_and_uri_round_trip(self):
         records = self.make_records()

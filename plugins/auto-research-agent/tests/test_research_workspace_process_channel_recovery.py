@@ -2,13 +2,11 @@
 
 import sqlite3
 import time
-from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from native_process_channel_fixtures import OwnedProcessCase
 import research_workspace_native.process_channel as module
-from research_workspace_native import process_deadline
 
 
 class ObservationTests(OwnedProcessCase):
@@ -31,28 +29,41 @@ class ObservationTests(OwnedProcessCase):
     def test_write_result_after_absolute_deadline_is_unknown_not_success(self):
         channel = self.channel(lifetime=30)
         observe = channel._observe
-        clock = [time.monotonic()]
-        controlled = SimpleNamespace(monotonic=lambda: clock[0])
-        observed_returns = []
+        operation_deadlines, returned = [], []
 
-        def delayed(event, **payload):
+        def expire_after_result(event, **payload):
+            result = observe(event, **payload)
+            if event == "write-intent":
+                operation_deadlines.append(payload["deadline"])
             if event == "write-returned":
-                observed_returns.append(payload["count"])
-                clock[0] += 3
-            return observe(event, **payload)
+                returned.append((payload["deadline"], payload["count"]))
+                # Expire this operation only after its real write observation
+                # committed. Physical binding and intent I/O retain their budget.
+                payload["deadline"].until = time.monotonic() - 1
+            return result
 
-        # Keep actual fake-child I/O, then expire exactly after the one write.
         with (
-            patch.object(process_deadline, "time", controlled),
-            patch.object(channel, "_observe", side_effect=delayed),
+            patch.object(channel, "_observe", side_effect=expire_after_result),
             patch.object(
                 channel.process.stdin, "write", wraps=channel.process.stdin.write
-            ) as writes,
+            ) as write,
         ):
             with self.assertRaisesRegex(ValueError, "unknown"):
-                channel.write(b"synthetic\n", 2)
-            writes.assert_called_once_with(b"synthetic\n")
-        self.assertEqual(observed_returns, [10])
+                channel.write(b"synthetic\n", 10)
+            write.assert_called_once_with(b"synthetic\n")
+            self.assertEqual(len(operation_deadlines), 1)
+            self.assertEqual(returned, [(operation_deadlines[0], 10)])
+            self.assertTrue(channel.closed)
+            self.assertTrue(channel.reap()["leader_reaped"])
+            with self.assertRaises(ValueError):
+                channel.write(b"never-resend\n", 1)
+            write.assert_called_once_with(b"synthetic\n")
+        saved = [
+            event["payload"]
+            for event in self.store.events("alpha")
+            if event["kind"] == "owned-process-write-returned"
+        ]
+        self.assertEqual(saved, [{"count": 10, "partial": False}])
         self.assertTrue(channel.closed)
 
     def test_post_spawn_database_busy_cannot_delay_lease_cleanup(self):

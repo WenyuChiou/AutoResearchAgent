@@ -6,7 +6,7 @@ import re
 import sqlite3
 from urllib.parse import parse_qs
 
-from stage1_deliverable.common import private_output, sha
+from stage1_deliverable.common import private_output, safe_path, sha
 from .harness_ops import HarnessOps
 from .http import token_authenticator
 from .session_api import SessionApiError
@@ -71,6 +71,8 @@ def create_harness_operations(files, views, root, credential, *, reuse=False):
     if reuse:
         if not root.is_dir() or not private_output(database).is_file():
             raise ValueError("existing regular operations database required")
+        for suffix in ("", "-wal", "-shm", "-journal"):
+            safe_path(database.parent, database.name + suffix)
         expected = {
             "harness-ops-" + sha(ref.encode())[:32]: dict(
                 project_ref=ref,
@@ -190,7 +192,10 @@ def handle_operations(handler, method):
         handler._remaining()
         handler._reply(200, result)
     except SessionApiError as error:
-        handler._reply(error.status, {"error": error.code})
+        result = {"error": error.code}
+        if error.receipt is not None:
+            result["receipt"] = error.receipt
+        handler._reply(error.status, result)
     except (TimeoutError, OSError):
         handler.close_connection = True  # Saved actions remain queryable.
     except Exception:

@@ -110,6 +110,32 @@ const unknowns = [paper("unknown-a", "v1", ["Unknown", "未知"], "Unverified", 
 assert.deepEqual(association.related(unknowns, association.key(unknowns[0]), {threshold: 0}), []);
 assert.deepEqual(association.related(noOverlap, association.key(noOverlap[0]), {threshold: 0}), []);
 
+// Default graph edges and related cards use the same cosine threshold.
+const thresholdParity = [paper("threshold-a", "v1", [], [], "household alpha bravo charlie delta"),
+  paper("threshold-b", "v1", [], [], "household echo foxtrot golf hotel")];
+const defaultThresholdGraph = association.build(thresholdParity);
+assert.deepEqual(defaultThresholdGraph.lexical, []);
+assert.deepEqual(association.related(thresholdParity, association.key(thresholdParity[0])), []);
+const lowerThresholdGraph = association.build(thresholdParity, {threshold: .1});
+assert.equal(lowerThresholdGraph.lexical.length, 1);
+assert.equal(lowerThresholdGraph.lexical[0].score, .112343);
+const lowerThresholdCards = association.related(thresholdParity, association.key(thresholdParity[0]), {threshold: .1});
+assert.equal(lowerThresholdCards.length, 1);
+assert.equal(lowerThresholdCards[0].lexical.score, lowerThresholdGraph.lexical[0].score);
+
+// Topic aggregates disclose classification-only feature inputs in their provenance inventory.
+const classifiedTopics = [
+  {work_id: "classified-a", version_id: "v1", classification: {topic_cluster: "retirement income"}, findings: {}},
+  {work_id: "classified-b", version_id: "v1", classification: {topic_cluster: "household income"}, findings: {}}
+];
+const classifiedTopicLinks = association.lexicalTopics(classifiedTopics);
+assert.equal(classifiedTopicLinks.length, 1);
+assert.equal(classifiedTopicLinks[0].score, .336097);
+assert.deepEqual(classifiedTopicLinks[0].source_fields,
+  ["question", "data", "method", "main_findings", "relevance", "transferability", "topics", "classification.topic_cluster"]);
+assert.deepEqual([...classifiedTopicLinks[0].source_members.from, ...classifiedTopicLinks[0].source_members.to].sort(),
+  classifiedTopics.map(association.key).sort());
+
 // Recorded relations rank first, then recorded counts, cosine values and canonical keys.
 const ranked = [paper("selected", "v1", ["X", "Y"], ["M", "N"], "retirement household income"),
   paper("many", "v1", ["X", "Y"], "M", "galaxy photon telescope"),

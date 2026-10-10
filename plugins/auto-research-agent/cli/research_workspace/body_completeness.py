@@ -24,12 +24,20 @@ def _result(incomplete, pending):
 
 
 def _fidelity_reasons(diagnostics):
+    reasons = []
     fidelity = diagnostics.get("extraction_fidelity")
     if isinstance(fidelity, str) and any(
         marker in fidelity.casefold() for marker in ("pending", "incomplete")
     ):
-        return ["extraction-fidelity-unreviewed"]
-    return []
+        reasons.append("extraction-fidelity-unreviewed")
+    # The source reader records layout review separately from page coverage.
+    # Complete page extents cannot clear a pending or malformed order receipt.
+    if "reading_order" in diagnostics:
+        order = diagnostics["reading_order"]
+        status = order.get("status") if isinstance(order, dict) else None
+        if not isinstance(status, str) or status not in {"confirmed", "not-applicable"}:
+            reasons.append("reading-order-unreviewed")
+    return reasons
 
 
 def _pdf_assessment(reading, diagnostics, locators, characters):

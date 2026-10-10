@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 import http.client
 import json
+import re
+import subprocess
 import threading
 import unittest
 
@@ -247,6 +249,75 @@ class AtlasScopeTests(unittest.TestCase):
             )
         self.assertEqual(self.p.store.snapshot(self.p.pid), before)
         self.assertEqual(self.p.channel.calls, [])
+
+    def test_mixed_views_execute_passive_scripts_without_scope_or_native_io(self):
+        files = dict(self.files)
+        files["/views/passive/atlas.html"] = self.files["/views/case/atlas.html"]
+        passive = dict(self.views[0], ref="passive", url="/views/passive/atlas.html")
+        passive["index_sha256"] = "b" * 64
+        mixed = AtlasHost(
+            files=files,
+            views=self.views + [passive],
+            native_runtime=self.runtime,
+            credential="x" * 32,
+            scope_api=self.case.scope,
+        )
+        worker = threading.Thread(target=mixed.serve_forever, daemon=True)
+        worker.start()
+
+        def get(path):
+            connection = http.client.HTTPConnection(*mixed.server_address, timeout=3)
+            try:
+                connection.request("GET", path)
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                return response.read().decode("utf-8")
+            finally:
+                connection.close()
+
+        before = self.p.store.snapshot(self.p.pid)
+        try:
+            bound_page = get("/views/case/atlas.html")
+            page = get("/views/passive/atlas.html")
+            bootstrap = bootstrap_objects(
+                get("/host-bootstrap/passive.js").encode("utf-8"),
+                "WORKSPACE_NATIVE_ATLAS",
+            )["WORKSPACE_NATIVE_ATLAS"]
+            self.assertFalse(bootstrap["enabled"])
+            routes = re.findall(r'<script src="([^"]+)"></script>', page)
+            scripts = [
+                get(route)
+                for route in routes
+                if route
+                in {"/session-panel.js", "/native-atlas-chat.js", "/session-scope.js"}
+            ]
+            result = subprocess.run(
+                [
+                    "node",
+                    "-e",
+                    "const vm=require('node:vm');"
+                    "const input=JSON.parse(require('node:fs').readFileSync(0,'utf8'));"
+                    "const context={window:{WORKSPACE_NATIVE_ATLAS:input.bootstrap},"
+                    "fetch:()=>{throw Error('passive view attempted API access')}};"
+                    "vm.createContext(context); for(const source of input.scripts)"
+                    "vm.runInContext(source,context);"
+                    "if(context.window.NativePanel) throw Error('passive native panel created');",
+                ],
+                input=json.dumps(dict(bootstrap=bootstrap, scripts=scripts)),
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("/session-scope.js", bound_page)
+            self.assertNotIn("/session-scope.js", routes)
+            self.assertEqual(self.p.store.snapshot(self.p.pid), before)
+            self.assertEqual(self.p.channel.calls, [])
+        finally:
+            mixed.shutdown()
+            mixed.server_close()
+            worker.join(2)
+            self.assertFalse(worker.is_alive())
 
     def test_scope_prefix_project_does_not_route_normal_actions_as_scope(self):
         calls = []

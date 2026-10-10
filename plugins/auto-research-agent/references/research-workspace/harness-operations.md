@@ -17,6 +17,15 @@ redispatched. Failures and partially saved files remain retained. Exports use ne
 private directories and fixed names; downloads verify the saved size and hash.
 Deadline checks are cooperative between Python/file steps, not forced cancellation.
 
+An authenticated, source-valid stale revision is refused before producer admission.
+Only a successfully committed `known-unsent` refusal binds the exact request digest,
+project reference, raw and canonical input hashes, client key and offered/observed
+revisions. HTTP remains 409; GET can recover that durable refusal after response loss
+or journal reopen. Its key always replays the refusal. The UI verifies the complete
+receipt against its retained intent and current source-bound view before releasing
+that intent for a new explicit action. Missing/mismatched receipts, deadline/owner
+or commit failures retain uncertainty; no automatic POST or replacement key follows.
+
 The Atlas host mounts three buttons, authenticated routes, operation history and
 hash-checked downloads when trusted startup supplies this service. Opt in with
 `--harness-operations-root C:/private/new-operations` to the existing pinned
