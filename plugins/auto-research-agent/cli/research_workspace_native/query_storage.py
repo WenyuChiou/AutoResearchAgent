@@ -3,9 +3,76 @@
 import os
 from pathlib import Path
 import sqlite3
+import stat
 
-from stage1_deliverable.common import canonical, private_output, safe_path, sha
+from stage1_deliverable.common import (
+    canonical,
+    private_output,
+    reject_links,
+    safe_path,
+    sha,
+)
 from .planned_query_contract import require
+
+
+def _regular_single_link(path):
+    reject_links(path)
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return
+    require(stat.S_ISREG(info.st_mode), "query-mutable-file-required")
+    require(info.st_nlink == 1, "query-mutable-hardlink-refused")
+
+
+def check_writer_paths(roots, database=None, projects=()):
+    """Reject shared inodes for every existing query SQLite write target."""
+    paths = []
+    for root in roots:
+        reject_links(root)
+        root = root.resolve()
+        owner = root.parent / (
+            ".planned-query-owner-"
+            + sha(os.path.normcase(str(root)).encode())
+            + ".sqlite3"
+        )
+        paths.extend(
+            Path(str(owner) + suffix) for suffix in ("", "-wal", "-shm", "-journal")
+        )
+    if database is not None:
+        database = Path(database)
+        paths.extend(
+            Path(str(database) + suffix)
+            for suffix in ("", "-wal", "-shm", "-journal", ".created")
+        )
+        for project in projects:
+            owner = database.parent / (
+                database.name + ".owner-" + sha(project.encode()) + ".sqlite3"
+            )
+            paths.extend(
+                Path(str(owner) + suffix) for suffix in ("", "-wal", "-shm", "-journal")
+            )
+    for path in paths:
+        _regular_single_link(path)
+
+
+def check_mutable_storage(roots, database=None, projects=()):
+    """A byte-identical clone must still own every mutable ledger file."""
+    roots = [Path(root) for root in roots]
+    check_writer_paths(roots, database, projects)
+    for root in roots:
+        reject_links(root)
+        require(root.is_dir(), "query-working-root-required")
+        for base, directories, names in os.walk(root, followlinks=False):
+            for name in directories:
+                path = Path(base) / name
+                reject_links(path)
+                require(
+                    stat.S_ISDIR(path.lstat().st_mode),
+                    "query-working-directory-required",
+                )
+            for name in names:
+                _regular_single_link(Path(base) / name)
 
 
 def budget_path(store_path, prepared):
@@ -59,6 +126,11 @@ def budget_path(store_path, prepared):
         ),
         "query-database-input-overlap",
     )
+    check_mutable_storage(
+        working,
+        database,
+        ["planned-query-" + sha(ref.encode())[:32] for ref, *_ in prepared],
+    )
     marker = safe_path(database.parent, database.name + ".created")
     expected = canonical(
         dict(
@@ -95,6 +167,8 @@ def budget_path(store_path, prepared):
 
 class LedgerOwners:
     def __init__(self, roots):
+        roots = list(roots)
+        check_mutable_storage(roots)
         self.connections = []
         try:
             for root in roots:

@@ -21,7 +21,12 @@ from research_workspace_native.planned_query_contract import (
     tree_sha,
 )
 from research_workspace_native.store import ProjectStore
-from research_workspace_native.query_storage import budget_path, LedgerOwners
+from research_workspace_native.query_storage import (
+    budget_path,
+    LedgerOwners,
+    check_mutable_storage,
+    check_writer_paths,
+)
 from research_workspace_native.query_execution_source import check_execution_source
 
 
@@ -180,7 +185,22 @@ class PlannedQueryService:
             )
             return deepcopy(row)
 
+    def _check_storage(self):
+        check_mutable_storage(
+            [Path(p["item"]["ledger_root"]) for p in self._projects.values()],
+            self.store.path,
+            [p["pid"] for p in self._projects.values()],
+        )
+
+    def _check_control(self):
+        check_writer_paths(
+            [Path(p["item"]["ledger_root"]) for p in self._projects.values()],
+            self.store.path,
+            [p["pid"] for p in self._projects.values()],
+        )
+
     def _inspect(self, ref, p, saved):
+        self._check_storage()
         item, permit, state, pin = inspect_registration(ref, p["item"])
         require(
             tree_sha(item["ledger_root"]) == saved["query_ledger_sha256"],
@@ -317,6 +337,7 @@ class PlannedQueryService:
                 model_execution=False,
                 automatic_retry=False,
             )
+            self._check_storage()
             with self.store._edit(
                 p["pid"],
                 p["owner"],
@@ -336,6 +357,7 @@ class PlannedQueryService:
             try:
                 worker.start()
             except BaseException:
+                self._check_control()
                 with self.store._edit(
                     p["pid"], p["owner"], None, "query-worker-start-unobserved", {}
                 ) as state:
@@ -346,18 +368,22 @@ class PlannedQueryService:
     def _run(self, ref, p, key, deadline):
         with self._lock:
             row = deepcopy(self.store.snapshot(p["pid"])["intents"][key])
-            with self.store._edit(
-                p["pid"], p["owner"], None, "query-worker-dispatching", {}
-            ) as state:
-                state["intents"][key]["status"] = "dispatching"
+            self._check_control()
         entered = False
         try:
+            with self._lock:
+                self._check_storage()
+                with self.store._edit(
+                    p["pid"], p["owner"], None, "query-worker-dispatching", {}
+                ) as state:
+                    state["intents"][key]["status"] = "dispatching"
             target = row["offer"]
 
             def gate(event):
                 require(
                     time.monotonic() < deadline, "query-admission-deadline-expired", 408
                 )
+                self._check_storage()
                 item, permit, _, pin = inspect_registration(ref, p["item"])
                 check_execution_source(
                     self._verify_source, ref, item, event, self._execute
@@ -410,6 +436,7 @@ class PlannedQueryService:
                     403,
                 )
                 # A provider return cannot cache runtime/config or source guards.
+                self._check_storage()
                 item, permit, _, pin = inspect_registration(ref, p["item"])
                 check_execution_source(
                     self._verify_source, ref, item, event, self._execute
@@ -483,6 +510,7 @@ class PlannedQueryService:
                 ),
             )
         with self._lock:
+            self._check_control()
             with self.store._edit(
                 p["pid"], p["owner"], None, "query-worker-observation", row
             ) as state:
@@ -493,7 +521,8 @@ class PlannedQueryService:
         with self._lock:
             self._closing = True
         for worker in tuple(self._workers.values()):
-            worker.join(2)
+            if worker.ident is not None:
+                worker.join(2)
         require(
             not any(w.is_alive() for w in self._workers.values()),
             "query-worker-cleanup-unobserved",
@@ -501,6 +530,7 @@ class PlannedQueryService:
         )
         with self._lock:
             if not self._closed:
+                self._check_control()
                 self.store.close()
                 self.ledger_owners.close()
                 self._closed = True
