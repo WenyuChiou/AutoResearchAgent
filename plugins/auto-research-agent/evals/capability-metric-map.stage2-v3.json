@@ -392,6 +392,10 @@
       "captured_proposal_recovery_contract": "Explicit recovery of a selected, authenticated legacy output.txt checks exact end/start archive and workspace hashes, changed seed bytes, complete capture receipt, regular unaliased UTF-8 bounded content and original final-answer provenance. Default selection never guesses an alternate artifact. Recovery creates a new no-tool extraction and immutable descendant; original generation, extraction and capture remain intact. Existing v1.2 continuation selects that latest validated descendant; scientific validity and formal readiness are not implied.",
       "captured_proposal_recovery_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_native_proposal.py"
+      ],
+      "controller_extraction_summary_contract": "Read-only summary projection1.0.0: replay exact externally receipted saved extraction first, reconstruct workflow summary by adding result-byte SHA256 and validated unit receipts, then require complete dictionary equality. Receipt, result payload, source/runtime/policy and historical HOST guards remain strict; no dispatch, archive/workflow mutation, review recovery authority or scientific/formal promotion.",
+      "controller_extraction_summary_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_host_verification.py"
       ]
     },
     {
