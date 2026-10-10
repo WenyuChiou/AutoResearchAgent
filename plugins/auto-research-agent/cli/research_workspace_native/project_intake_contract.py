@@ -61,6 +61,11 @@ def refusal_shape(kind, body, key, project_ref):
             set(),
         ),
         "stage1-export": (BOUND_FIELDS | {"ledger_state_sha256", "confirmed"}, set()),
+        "stage1-deliver": (
+            BOUND_FIELDS
+            | {"ledger_state_sha256", "offer_ref", "offer_sha256", "confirmed"},
+            set(),
+        ),
         "stage2-activate": (
             BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"},
             set(),
