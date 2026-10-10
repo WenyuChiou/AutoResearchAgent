@@ -4,12 +4,14 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import time
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 from research_workspace_native.bootstrap import BootstrapSession
+from research_workspace_native import bootstrap_context, recording, transport
 from research_workspace_native.controller import InjectedSessionController
 from research_workspace_native.frame_journal import FrameJournal
 from research_workspace_native.construction import BoundControllerContext
@@ -96,22 +98,61 @@ class BootstrapTests(unittest.TestCase):
         boot = self.bootstrap()
         self.responses()
         allowed = boot._allowed
+        clock = [0.0]
+        controlled = SimpleNamespace(monotonic=lambda: clock[0], time_ns=time.time_ns)
 
         def delayed(method):
-            time.sleep(0.12)
+            clock[0] += 0.12
             return allowed(method)
 
-        with patch.object(boot, "_allowed", side_effect=delayed):
+        # Retain real SQLite; isolate protocol time from unrelated disk latency.
+        with (
+            patch.object(transport, "time", controlled),
+            patch.object(bootstrap_context, "time", controlled),
+            patch.object(recording, "time", controlled),
+            patch.object(boot, "_allowed", side_effect=delayed),
+        ):
             boot.open_thread(
                 dict(name="synthetic-client", version="1"),
                 timeout=0.3,
                 total_timeout=1.2,
             )
+        self.assertGreater(clock[0], 0.3)
+        self.assertLess(clock[0], 1.2)
         self.assertEqual(self.state()["bootstrap"]["phase"], "ready")
         self.assertEqual(len(self.channel.sent), 4)
         self.assertNotIn(
             "turn/start", [json.loads(raw).get("method") for raw in self.channel.sent]
         )
+
+    def test_larger_total_does_not_extend_expired_step(self):
+        boot = self.bootstrap()
+        self.responses()
+        allowed = boot._allowed
+        clock = [0.0]
+        controlled = SimpleNamespace(monotonic=lambda: clock[0], time_ns=time.time_ns)
+
+        def delayed(method):
+            clock[0] += 0.31
+            return allowed(method)
+
+        with (
+            patch.object(transport, "time", controlled),
+            patch.object(bootstrap_context, "time", controlled),
+            patch.object(recording, "time", controlled),
+            patch.object(boot, "_allowed", side_effect=delayed),
+            self.assertRaises(ValueError),
+        ):
+            boot.open_thread(
+                dict(name="synthetic-client", version="1"),
+                timeout=0.3,
+                total_timeout=1.2,
+            )
+        self.assertEqual(len(self.channel.sent), 0)
+        self.assertEqual(self.state()["bootstrap"]["phase"], "failed")
+        with self.assertRaises(ValueError):
+            boot.open_thread(dict(name="synthetic-client", version="1"))
+        self.assertEqual(len(self.channel.sent), 0)
 
     def test_legacy_total_deadline_still_stops_without_resend(self):
         boot = self.bootstrap()
