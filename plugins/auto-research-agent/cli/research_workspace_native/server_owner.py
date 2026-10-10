@@ -251,10 +251,10 @@ class SessionOwner:
         try:
             while not self._stop.is_set():
                 phase = "source-check"
-                # Byte/dependency checks on real Windows checkouts can exceed
-                # 100 ms. Keep every poll verified, bounded by the process lease;
-                # this read-only allowance grants no write or model authority.
-                deadline = Deadline(5, self.channel.deadline)
+                # Source verification shares a lock with full action admission.
+                # Keep every poll verified within the bounded I/O allowance and
+                # process lease; waiting grants no write or model authority.
+                deadline = Deadline(30, self.channel.deadline)
                 deadline.guard(lambda: self._verifier(deepcopy(self.binding)))
                 _require(not self.channel.closed, "owned process closed")
                 # Poll only queued bytes/complete frames. Idle timeout observations

@@ -49,7 +49,7 @@ class OwnersTests(OwnedProcessCase):
         self.registry = SessionOwners(api=self.api)
         self.addCleanup(self.registry.shutdown)
         self.source_ok = True
-        self.channel_raw = self.channel()
+        self.channel_raw = self.channel(lifetime=30)
         self.store.record_intent(
             "alpha",
             self.owner,
@@ -132,6 +132,59 @@ class OwnersTests(OwnedProcessCase):
         self.assertNotIn(
             "turn/start", [v["method"] for v in self.state()["intents"].values()]
         )
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_six_second_shared_gate_wait_keeps_passive_session_alive(self):
+        owner = self.register()
+        gate_lock = threading.RLock()
+        held, verifying, release = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
+        waits = []
+
+        def full_gate():
+            with gate_lock:
+                held.set()
+                if not verifying.wait(2):
+                    return
+                started = time.monotonic()
+                release.wait(6)  # Simulate the lock held by full source admission.
+                waits.append(time.monotonic() - started)
+
+        def verify(binding):
+            verifying.set()
+            with gate_lock:
+                return self.source_ok
+
+        worker = threading.Thread(target=full_gate)
+        worker.start()
+        try:
+            self.assertTrue(held.wait(1))
+            owner._verifier = verify
+            with patch.object(
+                self.channel_raw.process.stdin,
+                "write",
+                wraps=self.channel_raw.process.stdin.write,
+            ) as writes:
+                owner.start()
+                self.assertTrue(verifying.wait(2))
+                worker.join(7)
+                self.assertFalse(worker.is_alive())
+                self.assertEqual(len(waits), 1)
+                self.assertGreaterEqual(waits[0], 6)
+                self.assertTrue(owner.status()["running"], owner.status())
+                self.assertFalse(owner.status()["stopped"], owner.status())
+                self.wait(lambda: self.question() is not None)
+                writes.assert_not_called()
+                self.assertNotIn(
+                    "turn/start",
+                    [v["method"] for v in self.state()["intents"].values()],
+                )
+        finally:
+            release.set()
+            worker.join(3)
         self.assertTrue(owner.shutdown()["leader_reaped"])
 
     def test_passive_source_deadline_clamps_lease_and_ignores_late_success(self):

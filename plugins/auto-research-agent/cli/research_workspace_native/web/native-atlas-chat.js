@@ -152,6 +152,10 @@
       if (!validTranscript(saved)) {
         node("p", transcript, t("error")); return;
       }
+      const reply = saved.entries.some(entry => entry.role === "assistant" && entry.kind === "assistant-final" &&
+        entry.status === "completed" && entry.failure === null && typeof entry.text === "string" && entry.text.trim() && entry.frame_refs.length > 0);
+      const partial = saved.window.truncated || saved.entries.some(entry => entry.role === "assistant" && entry.status === "partial");
+      window.NativeHostDisplay?.observeConversation(view, {reply, partial});
       for (const entry of saved.entries) {
         const card = node("article", transcript); card.dataset.role = entry.role;
         node("strong", card, t(entry.role));

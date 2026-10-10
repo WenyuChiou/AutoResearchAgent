@@ -167,6 +167,7 @@ class LocalLauncherTests(unittest.TestCase):
                     project_id="project-one",
                     index_sha256="1" * 64,
                     input_version="2" * 64,
+                    limits=dict(timeout_seconds=30),
                 ),
                 permit={},
                 starts=0,
@@ -223,6 +224,9 @@ class LocalLauncherTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(launcher.LauncherError, "startup failed"):
                     launcher.launch(args)
+            self.assertEqual(
+                modules["host_config"]["create_host"].call_args.kwargs["timeout"], 30
+            )
             runtime.shutdown.assert_called_once_with(timeout=10)
             operations.close.assert_called_once_with()
             stages.close.assert_called_once_with()
@@ -230,6 +234,37 @@ class LocalLauncherTests(unittest.TestCase):
             self.assertEqual(receipt["error_type"], "LauncherError")
             self.assertEqual(receipt["cleanup_status"], "unknown")
             self.assertEqual(receipt["cleanup_errors"], ["RuntimeError"])
+
+    def test_explicit_http_timeout_preserves_default_bounds_and_expired_guard(self):
+        sys.path.insert(0, str(ROOT.parent))
+        from research_workspace_native.http import SessionHttpServer, SessionHandler
+        from research_workspace_native.session_api import SessionApi
+
+        api = SessionApi(authenticate=lambda _: "viewer")
+        for options, expected in (({}, 5), ({"timeout": 30}, 30)):
+            server = SessionHttpServer(api, **options)
+            try:
+                self.assertEqual(server.timeout_seconds, expected)
+                self.assertEqual(
+                    server.expected_origin, "http://" + server.expected_host
+                )
+            finally:
+                server.server_close()
+        for value in (0, 31, True, float("inf"), float("nan")):
+            with (
+                self.subTest(timeout=value),
+                self.assertRaisesRegex(ValueError, "bounded timeout"),
+            ):
+                SessionHttpServer(api, timeout=value)
+        handler = object.__new__(SessionHandler)
+        handler.deadline, handler.connection = 20, SimpleNamespace(settimeout=Mock())
+        with patch("research_workspace_native.http.time.monotonic", return_value=20):
+            with (
+                api.admission_guard(handler._remaining),
+                self.assertRaises(TimeoutError),
+            ):
+                api._admission_check(30)
+        handler.connection.settimeout.assert_not_called()
 
 
 if __name__ == "__main__":

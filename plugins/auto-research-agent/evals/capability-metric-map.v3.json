@@ -19,8 +19,10 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+            "Explicit native local hosting inherits the exact pinned request timeout of at most thirty seconds; default hosting retains five seconds, absolute accept-time deadlines and pre-admission expiry remain enforced. Synthetic forwarding and timeout-bound tests do not demonstrate model completion.",
             "An explicitly spec-pinned optional handshake total of at most 120 seconds stays within the existing process lease; each RPC remains at most 30 seconds and omitted fields retain the legacy total. Late cached replies cannot upgrade an expired handshake.",
-            "Every passive poll retains a readonly source check with a five-second budget clamped to the owned process lease; late success cannot pump or restart, and fixed failure phase labels expose source-check versus passive-read errors.",
+            "UI connection labels require trusted process/thread bootstrap observations; reply labels require a saved validated assistant final with typed frame references. Synthetic, partial and stopped states remain distinct; display updates create no new I/O or authority.",
+            "Every passive poll retains a readonly source check with a thirty-second budget clamped to the owned process lease, including contention with full-admission source verification; late success cannot pump or restart, and fixed failure phase labels expose source-check versus passive-read errors. A real six-second synthetic gate-lock wait grants no write or model authority.",
             "Windows thread cwd permits only literal slash/backslash variation; different roots, case, dot segments and nonstring replies remain refused; failed old attempts never retry.",
             "Default local launcher reads nothing and spawns nothing; explicit pinned fresh-session permit composes installed Codex with the existing Atlas host; inherited configuration, unknown startup and independent cleanup failures retain separate evidence, without automatic model turn or research.",
             "Exact fresh-session admission binds source/config/executable/project/thread/epoch and saved intent hashes; expiry across pin checks and a two-text-turn ceiling reject before mutation; callbacks do not attest inference.",
@@ -61,7 +63,7 @@
       "guardrails": [
         "no implicit reconnect, turn creation, retries or default approvals",
         "caller owns durable persistence, project authority and admitted process lifecycle",
-        "no production launcher, frozen input access, model calls or scientific score changes"
+        "no unadmitted launcher or model calls, frozen input access or scientific score changes"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_native_windows_cwd.py",
@@ -129,6 +131,7 @@
         "plugins/auto-research-agent/tests/test_native_message_host.py",
         "plugins/auto-research-agent/tests/test_native_message_transcript.py",
         "plugins/auto-research-agent/tests/test_native_atlas_chat.py",
+        "plugins/auto-research-agent/tests/test-native-status-labels.cjs",
         "plugins/auto-research-agent/tests/test_native_atlas_host_assets.py",
         "plugins/auto-research-agent/tests/test_native_known_unsent.py"
       ],

@@ -26,6 +26,14 @@ handshake from its per-step I/O limit of at most 30 seconds. It must be included
 in the exact spec/permit identity before startup; omitted fields retain the old
 single total timeout. This does not increase message limits, turns or lease.
 
+Explicit native hosting passes the spec's pinned request timeout (at most 30
+seconds) to HTTP; other hosts keep the five-second default. Absolute accept-time
+and pre-admission expiry checks still apply. Each passive source check has a
+30-second readonly budget clamped to the process lease, including waits behind
+full admission verification. Neither deadline grants write or model authority.
+The UI distinguishes a ready process/thread from an observed saved assistant
+reply; partial replies and stopped sessions retain their separate status.
+
 Permit fields are exactly: kind=LocalCodexAtlasPermit, schema_version=1.0.0,
 spec_identity_sha256, host_config, user_config, source_manifest, attempt_root,
 brief_path, stage_inputs, stage_source_sha256, max_turns, lease_seconds, sandbox,

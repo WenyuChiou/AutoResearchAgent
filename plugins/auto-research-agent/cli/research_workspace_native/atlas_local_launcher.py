@@ -353,6 +353,7 @@ def launch(args):
             harness_ops=operations,
             stage_actions=stages,
             port=args.port,
+            timeout=authority.spec["limits"]["timeout_seconds"],
             connection={
                 "status": "native-ready",
                 "actual_codex_process_observed": True,

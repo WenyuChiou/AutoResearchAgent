@@ -7,7 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import atlas_test_paths  # noqa: F401 -- explicit repository CLI bootstrap.
 import atlas_native_demo as demo
@@ -77,7 +77,17 @@ class AtlasNativeDemoTests(unittest.TestCase):
         self.wait(lambda: self.pending() is not None)
 
     def answer(self, result, key):
-        view, question = self.view(), self.pending()
+        view = self.view()
+        question = next((q for q in view["requests"] if q["status"] == "pending"), None)
+        diagnostic = dict(
+            phase="before-answer",
+            session_failure=view["failure"],
+            request_statuses=[q["status"] for q in view["requests"]],
+        )
+        if view["failure"] is not None or question is None:
+            diagnostic["owner_status"] = self.server.native_runtime.status()
+        self.assertIsNone(view["failure"], diagnostic)
+        self.assertIsNotNone(question, diagnostic)
         body = {k: view[k] for k in ("revision", "index_sha256", "input_version")}
         body.update(
             key=key,
@@ -94,6 +104,53 @@ class AtlasNativeDemoTests(unittest.TestCase):
             )
         )
         return body
+
+    def test_answer_request_and_revision_use_one_snapshot(self):
+        question = dict(
+            status="pending", request_ref="request-one", request_sha256="hash-one"
+        )
+        view = dict(
+            failure=None,
+            revision=42,
+            index_sha256="index-one",
+            input_version="input-one",
+            requests=[question],
+        )
+        with (
+            patch.object(self, "view", return_value=view) as snapshot,
+            patch.object(self, "pending", side_effect=AssertionError("extra view")),
+            patch.object(self, "wait"),
+            patch.object(self, "request", return_value=(200, {})) as dispatch,
+        ):
+            body = self.answer({"decision": "decline"}, "answer-one")
+            snapshot.assert_called_once_with()
+            self.assertEqual(body["revision"], 42)
+            self.assertEqual(body["request_ref"], "request-one")
+            self.assertEqual(body["request_sha256"], "hash-one")
+            dispatch.assert_called_once_with(
+                "/api/native/projects/repo-case/answers", body
+            )
+
+    def test_answer_stopped_or_missing_request_refuses_before_post(self):
+        for failure, status in (
+            ("session-stopped", "execution-unknown"),
+            (None, "request-resolved"),
+        ):
+            with self.subTest(failure=failure):
+                view = dict(failure=failure, requests=[dict(status=status)])
+                self.server = Mock()
+                self.server.native_runtime.status.return_value = {
+                    "repo-case": {"failure": "pump-failed:source-check:TimeoutError"}
+                }
+                with (
+                    patch.object(self, "view", return_value=view),
+                    patch.object(self, "request") as dispatch,
+                    self.assertRaisesRegex(
+                        AssertionError, "before-answer.*owner_status"
+                    ),
+                ):
+                    self.answer({"decision": "decline"}, "answer-one")
+                dispatch.assert_not_called()
 
     def test_installed_combination_question_approval_interrupt_stage_checks_and_replay(
         self,

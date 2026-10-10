@@ -7,6 +7,7 @@
   const rows = {
     title: ["Session discussion & history", "会话对话与历史", "工作階段對話與歷史"],
     boundary: ["Injected session overlay · native authentication and live research are not verified. The Wiki above remains an offline reference.", "注入会话覆盖层 · 原生认证和真实研究尚未验收。上方 Wiki 仍为离线参考。", "注入工作階段覆蓋層 · 原生認證與實際研究尚未驗收。上方 Wiki 仍為離線參考。"],
+    nativeBoundary: ["Codex session handshake observed · native identity and research results are not verified. The Wiki above displays saved case material.", "已观察到 Codex 会话握手；原生身份和研究结果尚未验收。上方 Wiki 展示已保存的案例材料。", "已觀察到 Codex 工作階段握手；原生身分與研究結果尚未驗收。上方 Wiki 展示已儲存的案例資料。"],
     project: ["Project reference", "项目标识", "專案標識"],
     credential: ["Session credential", "会话凭据", "工作階段憑證"],
     connect: ["Read session", "读取会话", "讀取工作階段"],
@@ -60,7 +61,7 @@
   root.setAttribute("aria-labelledby", "native-session-title");
   const title = label("h2", "title", root);
   title.id = "native-session-title";
-  label("p", "boundary", root);
+  const boundary = label("p", "boundary", root);
   const connection = make("form", undefined, root);
   connection.className = "native-connect";
   const input = (key, type) => {
@@ -102,6 +103,7 @@
   const t = key => rows[key][locale()];
   const showNotice = (key, reason = "") => {noticeKey = key; noticeReason = reason; notice.textContent = key ? t(key) + (reason ? " · " + reason : "") : "";};
   const translate = () => {
+    boundary.dataset.nativeLabel = window.NativeHostDisplay?.nativeReady() === true ? "nativeBoundary" : "boundary";
     root.querySelectorAll("[data-native-label]").forEach(e => e.textContent = t(e.dataset.nativeLabel)); if (noticeKey) notice.textContent = t(noticeKey) + (noticeReason ? " · " + noticeReason : "");
   };
   new MutationObserver(translate).observe(document.documentElement, {attributes: true, attributeFilter: ["lang"]});
