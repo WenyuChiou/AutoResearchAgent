@@ -154,11 +154,69 @@ class OwnedProcessTests(OwnedProcessCase):
 
     def test_lifetime_expires_even_with_no_ui_calls(self):
         self.child.write_text("import time\ntime.sleep(30)\n", encoding="utf8")
-        channel = self.channel(lifetime=0.3)
-        time.sleep(0.5)
-        self.assertTrue(channel.closed)
-        self.assertTrue(channel.reap()["leader_reaped"])
-        self.assertIn("TimeoutError", channel.failure)
+        channel, expire = self.channel_with_controlled_lease_expiry()
+        with (
+            patch.object(channel, "read", wraps=channel.read) as read,
+            patch.object(channel, "write", wraps=channel.write) as write,
+        ):
+            expire()
+            until = time.monotonic() + 5
+            while not channel.closed and time.monotonic() < until:
+                time.sleep(0.01)
+            self.assertTrue(channel.closed)
+            self.assertTrue(channel.reap()["leader_reaped"])
+            self.assertIn("TimeoutError", channel.failure)
+            read.assert_not_called()
+            write.assert_not_called()
+
+    def test_expired_construction_keeps_failure_and_reaps_real_fake_child(self):
+        import research_workspace_native.process_channel as module
+
+        observe = module.OwnedProcessChannel._observe
+
+        def expire_started(channel, event, *, deadline=None, **payload):
+            if event == "process-started":
+                self.owned.append(channel)  # Constructor failure still owns cleanup.
+            result = observe(channel, event, deadline=deadline, **payload)
+            if event == "process-started":
+                deadline.until = time.monotonic() - 1
+                deadline.check()
+            return result
+
+        with (
+            patch.object(
+                module.subprocess, "Popen", wraps=module.subprocess.Popen
+            ) as spawn,
+            patch.object(
+                module.OwnedProcessChannel,
+                "_observe",
+                autospec=True,
+                side_effect=expire_started,
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "construction failed") as failure:
+                self.channel(lifetime=30)
+            self.assertIsInstance(failure.exception.__cause__, TimeoutError)
+            native_argv = [str(Path(sys.executable).resolve()), "app-server", "--stdio"]
+            # Windows physical cleanup also invokes taskkill through Popen.
+            # Count only the exact fixed native argv, retaining real cleanup.
+            self.assertEqual(
+                [
+                    call.args[0]
+                    for call in spawn.call_args_list
+                    if call.args[0] == native_argv
+                ],
+                [native_argv],
+            )
+            self.assertEqual(len(self.owned), 1)
+            channel = self.owned[0]
+            self.assertTrue(channel.closed)
+            self.assertTrue(channel.reap()["leader_reaped"])
+        self.assertEqual(self.state()["intents"]["spawn"]["status"], "dispatching")
+        with patch.object(module.subprocess, "Popen") as spawn:
+            with self.assertRaises(ValueError):
+                self.channel(connection_id="no-implicit-relaunch")
+            spawn.assert_not_called()
 
     def test_stream_overflow_closes_and_reports_failure(self):
         self.child.write_text(
@@ -315,11 +373,12 @@ class OwnedProcessTests(OwnedProcessCase):
 
     def test_sqlite_writer_lock_cannot_delay_lease_physical_cleanup(self):
         self.child.write_text("import time\ntime.sleep(30)\n", encoding="utf8")
-        channel = self.channel(lifetime=0.3)
+        channel, expire = self.channel_with_controlled_lease_expiry()
         competing = sqlite3.connect(self.path)
         competing.execute("BEGIN IMMEDIATE")
         try:
-            until = time.monotonic() + 1.5
+            expire()
+            until = time.monotonic() + 5
             while channel.process.poll() is None and time.monotonic() < until:
                 time.sleep(0.02)
             self.assertTrue(channel.closed)
