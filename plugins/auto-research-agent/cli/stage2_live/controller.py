@@ -12,6 +12,8 @@ import json
 import shutil
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
+from stage1_eval.common import EvaluationError
+from stage1_eval.model_calls import _request_config
 from stage2_check.contracts import latest_candidates
 from stage2_common import (
     Stage2Error,
@@ -44,6 +46,7 @@ from stage2_live.environment import (
 from stage2_live.extraction import run_live_extraction
 from stage2_live.judges import _execution_policy
 from stage2_live.native import (
+    CaptureError,
     SUBJECT_EXECUTION_POLICY,
     capture_native,
     codex_runtime_sha,
@@ -1640,17 +1643,23 @@ def _replay_model_config(extraction_request):
     """Reconstruct the exact native model-call config frozen in its archive."""
 
     try:
-        runtime_sha256 = extraction_request.get("codex_executable_sha256")
-        if runtime_sha256 is None:
-            runtime_sha256 = extraction_request["codex_runtime_sha256"]
-        return {
-            "codex": extraction_request["codex"],
-            "codex_executable_sha256": runtime_sha256,
-            "evaluator_home": extraction_request["evaluator_home"],
-            "model": extraction_request["model"],
-            "reasoning": extraction_request["reasoning"],
-        }
-    except (KeyError, TypeError) as error:
+        actual_runtime = codex_runtime_sha(extraction_request["codex"])
+        config = _request_config(
+            extraction_request["codex"],
+            extraction_request["evaluator_home"],
+            extraction_request["model"],
+            extraction_request["reasoning"],
+        )
+        if "codex_executable_sha256" in extraction_request:
+            actual = config["codex_executable_sha256"]
+            retained = extraction_request["codex_executable_sha256"]
+        else:
+            actual = actual_runtime
+            retained = extraction_request["codex_runtime_sha256"]
+        if retained != actual:
+            raise Stage2Error("controller-extraction-runtime-changed")
+        return config
+    except (KeyError, TypeError, EvaluationError, CaptureError) as error:
         raise Stage2Error("controller-extraction-request-config-missing") from error
 
 
@@ -1918,9 +1927,17 @@ def verify_controller(
     *,
     evaluation_dir=None,
     expected_evaluation_manifest_sha256=None,
+    historical_binding=None,
 ):
     """Recompute a saved controller run and return its formal-admission facts."""
 
+    from .historical_verifier import resolve_historical_binding
+
+    historical = (
+        None
+        if historical_binding is None
+        else resolve_historical_binding(historical_binding)
+    )
     root = Path(output_dir).resolve()
     if (
         not isinstance(externally_retained_receipt, str)
@@ -1969,7 +1986,8 @@ def verify_controller(
             {key: value for key, value in manifest.items() if key != "manifest_sha256"}
         )
         or externally_retained_receipt != manifest["manifest_sha256"]
-        or manifest["controller_code_sha256"] != _file_sha(__file__)
+        or manifest["controller_code_sha256"]
+        != (_file_sha(__file__) if historical is None else historical.controller_sha256)
         or manifest["human_selection"] != "pending"
         or manifest["stage3_execution_authorized"] is not False
     ):
@@ -2201,6 +2219,7 @@ def verify_controller(
             snapshot_sha256=base_hash,
             expected_config=model_config,
             expected_policy=extraction_request["execution_policy"],
+            historical_binding=historical_binding,
         )
         if replayed_extraction["result"] != extraction:
             raise Stage2Error("controller-extraction-model-replay-mismatch")
@@ -2371,7 +2390,7 @@ def verify_controller(
         and stage2_complete
         and model_call_verification == "authenticated"
     )
-    return {
+    verification = {
         "kind": "Stage2ControllerVerification",
         "schema_version": VERSION,
         "manifest": manifest,
@@ -2393,6 +2412,11 @@ def verify_controller(
         "human_selection": "pending",
         "stage3_execution_authorized": False,
     }
+    if historical is not None:
+        if resolve_historical_binding(historical_binding) != historical:
+            raise Stage2Error("historical-verifier-build-changed-during-verification")
+        verification["historical_verification"] = historical.receipt
+    return verification
 
 
 def apply_revision(run_dir, packet_path, source_root, impact, reason, expected_head):

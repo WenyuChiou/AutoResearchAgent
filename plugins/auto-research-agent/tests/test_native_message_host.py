@@ -319,14 +319,31 @@ class MessageHostTests(unittest.TestCase):
         server = self.start()
         body = self.message(server)
         server.timeout_seconds = 0.1
+        released = threading.Event()
+        requests = []
+        original_process = server.process_request
+        original_release = server._release
+
+        def process(request, address):
+            requests.append(request)
+            original_process(request, address)
+
+        def release(request):
+            original_release(request)
+            if request in requests:
+                released.set()
+
         self.p.controller.admit_action = lambda _: time.sleep(0.15) or True
+        server.process_request = process
+        server._release = release
         try:
             self.request(server, "POST", "/messages", body)
         except OSError:
             pass
-        deadline = time.monotonic() + 1
-        while server._deadlines and time.monotonic() < deadline:
-            time.sleep(0.005)
+        # Socket timeout precedes handler finalization. Observe completion of the
+        # exact POST request, including deadline and connection-slot release.
+        self.assertTrue(released.wait(5), "POST request did not finish cleanup")
+        self.assertEqual(len(requests), 1)
         self.assertFalse(server._deadlines)
         self.assertEqual(self.p.channel.sent, [])
         state = self.p.store.snapshot(self.p.pid)

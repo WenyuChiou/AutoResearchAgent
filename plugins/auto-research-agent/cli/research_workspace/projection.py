@@ -181,12 +181,12 @@ def _source_records(package_root, bound_read, records):
         def normalize(value):
             return " ".join(value.casefold().split()).rstrip(".")
 
-        _require(
-            normalize(receipt["expected_identity"]["title"])
-            == normalize(paper["title"]),
-            "source title binding mismatch",
+        title_matches = normalize(receipt["expected_identity"]["title"]) == normalize(
+            paper["title"]
         )
-        if receipt["expected_identity"]["doi"] != (paper["doi"] or ""):
+        if not title_matches or receipt["expected_identity"]["doi"] != (
+            paper["doi"] or ""
+        ):
             archive_root = safe_path(package_root, archive.rstrip("/"))
             observation = decode_json(bound_read(archive + "validation.json"))
             _require(
