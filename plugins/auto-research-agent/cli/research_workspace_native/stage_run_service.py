@@ -11,6 +11,7 @@ import re
 import threading
 import time
 import uuid
+from typing import Protocol
 
 from stage1_deliverable.common import private_output, sha
 from .session_api import SessionApiError
@@ -23,6 +24,24 @@ HASH = re.compile(r"[0-9a-f]{64}")
 def _check(condition, reason, status=409):
     if not condition:
         raise SessionApiError(reason, status)
+
+
+class StageUnitProvider(Protocol):
+    """Trusted injected unit interface, independent of any native implementation.
+
+    Implementing this interface does not supply admission or prove a model call.
+    The provider must consult the service's durable permit before every I/O.
+    """
+
+    def run(self, key, prompt, deadline): ...
+
+    def verify_receipt(self, receipt, **expected): ...
+
+    def status(self): ...
+
+    def answer(self, body, *, pre_admission): ...
+
+    def interrupt(self, body, *, pre_admission): ...
 
 
 class StageRunService:
@@ -154,7 +173,7 @@ class StageRunService:
             self.store.close()
             raise
 
-    def attach_model(self, model):
+    def attach_model(self, model: StageUnitProvider):
         _check(
             self.model is None and callable(getattr(model, "run", None)),
             "pilot-model-already-bound",

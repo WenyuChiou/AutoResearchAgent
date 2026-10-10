@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import secrets
 import sys
+import types
 import webbrowser
 
 PLUGIN = Path(__file__).resolve().parents[3]
@@ -265,6 +266,73 @@ def create_stage_actions(output, views, credential):
     )
 
 
+def install_stage2_demo(server, output, credential):
+    """Opt-in fixed synthetic controller demo; registration performs no execution."""
+    from research_workspace_native.atlas_local_source import inventory, read
+
+    reference = PLUGIN / "references/research-workspace/examples"
+    script = reference / "stage2-demo.py"
+    module = types.ModuleType("atlas_repository_stage2_demo")
+    module.__file__ = str(script)
+    exec(compile(read(script), str(script), "exec"), module.__dict__)
+    sources = {"cli/" + key: value for key, value in inventory(PLUGIN / "cli").items()}
+    sources.update(
+        {
+            "tests/" + path.name: sha(read(path))
+            for path in (PLUGIN / "tests").glob("*.py")
+        }
+    )
+    view = next(row for row in server.views if row["ref"] == "stage2")
+    demo = module.RepositoryStage2Demo(
+        private_output(output).resolve() / "stage2-run-demo",
+        repo=PLUGIN.parents[1],
+        sources=sources,
+        project_ref=view["ref"],
+        index_sha256=view["index_sha256"],
+        authenticate=token_authenticator({credential: "local-viewer"}),
+    )
+    try:
+        panel_route = "/stage2-demo-panel.js"
+        server._assets[panel_route] = read(reference / "stage2-demo-panel.js")
+        server.host_binding["served_files"][panel_route] = sha(
+            server._assets[panel_route]
+        )
+        anchor = b'<script src="/host-panel.js"></script>'
+        for row in server.views:
+            route = row["url"]
+            raw = server._assets[route]
+            bootstrap_route = "/stage2-demo-bootstrap/" + row["ref"] + ".js"
+            if raw.count(anchor) != 1 or bootstrap_route in server._assets:
+                raise ValueError("Stage2 demo bootstrap placement differs")
+            enabled = row["ref"] == "stage2"
+            bootstrap = (
+                b"window.WORKSPACE_STAGE2_DEMO="
+                + canonical(
+                    dict(
+                        enabled=enabled,
+                        project_ref=row["ref"],
+                        credential=credential if enabled else "",
+                    )
+                )
+                + b";"
+            )
+            tag = ('<script src="' + bootstrap_route + '"></script>').encode()
+            changed = raw.replace(anchor, tag + anchor, 1).replace(
+                b"</body>", b'<script src="/stage2-demo-panel.js"></script></body>', 1
+            )
+            server._assets[route] = changed
+            server._assets[bootstrap_route] = bootstrap
+            server.host_binding["served_files"][route] = sha(changed)
+            server.host_binding["served_files"][bootstrap_route] = sha(bootstrap)
+        server.host_binding["stage2_demo_overlay"] = "independent synthetic example"
+        server._assets["/host-binding.json"] = canonical(server.host_binding)
+        module.install(server, demo)
+        return demo
+    except BaseException:
+        demo.close()
+        raise
+
+
 def build(output, *, demonstrate_ready_saved_case=False):
     root = private_output(output).resolve()
     root.mkdir(parents=True, exist_ok=False)
@@ -384,6 +452,11 @@ def main():
     parser.add_argument("--harness-operations", action="store_true")
     parser.add_argument("--stage-actions", action="store_true")
     parser.add_argument(
+        "--demonstrate-stage2-run",
+        action="store_true",
+        help="Add the fixed independent SyntheticAdapter demo; no native/model/search execution.",
+    )
+    parser.add_argument(
         "--demonstrate-ready-saved-case",
         action="store_true",
         help="Display the same saved synthetic coverage ledger whose real gate passes; Stage2 remains independent, with no research execution.",
@@ -393,14 +466,18 @@ def main():
     args = parser.parse_args()
     if args.open and not args.serve:
         parser.error("--open requires --serve")
-    if (args.harness_operations or args.stage_actions) and not args.serve:
-        parser.error("--harness-operations/--stage-actions requires --serve")
+    if (
+        args.harness_operations or args.stage_actions or args.demonstrate_stage2_run
+    ) and not args.serve:
+        parser.error(
+            "--harness-operations/--stage-actions/--demonstrate-stage2-run requires --serve"
+        )
     files, views = build(
         args.output, demonstrate_ready_saved_case=args.demonstrate_ready_saved_case
     )
     if args.serve:
         credential = secrets.token_urlsafe(32)
-        operations = stages = None
+        operations = stages = demo = server = None
         try:
             if args.harness_operations:
                 operations = create_harness_operations(
@@ -419,7 +496,11 @@ def main():
                 harness_ops=operations,
                 stage_actions=stages,
             )
+            if args.demonstrate_stage2_run:
+                demo = install_stage2_demo(server, args.output, credential)
         except BaseException:
+            if server is not None:
+                server.server_close()
             if operations is not None:
                 operations.close()
             if stages is not None:
@@ -433,7 +514,11 @@ def main():
         except KeyboardInterrupt:
             pass
         finally:
-            server.server_close()
+            try:
+                if demo is not None:
+                    demo.close()
+            finally:
+                server.server_close()
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 The optional `--demonstrate-stage2-run` mode adds one fixed engineering action to
-the existing installed planned-query example. The normal launcher, production
+the saved-case review example. The normal launcher, production
 StageActions allowlist and Codex/Harness execution permissions are unchanged.
 
-Run from a complete, clean checkout whose physical bytes match its Git blobs:
+Run from a complete checkout:
 
 ```powershell
-python -I -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-planned-query-fixture.py --repo C:/your/AutoResearchAgent --output C:/your/private/new-stage2-demo --serve --demonstrate-stage2-run --lifetime 300
+python -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/your/private/new-stage2-demo --serve --stage-actions --demonstrate-ready-saved-case --demonstrate-stage2-run
 ```
 
 Open the printed Stage 2 URL, select Stage 2 in the sidebar, scroll to “Run the

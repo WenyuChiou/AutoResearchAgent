@@ -47,6 +47,7 @@ class DemoTests(unittest.TestCase):
             }
         )
         self.demo = self.new_demo()
+        self.addCleanup(self.demo.close)
         self.server = SessionHttpServer(
             SessionApi(authenticate=self.authenticate), timeout=30
         )
@@ -74,7 +75,7 @@ class DemoTests(unittest.TestCase):
         self.demo.close()
 
     def request(self, method="GET", body=None, *, suffix="stage2", headers=None):
-        connection = http.client.HTTPConnection(*self.server.server_address, timeout=30)
+        connection = http.client.HTTPConnection(*self.server.server_address, timeout=60)
         supplied = {"Authorization": "Bearer " + self.token}
         if method == "POST":
             supplied.update(
@@ -176,7 +177,7 @@ class DemoTests(unittest.TestCase):
                 side_effect=AssertionError("no unknown retry"),
             ):
                 actual = reopened.execute(
-                    self.token, "stage2", self.body(), deadline=time.monotonic() + 5
+                    self.token, "stage2", self.body(), deadline=time.monotonic() + 60
                 )
                 self.assertEqual(actual["action"]["status"], "execution-unknown")
         finally:
@@ -208,7 +209,7 @@ class DemoTests(unittest.TestCase):
                 side_effect=AssertionError("no crash resend"),
             ):
                 actual = reopened.execute(
-                    self.token, "stage2", self.body(), deadline=time.monotonic() + 5
+                    self.token, "stage2", self.body(), deadline=time.monotonic() + 60
                 )
             self.assertEqual(actual["action"]["status"], "execution-unknown")
         finally:

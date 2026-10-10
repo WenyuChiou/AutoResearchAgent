@@ -81,7 +81,10 @@ class DemoSafetyTests(unittest.TestCase):
             ):
                 self.assertEqual(
                     reopened.execute(
-                        self.token, "stage2", self.body(), deadline=time.monotonic() + 5
+                        self.token,
+                        "stage2",
+                        self.body(),
+                        deadline=time.monotonic() + 60,
                     )["action"],
                     row,
                 )

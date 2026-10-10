@@ -306,6 +306,50 @@ class ReviewExampleTests(unittest.TestCase):
         self.assertEqual(stage2["result"]["readiness"]["status"], "ready")
         self.assertFalse(stage2["model_execution"])
 
+    def test_opt_in_stage2_demo_registration_and_history_never_dispatch(self):
+        server, _, token = self.host()
+        demo = self.example.install_stage2_demo(server, self.root, token)
+        self.addCleanup(demo.close)
+        status, view = self.request(server, token, "/api/stage2-demo/stage2")
+        self.assertEqual(status, 200)
+        self.assertIsNone(view["action"])
+        self.assertFalse((demo.root / "run-once").exists())
+        for row in server.views:
+            html = server._assets[row["url"]]
+            bootstrap = ("/stage2-demo-bootstrap/" + row["ref"] + ".js").encode()
+            self.assertLess(html.index(bootstrap), html.index(b"/host-panel.js"))
+            self.assertIn(b"/stage2-demo-panel.js", html)
+        connection = http.client.HTTPConnection(*server.server_address, timeout=10)
+        try:
+            connection.request(
+                "GET",
+                "/host-binding.json",
+                headers={"Authorization": "Bearer " + token},
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            binding = json.loads(response.read())
+        finally:
+            connection.close()
+        for route, expected in binding["served_files"].items():
+            with self.subTest(route=route):
+                connection = http.client.HTTPConnection(
+                    *server.server_address, timeout=10
+                )
+                try:
+                    connection.request(
+                        "GET", route, headers={"Authorization": "Bearer " + token}
+                    )
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(sha(response.read()), expected)
+                finally:
+                    connection.close()
+        self.assertIsNone(
+            self.request(server, token, "/api/stage2-demo/stage2")[1]["action"]
+        )
+        self.assertFalse((demo.root / "run-once").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

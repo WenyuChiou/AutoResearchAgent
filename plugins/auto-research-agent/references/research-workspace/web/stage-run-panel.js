@@ -18,9 +18,9 @@
   const footer = document.querySelector("#atlas-footer");
   if (footer) footer.before(panel); else document.body.append(panel);
   const labels = {
-    en: ["Codex × Harness · run one step", "Repository test sources · real model execution. Independent scientific assessment remains pending.", "Run this step", "Refresh saved progress", "Next step", "No further permitted step", "Reserved model calls", "Seconds remaining", "Submitting; a lost response is recovered by refreshing, never automatic resend.", "Request outcome unknown. Refresh progress before taking another action."],
-    zh: ["Codex × Harness · 逐步执行", "仓库测试来源 · 真实模型执行；独立科学评估仍待完成。", "执行这一步", "刷新已保存的进度", "下一步", "暂无可执行的后续步骤", "已预留模型调用", "剩余秒数", "正在提交；丢失响应时只刷新查询，不自动重发。", "请求结果尚不确定。请先刷新进度，再决定下一步。"],
-    "zh-Hant": ["Codex × Harness · 逐步執行", "倉庫測試來源 · 真實模型執行；獨立科學評估仍待完成。", "執行這一步", "重新整理已儲存的進度", "下一步", "暫無可執行的後續步驟", "已預留模型呼叫", "剩餘秒數", "正在提交；遺失回應時只重新整理查詢，不自動重送。", "請求結果尚不確定。請先重新整理進度，再決定下一步。"]
+    en: ["Harness · run one step", "Repository test sources · a bounded stage workflow is registered. Inspect each unit receipt for native/model evidence; registration alone does not demonstrate execution. Independent scientific assessment remains pending.", "Run this step", "Refresh saved progress", "Next step", "No further permitted step", "Reserved model calls", "Seconds remaining", "Submitting; a lost response is recovered by refreshing, never automatic resend.", "Request outcome unknown. Refresh progress before taking another action."],
+    zh: ["Harness · 逐步执行", "仓库测试来源 · 已注册有界阶段流程。原生／模型执行证据请查看各步骤回执；仅注册不证明已执行。独立科学评估仍待完成。", "执行这一步", "刷新已保存的进度", "下一步", "暂无可执行的后续步骤", "已预留模型调用", "剩余秒数", "正在提交；丢失响应时只刷新查询，不自动重发。", "请求结果尚不确定。请先刷新进度，再决定下一步。"],
+    "zh-Hant": ["Harness · 逐步執行", "倉庫測試來源 · 已註冊有界階段流程。原生／模型執行證據請查看各步驟回執；僅註冊不證明已執行。獨立科學評估仍待完成。", "執行這一步", "重新整理已儲存的進度", "下一步", "暫無可執行的後續步驟", "已預留模型呼叫", "剩餘秒數", "正在提交；遺失回應時只重新整理查詢，不自動重送。", "請求結果尚不確定。請先重新整理進度，再決定下一步。"]
   };
   const phases = {
     "source-review": ["Stage 1 · source review", "Stage 1 · 来源审阅", "Stage 1 · 來源審閱"],
