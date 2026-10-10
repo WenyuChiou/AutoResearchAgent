@@ -22,7 +22,7 @@
     const toggle = document.createElement("label"), input = document.createElement("input"), caption = document.createElement("span");
     toggle.className = "atlas-check"; input.type = "checkbox"; input.checked = settings.computed;
     caption.textContent = t("computedLinks"); toggle.append(input, caption); controls.append(toggle);
-    input.onchange = () => {settings.computed = input.checked; options.onSettings?.();};
+    input.onchange = () => {if (dead) return; settings.computed = input.checked; options.onSettings?.();};
     const labels = document.createElement("label"), labelInput = document.createElement("input"), labelCaption = document.createElement("span");
     labels.className = "atlas-check"; labelInput.type = "checkbox"; labelInput.checked = settings.showLabels === true;
     labelCaption.textContent = t("showAllNames"); labels.append(labelInput, labelCaption); controls.append(labels);
@@ -44,7 +44,7 @@
     const relationBox = document.createElement("details"), relationTitle = document.createElement("summary");
     relationTitle.textContent = t("graphBasis"); relationBox.className = "atlas-relation-list";
     relationBox.append(relationTitle);
-    const associations = root.AtlasAssociations.build(papers, {neighbors: 2, threshold: .09});
+    const associations = root.AtlasAssociations.build(papers, {neighbors: 2});
     const extraLinks = [...associations.recorded, ...(settings.computed ? [...associations.lexical, ...associations.lexicalTopics] : [])];
     const paperById = new Map(papers.map(p => [p.key, p]));
     const endpointTitle = p => p.type === "paper" ? paperById.get(p.key)?.title || p.key : p.key;
@@ -79,7 +79,7 @@
         const error = document.createElement("p"); error.className = "atlas-note";
         error.textContent = t("spatialUnavailable"); host.append(error);
         const fallback = document.createElement("button"); fallback.type = "button";
-        fallback.textContent = t("planarFallback"); fallback.onclick = () => options.onFallback?.(); host.append(fallback);
+        fallback.textContent = t("planarFallback"); fallback.onclick = () => {if (!dead) options.onFallback?.();}; host.append(fallback);
       }
     });
     return {

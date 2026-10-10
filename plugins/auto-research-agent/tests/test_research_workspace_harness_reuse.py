@@ -3,12 +3,15 @@
 from copy import deepcopy
 import http.client
 import json
+import os
 from pathlib import Path
+import stat
 import tempfile
 import threading
 import time
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 from research_workspace.atlas import atlas_files
 from research_workspace_native.atlas_host import AtlasHost
@@ -151,6 +154,43 @@ class HarnessReuseTests(unittest.TestCase):
             create_harness_operations(
                 self.files, self.views, missing, self.token, reuse=True
             )
+
+    def test_linked_companions_rejected_before_readonly_sqlite_open(self):
+        self.service.close()
+        database = self.root / "operations.sqlite3"
+        before = sha(database.read_bytes())
+        original_lstat = os.lstat
+        for suffix in ("-wal", "-shm", "-journal"):
+            companion = database.with_name(database.name + suffix)
+            for mode, attributes in ((stat.S_IFLNK, 0), (stat.S_IFREG, 0x400)):
+                with self.subTest(suffix=suffix, attributes=attributes):
+
+                    def marked(path, *args, **kwargs):
+                        if Path(path) == companion:
+                            return SimpleNamespace(
+                                st_mode=mode, st_file_attributes=attributes
+                            )
+                        return original_lstat(path, *args, **kwargs)
+
+                    with (
+                        patch("stage1_deliverable.common.os.lstat", marked),
+                        patch(
+                            "research_workspace_native.harness_host.sqlite3.connect",
+                            side_effect=AssertionError(
+                                "SQLite opened before link guard"
+                            ),
+                        ) as connection,
+                    ):
+                        with self.assertRaisesRegex(ValueError, "linked artifact"):
+                            create_harness_operations(
+                                self.files,
+                                self.views,
+                                self.root,
+                                self.token,
+                                reuse=True,
+                            )
+                        connection.assert_not_called()
+        self.assertEqual(sha(database.read_bytes()), before)
 
 
 if __name__ == "__main__":

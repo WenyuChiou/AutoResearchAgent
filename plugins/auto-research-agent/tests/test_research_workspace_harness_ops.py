@@ -6,6 +6,7 @@ No source acquisition, model call, scoring, native process, or science admission
 from copy import deepcopy
 import json
 from pathlib import Path
+import sqlite3
 import tempfile
 import threading
 import time
@@ -200,6 +201,152 @@ class HarnessOpsTests(unittest.TestCase):
         with self.assertRaisesRegex(ops.HarnessOpsError, "stale-revision"):
             self.run_action(dict(request, key="new-key"))
         self.assertEqual(len(list((self.root / "alpha").iterdir())), 1)
+
+    def test_stale_refusal_is_durable_bound_and_never_admitted(self):
+        stale = self.request(key="stale-tab")
+        self.run_action(self.request(key="first-tab"))
+        before = self.service.view("token-a", "alpha")
+        with patch.object(self.service, "_produce") as producer:
+            with self.assertRaisesRegex(
+                ops.HarnessOpsError, "stale-revision"
+            ) as caught:
+                self.run_action(stale)
+            refusal = caught.exception.receipt
+            self.assertEqual(refusal["status"], "rejected-known-unsent")
+            self.assertEqual(refusal["request"], stale)
+            self.assertEqual(
+                refusal["request_sha256"],
+                sha(canonical(dict(project_ref="alpha", **stale))),
+            )
+            self.assertEqual(refusal["index_sha256"], before["index_sha256"])
+            self.assertEqual(
+                refusal["input_canonical_sha256"], before["input_canonical_sha256"]
+            )
+            self.assertEqual(
+                refusal["rejection"],
+                dict(
+                    type="known-unsent",
+                    phase="before-admission",
+                    offer_revision=stale["expected_revision"],
+                    observed_revision=before["revision"],
+                ),
+            )
+            self.assertEqual(refusal["artifacts"], [])
+            self.assertFalse(refusal["research_execution"])
+            self.assertEqual(
+                self.service.get_action("token-a", "alpha", "stale-tab"), refusal
+            )
+            events = self.service.store.events(
+                self.service._projects["alpha"]["project_id"]
+            )
+            with self.assertRaises(ops.HarnessOpsError) as replay:
+                self.run_action(stale)
+            self.assertEqual(replay.exception.receipt, refusal)
+            self.assertEqual(
+                self.service.store.events(
+                    self.service._projects["alpha"]["project_id"]
+                ),
+                events,
+            )
+            with self.assertRaisesRegex(
+                ops.HarnessOpsError, "idempotency-payload-differs"
+            ) as changed:
+                self.run_action(
+                    dict(
+                        stale,
+                        expected_revision=self.service.view("token-a", "alpha")[
+                            "revision"
+                        ],
+                    )
+                )
+            self.assertIsNone(changed.exception.receipt)
+            producer.assert_not_called()
+        self.service.close()
+        self.service = self.make()
+        self.addCleanup(self.service.close)
+        self.assertEqual(
+            self.service.get_action("token-a", "alpha", "stale-tab"), refusal
+        )
+        with patch.object(self.service, "_produce") as producer:
+            with self.assertRaises(ops.HarnessOpsError) as replay:
+                self.run_action(stale)
+            self.assertEqual(replay.exception.receipt, refusal)
+            producer.assert_not_called()
+        fresh = self.run_action(self.request(key="explicit-new"))
+        self.assertEqual(fresh["status"], "completed")
+        self.assertEqual(len(list((self.root / "alpha").iterdir())), 2)
+
+    def test_refusal_commit_deadline_identity_or_source_failure_has_no_proof(self):
+        stale = self.request(key="not-recorded")
+        self.run_action(self.request(key="advance"))
+        before = self.service.view("token-a", "alpha")
+        for request, token, ref in (
+            (stale, "token-b", "alpha"),
+            (stale, "token-a", "beta"),
+            (dict(stale, index_sha256="0" * 64), "token-a", "alpha"),
+            (dict(stale, unexpected=True), "token-a", "alpha"),
+        ):
+            with (
+                self.subTest(request=request, token=token, ref=ref),
+                self.assertRaises(ops.HarnessOpsError) as rejected,
+            ):
+                self.run_action(request, token=token, ref=ref)
+            self.assertIsNone(rejected.exception.receipt)
+        self.service.store.db.execute("""CREATE TEMP TRIGGER refuse_commit BEFORE INSERT ON events
+            WHEN NEW.kind='harness-ops-rejected' BEGIN SELECT RAISE(ABORT,'synthetic refusal'); END""")
+        with self.assertRaises(sqlite3.IntegrityError) as failed:
+            self.run_action(stale)
+        self.assertIsNone(getattr(failed.exception, "receipt", None))
+        self.assertEqual(self.service.view("token-a", "alpha"), before)
+        self.service.store.db.execute("DROP TRIGGER refuse_commit")
+        with (
+            patch.dict(self.service.store._owners, {}, clear=True),
+            self.assertRaises(JournalError) as owner,
+        ):
+            self.run_action(stale)
+        self.assertIsNone(getattr(owner.exception, "receipt", None))
+        self.assertEqual(self.service.view("token-a", "alpha"), before)
+        original = self.service._deadline
+        calls = []
+
+        def deadline(value):
+            original(value)
+            calls.append(value)
+            if len(calls) == 5:
+                raise ops.HarnessOpsError("request-deadline-exceeded", 408)
+
+        with (
+            patch.object(self.service, "_deadline", side_effect=deadline),
+            self.assertRaises(ops.HarnessOpsError) as expired,
+        ):
+            self.run_action(stale)
+        self.assertIsNone(expired.exception.receipt)
+        self.assertEqual(self.service.view("token-a", "alpha"), before)
+        with self.assertRaisesRegex(ops.HarnessOpsError, "action-not-found"):
+            self.service.get_action("token-a", "alpha", stale["key"])
+
+    def test_unknown_record_never_upgrades_from_a_refusal_label(self):
+        stale = self.request(key="retained-unknown")
+        self.run_action(self.request(key="advance"))
+        with self.assertRaises(ops.HarnessOpsError):
+            self.run_action(stale)
+        project = self.service._projects["alpha"]
+        state = self.service.store.snapshot(project["project_id"])
+        with self.service.store._edit(
+            project["project_id"],
+            project["owner"],
+            state["revision"],
+            "synthetic-unknown",
+            {},
+        ) as current:
+            current["intents"][stale["key"]]["status"] = "execution-unknown"
+        self.assertEqual(
+            self.service.get_action("token-a", "alpha", stale["key"])["status"],
+            "execution-unknown",
+        )
+        with patch.object(self.service, "_produce") as producer:
+            self.assertEqual(self.run_action(stale)["status"], "execution-unknown")
+            producer.assert_not_called()
 
     def test_failure_preserved_and_not_retried_across_sqlite_reopen(self):
         request = self.request("derive-literature-selection")

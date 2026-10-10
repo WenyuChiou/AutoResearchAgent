@@ -14,8 +14,18 @@ class Element {
   set textContent(value) { this._text = String(value); this.children = []; }
   get textContent() { return this._text + this.children.map(node => node.textContent).join(" "); }
   set innerHTML(value) { throw new Error(`Unsafe HTML insertion: ${value}`); }
-  append(...nodes) { this.children.push(...nodes); }
-  replaceChildren(...nodes) { this._text = ""; this.children = [...nodes]; }
+  append(...nodes) {
+    for (const node of nodes) {
+      if (node.parent) { const at = node.parent.children.indexOf(node); if (at >= 0) node.parent.children.splice(at, 1); }
+      node.parent = this; this.children.push(node);
+    }
+  }
+  insertBefore(node, anchor) {
+    if (node.parent) { const at = node.parent.children.indexOf(node); if (at >= 0) node.parent.children.splice(at, 1); }
+    const at = anchor ? this.children.indexOf(anchor) : -1;
+    node.parent = this; if (at < 0) this.children.push(node); else this.children.splice(at, 0, node);
+  }
+  replaceChildren(...nodes) { this._text = ""; this.children = []; this.append(...nodes); }
   setAttribute(name, value) { this.attributes[name] = String(value); }
   addEventListener(name, handler) { (this.listeners[name] ||= []).push(handler); }
   change(value) { this.value = value; this.onchange?.({target: this}); }
@@ -56,8 +66,8 @@ function fixture(missing = false) {
   }
   return freeze(payload);
 }
-function mount(language, acknowledge = false, eventSupport = true, missing = false) {
-  const payload = fixture(missing), before = JSON.stringify(payload), body = new Element("body"), ids = {};
+function mount(language, acknowledge = false, eventSupport = true, missing = false, payload = fixture(missing)) {
+  const before = JSON.stringify(payload), body = new Element("body"), ids = {};
   for (const id of ["atlas-content", "atlas-stages", "atlas-language-label", "atlas-language", "atlas-original", "atlas-project", "atlas-status", "atlas-footer", "native-session-panel", "host-panel", "host-open"]) {
     const node = new Element(id === "atlas-language" ? "select" : "div"); node.id = id; ids[id] = node; body.append(node);
   }
@@ -209,4 +219,30 @@ noEvents.get("atlas-review-note").value = "Keep this disconnected draft"; noEven
 contains(noEvents.get("atlas-review-draft").value, "Keep this disconnected draft", "without CustomEvent support the copyable draft is still retained");
 contains(noEvents.review().textContent, text.en.disconnected, "missing event support cannot be called connected");
 noEvents.unchanged();
+for (const language of Object.keys(text)) {
+  for (const [outer, stage2, expected] of [
+    [undefined, undefined, text[language].unknown],
+    [false, undefined, text[language].unknown],
+    [undefined, false, text[language].unknown],
+    ["false", false, text[language].unknown],
+    [null, null, text[language].unknown],
+    [false, false, "false"],
+    [true, undefined, "true"],
+    [undefined, true, "true"],
+    [false, true, "true"]
+  ]) {
+    const payload = JSON.parse(JSON.stringify(fixture()));
+    payload.stage2 = {bridge_receipt: {selection_sha256: "2".repeat(64), original_stage1_lineage_attested: false}};
+    if (outer !== undefined) payload.fixture = outer;
+    if (stage2 !== undefined) payload.stage2.fixture = stage2;
+    const app = mount(language, false, true, false, freeze(payload));
+    app.ids["atlas-stages"].children[1].click();
+    app.get("atlas-review-prepare").click();
+    const draft = app.get("atlas-review-draft").value;
+    contains(draft, `Simulated: ${expected}`, "simulation status preserves missing, malformed and explicit recorded booleans");
+    contains(draft, "Stage 1 lineage attested: false", "an explicit false lineage value stays false independently of unknown simulation");
+    contains(draft, `Stage 2 selection SHA-256: ${"2".repeat(64)}`, "simulation display preserves the exact selection hash");
+    app.unchanged();
+  }
+}
 process.stdout.write(`Atlas review DOM regression: ${checks} checks passed (synthetic, no native execution).\n`);

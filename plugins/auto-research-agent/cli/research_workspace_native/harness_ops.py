@@ -59,6 +59,11 @@ def _public(row):
     result = deepcopy({k: v for k, v in row.items() if k != "private_error_message"})
     if result.get("outcome") == "failed" and result["status"] == "completed":
         result["status"] = "failed"
+    elif (
+        result.get("outcome") == "rejected-known-unsent"
+        and result["status"] == "completed"
+    ):
+        result["status"] = "rejected-known-unsent"
     return result
 
 
@@ -261,8 +266,14 @@ class HarnessOps:
                 _check(
                     previous["request_sha256"] == digest, "idempotency-payload-differs"
                 )
+                if (
+                    previous.get("outcome") == "rejected-known-unsent"
+                    and previous["status"] == "completed"
+                ):
+                    error = HarnessOpsError("stale-revision")
+                    error.receipt = _public(previous)
+                    raise error
                 return _public(previous)
-            _check(request["expected_revision"] == state["revision"], "stale-revision")
             _check(
                 len(state["intents"]) < MAX_ACTIONS,
                 "project-action-bound-exceeded",
@@ -287,6 +298,34 @@ class HarnessOps:
                 model_execution=False,
                 scientific_admission=False,
             )
+            if request["expected_revision"] != state["revision"]:
+                # Authenticated, source-bound and fully shaped; no producer was
+                # admitted. Commit the refusal before claiming it is known unsent.
+                row.update(
+                    status="completed",
+                    outcome="rejected-known-unsent",
+                    completion_revision=state["revision"] + 1,
+                    error=dict(code="stale-revision", type="HarnessOpsError"),
+                    rejection=dict(
+                        type="known-unsent",
+                        phase="before-admission",
+                        offer_revision=request["expected_revision"],
+                        observed_revision=state["revision"],
+                    ),
+                )
+                with self.store._edit(
+                    project_id,
+                    owner,
+                    state["revision"],
+                    "harness-ops-rejected",
+                    request,
+                ) as saved:
+                    self._deadline(deadline)
+                    saved["intents"][key] = deepcopy(row)
+                    self._deadline(deadline)
+                error = HarnessOpsError("stale-revision")
+                error.receipt = _public(row)
+                raise error
             with self.store._edit(
                 project_id, owner, state["revision"], "harness-ops-intent", request
             ) as saved:
