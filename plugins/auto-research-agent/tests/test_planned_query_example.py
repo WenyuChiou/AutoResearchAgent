@@ -18,6 +18,7 @@ PLUGIN = Path(__file__).resolve().parents[1]
 class PlannedQueryExampleTests(unittest.TestCase):
     def test_complete_checkout_explicit_query_saved_stage2_and_no_repeat(self):
         with tempfile.TemporaryDirectory(prefix="query-example-") as folder:
+            fixture_lifetime, cleanup_allowance = 60, 15
             root = Path(folder).resolve()
             repo = root / "repo"
             plugin = repo / "plugins/auto-research-agent"
@@ -88,7 +89,7 @@ class PlannedQueryExampleTests(unittest.TestCase):
                         "--port",
                         "0",
                         "--lifetime",
-                        "60",
+                        str(fixture_lifetime),
                     ],
                     cwd=repo,
                     stdin=subprocess.DEVNULL,
@@ -249,7 +250,7 @@ class PlannedQueryExampleTests(unittest.TestCase):
                     self.assertEqual(json.loads(raw)["status"], "completed", raw)
                     self.assertFalse(json.loads(raw)["execution_authorized"])
                     self.assertEqual(
-                        process.wait(timeout=45),
+                        process.wait(timeout=fixture_lifetime + cleanup_allowance),
                         0,
                         log.read_text(encoding="utf8", errors="replace"),
                     )
@@ -264,7 +265,7 @@ class PlannedQueryExampleTests(unittest.TestCase):
                     if process.poll() is None:
                         try:
                             process.wait(
-                                timeout=75
+                                timeout=fixture_lifetime + cleanup_allowance
                             )  # Prefer normal bounded lease cleanup.
                         except subprocess.TimeoutExpired:
                             if sys.platform == "win32":

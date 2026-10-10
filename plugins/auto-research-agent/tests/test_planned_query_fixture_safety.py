@@ -76,7 +76,7 @@ def example_module():
 class PlannedQueryFixtureSafetyTests(unittest.TestCase):
     def test_helper_assume_unchanged_and_hardlink_refused_before_execution(self):
         with tempfile.TemporaryDirectory(prefix="query-bootstrap-") as folder:
-            root = Path(folder)
+            root = Path(folder).resolve()
             repo, plugin = snapshot(root)
             helper = plugin / "cli/research_workspace_native/atlas_local_source.py"
             relative = helper.relative_to(repo).as_posix()
