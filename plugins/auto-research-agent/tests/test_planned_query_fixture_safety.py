@@ -45,6 +45,11 @@ def git(repo, *args):
             "core.longpaths=true",
             "-c",
             "core.autocrlf=false",
+            # A test-owned repository must have no detached cleanup writer.
+            "-c",
+            "maintenance.auto=false",
+            "-c",
+            "gc.auto=0",
             "-c",
             "user.name=Fixture test",
             "-c",
@@ -74,6 +79,38 @@ def example_module():
 
 
 class PlannedQueryFixtureSafetyTests(unittest.TestCase):
+    def test_snapshot_has_no_automatic_maintenance_before_cleanup(self):
+        with tempfile.TemporaryDirectory(prefix="query-no-maintenance-") as folder:
+            root = Path(folder).resolve()
+            config, trace = root / "force-auto.gitconfig", root / "git-trace.jsonl"
+            config.write_text(
+                "[gc]\n\tauto = 1\n[maintenance]\n\tauto = true\n"
+                '[maintenance "loose-objects"]\n\tenabled = true\n\tauto = 1\n',
+                encoding="utf8",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "GIT_CONFIG_GLOBAL": str(config),
+                    "GIT_CONFIG_NOSYSTEM": "1",
+                    "GIT_TRACE2_EVENT": str(trace),
+                },
+            ):
+                repo, plugin = snapshot(root)
+                self.assertEqual(git(repo, "cat-file", "-t", "HEAD"), b"commit\n")
+                self.assertTrue((plugin / EXAMPLE).is_file())
+            events = [json.loads(line) for line in trace.read_text().splitlines()]
+            maintenance = [
+                event["argv"]
+                for event in events
+                if event.get("event") == "child_start"
+                and any(arg in {"maintenance", "gc"} for arg in event.get("argv", []))
+            ]
+            self.assertEqual(
+                maintenance, [], "snapshot must not leave detached writers"
+            )
+        self.assertFalse(root.exists())
+
     def test_helper_assume_unchanged_and_hardlink_refused_before_execution(self):
         with tempfile.TemporaryDirectory(prefix="query-bootstrap-") as folder:
             root = Path(folder).resolve()
