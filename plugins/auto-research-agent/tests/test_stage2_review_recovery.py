@@ -170,7 +170,12 @@ class Stage2ReviewRecoveryTests(unittest.TestCase):
             patch("stage2_live.review_recovery.extract_review", return_value=self.value)
         )
         self.config = {
-            "native_namespace": {"synthetic": True},
+            "native_namespace": {
+                "scope": {
+                    "capture_root": str(self.root),
+                    "workspace": str(self.args["extractor_workspace"]),
+                },
+            },
             "effective_cwd": str(self.args["extractor_workspace"].resolve()),
         }
         self.request_config = self.enterContext(
