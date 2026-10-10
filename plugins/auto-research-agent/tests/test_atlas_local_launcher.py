@@ -29,6 +29,30 @@ for name in ("LauncherError", "require", "canonical", "digest", "decode"):
 
 
 class LocalLauncherTests(unittest.TestCase):
+    def test_explicit_model_keeps_policy_and_resource_bindings(self):
+        spec = dict(
+            model="my-account-model",
+            approval_policy="on-request",
+            thread_config={},
+            principals=["local-viewer"],
+            limits=dict(max_starts=2, lifetime_seconds=600),
+        )
+        permit = dict(max_turns=2, lease_seconds=600)
+        launcher.validate_session_policy(spec, permit)
+        for model in ("gpt-6-astra", "gpt-6-sol"):
+            launcher.validate_session_policy(dict(spec, model=model), permit)
+        for model in (None, True, "", "a" * 129, "model\npolicy=never", "模型"):
+            with self.subTest(model=model), self.assertRaises(ValueError):
+                launcher.validate_session_policy(dict(spec, model=model), permit)
+        for patch_value in (
+            dict(approval_policy="never"),
+            dict(principals=["another-user"]),
+            dict(limits=dict(max_starts=3, lifetime_seconds=600)),
+            dict(limits=dict(max_starts=2, lifetime_seconds=601)),
+        ):
+            with self.subTest(patch_value=patch_value), self.assertRaises(ValueError):
+                launcher.validate_session_policy(dict(spec, **patch_value), permit)
+
     def test_disabled_does_not_inspect_or_compose(self):
         with patch.object(
             launcher, "preflight", side_effect=AssertionError("not allowed")

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import stat
 import sys
@@ -129,6 +130,21 @@ def validate_user_config(spec, permit):
     _thread_config(spec["thread_config"])
 
 
+def validate_session_policy(spec, permit):
+    """An explicit model stays inside the canonical spec/permit identity."""
+    model = spec.get("model")
+    SOURCE.require(
+        isinstance(model, str)
+        and re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", model)
+        and spec["approval_policy"] == "on-request"
+        and isinstance(spec.get("thread_config"), dict)
+        and spec["principals"] == ["local-viewer"]
+        and spec["limits"]["max_starts"] == permit["max_turns"]
+        and spec["limits"]["lifetime_seconds"] == permit["lease_seconds"],
+        "runtime limits/policy differ",
+    )
+
+
 def preflight(args):
     helper_paths = bootstrap(args)
     permit = SOURCE.decode(SOURCE.pinned(args.permit, args.permit_sha256))
@@ -177,15 +193,7 @@ def preflight(args):
         and spec["permit_sha256"] == args.permit_sha256,
         "runtime spec/permit identity differs",
     )
-    SOURCE.require(
-        spec["approval_policy"] == "on-request"
-        and spec["model"] == "gpt-6-astra"
-        and isinstance(spec.get("thread_config"), dict)
-        and spec["principals"] == ["local-viewer"]
-        and spec["limits"]["max_starts"] == permit["max_turns"]
-        and spec["limits"]["lifetime_seconds"] == permit["lease_seconds"],
-        "runtime limits/policy differ",
-    )
+    validate_session_policy(spec, permit)
     SOURCE.require(
         Path(spec["executable"]).name.casefold() in {"codex", "codex.exe"},
         "real pinned Codex executable required",
