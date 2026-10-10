@@ -44,7 +44,7 @@ class NativeStagePilotLauncherTests(unittest.TestCase):
             case=self.case_path,
             case_sha256=self.launch._sha(self.case_path.read_bytes()),
             repo=PLUGIN.parents[1],
-            output=self.root / "new-pilot",
+            output=self.root / "p",
             port=0,
         )
 
@@ -153,6 +153,40 @@ class NativeStagePilotLauncherTests(unittest.TestCase):
         self.assertEqual(receipt["permission_id"], self.args.permission_id)
         self.assertFalse(receipt["canonical_stage1_handoff"])
         self.assertNotIn("memory-only-credential", json.dumps(receipt))
+
+    def test_windows_long_output_refused_before_prepare_process_and_writes(self):
+        self.args.output = self.root / ("long-output-" + "x" * 60)
+        original = self.launch.windows_output_preflight
+        with patch.object(
+            self.launch,
+            "windows_output_preflight",
+            side_effect=lambda output: original(output, platform="win32"),
+        ):
+            self.assert_preparation_refused("Windows SQLite output path is too long")
+        # Platforms with a different SQLite path limit retain their existing guard.
+        self.launch.windows_output_preflight(self.args.output, platform="linux")
+        self.assertFalse(self.args.output.exists())
+
+    def test_windows_path_bound_includes_owner_sidecar_and_utf16_units(self):
+        suffix = (
+            "/models/"
+            + "0" * 64
+            + "/native.sqlite3.owner-"
+            + "0" * 64
+            + ".sqlite3-journal"
+        )
+        root = "C:/" if sys.platform == "win32" else "/"
+        safe = Path(root + "x" * (239 - len(suffix) - len(root)))
+        self.launch.windows_output_preflight(safe, platform="win32")
+        with self.assertRaisesRegex(ValueError, "under 240"):
+            self.launch.windows_output_preflight(
+                Path(str(safe) + "x"), platform="win32"
+            )
+        # An astral character takes two Windows path units despite one Python character.
+        with self.assertRaisesRegex(ValueError, "under 240"):
+            self.launch.windows_output_preflight(
+                Path(str(safe)[:-1] + "\U0001f4da"), platform="win32"
+            )
 
 
 if __name__ == "__main__":

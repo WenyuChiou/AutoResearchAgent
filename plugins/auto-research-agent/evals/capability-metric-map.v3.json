@@ -73,6 +73,8 @@
         "default passive and synthetic paths start no production launcher or model call; explicit local text requires its exact restricted permit, while frozen-input access, research authority and scientific score changes remain separate and ungranted"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test-stage-run-read-recovery.cjs",
+        "plugins/auto-research-agent/tests/test_native_notification_opt_out.py",
         "plugins/auto-research-agent/tests/test_native_stage_pilot_launcher.py",
         "plugins/auto-research-agent/tests/test_stage_run_http.py",
         "plugins/auto-research-agent/tests/test_stage_run_service.py",

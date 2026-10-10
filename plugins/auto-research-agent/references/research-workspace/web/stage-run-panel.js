@@ -33,7 +33,7 @@
     reconciliation: ["Reconcile evidence", "综合审查证据", "綜合審查證據"],
     "reconciliation-extraction": ["Validate reconciliation", "校验综合结果", "校驗綜合結果"]
   };
-  let state = null, submitting = false;
+  let state = null, submitting = false, loading = false, readFailure = false, actionUncertainty = null;
   const drafts = new Map(), held = new Set();
   let currentNative = null, nativeSignature = null;
   const lang = () => {
@@ -57,9 +57,12 @@
     publish.disabled = submitting || !state?.pipeline.candidates?.length || state?.jobs.some(job => ["running", "intent-recorded"].includes(job.status));
     run.disabled = submitting || !state || !state.ready;
     if (!state) return;
-    banner.textContent = `${text[6]}: ${state.budget.reserved} / ${state.budget.max_calls} · ${text[7]}: ${state.budget.seconds_remaining} · ${state.pipeline.status}`;
+    const liveJob = state.jobs.find(job => ["running", "intent-recorded"].includes(job.status));
+    const status = state.blocked || (liveJob ? liveJob.status : state.pipeline.status);
+    banner.textContent = `${text[6]}: ${state.budget.reserved} / ${state.budget.max_calls} · ${text[7]}: ${state.budget.seconds_remaining} · ${status}`;
     next.textContent = state.next_task ? `${text[4]}: ${phaseName(state.next_task.phase)}` : text[5];
     if (state.blocked) { notice.textContent = state.blocked; notice.className = "stage-run-error"; }
+    const expanded = new Set([...history.querySelectorAll("details[data-job-key]")].filter(item => item.open).map(item => item.dataset.jobKey));
     history.replaceChildren();
     candidates.replaceChildren();
     for (const candidate of state.pipeline.candidates || []) {
@@ -90,6 +93,8 @@
     }
     for (const job of state.jobs) {
       const details = document.createElement("details"), summary = document.createElement("summary");
+      details.dataset.jobKey = job.key;
+      details.open = expanded.has(job.key);
       summary.textContent = `${phaseName(job.task.phase)} · ${job.status}`;
       details.append(summary);
       if (job.final_text) { const output = document.createElement("pre"); output.textContent = job.final_text; details.append(output); }
@@ -98,8 +103,19 @@
     }
   }
   async function load() {
-    try { state = await request(""); draw(); renderNative((await request("/native")).native_view); }
-    catch (error) { notice.textContent = error.message; notice.className = "stage-run-error"; run.disabled = true; }
+    if (loading) return;
+    loading = true;
+    try {
+      const saved = await request(""), active = await request("/native");
+      state = saved;
+      const resolvedRun = actionUncertainty?.kind === "run" && saved.jobs.some(job => job.key === actionUncertainty.key);
+      const resolvedDelivery = actionUncertainty?.kind === "delivery" && saved.deliveries[actionUncertainty.key];
+      if (resolvedRun || resolvedDelivery) actionUncertainty = null;
+      if (readFailure || resolvedRun || resolvedDelivery) { notice.textContent = actionUncertainty?.message || ""; notice.className = actionUncertainty ? "stage-run-error" : ""; readFailure = false; }
+      draw(); renderNative(active.native_view);
+    }
+    catch (error) { readFailure = true; notice.textContent = error.message; notice.className = "stage-run-error"; run.disabled = true; }
+    finally { loading = false; }
   }
   async function nativeAction(view, target, result) {
     view = currentNative;
@@ -113,7 +129,7 @@
     sessionStorage.setItem("stage-run-native-intent:" + ref, JSON.stringify({key, ref}));
     held.add(ref);
     try { await request(target.request_ref ? "/answers" : "/interrupts", body); }
-    catch (error) { notice.textContent = labels[lang()][9] + " " + error.message; }
+    catch (error) { actionUncertainty = {kind: "native", key, message: labels[lang()][9] + " " + error.message}; notice.textContent = actionUncertainty.message; }
     await load();
   }
   function renderNative(view) {
@@ -165,7 +181,7 @@
     // Save non-secret intent before POST. Refresh only queries server history.
     sessionStorage.setItem("stage-run-intent:" + config.project_ref, JSON.stringify(body));
     try { await request("/actions", body); notice.textContent = ""; }
-    catch (error) { notice.textContent = labels[lang()][9] + " " + error.message; }
+    catch (error) { actionUncertainty = {kind: "run", key, message: labels[lang()][9] + " " + error.message}; notice.textContent = actionUncertainty.message; }
     finally { submitting = false; await load(); }
   });
   refresh.addEventListener("click", load);
@@ -174,7 +190,7 @@
     submitting = true;
     const body = {key: "delivery-" + crypto.randomUUID(), revision: state.revision, confirmed: true};
     try { sessionStorage.setItem("stage-run-delivery-intent:" + config.project_ref, JSON.stringify(body)); await request("/deliveries", body); }
-    catch (error) { notice.textContent = error.message; }
+    catch (error) { actionUncertainty = {kind: "delivery", key: body.key, message: error.message}; notice.textContent = actionUncertainty.message; }
     finally { submitting = false; await load(); }
   });
   document.addEventListener("change", draw);

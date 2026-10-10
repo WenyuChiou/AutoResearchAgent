@@ -15,13 +15,13 @@ Example PowerShell setup (choose new private directories outside the checkout):
 
 ```powershell
 $pilotRepo = (Get-Location).Path
-$pilotCase = 'D:/ResearchPrivate/repository-case'
-$pilotOutput = 'D:/ResearchPrivate/repository-run'
+$pilotCase = 'D:/rp/case1'
+$pilotOutput = 'D:/rp/run1'
 $pilotExample = Join-Path $pilotRepo 'plugins/auto-research-agent/references/research-workspace/examples'
 python -X utf8 (Join-Path $pilotExample 'build-stage-run-case.py') --output $pilotCase
 $pilotCaseFile = Join-Path $pilotCase 'case.json'
 $pilotCaseSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $pilotCaseFile).Hash.ToLower()
-$pilotCodex = (Get-Command codex).Source
+$pilotCodex = 'C:/YOUR_PHYSICAL_INSTALL_PATH/codex.exe'
 $pilotScope = 'I allow real Codex model calls on this bound repository case only, at most 8 turns and 900 seconds; no external search, trading, frozen inputs, command/file approval, private import or resume.'
 python -X utf8 (Join-Path $pilotExample 'run-stage-pilot.py') --repo $pilotRepo --case $pilotCaseFile --case-sha256 $pilotCaseSha --model YOUR_OWN_AVAILABLE_MODEL --max-calls 8 --max-seconds 900 --permission-id YOUR_EXPLICIT_PERMISSION_REFERENCE --accept-scope $pilotScope --codex-executable $pilotCodex --output $pilotOutput --port 8770
 ```
@@ -32,6 +32,21 @@ the example does not infer authority from login, a role, a copied receipt or CI.
 `CODEX_HOME/config.toml`. `--prepare-only` verifies and records registration
 without starting HTTP, a native process or a model. Ports are loopback only. A
 port conflict is a failure, not permission to stop another service.
+
+On Windows, create the short private parent (`D:/rp` in this example) first,
+and choose a new output name for each separately authorized registration.
+SQLite also creates a hashed owner database and journal below each model unit;
+the launcher rejects an output whose longest physical owner/sidecar path reaches
+240 Windows characters, before preparation, writes or model reservation.
+Keep failed attempts and their budget reservations; shortening the path does not
+reset the approved aggregate call/time budget or grant a retry.
+
+Use the actual installed `codex.exe` binary's physical absolute path. A command
+lookup can return a `.cmd`/`.ps1` wrapper, Windows alias, or path through a junction.
+Those are not executable attestations for this launcher. Inspect the installation
+and select its physical target; the existing linked-path refusal remains in force.
+The pilot host uses a bounded 30-second HTTP deadline for source verification;
+its connection cap and absolute deadline checks remain active.
 
 On another operating system use the same Python scripts and arguments with that
 computer's absolute checkout, private input/output, configuration and executable

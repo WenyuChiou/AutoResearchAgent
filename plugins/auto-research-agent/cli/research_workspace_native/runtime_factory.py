@@ -212,6 +212,11 @@ def compose_runtime(registrations, *, authenticate=None, gates=None, enabled=Fal
                     if "handshake_timeout_seconds" in spec
                     else {}
                 ),
+                **(
+                    {"notification_opt_out": spec["notification_opt_out"]}
+                    if "notification_opt_out" in spec
+                    else {}
+                ),
             )
             controller = InjectedSessionController.adopt_ready(
                 boot, admit_action=lambda a, g=gate: g("admit_action", a)

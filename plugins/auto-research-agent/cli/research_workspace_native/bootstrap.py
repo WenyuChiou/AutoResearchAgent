@@ -11,6 +11,7 @@ from .bootstrap_context import BootstrapContext, _rpc_id
 from .frame_journal import _validated
 from .store import _require
 from .transport import _deadline, _encode
+from .runtime_spec import _notification_opt_out
 
 
 def _cwd_matches(observed, requested, *, windows=None):
@@ -65,7 +66,14 @@ def _account(value):
 
 
 class BootstrapSession(BootstrapContext):
-    def open_thread(self, client_info, *, timeout=10, total_timeout=None):
+    def open_thread(
+        self, client_info, *, timeout=10, total_timeout=None, notification_opt_out=None
+    ):
+        initialize = {"clientInfo": client_info}
+        if notification_opt_out is not None:
+            initialize["capabilities"] = {
+                "optOutNotificationMethods": _notification_opt_out(notification_opt_out)
+            }
         _deadline(timeout)  # Validate finite/nonboolean before any I/O.
         _require(0 < timeout <= 30, "bootstrap deadline must be within 30 seconds")
         budget = timeout if total_timeout is None else total_timeout
@@ -84,9 +92,7 @@ class BootstrapSession(BootstrapContext):
             )
             try:
                 self._context()
-                hello = self._send(
-                    "initialize", {"clientInfo": client_info}, 1, step_deadline()
-                )
+                hello = self._send("initialize", initialize, 1, step_deadline())
                 _require(
                     isinstance(hello.get("userAgent"), str) and hello["userAgent"],
                     "invalid hello",

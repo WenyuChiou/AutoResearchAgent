@@ -77,6 +77,24 @@ def _json(raw):
     return json.loads(raw.decode("utf8"), object_pairs_hook=unique)
 
 
+def windows_output_preflight(output, *, platform=None):
+    """Leave space for physical SQLite owner and sidecar paths before any writes."""
+    if (sys.platform if platform is None else platform) != "win32":
+        return
+    longest = (
+        output
+        / "models"
+        / ("0" * 64)
+        / ("native.sqlite3.owner-" + "0" * 64 + ".sqlite3-journal")
+    )
+    units = len(str(longest).encode("utf-16-le")) // 2
+    _check(
+        units < 240,
+        "Windows SQLite output path is too long; choose a short new private "
+        "output such as D:/rp/run1 (owner/sidecar path must be under 240 characters)",
+    )
+
+
 def case_inputs(args):
     """Validate the external case pin and every admitted corpus byte; no writes."""
     _check(args.accept_scope == SCOPE, "explicit repository-content scope required")
@@ -209,6 +227,7 @@ def case_inputs(args):
         not output.is_relative_to(parent) and not parent.is_relative_to(output),
         "case/output overlap refused",
     )
+    windows_output_preflight(output)
     return case, paths, repo, output
 
 
@@ -398,6 +417,7 @@ def main(argv=None):
                 credential=credential,
                 host="127.0.0.1",
                 port=args.port,
+                timeout=30,
             )
             receipt["url"] = "http://127.0.0.1:" + str(server.server_address[1]) + "/"
         with (output / "launch-receipt.json").open(

@@ -262,6 +262,7 @@ class StageModel:
             permit_sha256=self.permit_sha256,
             thread_config=self.context["thread_config"],
             handshake_timeout_seconds=min(120, remaining),
+            notification_opt_out=["item/agentMessage/delta"],
             limits=dict(
                 lifetime_seconds=remaining,
                 max_stream_bytes=1048576,
@@ -543,10 +544,18 @@ class StageModel:
             item = params.get("item", {})
             _require(message.get("method") != "error", "native error observed")
             if message.get("method") in {"item/started", "item/completed"}:
-                _require(
-                    item.get("type") in {"agentMessage", "reasoning"},
-                    "native tool item observed",
-                )
+                if item.get("type") == "userMessage":
+                    _require(
+                        isinstance(item.get("id"), str)
+                        and bool(item["id"])
+                        and item.get("content") == intent["payload"]["input"],
+                        "native user input differs",
+                    )
+                else:
+                    _require(
+                        item.get("type") in {"agentMessage", "reasoning"},
+                        "native tool item observed",
+                    )
             if (
                 message.get("method") == "item/completed"
                 and item.get("type") == "agentMessage"

@@ -20,6 +20,15 @@ def _hash(value):
     return isinstance(value, str) and re.fullmatch("[0-9a-f]{64}", value) is not None
 
 
+def _notification_opt_out(value):
+    """Permit only token deltas; final items, terminal and requests stay enabled."""
+    _require(
+        isinstance(value, list) and value == ["item/agentMessage/delta"],
+        "only agent message token deltas may be suppressed",
+    )
+    return list(value)
+
+
 DENIED_THREAD_CONFIG = {
     **{
         f"features.{name}": False
@@ -102,11 +111,16 @@ def _load(path, expected):
         "permit_sha256",
     }
     _require(
-        fields <= set(spec) <= fields | {"thread_config", "handshake_timeout_seconds"},
+        fields
+        <= set(spec)
+        <= fields
+        | {"thread_config", "handshake_timeout_seconds", "notification_opt_out"},
         "runtime spec fields differ",
     )
     if "thread_config" in spec:
         _thread_config(spec["thread_config"])
+    if "notification_opt_out" in spec:
+        _notification_opt_out(spec["notification_opt_out"])
     _require(
         spec["kind"] == "NativeAtlasRuntimeSpec" and spec["schema_version"] == "1.0.0",
         "unsupported runtime spec",

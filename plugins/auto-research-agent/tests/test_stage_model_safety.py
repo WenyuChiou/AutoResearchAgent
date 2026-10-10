@@ -5,7 +5,8 @@ from pathlib import Path
 import threading
 import time
 import unittest
-from stage_model_fixtures import StageModelFixture
+from unittest.mock import patch
+from stage_model_fixtures import StageModelFixture, FakeChannel
 from stage1_deliverable.common import sha
 
 
@@ -203,6 +204,58 @@ class StageModelSafetyTests(StageModelFixture):
         self.assertFalse(thread.is_alive())
         self.assertEqual(output["receipt"]["status"], "completed", output)
         self.verify(model, output["receipt"])
+
+    def user_message_run(self, changed=False):
+        original = FakeChannel.finish
+        prompt = "interpret the controlled sources"
+
+        def finish(channel):
+            item = dict(
+                type="userMessage",
+                id="user-input",
+                clientId=None,
+                content=[
+                    dict(
+                        type="text",
+                        text=prompt + (" changed" if changed else ""),
+                        text_elements=[],
+                    )
+                ],
+            )
+            for method in ("item/started", "item/completed"):
+                channel.queue(
+                    dict(
+                        method=method,
+                        params=dict(
+                            threadId="fake-thread", turnId="fake-turn", item=item
+                        ),
+                    )
+                )
+            original(channel)
+
+        model = self.model()
+        with patch.object(FakeChannel, "finish", finish):
+            result = model.run(
+                "changed-user" if changed else "exact-user",
+                prompt,
+                time.monotonic() + (1.1 if changed else 10),
+            )
+        return model, result
+
+    def test_bound_native_user_messages_are_not_tools(self):
+        model, result = self.user_message_run()
+        self.assertEqual(result["status"], "completed", result)
+        verified = self.verify(model, result)
+        self.assertEqual(verified["observed_tool_items"], [])
+        self.assertEqual(
+            verified["final_text"], "Synthetic controlled source interpretation."
+        )
+
+    def test_changed_native_user_prompt_is_rejected(self):
+        model, result = self.user_message_run(changed=True)
+        self.assertEqual(result["status"], "execution-unknown", result)
+        with self.assertRaises(ValueError):
+            self.verify(model, result)
 
 
 if __name__ == "__main__":

@@ -167,7 +167,7 @@ class StageRunHandler(AtlasHandler):
                         if operation == "answers"
                         else service.model.interrupt
                     )
-                    result = callback(body, pre_admission=lambda: self._remaining() > 0)
+                    result = callback(body, pre_admission=self._remaining)
             self._reply(200, result)
         except SessionApiError as error:
             self._reply(error.status, dict(error=error.code))
