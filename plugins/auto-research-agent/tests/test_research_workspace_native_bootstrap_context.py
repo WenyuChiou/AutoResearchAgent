@@ -73,6 +73,44 @@ class BootstrapContextTests(unittest.TestCase):
             context._context()
         self.assertEqual(self.channel.calls, [])
 
+    def incoming_frame(self, context):
+        frames = []
+        self.channel.queue(dict(method="synthetic/notice", params={}))
+        with patch.object(context.transport, "on_event", side_effect=frames.append):
+            context.transport.poll(0)
+        self.assertEqual(len(frames), 1)
+        return frames[0]
+
+    def test_frame_validation_uses_transaction_state_without_snapshot(self):
+        context = self.context()
+        self.addCleanup(context.channel.close)
+        frame = self.incoming_frame(context)
+        with patch.object(
+            self.store, "snapshot", wraps=self.store.snapshot
+        ) as snapshot:
+            context._event(frame)
+        snapshot.assert_not_called()
+        self.assertEqual(len(self.store.snapshot("alpha")["bootstrap"]["frames"]), 1)
+
+    def test_frame_rejects_version_changed_during_binding_verification(self):
+        context = self.context()
+        self.addCleanup(context.channel.close)
+        frame = self.incoming_frame(context)
+
+        def changed_binding():
+            with self.store._edit(
+                "alpha", self.owner, None, "synthetic-version-change", {}
+            ) as state:
+                state["bootstrap"]["input_version"] = "c" * 64
+            return True
+
+        context.verify_binding = changed_binding
+        with self.assertRaisesRegex(ValueError, "bootstrap owner/version expired"):
+            context._event(frame)
+        state = self.store.snapshot("alpha")
+        self.assertEqual(state["bootstrap"]["input_version"], "c" * 64)
+        self.assertEqual(state["bootstrap"]["frames"], [])
+
     def test_post_recording_failure_and_unobserved_failure_save_close_once(self):
         edit = self.store._edit
 
