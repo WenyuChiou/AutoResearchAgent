@@ -106,8 +106,8 @@ Jaccard and any bound original-source relation. Relationship details expose the 
 score, shared terms and, for topic aggregates, contributing paper identities.
 They describe similar words, not stronger evidence or verified scientific
 agreement. The union of each node's top two qualifying neighbors limits clutter;
-the shared UI uses a cosine threshold of `0.09`, while the pure helper default is
-`0.12`. This is a declared presentation parameter, not an evidence cutoff. Never insert a link solely to force
+the shared UI and pure helper use the same default cosine threshold of `0.12`.
+This is a declared presentation parameter, not an evidence cutoff. Never insert a link solely to force
 one connected component. Preserve unresolved groups and disclose absent original
 source relationships instead of inferring a citation from shared terminology.
 
