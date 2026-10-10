@@ -17,6 +17,9 @@
     ready:["Query prepared; explicit confirmation required","查询已准备，请明确确认","查詢已準備，請明確確認"],
     unknown:["Outcome unknown or still running. Refresh history; do not submit again.","结果未知或仍在运行。请刷新历史，不要重复提交。","結果未知或仍在執行。請重新整理歷史，不要重複提交。"],
     saved:["Attempt observation saved","尝试观察结果已保存","嘗試觀察結果已儲存"],
+    restored:["Saved attempt restored from history","已恢复历史尝试记录","已復原歷史嘗試紀錄"],
+    completed:["completed","已完成","已完成"], observed:["backend result recorded","后端结果已记录","後端結果已記錄"],
+    refused:["not sent: admission refused","未发送：执行许可被拒绝","未傳送：執行許可被拒絕"],
     unavailable:["Query unavailable; records remain retained","查询不可用，记录继续保留","查詢不可用，紀錄繼續保留"],
     storage:["Unable to save recovery intent; nothing submitted","无法保存恢复意图，尚未提交","無法儲存復原意圖，尚未提交"],
     details:["Source bindings & attempt records","来源绑定与尝试记录","來源綁定與嘗試紀錄"],
@@ -40,18 +43,18 @@
   catch{pending=false;status="unavailable";}
   const request=async(suffix="",body)=>{const response=await fetch(base+suffix,{method:body?"POST":"GET",credentials:"omit",cache:"no-store",redirect:"error",headers:{Authorization:"Bearer "+host.credential,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})});if(!response.ok){let result;try{result=await response.json();}catch{}throw Error(typeof result?.error==="string"?result.error:typeof result?.error?.code==="string"?result.error.code:"query-request-failed");}return response.json();};
   const receipt=x=>{
-    if(!x || !["dispatch-unobserved","dispatching","execution-unknown","completed"].includes(x.status) || x.model_execution!==false || x.automatic_retry!==false || !x.request || !bound({...x.request,project_ref:c.project_ref}) || x.client_key!==x.request.key || !hash(x.request_sha256))throw Error("query-receipt-differs");
+    if(!x || !["dispatch-unobserved","dispatching","execution-unknown","completed"].includes(x.status) || x.model_execution!==false || x.automatic_retry!==false || !x.request || !bound({...x.request,project_ref:c.project_ref}) || x.client_key!==x.request.key || !hash(x.request_sha256) || !Number.isSafeInteger(x.request.revision) || x.request.revision<0)throw Error("query-receipt-differs");
     return x;
   };
   const held=()=>pending!==null || view?.history.some(x=>x.status!=="completed");
   const render=()=>{
-    title.textContent=t("title");boundary.textContent=t("boundary");limits.textContent=t("limits");prepare.textContent=t("prepare");refresh.textContent=t("refresh");confirmText.textContent=t("confirm");submit.textContent=t("submit");detailsTitle.textContent=t("details");notice.textContent=t(status)+(failure?" · "+failure:"")+(observation?" · "+observation.status+" / "+observation.outcome+(observation.error?.code?" · "+observation.error.code:""):"");
+    title.textContent=t("title");boundary.textContent=t("boundary");limits.textContent=t("limits");prepare.textContent=t("prepare");refresh.textContent=t("refresh");confirmText.textContent=t("confirm");submit.textContent=t("submit");detailsTitle.textContent=t("details");notice.textContent=t(status)+(failure?" · "+failure:"")+(observation?" · "+(observation.status==="completed"?t("completed"):observation.status)+" / "+(observation.outcome==="observed"?t("observed"):observation.outcome==="refused-known-unsent"?t("refused"):observation.outcome)+(observation.result?.backend_outcome?" · "+t("backend")+": "+observation.result.backend_outcome:"")+(observation.error?.code?" · "+observation.error.code:""):"");
     prepare.disabled=busy || held() || !view;refresh.disabled=busy;confirm.disabled=busy || held() || !offer;submit.disabled=busy || held() || !offer || !confirm.checked;
     summary.textContent=offer?offer.document.arguments.query+" · "+offer.document.backend+" · "+offer.document.max_results+" "+t("results")+" · "+offer.document.reserved_seconds+"s "+t("reserved")+" ("+offer.document.probe_timeout_seconds+"s "+t("probe")+" + "+offer.document.timeout_seconds+"s "+t("backend")+")":"";
     records.textContent=JSON.stringify({offer,history:view?.history??[],budget:view?.budget??null},null,2);
   };
   const recover=async()=>{
-    if(busy)return;busy=true;const current=++sequence;offer=null;confirm.checked=false;render();
+    if(busy)return;busy=true;const current=++sequence;offer=null;observation=null;confirm.checked=false;render();
     try{
       const next=await request();if(!bound(next) || next.model_execution!==false || next.automatic_retry!==false || !Array.isArray(next.history))throw Error("query-view-differs");next.history.forEach(receipt);
       if(current!==sequence)return;view=next;
@@ -59,7 +62,17 @@
         if(current!==sequence)return;if(value.client_key!==pending.key || value.request_sha256!==pending.hash || actual!==pending.hash)throw Error("query-intent-differs");
         if(value.status==="completed"){sessionStorage.removeItem(storage);pending=null;status="saved";failure="";observation=value;}else status="unknown";
       }else status="unknown";}
-      else status=pending===false?status:held()?"unknown":observation?"saved":"none";
+      else if(pending!==false){
+        if(held())status="unknown";
+        else {
+          const latest=next.history.reduce((best,row)=>!best || row.request.revision>best.request.revision?row:best,null);
+          if(latest){const actual=await digest(Object.fromEntries(Object.entries(latest.request).filter(([k])=>k!=="revision")));
+            if(current!==sequence)return;if(actual!==latest.request_sha256)throw Error("query-history-differs");
+            observation=latest;status="restored";
+          }else status="none";
+          failure="";
+        }
+      }
     }catch(error){failure=error.message;status=pending?"unknown":"unavailable";view=null;}
     finally{if(current===sequence){busy=false;render();}}
   };

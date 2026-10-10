@@ -23,4 +23,4 @@ class WorkspacePlannedQueryPanelTests(unittest.TestCase):
         self.assertEqual(
             result.returncode, 0, result.stdout.decode("utf8", errors="replace")
         )
-        self.assertIn("PASS 16", result.stdout.decode("utf8"))
+        self.assertIn("PASS 27", result.stdout.decode("utf8"))
