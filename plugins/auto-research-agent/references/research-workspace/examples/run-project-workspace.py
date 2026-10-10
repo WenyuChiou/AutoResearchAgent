@@ -1,0 +1,327 @@
+"""Own-account project portal; all model operations require separate UI actions.
+
+Bootstrap uses the externally pinned raw source helper before any owned import.
+No startup, GET, topic entry or budget declaration probes/starts Codex. Saved
+views remain optional snapshots, independent from the new versioned projects.
+"""
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import shutil
+import stat
+import sys
+from types import ModuleType
+import webbrowser
+
+REPO = Path(__file__).resolve().parents[5]
+HELPER = "cli/research_workspace_native/atlas_local_source.py"
+SCRIPT = "references/research-workspace/examples/run-project-workspace.py"
+HASH = re.compile(r"[0-9a-f]{64}")
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def unlinked(path):
+    path = Path(path)
+    require(path.is_absolute(), "absolute path required")
+    for item in (path, *path.parents):
+        try:
+            info = item.lstat()
+        except FileNotFoundError:
+            continue
+        require(
+            not stat.S_ISLNK(info.st_mode)
+            and not getattr(info, "st_file_attributes", 0) & 0x400,
+            "links/reparse points refused",
+        )
+    return path.resolve()
+
+
+def raw_file(path, maximum=256 * 1024):
+    path = unlinked(path)
+    require(stat.S_ISREG(path.stat().st_mode), "regular file required")
+    with path.open("rb") as stream:
+        raw = stream.read(maximum + 1)
+    require(0 < len(raw) <= maximum, "file bound exceeded")
+    return raw
+
+
+def digest(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def windows_root_preflight(root, *, platform=None, model=False):
+    """Reserve physical SQLite/native archive space, without changing core names."""
+    if (sys.platform if platform is None else platform) == "win32":
+        # Core Stage1 archives impose their own <=170 character producer path.
+        # Native owner/sidecars can add another 170 characters to this prefix.
+        require(
+            len(str(root).encode("utf-16-le")) // 2 <= 60,
+            "Windows projects root is too long; choose a short private path such "
+            "as D:/rp/projects (do not put it inside the download)",
+        )
+        if model:
+            longest = (
+                root
+                / "m"
+                / ("0" * 24)
+                / "n"
+                / ("0" * 64)
+                / ("native.sqlite3.owner-" + "0" * 64 + ".sqlite3-journal")
+            )
+            require(
+                len(str(longest).encode("utf-16-le")) // 2 < 240,
+                "Windows content model runtime SQLite layout is too long; "
+                "choose a shorter private projects root (native owner/sidecar "
+                "path must stay under 240 UTF-16 characters)",
+            )
+
+
+def resolve_codex(value):
+    selected = Path(value)
+    if not selected.is_absolute():
+        require(selected.name == value, "Codex must be an absolute path or command")
+        found = shutil.which(value)
+        require(found is not None, "installed Codex command not found")
+        selected = Path(found)
+    selected = unlinked(selected)
+    require(
+        selected.name.casefold() in {"codex", "codex.exe"},
+        "use the actual installed codex/codex.exe; shell wrappers are refused",
+    )
+    raw_file(selected, 512 * 1024 * 1024)
+    return selected
+
+
+def parser():
+    value = argparse.ArgumentParser(description=__doc__)
+    value.add_argument("--repo", type=Path, default=REPO)
+    value.add_argument("--source-helper-sha256", required=True)
+    value.add_argument("--projects-root", type=Path, required=True)
+    value.add_argument("--views-config", type=Path)
+    value.add_argument("--views-sha256")
+    value.add_argument("--port", type=int, default=0)
+    value.add_argument("--open", action="store_true")
+    value.add_argument("--enable-content-model", action="store_true")
+    value.add_argument("--model")
+    value.add_argument("--codex")
+    value.add_argument("--codex-home", type=Path)
+    value.add_argument("--check-only", action="store_true")
+    value.add_argument("--prepare-only", action="store_true")
+    return value
+
+
+def inspect_inputs(args):
+    """Filesystem-only checks; do not create an output or import owned modules."""
+    require(
+        HASH.fullmatch(args.source_helper_sha256), "external helper SHA256 required"
+    )
+    require(0 <= args.port <= 65535, "loopback port invalid")
+    require(
+        bool(args.views_config) == bool(args.views_sha256),
+        "saved views require their external configuration SHA256",
+    )
+    repo, root = unlinked(args.repo), unlinked(args.projects_root)
+    plugin = repo / "plugins/auto-research-agent"
+    require((plugin / "cli").is_dir(), "complete plugin checkout required")
+    require(
+        not root.is_relative_to(repo) and not repo.is_relative_to(root),
+        "project store and repository must not overlap",
+    )
+    require(root.is_dir() or not root.exists(), "project root must be a directory")
+    require(root.parent.is_dir(), "project root parent must already exist")
+    require(
+        not any((parent / ".git").exists() for parent in (root, *root.parents)),
+        "project root must stay outside every Git checkout",
+    )
+    windows_root_preflight(root, model=args.enable_content_model)
+    helper = plugin / HELPER
+    helper_raw = raw_file(helper)
+    require(digest(helper_raw) == args.source_helper_sha256, "helper bytes differ")
+    script_raw = raw_file(plugin / SCRIPT)
+    require(
+        digest(script_raw) == digest(raw_file(Path(__file__).absolute())),
+        "launcher must match the selected repository bytes",
+    )
+    model_options = (args.model, args.codex, args.codex_home)
+    if args.enable_content_model:
+        require(all(model_options), "model, Codex executable and own home are explicit")
+        require(
+            re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", args.model),
+            "own-account model selection invalid",
+        )
+        home = unlinked(args.codex_home)
+        require(home.is_dir(), "own Codex home required")
+        config = home / "config.toml"
+        raw_file(config)
+        executable = resolve_codex(args.codex)
+    else:
+        require(not any(model_options), "model options require --enable-content-model")
+        home = config = executable = None
+    if args.views_config:
+        require(HASH.fullmatch(args.views_sha256), "external views SHA256 required")
+        config_raw = raw_file(args.views_config)
+        require(digest(config_raw) == args.views_sha256, "views config bytes differ")
+    return dict(
+        repo=repo,
+        root=root,
+        plugin=plugin,
+        helper=helper,
+        helper_raw=helper_raw,
+        home=home,
+        user_config=config,
+        executable=executable,
+    )
+
+
+def install_source(checked):
+    """Reject preloads, then install the existing raw compile source loader."""
+    name = "_project_workspace_source_bootstrap"
+    require(name not in sys.modules, "fresh bootstrap process required")
+    source = ModuleType(name)
+    source.__file__ = str(checked["helper"])
+    sys.modules[name] = source
+    exec(compile(checked["helper_raw"], source.__file__, "exec"), source.__dict__)
+    files = source.inventory(checked["plugin"])
+    source.require(files[HELPER] == digest(checked["helper_raw"]), "helper changed")
+    loader = source.PinnedLoader(checked["repo"], files)
+    sys.meta_path.insert(0, loader)
+    return source, files
+
+
+def prepare(args, checked):
+    """Real services and strict factory only; no HTTP or native/model start."""
+    from research_workspace_native.atlas_host import load_views
+    from research_workspace_native.http import token_authenticator
+    from research_workspace_native.project_host import ProjectHost
+    from research_workspace_native.project_intake import ProjectIntakeService
+    from research_workspace_native.project_model import ProjectModelService
+    from research_workspace_native.project_stage1 import ProjectStage1Service
+    from research_workspace_native.project_stage2 import ProjectStage2Service
+
+    files, views = (
+        load_views(args.views_config, args.views_sha256)
+        if args.views_config
+        else ({}, [])
+    )
+    credential = secrets.token_urlsafe(32)
+    authenticate = token_authenticator({credential: "local-viewer"})
+    projects = ProjectIntakeService(checked["root"], authenticate=authenticate)
+    models = None
+    try:
+        factory = None
+        if args.enable_content_model:
+            from research_workspace_native.project_model_factory import (
+                OwnAccountProjectModelFactory,
+            )
+
+            # An explicit home selects this user's account config for this process.
+            os.environ["CODEX_HOME"] = str(checked["home"])
+            factory = OwnAccountProjectModelFactory(
+                checked["repo"],
+                checked["executable"],
+                checked["user_config"],
+                checked["home"],
+                authenticate,
+                credential,
+            )
+        models = ProjectModelService(
+            projects,
+            provider_factory=factory,
+            model=args.model,
+        )
+        stage1, stage2 = ProjectStage1Service(projects), ProjectStage2Service(projects)
+        return dict(
+            projects=projects,
+            models=models,
+            stage1=stage1,
+            stage2=stage2,
+            credential=credential,
+            files=files,
+            views=views,
+            host_type=ProjectHost,
+        )
+    except BaseException:
+        try:
+            if models is not None:
+                models.close()
+        finally:
+            projects.close()
+        raise
+
+
+def main(argv=None):
+    args = parser().parse_args(argv)
+    checked = inspect_inputs(args)
+    _, inventory = install_source(checked)
+    receipt = dict(
+        kind="OwnAccountProjectWorkspaceRegistration",
+        schema_version="1.0.0",
+        plugin_inventory_sha256=digest(
+            json.dumps(inventory, sort_keys=True, separators=(",", ":")).encode("utf8")
+        ),
+        content_model="explicit-UI-authorization-required"
+        if args.enable_content_model
+        else "disabled",
+        actual_account_authentication="not-observed",
+        native_calls=0,
+        model_calls=0,
+        stage1="offline-ledger; external execution unconnected",
+        stage2="registered-canonical-import-only; native execution unconnected",
+        stages3_to6="planned/unconnected",
+        execution_authorized=False,
+    )
+    if args.check_only:
+        receipt["status"] = "filesystem-and-raw-loader-preflight-only"
+        print(json.dumps(receipt, ensure_ascii=False), flush=True)
+        return 0
+    services, host = prepare(args, checked), None
+    try:
+        if not args.prepare_only:
+            host = services["host_type"](
+                **{
+                    k: services[k]
+                    for k in (
+                        "projects",
+                        "models",
+                        "stage1",
+                        "stage2",
+                        "credential",
+                        "files",
+                        "views",
+                    )
+                },
+                host="127.0.0.1",
+                port=args.port,
+            )
+            receipt["url"] = host.expected_origin + "/"
+        receipt["status"] = "prepared-only" if args.prepare_only else "local-UI-ready"
+        print(json.dumps(receipt, ensure_ascii=False), flush=True)
+        if host is not None:
+            if args.open:
+                webbrowser.open(receipt["url"])
+            host.serve_forever(poll_interval=0.2)
+        return 0
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        try:
+            if host is not None:
+                host.server_close()
+        finally:
+            try:
+                services["models"].close()
+            finally:
+                services["projects"].close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

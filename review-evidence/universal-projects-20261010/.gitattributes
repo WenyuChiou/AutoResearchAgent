@@ -1,0 +1,3 @@
+# Preserve original receipt CRCRLF and the original runner's trailing blank.
+# Production files retain the repository's normal whitespace checks.
+raw/* -text whitespace=-blank-at-eof,-blank-at-eol

@@ -170,8 +170,23 @@
     }
     return new TextEncoder().encode(value).length <= maximum;
   }
-  function canonical(value) { if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]"; if (value && typeof value === "object") return "{" + Object.keys(value).sort().map((k) => JSON.stringify(k) + ":" + canonical(value[k])).join(",") + "}"; return JSON.stringify(value); }
+  function canonical(value) {
+    // Match Python's Unicode codepoint ordering, including supplementary IDs.
+    // Default JavaScript sorting compares UTF-16 units and changes intent hashes.
+    const compare = (left, right) => {
+      const a = Array.from(left), b = Array.from(right);
+      for (let i = 0; i < Math.min(a.length, b.length); ++i) {
+        const difference = a[i].codePointAt(0) - b[i].codePointAt(0);
+        if (difference) return difference;
+      }
+      return a.length - b.length;
+    };
+    if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
+    if (value && typeof value === "object") return "{" + Object.keys(value).sort(compare).map((k) => JSON.stringify(k) + ":" + canonical(value[k])).join(",") + "}";
+    return JSON.stringify(value);
+  }
   async function requestHash(kind, body) { const semantic = Object.fromEntries(Object.entries(body).filter(([name]) => name !== "revision")); const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical({kind, body: semantic}))); return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""); }
+  async function nativeRequestHash(kind, body) { const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical({kind, body}))); return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""); }
   function availableStage2() { return state.stage2 && !state.stage2.activation && rows(state.stage2, "offers").find((row) => row.status === "ready-for-researcher-activation"); }
   function text(parent, tag, value, className) { const node = document.createElement(tag); node.textContent = String(value === null || value === undefined ? "Unknown" : value); if (className) node.className = className; parent.append(node); return node; }
   function buttons() {
@@ -377,6 +392,14 @@
   try { nativePending = JSON.parse(sessionStorage.getItem(nativeStorage) || "[]"); } catch (_) {}
   if (!Array.isArray(nativePending)) nativePending = [];
   nativePending = nativePending.filter((row) => row && typeof row.key === "string" && typeof row.project_ref === "string" && typeof row.target === "string");
+  function nativeObservationMatches(record, action) {
+    return action && action.kind === "ProjectNativeActionObservation.v1" && action.key === record.key && action.project_ref === record.project_ref && action.target_ref === record.target && action.operation === record.operation && /^[0-9a-f]{64}$/.test(record.request_sha256) && action.request_sha256 === record.request_sha256 && ["known-unsent", "result-observed"].includes(action.status);
+  }
+  function reconcileNative(actions) {
+    if (!Array.isArray(actions)) return;
+    nativePending = nativePending.filter((record) => !actions.some((action) => nativeObservationMatches(record, action)));
+    try { sessionStorage.setItem(nativeStorage, JSON.stringify(nativePending)); } catch (_) {}
+  }
   async function native() {
     const ref = state.project && state.project.project_ref, generation = state.generation;
     if (!ref) return;
@@ -384,14 +407,11 @@
     try { observed = await request(route(ref, "models/native")); } catch (_) { observed = null; }
     if (generation !== state.generation || !state.project || state.project.project_ref !== ref) return;
     const area = $("native-questions"); area.replaceChildren();
+    // Only bound durable broker observations reconcile an intent. A provider's
+    // client_key, HTTP error or queued/unknown outcome alone cannot release it.
+    reconcileNative(observed && observed.native_actions);
     const view = observed && observed.native_view;
     if (!view || !Array.isArray(view.requests) || !Array.isArray(view.operations) || !Array.isArray(view.actions)) { text(area, "p", t("nativeEmpty")); return; }
-    for (const action of view.actions) {
-      if (action.client_key && !["execution-unknown", "intent-recorded"].includes(action.status)) {
-        nativePending = nativePending.filter((row) => !(row.project_ref === ref && row.key === action.client_key));
-      }
-    }
-    try { sessionStorage.setItem(nativeStorage, JSON.stringify(nativePending)); } catch (_) {}
     const held = (target) => nativePending.some((row) => row.project_ref === ref && row.target === target);
     for (const question of view.requests.filter((row) => row.status === "pending")) {
       const card = document.createElement("form"); card.className = "history-row"; area.append(card);
@@ -426,7 +446,9 @@
     if (kind === "answer") Object.assign(body, {request_ref: target.request_ref, request_sha256: target.request_sha256, result});
     else Object.assign(body, {action_ref: target.action_ref, action_sha256: target.action_sha256});
     if (!bounded(JSON.stringify(body), 32768)) { notice(t("tooLarge"), true); return; }
-    const record = {key: actionKey, project_ref: ref, target: targetRef};
+    const generation = state.generation, request_sha256 = await nativeRequestHash(kind, body);
+    if (generation !== state.generation || !state.project || state.project.project_ref !== ref || state.loading || nativePending.some((row) => row.project_ref === ref && row.target === targetRef)) return;
+    const record = {key: actionKey, project_ref: ref, target: targetRef, operation: kind, request_sha256};
     sessionStorage.setItem(nativeStorage, JSON.stringify([...nativePending, record])); nativePending.push(record);
     try { await request(route(ref, "models/native/" + kind), body); }
     catch (error) { notice(t("responseLost") + " (" + error.message + ")", true); }
