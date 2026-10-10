@@ -395,6 +395,7 @@ class SessionApi:
             ]
             return dict(
                 project_ref=project_ref,
+                project_id=binding["project_id"],
                 index_sha256=binding["index_sha256"],
                 input_version=binding["input_version"],
                 revision=state["revision"],

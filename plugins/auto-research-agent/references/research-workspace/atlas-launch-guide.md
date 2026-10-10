@@ -10,7 +10,7 @@ These review slices start from main `1aa3b71f`; they are not yet merged or
 accepted by the core team. Native runtime guards from that main are retained.
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-stage-review-current-main-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --branch codex/atlas-selected-relation-basis-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
@@ -24,6 +24,11 @@ Choose a new output directory outside every Git checkout. On Windows, use a shor
 writable `TEMP`/`TMP` directory outside Git if the local environment requires it.
 The command prints a loopback URL and `fixture-receipt.json`; keep the terminal
 running and open that URL. Stop with Ctrl+C. A previous output is never overwritten.
+
+The graph initially shows no relationships. Select a paper, direction or method
+to reveal its direct connections; select it again to clear. Hover reads names
+without expanding connections. The textual relationship basis follows the same
+selection and hides again on clear. The 2D/3D views use the same rule.
 
 The Stage 1 case contains two recorded versions and explicit metadata/Unknown
 states. Stage 2 adds the existing structured-literature fixture, comparison

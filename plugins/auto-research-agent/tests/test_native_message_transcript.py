@@ -55,10 +55,12 @@ class TranscriptTests(unittest.TestCase):
         self.assertEqual(self.p.store.events(self.p.pid), before)
         self.assertEqual(self.p.channel.calls, calls)
         self.assertEqual(view["transcript"]["schema_version"], "1.0.0")
+        self.assertEqual(view["project_id"], self.p.pid)
         self.assertEqual(
             set(view),
             {
                 "project_ref",
+                "project_id",
                 "index_sha256",
                 "input_version",
                 "revision",

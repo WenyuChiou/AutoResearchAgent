@@ -30,6 +30,7 @@ class Element {
 }
 const flatten = element => [element, ...element.children.flatMap(flatten)];
 const tick = () => new Promise(resolve => setImmediate(resolve));
+class CustomEvent {constructor(type, options = {}) {this.type = type; this.detail = options.detail;}}
 const response = value => ({ok: true, json: async () => copy(value)});
 const actionResult = body => ({action_ref: "5".repeat(64), action_sha256: "6".repeat(64), kind: "message",
   client_key: body.key, target_ref: body.offer_ref, status: "dispatched", replayed: false, failure: null});
@@ -50,7 +51,11 @@ async function mount({view = copy(fixture), storage = new Map(), failMessage = f
     getElementById: id => flatten(html).find(e => e.id === id)};
   const window = atlas ? {WORKSPACE_NATIVE_ATLAS: {enabled, credential: "fixture-memory-only-secret", current_case: "fixture-case",
     project_ref: fixture.project_ref, index_sha256: fixture.index_sha256, input_version: fixture.input_version}} : {};
-  const context = vm.createContext({window, document, TextEncoder,
+  const listeners = new Map();
+  window.addEventListener = (type, callback) => {if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(callback);};
+  window.dispatchEvent = event => {for (const callback of listeners.get(event.type) || []) callback(event); return true;};
+  window.WORKSPACE_VIEW = {index: {project_id: "fixture-project"}};
+  const context = vm.createContext({window, document, TextEncoder, CustomEvent,
     sessionStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value))},
     crypto: {randomUUID: () => `12345678-1234-1234-1234-${String(++keys).padStart(12, "0")}`},
     MutationObserver: class {constructor(callback) {observers.push(callback);} observe() {}},
@@ -81,7 +86,13 @@ async function mount({view = copy(fixture), storage = new Map(), failMessage = f
     await inputs[0].parent.parent.onsubmit({preventDefault() {}}); await tick();
   };
   if (!atlas) await connect();
-  return {html, document, calls, storage, refresh, connect, observers, context, server};
+  const reviewDraft = detail => {
+    let result;
+    window.addEventListener("atlas-stage-review-draft-result", event => {result = copy(event.detail);});
+    window.dispatchEvent(new CustomEvent("atlas-stage-review-draft", {detail}));
+    return result;
+  };
+  return {html, document, calls, storage, refresh, connect, observers, context, server, reviewDraft};
 }
 const transcript = state => state.document.getElementById("native-chat-transcript");
 const articles = state => transcript(state).children.filter(e => e.tagName === "ARTICLE");
@@ -236,7 +247,7 @@ async function test(name, callback) {
   });
   await test("matching typed known-unsent receipt clears only its own intent and permits explicit retry", async () => {
     const prior = {key: "88888888-8888-8888-8888-888888888888", target: "3".repeat(64), offer_sha256: "4".repeat(64)};
-    const value = copy(fixture); value.actions.push({client_key: prior.key, kind: "message", target_ref: prior.target, status: "completed"});
+    const value = {...copy(fixture), project_id: "fixture-project"}; value.actions.push({client_key: prior.key, kind: "message", target_ref: prior.target, status: "completed"});
     const ledger = `native-message-intents:${value.project_ref}:${value.index_sha256}:${value.input_version}`;
     const storage = new Map([[ledger, JSON.stringify([prior])]]);
     const hooks = {post: body => rejected(knownUnsent(body))};
@@ -256,7 +267,7 @@ async function test(name, callback) {
       value => {delete value.operation; return value;}, ...["schema_version", "status", "operation", "project_ref",
         "index_sha256", "input_version", "client_key", "offer_ref", "offer_sha256"].map(field => value => ({...value, [field]: "wrong"}))];
     for (const change of changes) {
-      const state = await mount({hooks: {post: body => rejected(change(knownUnsent(body)))}});
+      const state = await mount({view: {...copy(fixture), project_id: "fixture-project"}, hooks: {post: body => rejected(change(knownUnsent(body)))}});
       await prepare(state); await send(state); const saved = copy(intents(state));
       assert.equal(JSON.parse(saved[0][1]).length, 1);
       await state.refresh(); await prepare(state); await send(state);
@@ -268,7 +279,7 @@ async function test(name, callback) {
     const outcomes = [() => {throw Error("synthetic-timeout");}, () => ({ok: true, json: async () => {throw Error("synthetic-lost-body");}}),
       () => response(null), () => response({client_key: "wrong", status: "completed"})];
     for (const post of outcomes) {
-      const state = await mount({hooks: {post}}); await prepare(state); await send(state);
+      const state = await mount({view: {...copy(fixture), project_id: "fixture-project"}, hooks: {post}}); await prepare(state); await send(state);
       assert.equal(state.document.getElementById("native-chat-text").value, "Explicit message");
       const saved = copy(intents(state)); await state.refresh(); await send(state);
       assert.deepEqual(intents(state), saved); assert.equal(posts(state).length, 1);
@@ -348,6 +359,75 @@ async function test(name, callback) {
     const state = await mount({enabled: false});
     assert.equal(state.document.getElementById("native-chat-text"), undefined);
     assert.equal(state.calls.length, 0);
+  });
+  const reviewView = () => ({...copy(fixture), project_id: "fixture-project"});
+  const draft = (changes = {}) => ({project_id: "fixture-project", index_sha256: fixture.index_sha256,
+    stage: "stage2", request_ref: "review-1", text: "Please revise Stage 2; keep unresolved evidence visible.", ...changes});
+  await test("stage draft changes only the matching source-bound textarea, with no offer or POST", async () => {
+    const state = await mount({view: reviewView()});
+    await state.document.getElementById("native-chat-prepare").onclick();
+    const calls = state.calls.length, storage = state.storage.size;
+    assert.deepEqual(state.reviewDraft(draft()), {accepted: true, reason: "prepared", stage: "stage2",
+      project_id: "fixture-project", index_sha256: fixture.index_sha256, request_ref: "review-1"});
+    assert.equal(state.reviewDraft(draft({request_ref: "review-2"})).request_ref, "review-2");
+    assert.equal(state.document.getElementById("native-chat-text").value, draft().text);
+    assert.equal(state.document.getElementById("native-chat-send").disabled, true);
+    assert.equal(state.calls.length, calls); assert.equal(state.storage.size, storage);
+  });
+  await test("foreign project, source, missing server identity and stopped session leave draft unchanged", async () => {
+    const samples = [
+      {view: reviewView(), value: draft({project_id: "other-project"}), reason: "binding-mismatch"},
+      {view: reviewView(), value: draft({index_sha256: "f".repeat(64)}), reason: "binding-mismatch"},
+      {view: copy(fixture), value: draft(), reason: "unavailable"},
+      {view: {...reviewView(), failure: "session-stopped"}, value: draft(), reason: "unavailable"},
+    ];
+    for (const {view, value, reason} of samples) {
+      const state = await mount({view});
+      const text = state.document.getElementById("native-chat-text"); text.value = "keep draft";
+      assert.equal(state.reviewDraft(value).reason, reason); assert.equal(text.value, "keep draft");
+      assert.equal(state.calls.length, 1); assert.equal(state.storage.size, 0);
+    }
+  });
+  await test("all six stage IDs accepted, malformed stage/text rejected without native I/O", async () => {
+    const state = await mount({view: reviewView()});
+    for (let n = 1; n <= 6; n++) assert.equal(state.reviewDraft(draft({stage: "stage" + n})).accepted, true);
+    const validBefore = state.document.getElementById("native-chat-text").value;
+    for (const value of [draft({stage: "stage7"}), draft({stage: 2}), draft({text: " "}),
+      draft({text: "字".repeat(5462)}), draft({text: "\ud800"}), draft({extra: "no"}),
+      draft({request_ref: "review-0"}), draft({request_ref: "review-01"}), draft({request_ref: 1}),
+      draft({request_ref: "review-1-extra"}), draft({request_ref: undefined}), null]) {
+      assert.equal(state.reviewDraft(value).accepted, false);
+      assert.equal(state.document.getElementById("native-chat-text").value, validBefore);
+    }
+    assert.equal(state.calls.length, 1); assert.equal(state.storage.size, 0);
+  });
+  await test("server unsettled action and unknown native/chat ledger block another stage draft", async () => {
+    const value = reviewView(); value.actions[0].status = "execution-unknown";
+    const states = [await mount({view: value})];
+    for (const native of [false, true]) {
+      const storage = new Map();
+      const key = `${native ? "native-intents" : "native-message-intents"}:${fixture.project_ref}:${fixture.index_sha256}:${fixture.input_version}`;
+      storage.set(key, JSON.stringify([{key: "12345678-1234-1234-1234-123456789abc", target: "a".repeat(64),
+        ...(native ? {kind: "answer"} : {offer_sha256: "b".repeat(64)})}]));
+      states.push(await mount({view: reviewView(), storage}));
+    }
+    for (const state of states) {
+      assert.equal(state.reviewDraft(draft()).reason, "held");
+      assert.equal(state.document.getElementById("native-chat-text").value, "");
+      assert.equal(state.calls.length, 1);
+    }
+  });
+  await test("mismatched server project and busy preparation refuse a stage draft", async () => {
+    const foreign = await mount({view: {...reviewView(), project_id: "foreign-project"}});
+    assert.equal(foreign.reviewDraft(draft()).reason, "unavailable");
+    assert.equal(foreign.document.getElementById("native-chat-text").disabled, true);
+    const state = await mount({view: reviewView()});
+    const preparing = state.document.getElementById("native-chat-prepare").onclick();
+    const count = state.calls.length;
+    assert.equal(state.reviewDraft(draft()).reason, "held");
+    assert.equal(state.calls.length, count); await preparing;
+    const absent = await mount({enabled: false});
+    assert.equal(absent.reviewDraft(draft()), undefined); assert.equal(absent.calls.length, 0);
   });
   console.log(`PASS ${assertions} tests; actual fixture plus DOM substitute, no browser/native/model`);
 })().catch(error => {console.error(error); process.exitCode = 1;});

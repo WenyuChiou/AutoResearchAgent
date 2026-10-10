@@ -13,6 +13,10 @@
     unsent: ["Message was rejected before admission. Prepare again to retry explicitly.", "消息在受理前被拒绝。请重新准备后明确重试。", "訊息在受理前遭拒絕。請重新準備後明確重試。"],
     error: ["Message unavailable. Read history; do not submit again while its outcome is unknown.", "消息暂不可用。请读取历史，结果未知时不要重复提交。", "訊息暫不可用。請讀取歷史，結果未知時請勿重複提交。"],
     large: ["Use nonblank text up to {limit} bytes.", "请输入非空文字，最多 {limit} 字节。", "請輸入非空文字，最多 {limit} 位元組。"],
+    draft: ["Stage review draft prepared. Review it, then explicitly prepare and send the message.", "阶段审阅草稿已准备。检查文字后，再手动准备并发送消息。", "階段審閱草稿已準備。檢查文字後，再手動準備並傳送訊息。"],
+    draftSource: ["The stage draft does not match the connected project and source version.", "阶段草稿与已连接项目或来源版本不一致。", "階段草稿與已連線專案或來源版本不一致。"],
+    draftHeld: ["An action is busy or its outcome is unsettled. Read history before preparing another draft.", "有操作正在处理或结果未确认。请先读取历史，再准备另一份草稿。", "有操作正在處理或結果尚未確認。請先讀取歷史，再準備另一份草稿。"],
+    draftUnavailable: ["Read an available, source-bound session before preparing a stage draft.", "请先读取可用且已绑定来源的会话，再准备阶段草稿。", "請先讀取可用且已綁定來源的工作階段，再準備階段草稿。"],
     transcript: ["Saved conversation", "已保存的对话", "已儲存的對話"],
     empty: ["No saved model reply yet. A sent message does not prove completion.", "尚无已保存的模型回复；消息已发送不代表执行完成。", "尚無已儲存的模型回覆；訊息已傳送不代表執行完成。"],
     partial: ["Partial transcript window; earlier or oversized content is not shown.", "此处仅显示部分对话；早期或超限内容未展示。", "此處僅顯示部分對話；較早或超限內容未顯示。"],
@@ -43,8 +47,9 @@
     const hash = value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
     const exact = (value, fields) => value !== null && typeof value === "object" &&
       !Array.isArray(value) && Object.keys(value).sort().join() === [...fields].sort().join();
-    const sameBinding = (first, second) => Boolean(first && second) &&
+    const sameReceiptBinding = (first, second) => Boolean(first && second) &&
       ["project_ref", "index_sha256", "input_version"].every(name => first[name] === second[name]);
+    const sameBinding = (first, second) => sameReceiptBinding(first, second) && first.project_id === second.project_id;
     const validText = value => {
       if (typeof value !== "string") return false;
       for (let n = 0; n < value.length; n++) {
@@ -90,6 +95,43 @@
     const uncertain = () => local().some(r => {
       const action = view.actions.find(a => a.client_key === r.key && a.kind === "message" && a.target_ref === r.target);
       return !action || !["refused", "completed", "retired", "failed-known-unsent"].includes(action.status);
+    });
+    const unsettled = () => {
+      const settled = action => action && ["refused", "completed", "retired", "failed-known-unsent"].includes(action.status);
+      if (uncertain() || view.actions.some(action => !settled(action))) return true;
+      const key = `native-intents:${view.project_ref}:${view.index_sha256}:${view.input_version}`;
+      const saved = JSON.parse(sessionStorage.getItem(key) || "[]");
+      if (!Array.isArray(saved) || saved.length > 128 || saved.some(record =>
+        !exact(record, ["key", "kind", "target"]) || !/^[a-z0-9-]{36}$/.test(record.key) ||
+        !["answer", "interrupt"].includes(record.kind) || !hash(record.target))) throw Error("invalid-native-intents");
+      return saved.some(record => !settled(view.actions.find(action => action.client_key === record.key &&
+        action.kind === record.kind && action.target_ref === record.target)));
+    };
+    window.addEventListener("atlas-stage-review-draft", event => {
+      const draft = event.detail;
+      let reason = "invalid";
+      if (exact(draft, ["project_id", "index_sha256", "stage", "text", "request_ref"]) &&
+          typeof draft.project_id === "string" && draft.project_id.length > 0 && draft.project_id.length <= 128 &&
+          hash(draft.index_sha256) && typeof draft.stage === "string" && /^stage[1-6]$/.test(draft.stage) &&
+          typeof draft.request_ref === "string" && /^review-[1-9][0-9]*$/.test(draft.request_ref) &&
+          validText(draft.text) && draft.text.trim()) {
+        if (!view || !view.project_id || !readable() || !available()) reason = "unavailable";
+        else if (draft.project_id !== view.project_id || draft.index_sha256 !== view.index_sha256) reason = "binding-mismatch";
+        else {
+          try {reason = busy || unsettled() ? "held" : "prepared";} catch {reason = "held";}
+        }
+      }
+      if (reason === "prepared") {
+        sequence++; offer = null; text.value = draft.text; notice = "draft"; text.focus?.();
+      } else notice = ({unavailable: "draftUnavailable", "binding-mismatch": "draftSource", held: "draftHeld"})[reason] || "large";
+      controls();
+      window.dispatchEvent(new CustomEvent("atlas-stage-review-draft-result", {
+        detail: {accepted: reason === "prepared", reason,
+          project_id: typeof draft?.project_id === "string" ? draft.project_id : null,
+          index_sha256: typeof draft?.index_sha256 === "string" ? draft.index_sha256 : null,
+          request_ref: typeof draft?.request_ref === "string" ? draft.request_ref : null,
+          stage: typeof draft?.stage === "string" ? draft.stage : null},
+      }));
     });
     const controls = () => {
       let held = true;
@@ -169,7 +211,7 @@
           if (exact(receipt, ["schema_version", "status", "operation", "project_ref", "index_sha256",
             "input_version", "client_key", "offer_ref", "offer_sha256"]) &&
               receipt.schema_version === "NativeKnownUnsent.v1" && receipt.status === "known-unsent" &&
-              receipt.operation === "message" && sameBinding(receipt, binding) &&
+              receipt.operation === "message" && sameReceiptBinding(receipt, binding) &&
               receipt.client_key === body.key && receipt.offer_ref === body.offer_ref &&
               receipt.offer_sha256 === body.offer_sha256) {
             try {
