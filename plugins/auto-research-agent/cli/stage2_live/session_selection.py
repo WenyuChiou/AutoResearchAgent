@@ -113,10 +113,13 @@ def select_production_session(capture_root, thread_id):
     for path in sorted(root.rglob("*.jsonl")):
         metadata = []
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
+            # Preserve Unicode separators in otherwise valid JSON string values.
+            lines = path.read_bytes().decode("utf-8").split("\n")
         except (OSError, UnicodeDecodeError) as error:
             raise PreflightError(f"unclassified native session: {path}") from error
         for number, line in enumerate(lines, 1):
+            # A CRLF ending must not become a control character in a truncated string.
+            line = line.removesuffix("\r")
             if not line.strip():
                 continue
             try:
