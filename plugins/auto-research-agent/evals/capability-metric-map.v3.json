@@ -586,7 +586,7 @@
     },
     {
       "capability_id": "cli:stage1-retrieval",
-      "mechanism": "Retain runtime byte and import-path verification while allowing the guest broker to execute the isolated Python import probe as the native subject UID; existing local callers retain their default behavior.",
+      "mechanism": "Retain runtime byte and import-path verification while allowing the guest broker to execute the isolated Python import probe as the native subject UID; existing local callers retain their default behavior. An optional literal-True before-spawn callback receives the exact query, backend, runtime hash and argv immediately before the existing child spawn; None preserves the legacy path without granting admitted execution.",
       "metric_effects": [
         {
           "metric_id": "P3",
@@ -601,6 +601,7 @@
         }
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_planned_query_runner_hook.py",
         "plugins/auto-research-agent/tests/test_runtime_identity.py",
         "plugins/auto-research-agent/tests/test_vm_transport.py",
         "plugins/auto-research-agent/tests/test_vm_lifecycle.py"
