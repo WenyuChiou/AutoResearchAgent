@@ -16,13 +16,14 @@ from .atlas_host import AtlasHandler, AtlasHost, load_views
 from .http import token_authenticator
 from .project_intake import ProjectIntakeService
 from .project_contract import project_view
+from .project_stage1_delivery import ProjectStage1DeliveryService
 from .session_api import SessionApiError
 from .transport import _decode
 from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|checkpoint|export)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|checkpoint|export|deliver)(?:/(answer|interrupt))?)?)?)?"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -53,6 +54,14 @@ class ProjectHost(AtlasHost):
             stage2,
         )
         self.project_stage1 = stage1
+        self.project_stage1_delivery = (
+            None if stage1 is None else ProjectStage1DeliveryService(stage1)
+        )
+        # Saved package build/replay is bounded filesystem work. The generic
+        # 5-second socket default can expire after work but before commit; use
+        # the existing hard 30-second HTTP cap, still checked before admission
+        # and before commit. This grants no native/model execution time.
+        options.setdefault("timeout", 30)
         super().__init__(credential=credential, **options)
         self.RequestHandlerClass = ProjectHandler
         for filename in ("projects.html", "projects.js", "projects.css"):
@@ -88,10 +97,18 @@ class ProjectHost(AtlasHost):
                 else self.project_models.offers(credential, ref),
                 stage1=None
                 if self.project_stage1 is None
-                else self.project_stage1.read(credential, ref),
+                else self.stage1_view(credential, ref),
                 stage2=None
                 if self.project_stage2 is None
                 else self.project_stage2.read(credential, ref),
+            )
+
+    def stage1_view(self, credential, ref):
+        """Read saved delivery offers together with the same project revision."""
+        with self.projects._lock:
+            return dict(
+                self.project_stage1.read(credential, ref),
+                delivery=self.project_stage1_delivery.read(credential, ref),
             )
 
 
@@ -168,6 +185,8 @@ class ProjectHandler(AtlasHandler):
                         if action == "actions"
                         else extension.read(token, ref)
                     )
+                    if operation == "stage1" and action in {None, "offers"}:
+                        result = self.server.stage1_view(token, ref)
                 elif operation == "overview":
                     if action or resolution:
                         raise SessionApiError("invalid-project-read", 400)
@@ -181,6 +200,7 @@ class ProjectHandler(AtlasHandler):
                             models=self.server.project_models,
                             stage1=self.server.project_stage1,
                             stage2=self.server.project_stage2,
+                            stage1_delivery=self.server.project_stage1_delivery,
                         )
                 else:
                     result = (
@@ -230,6 +250,7 @@ class ProjectHandler(AtlasHandler):
                         "execute-query",
                         "checkpoint",
                         "export",
+                        "deliver",
                     }
                     and resolution is None
                 ):
@@ -237,6 +258,8 @@ class ProjectHandler(AtlasHandler):
                     if extension is None:
                         raise SessionApiError("project-operation-unconnected", 409)
                     called = ("stage1-" + action, ref, body)
+                    if action == "deliver":
+                        extension = self.server.project_stage1_delivery
                     result = getattr(extension, action.replace("-", "_"))(
                         token, ref, body, check_deadline=self._remaining
                     )

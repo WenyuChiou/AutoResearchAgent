@@ -20,13 +20,22 @@ from stage1_deliverable.common import (
 )
 from stage1_ledger.contracts import check as check_contract
 from stage1_ledger.journal import canonical, decode
-from stage2_common import canonical_hash, validate_packet
+from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_workflow import build_stage2_seed, initialize_workflow, inspect_workflow
 from .project_intake import ProjectIntakeService, _fields
-from .session_api import _check, _hash
+from .session_api import SessionApiError, _check, _hash
 
 MAX_OFFERS = 16
 MAX_INPUT = 16 * 1024 * 1024
+RECEIPT_FIELDS = {
+    "project_ref",
+    "key",
+    "kind",
+    "request_sha256",
+    "request",
+    "status",
+    "recorded_at",
+}
 
 
 def _raw(path, expected, *, maximum=MAX_INPUT):
@@ -234,6 +243,7 @@ class ProjectStage2Service:
                 revision=state["revision"],
                 offers=offers,
                 activation=activation,
+                frontier=deepcopy(state.get("stage2_frontier")),
                 execution_authorized=False,
                 native_connected=False,
                 daily_v3="not-started",
@@ -343,6 +353,9 @@ class ProjectStage2Service:
                 execution_authorized=False,
             )
             state["stage2_activation"] = result
+            state["stage2_frontier"] = self._initial_frontier(
+                project_ref, binding, offer, result
+            )
             state.setdefault("stage2_artifacts", {})[result["artifact_ref"]] = dict(
                 path=relative, **result
             )
@@ -357,41 +370,278 @@ class ProjectStage2Service:
             check_deadline=check_deadline,
         )
 
-    def binding(self, project_ref):
-        """Trusted server lookup of an activated workflow, without native authority."""
+    def _journal(self, project_ref, kind):
+        return [
+            decode(row[0].encode("utf-8"), "stage2 journal receipt")
+            for row in self.intake.db.execute(
+                "SELECT payload FROM intake_events WHERE project=? AND kind=? ORDER BY id",
+                (project_ref, kind),
+            )
+        ]
+
+    @staticmethod
+    def _initial_frontier(project_ref, current, offer, activation):
+        return dict(
+            kind="Stage2WorkflowFrontier",
+            schema_version="1.0.0",
+            project_ref=project_ref,
+            project_id=current["project_id"],
+            input_version=current["input_version"],
+            brief_sha256=current["brief_sha256"],
+            plan_manifest_sha256=current["plan_manifest_sha256"],
+            offer_ref=offer["offer_ref"],
+            offer_sha256=offer["offer_sha256"],
+            stage1_manifest_sha256=offer["stage1_manifest_sha256"],
+            stage1_handoff_sha256=offer["stage1_handoff_sha256"],
+            resources_sha256=offer["resources_sha256"],
+            settings_sha256=offer["settings_sha256"],
+            activation_sha256=canonical_hash(activation),
+            artifact_ref=activation["artifact_ref"],
+            packet_sha256=activation["packet_sha256"],
+            binding_sha256=activation["binding_sha256"],
+            workflow_manifest_sha256=activation["workflow_manifest_sha256"],
+            initial_workflow_head_sha256=activation["workflow_head_sha256"],
+            workflow_head_sha256=activation["workflow_head_sha256"],
+            sequence=0,
+        )
+
+    def _activation_context(self, project_ref, state):
+        activation = state.get("stage2_activation")
+        _check(activation is not None, "stage2-not-activated")
+        saved = [
+            row
+            for row in self._journal(project_ref, "stage2-activate-saved")
+            if row.get("artifact_ref") == activation["artifact_ref"]
+        ]
+        _check(
+            len(saved) == 1
+            and {
+                key: value
+                for key, value in saved[0].items()
+                if key not in RECEIPT_FIELDS
+            }
+            == activation,
+            "stage2-activation-journal-differs",
+        )
+        offer = state["stage2_offers"][activation["offer_ref"]]
+        registered = [
+            row.get("offer")
+            for row in self._journal(project_ref, "stage2-register-offer-saved")
+            if row.get("offer", {}).get("offer_ref") == offer["offer_ref"]
+        ]
+        basis = {
+            key: offer[key]
+            for key in (
+                "project_id",
+                "input_version",
+                "brief_sha256",
+                "plan_manifest_sha256",
+                "stage1_manifest_sha256",
+                "stage1_handoff_sha256",
+                "resources_sha256",
+                "settings_sha256",
+                "policy_ref",
+            )
+        }
+        _check(
+            registered == [_public(offer)]
+            and sha(canonical(basis))
+            == activation["offer_sha256"]
+            == offer["offer_sha256"],
+            "stage2-offer-journal-differs",
+        )
+        current = self.intake.binding(project_ref)
+        self._matches(current, offer)
+        _check(
+            canonical_hash(current["settings"]) == offer["settings_sha256"],
+            "stage2-settings-differ",
+        )
+        _verified_inputs(current, offer["inputs"])
+        artifact = state["stage2_artifacts"][activation["artifact_ref"]]
+        relative = "stage2-" + saved[0]["request_sha256"]
+        _check(
+            artifact == dict(path=relative, **activation),
+            "stage2-artifact-journal-differs",
+        )
+        root = self.intake._path(project_ref, relative)
+        packet_path = safe_path(root / "seed", "packet.json")
+        with packet_path.open("rb") as stream:
+            packet_raw = stream.read(MAX_INPUT + 1)
+        _check(len(packet_raw) <= MAX_INPUT, "stage2-packet-too-large")
+        packet = decode(packet_raw, "stage2 packet")
+        _check(
+            canonical_hash(packet) == activation["packet_sha256"],
+            "stage2-packet-bytes-differ",
+        )
+        for source in packet["sources"]:
+            safe_path(root / "seed", source["path"])
+        validate_packet(packet, root / "seed")
+        return current, activation, offer, root
+
+    def _frontier(self, project_ref, state, current, offer, activation):
+        initial = self._initial_frontier(project_ref, current, offer, activation)
+        frontier = deepcopy(initial)
+        for receipt in self._journal(project_ref, "stage2-frontier-saved"):
+            request = receipt.get("request", {})
+            new_head = request.get("new_workflow_head_sha256")
+            _check(
+                receipt.get("status") == "saved"
+                and request.get("expected_activation_sha256")
+                == initial["activation_sha256"]
+                and request.get("expected_previous_head_sha256")
+                == frontier["workflow_head_sha256"]
+                and _hash(new_head)
+                and new_head != frontier["workflow_head_sha256"],
+                "stage2-frontier-journal-chain-differs",
+            )
+            frontier.update(
+                workflow_head_sha256=new_head, sequence=frontier["sequence"] + 1
+            )
+            _check(
+                receipt.get("frontier") == frontier,
+                "stage2-frontier-journal-binding-differs",
+            )
+        _check(
+            state.get("stage2_frontier", initial) == frontier,
+            "stage2-frontier-state-journal-differs",
+        )
+        return frontier
+
+    @staticmethod
+    def _inspect_frontier(root, activation, previous_head, new_head):
+        verified = inspect_workflow(root / "workflow", new_head)
+        _check(
+            verified["manifest"]["manifest_sha256"]
+            == activation["workflow_manifest_sha256"],
+            "stage2-workflow-bytes-differ",
+        )
+        heads = [row["event_sha256"] for row in verified["events"]]
+        initial_head = activation["workflow_head_sha256"]
+        _check(
+            initial_head in heads
+            and previous_head in heads
+            and heads.index(initial_head)
+            <= heads.index(previous_head)
+            <= heads.index(new_head),
+            "stage2-frontier-not-descendant-of-activation",
+        )
+        return verified
+
+    def advance_frontier(
+        self,
+        project_ref,
+        *,
+        key,
+        expected_activation_sha256,
+        expected_previous_head_sha256,
+        new_workflow_head_sha256,
+        check_deadline=None,
+    ):
+        """Trusted adapter CAS only; validates saved events and never runs an action.
+
+        No browser route or physical-path argument is accepted. The adapter must
+        retain the activation and previous-head receipts before the producer runs.
+        Unknown intents remain history; replay never advances a frontier again.
+        """
+        identifier(key)
+        _check(
+            all(
+                _hash(value)
+                for value in (
+                    expected_activation_sha256,
+                    expected_previous_head_sha256,
+                    new_workflow_head_sha256,
+                )
+            ),
+            "stage2-frontier-hashes-required",
+            400,
+        )
+        _check(
+            check_deadline is None or callable(check_deadline),
+            "stage2-deadline-check-invalid",
+            400,
+        )
         with self.intake._lock:
             row = self.intake.db.execute(
                 "SELECT principal FROM intake_projects WHERE ref=?", (project_ref,)
             ).fetchone()
             _check(row is not None, "project-unavailable", 404)
             state = self.intake._load(row[0], project_ref)
-            activation = state.get("stage2_activation")
-            _check(activation is not None, "stage2-not-activated")
-            offer = state["stage2_offers"][activation["offer_ref"]]
             current = self.intake.binding(project_ref)
-            self._matches(current, offer)
-            artifact = state["stage2_artifacts"][activation["artifact_ref"]]
-            root = self.intake._path(project_ref, artifact["path"])
-            verified = inspect_workflow(
-                root / "workflow", activation["workflow_head_sha256"]
+            body = dict(
+                key=key,
+                revision=state["revision"],
+                input_version=current["input_version"],
+                brief_sha256=current["brief_sha256"],
+                expected_activation_sha256=expected_activation_sha256,
+                expected_previous_head_sha256=expected_previous_head_sha256,
+                new_workflow_head_sha256=new_workflow_head_sha256,
             )
-            _check(
-                verified["manifest"]["manifest_sha256"]
-                == activation["workflow_manifest_sha256"],
-                "stage2-workflow-bytes-differ",
+
+            def work(saved, _, __):
+                try:
+                    current, activation, offer, root = self._activation_context(
+                        project_ref, saved
+                    )
+                    frontier = self._frontier(
+                        project_ref, saved, current, offer, activation
+                    )
+                    _check(
+                        frontier["activation_sha256"] == expected_activation_sha256,
+                        "stage2-frontier-activation-differs",
+                    )
+                    _check(
+                        frontier["workflow_head_sha256"]
+                        == expected_previous_head_sha256
+                        and new_workflow_head_sha256 != expected_previous_head_sha256,
+                        "stage2-frontier-cas-conflict",
+                    )
+                    self._inspect_frontier(
+                        root,
+                        activation,
+                        expected_previous_head_sha256,
+                        new_workflow_head_sha256,
+                    )
+                except (OSError, Stage2Error) as error:
+                    # Producer diagnostics may contain physical paths. Public
+                    # action history retains a refusal code, never those paths.
+                    raise SessionApiError(
+                        "stage2-frontier-validation-failed"
+                    ) from error
+                frontier.update(
+                    workflow_head_sha256=new_workflow_head_sha256,
+                    sequence=frontier["sequence"] + 1,
+                )
+                saved["stage2_frontier"] = frontier
+                return dict(frontier=deepcopy(frontier), execution_authorized=False)
+
+            return self.intake._perform(
+                row[0],
+                project_ref,
+                "stage2-frontier",
+                body,
+                work,
+                check_deadline=check_deadline,
             )
-            packet_path = safe_path(root / "seed", "packet.json")
-            with packet_path.open("rb") as stream:
-                packet_raw = stream.read(MAX_INPUT + 1)
-            _check(len(packet_raw) <= MAX_INPUT, "stage2-packet-too-large")
-            packet = decode(packet_raw, "stage2 packet")
-            _check(
-                canonical_hash(packet) == activation["packet_sha256"],
-                "stage2-packet-bytes-differ",
+
+    def binding(self, project_ref):
+        """Trusted lookup accepts only the durably acknowledged workflow frontier."""
+        with self.intake._lock:
+            row = self.intake.db.execute(
+                "SELECT principal FROM intake_projects WHERE ref=?", (project_ref,)
+            ).fetchone()
+            _check(row is not None, "project-unavailable", 404)
+            state = self.intake._load(row[0], project_ref)
+            current, activation, offer, root = self._activation_context(
+                project_ref, state
             )
-            for source in packet["sources"]:
-                safe_path(root / "seed", source["path"])
-            validate_packet(packet, root / "seed")
+            frontier = self._frontier(project_ref, state, current, offer, activation)
+            self._inspect_frontier(
+                root,
+                activation,
+                frontier["workflow_head_sha256"],
+                frontier["workflow_head_sha256"],
+            )
             return dict(
                 project_id=current["project_id"],
                 input_version=current["input_version"],
@@ -399,7 +649,10 @@ class ProjectStage2Service:
                 source_root=root / "seed",
                 packet_path=root / "seed" / "packet.json",
                 workflow_root=root / "workflow",
-                workflow_head_sha256=activation["workflow_head_sha256"],
+                workflow_head_sha256=frontier["workflow_head_sha256"],
+                initial_workflow_head_sha256=activation["workflow_head_sha256"],
+                activation_sha256=frontier["activation_sha256"],
+                frontier_sequence=frontier["sequence"],
                 packet_sha256=activation["packet_sha256"],
                 execution_authorized=False,
             )

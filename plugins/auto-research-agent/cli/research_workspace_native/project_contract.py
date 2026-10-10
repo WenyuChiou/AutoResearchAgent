@@ -51,7 +51,16 @@ def measurement(unit, *, value=None, status="unknown", evidence=()):
     )
 
 
-def project_view(intake, credential, ref, *, models=None, stage1=None, stage2=None):
+def project_view(
+    intake,
+    credential,
+    ref,
+    *,
+    models=None,
+    stage1=None,
+    stage2=None,
+    stage1_delivery=None,
+):
     """GET-only projection. Does not acquire a provider or derive new authority."""
     view = intake.read(credential, ref)
     identity = {
@@ -107,6 +116,14 @@ def project_view(intake, credential, ref, *, models=None, stage1=None, stage2=No
         first["coverage_ledger"] = deepcopy(ledger)
         first["status"] = ledger["stage1_status"]
         # A checkpoint/export is not the validated canonical delivery package.
+    if stage1_delivery is not None:
+        delivery = stage1_delivery.read(credential, ref)
+        first["saved_evidence_delivery"] = deepcopy(delivery)
+        artifact = delivery["canonical_package"]
+        if artifact is not None:
+            first["artifacts"].append(deepcopy(artifact))
+        # A structurally valid package with a continue gate is still incomplete.
+        # Scientific acceptance never follows from a package hash or render.
     if model is not None:
         first["content_planning"] = deepcopy(model)
         first["metrics"]["model_calls_reserved"] = measurement(

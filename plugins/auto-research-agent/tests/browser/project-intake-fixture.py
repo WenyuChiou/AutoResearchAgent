@@ -90,6 +90,9 @@ def main():
     from research_workspace_native.project_host import ProjectHost
     from research_workspace_native.project_intake import ProjectIntakeService
     from research_workspace_native.project_stage1 import ProjectStage1Service
+    from research_workspace_native.project_stage1_delivery import (
+        ProjectStage1DeliveryService,
+    )
     from research_workspace_native.project_stage2 import ProjectStage2Service
     from test_workspace_project_intake import compile_body
 
@@ -226,6 +229,9 @@ def main():
                             server.project_stage1,
                             server.project_stage2,
                         ) = service, stage1, stage2
+                        server.project_stage1_delivery = ProjectStage1DeliveryService(
+                            stage1
+                        )
                         value = snapshot()
                     else:
                         raise ValueError("unsupported fixture command")

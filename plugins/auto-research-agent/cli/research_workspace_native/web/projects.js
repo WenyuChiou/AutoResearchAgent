@@ -141,6 +141,9 @@
   Object.assign(words["zh-Hans"], {ledgerTitle: "Stage1 覆盖与证据记录", ledgerInit: "初始化绑定的证据记录", ledgerHelp: "记录真实 Harness 计划与证据历史。初始化和检查点不会执行搜索，也不代表 Stage1 完成。", ledgerCheckpoint: "检查当前证据门", ledgerExport: "导出已保存记录", plannedQueries: "计划查询", moreHistory: "读取更多历史"});
   Object.assign(words["zh-Hant"], {ledgerTitle: "Stage1 覆蓋與證據紀錄", ledgerInit: "初始化綁定的證據紀錄", ledgerHelp: "紀錄真實 Harness 計畫與證據歷史。初始化和檢查點不會執行搜尋，也不代表 Stage1 完成。", ledgerCheckpoint: "檢查目前證據門", ledgerExport: "匯出已保存紀錄", plannedQueries: "計畫查詢", moreHistory: "讀取更多歷史"});
   const $ = (id) => document.getElementById(id);
+  Object.assign(words.en, {ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
+  Object.assign(words["zh-Hans"], {ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
+  Object.assign(words["zh-Hant"], {ledgerDeliver: "用已保存閱讀紀錄產生正式交付包", deliveryMissing: "尚無此版本綁定的閱讀紀錄。紀錄匯出與研究交付包是不同產物。", deliveryReady: "閱讀紀錄已綁定目前檢查點。產生檔案不代表覆蓋或研究品質通過。", deliverySaved: "已保存正式研究交付包 · 繼續前請檢查覆蓋判斷。"});
   const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0 };
   const storageKey = "harness-project-ui-intents-v1";
   let pending = [];
@@ -204,6 +207,7 @@
     $("native-refresh").disabled = state.loading || !state.project;
     $("ledger-init").disabled = projectBlocked || !state.stage1 || !state.stage1.initialization_offer;
     for (const id of ["ledger-checkpoint", "ledger-export"]) $(id).disabled = projectBlocked || !state.stage1 || !state.stage1.ledger;
+    $("ledger-deliver").disabled = projectBlocked || !availableDelivery();
   }
   async function mutate(operation, body, ref) {
     if (state.busy || state.loading) return null;
@@ -249,11 +253,23 @@
     $("authorization-budget").textContent = budgets ? "1 × Codex · ≤ " + Math.min(budgets.seconds, state.modelStatus && state.modelStatus.local_cap_seconds || 600) + " s · " + budgets.model_calls + " " + t("modelCalls") : "Unknown";
     const ledger = state.stage1 && state.stage1.ledger;
     $("ledger-state").textContent = ledger ? ledger.gate.outcome + " · " + ledger.next_allowed_action : state.stage1 && state.stage1.stage1_status || "unconnected";
+    const delivered = state.stage1 && state.stage1.delivery && state.stage1.delivery.canonical_package;
+    $("delivery-state").textContent = t(delivered ? "deliverySaved" : availableDelivery() ? "deliveryReady" : "deliveryMissing");
+    const artifactArea = $("delivery-artifact"); artifactArea.replaceChildren();
+    if (delivered) {
+      text(artifactArea, "p", delivered.status + " · " + delivered.counts.papers + " · " + delivered.artifact_kind);
+      text(artifactArea, "p", "SHA-256: " + delivered.manifest_sha256, "subtle");
+    }
     const queries = $("ledger-queries"); queries.replaceChildren();
     for (const query of state.stage1 && state.stage1.queries || []) { const card = document.createElement("div"); card.className = "history-row"; queries.append(card); text(card, "p", query.query); text(card, "p", query.purpose + " · " + query.status, "subtle"); }
     $("create-card").hidden = true; $("project-content").hidden = false;
     $("intake-card").open = !Boolean(project.intake_report && project.intake_report.necessary_clarification_complete);
     buttons();
+  }
+  function availableDelivery() {
+    const delivery = state.stage1 && state.stage1.delivery;
+    if (!delivery || delivery.canonical_package && delivery.canonical_package.status === "saved-evidence-validated") return null;
+    return (delivery.offers || []).find((row) => row.status === "ready-for-saved-evidence-delivery") || null;
   }
   async function refreshList() {
     const value = await request(route());
@@ -540,12 +556,14 @@
     const body = Object.assign(identity(), {confirmed: true});
     if (operation === "initialize") { const offer = state.stage1.initialization_offer; if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
     else { if (!state.stage1.ledger) return; body.ledger_state_sha256 = state.stage1.ledger.state_sha256; }
+    if (operation === "deliver") { const offer = availableDelivery(); if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
     const ref = state.project.project_ref, result = await mutate("stage1/" + operation, body, ref);
     if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
   }
   $("ledger-init").onclick = guarded(() => ledger("initialize"));
   $("ledger-checkpoint").onclick = guarded(() => ledger("checkpoint"));
   $("ledger-export").onclick = guarded(() => ledger("export"));
+  $("ledger-deliver").onclick = guarded(() => ledger("deliver"));
   $("activate-stage2").onclick = guarded(async () => {
     const offer = availableStage2(); if (!offer) return;
     const ref = state.project.project_ref;

@@ -50,3 +50,14 @@ plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-
 # Preserve the real stage pilot overlay on Windows downloads.
 plugins/auto-research-agent/references/research-workspace/web/*.js text eol=lf
 plugins/auto-research-agent/references/research-workspace/web/*.css text eol=lf
+
+# Preserve exact saved-record delivery evidence.
+review-evidence/stage1-priority-20261010/** -text
+review-evidence/stage1-priority-20261010/*.json whitespace=cr-at-eol
+review-evidence/stage1-priority-20261010/*stdout.log binary
+review-evidence/stage1-priority-20261010/*stderr.log binary
+
+review-evidence/stage1-native-merge-20261010/** -text
+review-evidence/stage1-native-merge-20261010/*.json whitespace=cr-at-eol
+review-evidence/stage1-native-merge-20261010/*stdout.log binary
+review-evidence/stage1-native-merge-20261010/*stderr.log binary
