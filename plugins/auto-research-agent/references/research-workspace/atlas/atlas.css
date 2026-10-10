@@ -53,6 +53,7 @@ dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .atlas-panel, .atlas-card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 20px; min-width: 0; }
 .atlas-card { border-top: 4px solid var(--category, var(--teal)); }
 .atlas-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 18px 0; }
+.atlas-card .atlas-graph { width: 100%; min-height: 0; }
 .atlas-comparison { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .atlas-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .atlas-paper { border: 0; background: transparent; padding: 0; text-align: left; flex: 1; min-width: 0; }
