@@ -40,8 +40,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # Full process-replay suites exceeded 20 minutes on Windows and macOS.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 35 || matrix.os == 'macos-latest' && 30 || 20 }}
+    # Windows run 38018673675 was cancelled after 35 minutes.
+    # Retain the full suite and post-checks with a bounded 50-minute allowance.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 50 || matrix.os == 'macos-latest' && 30 || 20 }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
