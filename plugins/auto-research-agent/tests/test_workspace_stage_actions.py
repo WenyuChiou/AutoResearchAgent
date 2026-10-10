@@ -22,7 +22,7 @@ class StageActionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.db = self.root / "stage-actions.sqlite3"
         self.inputs = {1: None, 2: None}
         self.service = None

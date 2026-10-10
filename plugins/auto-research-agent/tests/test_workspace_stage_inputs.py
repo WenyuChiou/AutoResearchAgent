@@ -22,7 +22,7 @@ class StageInputTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        self.root = Path(temp.name)
+        self.root = Path(temp.name).resolve()
         self.inputs = {"1": None, "2": None}
 
     def produce(self, stage, action):
@@ -99,10 +99,12 @@ class StageInputTests(unittest.TestCase):
         payload.write_bytes(b"outside bytes")
         original_lstat, original_open = os.lstat, Path.open
         opened = []
+        reparse_paths = []
 
         def attributes(path, *args, **kwargs):
             info = original_lstat(path, *args, **kwargs)
             if Path(path) == child:
+                reparse_paths.append(Path(path))
                 return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
             return info
 
@@ -116,6 +118,7 @@ class StageInputTests(unittest.TestCase):
         ):
             with self.assertRaises(DeliverableError):
                 mod.snapshot_inputs({1: dict(ledger_root=str(source)), 2: None})
+        self.assertIn(child, reparse_paths)
         self.assertNotIn(payload, opened)
 
     def test_size_race_still_uses_remaining_budget_plus_one_read(self):
@@ -151,10 +154,12 @@ class StageInputTests(unittest.TestCase):
         sidecar = self.root / "saved.sqlite3-wal"
         sidecar.write_bytes(b"outside WAL bytes")
         original_lstat = os.lstat
+        reparse_paths = []
 
         def attributes(path, *args, **kwargs):
             info = original_lstat(path, *args, **kwargs)
             if Path(path) == sidecar:
+                reparse_paths.append(Path(path))
                 return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
             return info
 
@@ -166,6 +171,7 @@ class StageInputTests(unittest.TestCase):
         ):
             with self.assertRaises(DeliverableError):
                 mod.preflight_storage([], database)
+        self.assertIn(sidecar, reparse_paths)
         connection.assert_not_called()
 
 

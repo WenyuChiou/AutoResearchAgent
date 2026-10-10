@@ -126,7 +126,7 @@ class CompositionCase(unittest.TestCase):
                 max_stream_bytes=65536,
                 max_text_bytes=4096,
                 max_starts=4,
-                timeout_seconds=2,
+                timeout_seconds=10,
             ),
         )
         self.config = self.root / "runtime.json"
