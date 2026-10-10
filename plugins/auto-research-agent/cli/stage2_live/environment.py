@@ -24,6 +24,7 @@ from .native_policy import (
     named_policy_args,
     verify_named_runtime,
 )
+from .session_selection import select_production_session
 
 CONTROLLER_ROLE_POLICY_VERSIONS = frozenset({"1.1.0", "1.2.0"})
 
@@ -155,17 +156,28 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
         raise Stage2Error("execution-preflight-after-subject")
     production = report.get("validation_scope") == "production-single"
     root = Path(capture_dir)
-    sessions = [
-        _load_jsonl(p) for p in (root / "archive/native-sessions").rglob("*.jsonl")
-    ]
-    primary = [
-        rows
-        for rows in sessions
-        if _session_identity(rows, production) == record["event_summary"]["thread_id"]
-    ]
-    if len(primary) != 1:
-        raise Stage2Error("execution-primary-session-not-unique")
-    context = _turn_context(primary[0])
+    if production:
+        try:
+            primary = select_production_session(
+                root, record["event_summary"]["thread_id"]
+            )
+        except PreflightError as error:
+            if "primary session is not unique" in str(error):
+                raise Stage2Error("execution-primary-session-not-unique") from error
+            raise
+    else:
+        sessions = [
+            _load_jsonl(p) for p in (root / "archive/native-sessions").rglob("*.jsonl")
+        ]
+        primary_matches = [
+            rows
+            for rows in sessions
+            if _session_identity(rows, False) == record["event_summary"]["thread_id"]
+        ]
+        if len(primary_matches) != 1:
+            raise Stage2Error("execution-primary-session-not-unique")
+        primary = primary_matches[0]
+    context = _turn_context(primary)
     try:
         verify_named_runtime(stable, context or {})
     except NamedPolicyError as error:
