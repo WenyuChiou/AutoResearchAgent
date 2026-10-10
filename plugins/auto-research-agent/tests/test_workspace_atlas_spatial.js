@@ -59,6 +59,13 @@ assert.throws(() => spatial.fitCamera([{x: 20, y: 30}], pose, {width: 320, heigh
 const resolved = spatial.resolveLabels([{id: "selected", priority: 0, selected: true, projectable: true, box: {x: -20, y: -20, width: 80, height: 20}},
   {id: "hidden", priority: 3, projectable: true, box: {x: 6, y: 8, width: 80, height: 20}}], 320, 600);
 assert.equal(resolved.shown[0].id, "selected"); assert.deepEqual(resolved.hidden, ["hidden"]);
+const keyboardLabel = spatial.resolveLabels([{id: "keyboard", priority: 1, selected: false, focused: true, projectable: true,
+  box: {x: 290, y: 310, width: 240, height: 44}}], 317, 420);
+assert.equal(keyboardLabel.shown[0]?.id, "keyboard", "a focused long title must stay inside the phone viewport without becoming a selected node");
+assert.equal(keyboardLabel.shown[0].selected, false); assert.deepEqual(keyboardLabel.hidden, []);
+const crowdedKeyboardLabel = spatial.resolveLabels([{id: "keyboard", priority: 1, selected: false, focused: true, projectable: true,
+  box: {x: 290, y: 310, width: 240, height: 44}}], 317, 420, [{x: 0, y: 0, width: 317, height: 420}]);
+assert.equal(crowdedKeyboardLabel.shown[0]?.id, "keyboard", "collision reduction cannot hide the control that currently holds keyboard focus");
 const iconBox = {x: 140, y: 140, width: 40, height: 40};
 const onDemand = {id: "active", priority: 0, selected: true, projectable: true, anchor: {x: 160, y: 160, radius: 20}, box: {x: 120, y: 155, width: 80, height: 20}};
 const clearLabel = spatial.resolveLabels([onDemand], 320, 320, [iconBox]);
@@ -73,21 +80,40 @@ assert.deepEqual(spatial.resolveLabels([{...onDemand, priority: 4, selected: fal
 assert.deepEqual(onDemand.box, {x: 120, y: 155, width: 80, height: 20});
 
 // Injected DOM/runtime: actual WebGL/browser acceptance remains a separate check.
-let nextFrame = 0, observerDisconnected = 0;
+let nextFrame = 0, observerDisconnected = 0, intersectionDisconnected = 0, layoutReads = 0, domWrites = 0;
 const frames = new Map();
 const runLastFrame = () => { const [key, callback] = [...frames].at(-1); frames.delete(key); callback(); };
+const runAllFrames = () => { while (frames.size) runLastFrame(); };
 global.requestAnimationFrame = callback => { frames.set(++nextFrame, callback); return nextFrame; };
 global.cancelAnimationFrame = frame => frames.delete(frame);
-global.ResizeObserver = class { constructor(callback) { this.callback = callback; } observe() { this.callback(); } disconnect() { observerDisconnected++; } };
+const resizes = [];
+global.ResizeObserver = class { constructor(callback) { this.callback = callback; resizes.push(this); } observe() { this.callback(); } disconnect() { observerDisconnected++; } };
+const intersections = [];
+global.IntersectionObserver = class {
+  constructor(callback) { this.callback = callback; intersections.push(this); }
+  observe() { this.callback([{isIntersecting: true}]); }
+  disconnect() { intersectionDisconnected++; }
+  set(value) { this.callback([{isIntersecting: value}]); }
+};
+const motion = {matches: false, listeners: new Map(), addEventListener(name, callback) { this.listeners.set(name, callback); },
+  removeEventListener(name, callback) { if (this.listeners.get(name) === callback) this.listeners.delete(name); },
+  set(value) { this.matches = value; this.listeners.get("change")?.({matches: value}); }};
+global.matchMedia = () => motion;
 class Element {
-  constructor(document) { this.ownerDocument = document; this.style = {}; this.children = []; this.listeners = new Map(); this.attributes = {}; this.clientWidth = 600; this.clientHeight = 640; this.offsetWidth = 120; this.offsetHeight = 21; }
+  constructor(document) { this.ownerDocument = document; this.visibilityWrites = []; this.style = new Proxy({}, {set: (target, key, value) => { domWrites++; if (key === "visibility") this.visibilityWrites.push(value); target[key] = value; return true; }}); this.children = []; this.listeners = new Map(); this.attributes = {}; this.clientWidth = 600; this.clientHeight = 640; this._textContent = ""; }
+  get offsetWidth() { layoutReads++; return 120; }
+  get offsetHeight() { layoutReads++; return 44; }
+  get textContent() { return this._textContent; }
+  set textContent(value) { if (this._textContent !== value) { domWrites++; this._textContent = value; } }
   append(...children) { children.forEach(child => { child.parent = this; this.children.push(child); }); }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this); }
-  setAttribute(name, value) { this.attributes[name] = value; }
+  setAttribute(name, value) { if (this.attributes[name] !== value) { domWrites++; this.attributes[name] = value; } }
   addEventListener(name, callback) { this.listeners.set(name, callback); }
   removeEventListener(name, callback) { if (this.listeners.get(name) === callback) this.listeners.delete(name); }
+  emit(name, value = {}) { this.listeners.get(name)?.(value); }
 }
-const document = {createElement: () => new Element(document), createElementNS: () => new Element(document)};
+const document = new Element(null); document.ownerDocument = document; document.visibilityState = "visible";
+document.createElement = () => new Element(document); document.createElementNS = () => new Element(document);
 const vector = () => ({x: 0, y: 0, z: 0, set(x, y, z) { Object.assign(this, {x, y, z}); }});
 const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 const perspective = (depth, zoom = 1) => ({matrixWorldInverse: {elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -depth, 1]},
@@ -106,11 +132,23 @@ const created = [];
 global.ForceGraph3D = () => () => {
   const config = {}, camera = {position: vector(), up: vector(), fov: 50, zoom: 1,
     matrixWorldInverse: {elements: identity}, projectionMatrix: {elements: [.002, 0, 0, 0, 0, .002, 0, 0, 0, 0, .002, .002, 0, 0, 0, 1]}, updateMatrixWorld() {}, updateProjectionMatrix() {}};
-  const control = {target: vector(), noRotate: false, staticMoving: false, dynamicDampingFactor: .2, update() {},
-    trackballGesture() { if (!this.noRotate) camera.position.x += 5; }};
+  const control = {target: vector(), noRotate: false, staticMoving: false, dynamicDampingFactor: .2, listeners: new Map(), update() {},
+    addEventListener(name, callback) { this.listeners.set(name, callback); }, removeEventListener(name, callback) { if (this.listeners.get(name) === callback) this.listeners.delete(name); },
+    emit(name) { this.listeners.get(name)?.(); }, trackballGesture() { if (!this.noRotate) { camera.position.x += 5; this.emit("change"); } }};
   const graph = {config, camera: () => camera, controls: () => control, disposed: 0,
     cameraPosition(position, target) { config.cameraWrites = (config.cameraWrites || 0) + 1; Object.assign(camera.position, position); Object.assign(control.target, target); return graph; },
-    pauseAnimation() { config.paused = true; return graph; }, _destructor() { graph.disposed++; },
+    pauseAnimation() { config.pauseCalls = (config.pauseCalls || 0) + 1; config.paused = true; return graph; },
+    resumeAnimation() {
+      config.resumeCalls = (config.resumeCalls || 0) + 1;
+      if (config.resumeError) throw config.resumeError;
+      config.paused = false;
+      control.emit("change");
+      if (Object.hasOwn(config, "pendingHover")) {
+        const next = config.pendingHover; delete config.pendingHover;
+        if (next !== config.vendorHover) { config.vendorHover = next; config.hoverCalls = (config.hoverCalls || 0) + 1; config.onNodeHover(next); }
+      }
+      return graph;
+    }, _destructor() { graph.disposed++; },
     numDimensions(value) { config.dimensions = value; if (value === 2) config.data?.nodes.forEach(n => { delete n.z; delete n.fz; }); return graph; },
     graphData(data) { config.data = data; const byId = new Map(data.nodes.map(n => [n.id, n])); data.links.forEach(e => { if (typeof e.source === "string") e.source = byId.get(e.source); if (typeof e.target === "string") e.target = byId.get(e.target); }); return graph; }};
   ["forceEngine", "enableNodeDrag", "showNavInfo", "backgroundColor", "nodeId", "nodeRelSize", "nodeVal", "nodeColor", "nodeOpacity", "nodeLabel", "nodeVisibility", "linkVisibility", "linkColor", "linkOpacity", "linkWidth", "onNodeClick", "onNodeHover", "cooldownTicks", "width", "height"].forEach(name => {
@@ -142,26 +180,115 @@ first.config.onNodeHover(first.config.data.nodes[0]); checkFocusedEdges(null);
 first.config.onNodeHover(null);
 const markers = host.children[0].children[2].children.filter(node => node.className === "atlas-spatial-topic-marker");
 assert.equal(markers.length, topics.length); assert.equal(markers[0].attributes["aria-label"], "Direction node: " + topics[0].label);
-assert.equal(markers[0].style.transform, "translate(-50%, -50%) rotate(45deg)");
-assert.ok(parseInt(markers[0].style.width) > 18);
+assert.equal(markers[0].style.width, "44px"); assert.equal(markers[0].style.height, "44px");
+assert.equal(markers[0].style.transform, "translate(-50%, -50%)");
+assert.equal(markers[0].children[0].style.width, "26px"); assert.equal(markers[0].children[0].style.transform, "rotate(45deg)");
 const methodNodes = first.config.data.nodes.filter(n => n.kind === "method");
 const methodMarkers = host.children[0].children[2].children.filter(node => node.className === "atlas-spatial-method-marker");
 assert.equal(methodMarkers.length, methodNodes.length);
 assert.ok(methodNodes.every(node => !first.config.nodeVisibility(node)), "method cubes replace paper-like WebGL spheres");
 assert.equal(methodMarkers[0].attributes["aria-label"], "Method node: " + methodNodes[0].label);
-assert.equal(methodMarkers[0].children[0].children.length, 3, "cube has three bounded SVG faces");
-runLastFrame(); const spatialMarkers = mounted.diagnostics().topicMarkers;
+assert.equal(methodMarkers[0].style.width, "44px"); assert.equal(methodMarkers[0].style.height, "44px");
+assert.equal(methodMarkers[0].children[0].style.width, "22px");
+assert.equal(methodMarkers[0].children[0].children[0].children.length, 3, "cube has three bounded SVG faces");
+const labelButtons = host.children[0].children[2].children.filter(node => node.className?.startsWith("atlas-spatial-label "));
+assert.deepEqual(labelButtons.map(button => [button.attributes["data-node-key"], button.attributes["data-node-kind"]]),
+  result.nodes.map(node => [node.id, node.kind]), "projected labels preserve exact typed node identities for focus across title changes");
+assert.ok(labelButtons.every(button => button.style.minWidth === "44px" && button.style.minHeight === "44px"));
+runAllFrames(); const spatialMarkers = mounted.diagnostics().topicMarkers;
 assert.ok(mounted.diagnostics().methodMarkers.every(marker => marker.shape === "cube"));
 assert.ok(methodMarkers.every(marker => marker.attributes["data-node-shape"] === "cube"));
+assert.equal(frames.size, 0, "idle renderer stops scheduling frames");
+assert.equal(first.config.paused, true); assert.equal(mounted.diagnostics().lifecycle.rendererRunning, false);
+const shell = host.children[0], readsAtIdle = layoutReads, writesAtIdle = domWrites;
+const pointerResume = first.config.resumeCalls || 0;
+shell.emit("pointerdown"); assert.equal(first.config.resumeCalls, pointerResume + 1); assert.equal(first.config.paused, false); runLastFrame();
+assert.equal(layoutReads, readsAtIdle); assert.equal(domWrites, writesAtIdle);
+assert.equal(frames.size, 1, "active pointer keeps navigation projection live");
+document.emit("pointerup"); runAllFrames(); assert.equal(frames.size, 0);
+assert.ok(first.config.resumeCalls > pointerResume); assert.equal(first.config.paused, true);
+shell.emit("pointerdown"); document.emit("pointercancel"); runAllFrames();
+assert.equal(mounted.diagnostics().lifecycle.pointerActive, false); assert.equal(first.config.paused, true);
+const dampingPause = first.config.pauseCalls;
+first.controls().trackballGesture(); runLastFrame();
+assert.equal(first.config.paused, false); assert.ok(frames.size > 0, "camera changes receive bounded settling frames");
+first.camera().position.x += 1; first.controls().emit("change"); runLastFrame(); runAllFrames();
+assert.ok(first.config.pauseCalls > dampingPause); assert.equal(first.config.paused, true);
+const hoverPaper = first.config.data.nodes.find(node => node.kind === "paper");
+first.config.pendingHover = hoverPaper; const hoverResume = first.config.resumeCalls;
+shell.emit("pointermove"); assert.equal(first.config.resumeCalls, hoverResume + 1);
+assert.equal(mounted.diagnostics().hover, hoverPaper.id); runAllFrames(); assert.equal(first.config.paused, true);
+const samePaperCalls = first.config.hoverCalls; const leaveResume = first.config.resumeCalls;
+shell.emit("pointerleave");
+assert.equal(mounted.diagnostics().hover, null, "leaving the shell clears public hover immediately");
+assert.equal(first.config.resumeCalls, leaveResume + 1, "shell leave wakes paused vendor raycasting once");
+runAllFrames(); assert.equal(first.config.paused, true);
+first.config.pendingHover = hoverPaper; shell.emit("pointermove");
+assert.equal(mounted.diagnostics().hover, hoverPaper.id, "the same paper can be hovered after re-entry");
+assert.equal(first.config.hoverCalls, samePaperCalls, "vendor suppresses callbacks for its retained raycast object");
+runAllFrames(); assert.equal(first.config.paused, true);
+const otherHoverPaper = first.config.data.nodes.find(node => node.kind === "paper" && node !== hoverPaper);
+shell.emit("pointerleave"); runAllFrames(); first.config.pendingHover = otherHoverPaper; shell.emit("pointermove");
+assert.equal(mounted.diagnostics().hover, otherHoverPaper.id, "a different paper replaces retained vendor hover");
+runAllFrames(); assert.equal(first.config.paused, true);
+shell.emit("pointerleave"); runAllFrames(); first.config.pendingHover = null; shell.emit("pointermove");
+assert.equal(mounted.diagnostics().hover, null, "blank re-entry clears retained hover in the vendor cycle");
+runAllFrames(); assert.equal(mounted.diagnostics().hover, null); assert.equal(first.config.paused, true);
+const topicMarker = markers[0], topicLabel = labelButtons.find(button => button.textContent === topics[0].label);
+topicMarker.emit("pointerenter"); topicLabel.emit("pointerleave");
+assert.equal(mounted.diagnostics().hover, topics[0].id, "another control cannot clear the active pointer source");
+runAllFrames(); first.config.pendingHover = otherHoverPaper; shell.emit("pointermove");
+assert.equal(mounted.diagnostics().hover, topics[0].id, "vendor callbacks cannot replace active marker hover");
+runAllFrames(); topicMarker.emit("pointerleave"); assert.equal(mounted.diagnostics().hover, otherHoverPaper.id);
+topicLabel.emit("pointerenter"); runAllFrames(); first.config.pendingHover = hoverPaper; shell.emit("pointermove");
+assert.equal(mounted.diagnostics().hover, topics[0].id, "vendor callbacks cannot replace active label hover");
+runAllFrames(); topicLabel.emit("pointerleave"); assert.equal(mounted.diagnostics().hover, hoverPaper.id);
+topicMarker.emit("pointerenter"); topicMarker.emit("focus"); topicMarker.emit("pointerleave");
+assert.equal(mounted.diagnostics().hover, topics[0].id, "pointer leave preserves keyboard focus");
+topicLabel.emit("blur"); assert.equal(mounted.diagnostics().hover, topics[0].id, "another control cannot clear the active focus source");
+shell.emit("pointerleave"); assert.equal(mounted.diagnostics().hover, topics[0].id, "shell leave preserves keyboard focus");
+shell.emit("pointermove"); topicMarker.emit("pointerenter"); topicMarker.emit("blur");
+assert.equal(mounted.diagnostics().hover, topics[0].id, "blur preserves active DOM pointer hover");
+topicMarker.emit("pointerleave"); assert.equal(mounted.diagnostics().hover, hoverPaper.id);
+shell.emit("pointerleave"); assert.equal(mounted.diagnostics().hover, null, "removing all DOM sources outside restores null");
+runAllFrames(); shell.emit("pointermove"); assert.equal(mounted.diagnostics().hover, hoverPaper.id, "inside with no DOM source restores vendor hover"); runAllFrames();
+first.config.resumeError = new Error("synthetic-resume-failure");
+assert.throws(() => shell.emit("keydown", {key: "ArrowRight"}), /synthetic-resume-failure/);
+assert.equal(mounted.diagnostics().lifecycle.rendererRunning, false); assert.equal(frames.size, 0);
+delete first.config.resumeError;
+shell.emit("keydown", {key: "ArrowRight"}); assert.equal(frames.size, 1); runAllFrames();
+document.visibilityState = "hidden"; document.emit("visibilitychange");
+const hiddenReads = layoutReads, hiddenWrites = domWrites, hiddenCameraWrites = first.config.cameraWrites;
+first.camera().projectionMatrix.elements[12] = 3; first.controls().emit("change");
+assert.equal(mounted.fit(), true); assert.equal(first.config.cameraWrites, hiddenCameraWrites);
+assert.equal(frames.size, 0); assert.equal(mounted.diagnostics().lifecycle.pageVisible, false); assert.equal(first.config.paused, true);
+assert.equal(layoutReads, hiddenReads); assert.equal(domWrites, hiddenWrites);
+document.visibilityState = "visible"; document.emit("visibilitychange"); runAllFrames();
+assert.ok(first.config.cameraWrites > hiddenCameraWrites); assert.equal(first.config.paused, true);
+assert.ok(mounted.diagnostics().topicMarkers.every(marker => !marker.visible));
+first.camera().projectionMatrix.elements[12] = 0; first.controls().emit("change"); runAllFrames();
+intersections[0].set(false); const offscreenReads = layoutReads, offscreenWrites = domWrites;
+first.camera().projectionMatrix.elements[12] = 3; first.controls().emit("change");
+assert.equal(frames.size, 0); assert.equal(mounted.diagnostics().lifecycle.intersecting, false); assert.equal(first.config.paused, true);
+assert.equal(layoutReads, offscreenReads); assert.equal(domWrites, offscreenWrites);
+intersections[0].set(true); runAllFrames(); assert.ok(mounted.diagnostics().topicMarkers.every(marker => !marker.visible));
+first.camera().projectionMatrix.elements[12] = 0; first.controls().emit("change"); runAllFrames();
+motion.set(true); runAllFrames();
+assert.equal(first.controls().staticMoving, true); assert.equal(first.controls().dynamicDampingFactor, 0); assert.equal(first.config.paused, true);
+shell.emit("pointerdown"); runAllFrames();
+assert.equal(frames.size, 0); assert.equal(mounted.diagnostics().lifecycle.reducedMotion, true); assert.equal(first.config.paused, true);
+document.emit("pointerup"); motion.set(false); runAllFrames();
+assert.equal(first.controls().staticMoving, false); assert.equal(first.controls().dynamicDampingFactor, .2);
+shell.clientWidth = 620; resizes[0].callback(); assert.equal(first.config.width, 620); runAllFrames();
 methodMarkers[0].listeners.get("click")();
 assert.deepEqual(selection.pop(), {kind: "method", key: methodNodes[0].key});
 methodMarkers[0].listeners.get("focus")(); assert.equal(mounted.diagnostics().hover, methodNodes[0].id);
-methodMarkers[0].listeners.get("blur")(); assert.equal(mounted.diagnostics().hover, null);
+methodMarkers[0].listeners.get("blur")(); assert.equal(mounted.diagnostics().hover, hoverPaper.id);
 assert.ok(spatialMarkers.some(marker => marker.visible));
-first.camera().projectionMatrix.elements[12] = 3; runLastFrame();
+first.camera().projectionMatrix.elements[12] = 3; first.controls().emit("change"); runAllFrames();
 assert.ok(mounted.diagnostics().topicMarkers.every(marker => !marker.visible));
 assert.ok(markers.every(marker => marker.style.visibility === "hidden"));
-first.camera().projectionMatrix.elements[12] = 0; runLastFrame();
+first.camera().projectionMatrix.elements[12] = 0; first.controls().emit("change"); runAllFrames();
 assert.equal(mounted.setLabels(true), true); assert.equal(mounted.diagnostics().eligibleLabelIds.length, retainedNodes);
 checkFocusedEdges(null);
 assert.throws(() => mounted.setLabels("yes"), /boolean/); mounted.setLabels(false);
@@ -179,6 +306,10 @@ mounted.setFocus({kind: "topic", key: topics[0].key}); checkFocusedEdges({kind: 
 mounted.setFocus({kind: "method", key: methodNodes[0].key}); checkFocusedEdges({kind: "method", key: methodNodes[0].key});
 mounted.setFocus(null); checkFocusedEdges(null);
 mounted.setFocus(focused); checkFocusedEdges(focused);
+labelButtons[0].emit("focus"); runAllFrames(); labelButtons[0].visibilityWrites = [];
+first.camera().position.x += 1; first.controls().emit("change"); runAllFrames();
+assert.equal(labelButtons[0].visibilityWrites.includes("hidden"), false, "redrawing a visible focused label cannot temporarily hide it and drop keyboard focus");
+labelButtons[0].emit("blur"); runAllFrames();
 assert.equal(first.config.data.nodes.length, retainedNodes); assert.equal(first.config.data.links.length, retainedLinks);
 first.config.onNodeClick(first.config.data.nodes.find(n => n.key === records[0].key));
 assert.deepEqual(selection, [{kind: "paper", key: records[0].key}]);
@@ -195,17 +326,17 @@ mounted.fit(); assert.equal(mounted.diagnostics().mode, 2);
 checkFocusedEdges(focused);
 assert.equal(mounted.diagnostics().navigation.noRotate, true); assert.equal(first.controls().enableRotate, false);
 const planarPose = mounted.snapshot().position; first.controls().trackballGesture(); assert.deepEqual(mounted.snapshot().position, planarPose);
-runLastFrame(); assert.notDeepEqual(mounted.diagnostics().topicMarkers.map(p => [p.x, p.y]), spatialMarkers.map(p => [p.x, p.y]));
+runAllFrames(); assert.notDeepEqual(mounted.diagnostics().topicMarkers.map(p => [p.x, p.y]), spatialMarkers.map(p => [p.x, p.y]));
 assert.ok(mounted.diagnostics().methodMarkers.every(marker => marker.shape === "square"));
-assert.ok(methodMarkers.every(marker => marker.style.height === marker.style.width && marker.children[0].style.display === "none"));
+assert.ok(methodMarkers.every(marker => marker.children[0].style.height === "22px" && marker.children[0].children[0].style.display === "none"));
 assert.equal(mounted.snapshot().target.z, 0); assert.ok(first.config.data.nodes.every(n => n.z === 0));
 const priorWrites = first.config.cameraWrites;
 mounted.setMode("3d"); assert.deepEqual(mounted.snapshot().position, orbitPose.position); assert.deepEqual(mounted.snapshot().target, orbitPose.target);
 checkFocusedEdges(focused);
 assert.equal(mounted.diagnostics().navigation.noRotate, false); assert.equal(first.controls().enableRotate, true);
 assert.equal(first.controls().staticMoving, false); assert.equal(first.controls().dynamicDampingFactor, .2);
-runLastFrame(); assert.ok(methodMarkers.every(marker => marker.attributes["data-node-shape"] === "cube" && marker.children[0].style.display === "block"));
-assert.equal(frames.size, 1); mounted.fit(); assert.ok(first.config.data.nodes.every(n => Number.isFinite(n.z)));
+runAllFrames(); assert.ok(methodMarkers.every(marker => marker.attributes["data-node-shape"] === "cube" && marker.children[0].children[0].style.display === "block"));
+assert.equal(frames.size, 0); mounted.fit(); assert.ok(first.config.data.nodes.every(n => Number.isFinite(n.z)));
 const currentWrites = first.config.cameraWrites; staleFit(); assert.equal(first.config.cameraWrites, currentWrites);
 assert.ok(currentWrites > priorWrites);
 const rotatingPose = mounted.snapshot().position; first.controls().trackballGesture(); assert.equal(mounted.snapshot().position.x, rotatingPose.x + 5);
@@ -218,10 +349,16 @@ first.config.onNodeClick(first.config.data.nodes[0]); lateMarkerClick(); assert.
 assert.ok(markers.every(marker => marker.listeners.size === 0));
 assert.ok(methodMarkers.every(marker => marker.listeners.size === 0));
 first.config.onNodeHover(first.config.data.nodes[0]); assert.equal(mounted.diagnostics().hover, null);
-replacement.setMode("2d"); assert.deepEqual(replacement.snapshot().position, remountPose.poses[2].position); assert.equal(frames.size, 1);
+replacement.setMode("2d"); assert.deepEqual(replacement.snapshot().position, remountPose.poses[2].position); assert.ok(frames.size > 0);
+const replacementShell = host.children[0];
+const replacementResumes = created[1].config.resumeCalls || 0;
 replacement.destroy(); replacement.destroy();
-assert.equal(created[1].disposed, 1); assert.equal(observerDisconnected, 2);
+assert.equal(created[1].disposed, 1); assert.equal(observerDisconnected, 2); assert.equal(intersectionDisconnected, 2);
 assert.equal(frames.size, 0); assert.equal(host.children.length, 0);
+assert.equal(replacementShell.listeners.size, 0); assert.equal(document.listeners.size, 0); assert.equal(motion.listeners.size, 0);
+assert.equal(created[1].controls().listeners.size, 0);
+replacementShell.emit("pointerdown"); replacementShell.emit("pointermove"); document.emit("pointerup"); created[1].controls().emit("change");
+assert.equal(created[1].config.resumeCalls || 0, replacementResumes); assert.equal(frames.size, 0);
 assert.equal(replacement.setFocus({kind: "paper", key: records[0].key}), false);
 const healthyFactory = global.ForceGraph3D;
 global.ForceGraph3D = () => canvas => { const graph = healthyFactory()(canvas); graph.forceEngine = () => { throw new Error("Injected setup failure"); }; return graph; };

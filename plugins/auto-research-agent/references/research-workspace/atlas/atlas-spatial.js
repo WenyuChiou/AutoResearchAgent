@@ -136,7 +136,7 @@
     const shown = [], hidden = [], intersects = (a, b) => a.x < b.x + b.width + 5 && a.x + a.width + 5 > b.x && a.y < b.y + b.height + 5 && a.y + a.height + 5 > b.y;
     [...items].sort((a, b) => a.priority - b.priority || compare(a.id, b.id)).forEach(item => {
       const box = {...item.box};
-      if (item.selected && item.projectable) { box.x = Math.max(4, Math.min(width - box.width - 4, box.x)); box.y = Math.max(4, Math.min(height - box.height - 4, box.y)); }
+      if ((item.selected || item.focused) && item.projectable) { box.x = Math.max(4, Math.min(width - box.width - 4, box.x)); box.y = Math.max(4, Math.min(height - box.height - 4, box.y)); }
       const choices = [box];
       if (item.anchor && item.priority <= 3) {
         const {x, y, radius} = item.anchor;
@@ -145,7 +145,7 @@
       }
       const available = item.projectable && choices.find(candidate => candidate.x >= 0 && candidate.y >= 0 && candidate.x + candidate.width <= width && candidate.y + candidate.height <= height
         && !obstacles.some(obstacle => intersects(candidate, obstacle)) && !shown.some(other => intersects(candidate, other.box)));
-      if (available) shown.push({...item, box: available}); else hidden.push(item.id);
+      if (available || item.focused && item.projectable) shown.push({...item, box: available || box}); else hidden.push(item.id);
     });
     return {shown, hidden};
   }
@@ -178,15 +178,55 @@
     Object.assign(canvas.style, {position: "absolute", inset: "0"}); Object.assign(overlay.style, {position: "absolute", inset: "0", pointerEvents: "none"});
     Object.assign(wire.style, {position: "absolute", inset: "0", width: "100%", height: "100%", pointerEvents: "none"});
     shell.append(canvas, wire, overlay); host.append(shell);
-    let graph, mode = options.mode === 2 || options.mode === "2d" ? 2 : 3, dead = false, focus = null, hover = null, showLabels = options.showLabels === true, frame = 0, pendingFit = 0, generation = 0, labels = {shown: [], hidden: []}, lastPose = null;
-    const faults = [], controls = [], labelById = new Map(), markerById = new Map(), modePoses = new Map();
-    let topicMarkers = [], methodMarkers = [], symbolRects = [];
+    let graph, mode = options.mode === 2 || options.mode === "2d" ? 2 : 3, dead = false, focus = null, hover = null, vendorHover = null, domPointerHover = null, domFocusHover = null, pointerInside = true, showLabels = options.showLabels === true, frame = 0, pendingFit = 0, generation = 0, labels = {shown: [], hidden: []}, lastPose = null;
+    const faults = [], controls = [], labelById = new Map(), labelSizes = new Map(), markerById = new Map(), modePoses = new Map();
+    let topicMarkers = [], methodMarkers = [], symbolRects = [], observer, intersectionObserver, motionQuery, normalNavigation;
+    let viewport = {width: 0, height: 0}, pageVisible = document.visibilityState !== "hidden", intersecting = true;
+    let reducedMotion = false, pointerActive = false, dirty = true, renderKey = null, fitTicket = 0, rendererRunning = false;
+    let settleRemaining = 0, stableFrames = 0;
+    const settleLimit = 24, stableLimit = 2;
     const copyPose = (pose, dimension) => ({position: point(pose.position), target: point(pose.target),
       up: finite(pose.up) ? point(pose.up) : {x: 0, y: 1, z: 0}, mode: dimension, zoom: pose.zoom});
     Object.entries(options.pose?.poses || {}).forEach(([dimension, pose]) => {
       if (["2", "3"].includes(dimension) && finite(pose?.position) && finite(pose?.target)) modePoses.set(Number(dimension), copyPose(pose, Number(dimension)));
     });
     const size = () => ({width: Math.max(1, shell.clientWidth || host.clientWidth || 600), height: Math.max(1, shell.clientHeight || host.clientHeight || 640)});
+    const renderable = () => !dead && pageVisible && intersecting;
+    function cancelFrames() {
+      root.cancelAnimationFrame(frame); frame = 0;
+      root.cancelAnimationFrame(pendingFit); pendingFit = 0;
+    }
+    function resumeRenderer() {
+      if (!graph || rendererRunning || !renderable()) return;
+      rendererRunning = true;
+      try { graph.resumeAnimation(); }
+      catch (error) { rendererRunning = false; throw error; }
+    }
+    function pauseRenderer() {
+      if (graph && rendererRunning) { graph.pauseAnimation(); rendererRunning = false; }
+    }
+    function scheduleFrame() {
+      if (renderable() && !frame) frame = root.requestAnimationFrame(drawLabels);
+    }
+    function scheduleFit() {
+      if (!renderable() || !fitTicket || pendingFit) return;
+      const ticket = fitTicket;
+      pendingFit = root.requestAnimationFrame(() => {
+        pendingFit = 0;
+        if (!dead && renderable() && ticket === fitTicket && ticket === generation) { fitTicket = 0; fit(); }
+      });
+    }
+    function invalidate(settle = true) {
+      if (settle) dirty = true;
+      if (!renderable()) return;
+      resumeRenderer();
+      if (!reducedMotion && !pointerActive && (settle || !settleRemaining)) settleRemaining = settleLimit;
+      stableFrames = 0; scheduleFit(); scheduleFrame();
+    }
+    function lifecycle() {
+      if (!renderable()) { pointerActive = false; settleRemaining = 0; cancelFrames(); pauseRenderer(); }
+      else invalidate();
+    }
     const selected = n => focus?.kind === n.kind && focus.key === n.key;
     const related = n => !focus || selected(n) || source.links.some(e => (e.source.id || e.source) === id(focus.kind, focus.key) && (e.target.id || e.target) === n.id || (e.target.id || e.target) === id(focus.kind, focus.key) && (e.source.id || e.source) === n.id);
     const activePaper = () => focus?.kind === "paper" ? focus.key : byId.get(hover)?.kind === "paper" ? byId.get(hover).key : null;
@@ -197,12 +237,20 @@
     const shownEdge = edge => incident(edge, focus) && visible(typeof edge.source === "object" ? edge.source : byId.get(edge.source)) && visible(typeof edge.target === "object" ? edge.target : byId.get(edge.target));
     const solidEdge = edge => !dashed(edge) && shownEdge(edge);
     const select = n => { if (!dead) options.onSelect?.({kind: n.kind, key: n.key}); };
+    function resolveHover() {
+      if (dead) return;
+      hover = domPointerHover?.id || domFocusHover?.id || (pointerInside ? vendorHover : null);
+      graph.nodeVisibility(meshVisible); invalidate();
+    }
     function bindNode(button, n) {
       const callback = () => select(n); button.addEventListener("click", callback); controls.push([button, "click", callback]);
-      for (const name of ["pointerenter", "focus", "pointerleave", "blur"]) {
-        const update = () => { if (!dead) { hover = ["pointerenter", "focus"].includes(name) ? n.id : null; graph.nodeVisibility(meshVisible); } };
+      const enter = () => { domPointerHover = {button, id: n.id}; resolveHover(); };
+      const leave = () => { if (domPointerHover?.button === button) domPointerHover = null; resolveHover(); };
+      const focusNode = () => { domFocusHover = {button, id: n.id}; resolveHover(); };
+      const blurNode = () => { if (domFocusHover?.button === button) domFocusHover = null; resolveHover(); };
+      [["pointerenter", enter], ["pointerleave", leave], ["focus", focusNode], ["blur", blurNode]].forEach(([name, update]) => {
         button.addEventListener(name, update); controls.push([button, name, update]);
-      }
+      });
     }
     const snapshot = () => {
       if (dead || !graph) return lastPose;
@@ -219,18 +267,18 @@
       if (Number.isFinite(pose.zoom) && pose.zoom > 0) { graph.camera().zoom = pose.zoom; graph.camera().updateProjectionMatrix(); }
       graph.cameraPosition(pose.position, pose.target, 0); control.update();
       if (!finite(point(graph.camera().position)) || !finite(point(control.target))) throw new TypeError("Camera restore failed");
-      lastPose = snapshot();
+      lastPose = snapshot(); invalidate();
     }
     function fit() {
       if (dead || !source.nodes.length) return false;
-      generation++; root.cancelAnimationFrame(pendingFit); pendingFit = 0;
+      if (!renderable()) { fitTicket = ++generation; return true; }
+      generation++; fitTicket = 0; root.cancelAnimationFrame(pendingFit); pendingFit = 0;
       const pose = snapshot() || {position: {x: 0, y: 0, z: 650}, target: {x: 0, y: 0, z: 0}, up: {x: 0, y: 1, z: 0}};
       try { applyPose(fitCamera(source.nodes.filter(visible), pose, {...size(), fov: graph.camera().fov}, mode)); return true; }
       catch (error) { faults.push(String(error)); throw error; }
     }
     function queueFit() {
-      const ticket = ++generation; root.cancelAnimationFrame(pendingFit);
-      pendingFit = root.requestAnimationFrame(() => { pendingFit = 0; if (!dead && ticket === generation) fit(); });
+      fitTicket = ++generation; root.cancelAnimationFrame(pendingFit); pendingFit = 0; scheduleFit();
     }
     function setFocus(value) {
       if (dead) return false;
@@ -239,12 +287,13 @@
       focus = value ? {kind: value.kind, key: value.key} : null;
       graph.nodeVisibility(meshVisible).nodeColor(n => related(n) ? n.color : "#3c4b5e").linkVisibility(solidEdge);
       wireByLink.forEach((line, edge) => { if (!shownEdge(edge)) line.style.display = "none"; });
+      invalidate();
       return true;
     }
     function setLabels(value) {
       if (dead) return false;
       if (typeof value !== "boolean") throw new TypeError("Label visibility must be boolean");
-      showLabels = value; graph.nodeVisibility(meshVisible); return true;
+      showLabels = value; graph.nodeVisibility(meshVisible); invalidate(); return true;
     }
     function setMode(value) {
       if (dead) return false;
@@ -252,16 +301,29 @@
       if (!next) throw new TypeError("Unsupported graph dimensions");
       if (next === mode) return true;
       snapshot(); const restore = modePoses.get(next);
-      generation++; root.cancelAnimationFrame(pendingFit); pendingFit = 0; mode = next;
+      generation++; fitTicket = 0; root.cancelAnimationFrame(pendingFit); pendingFit = 0; mode = next;
       graph.numDimensions(mode);
       source.nodes.forEach(n => axes.forEach(a => { n[a] = a === "z" && mode === 2 ? 0 : original.get(n.id)[a]; n["f" + a] = n[a]; }));
       graph.graphData(source);
       applyPose(restore || {position: {x: mode === 3 ? 70 : 0, y: mode === 3 ? 70 : 0, z: 650}, target: {x: 0, y: 0, z: 0}, up: {x: 0, y: 1, z: 0}});
-      if (!restore) queueFit(); return true;
+      invalidate(); if (!restore) queueFit(); return true;
     }
     function drawLabels() {
-      if (dead) return;
-      const viewport = size(), camera = graph.camera(); camera.updateMatrixWorld();
+      frame = 0;
+      if (!renderable()) return;
+      const camera = graph.camera(), target = graph.controls().target; camera.updateMatrixWorld();
+      const nextKey = JSON.stringify([mode, focus, hover, showLabels, viewport,
+        ...axes.map(axis => camera.position[axis]), ...axes.map(axis => target[axis]), camera.zoom,
+        ...camera.matrixWorldInverse.elements, ...camera.projectionMatrix.elements]);
+      if (!dirty && nextKey === renderKey) {
+        stableFrames++;
+        if (!reducedMotion && (pointerActive || settleRemaining > 0 && stableFrames < stableLimit)) scheduleFrame();
+        else { settleRemaining = 0; pauseRenderer(); }
+        return;
+      }
+      const moved = nextKey !== renderKey;
+      dirty = false; renderKey = nextKey; stableFrames = moved ? 0 : stableFrames + 1;
+      if (!pointerActive && settleRemaining > 0) settleRemaining--;
       topicMarkers = []; methodMarkers = [];
       const nodeValue = graph.nodeVal(), relativeSize = graph.nodeRelSize();
       const obstacles = source.nodes.filter(visible).map(n => symbolBounds(n, camera, viewport, mode,
@@ -269,7 +331,7 @@
       symbolRects = obstacles;
       markerById.forEach((button, key) => {
         const n = byId.get(key), location = project(point(n, mode), camera, viewport.width, viewport.height);
-        const margin = n.kind === "topic" ? 20 : 16;
+        const margin = 22;
         const shown = visible(n) && !!location && location.x >= margin && location.x <= viewport.width - margin && location.y >= margin && location.y <= viewport.height - margin;
         const emphasized = related(n) || hover === n.id;
         Object.assign(button.style, {visibility: shown ? "visible" : "hidden", left: `${location?.x || 0}px`, top: `${location?.y || 0}px`,
@@ -278,11 +340,11 @@
         const marker = {id: n.id, x: location?.x ?? null, y: location?.y ?? null, visible: shown};
         if (n.kind === "topic") topicMarkers.push(marker);
         else {
+          const shape = button.children[0], cube = shape.children[0];
           button.setAttribute("data-node-shape", mode === 3 ? "cube" : "square");
-          button.children[0].style.display = mode === 3 ? "block" : "none";
-          button.style.height = mode === 3 ? "24px" : "22px";
-          button.style.background = mode === 3 ? "transparent" : n.color;
-          button.style.border = mode === 3 ? "0" : `1px solid ${n.color}`;
+          cube.style.display = mode === 3 ? "block" : "none";
+          Object.assign(shape.style, {height: mode === 3 ? "24px" : "22px", background: mode === 3 ? "transparent" : n.color,
+            border: mode === 3 ? "0" : `1px solid ${n.color}`});
           methodMarkers.push({...marker, shape: mode === 3 ? "cube" : "square"});
         }
       });
@@ -294,44 +356,49 @@
         if (start && end) { line.setAttribute("x1", start.x); line.setAttribute("y1", start.y); line.setAttribute("x2", end.x); line.setAttribute("y2", end.y); }
       });
       const eligible = new Set(eligibleLabels(source.nodes, source.links, {focus, hover, showLabels}));
+      if (domFocusHover) eligible.add(domFocusHover.id);
       const items = source.nodes.filter(n => visible(n) && eligible.has(n.id)).map(n => {
         const location = project(point(n, mode), camera, viewport.width, viewport.height), button = labelById.get(n.id);
-        button.textContent = selected(n) || hover === n.id ? n.title || n.label : n.kind === "paper" ? n.label : n.label.length > 30 ? n.label.slice(0, 29) + "…" : n.label;
-        const width = button.offsetWidth || 120, height = button.offsetHeight || 21;
+        const text = selected(n) || hover === n.id ? n.title || n.label : n.kind === "paper" ? n.label : n.label.length > 30 ? n.label.slice(0, 29) + "…" : n.label;
+        if (button.textContent !== text) { button.textContent = text; labelSizes.delete(n.id); }
+        if (!labelSizes.has(n.id)) labelSizes.set(n.id, {width: button.offsetWidth || 120, height: button.offsetHeight || 44});
+        const {width, height} = labelSizes.get(n.id);
         const radius = obstacles.find(obstacle => obstacle.id === n.id)?.radius || 14;
-        return {id: n.id, selected: selected(n), projectable: !!location, priority: selected(n) ? 0 : hover === n.id ? 1 : n.kind === "topic" ? 2 : n.kind === "paper" ? 3 : 4,
+        return {id: n.id, selected: selected(n), focused: domFocusHover?.id === n.id, projectable: !!location, priority: selected(n) ? 0 : hover === n.id ? 1 : n.kind === "topic" ? 2 : n.kind === "paper" ? 3 : 4,
           anchor: location && {...location, radius}, box: {x: (location?.x || 0) - width / 2, y: (location?.y || 0) + radius + 7, width, height}};
       });
       labels = resolveLabels(items, viewport.width, viewport.height, obstacles);
-      labelById.forEach(button => { button.style.visibility = "hidden"; });
+      const shownLabelIds = new Set(labels.shown.map(item => item.id));
+      labelById.forEach((button, id) => { if (!shownLabelIds.has(id)) button.style.visibility = "hidden"; });
       labels.shown.forEach(item => {
         const button = labelById.get(item.id); button.setAttribute("aria-pressed", String(item.selected));
         Object.assign(button.style, {visibility: "visible", left: `${item.box.x}px`, top: `${item.box.y}px`, textDecoration: item.selected ? "underline" : "none"});
       });
-      frame = root.requestAnimationFrame(drawLabels);
+      if (reducedMotion) { settleRemaining = 0; pauseRenderer(); }
+      else if (pointerActive || settleRemaining > 0) scheduleFrame();
+      else { settleRemaining = 0; pauseRenderer(); }
     }
     function destroy() {
       if (dead) return;
-      lastPose = snapshot(); dead = true; generation++; root.cancelAnimationFrame(frame); root.cancelAnimationFrame(pendingFit);
-      observer?.disconnect(); controls.forEach(([element, name, callback]) => element.removeEventListener(name, callback));
+      lastPose = snapshot(); dead = true; generation++; fitTicket = 0; cancelFrames(); pauseRenderer();
+      observer?.disconnect(); intersectionObserver?.disconnect(); controls.forEach(([element, name, callback]) => element.removeEventListener(name, callback));
       try { if (graph) { graph.pauseAnimation(); graph._destructor(); } }
       finally { shell.remove(); if (mounts.get(host) === api) mounts.delete(host); }
     }
-    let observer;
     const api = {setFocus, setLabels, fit, setMode, destroy, snapshot, diagnostics: () => ({mode, destroyed: dead, focus, hover, showLabels, nodes: source.nodes.length, links: source.links.length, focusedRelations: source.links.filter(shownEdge).length,
       papers: source.nodes.filter(n => n.kind === "paper").length, camera: snapshot(), labelsVisible: labels.shown.length, labelsHidden: source.nodes.length - labels.shown.length, labelsOmittedByLod: labels.hidden.length,
       visibleLabelIds: labels.shown.map(item => item.id), eligibleLabelIds: eligibleLabels(source.nodes, source.links, {focus, hover, showLabels}), labelRects: labels.shown.map(item => ({id: item.id, ...item.box})),
-      topicMarkers: topicMarkers.map(marker => ({...marker})), methodMarkers: methodMarkers.map(marker => ({...marker})), symbolRects: symbolRects.map(rect => ({...rect})), navigation: graph ? {noRotate: graph.controls().noRotate, enableRotate: graph.controls().enableRotate,
+      topicMarkers: topicMarkers.map(marker => ({...marker})), methodMarkers: methodMarkers.map(marker => ({...marker})), symbolRects: symbolRects.map(rect => ({...rect})), lifecycle: {pageVisible, intersecting, reducedMotion, pointerActive, dirty, scheduled: !!frame, rendererRunning}, navigation: graph ? {noRotate: graph.controls().noRotate, enableRotate: graph.controls().enableRotate,
         staticMoving: graph.controls().staticMoving, dynamicDampingFactor: graph.controls().dynamicDampingFactor} : null, faults: [...faults]})};
     try {
-      graph = root.ForceGraph3D()(canvas);
+      graph = root.ForceGraph3D()(canvas); rendererRunning = true;
       graph.forceEngine("d3").enableNodeDrag(false).showNavInfo(false).backgroundColor("#0e1827")
         .numDimensions(mode).nodeId("id").nodeRelSize(9).nodeVal(n => n.kind === "paper" ? 8 : n.kind === "topic" ? 8 : 2.5)
         .nodeColor(n => n.color).nodeOpacity(.96).nodeLabel(n => { const text = document.createElement("div"); text.textContent = n.title || n.label; return text; })
         .nodeVisibility(meshVisible).linkVisibility(solidEdge)
         .linkColor(edge => lexical(edge) ? "#5b7894" : edge.kind.startsWith("recorded-") ? "#b6a0c9" : edge.kind.includes("method") ? "#8798ab" : (byId.get(edge.target.id || edge.target)?.color || "#779fc5"))
         .linkOpacity(.7).linkWidth(edge => edge.kind === "topic-membership" ? .8 : .45)
-        .onNodeClick(select).onNodeHover(n => { if (!dead) { hover = n?.id || null; graph.nodeVisibility(meshVisible); } }).cooldownTicks(0).graphData(source);
+        .onNodeClick(select).onNodeHover(n => { if (!dead) { vendorHover = n?.id || null; resolveHover(); } }).cooldownTicks(0).graphData(source);
       source.links.filter(dashed).forEach(edge => {
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("stroke", lexical(edge) ? "#7595b8" : "#a4b4c8");
@@ -346,32 +413,82 @@
           marker.type = "button"; marker.className = `atlas-spatial-${n.kind}-marker`; marker.title = n.label;
           marker.setAttribute("aria-label", prefix + n.label); marker.setAttribute("data-node-key", n.id);
           marker.setAttribute("data-node-kind", n.kind);
-          Object.assign(marker.style, {position: "absolute", pointerEvents: "auto", width: n.kind === "topic" ? "26px" : "22px", height: n.kind === "topic" ? "26px" : "24px", minWidth: "0", minHeight: "0",
-            padding: "0", border: `1px solid ${n.color}`, borderRadius: "1px", background: n.color, cursor: "pointer", visibility: "hidden", transform: `translate(-50%, -50%)${n.kind === "topic" ? " rotate(45deg)" : ""}`});
+          Object.assign(marker.style, {position: "absolute", pointerEvents: "auto", width: "44px", height: "44px", minWidth: "44px", minHeight: "44px",
+            padding: "0", border: "0", background: "transparent", cursor: "pointer", visibility: "hidden", transform: "translate(-50%, -50%)"});
+          const shape = document.createElement("span");
+          Object.assign(shape.style, {display: "block", position: "absolute", left: n.kind === "topic" ? "9px" : "11px", top: n.kind === "topic" ? "9px" : "10px",
+            width: n.kind === "topic" ? "26px" : "22px", height: n.kind === "topic" ? "26px" : "24px", boxSizing: "border-box",
+            border: `1px solid ${n.color}`, borderRadius: "1px", background: n.kind === "topic" ? n.color : "transparent", transform: n.kind === "topic" ? "rotate(45deg)" : "none", pointerEvents: "none"});
           if (n.kind === "method") {
             const cube = document.createElementNS("http://www.w3.org/2000/svg", "svg"); cube.setAttribute("viewBox", "0 0 22 24"); cube.setAttribute("aria-hidden", "true");
             Object.assign(cube.style, {width: "100%", height: "100%", pointerEvents: "none"});
             ["11,0 22,6 11,12 0,6", "0,6 11,12 11,24 0,18", "11,12 22,6 22,18 11,24"].forEach((points, i) => {
               const face = document.createElementNS("http://www.w3.org/2000/svg", "polygon"); face.setAttribute("points", points); face.setAttribute("fill", n.color); face.setAttribute("opacity", ["1", ".65", ".85"][i]); cube.append(face);
-            }); marker.append(cube);
+            }); shape.append(cube);
           }
+          marker.append(shape);
           bindNode(marker, n); overlay.append(marker); markerById.set(n.id, marker);
         }
         const button = document.createElement("button"); button.type = "button"; button.className = `atlas-spatial-label atlas-spatial-${n.kind}`;
         button.textContent = n.kind === "paper" ? n.label : n.label.length > 30 ? n.label.slice(0, 29) + "…" : n.label;
         button.title = n.title || n.label; button.setAttribute("aria-label", n.title || n.label);
+        button.setAttribute("data-node-key", n.id); button.setAttribute("data-node-kind", n.kind);
         Object.assign(button.style, {position: "absolute", pointerEvents: "auto", whiteSpace: "nowrap", color: n.color,
-          font: `${n.kind === "method" ? 14 : 15}px system-ui`, maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", border: "0", background: "transparent", padding: "2px 3px", cursor: "pointer", textShadow: "0 1px 3px #0e1827"});
+          font: `${n.kind === "method" ? 14 : 15}px system-ui`, lineHeight: "19px", minWidth: "44px", minHeight: "44px", boxSizing: "border-box", maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", border: "0", background: "transparent", padding: "12px 3px 13px", cursor: "pointer", textShadow: "0 1px 3px #0e1827"});
         bindNode(button, n);
         overlay.append(button); labelById.set(n.id, button);
       });
-      const resize = () => { if (!dead) { const {width, height} = size(); graph.width(width).height(height); } };
+      const listen = (element, name, callback) => { element.addEventListener(name, callback); controls.push([element, name, callback]); };
+      const beginPointer = () => { if (!dead) { pointerActive = !reducedMotion; settleRemaining = 0; resumeRenderer(); scheduleFrame(); } };
+      const endPointer = () => { if (!dead && pointerActive) { pointerActive = false; invalidate(); } };
+      const leavePointer = () => {
+        if (!dead) { pointerInside = false; domPointerHover = null; resolveHover(); }
+      };
+      const movePointer = () => {
+        if (!dead) {
+          if (!pointerInside) { pointerInside = true; resolveHover(); }
+          else invalidate();
+        }
+      };
+      listen(shell, "pointerdown", beginPointer); listen(document, "pointerup", endPointer); listen(document, "pointercancel", endPointer);
+      listen(shell, "pointermove", movePointer); listen(shell, "pointerleave", leavePointer); listen(shell, "wheel", invalidate); listen(shell, "keydown", invalidate);
+      const graphControls = graph.controls();
+      normalNavigation = {staticMoving: graphControls.staticMoving, dynamicDampingFactor: graphControls.dynamicDampingFactor};
+      if (typeof graphControls.addEventListener === "function") listen(graphControls, "change", () => invalidate(false));
+      if (typeof document.addEventListener === "function") listen(document, "visibilitychange", () => {
+        pageVisible = document.visibilityState !== "hidden"; lifecycle();
+      });
+      if (typeof root.IntersectionObserver === "function") {
+        intersectionObserver = new root.IntersectionObserver(entries => {
+          const entry = entries[entries.length - 1];
+          if (entry) { intersecting = entry.isIntersecting !== false; lifecycle(); }
+        });
+        intersectionObserver.observe(host);
+      }
+      if (typeof root.matchMedia === "function") {
+        const applyMotion = value => {
+          reducedMotion = value; pointerActive = false; settleRemaining = 0;
+          graphControls.staticMoving = value ? true : normalNavigation.staticMoving;
+          graphControls.dynamicDampingFactor = value ? 0 : normalNavigation.dynamicDampingFactor;
+          graphControls.update(); invalidate();
+        };
+        motionQuery = root.matchMedia("(prefers-reduced-motion: reduce)"); applyMotion(motionQuery.matches === true);
+        if (typeof motionQuery.addEventListener === "function") listen(motionQuery, "change", event => {
+          applyMotion(event.matches === true);
+        });
+      }
+      const resize = () => {
+        if (dead) return;
+        const next = size();
+        if (next.width === viewport.width && next.height === viewport.height) return;
+        viewport = next; labelSizes.clear(); graph.width(viewport.width).height(viewport.height); invalidate();
+      };
       observer = new root.ResizeObserver(resize); observer.observe(host); resize(); setFocus(options.focus || null);
       if (mode === 2) source.nodes.forEach(n => { n.z = 0; n.fz = 0; });
       const pose = modePoses.get(mode) || options.pose;
       if (pose && finite(pose.position) && finite(pose.target) && (pose.mode === mode || pose.mode === undefined)) applyPose(pose);
       else { applyPose({position: {x: 70, y: 70, z: 650}, target: {x: 0, y: 0, z: 0}, up: {x: 0, y: 1, z: 0}}); queueFit(); }
-      mounts.set(host, api); frame = root.requestAnimationFrame(drawLabels); return api;
+      mounts.set(host, api); invalidate(); return api;
     } catch (error) { destroy(); throw error; }
   }
   const api = {buildGraph, mount, fitCamera, resolveLabels, eligibleLabels, symbolBounds, incident};
