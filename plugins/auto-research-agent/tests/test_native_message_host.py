@@ -17,6 +17,7 @@ from research_workspace_native.atlas_host import AtlasHost
 from research_workspace_native.http import SessionHttpServer
 from research_workspace_native.host_config import HostRegistry, create_host
 from research_workspace_native.session_api import SessionApi
+from atlas_bootstrap_fixture import bootstrap_objects
 
 
 class Runtime:
@@ -343,12 +344,14 @@ class MessageHostTests(unittest.TestCase):
                 client.request("GET", "/host-bootstrap/" + ref + ".js")
                 response = client.getresponse()
                 self.assertEqual(response.status, 200)
-                rows = response.read().decode().splitlines()
-                return [json.loads(row.split("=", 1)[1][:-1]) for row in rows]
+                return bootstrap_objects(
+                    response.read(), "WORKSPACE_HOST", "WORKSPACE_NATIVE_ATLAS"
+                )
             finally:
                 client.close()
 
-        host, native = bootstrap("case")
+        values = bootstrap("case")
+        host, native = values["WORKSPACE_HOST"], values["WORKSPACE_NATIVE_ATLAS"]
         self.assertEqual(host["current_case"], native["current_case"])
         self.assertEqual(
             native,
@@ -361,8 +364,10 @@ class MessageHostTests(unittest.TestCase):
                 input_version=self.p.version,
             ),
         )
-        self.assertFalse(bootstrap("unbound")[1]["enabled"])
-        self.assertIsNone(bootstrap("unbound")[1]["input_version"])
+        self.assertFalse(bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["enabled"])
+        self.assertIsNone(
+            bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["input_version"]
+        )
         self.assertEqual(self.p.channel.calls, [])
         before = deepcopy(self.files)
         self.message(server)
