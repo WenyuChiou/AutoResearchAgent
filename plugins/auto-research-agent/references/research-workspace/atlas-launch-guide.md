@@ -10,7 +10,7 @@ These stacked review slices are not yet merged or accepted by the core team.
 Existing native runtime guards remain enforced.
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-empty-inventory-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --branch codex/atlas-guide-interpreter-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
@@ -19,7 +19,7 @@ The [per-user setup guide](PORTABLE_ATLAS_SETUP.md) includes virtual-environment
 installation; use that environment's Python for the following commands:
 
 ```powershell
-python -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/attempt-1 --serve --harness-operations --open
+& .venv/Scripts/python.exe -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/attempt-1 --serve --harness-operations --open
 ```
 
 Choose a new output directory outside every Git checkout. On Windows, use a short,
@@ -64,8 +64,9 @@ To reopen saved outputs without rebuilding, read the `config` and
 `config_sha256` printed in `fixture-receipt.json`, then run from the plugin CLI:
 
 ```powershell
+$atlasReviewPython = (Resolve-Path .venv/Scripts/python.exe).Path
 Set-Location plugins/auto-research-agent/cli
-python -B -X utf8 -m research_workspace_native.atlas_host --config C:/ara-review-data/attempt-1/host.json --config-sha256 <CONFIG_SHA256> --harness-operations-root C:/ara-review-data/attempt-1/harness-operations --harness-operations-reuse --open
+& $atlasReviewPython -B -X utf8 -m research_workspace_native.atlas_host --config C:/ara-review-data/attempt-1/host.json --config-sha256 <CONFIG_SHA256> --harness-operations-root C:/ara-review-data/attempt-1/harness-operations --harness-operations-reuse --open
 ```
 
 The host snapshots only files listed by each pinned manifest. It has no arbitrary
