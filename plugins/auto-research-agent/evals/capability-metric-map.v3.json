@@ -19,6 +19,7 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+            "Windows thread cwd permits only literal slash/backslash variation; different roots, case, dot segments and nonstring replies remain refused; failed old attempts never retry.",
             "Default local launcher reads nothing and spawns nothing; explicit pinned fresh-session permit composes installed Codex with the existing Atlas host; inherited configuration, unknown startup and independent cleanup failures retain separate evidence, without automatic model turn or research.",
             "Exact fresh-session admission binds source/config/executable/project/thread/epoch and saved intent hashes; expiry across pin checks and a two-text-turn ceiling reject before mutation; callbacks do not attest inference.",
             "Explicit launcher source helper reads only regular unlinked bounded bytes; duplicate/nonfinite data and preloaded or drifted owned modules reject; raw compilation does not use owned pyc.",
@@ -61,6 +62,7 @@
         "no production launcher, frozen input access, model calls or scientific score changes"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_native_windows_cwd.py",
         "plugins/auto-research-agent/tests/test_atlas_local_launcher.py",
         "plugins/auto-research-agent/tests/test_atlas_local_permit.py",
         "plugins/auto-research-agent/tests/test_atlas_local_source.py",

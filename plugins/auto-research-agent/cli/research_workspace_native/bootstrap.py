@@ -4,11 +4,24 @@ No launcher, authentication attestation, resume, model turn or execution permit
 is provided. A trusted server records a version-bound thread/start intent first.
 """
 
+import os
+
 from stage1_deliverable.common import canonical, sha
 from .bootstrap_context import BootstrapContext, _rpc_id
 from .frame_journal import _validated
 from .store import _require
 from .transport import _deadline, _encode
+
+
+def _cwd_matches(observed, requested, *, windows=None):
+    if not isinstance(observed, str) or not isinstance(requested, str):
+        return False
+    if windows is None:
+        windows = os.name == "nt"
+    # Only separators vary. Do not normalize case, dot segments, aliases or roots.
+    if windows:
+        return observed.replace("\\", "/") == requested.replace("\\", "/")
+    return observed == requested
 
 
 def _account(value):
@@ -105,7 +118,7 @@ class BootstrapSession(BootstrapContext):
                     isinstance(result.get("thread"), dict)
                     and isinstance(result["thread"].get("id"), str)
                     and result["thread"]["id"]
-                    and result.get("cwd") == self.params["cwd"]
+                    and _cwd_matches(result.get("cwd"), self.params["cwd"])
                     and result.get("model") == self.params["model"]
                     and result.get("approvalPolicy") == self.params["approvalPolicy"]
                     and isinstance(result.get("sandbox"), dict)
