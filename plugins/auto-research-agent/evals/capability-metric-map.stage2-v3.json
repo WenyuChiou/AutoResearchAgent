@@ -139,7 +139,7 @@
         "plugins/auto-research-agent/tests/test_stage2_controller.py",
         "plugins/auto-research-agent/tests/test_stage2_native_namespace_integration.py"
       ],
-      "production_session_selection_contract": "After external-receipt capture authentication of every archive byte, ordinary production replay selects the current session by complete typed ownership metadata, including inherited parent/child lineage and duplicate aliases. Identifiable truncated unrelated body envelopes remain archived; selected bodies, unclassified records, metadata, runtime and permissions stay strict. Formal replay retains eager strict parsing. No execution, inventory promotion, pilot completion or scientific improvement is inferred.",
+      "production_session_selection_contract": "After external-receipt capture authentication of every archive byte, ordinary production replay selects the current session by complete typed ownership metadata, including inherited parent/child lineage and duplicate aliases. JSONL records split only at LF, preserving Unicode separators in payload strings without hiding later ownership records. Identifiable truncated unrelated body envelopes remain archived; selected bodies, unclassified records, metadata, runtime and permissions stay strict. Formal replay retains eager strict parsing with the same LF record boundaries. No execution, inventory promotion, pilot completion or scientific improvement is inferred.",
       "production_session_selection_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_session_selection.py",
         "plugins/auto-research-agent/tests/test_stage2_environment.py",
@@ -392,6 +392,14 @@
       "captured_proposal_recovery_contract": "Explicit recovery of a selected, authenticated legacy output.txt checks exact end/start archive and workspace hashes, changed seed bytes, complete capture receipt, regular unaliased UTF-8 bounded content and original final-answer provenance. Default selection never guesses an alternate artifact. Recovery creates a new no-tool extraction and immutable descendant; original generation, extraction and capture remain intact. Existing v1.2 continuation selects that latest validated descendant; scientific validity and formal readiness are not implied.",
       "captured_proposal_recovery_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_native_proposal.py"
+      ],
+      "controller_extraction_summary_contract": "Read-only summary projection1.0.0: replay exact externally receipted saved extraction first, reconstruct workflow summary by adding result-byte SHA256 and validated unit receipts, then require complete dictionary equality. Receipt, result payload, source/runtime/policy and historical HOST guards remain strict; no dispatch, archive/workflow mutation, review recovery authority or scientific/formal promotion.",
+      "controller_extraction_summary_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_host_verification.py"
+      ],
+      "failed_review_extraction_recovery_contract": "Explicit recovery1.0 appends a separately pinned current-executor extraction action after authentic saved-capture/original-environment and current production-preflight verification. Whole capture bytes and execution bindings revalidate at handoff/completion; the opt-in namespace and saved extraction archive must match the proven actual workspace. The failed terminal action, exact view and source snapshot remain unchanged; no native review dispatcher or historical execution binding exists. Completed extraction resumes only through saved unit receipts. Scientific truth, human approval, formal readiness and unknown costs remain separate.",
+      "failed_review_extraction_recovery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_review_recovery.py"
       ]
     },
     {

@@ -1618,6 +1618,44 @@ def _require_saved_unit(output, label, result_name, receipt):
             raise Stage2Error("controller-read-only-call-missing")
 
 
+def _verify_saved_ideation_extraction(
+    output,
+    summary,
+    raw_proposal,
+    packet,
+    source_root,
+    snapshot_sha256,
+    *,
+    historical_binding=None,
+):
+    """Replay the saved extraction without dispatching or modifying its archive."""
+    _require_saved_unit(output, "extraction", "result.json", summary["replay_receipt"])
+    request = json.loads((output / "request.json").read_text(encoding="utf-8"))
+    model_config = _replay_model_config(request)
+    replayed = verify_extraction(
+        output,
+        summary["replay_receipt"],
+        raw_proposal=raw_proposal,
+        packet=packet,
+        source_root=source_root,
+        snapshot_sha256=snapshot_sha256,
+        expected_config=model_config,
+        expected_policy=request["execution_policy"],
+        historical_binding=historical_binding,
+    )
+    result = replayed["result"]
+    expected_summary = {
+        **result,
+        "replay_receipt": {
+            "result_sha256": _file_sha(output / "result.json"),
+            "unit_receipts": result["unit_receipts"],
+        },
+    }
+    if expected_summary != summary:
+        raise Stage2Error("controller-extraction-model-replay-mismatch")
+    return model_config, request["execution_policy"]
+
+
 def _saved_resolution_unit_label(value):
     label = value.get(
         "extraction_unit_label", review_models.LEGACY_RESOLUTION_EXTRACTION_LABEL
@@ -2201,28 +2239,15 @@ def verify_controller(
         if rebuilt != extraction["next_packet"]:
             raise Stage2Error("controller-extraction-reconstruction-mismatch")
         extraction_output = root / "native" / extraction_id
-        _require_saved_unit(
-            extraction_output, "extraction", "result.json", extraction["replay_receipt"]
-        )
-        extraction_request = json.loads(
-            (extraction_output / "request.json").read_text(encoding="utf-8")
-        )
-        model_config = _replay_model_config(extraction_request)
-        replayed_extraction = verify_extraction(
+        model_config, extraction_policy = _verify_saved_ideation_extraction(
             extraction_output,
-            extraction["replay_receipt"],
-            raw_proposal=research["raw_proposal"],
-            packet=extraction_base["packet"],
-            source_root=materialize_snapshot_input_root(
-                extraction_base, root, create=False
-            ),
-            snapshot_sha256=base_hash,
-            expected_config=model_config,
-            expected_policy=extraction_request["execution_policy"],
+            extraction,
+            research["raw_proposal"],
+            extraction_base["packet"],
+            materialize_snapshot_input_root(extraction_base, root, create=False),
+            base_hash,
             historical_binding=historical_binding,
         )
-        if replayed_extraction["result"] != extraction:
-            raise Stage2Error("controller-extraction-model-replay-mismatch")
         review_values = {}
         for action_id, value in values.items():
             action = state["actions"][action_id]
@@ -2252,7 +2277,7 @@ def verify_controller(
                     snapshot["packet"],
                     snapshot_hash,
                     model_config,
-                    extraction_request["execution_policy"],
+                    extraction_policy,
                 )
                 review_values.setdefault(review["candidate_id"], []).append(review)
         for action_id, value in values.items():
@@ -2288,7 +2313,7 @@ def verify_controller(
                 reviews,
                 unit_label,
                 model_config,
-                extraction_request["execution_policy"],
+                extraction_policy,
             )
         incomplete = [
             row["action_id"]
