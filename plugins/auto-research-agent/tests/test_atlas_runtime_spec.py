@@ -79,6 +79,7 @@ class RuntimeSpecTests(unittest.TestCase):
             {"principals": [{}]},
             {"principals": ["principal"] * 2},
             {"kind": "Other"},
+            {"approval_policy": "on-failure"},
             {"limits": {**self.spec["limits"], "max_starts": True}},
             {"limits": {**self.spec["limits"], "lifetime_seconds": 601}},
         ]

@@ -13,6 +13,7 @@ from .frame_journal import FrameJournal, _validated
 from .recording import RecordingChannel, records
 from .store import _require, _invalidate
 from .transport import JsonRpcTransport, _key, _encode
+from .runtime_spec import _thread_config
 
 
 def _rpc_id(value):
@@ -78,16 +79,22 @@ class BootstrapContext:
             )
             self.params = deepcopy(intent["payload"])
             _require(
-                set(self.params) == {"cwd", "model", "approvalPolicy", "sandbox"}
+                set(self.params)
+                in (
+                    {"cwd", "model", "approvalPolicy", "sandbox"},
+                    {"cwd", "model", "approvalPolicy", "sandbox", "config"},
+                )
                 and isinstance(self.params["cwd"], str)
                 and Path(self.params["cwd"]).is_absolute()
                 and isinstance(self.params["model"], str)
                 and 0 < len(self.params["model"]) <= 128
                 and self.params["approvalPolicy"]
-                in {"untrusted", "on-failure", "on-request", "never"}
+                in {"untrusted", "on-request", "never"}
                 and self.params["sandbox"] == "read-only",
                 "bounded server thread parameters required",
             )
+            if "config" in self.params:
+                _thread_config(self.params["config"])
             _require(
                 not state.get("bootstrap")
                 and not state.get("protocol")

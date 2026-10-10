@@ -15,7 +15,7 @@ from research_workspace_native.frame_journal import FrameJournal
 from research_workspace_native.process_channel import OwnedProcessChannel
 from research_workspace_native.server_owner import SessionOwners
 from research_workspace_native.session_api import SessionApi
-from .runtime_spec import CompositionError, _load_all, _read, _require
+from .runtime_spec import CompositionError, _load_all, _read, _require, _thread_config
 
 
 class NativeAtlasRuntime:
@@ -176,17 +176,20 @@ def compose_runtime(registrations, *, authenticate=None, gates=None, enabled=Fal
                 lifetime=spec["limits"]["lifetime_seconds"],
                 max_stream_bytes=spec["limits"]["max_stream_bytes"],
             )
+            params = dict(
+                cwd=spec["source_root"],
+                model=spec["model"],
+                approvalPolicy=spec["approval_policy"],
+                sandbox="read-only",
+            )
+            if "thread_config" in spec:
+                params["config"] = _thread_config(spec["thread_config"])
             store.record_intent(
                 spec["project_id"],
                 token,
                 "new-thread",
                 "thread/start",
-                dict(
-                    cwd=spec["source_root"],
-                    model=spec["model"],
-                    approvalPolicy=spec["approval_policy"],
-                    sandbox="read-only",
-                ),
+                params,
                 store.snapshot(spec["project_id"])["revision"],
             )
             boot = BootstrapSession(

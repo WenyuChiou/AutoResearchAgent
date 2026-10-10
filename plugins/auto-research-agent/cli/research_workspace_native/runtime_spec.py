@@ -20,6 +20,55 @@ def _hash(value):
     return isinstance(value, str) and re.fullmatch("[0-9a-f]{64}", value) is not None
 
 
+DENIED_THREAD_CONFIG = {
+    **{
+        f"features.{name}": False
+        for name in (
+            "apps",
+            "enable_mcp_apps",
+            "plugins",
+            "hooks",
+            "multi_agent",
+            "shell_tool",
+            "unified_exec",
+            "skill_mcp_dependency_install",
+            "code_mode",
+            "code_mode_host",
+            "view_image",
+        )
+    },
+    "memories.generate_memories": False,
+    "memories.use_memories": False,
+    "web_search": "disabled",
+}
+
+
+def _thread_config(value):
+    """Optional explicit deny-only overrides; never credentials or execution rights.
+
+    MCP names must be collected and pinned by the trusted launcher. This checker
+    cannot discover effective server config or prove that all tools are absent.
+    """
+    _require(
+        isinstance(value, dict) and len(value) <= 78, "bounded thread config required"
+    )
+    _require(
+        all(
+            value.get(k) == v and type(value.get(k)) is type(v)
+            for k, v in DENIED_THREAD_CONFIG.items()
+        ),
+        "required tool denials differ",
+    )
+    for key in value.keys() - DENIED_THREAD_CONFIG.keys():
+        _require(
+            isinstance(key, str)
+            and re.fullmatch(r"mcp_servers\.[A-Za-z0-9_-]{1,128}\.enabled", key)
+            and value[key] is False,
+            "only named MCP denials are supported",
+        )
+    return dict(value)
+
+
 def _read(path, limit=65536):
     path = _path(path)
     with path.open("rb") as stream:
@@ -52,7 +101,11 @@ def _load(path, expected):
         "limits",
         "permit_sha256",
     }
-    _require(set(spec) == fields, "runtime spec fields differ")
+    _require(
+        set(spec) in (fields, fields | {"thread_config"}), "runtime spec fields differ"
+    )
+    if "thread_config" in spec:
+        _thread_config(spec["thread_config"])
     _require(
         spec["kind"] == "NativeAtlasRuntimeSpec" and spec["schema_version"] == "1.0.0",
         "unsupported runtime spec",
@@ -80,7 +133,7 @@ def _load(path, expected):
     for name in ("index_sha256", "input_version", "executable_sha256", "permit_sha256"):
         _require(_hash(spec[name]), "runtime hash required")
     _require(
-        spec["approval_policy"] in {"untrusted", "on-failure", "on-request", "never"},
+        spec["approval_policy"] in {"untrusted", "on-request", "never"},
         "invalid approval policy",
     )
     root = private_output(_path(spec["source_root"], directory=True))

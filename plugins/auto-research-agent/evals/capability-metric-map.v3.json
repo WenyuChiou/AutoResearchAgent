@@ -19,6 +19,7 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+            "Optional pinned deny-only thread config rejects tool enablement, credentials and unbounded keys before launch; the identical config is retained in the new-thread intent, lifecycle hashes and transport. Obsolete on-failure policy refuses before I/O; unsupported permission requests remain durable failed sessions, never automatic approvals. Requested feature denial does not itself prove effective tool absence.",
             "server-owned offline Harness operations call saved-input validators and selection/export producers with raw/canonical hashes kept distinct, durable pre-work intents, exact-key recovery, project isolation and fixed hash-checked output files; no source/model/stage authority is granted",
             "the separate sixteen-scenario driver checks original text/i18n, answers, decline/interrupt, two tabs, lost responses, partial writes, owner loss, stale reads, UTF-8 limits and bound scope version/review history with no native/model/research execution",
             "fresh source-admission fixtures reject missing construction/API/shared-fixture modules despite an importable fallback, reject mixed or widened origins, detect physical byte drift and bypass stale bytecode caches",
@@ -57,6 +58,7 @@
         "no production launcher, frozen input access, model calls or scientific score changes"
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_native_thread_config.py",
         "plugins/auto-research-agent/tests/test_scope_stale_recovery.py",
         "plugins/auto-research-agent/tests/test_scope_stale_ui.py",
         "plugins/auto-research-agent/tests/test-scope-stale.cjs",
