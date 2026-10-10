@@ -230,6 +230,82 @@ class ReviewExampleTests(unittest.TestCase):
             self.example.build(self.root)
         self.assertEqual((self.root / "fixture-receipt.json").read_bytes(), before)
 
+    def test_optional_ready_case_projects_the_same_saved_stage1_ledger(self):
+        ready = self.root.parent / "ready-case"
+        original = subprocess.Popen
+
+        def only_git(argv, *args, **kwargs):
+            self.assertEqual(argv[0], "git", "no native/model/search child allowed")
+            return original(argv, *args, **kwargs)
+
+        with (
+            patch("subprocess.Popen", side_effect=only_git),
+            redirect_stdout(io.StringIO()),
+        ):
+            self.files, self.views = self.example.build(
+                ready, demonstrate_ready_saved_case=True
+            )
+        self.root = ready
+        receipt = json.loads((ready / "fixture-receipt.json").read_bytes())
+        self.assertTrue(
+            receipt["saved_stage1_case"]["display_and_saved_input_identities_match"]
+        )
+        self.assertEqual(
+            receipt["saved_stage1_case"]["qualified_round_yields"], [1, 0, 0]
+        )
+        self.assertTrue(receipt["stage2_independent_saved_case"])
+        self.assertFalse(receipt["original_stage1_lineage_attested"])
+        self.assertFalse(receipt["execution_authority"])
+        index = json.loads((ready / "stage1/workspace-index.json").read_bytes())
+        self.assertEqual(index["papers"][0]["title"], "Synthetic household record")
+        ledger = Ledger(ready / "inputs/stage1-ledger")
+        candidate = ledger.candidates()[index["papers"][0]["work_id"]]
+        self.assertEqual(
+            index["papers"][0]["title"], candidate["discoveries"][0]["record"]["title"]
+        )
+        for binding in receipt["saved_stage1_case"]["paper_bindings"]:
+            for ref in binding["source_refs"]:
+                self.assertEqual(sha(ledger.read_ref(ref)), ref["sha256"])
+        server, _, token = self.host()
+        _, row = self.perform(
+            server, token, "stage1", 1, "checkpoint-stage1", "ready-one"
+        )
+        self.assertEqual(row["outcome"], "succeeded")
+        self.assertEqual(
+            row["result"]["readiness"],
+            {
+                "status": "pass",
+                "blockers": [],
+                "next_allowed_action": "stop-sufficient",
+            },
+        )
+        handoff = row["result"]["handoff"]["papers"]
+        self.assertEqual(
+            [(p["work_id"], p["reviewed_version_id"]) for p in handoff],
+            [(p["work_id"], p["version_id"]) for p in index["papers"]],
+        )
+        _, review = self.perform(
+            server,
+            token,
+            "stage1",
+            1,
+            "review-stage",
+            "ready-next",
+            decision="request-next",
+            note="Review this saved coverage case.",
+            confirmed=True,
+        )
+        self.assertEqual(
+            review["result"]["next_stage_request"],
+            "recorded-awaiting-execution-authority",
+        )
+        self.assertFalse(review["execution_authorized"])
+        _, stage2 = self.perform(
+            server, token, "stage2", 2, "inspect-stage2", "independent-two"
+        )
+        self.assertEqual(stage2["result"]["readiness"]["status"], "ready")
+        self.assertFalse(stage2["model_execution"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -37,6 +37,175 @@ def save(path, value):
         stream.write(canonical(value))
 
 
+def ready_saved_case(destination):
+    """Replay a public coverage fixture, then project that same saved ledger."""
+    from test_coverage_gate import CoverageGateTests
+    from stage1_ledger.journal import decode
+    from stage1_ledger.validation import validate_run
+    from stage1_deliverable.views import bibtex
+
+    case = CoverageGateTests("runTest")
+    try:
+        case.setUp()
+        case.prepare_review()
+        case.finish_round(first=True)
+        case.finish_round()
+        case.finish_round()
+        checkpoint = case.ledger.checkpoint()
+        handoff = decode(
+            case.ledger.read_ref(checkpoint["stage_result"]["outputs"][-1]),
+            "saved coverage handoff",
+        )
+        report = validate_run(case.ledger.root)
+        if not report["valid"] or not handoff["eligible_for_stage2"]:
+            raise ValueError("repository coverage fixture did not pass its real gate")
+        shutil.copytree(case.ledger.root, destination)
+    finally:
+        case.doCleanups()
+    # Validate the copied input too; fixture cleanup must not remove a dependency.
+    copied = validate_run(destination)
+    if not copied["valid"]:
+        raise ValueError("copied saved coverage input is not independently valid")
+    from stage1_ledger.store import Ledger
+
+    ledger = Ledger(destination)
+    events = [row["payload"] for row in ledger.events()]
+    candidates = ledger.candidates()
+    index = fixture_index()
+    index.update(
+        project_id="saved-coverage-review-demo",
+        topic=ledger.manifest["research_run"]["objective"],
+        as_of=ledger.manifest["research_run"]["created_at"],
+        papers=[],
+        sources=[],
+        claims=[],
+    )
+    bindings = []
+    for included in handoff["papers"]:
+        work, version = included["work_id"], included["reviewed_version_id"]
+        discovery = next(
+            row
+            for row in reversed(candidates[work]["discoveries"])
+            if row["version_id"] == version
+        )
+        record = discovery["record"]
+        claims = [
+            row
+            for row in events
+            if row["kind"] == "ClaimEvidence"
+            and row["work_id"] == work
+            and row["version_id"] == version
+        ]
+        review = next(
+            row
+            for row in reversed(events)
+            if row["kind"] == "CoverageWorkReview" and row["work_id"] == work
+        )
+        source_refs = {
+            row["source_ref"]["artifact_id"]: row["source_ref"] for row in claims
+        }
+        for source_id, ref in source_refs.items():
+            raw = ledger.read_ref(ref)
+            if sha(raw) != ref["sha256"]:
+                raise ValueError("saved claim source binding differs")
+            source_event = ledger.event(ref["producer"], "SourceImportStarted")
+            index["sources"].append(
+                {
+                    "source_id": source_id,
+                    "work_id": work,
+                    "version_id": version,
+                    "source_url": source_event["source_uri"],
+                    "artifact_id": ref["artifact_id"],
+                    "source_ref": ref,
+                    "access_note": "Saved synthetic fixture text; no live acquisition.",
+                }
+            )
+        index["claims"].extend(
+            {
+                "claim_id": row["event_id"],
+                "work_id": work,
+                "version_id": version,
+                "text": row["claim_text"],
+                "source_id": row["source_ref"]["artifact_id"],
+                "relation": row["relation"],
+                "evidence_level": row["evidence_level"],
+                "locator": row["locator"],
+            }
+            for row in claims
+        )
+        relevance_ids = set(review["cluster_claims"].values())
+        source_url = index["sources"][-1]["source_url"] if source_refs else None
+        index["papers"].append(
+            {
+                "work_id": work,
+                "version_id": version,
+                "title": record["title"],
+                "authors": record.get("authors", []),
+                "year": record.get("year"),
+                "venue": record.get("venue") or "Unknown",
+                "doi": record.get("doi"),
+                "url": source_url,
+                "evidence_level": "full-text" if source_refs else "metadata",
+                "classification": {"topic_cluster": list(review["cluster_claims"])},
+                "roles": [],
+                "source_ids": list(source_refs),
+                "claim_ids": [row["event_id"] for row in claims],
+                "findings": {
+                    "relevance": "\n".join(
+                        row["claim_text"]
+                        for row in claims
+                        if row["event_id"] in relevance_ids
+                    )
+                },
+            }
+        )
+        bindings.append(
+            {
+                "work_id": work,
+                "version_id": version,
+                "candidate_event_id": included["candidate_event_id"],
+                "decision_event_id": included["decision_event_id"],
+                "source_refs": list(source_refs.values()),
+                "claim_ids": [row["event_id"] for row in claims],
+            }
+        )
+    records_sha256 = sha(
+        canonical({"papers": index["papers"], "claims": index["claims"]})
+    )
+    index["provenance"]["records_sha256"] = records_sha256
+    index["bibliography"] = {
+        "records_sha256": records_sha256,
+        "entries": [
+            {
+                "work_id": p["work_id"],
+                "version_id": p["version_id"],
+                "bibtex": bibtex({"papers": [p]}).decode(),
+            }
+            for p in index["papers"]
+        ],
+        "all_bibtex": bibtex(index).decode(),
+        "producer": "stage1_deliverable.views.bibtex",
+    }
+    identities = [[p["work_id"], p["version_id"]] for p in index["papers"]]
+    expected = [[p["work_id"], p["reviewed_version_id"]] for p in handoff["papers"]]
+    if identities != expected:
+        raise ValueError("display and saved Stage 1 handoff identities differ")
+    proof = {
+        "fixture": "test_coverage_gate.CoverageGateTests",
+        "ledger_valid": True,
+        "eligible_for_stage2": True,
+        "readiness": checkpoint["stage_result"]["gate"]["outcome"],
+        "next_allowed_action": checkpoint["stage_result"]["next_allowed_action"],
+        "qualified_round_yields": [
+            len(row["new_qualified_work_ids"]) for row in copied["coverage"]["rounds"]
+        ],
+        "display_and_saved_input_identities_match": True,
+        "paper_bindings": bindings,
+        "projection_kind": "saved-ledger-display; not a complete Stage1 delivery package",
+    }
+    return index, proof
+
+
 def synthetic_brief():
     """An unconfirmed display input, never a researcher-confirmed intake."""
     value = {
@@ -96,15 +265,19 @@ def create_stage_actions(output, views, credential):
     )
 
 
-def build(output):
+def build(output, *, demonstrate_ready_saved_case=False):
     root = private_output(output).resolve()
     root.mkdir(parents=True, exist_ok=False)
     reference = PLUGIN / "references/research-workspace"
-    index = fixture_index()
-    write_workspace(index, reference, root / "stage1", atlas=True)
     inputs_root = root / "inputs"
     inputs_root.mkdir()
-    ledger_fixture(inputs_root / "stage1-ledger")
+    positive_case = None
+    if demonstrate_ready_saved_case:
+        index, positive_case = ready_saved_case(inputs_root / "stage1-ledger")
+    else:
+        index = fixture_index()
+        ledger_fixture(inputs_root / "stage1-ledger")
+    write_workspace(index, reference, root / "stage1", atlas=True)
     fixture = Stage2CompletionTests("runTest")
     try:
         fixture.setUp()
@@ -143,7 +316,14 @@ def build(output):
         "views": [
             {
                 "ref": stage,
-                "label": stage.upper() + " synthetic repository case",
+                "label": stage.upper()
+                + (
+                    " saved coverage · synthetic"
+                    if stage == "stage1" and positive_case
+                    else " independent synthetic repository case"
+                    if positive_case
+                    else " synthetic repository case"
+                ),
                 "manifest": str(root / stage / "view-manifest.json"),
                 "sha256": sha((root / stage / "view-manifest.json").read_bytes()),
                 "fixture": True,
@@ -186,6 +366,12 @@ def build(output):
         "native_process_started": False,
         "model_call_started": False,
     }
+    if positive_case is not None:
+        receipt["saved_stage1_case"] = positive_case
+        receipt["stage1_display_binding"] = (
+            "same saved coverage ledger and handoff identities"
+        )
+        receipt["stage2_independent_saved_case"] = True
     save(root / "fixture-receipt.json", receipt)
     print(json.dumps(receipt, ensure_ascii=True), flush=True)
     return files, views
@@ -197,6 +383,11 @@ def main():
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--harness-operations", action="store_true")
     parser.add_argument("--stage-actions", action="store_true")
+    parser.add_argument(
+        "--demonstrate-ready-saved-case",
+        action="store_true",
+        help="Display the same saved synthetic coverage ledger whose real gate passes; Stage2 remains independent, with no research execution.",
+    )
     parser.add_argument("--open", action="store_true")
     parser.add_argument("--port", type=int, default=0)
     args = parser.parse_args()
@@ -204,7 +395,9 @@ def main():
         parser.error("--open requires --serve")
     if (args.harness_operations or args.stage_actions) and not args.serve:
         parser.error("--harness-operations/--stage-actions requires --serve")
-    files, views = build(args.output)
+    files, views = build(
+        args.output, demonstrate_ready_saved_case=args.demonstrate_ready_saved_case
+    )
     if args.serve:
         credential = secrets.token_urlsafe(32)
         operations = stages = None
