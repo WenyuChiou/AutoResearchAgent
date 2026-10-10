@@ -247,9 +247,14 @@ class SessionOwner:
 
     def _run(self):
         failure = "pump-stopped"
+        phase = "source-check"
         try:
             while not self._stop.is_set():
-                deadline = Deadline(0.1, self.channel.deadline)
+                phase = "source-check"
+                # Byte/dependency checks on real Windows checkouts can exceed
+                # 100 ms. Keep every poll verified, bounded by the process lease;
+                # this read-only allowance grants no write or model authority.
+                deadline = Deadline(5, self.channel.deadline)
                 deadline.guard(lambda: self._verifier(deepcopy(self.binding)))
                 _require(not self.channel.closed, "owned process closed")
                 # Poll only queued bytes/complete frames. Idle timeout observations
@@ -259,10 +264,11 @@ class SessionOwner:
                     or self.channel._buffer
                     or not self.channel._stdout.empty()
                 ):
+                    phase = "passive-read"
                     self.controller.pump(0)
                 self._stop.wait(0.01)
         except BaseException as error:
-            failure = "pump-failed:" + type(error).__name__
+            failure = "pump-failed:" + phase + ":" + type(error).__name__
         finally:
             with self._lock:
                 self._running = False

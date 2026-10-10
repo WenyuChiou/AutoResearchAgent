@@ -116,6 +116,49 @@ class OwnersTests(OwnedProcessCase):
             result={"answers": {"q": {"answers": ["Synthetic scope confirmed"]}}},
         )
 
+    def test_bounded_slow_source_check_keeps_passive_session_alive(self):
+        owner = self.register()
+
+        def verify(binding):
+            time.sleep(0.15)  # Real source checks can exceed the old 0.1 s.
+            return self.source_ok
+
+        owner._verifier = verify
+        owner.start()
+        self.wait(lambda: self.question() is not None)
+        self.assertTrue(owner.status()["running"])
+        self.assertFalse(owner.status()["stopped"])
+        self.assertEqual(self.state()["intents"]["session"]["method"], "thread/start")
+        self.assertNotIn(
+            "turn/start", [v["method"] for v in self.state()["intents"].values()]
+        )
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_passive_source_deadline_clamps_lease_and_ignores_late_success(self):
+        owner = self.register()
+        entered, release = threading.Event(), threading.Event()
+
+        def verify(binding):
+            entered.set()
+            release.wait(3)
+            return True
+
+        owner._verifier = verify
+        self.channel_raw.deadline = time.monotonic() + 0.08
+        try:
+            owner.start()
+            self.assertTrue(entered.wait(1))
+            self.wait(lambda: owner.status()["cleanup_observed"])
+            self.assertTrue(self.channel_raw.closed)
+            self.assertIn("TimeoutError", owner.status()["failure"])
+            self.assertIsNone(self.question())
+        finally:
+            release.set()
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+        with self.assertRaises(ValueError):
+            owner.start()
+        self.assertIsNone(self.question())
+
     def test_get_is_passive_explicit_single_pump_receives_question_and_answer(self):
         owner = self.register()
         binding = self.registry.bindings()
