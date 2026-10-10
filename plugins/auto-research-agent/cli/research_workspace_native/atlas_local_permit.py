@@ -15,6 +15,10 @@ from _atlas_local_source import (
 )
 
 
+class PermitLeaseExpired(LauncherError):
+    """An observed permit boundary; never a source-integrity classification."""
+
+
 class PermitAuthority:
     def __init__(
         self,
@@ -104,11 +108,11 @@ class PermitAuthority:
             return True
 
     def _active(self):
-        require(
+        if not (
             time.monotonic() < self.deadline
-            and time.time() < self.permit["expires_at_unix"],
-            "permit/lease expired",
-        )
+            and time.time() < self.permit["expires_at_unix"]
+        ):
+            raise PermitLeaseExpired("permit/lease expired")
 
     def gate(self, name, event):
         with self.lock:
@@ -344,8 +348,20 @@ class PermitAuthority:
             )
 
     def callbacks(self):
+        def verify_source(event):
+            try:
+                return self.verify(event)
+            except PermitLeaseExpired as error:
+                # The permit helper runs before the pinned package loader exists.
+                # Runtime callbacks run only after that loader is installed.
+                from research_workspace_native.process_deadline import (
+                    SessionLeaseExpired,
+                )
+
+                raise SessionLeaseExpired("permit/lease expired") from error
+
         return {
-            "verify_source": self.verify,
+            "verify_source": verify_source,
             **{
                 name: (lambda event, name=name: self.gate(name, event))
                 for name in (

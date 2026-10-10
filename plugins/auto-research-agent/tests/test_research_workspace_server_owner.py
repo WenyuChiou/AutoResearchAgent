@@ -472,6 +472,90 @@ class OwnersTests(OwnedProcessCase):
             worker.join(3)
         self.assertTrue(owner.shutdown(3)["leader_reaped"])
 
+    def test_typed_permit_expiry_stops_before_read_and_rejects_restart(self):
+        from research_workspace_native.process_deadline import SessionLeaseExpired
+
+        owner = self.register()
+
+        def expired(binding):
+            raise SessionLeaseExpired("private detail must not enter status")
+
+        owner._verifier = expired
+        with patch.object(self.controller, "pump", wraps=self.controller.pump) as pump:
+            owner.start()
+            self.wait(lambda: owner.status()["cleanup_observed"])
+            pump.assert_not_called()
+        self.assertEqual(owner.status()["failure"], "session-lease-expired")
+        self.assertNotIn("private detail", owner.status()["failure"])
+        self.assertTrue(self.channel_raw.closed)
+        with self.assertRaises(ValueError):
+            owner.start()
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_expiry_looking_source_error_stays_a_failure(self):
+        owner = self.register()
+
+        def changed(binding):
+            raise ValueError("permit/lease expired; private path")
+
+        owner._verifier = changed
+        owner.start()
+        self.wait(lambda: owner.status()["cleanup_observed"])
+        self.assertEqual(
+            owner.status()["failure"], "pump-failed:source-check:ValueError"
+        )
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_expiry_keeps_pending_request_unknown_and_durable_after_reopen(self):
+        from research_workspace_native.frame_journal import FrameJournal
+        from research_workspace_native.process_deadline import SessionLeaseExpired
+        from research_workspace_native.session_api import SessionApiError
+
+        owner = self.register()
+        expired = threading.Event()
+
+        def verify(binding):
+            if expired.is_set():
+                raise SessionLeaseExpired("permit/lease expired")
+            return True
+
+        owner._verifier = verify
+        self.api._projects["project-ref"] = (
+            *self.api._projects["project-ref"][:3],
+            verify,
+        )
+        owner.start()
+        self.wait(lambda: self.question() is not None)
+        question = self.question()
+        body = self.body(question)
+        with patch.object(
+            self.channel_raw.process.stdin,
+            "write",
+            wraps=self.channel_raw.process.stdin.write,
+        ) as writes:
+            expired.set()
+            self.wait(lambda: owner.status()["cleanup_observed"])
+            with self.assertRaises(SessionApiError) as denied:
+                self.api.answer("token", "project-ref", body)
+            self.assertEqual(denied.exception.code, "session-lease-expired")
+            writes.assert_not_called()
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+        self.store.close()
+        reopened = FrameJournal(self.path)
+        self.addCleanup(reopened.close)
+        state = reopened.snapshot("alpha")
+        self.assertEqual(state["session_service"]["status"], "stopped")
+        self.assertEqual(
+            next(iter(state["requests"].values()))["status"], "execution-unknown"
+        )
+        with reopened._lock:
+            rows = reopened.db.execute(
+                "SELECT payload FROM events WHERE project=? AND kind=?",
+                ("alpha", "session-service-stopped"),
+            ).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(json.loads(rows[0][0])["reason"], "session-lease-expired")
+
 
 class OwnerStartupTests(unittest.TestCase):
     def run_owner_case(self, method, script, configure=None):

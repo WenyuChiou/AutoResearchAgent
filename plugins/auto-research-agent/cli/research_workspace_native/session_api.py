@@ -19,6 +19,7 @@ import threading
 
 from stage1_deliverable.common import canonical, private_output, sha
 from .controller import InjectedSessionController
+from .process_deadline import SessionLeaseExpired
 from .store import JournalError
 from .transport import validate_answer
 from .transcript import project_transcript
@@ -301,6 +302,8 @@ class SessionApi:
             valid = valid and controller.thread_id == binding["thread_id"]
             checked = dict(binding, connection_id=controller.connection_id)
             _check(valid and verifier(deepcopy(checked)) is True, "source-check-failed")
+        except SessionLeaseExpired:
+            raise SessionApiError("session-lease-expired") from None
         except Exception:
             raise SessionApiError("source-check-failed") from None
 

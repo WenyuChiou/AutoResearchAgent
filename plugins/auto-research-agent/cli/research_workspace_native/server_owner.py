@@ -13,7 +13,7 @@ import time
 
 from .controller import InjectedSessionController
 from .process_channel import OwnedProcessChannel
-from .process_deadline import Deadline
+from .process_deadline import Deadline, SessionLeaseExpired
 from .session_api import SessionApi
 from .store import _require
 
@@ -267,6 +267,8 @@ class SessionOwner:
                     phase = "passive-read"
                     self.controller.pump(0)
                 self._stop.wait(0.01)
+        except SessionLeaseExpired:
+            failure = "session-lease-expired"
         except BaseException as error:
             failure = "pump-failed:" + phase + ":" + type(error).__name__
         finally:
