@@ -333,9 +333,17 @@ def verify_extraction(
     snapshot_sha256,
     expected_config,
     expected_policy,
+    historical_binding=None,
 ):
     """Read-only verification of an ideation extraction and next packet."""
 
+    from .historical_verifier import resolve_historical_binding
+
+    historical = (
+        None
+        if historical_binding is None
+        else resolve_historical_binding(historical_binding)
+    )
     root = _safe_root(root)
     validate_packet(packet, source_root)
     result_path, unit_receipt = _receipt(
@@ -381,6 +389,8 @@ def verify_extraction(
         "native",
     )
     request_path = _safe_entry(root, "request.json")
+    if historical is not None:
+        expected_request["adapter_code_sha256"] = historical.extraction_adapter_sha256
     if _read_json(request_path, "extraction-request") != expected_request:
         raise Stage2Error("replay-extraction-request-mismatch")
     if _safe_entry(root, "raw-proposal.bin").read_bytes() != raw_proposal.encode():
@@ -421,10 +431,15 @@ def verify_extraction(
         or result.get("scientific_approval") is not None
     ):
         raise Stage2Error("replay-extraction-result-mismatch")
-    return {
+    verification = {
         "result": result,
         "actual_call_count": replay["actual_call_count"],
         "archive_sha256s": replay["archive_sha256s"],
         "scientific_approval": False,
         "portable_path_limitation": replay["portable_path_limitation"],
     }
+    if historical is not None:
+        if resolve_historical_binding(historical_binding) != historical:
+            raise Stage2Error("historical-verifier-build-changed-during-verification")
+        verification["historical_verification"] = historical.receipt
+    return verification

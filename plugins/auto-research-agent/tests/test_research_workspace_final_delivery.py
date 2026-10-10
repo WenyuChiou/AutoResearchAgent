@@ -42,6 +42,9 @@ class FinalDeliveryTests(unittest.TestCase):
                 request_id="count-1",
             )
             self.brief = submit_formal_target(self.brief, submitted)
+        self.brief["needs"] = [
+            {"need_id": "synthetic-need", "question": "Synthetic source need?"}
+        ]
         self.brief_path = self.root / "brief.json"
         self.brief_path.write_bytes(canonical(self.brief))
         return index
@@ -71,8 +74,11 @@ class FinalDeliveryTests(unittest.TestCase):
         before = canonical(index)
         report = self.inspect()
         self.assertEqual(report["status"], "partial")
-        self.assertEqual(report["formal_progress"]["formally_usable_distinct_works"], 1)
-        self.assertEqual(report["formal_progress"]["target_shortfall"], 29)
+        self.assertEqual(
+            report["formal_progress"]["technical_eligible_distinct_works"], 1
+        )
+        self.assertEqual(report["formal_progress"]["formally_usable_distinct_works"], 0)
+        self.assertEqual(report["formal_progress"]["target_shortfall"], 30)
         self.assertEqual(report["source_selection_counts"]["excluded"], 1)
         self.assertFalse(report["stage1_completed"])
         self.assertFalse(report["official_stage2_import_eligible"])
@@ -81,9 +87,49 @@ class FinalDeliveryTests(unittest.TestCase):
         self.assertEqual(index["claims"][0]["support"], "Unknown")
 
     def test_explicit_small_target_cannot_make_static_view_final(self):
-        self.setup_view(target=1)
+        from test_research_workspace_source_rerun_exports import RAW, TEXT
+
+        def qualified(index):
+            for item in index["papers"]:
+                item["input_version"] = "fresh-1"
+            paper = index["papers"][0]
+            paper["fresh_note"] = {
+                "paper_note_status": "complete",
+                "source_qualification": {
+                    "status": "qualified",
+                    "work_id": paper["work_id"],
+                    "version_id": paper["version_id"],
+                    "source_id": "source-0",
+                    "raw_sha256": sha(RAW["source-0"]),
+                    "text_sha256": sha(TEXT["source-0"]),
+                    "identity_checked": True,
+                    "body_checked": True,
+                    "reading_order_checked": True,
+                    "relevance_checked": True,
+                    "evidence_refs": ["synthetic-review:1"],
+                },
+            }
+            paper["findings"] = {
+                name: "Substantial synthetic evidence rationale."
+                for name in (
+                    "question",
+                    "data",
+                    "method",
+                    "main_findings",
+                    "limitations",
+                    "relevance",
+                )
+            }
+            index["papers"][1]["fresh_note"] = {"paper_note_status": "pending"}
+            index["coverage"][0]["status"] = "qualified"
+            index["coverage"][0]["work_ids"] = [paper["work_id"]]
+            index["coverage"][0]["evidence_refs"] = ["synthetic-need-review:1"]
+
+        self.setup_view(base_change=qualified, target=1)
         report = self.inspect()
-        self.assertEqual(report["status"], "ready-for-final-checks")
+        self.assertEqual(
+            report["status"], "ready-for-final-checks", report["formal_progress"]
+        )
         self.assertFalse(report["stage1_completed"])
         self.assertIn(
             "accepted-stage1-to-stage2-handoff", report["final_checks_required"]
@@ -113,8 +159,11 @@ class FinalDeliveryTests(unittest.TestCase):
         self.setup_view(change_second("extracted", "full-text"), two_versions, target=2)
         report = self.inspect()
         self.assertEqual(report["source_selection_counts"]["included"], 2)
-        self.assertEqual(report["formal_progress"]["formally_usable_distinct_works"], 1)
-        self.assertEqual(report["formal_progress"]["target_shortfall"], 1)
+        self.assertEqual(
+            report["formal_progress"]["technical_eligible_distinct_works"], 1
+        )
+        self.assertEqual(report["formal_progress"]["formally_usable_distinct_works"], 0)
+        self.assertEqual(report["formal_progress"]["target_shortfall"], 2)
 
     def test_wrong_project_or_external_hash_is_rejected(self):
         self.setup_view()

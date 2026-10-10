@@ -9,6 +9,7 @@ from datetime import datetime
 from urllib.parse import quote
 
 from docx import Document
+from docx.shared import RGBColor
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
@@ -208,7 +209,10 @@ def review_lines(records):
             [
                 f"{claim['claim_id']} [{claim['work_id']} / {claim['version_id']}]: {claim['text']}",
                 f"{claim['relation']}; {claim['evidence_level']}; {claim['locator']}; {claim['source_id']} characters {claim['start']}:{claim['end']}",
-                "Source excerpt: " + claim["quote"],
+                "Exact source excerpt retained unchanged: workbook Claims sheet "
+                f"and canonical records, claim_id {claim['claim_id']}. "
+                "CSV cells use formula-safe escaping. Original extraction "
+                "spacing and character offsets are preserved for audit.",
                 "",
             ]
         )
@@ -221,13 +225,21 @@ def docx_bytes(lines):
         2000, 1, 1
     )
     document.core_properties.title = "Stage 1 literature review"
+    for style_name in ("Title", "Heading 1", "Heading 2", "Heading 3"):
+        document.styles[style_name].font.color.rgb = RGBColor(0, 0, 0)
     for line in lines:
         if line.startswith("# "):
-            document.add_heading(line[2:], 0)
+            paragraph = document.add_heading(line[2:], 0)
         elif line.startswith("## "):
-            document.add_heading(line[3:], 1)
+            paragraph = document.add_heading(line[3:], 1)
         else:
             document.add_paragraph(line)
+            continue
+        for run in paragraph.runs:
+            run.font.color.rgb = RGBColor(0, 0, 0)
+    for element in (document.element, document.styles.element):
+        for border in list(element.xpath(".//w:pBdr")):
+            border.getparent().remove(border)
     output = io.BytesIO()
     document.save(output)
     return _zip_bytes(output.getvalue())
@@ -316,5 +328,5 @@ def render(records, sources):
         "claims_and_evidence.csv": csv_bytes("Claims", all_tables["Claims"]),
         "search_and_screening.csv": csv_bytes("Screening", all_tables["Screening"]),
         "coverage_and_stop.md": ("\n".join(coverage) + "\n").encode("utf-8"),
-        "README.md": b"# Stage 1 researcher deliverable\n\nExperimental; quality improvement not yet demonstrated.\n\npapers.jsonl and provenance_manifest.json contain canonical records. Excel, Markdown, DOCX, BibTeX and CSV are editable derived views. Editing a view does not update canonical research records; regeneration and validation are required. Source archives preserve all attempts, including unavailable evidence. Papers contain only selected public full sources. Do not commit this private package to Git.\n\nValidate with: python -m stage1_deliverable validate PACKAGE --expected-sha256 MANIFEST_SHA256\nThe trusted manifest hash must come from the separately retained export receipt. Validation proves bindings and reproducible views, not scientific correctness. DOCX is supported by the declared runtime.\n",
+        "README.md": b"# Stage 1 researcher deliverable\n\nExperimental; quality improvement not yet demonstrated.\n\npapers.jsonl and provenance_manifest.json contain canonical records. Excel, Markdown, DOCX, BibTeX and CSV are editable derived views. Editing a view does not update canonical research records; regeneration and validation are required. Source archives preserve all attempts, including unavailable evidence. Papers contain only selected public full sources. Do not commit this private package to Git.\n\nWord and Markdown show authored findings, claim statements and source locators. Find each exact excerpt by claim_id in the workbook Claims sheet and canonical records. claims_and_evidence.csv protects formula-like values with a leading apostrophe, so its displayed quote may differ. Original quotes, extraction spacing and character offsets remain bound to the source; presentation does not establish claim support.\n\nValidate with: python -m stage1_deliverable validate PACKAGE --expected-sha256 MANIFEST_SHA256\nThe trusted manifest hash must come from the separately retained export receipt. Validation proves bindings and reproducible views, not scientific correctness. DOCX is supported by the declared runtime.\n",
     }

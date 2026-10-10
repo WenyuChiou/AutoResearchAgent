@@ -133,6 +133,18 @@
     },
     {
       "capability_id": "cli:stage2-live",
+      "historical_verifier_contract": "Opt-in binding1.0 validates an externally pinned supported producer Python tree, separately pinned current host code/compatibility registry and Python/dependency bytes. Read-only controller, extraction and environment verification preserves original receipts, source/policy checks, unknown inventory and completion gates; no archive code executes. Namespaced controller replay uses the existing request-config builder, including exact effective cwd and dispatcher binding. Default current-code verification, execution and resume remain strict.",
+      "historical_verifier_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_host_verification.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_namespace_integration.py"
+      ],
+      "production_session_selection_contract": "After external-receipt capture authentication of every archive byte, ordinary production replay selects the current session by complete typed ownership metadata, including inherited parent/child lineage and duplicate aliases. JSONL records split only at LF, preserving Unicode separators in payload strings without hiding later ownership records. Identifiable truncated unrelated body envelopes remain archived; selected bodies, unclassified records, metadata, runtime and permissions stay strict. Formal replay retains eager strict parsing with the same LF record boundaries. No execution, inventory promotion, pilot completion or scientific improvement is inferred.",
+      "production_session_selection_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_session_selection.py",
+        "plugins/auto-research-agent/tests/test_stage2_environment.py",
+        "plugins/auto-research-agent/tests/test_stage2_live_native.py"
+      ],
       "native_action_history_contract": "Opt-in named-policy1.1 per-action trace roots bind exact capture, observation and narrow namespace evidence. Separate read-only archived verification preserves every original input/runtime/profile/producer/receipt binding while allowing later workspace files; live resume still rejects changed workspaces. Historical inspection never dispatches or attests formal readiness or scientific improvement.",
       "native_action_history_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_action_trace_root.py",

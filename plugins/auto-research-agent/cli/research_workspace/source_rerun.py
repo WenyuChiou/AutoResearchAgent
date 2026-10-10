@@ -322,7 +322,11 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
     return sha(canonical(manifest))
 
 
-def _bibliography(index, rows):
+def _bibliography(index, rows, *, citation_key_policy=None):
+    require(
+        citation_key_policy in (None, "work-version-sha256"),
+        "unknown rerun citation key policy",
+    )
     current = deepcopy(index["papers"])
     original_ids = {
         (s["work_id"], s["version_id"], s["source_id"]) for s in index["sources"]
@@ -339,6 +343,15 @@ def _bibliography(index, rows):
     for paper in current:
         row = by_id[(paper["work_id"], paper["version_id"])]
         base = bibtex({"papers": [paper]}).decode("utf-8")
+        if citation_key_policy == "work-version-sha256":
+            key = "work_" + sha(canonical((paper["work_id"], paper["version_id"])))
+            base, count = re.subn(
+                r"(@[A-Za-z]+\{)[^,\r\n]+,",
+                lambda match: match[1] + key + ",",
+                base,
+                count=1,
+            )
+            require(count == 1, "rerun bibliography entry heading missing")
         # Preserve legacy producer values and add separately labelled metadata.
         values = row["metadata"]
         additions = []
@@ -394,6 +407,7 @@ def attach_rerun(
     expected_manifest_sha256,
     *,
     expected_body_review_acceptance_hashes=None,
+    expected_whole_source_review_acceptance_hashes=None,
 ):
     """Accept an externally bound rerun without altering frozen claims or scores."""
     from .projection import validate_index
@@ -430,7 +444,11 @@ def attach_rerun(
         "manifest_sha256": expected_manifest_sha256,
         "data": manifest["data"],
         "artifact_hashes": files,
-        "bibliography": _bibliography(index, manifest["data"]["rows"]),
+        "bibliography": _bibliography(
+            index,
+            manifest["data"]["rows"],
+            citation_key_policy=manifest["data"].get("citation_key_policy"),
+        ),
     }
     from .body_review_attachment import attach_body_reviews
 
@@ -442,6 +460,16 @@ def attach_rerun(
     )
     if reviews:
         result["source_rerun"]["body_reviews"] = reviews
+    from .whole_source_review import attach_whole_source_reviews
+
+    source_reviews = attach_whole_source_reviews(
+        manifest["data"]["rows"],
+        evidence,
+        files,
+        expected_whole_source_review_acceptance_hashes,
+    )
+    if source_reviews:
+        result["source_rerun"]["whole_source_reviews"] = source_reviews
     validate_rerun_index(result)
     for row in result["source_rerun"]["data"]["rows"]:
         if row.get("raw_path"):
@@ -691,12 +719,18 @@ def validate_rerun_index(index):
                 "rerun text/artifact binding differs",
             )
     require(
-        extension["bibliography"] == _bibliography(base, rows),
+        extension["bibliography"]
+        == _bibliography(
+            base, rows, citation_key_policy=data.get("citation_key_policy")
+        ),
         "rerun bibliography differs",
     )
     from .body_review_attachment import validate_body_reviews
 
     validate_body_reviews(extension)
+    from .whole_source_review import validate_whole_source_reviews
+
+    validate_whole_source_reviews(extension)
     return index
 
 

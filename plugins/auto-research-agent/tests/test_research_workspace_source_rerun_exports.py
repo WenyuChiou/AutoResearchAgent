@@ -1,6 +1,7 @@
 """Synthetic regressions for the saved-source rerun projection."""
 
 import io
+import re
 import sys
 import tempfile
 import unittest
@@ -237,6 +238,32 @@ class SavedSourceRerunTests(unittest.TestCase):
         manifest = manifest or fixture_manifest(self.index)
         expected = write_manifest(self.root, manifest)
         return attach_rerun(self.index, self.root, expected)
+
+    def test_version_bound_citation_keys_keep_two_editions_distinct(self):
+        self.index["papers"][1]["work_id"] = self.index["papers"][0]["work_id"]
+        self.index["sources"][1]["work_id"] = self.index["papers"][0]["work_id"]
+        refresh_bibliography(self.index)
+        manifest = fixture_manifest(self.index)
+        manifest["data"]["citation_key_policy"] = "work-version-sha256"
+        index = self.attach(manifest)
+        complete = index["source_rerun"]["bibliography"]["all_bibtex"]
+        keys = re.findall(r"@[A-Za-z]+\{([^,]+),", complete)
+        self.assertEqual(len(keys), 2)
+        self.assertEqual(len(set(keys)), 2)
+        self.assertEqual(
+            keys,
+            [
+                "work_" + sha(canonical((p["work_id"], p["version_id"])))
+                for p in self.index["papers"]
+            ],
+        )
+        validate_index(index)
+
+    def test_unknown_citation_key_policy_rejected(self):
+        manifest = fixture_manifest(self.index)
+        manifest["data"]["citation_key_policy"] = "ambiguous"
+        with self.assertRaisesRegex(Exception, "citation key policy"):
+            self.attach(manifest)
 
     def test_cross_format_ids_and_rebuild_are_deterministic(self):
         manifest = fixture_manifest(self.index)
