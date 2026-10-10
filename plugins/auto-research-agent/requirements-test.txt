@@ -107,7 +107,7 @@ referencing==0.37.0
     #   jsonschema-specifications
 requests==2.34.2
     # via research-hub-pipeline
-research-hub-pipeline @ git+https://github.com/WenyuChiou/research-hub@929bdd6d963acf4be5bc9d80ce3c5c0a0f77a834
+research-hub-pipeline @ git+https://github.com/WenyuChiou/research-hub@cfc40cc27d45a78783266f9f4312290778ae6f5e
     # via -r plugins/auto-research-agent/requirements-test.in
 rfc3339-validator==0.1.4
     # via -r plugins/auto-research-agent/requirements-test.in

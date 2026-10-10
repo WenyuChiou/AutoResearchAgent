@@ -23,7 +23,7 @@ from .common import (
 )
 from .records import _keys, public_uri, timestamp
 
-HUB_SHA = "929bdd6d963acf4be5bc9d80ce3c5c0a0f77a834"
+HUB_SHA = "cfc40cc27d45a78783266f9f4312290778ae6f5e"
 STATES = (
     "available",
     "abstract-only",
@@ -160,9 +160,16 @@ def validate_receipt_shape(result):
             "locators",
             "errors",
             "output_dir",
+        )
+        + (
+            ("diagnostics",)
+            if isinstance(result, dict) and "diagnostics" in result
+            else ()
         ),
         "public source receipt",
     )
+    if "diagnostics" in result and not isinstance(result["diagnostics"], dict):
+        raise DeliverableError("source diagnostics must be an object")
     _keys(
         result["request"],
         ("operation", "doi", "url", "title", "output_dir", "public_only"),
@@ -207,7 +214,14 @@ def validate_receipt_shape(result):
 
 
 def receipt_digest(result):
-    """The public source-fetch-result/v1 canonical receipt serialization."""
+    """Match v1 serialization in the immutable merged SDK pin.
+
+    Nonempty diagnostics are receipt claims and are re-extracted during SDK
+    replay. Absent or empty diagnostics retain the exact legacy v1 digest.
+    """
+    claims = {key: result.get(key) for key in RESULT_FIELDS}
+    if result.get("diagnostics"):
+        claims["diagnostics"] = result["diagnostics"]
     return sha(
         canonical(
             {
@@ -217,7 +231,7 @@ def receipt_digest(result):
                     {k: a[k] for k in ATTEMPT_FIELDS} for a in result["attempts"]
                 ],
                 "extracted_text_sha256": result["extracted_text_sha256"],
-                "result": {key: result.get(key) for key in RESULT_FIELDS},
+                "result": claims,
             }
         )
     )
@@ -479,10 +493,27 @@ def validate_paper_identity(paper, result):
     observed bibliographic identity separate from claim/evidence eligibility.
     """
     expected = result["expected_identity"]
-    if " ".join(expected.get("title", "").casefold().split()).rstrip(".") != " ".join(
-        paper["title"].casefold().split()
-    ).rstrip("."):
-        raise DeliverableError("source expected identity differs from canonical work")
+
+    def title(value):
+        return (
+            " ".join(value.casefold().split()).rstrip(".")
+            if isinstance(value, str)
+            else ""
+        )
+
+    catalog_title = title(paper["title"])
+    if title(expected.get("title")) != catalog_title:
+        if not (
+            result["status"] == "available"
+            and result["identity_status"] != "mismatch"
+            and title(result["observed_identity"].get("title")) == catalog_title
+        ):
+            raise DeliverableError(
+                "source expected identity differs from canonical work"
+            )
+        # A lookup title can refer to an earlier edition. The independently
+        # replayed own-source title binds this catalog entry; retain the original
+        # unverified state and the requested/observed DOI checks below.
     requested_doi = expected.get("doi", "")
     catalog_doi = paper["doi"] or ""
     if requested_doi == catalog_doi:
