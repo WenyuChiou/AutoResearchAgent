@@ -145,6 +145,11 @@ remain unchanged. Rebuilding these exports performs no new research or reading.
 
 ### Final-delivery prerequisites and phase timing
 
+The opt-in [current saved-source admission](../../references/stage1-saved-admission.md)
+uses a distinct snapshot and handoff version with externally accepted Core and
+actual HTML evidence. The prerequisite checker below and every legacy gate retain
+their original meanings; a new blocked candidate grants no final acceptance.
+
 A candidate checkpoint is part of Stage 1; it is not the finished researcher
 delivery. The complete chain is confirmed intake → actual search/acquisition →
 read/screen and verify identity/version → admit the formal set → file and
