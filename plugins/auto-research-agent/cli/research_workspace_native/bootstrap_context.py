@@ -163,8 +163,9 @@ class BootstrapContext:
             "literal version-bound lifecycle admission required",
         )
 
-    def _context(self):
-        state = self.store.snapshot(self.project_id)
+    def _context(self, *, state=None):
+        if state is None:
+            state = self.store.snapshot(self.project_id)
         row = state.get("bootstrap", {})
         intent = state["intents"].get(self.intent_key, {})
         _require(
@@ -197,7 +198,6 @@ class BootstrapContext:
     def _event(self, envelope):
         event, failure = _validated(envelope)
         _require(failure is None, "bootstrap frame differs")
-        self._context()
         self._verify()
         with self.store._edit(
             self.project_id,
@@ -206,6 +206,7 @@ class BootstrapContext:
             "bootstrap-frame",
             dict(frame=event, raw_sha256=sha(event["raw_utf8"].encode())),
         ) as state:
+            self._context(state=state)
             boot = state["bootstrap"]
             _require(
                 boot["connection_id"] == event["connection_id"]

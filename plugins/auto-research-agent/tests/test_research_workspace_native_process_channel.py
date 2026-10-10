@@ -1,5 +1,8 @@
 """Real local fake children and SQLite; never actual Codex/model/research."""
 
+from contextlib import redirect_stderr
+import io
+import json
 from pathlib import Path
 import sys
 import sqlite3
@@ -295,6 +298,30 @@ class OwnedProcessTests(OwnedProcessCase):
         self._assert_real_fake_child_recording_bootstrap_and_same_transport_handoff(
             startup_delay=2.5
         )
+
+    def test_failed_bootstrap_reports_phase_clock_without_resend(self):
+        from research_workspace_native.bootstrap import BootstrapSession
+
+        captured = io.StringIO()
+        with (
+            redirect_stderr(captured),
+            patch.object(
+                BootstrapSession, "_send", side_effect=ValueError("synthetic failure")
+            ) as send,
+        ):
+            with self.assertRaises(ValueError):
+                self._assert_real_fake_child_recording_bootstrap_and_same_transport_handoff()
+        report = json.loads(captured.getvalue())
+        self.assertEqual(report["kind"], "FakeChildBootstrapTiming")
+        self.assertEqual(report["deadline_seconds"], 10)
+        self.assertEqual(report["startup_delay_seconds"], 0)
+        self.assertGreaterEqual(report["elapsed_seconds"], 0)
+        self.assertEqual(len(report["phases"]), 1)
+        self.assertEqual(report["phases"][0]["method"], "initialize")
+        self.assertEqual(report["phases"][0]["outcome"], "raised")
+        self.assertGreaterEqual(report["phases"][0]["seconds"], 0)
+        send.assert_called_once()
+        self.assertEqual(self.state()["bootstrap"]["phase"], "failed")
 
 
 if __name__ == "__main__":
