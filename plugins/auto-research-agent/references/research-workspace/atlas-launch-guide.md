@@ -5,12 +5,16 @@ new private outputs from existing public synthetic fixtures, verifies manifests,
 and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
 search, protected source import, new source acquisition or session resume is required.
 
+The optional [Stage 2 controller demo](STAGE2_REPOSITORY_DEMO.md) generates a new
+synthetic workflow and delivery from an explicit UI action. Its fixed legacy
+fixture is independent of the saved Stage 1 and ordinary daily_v3 scoring.
+
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
 These stacked review slices are not yet merged or accepted by the core team.
 Existing native runtime guards remain enforced.
 
 ```powershell
-git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-portable-web-assets-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-stage2-demo-ui-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
