@@ -180,6 +180,8 @@ class OwnedProcessTests(OwnedProcessCase):
         channel = self.channel(lifetime=30)
         entered, returned = threading.Event(), threading.Event()
         deadlines, expired = [], []
+        operation_thread = threading.get_ident()
+        background_deadline = threading.Event()
         deadline, queue, raw_write = (
             module.Deadline,
             module.queue,
@@ -189,7 +191,12 @@ class OwnedProcessTests(OwnedProcessCase):
 
         def capture_deadline(timeout, lease):
             value = deadline(timeout, lease)
-            deadlines.append(value)
+            # The real stdout reader creates its own backpressure deadline on
+            # EOF after kill. It must not count as this write's deadline.
+            if threading.get_ident() == operation_thread:
+                deadlines.append(value)
+            else:
+                background_deadline.set()
             return value
 
         def blocked_write(data):
@@ -230,6 +237,11 @@ class OwnedProcessTests(OwnedProcessCase):
             write.assert_called_once_with(data)
             self.assertTrue(channel.closed)
             self.assertTrue(channel.reap()["leader_reaped"])
+            self.assertTrue(
+                background_deadline.wait(2),
+                "real stdout EOF must retain its independent deadline",
+            )
+            self.assertEqual(expired, deadlines)
             self.assertTrue(returned.wait(2), "blocked writer must exit after reap")
             with self.assertRaises(ValueError):
                 channel.write(b"never", 1)
