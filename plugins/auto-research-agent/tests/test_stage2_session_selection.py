@@ -204,6 +204,25 @@ class ProductionSessionSelectionTests(unittest.TestCase):
                 ):
                     self.verify_environment()
 
+    def test_complete_duplicate_ownership_cannot_hide_selected_session(self):
+        for raw in (
+            '{"type":"session_meta","payload":{"id":"current-thread","id":"old-thread"}}',
+            '{"type":"session_meta","payload":{"id":"old-thread","id":"current-thread"}}',
+            '{"type":"session_meta","payload":{"id":"current-thread","\\u0069d":"old-thread"}}',
+            '{"type":"session_meta","payload":{"id":"current-thread"},"payload":{"id":"old-thread"}}',
+            '{"type":"session_meta","type":"event_msg","payload":{"type":"message","id":"current-thread","text":"complete"}}',
+            '{"type":"event_msg","payload":{"type":"session_meta","type":"message","id":"current-thread","text":"complete"}}',
+            '{"type":"session_meta","payload":{"id":"child","source":{"subagent":{"thread_spawn":{"parent_thread_id":"current-thread","parent_thread_id":"old-thread"}}}}}',
+        ):
+            with self.subTest(raw=raw):
+                (self.sessions / "ambiguous.jsonl").write_text(
+                    raw + "\n" + TRUNCATED_BODY + "\n", encoding="utf-8"
+                )
+                with self.assertRaisesRegex(
+                    PreflightError, "unclassified native session JSONL"
+                ):
+                    self.verify_environment()
+
     def test_truncation_must_be_a_value_in_a_known_body_field(self):
         for suffix in (
             '{"type":"event_msg","payload":{"type":"message","source":"unfinished',

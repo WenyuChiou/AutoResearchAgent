@@ -23,7 +23,7 @@ from .common import (
 )
 from .records import _keys, public_uri, timestamp
 
-HUB_SHA = "cfc40cc27d45a78783266f9f4312290778ae6f5e"
+HUB_SHA = "496a70415859a15031cb5da55d4495cb1d0a8e7d"
 STATES = (
     "available",
     "abstract-only",
