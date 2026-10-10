@@ -47,6 +47,10 @@ Inventory is LocalAtlasByteInventory with repo_root/source_root/plugin_files/sou
 Spec identity hashes canonical spec without permit_sha256; complete permit is then
 hashed into spec, and the CLI separately pins full spec bytes. This avoids circular hashes.
 
+The owned stdout queue remains eight chunks with the existing total byte bound.
+Backpressure waits at most 30 seconds within the lease for the same captured chunk,
+checking close at most every 100ms; it does not repeat reads or native requests.
+
 The launcher creates a fresh process/thread and starts a passive event pump only.
 Each message is explicitly sent in the browser; no seed, resume or automatic retry.
 Credentials remain in memory. The native lease stops the entire HTTP server,

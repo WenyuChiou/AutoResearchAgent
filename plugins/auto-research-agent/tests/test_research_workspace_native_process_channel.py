@@ -32,6 +32,85 @@ class OwnedProcessTests(OwnedProcessCase):
             self.state()["process_channels"]["synthetic-epoch"]["authenticated_process"]
         )
 
+    def test_stdout_burst_survives_delayed_consumer_without_losing_binding(self):
+        raw = b"x" * (4096 * 12)
+        self.child.write_text(
+            "import os,sys\nos.write(1,b'x'*(4096*12))\nfor line in sys.stdin.buffer:pass\n",
+            encoding="utf8",
+        )
+        channel = self.channel(lifetime=30)
+        before = self.state()["intents"]["spawn"]["payload"]
+        with self.store._lock:
+            until = time.monotonic() + 3
+            while not channel._stdout.full() and time.monotonic() < until:
+                time.sleep(0.01)
+            self.assertTrue(
+                channel._stdout.full(), "synthetic burst did not fill queue"
+            )
+            time.sleep(1.25)  # Simulate a consumer occupied by source admission.
+            diagnostic = dict(
+                closed=channel.closed,
+                failure=channel.failure,
+                payload_unchanged=self.state()["intents"]["spawn"]["payload"] == before,
+            )
+            if channel.closed:
+                try:
+                    channel.read(4096, 0)
+                except Exception as error:
+                    diagnostic.update(
+                        read_error=type(error).__name__, read_reason=str(error)
+                    )
+            self.assertFalse(channel.closed, diagnostic)
+        with patch.object(
+            channel.process.stdin, "write", wraps=channel.process.stdin.write
+        ) as writes:
+            received = b""
+            while len(received) < len(raw):
+                received += channel.read(4096, 2)
+            self.assertEqual(received, raw)
+            writes.assert_not_called()
+        self.assertEqual(self.state()["intents"]["spawn"]["payload"], before)
+        channel.close()
+        self.assertTrue(channel.reap()["leader_reaped"])
+
+    def test_full_stdout_queue_close_reaps_and_exits_all_workers(self):
+        self.child.write_text(
+            "import os,sys\nos.write(1,b'x'*(4096*12))\nfor line in sys.stdin.buffer:pass\n",
+            encoding="utf8",
+        )
+        channel = self.channel(lifetime=30)
+        until = time.monotonic() + 3
+        while not channel._stdout.full() and time.monotonic() < until:
+            time.sleep(0.01)
+        self.assertTrue(channel._stdout.full(), "synthetic burst did not fill queue")
+        before = tuple(channel._workers)
+        channel.close()
+        self.assertTrue(channel.reap()["leader_reaped"])
+        until = time.monotonic() + 0.5
+        while any(worker.is_alive() for worker in before) and time.monotonic() < until:
+            time.sleep(0.01)
+        self.assertFalse(any(worker.is_alive() for worker in before))
+
+    def test_full_stdout_queue_wait_stays_within_process_lease(self):
+        self.child.write_text(
+            "import os,sys\nos.write(1,b'x'*(4096*12))\nfor line in sys.stdin.buffer:pass\n",
+            encoding="utf8",
+        )
+        channel = self.channel(lifetime=5)
+        until = time.monotonic() + 3
+        while not channel._stdout.full() and time.monotonic() < until:
+            time.sleep(0.01)
+        self.assertTrue(channel._stdout.full(), "synthetic burst did not fill queue")
+        time.sleep(max(0, channel.deadline - time.monotonic()) + 0.15)
+        self.assertTrue(channel.closed)
+        self.assertTrue(channel.reap()["leader_reaped"])
+        with patch.object(
+            channel.process.stdin, "write", wraps=channel.process.stdin.write
+        ) as writes:
+            with self.assertRaises(TimeoutError):
+                channel.write(b"never", 1)
+            writes.assert_not_called()
+
     def test_nonliteral_source_admission_owner_and_version_have_zero_spawn(self):
         before = self.state()
         with patch(
