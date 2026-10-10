@@ -135,16 +135,17 @@
   function resolveLabels(items, width, height, obstacles = []) {
     const shown = [], hidden = [], intersects = (a, b) => a.x < b.x + b.width + 5 && a.x + a.width + 5 > b.x && a.y < b.y + b.height + 5 && a.y + a.height + 5 > b.y;
     [...items].sort((a, b) => a.priority - b.priority || compare(a.id, b.id)).forEach(item => {
-      const box = {...item.box};
-      if ((item.selected || item.focused) && item.projectable) { box.x = Math.max(4, Math.min(width - box.width - 4, box.x)); box.y = Math.max(4, Math.min(height - box.height - 4, box.y)); }
+      const box = item.pointerBox ? {...item.pointerBox, width: Math.max(item.pointerBox.width, item.box.width), height: Math.max(item.pointerBox.height, item.box.height)} : {...item.box};
+      if (item.pointerBox) { box.width = Math.min(box.width, Math.max(1, width - 8)); box.height = Math.min(box.height, Math.max(1, height - 8)); }
+      if ((item.selected || item.focused || item.pointerBox) && item.projectable) { box.x = Math.max(4, Math.min(width - box.width - 4, box.x)); box.y = Math.max(4, Math.min(height - box.height - 4, box.y)); }
       const choices = [box];
       if (item.anchor && item.priority <= 3) {
         const {x, y, radius} = item.anchor;
         choices.push({...box, x: x - box.width / 2, y: y - radius - box.height - 7},
           {...box, x: x + radius + 7, y: y - box.height / 2}, {...box, x: x - radius - box.width - 7, y: y - box.height / 2});
       }
-      const available = item.projectable && choices.find(candidate => candidate.x >= 0 && candidate.y >= 0 && candidate.x + candidate.width <= width && candidate.y + candidate.height <= height
-        && !obstacles.some(obstacle => intersects(candidate, obstacle)) && !shown.some(other => intersects(candidate, other.box)));
+      const available = item.projectable && (item.pointerBox ? box : choices.find(candidate => candidate.x >= 0 && candidate.y >= 0 && candidate.x + candidate.width <= width && candidate.y + candidate.height <= height
+        && !obstacles.some(obstacle => intersects(candidate, obstacle)) && !shown.some(other => intersects(candidate, other.box))));
       if (available || item.focused && item.projectable) shown.push({...item, box: available || box}); else hidden.push(item.id);
     });
     return {shown, hidden};
@@ -244,7 +245,10 @@
     }
     function bindNode(button, n) {
       const callback = () => select(n); button.addEventListener("click", callback); controls.push([button, "click", callback]);
-      const enter = () => { domPointerHover = {button, id: n.id}; resolveHover(); };
+      const enter = () => {
+        const box = labelById.get(n.id) === button && labels.shown.find(item => item.id === n.id)?.box;
+        domPointerHover = {button, id: n.id, box: box && {...box}}; resolveHover();
+      };
       const leave = () => { if (domPointerHover?.button === button) domPointerHover = null; resolveHover(); };
       const focusNode = () => { domFocusHover = {button, id: n.id}; resolveHover(); };
       const blurNode = () => { if (domFocusHover?.button === button) domFocusHover = null; resolveHover(); };
@@ -361,10 +365,15 @@
         const location = project(point(n, mode), camera, viewport.width, viewport.height), button = labelById.get(n.id);
         const text = selected(n) || hover === n.id ? n.title || n.label : n.kind === "paper" ? n.label : n.label.length > 30 ? n.label.slice(0, 29) + "…" : n.label;
         if (button.textContent !== text) { button.textContent = text; labelSizes.delete(n.id); }
+        const pointerBox = domPointerHover?.button === button ? domPointerHover.box : null;
+        const maxWidth = Math.min(240, Math.max(1, viewport.width - 8)), maxHeight = Math.max(1, viewport.height - 8);
+        const sizing = {minWidth: `${Math.min(maxWidth, Math.max(44, pointerBox?.width || 44))}px`, maxWidth: `${maxWidth}px`,
+          minHeight: `${Math.min(maxHeight, Math.max(44, pointerBox?.height || 44))}px`, maxHeight: `${maxHeight}px`};
+        Object.entries(sizing).forEach(([key, value]) => { if (button.style[key] !== value) { button.style[key] = value; labelSizes.delete(n.id); } });
         if (!labelSizes.has(n.id)) labelSizes.set(n.id, {width: button.offsetWidth || 120, height: button.offsetHeight || 44});
         const {width, height} = labelSizes.get(n.id);
         const radius = obstacles.find(obstacle => obstacle.id === n.id)?.radius || 14;
-        return {id: n.id, selected: selected(n), focused: domFocusHover?.id === n.id, projectable: !!location, priority: selected(n) ? 0 : hover === n.id ? 1 : n.kind === "topic" ? 2 : n.kind === "paper" ? 3 : 4,
+        return {id: n.id, selected: selected(n), focused: domFocusHover?.id === n.id, pointerBox, projectable: !!location, priority: selected(n) ? 0 : hover === n.id ? 1 : n.kind === "topic" ? 2 : n.kind === "paper" ? 3 : 4,
           anchor: location && {...location, radius}, box: {x: (location?.x || 0) - width / 2, y: (location?.y || 0) + radius + 7, width, height}};
       });
       labels = resolveLabels(items, viewport.width, viewport.height, obstacles);

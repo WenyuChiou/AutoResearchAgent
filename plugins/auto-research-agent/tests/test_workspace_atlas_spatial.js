@@ -66,6 +66,17 @@ assert.equal(keyboardLabel.shown[0].selected, false); assert.deepEqual(keyboardL
 const crowdedKeyboardLabel = spatial.resolveLabels([{id: "keyboard", priority: 1, selected: false, focused: true, projectable: true,
   box: {x: 290, y: 310, width: 240, height: 44}}], 317, 420, [{x: 0, y: 0, width: 317, height: 420}]);
 assert.equal(crowdedKeyboardLabel.shown[0]?.id, "keyboard", "collision reduction cannot hide the control that currently holds keyboard focus");
+const pointerBox = {x: 120, y: 80, width: 124, height: 44};
+for (const viewportWidth of [317, 220]) for (const width of [70, 240]) {
+  const pointerLabel = spatial.resolveLabels([{id: "pointer", priority: 1, selected: false, projectable: true, pointerBox,
+    anchor: {x: 180, y: 240, radius: 28}, box: {x: 35, y: 200, width, height: 44}}], viewportWidth, 420, [{x: 0, y: 0, width: viewportWidth, height: 420}]);
+  const box = pointerLabel.shown[0]?.box;
+  assert.ok(box && box.x <= 182 && box.x + box.width >= 182 && box.y <= 102 && box.y + box.height >= 102,
+    "hover title changes must retain the existing pointer target through a click, even when ordinary placements collide");
+  assert.equal(pointerLabel.shown[0].selected, false);
+  assert.ok(box.x >= 0 && box.x + box.width <= viewportWidth && box.y >= 0 && box.y + box.height <= 420,
+    "a hovered title stays within the current viewport after host resize");
+}
 const iconBox = {x: 140, y: 140, width: 40, height: 40};
 const onDemand = {id: "active", priority: 0, selected: true, projectable: true, anchor: {x: 160, y: 160, radius: 20}, box: {x: 120, y: 155, width: 80, height: 20}};
 const clearLabel = spatial.resolveLabels([onDemand], 320, 320, [iconBox]);
@@ -240,7 +251,13 @@ assert.equal(mounted.diagnostics().hover, topics[0].id, "another control cannot 
 runAllFrames(); first.config.pendingHover = otherHoverPaper; shell.emit("pointermove");
 assert.equal(mounted.diagnostics().hover, topics[0].id, "vendor callbacks cannot replace active marker hover");
 runAllFrames(); topicMarker.emit("pointerleave"); assert.equal(mounted.diagnostics().hover, otherHoverPaper.id);
-topicLabel.emit("pointerenter"); runAllFrames(); first.config.pendingHover = hoverPaper; shell.emit("pointermove");
+topicLabel.emit("pointerenter"); runAllFrames();
+host.clientWidth = shell.clientWidth = 220; resizes[0].callback(); runAllFrames();
+assert.equal(topicLabel.style.maxWidth, "212px", "hovered DOM label width follows the resized host");
+assert.ok(parseFloat(topicLabel.style.minWidth) <= 212);
+assert.ok(mounted.diagnostics().labelRects.every(box => box.x >= 0 && box.x + box.width <= 220));
+host.clientWidth = shell.clientWidth = 600; resizes[0].callback(); runAllFrames();
+first.config.pendingHover = hoverPaper; shell.emit("pointermove");
 assert.equal(mounted.diagnostics().hover, topics[0].id, "vendor callbacks cannot replace active label hover");
 runAllFrames(); topicLabel.emit("pointerleave"); assert.equal(mounted.diagnostics().hover, hoverPaper.id);
 topicMarker.emit("pointerenter"); topicMarker.emit("focus"); topicMarker.emit("pointerleave");
