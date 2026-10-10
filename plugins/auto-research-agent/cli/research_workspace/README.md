@@ -136,6 +136,9 @@ claim support or research sufficiency. Old source records are never restamped.
 complete screening bibliography. The payload provides the frontend contract;
 new selection bibliographies use version-bound citation keys recorded in each
 selection row; the original complete bibliography retains its existing keys.
+New rerun manifests can opt into `citation_key_policy: work-version-sha256`
+for the complete bibliography too. Unknown policies fail closed; absent policy
+preserves historical manifests without rewriting their keys.
 it does not attest the separately required visual/native acceptance. Coverage,
 scientific assessments, full-record exports and official Stage 2 eligibility
 remain unchanged. Rebuilding these exports performs no new research or reading.
@@ -158,6 +161,21 @@ A pending intake remains pending. Status is `partial` or `ready-for-final-checks
 never completed. The report lists semantic deliverable validation, brief/input
 lineage, coverage/claim review, accepted handoff and actual HTML acceptance as
 separate required checks. It does not execute their validators or a browser.
+
+Formal progress requires an explicit `fresh_note.source_qualification` with
+exact work/version/source/raw/text bindings, affirmative identity/body/order/
+relevance checks and evidence references. A paper's input version must match
+the brief. Technical `included` counts and an authored admission label alone
+do not qualify a work. Notes remain separately complete or pending; individual
+Unknown claims do not exclude a qualified source. Every brief need must appear
+in coverage before target-and-covered can stop quantity work.
+
+Optional `--resources PATH --expected-resources-sha256 HASH` binds query and
+acquisition receipts, each with integer `used` and `limit`. Saved review backlog
+precedes new acquisition; parser/identity backlog gets a diagnostic decision.
+Exhaustion with no backlog yields a partial result. These decisions authorize
+no actions. If a view displays `readiness.formal_progress`, the checker requires
+it to equal the same derived result.
 
 The optional `--timing PATH --expected-timing-sha256 HASH` binds an immutable
 `Stage1RunTiming` v1 record to the project, input version and canonical index hash.

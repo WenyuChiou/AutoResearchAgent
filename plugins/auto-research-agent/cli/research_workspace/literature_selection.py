@@ -1,4 +1,4 @@
-"""Derive a conservative, read-only formal literature selection.
+"""Derive a conservative, read-only technical source selection.
 
 Selection is a view over a validated workspace index.  It does not repair source
 records, reassess claims, execute research, or promote a Stage 2 import.
@@ -12,6 +12,7 @@ from stage1_deliverable.common import DeliverableError, canonical, sha
 from stage1_deliverable.views import csv_bytes, workbook_bytes
 
 from .body_completeness import assess_body_completeness
+from .whole_source_review import review_key, reviewed_body_completeness
 
 
 RULE_VERSION = "1.1.0"
@@ -73,7 +74,7 @@ def _diagnostic_reasons(row):
     return _unique(reasons)
 
 
-def _binding(row, artifacts, body_reviews=None):
+def _binding(row, artifacts, body_reviews=None, source_reviews=None):
     """Return the exact current binding and reject a forged admissible row."""
     from .body_review_attachment import body_review_key
 
@@ -119,6 +120,16 @@ def _binding(row, artifacts, body_reviews=None):
         "body_completeness": assess_body_completeness(row),
         **(
             {
+                "reviewed_body_completeness": reviewed_body_completeness(
+                    row, source_reviews
+                ),
+                "whole_source_review_reference": deepcopy(row["whole_source_review"]),
+            }
+            if review_key(row) in (source_reviews or {})
+            else {}
+        ),
+        **(
+            {
                 "independent_body_review": deepcopy(
                     body_reviews[body_review_key(row)]["evidence"]
                 )
@@ -129,11 +140,11 @@ def _binding(row, artifacts, body_reviews=None):
         "error": deepcopy(reading.get("error")),
         "metadata": deepcopy(row.get("metadata") or {}),
         "metadata_provenance": deepcopy(row.get("metadata_provenance") or {}),
-        "failure_reasons": _source_reasons(row),
+        "failure_reasons": _source_reasons(row, source_reviews),
     }
 
 
-def _source_reasons(row):
+def _source_reasons(row, source_reviews=None):
     reading = row["reading"]
     reasons = _diagnostic_reasons(row)
     if (
@@ -159,11 +170,11 @@ def _source_reasons(row):
         elif reading["evidence_level"] == "metadata":
             reasons.append("metadata-only")
         elif reading["evidence_level"] == "full-text":
-            reasons.extend(assess_body_completeness(row)["reasons"])
+            reasons.extend(reviewed_body_completeness(row, source_reviews)["reasons"])
     return _unique(reasons)
 
 
-def _eligible(row):
+def _eligible(row, source_reviews=None):
     reading = row["reading"]
     selected = _selected_attempt(row)
     return (
@@ -175,7 +186,7 @@ def _eligible(row):
         and selected is not None
         and selected.get("response_truncated") is False
         and not _diagnostic_reasons(row)
-        and assess_body_completeness(row)["status"] == "confirmed"
+        and reviewed_body_completeness(row, source_reviews)["status"] == "confirmed"
     )
 
 
@@ -206,6 +217,7 @@ def derive_literature_selection(index):
     rerun_rows = rerun["data"]["rows"] if rerun else []
     artifacts = rerun["artifact_hashes"] if rerun else {}
     body_reviews = rerun.get("body_reviews", {}) if rerun else {}
+    source_reviews = rerun.get("whole_source_reviews", {}) if rerun else {}
     by_identity = {}
     for source in rerun_rows:
         by_identity.setdefault((source["work_id"], source["version_id"]), []).append(
@@ -222,10 +234,19 @@ def derive_literature_selection(index):
             ),
             "rerun source is outside canonical paper membership",
         )
-        bindings = [_binding(source, artifacts, body_reviews) for source in sources]
-        eligible = [source["source_id"] for source in sources if _eligible(source)]
+        bindings = [
+            _binding(source, artifacts, body_reviews, source_reviews)
+            for source in sources
+        ]
+        eligible = [
+            source["source_id"]
+            for source in sources
+            if _eligible(source, source_reviews)
+        ]
         reasons = _unique(
-            reason for source in sources for reason in _source_reasons(source)
+            reason
+            for source in sources
+            for reason in _source_reasons(source, source_reviews)
         )
         if eligible:
             status = "included"
@@ -266,7 +287,7 @@ def derive_literature_selection(index):
     return {
         "kind": "WorkspaceLiteratureSelection",
         "schema_version": "1.0.0",
-        "rule_version": RULE_VERSION,
+        "rule_version": "1.2.0" if source_reviews else RULE_VERSION,
         "input_canonical_sha256": input_hash,
         "counts": counts,
         "included_identities": [
@@ -298,6 +319,57 @@ def _table_rows(rows):
         }
         for row in rows
     ]
+
+
+def _selection_workbook_tables(selection):
+    """Keep long bindings in the complete JSON and expose page checks as rows."""
+    rows = _table_rows(selection["rows"])
+    pages = []
+    for original, row in zip(selection["rows"], rows):
+        for binding in original["source_binding_references"]:
+            review = binding.get("reviewed_body_completeness", {})
+            reference = binding.get("whole_source_review_reference", {})
+            for page in review.get("extracted_page_checks", []):
+                pages.append(
+                    {
+                        "work_id": original["work_id"],
+                        "version_id": original["version_id"],
+                        "source_id": binding["source_id"],
+                        "attempt_id": binding["attempt_id"],
+                        "raw_sha256": binding["raw_sha256"],
+                        "text_sha256": binding["text_sha256"],
+                        "manifest_path": reference["manifest_path"],
+                        "manifest_sha256": reference["manifest_sha256"],
+                        "acceptance_sha256": reference["acceptance_sha256"],
+                        "page": page["page"],
+                        "fidelity_status": page["fidelity_status"],
+                        "reading_order_status": page["reading_order_status"],
+                        "limitations": json.dumps(
+                            page["limitations"], ensure_ascii=False
+                        ),
+                    }
+                )
+        if len(row["source_binding_references"].encode("utf-16-le")) // 2 > 32767:
+            row["source_binding_references"] = json.dumps(
+                {
+                    "path": "literature/selection.json",
+                    "sha256": sha(canonical(selection)),
+                    "work_id": original["work_id"],
+                    "version_id": original["version_id"],
+                    "field": "source_binding_references",
+                    "complete_binding_count": len(
+                        original["source_binding_references"]
+                    ),
+                    "page_checks_sheet": "SourceReviewPages" if pages else None,
+                    "content_truncated": False,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+    tables = {"Selection": rows}
+    if pages:
+        tables["SourceReviewPages"] = pages
+    return tables
 
 
 def selection_files(index):
@@ -362,11 +434,11 @@ def selection_files(index):
         )
     )
     markdown = [
-        "# Formal literature selection",
+        "# Source selection",
         "",
         "Read-only selection from validated work/version/source bindings. Claim assessments and coverage remain unchanged.",
         "",
-        f"Included: {selection['counts']['included']}; excluded: {selection['counts']['excluded']}; pending: {selection['counts']['pending']}.",
+        f"Technically eligible versions: {selection['counts']['included']}; excluded: {selection['counts']['excluded']}; pending: {selection['counts']['pending']}. These counts do not certify formal admission.",
         "",
     ]
     for row in selection["rows"]:
@@ -375,6 +447,8 @@ def selection_files(index):
             + ", ".join(row["reasons"])
         )
     markdown.append("")
+    workbook_tables = _selection_workbook_tables(selection)
+    workbook_tables["Selection"] = workbook_tables["Selection"] or selection_table
     return {
         "literature/selection.json": canonical(selection),
         "literature/selection.csv": csv_bytes("Selection", selection_table),
@@ -385,7 +459,7 @@ def selection_files(index):
             {
                 "Included": included_table,
                 "Screening": screening_table,
-                "Selection": selection_table,
+                **workbook_tables,
             }
         ),
     }
