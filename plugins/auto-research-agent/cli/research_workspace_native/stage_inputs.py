@@ -109,8 +109,15 @@ def snapshot_inputs(inputs):
                         "input-file-bound",
                     )
                     key = f"stage{stage}/{name}/{path.relative_to(source).as_posix()}"
+                    chunks, remaining = [], MAX_BYTES - total + 1
                     with path.open("rb") as stream:
-                        raw = stream.read(MAX_BYTES - total + 1)
+                        while remaining > 0:
+                            chunk = stream.read(min(64 * 1024, remaining))
+                            if not chunk:
+                                break
+                            chunks.append(chunk)
+                            remaining -= len(chunk)
+                    raw = b"".join(chunks)
                     total += len(raw)
                     _check(
                         total <= MAX_BYTES and len(files) < MAX_FILES,

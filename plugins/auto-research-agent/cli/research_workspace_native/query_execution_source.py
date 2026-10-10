@@ -121,8 +121,15 @@ def check_execution_source(verifier, ref, item, phase, executor=None):
             "query-execution-source-not-regular",
             403,
         )
+        chunks, remaining = [], 32 * 1024 * 1024 + 1
         with target.open("rb") as stream:
-            raw = stream.read(32 * 1024 * 1024 + 1)
+            while remaining > 0:
+                chunk = stream.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+        raw = b"".join(chunks)
         require(
             len(raw) <= 32 * 1024 * 1024 and sha(raw) == expected_sha,
             "query-execution-source-bytes-differ",

@@ -46,21 +46,34 @@ def unlinked(path):
     path = Path(path)
     require(path.is_absolute(), "absolute path required")
     for parent in (path, *path.parents):
-        if parent.exists():
+        try:
             info = parent.lstat()
-            require(
-                not stat.S_ISLNK(info.st_mode)
-                and not getattr(info, "st_file_attributes", 0) & 0x400,
-                "links/reparse points refused",
-            )
+        except FileNotFoundError:
+            continue
+        require(
+            not stat.S_ISLNK(info.st_mode)
+            and not getattr(info, "st_file_attributes", 0) & 0x400,
+            "links/reparse points refused",
+        )
     return path
 
 
 def read(path, maximum=256 * 1024, *, allow_empty=False):
+    require(
+        type(maximum) is int and 0 <= maximum < sys.maxsize,
+        "integer file bound required",
+    )
     path = unlinked(path)
     require(stat.S_ISREG(path.stat().st_mode), "regular file required")
+    chunks, remaining = [], maximum + 1
     with path.open("rb") as stream:
-        raw = stream.read(maximum + 1)
+        while remaining > 0:
+            chunk = stream.read(min(64 * 1024, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+    raw = b"".join(chunks)
     require(
         len(raw) <= maximum and (len(raw) > 0 or allow_empty),
         "file bound exceeded",

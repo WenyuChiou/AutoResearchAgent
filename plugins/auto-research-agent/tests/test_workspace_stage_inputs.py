@@ -148,6 +148,94 @@ class StageInputTests(unittest.TestCase):
                 mod.snapshot_inputs({1: dict(ledger_root=str(source)), 2: None})
         self.assertEqual(reads, [5])
 
+    def test_chunked_snapshot_preserves_small_empty_and_multi_chunk_bytes(self):
+        source = self.root / "source"
+        source.mkdir()
+        raw = bytes(range(256)) * 1024 + b"end"
+        (source / "a.bin").write_bytes(raw)
+        (source / "b.empty").touch()
+        (source / "c.txt").write_bytes(b"small")
+        binding = {1: dict(ledger_root=str(source)), 2: None}
+        with patch.object(mod, "MAX_BYTES", len(raw) + 5):
+            observed = mod.snapshot_inputs(binding)
+        self.assertEqual(
+            observed,
+            {
+                "stage1/ledger_root/a.bin": raw,
+                "stage1/ledger_root/b.empty": b"",
+                "stage1/ledger_root/c.txt": b"small",
+            },
+        )
+        with patch.object(mod, "MAX_BYTES", len(raw) + 4):
+            with self.assertRaisesRegex(SessionApiError, "input-file-bound"):
+                mod.snapshot_inputs(binding)
+        with patch.object(mod, "MAX_FILES", 2):
+            with self.assertRaisesRegex(SessionApiError, "input-snapshot-bound"):
+                mod.snapshot_inputs(binding)
+
+    def test_short_snapshot_reads_reach_eof_with_fresh_raw_hash(self):
+        source = self.root / "source"
+        source.mkdir()
+        path = source / "bytes"
+        raw = b"short stream" * 20000
+        path.write_bytes(raw)
+        requests = []
+
+        class ShortReader(io.BytesIO):
+            def read(self, count=-1):
+                requests.append(count)
+                return super().read(min(count, 17))
+
+        original = Path.open
+
+        def opened(value, *args, **kwargs):
+            return (
+                ShortReader(raw) if value == path else original(value, *args, **kwargs)
+            )
+
+        binding = {1: dict(ledger_root=str(source)), 2: None}
+        with patch.object(Path, "open", autospec=True, side_effect=opened):
+            observed = mod.snapshot_inputs(binding)
+        self.assertEqual(observed, {"stage1/ledger_root/bytes": raw})
+        self.assertLessEqual(max(requests), 64 * 1024)
+        path.write_bytes(b"modified" + raw[8:])
+        self.assertNotEqual(
+            mod.source_digest(mod.snapshot_inputs(binding)), mod.source_digest(observed)
+        )
+
+    def test_growth_after_stat_stops_at_remaining_total_plus_one(self):
+        source = self.root / "source"
+        source.mkdir()
+        (source / "a.bin").write_bytes(b"first")
+        grown_path = source / "b.bin"
+        grown_path.write_bytes(b"x")
+        reads, observed = [], []
+
+        class GrowingReader(io.BytesIO):
+            def read(self, count=-1):
+                reads.append(count)
+                raw = super().read(min(count, 3))
+                observed.append(len(raw))
+                return raw
+
+        original = Path.open
+
+        def opened(value, *args, **kwargs):
+            return (
+                GrowingReader(b"grown past the initial size")
+                if value == grown_path
+                else original(value, *args, **kwargs)
+            )
+
+        with (
+            patch.object(mod, "MAX_BYTES", 10),
+            patch.object(Path, "open", autospec=True, side_effect=opened),
+        ):
+            with self.assertRaisesRegex(SessionApiError, "input-snapshot-bound"):
+                mod.snapshot_inputs({1: dict(ledger_root=str(source)), 2: None})
+        self.assertEqual(sum(observed), 6)
+        self.assertEqual(reads, [6, 3])
+
     def test_sqlite_reparse_sidecar_refuses_before_readonly_connect(self):
         database = self.root / "saved.sqlite3"
         database.write_bytes(b"not needed for zero-connect proof")
