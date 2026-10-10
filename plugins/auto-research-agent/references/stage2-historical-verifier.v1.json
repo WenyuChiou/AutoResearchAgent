@@ -1,0 +1,15 @@
+{
+  "kind": "Stage2HistoricalVerifierCompatibility",
+  "schema_version": "1.0.0",
+  "supported_producers": {
+    "44851492a2ce42135f6b58bfe26862e1eb33d1c67c1aa8a6ebdd160ed5822385": {
+      "merge_sha": "06d3869fe206bd1f6f91f9e2626502eed2c7ed3b",
+      "controller_sha256": "ebb8d23ec6e934a9f9622665a44ebefc727ea15ba5b4c758caf30e581c57d49c",
+      "extraction_adapter_sha256": {
+        "posix": "1425f26327dbf7122a380d90c40ae03d43263df6cdc4408eb0dbfbfd94d3f988",
+        "windows": "9c82e083cc2c6c1d7cdbe2f2ba95232c81b03adfafd86205e0506e1ce376b547"
+      },
+      "scope": "Read-only archived controller, extraction and environment verification. All original runtime, inputs, policies, capture receipts and source checks still apply. Never execute or resume this build through compatibility verification."
+    }
+  }
+}
