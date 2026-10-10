@@ -7,7 +7,6 @@ import platform
 import sys
 
 from stage1_brief.brief import validate_brief
-from stage1_brief.formal_target import formal_selection_progress, formal_target_state
 from stage1_deliverable.common import (
     DeliverableError,
     canonical,
@@ -18,6 +17,7 @@ from stage1_deliverable.common import (
 from stage1_ledger.journal import LedgerError
 
 from .json_bytes import decode_json
+from .formal_readiness import derive_formal_readiness
 from .literature_selection import derive_literature_selection, selection_files
 from .wiki import wiki_files
 
@@ -116,6 +116,7 @@ def inspect_final_delivery(
     *,
     timing_path=None,
     expected_timing_sha256=None,
+    resources=None,
 ):
     """Check saved prerequisites; final handoff/browser acceptance stays separate.
 
@@ -125,29 +126,16 @@ def inspect_final_delivery(
     manifest, index, selection = _view(root, expected_view_sha256)
     brief = _bound_json(brief_path, expected_brief_sha256)
     intake = validate_brief(brief)
-    target = formal_target_state(brief)
-    _require(brief["project_id"] == index["project_id"], "wrong brief project")
-    distinct = {
-        row["work_id"] for row in selection["rows"] if row["status"] == "included"
-    }
-    progress = (
-        formal_selection_progress(
-            brief,
-            {
-                "project_id": brief["project_id"],
-                "input_version": brief["input_version"],
-                "rows": selection["rows"],
-            },
+    progress = derive_formal_readiness(index, brief, resources=resources)
+    if "formal_progress" in index.get("readiness", {}):
+        _require(
+            index["readiness"]["formal_progress"] == progress,
+            "displayed formal progress differs",
         )
-        if target["status"] == "confirmed"
-        else {
-            **target,
-            "formally_usable_distinct_works": len(distinct),
-            "formal_target_met": False,
-            "target_shortfall": None,
-        }
+    ready = (
+        intake["necessary_clarification_complete"]
+        and progress["decision"] == "stop-count-target-and-covered"
     )
-    ready = intake["necessary_clarification_complete"] and progress["formal_target_met"]
     timing = None
     if timing_path is not None or expected_timing_sha256 is not None:
         _require(
@@ -200,6 +188,7 @@ def inspect_final_delivery(
                 name: sha(Path(__file__).with_name(name).read_bytes())
                 for name in (
                     "final_delivery.py",
+                    "formal_readiness.py",
                     "run_timing.py",
                     "literature_selection.py",
                     "body_completeness.py",
@@ -221,8 +210,19 @@ def main(argv=None):
     parser.add_argument("--expected-brief-sha256", required=True)
     parser.add_argument("--timing")
     parser.add_argument("--expected-timing-sha256")
+    parser.add_argument("--resources")
+    parser.add_argument("--expected-resources-sha256")
     args = parser.parse_args(argv)
     try:
+        _require(
+            bool(args.resources) == bool(args.expected_resources_sha256),
+            "both resource arguments required",
+        )
+        resources = (
+            _bound_json(args.resources, args.expected_resources_sha256)
+            if args.resources
+            else None
+        )
         report = inspect_final_delivery(
             args.view_root,
             args.expected_view_manifest_sha256,
@@ -230,6 +230,7 @@ def main(argv=None):
             args.expected_brief_sha256,
             timing_path=args.timing,
             expected_timing_sha256=args.expected_timing_sha256,
+            resources=resources,
         )
     except (
         DeliverableError,
