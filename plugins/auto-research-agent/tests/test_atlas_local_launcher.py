@@ -29,6 +29,37 @@ for name in ("LauncherError", "require", "canonical", "digest", "decode"):
 
 
 class LocalLauncherTests(unittest.TestCase):
+    def test_scope_schema_and_bound_refuse_before_native_start(self):
+        value = dict(
+            kind="ResearchBrief",
+            schema_version="1.0.0",
+            original_description="Synthetic scope pending; no research authority.",
+            needs=[dict(need_id="review", question="Inspect the saved case?")],
+            scope_fields=[dict(field="geography", material=True, reason="Pending")],
+            decisions=[],
+            suggestions=[],
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder).resolve() / "brief.json"
+            permit = dict(brief_path="brief.json")
+            spec = dict(source_root=path.parent.as_posix(), input_path=path.as_posix())
+            with patch("subprocess.Popen", side_effect=AssertionError("no child")):
+                path.write_bytes(source.canonical(value))
+                spec["input_version"] = source.digest(path.read_bytes())
+                launcher.validate_scope_input(spec, permit)
+                for raw in (
+                    b"not JSON",
+                    b"{}",
+                    source.canonical(dict(value, original_description="x" * 65536)),
+                ):
+                    path.write_bytes(raw)
+                    spec["input_version"] = source.digest(raw)
+                    with (
+                        self.subTest(raw_bytes=len(raw)),
+                        self.assertRaises(ValueError),
+                    ):
+                        launcher.validate_scope_input(spec, permit)
+
     def test_explicit_model_keeps_policy_and_resource_bindings(self):
         spec = dict(
             model="my-account-model",

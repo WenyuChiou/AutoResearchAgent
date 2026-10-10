@@ -145,6 +145,16 @@ def validate_session_policy(spec, permit):
     )
 
 
+def validate_scope_input(spec, permit):
+    """Refuse an unusable scope overlay before creating the native process."""
+    from stage1_deliverable.common import safe_path
+    from research_workspace_native.scope_api import MAX_BRIEF, _brief
+
+    path = safe_path(spec["source_root"], permit["brief_path"])
+    SOURCE.require(path.as_posix() == spec["input_path"], "brief/input differs")
+    _brief(SOURCE.pinned(path, spec["input_version"], MAX_BRIEF), spec["input_version"])
+
+
 def preflight(args):
     helper_paths = bootstrap(args)
     permit = SOURCE.decode(SOURCE.pinned(args.permit, args.permit_sha256))
@@ -249,7 +259,7 @@ def preflight(args):
     authority.loader = loader
     sys.dont_write_bytecode = True
     sys.meta_path.insert(0, loader)
-    from stage1_deliverable.common import private_output, safe_path
+    from stage1_deliverable.common import private_output
     from research_workspace_native.host_config import load_config
     from research_workspace_native.stage_inputs import snapshot_inputs, source_digest
 
@@ -264,11 +274,7 @@ def preflight(args):
         and v["index_sha256"] == spec["index_sha256"]
     ]
     SOURCE.require(len(matching) == 1, "native project/view differs")
-    SOURCE.require(
-        safe_path(spec["source_root"], permit["brief_path"]).as_posix()
-        == spec["input_path"],
-        "brief/input differs",
-    )
+    validate_scope_input(spec, permit)
     SOURCE.require(
         source_digest(snapshot_inputs(permit["stage_inputs"]))
         == permit["stage_source_sha256"],
