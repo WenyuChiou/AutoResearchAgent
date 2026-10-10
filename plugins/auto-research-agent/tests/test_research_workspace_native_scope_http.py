@@ -325,7 +325,11 @@ class ScopeHttpTests(unittest.TestCase):
                     0
                 ]
                 self.assertNotEqual(status, 200)
-            except (ConnectionError, http.client.RemoteDisconnected):
+            except (
+                ConnectionError,
+                http.client.RemoteDisconnected,
+                http.client.IncompleteRead,
+            ):
                 pass
             self.assertTrue(entered.wait(2))
             finished = time.monotonic() + 3
