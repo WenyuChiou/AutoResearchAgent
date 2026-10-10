@@ -28,7 +28,7 @@ const paper = (work, version, topic) => ({work_id: work, version_id: version,
 const payload = freeze({index: {papers: [paper("same", "v1", ["X", "Y"]),
   paper("same", "v2", ["Y"]), paper("other", "v1", ["X"])]}});
 const rows = freeze(model.papers(payload)), before = JSON.stringify(payload), rowBefore = JSON.stringify(rows);
-const canonicalLinks = associations.build(rows, {neighbors: 2, threshold: .09});
+const canonicalLinks = associations.build(rows, {neighbors: 2});
 const canonicalBefore = JSON.stringify(canonicalLinks);
 const topicColors = new Map([["X", "#123456"], ["Y", "#654321"]]);
 const paperAliases = new Map(rows.map((row, i) => [row.key, `P0${i + 1}`]));
@@ -75,7 +75,7 @@ assert.deepEqual([...paperAliases], rows.map((row, i) => [row.key, `P0${i + 1}`]
 assert.equal(instance.options.focus, live.options.focus); assert.equal(instance.options.pose, live.options.pose);
 assert.equal(instance.options.mode, 2);
 assert.equal(instance.options.showLabels, false);
-assert.deepEqual(live.associationOptions, [{neighbors: 2, threshold: .09}]);
+assert.deepEqual(live.associationOptions, [{neighbors: 2}], "the adapter inherits the shared association threshold");
 assert.deepEqual(plain(instance.options.extraLinks), plain([
   ...canonicalLinks.recorded, ...canonicalLinks.lexical, ...canonicalLinks.lexicalTopics
 ]));
@@ -85,6 +85,26 @@ assert.deepEqual(live.mounted.snapshot(), {saved: "camera"});
 assert.deepEqual(live.mounted.diagnostics(), {mounted: true, fixture: true});
 instance.options.onSelect({kind: "paper", key: rows[1].key});
 assert.deepEqual(live.selected, [{kind: "paper", key: rows[1].key}]);
+
+// The actual adapter and related-card helper share the .12 default boundary.
+const thresholdPayload = freeze({index: {papers: [
+  {...paper("threshold-a", "v1", ["X"]), classification: {topic_cluster: ["X"], method: []}, findings: {question: "household alpha bravo charlie delta"}},
+  {...paper("threshold-b", "v1", ["Y"]), classification: {topic_cluster: ["Y"], method: []}, findings: {question: "household echo foxtrot golf hotel"}}
+]}});
+const thresholdRows = freeze(model.papers(thresholdPayload)), thresholdKey = associations.key(thresholdRows[0]);
+const defaultRelated = associations.related(thresholdRows, thresholdKey);
+assert.deepEqual(defaultRelated, []);
+const relaxedGraph = associations.build(thresholdRows, {neighbors: 2, threshold: .1});
+const relaxedPaperLinks = relaxedGraph.lexical;
+assert.equal(relaxedPaperLinks.length, 1); assert.equal(relaxedPaperLinks[0].score, .112343);
+const relaxedRelated = associations.related(thresholdRows, thresholdKey, {threshold: .1});
+assert.equal(relaxedRelated.length, 1); assert.equal(relaxedRelated[0].lexical.score, .112343);
+const thresholdNetwork = runtime({connected: true, records: thresholdRows, focus: {kind: "paper", key: thresholdRows[0].key}}); thresholdNetwork.flush();
+const defaultAdapterLinks = plain(thresholdNetwork.calls[0].options.extraLinks);
+assert.deepEqual(thresholdNetwork.associationOptions, [{neighbors: 2}]);
+assert.equal(defaultAdapterLinks.filter(link => link.kind === "lexical-content").length, defaultRelated.length);
+assert.equal(defaultAdapterLinks.filter(link => link.kind === "lexical-content" || link.kind === "lexical-topic").length, 0);
+thresholdNetwork.mounted.destroy();
 
 // The 2D/3D buttons track the effective mode and forward only allowed live actions.
 const [controls] = live.parent.children, buttons = controls.children.filter(e => e.tag === "button");
@@ -122,10 +142,12 @@ assert.deepEqual(relationRows(live).map(node => node.textContent), liveBasis, "m
 assert.equal(JSON.stringify(rows), rowBefore); assert.equal(JSON.stringify(payload), before);
 live.mounted.destroy(); live.mounted.destroy();
 instance.options.onSelect({kind: "topic", key: "X"}); buttons[1].onclick(); buttons[2].onclick();
+input.checked = true; input.onchange();
 labelInput.checked = true; labelInput.onchange();
 assert.equal(instance.destroys, 1); assert.equal(live.selected.length, 1);
 assert.deepEqual(instance.modes, [3, 2]); assert.equal(instance.fits, 1);
 assert.deepEqual(instance.labels, [true, false]);
+assert.equal(live.options.settings.computed, false); assert.deepEqual(live.settingsCalls, [false]);
 assert.equal(live.options.settings.showLabels, false);
 
 // Destroy before the queued mount cancels it; an unattached host never mounts either.
@@ -158,6 +180,7 @@ assert.equal(failed.mounted.snapshot(), failed.options.pose);
 assert.equal(failed.fallbackCalls.length, 0); errorHost.children[1].onclick();
 assert.deepEqual(failed.fallbackCalls, ["requested"]); assert.equal(failed.selected.length, 0);
 failed.mounted.destroy();
+errorHost.children[1].onclick(); assert.deepEqual(failed.fallbackCalls, ["requested"]);
 
 // Textual basis uses the same exact typed focus as graph edges, never the default detail.
 for (const focus of [null, {kind: "paper", key: "same"}, {kind: "topic", key: "missing"}, {kind: "method", key: "X"}, {kind: "other", key: rows[0].key}]) {
