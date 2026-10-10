@@ -18,12 +18,12 @@ class Element {
 }
 const clone=x=>JSON.parse(JSON.stringify(x)), response=x=>({ok:true,json:async()=>clone(x)});
 const view=()=>({project_ref:"case",project_id:"case-project",index_sha256:h,input_version:version,source_sha256:src,revision:1,history:[],history_count:0,input_status:{"1":"saved","2":"saved"},capabilities:{"1":["checkpoint-stage1","review-stage"],"2":["inspect-stage2","review-stage"]},native_execution:false,model_execution:false,next_stage_execution_authorized:false});
-async function mount({server={view:view(),records:new Map()},storage=new Map(),mode="normal",transform=x=>x,storageError=false,enabled=true,readiness="incomplete",blockers=["synthetic missing assessment"]}={}){
+async function mount({server={view:view(),records:new Map()},storage=new Map(),mode="normal",transform=x=>x,storageError=false,enabled=true,readiness="incomplete",blockers=["synthetic missing assessment"],beforeDigest=async()=>{},beforeActionGet=async()=>{}}={}){
   const html=new Element("html"),body=new Element("body"),content=new Element("main"),review=new Element("section");html.lang="en";html.dataset.atlasStage="1";content.id="atlas-content";review.id="atlas-stage-review";html.append(body);body.append(content);content.append(review);
   const document={documentElement:html,body,createElement:tag=>new Element(tag),getElementById:id=>nodes(html).find(n=>n.id===id)};
   const calls=[],observers=[],window={WORKSPACE_STAGE_ACTIONS:{enabled,project_ref:"case",index_sha256:h,input_version:version},WORKSPACE_HOST:{credential:secret},WORKSPACE_VIEW:{index:{project_id:"case-project"}},addEventListener(){}};
   let uuid=0;
-  const context=vm.createContext({document,window,TextEncoder,crypto:{subtle:crypto.webcrypto.subtle,randomUUID:()=>"11111111-1111-1111-1111-"+String(++uuid).padStart(12,"0")},MutationObserver:class{constructor(callback){observers.push(callback);}observe(){}},sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(storageError)throw Error("storage unavailable");storage.set(key,value);},removeItem:key=>storage.delete(key)},
+  const context=vm.createContext({document,window,TextEncoder,crypto:{subtle:{digest:async(...args)=>{await beforeDigest();return crypto.webcrypto.subtle.digest(...args);}},randomUUID:()=>"11111111-1111-1111-1111-"+String(++uuid).padStart(12,"0")},MutationObserver:class{constructor(callback){observers.push(callback);}observe(){}},sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(storageError)throw Error("storage unavailable");storage.set(key,value);},removeItem:key=>storage.delete(key)},
     fetch:async(url,opts)=>{
       calls.push({url,...opts});assert.equal(opts.headers.Authorization,"Bearer "+secret);assert.equal(url.includes(secret),false);
       if(opts.method==="POST"){
@@ -32,19 +32,19 @@ async function mount({server={view:view(),records:new Map()},storage=new Map(),m
         const result={kind:reviewAction?"WorkspaceStageReviewRecord":"WorkspaceStageActionResult",readiness:{status:readiness,blockers:clone(blockers)},...(reviewAction?{decision:request.decision,note:request.note,next_stage_request:next,native_user_message_attested:false}:{}),execution_authorized:false};
         if(!reviewAction){if(request.stage===1)Object.assign(result,{ledger_valid:true,handoff:{papers:[{work_id:"p1"},{work_id:"p2"}]},checkpoint:{stage_result:{outputs:[{path:"raw/candidate.json"},{path:"raw/claims.json"},{path:"raw/decisions.json"},{path:"raw/handoff.json"}]}}});else result.completion={research_delivery_ready:true,assessment_status:"missing",stage2_complete:false,stage3_execution_authorized:false};}
         const row={client_key:request.key,stage:request.stage,action:request.action,request,status:mode==="unknown"?"execution-unknown":"completed",source_sha256:src,native_execution:false,model_execution:false,execution_authorized:false,...(mode==="unknown"?{}:{outcome:"succeeded",result})};
-        server.records.set(request.key,row);const summary=clone(row);delete summary.result;if(row.result)summary.result_summary={kind:result.kind,readiness_status:result.readiness.status,blocker_count:result.readiness.blockers.length,next_stage_request:next};server.view.history.push(summary);server.view.history_count++;server.view.revision+=2;
+        server.records.set(request.key,row);const summary=clone(row);delete summary.result;if(row.result)summary.result_summary={kind:result.kind,readiness_status:result.readiness.status,blocker_count:result.readiness.blockers.length,decision:result.decision,next_stage_request:next};server.view.history.push(summary);server.view.history_count++;server.view.revision+=2;
         if(mode==="loss")throw Error("response lost after write");return response(transform(row));
       }
       const offer=url.match(/\/offers\/([12])\/(.+)$/);
       if(offer)return response({offer_ref:"4".repeat(64),offer_sha256:"4".repeat(64),revision:server.view.revision,document:{project_ref:"case",principal:"principal",index_sha256:h,input_version:version,source_sha256:src,stage:Number(offer[1]),action:offer[2],execution_authorized:false}});
-      const action=url.match(/\/actions\/(.+)$/);if(action)return response(transform(server.records.get(decodeURIComponent(action[1]))));
+      const action=url.match(/\/actions\/(.+)$/);if(action){await beforeActionGet(decodeURIComponent(action[1]));return response(transform(server.records.get(decodeURIComponent(action[1]))));}
       return response(transform(server.view));
     }});
   vm.runInContext(source,context);for(let i=0;i<12;i++)await tick();
   const all=()=>nodes(html),panel=()=>document.getElementById("atlas-stage-actions"),buttons=()=>all().filter(n=>n.tagName==="BUTTON"),check=()=>buttons()[0],refresh=()=>buttons()[1],form=()=>all().find(n=>n.tagName==="FORM"),select=()=>all().filter(n=>n.tagName==="SELECT");
   async function flush(){for(let i=0;i<12;i++)await tick();}
   async function submit(){await check().onclick();await flush();}
-  async function reviewDecision(decision,confirmed=true,note="Review this exact saved source."){select()[1].value=decision;all().find(n=>n.tagName==="TEXTAREA").value=note;all().find(n=>n.tagName==="INPUT").checked=confirmed;form().onsubmit({preventDefault(){}});await flush();}
+  async function reviewDecision(decision,confirmed=true,note="Review this exact saved source."){select()[1].value=decision;all().find(n=>n.tagName==="TEXTAREA").value=note;all().find(n=>n.tagName==="INPUT").checked=confirmed;const completion=form().onsubmit({preventDefault(){}});assert.equal(typeof completion?.then,"function","review submit must expose its complete asynchronous action");await completion;await flush();}
   return {html,content,review,document,window,server,storage,calls,observers,all,panel,check,refresh,select,flush,submit,reviewDecision};
 }
 (async()=>{
@@ -79,5 +79,49 @@ async function mount({server={view:view(),records:new Map()},storage=new Map(),m
   let tamper=false;const trustedBlocked=await mount({readiness:"blocked",blockers:["closest-work-unverified"],transform:x=>{if(!tamper||!x.history)return x;const changed=clone(x);changed.revision++;changed.history[0].source_sha256="9".repeat(64);changed.history[0].result_summary.readiness_status="pass";return changed;}});await trustedBlocked.submit();tamper=true;await trustedBlocked.refresh().onclick();assert.equal(badge(trustedBlocked).dataset.state,"blocked","bad refresh cannot replace prior verified check");assert.ok(summary(trustedBlocked).textContent.includes("latest server state is not verified"));assert.ok(!summary(trustedBlocked).textContent.includes("Check passed"));
   const changedPending=await mount({readiness:"blocked",blockers:["closest-work-unverified"],transform:x=>{if(!x.result)return x;const changed=clone(x);changed.request.note="Changed response payload";changed.result.readiness={status:"pass",blockers:[]};return changed;}});await changedPending.submit();assert.equal(badge(changedPending).dataset.state,"blocked","rejected pending response cannot poison check cache");assert.ok(!summary(changedPending).textContent.includes("Check passed"));assert.equal(changedPending.storage.size,1);assert.equal(changedPending.calls.filter(c=>c.method==="POST").length,1);
   const wrongDetail=await mount({server:stageBlocked.server,transform:x=>{if(!x.result)return x;const changed=clone(x);changed.client_key=changed.request.key="foreign-stage-key";changed.stage=changed.request.stage=2;changed.action=changed.request.action="inspect-stage2";changed.result.readiness={status:"pass",blockers:["UNEXPECTED STAGE2 RESULT"]};return changed;}});await nodes(summary(wrongDetail)).find(n=>n.tagName==="BUTTON").onclick();assert.equal(badge(wrongDetail).dataset.state,"blocked");assert.ok(!wrongDetail.panel().textContent.includes("UNEXPECTED STAGE2 RESULT"));assert.equal(wrongDetail.calls.filter(c=>c.method==="POST").length,0);
+  let releaseDigest,digestEntered;const digestGate=new Promise(resolve=>releaseDigest=resolve),enteredDigest=new Promise(resolve=>digestEntered=resolve);
+  const heldReview=await mount({beforeDigest:()=>{digestEntered();return digestGate;}});let reviewFinished=false;
+  const awaitingReview=heldReview.reviewDecision("hold").then(()=>{reviewFinished=true;});await enteredDigest;
+  assert.equal(reviewFinished,false,"review handler must remain awaited while digest is unfinished");assert.equal(heldReview.calls.filter(c=>c.method==="POST").length,0);
+  releaseDigest();await awaitingReview;assert.equal(reviewFinished,true);assert.equal(heldReview.calls.filter(c=>c.method==="POST").length,1,"awaited review finishes exactly one durable action");assert.equal(heldReview.storage.size,0);
+  console.log("Review submit awaits the asynchronous digest and recovery boundary PASS");
+  const recordCards=instance=>instance.all().filter(n=>n.className==="stage-action-record");
+  const detailCards=instance=>instance.all().filter(n=>n.tagName==="ARTICLE"&&n.children.some(child=>child.tagName==="H3"));
+  const stageReview=await mount({readiness:"ready",blockers:[]});stageReview.html.dataset.atlasStage="2";stageReview.observers.forEach(fn=>fn());await stageReview.submit();
+  const originalNote="Keep this version · 保留原稿\nReason: <b>await researcher choice</b> / 等待研究者決定";
+  await stageReview.reviewDecision("hold",true,originalNote);assert.equal(stageReview.server.view.history.length,2);
+  const savedReview=stageReview.server.view.history.find(row=>row.action==="review-stage");assert.equal(savedReview.result_summary.decision,"hold");
+  const reviewReload=await mount({server:stageReview.server});reviewReload.html.dataset.atlasStage="2";reviewReload.observers.forEach(fn=>fn());
+  assert.equal(badge(reviewReload).dataset.state,"ready");assert.equal(detailCards(reviewReload).length,0,"reload has no transient details");
+  const [checkCard,reviewCard]=recordCards(reviewReload);assert.ok(!nodes(checkCard).some(n=>n.className==="stage-review-decision"),"a check is not a review decision");
+  assert.ok(!reviewCard.textContent.includes("ready · 0 blockers"),"review readiness must not look like a new check");
+  for(const [lang,label]of[["en","Review decision: Hold this stage"],["zh-Hans","审阅决定: 暂留本阶段"],["zh-Hant","審閱決定: 暫留本階段"]]){
+    reviewReload.html.lang=lang;reviewReload.observers.forEach(fn=>fn());const card=recordCards(reviewReload)[1];
+    assert.ok(card.textContent.includes(label));const preserved=nodes(card).find(n=>n.className==="stage-review-note");
+    assert.equal(preserved.textContent,originalNote);assert.equal(preserved.translate,false);assert.equal(preserved.attrs.style,"white-space: pre-wrap");
+  }
+  assert.equal(reviewReload.calls.length,1,"durable review history renders directly from the single initial GET");assert.equal(reviewReload.calls.filter(c=>c.method==="POST").length,0);
+  await nodes(summary(reviewReload)).find(n=>n.tagName==="BUTTON").onclick();assert.equal(detailCards(reviewReload).length,1);assert.ok(detailCards(reviewReload)[0].textContent.startsWith("Stage 2"));
+  reviewReload.select()[0].value="1";reviewReload.select()[0].onchange();assert.equal(detailCards(reviewReload).length,0,"manual stage selection clears the other stage's transient details");
+  const stageOne=await mount({readiness:"blocked",blockers:["stage-one-only-blocker"]});await stageOne.submit();assert.ok(detailCards(stageOne)[0].textContent.includes("stage-one-only-blocker"));
+  const beforeStageSwitch=stageOne.calls.length;stageOne.html.dataset.atlasStage="2";stageOne.observers.forEach(fn=>fn());assert.equal(detailCards(stageOne).length,0,"sidebar stage change clears Stage 1 details");assert.ok(!summary(stageOne).textContent.includes("stage-one-only-blocker"));assert.equal(stageOne.calls.length,beforeStageSwitch,"stage selection does not send or recover an action");
+  const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+  const detailRaceGate=deferred(),detailRaceEntered=deferred();
+  const switchedDetail=await mount({server:stageOne.server,beforeActionGet:()=>{detailRaceEntered.resolve();return detailRaceGate.promise;}});
+  const delayedDetail=nodes(summary(switchedDetail)).find(n=>n.tagName==="BUTTON").onclick();await detailRaceEntered.promise;
+  switchedDetail.select()[0].value="2";switchedDetail.select()[0].onchange();detailRaceGate.resolve();await delayedDetail;
+  assert.equal(detailCards(switchedDetail).length,0,"a prior stage's delayed details must not reappear after switching stage");assert.equal(switchedDetail.calls.filter(c=>c.method==="POST").length,0);
+  const firstSaved=clone([...stageOne.server.records.values()][0]),lastSaved=clone(firstSaved);
+  firstSaved.result.note="OLDER SAVED DETAIL";lastSaved.client_key=lastSaved.request.key="22222222-2222-2222-2222-222222222222";lastSaved.result.note="LATEST SAVED DETAIL";
+  const raceView=clone(stageOne.server.view);const firstSummary=clone(raceView.history[0]),lastSummary=clone(firstSummary);lastSummary.client_key=lastSummary.request.key=lastSaved.client_key;raceView.history=[firstSummary,lastSummary];raceView.history_count=2;
+  const firstGate=deferred(),lastGate=deferred(),firstEntered=deferred(),lastEntered=deferred();
+  const sameStage=await mount({server:{view:raceView,records:new Map([[firstSaved.client_key,firstSaved],[lastSaved.client_key,lastSaved]])},beforeActionGet:key=>{if(key===firstSaved.client_key){firstEntered.resolve();return firstGate.promise;}lastEntered.resolve();return lastGate.promise;}});
+  const firstDetail=nodes(recordCards(sameStage)[0]).find(n=>n.tagName==="BUTTON").onclick();await firstEntered.promise;
+  const lastDetail=nodes(recordCards(sameStage)[1]).find(n=>n.tagName==="BUTTON").onclick();await lastEntered.promise;
+  lastGate.resolve();await lastDetail;assert.ok(detailCards(sameStage)[0].textContent.includes("LATEST SAVED DETAIL"));
+  firstGate.resolve();await firstDetail;assert.ok(detailCards(sameStage)[0].textContent.includes("LATEST SAVED DETAIL"));assert.ok(!detailCards(sameStage)[0].textContent.includes("OLDER SAVED DETAIL"),"a slower prior detail cannot replace the last requested detail");assert.equal(sameStage.calls.filter(c=>c.method==="POST").length,0);
+  const foreign=recordCards(sameStage)[0];sameStage.select()[0].value="2";sameStage.select()[0].onchange();await nodes(foreign).find(n=>n.tagName==="BUTTON").onclick();assert.equal(detailCards(sameStage).length,0,"other-stage history remains GET-only and cannot display details in the selected stage");
+  console.log("Deferred stage-switch details and same-stage last-request-wins PASS");
+  console.log("Restored review decisions, original notes, check/review separation and cross-stage details PASS");
   console.log("Stage panel synthetic DOM: source binding, GET recovery, no resend, three languages, explicit review, next-stage status and remount PASS; visible latest result summary PASS");
 })().catch(error=>{console.error(error);process.exitCode=1;});

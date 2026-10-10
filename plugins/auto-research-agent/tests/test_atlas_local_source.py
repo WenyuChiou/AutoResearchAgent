@@ -40,6 +40,30 @@ class LocalLauncherTests(unittest.TestCase):
             with self.assertRaises(launcher.LauncherError):
                 launcher.pinned(path, launcher.digest(b"original"))
 
+    def test_empty_bibliography_is_inventoried_without_relaxing_input_reads(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            path = root / "included.bib"
+            path.write_bytes(b"")
+            other = root / "screening.bib"
+            other.write_bytes(b"")
+            expected = {
+                "included.bib": launcher.digest(b""),
+                "screening.bib": launcher.digest(b""),
+            }
+            self.assertEqual(launcher.inventory(root), expected)
+            with self.assertRaises(launcher.LauncherError):
+                launcher.read(path)
+            with self.assertRaises(launcher.LauncherError):
+                launcher.pinned(path, launcher.digest(b""))
+            path.write_bytes(b"@article{work1}\n")
+            self.assertNotEqual(launcher.inventory(root), expected)
+            with self.assertRaises(launcher.LauncherError):
+                launcher.read(path, 1, allow_empty=True)
+            path.write_bytes(b"")
+            path.unlink()
+            self.assertNotEqual(launcher.inventory(root), expected)
+
     def test_raw_loader_rejects_drift_and_never_uses_owned_pyc(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()

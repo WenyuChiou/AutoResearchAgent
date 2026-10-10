@@ -56,12 +56,15 @@ def unlinked(path):
     return path
 
 
-def read(path, maximum=256 * 1024):
+def read(path, maximum=256 * 1024, *, allow_empty=False):
     path = unlinked(path)
     require(stat.S_ISREG(path.stat().st_mode), "regular file required")
     with path.open("rb") as stream:
         raw = stream.read(maximum + 1)
-    require(0 < len(raw) <= maximum, "file bound exceeded")
+    require(
+        len(raw) <= maximum and (len(raw) > 0 or allow_empty),
+        "file bound exceeded",
+    )
     return raw
 
 
@@ -111,7 +114,7 @@ def inventory(root):
             item = Path(base) / name
             require(len(files) < 4096, "inventory file bound exceeded")
             files[item.relative_to(root).as_posix()] = digest(
-                read(item, 32 * 1024 * 1024)
+                read(item, 32 * 1024 * 1024, allow_empty=True)
             )
     return files
 

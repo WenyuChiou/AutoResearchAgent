@@ -10,7 +10,7 @@ These stacked review slices are not yet merged or accepted by the core team.
 Existing native runtime guards remain enforced.
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-portable-cases-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --branch codex/atlas-empty-inventory-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 

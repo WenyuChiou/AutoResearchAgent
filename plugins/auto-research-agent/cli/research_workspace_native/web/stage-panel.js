@@ -35,6 +35,9 @@
     requested: ["Next-stage request recorded; execution is not authorized by this review.", "已记录下一阶段申请；此审阅记录不授予执行权限。", "已記錄下一階段申請；此審閱紀錄不授予執行權限。"],
     blocked: ["Next-stage request blocked by the stage check.", "本阶段检查未通过，下一阶段申请已被阻塞。", "本階段檢查未通過，下一階段申請已被阻塞。"],
     details: ["Read check details", "查看检查详情", "查看檢查詳情"],
+    reviewDetails: ["View review record", "查看审阅记录", "查看審閱紀錄"],
+    reviewDecision: ["Review decision", "审阅决定", "審閱決定"],
+    reviewed: ["Reviewed", "已审阅", "已審閱"],
     latestCheck: ["Latest stage check", "本阶段最近检查", "本階段最近檢查"],
     notChecked: ["No check recorded for this stage", "本阶段尚无检查记录", "本階段尚無檢查紀錄"],
     partialHistory: ["Older check records are outside this history window.", "更早的检查记录不在当前历史窗口中。", "較早的檢查紀錄不在目前歷史視窗中。"],
@@ -89,7 +92,7 @@
   const confirmLabel=make("label",form), confirm=make("input",confirmLabel); confirm.type="checkbox";confirm.required=true;
   const confirmText=make("span",confirmLabel), submit=make("button",form);submit.type="submit";
   const history=make("details",panel), historyTitle=make("summary",history), rows=make("div",history);
-  let view=null,pending=null,busy=false,readable=false,state="loading",sequence=0,details=null;
+  let view=null,pending=null,busy=false,readable=false,state="loading",sequence=0,details=null,detailSequence=0;
   const checks=new Map();
   const remember=row=>{if(row.result && row.action!=="review-stage")checks.set(row.client_key,row);return row;};
   try {const raw=sessionStorage.getItem(storage); if(raw!==null) {
@@ -112,10 +115,12 @@
   };
   const locked=()=>busy || !view || !readable || pending!==null || view.history_count>=128 || view.history.some(row=>["running","execution-unknown"].includes(row.status));
   const showDetails=async row=>{
+    const selected=Number(stage.value), current=++detailSequence;
     try{const loaded=checks.get(row.client_key) || receipt(await request("/actions/"+encodeURIComponent(row.client_key)));
       if(loaded.client_key!==row.client_key || loaded.stage!==row.stage || loaded.action!==row.action || loaded.source_sha256!==row.source_sha256)throw Error("requested-check-differs");
+      if(current!==detailSequence || Number(stage.value)!==selected || loaded.stage!==selected)return;
       details=remember(loaded);history.open=true;render();}
-    catch{state="error";render();}
+    catch{if(current===detailSequence && Number(stage.value)===selected){state="error";render();}}
   };
   const renderSummary=()=>{
     summary.replaceChildren();make("h3",summary,t("latestCheck"));
@@ -163,15 +168,26 @@
       const card=make("article",rows);card.className="stage-action-record";
       make("strong",card,(row.stage===1?t("stage1"):t("stage2"))+" · "+row.action).translate=false;
       make("p",card,t(["completed","failed"].includes(row.status)?row.status:row.status==="running"?"running":"unknown"));
-      if(row.result_summary){make("p",card,row.result_summary.readiness_status+" · "+row.result_summary.blocker_count+" blockers").translate=false;
-        if(row.result_summary.next_stage_request === "recorded-awaiting-execution-authority")make("p",card,t("requested"));
-        if(row.result_summary.next_stage_request === "blocked")make("p",card,t("blocked"));}
+      const isReview=row.action==="review-stage";
+      if(isReview){
+        const choice=row.request.decision;
+        const chosen=["review","hold","request-next"].includes(choice)?t(choice==="review"?"reviewed":choice):t("assessmentUnknown");
+        make("p",card,t("reviewDecision")+": "+chosen).className="stage-review-decision";
+        if(typeof row.request.note==="string" && row.request.note){
+          make("p",card,t("note"));const original=make("p",card,row.request.note);original.className="stage-review-note";
+          original.translate=false;original.setAttribute("style","white-space: pre-wrap");
+        }
+      }
+      if(row.result_summary){
+        if(!isReview)make("p",card,row.result_summary.readiness_status+" · "+row.result_summary.blocker_count+" blockers").translate=false;
+        if(isReview && row.result_summary.next_stage_request === "recorded-awaiting-execution-authority")make("p",card,t("requested"));
+        if(isReview && row.result_summary.next_stage_request === "blocked")make("p",card,t("blocked"));}
       if(row.error)make("p",card,row.error.code).translate=false;
       make("code",card,row.client_key).translate=false;
-      const button=make("button",card,t("details"));button.type="button";button.disabled=busy;
+      const button=make("button",card,t(isReview?"reviewDetails":"details"));button.type="button";button.disabled=busy;
       button.onclick=()=>showDetails(row);
     }
-    if(details?.result){const card=make("article",rows);const result=details.result;make("h3",card,result.kind).translate=false;
+    if(details?.result && details.stage===Number(stage.value)){const card=make("article",rows);const result=details.result;make("h3",card,(details.stage===1?t("stage1"):t("stage2"))+" · "+result.kind).translate=false;
       make("p",card,result.readiness.status).translate=false;
       for(const blocker of result.readiness.blockers)make("p",card,typeof blocker==="string"?blocker:JSON.stringify(blocker)).translate=false;
       if(result.note)make("p",card,result.note).translate=false;}
@@ -216,7 +232,7 @@
     finally{busy=false;await recover();}
   };
   check.type=refresh.type="button";check.onclick=()=>execute(false);refresh.onclick=recover;
-  stage.onchange=render;form.onsubmit=event=>{event.preventDefault();execute(true);};
+  stage.onchange=()=>{++detailSequence;details=null;render();};form.onsubmit=event=>{event.preventDefault();return execute(true);};
   const mount=()=>{
     const anchor=document.getElementById("atlas-stage-review"), content=document.getElementById("atlas-content");
     if(anchor && panel.previousSibling!==anchor)anchor.after(panel);
@@ -226,8 +242,9 @@
   if(content)new MutationObserver(mount).observe(content,{childList:true,subtree:true});
   new MutationObserver(()=>{
     const active=document.documentElement.dataset.atlasStage;
-    if(["1","2"].includes(active))stage.value=active;
+    if(["1","2"].includes(active) && stage.value!==active){stage.value=active;++detailSequence;details=null;}
     panel.hidden=Boolean(active && !["1","2"].includes(active));
+    if(panel.hidden){++detailSequence;details=null;}
     render();mount();
   }).observe(document.documentElement,{attributes:true,attributeFilter:["lang","data-atlas-stage"]});
   mount();render();recover();

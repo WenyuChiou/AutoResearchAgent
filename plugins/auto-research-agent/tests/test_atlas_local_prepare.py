@@ -206,6 +206,24 @@ class PortablePreparationTests(unittest.TestCase):
             self.assertIsNone(result["argv"])
             self.assertFalse(args.output.exists())
 
+    def test_empty_included_bibliography_can_prepare_without_any_native_io(self):
+        with tempfile.TemporaryDirectory() as folder:
+            args = self.fixture(Path(folder).resolve())
+            literature = args.config.parent / "view/literature"
+            literature.mkdir()
+            (literature / "included.bib").write_bytes(b"")
+            checked = self.inspect(args)
+            self.assertEqual(
+                checked["manifest"]["source_files"]["literature/included.bib"],
+                source.digest(b""),
+            )
+            with patch.object(prep, "inspect_inputs", return_value=checked):
+                result = prep.prepare(args)
+            self.assertEqual(result["status"], "checked-only")
+            self.assertEqual(result["files_written"], 0)
+            self.assertIsNone(result["argv"])
+            self.assertFalse(args.output.exists())
+
     def test_explicit_acceptance_is_required_before_any_inspection(self):
         args = SimpleNamespace(allow_text_session=True, accept_text_scope="yes")
         with patch.object(
