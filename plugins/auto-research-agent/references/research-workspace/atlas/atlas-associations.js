@@ -20,6 +20,8 @@
     "third cannot needed need necessary particular different important specific general new well whether against " +
     "assertion assertions compound partial confirmed confirms independently assessed assessment premise closest found").split(/\s+/));
   const fields = ["question", "data", "method", "main_findings", "relevance", "transferability"];
+  const sourceFields = [...fields, "topics", "classification.topic_cluster"];
+  const defaultThreshold = .12;
   function tokens(value) {
     if (typeof value !== "string") return [];
     const text = value.toLowerCase().replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
@@ -93,7 +95,7 @@
   }
   function lexicalPairs(documents, options, kind) {
     const count = documents.length;
-    const threshold = Number.isFinite(options.threshold) ? Math.min(1, Math.max(0, options.threshold)) : .12;
+    const threshold = Number.isFinite(options.threshold) ? Math.min(1, Math.max(0, options.threshold)) : defaultThreshold;
     const neighbors = Number.isInteger(options.neighbors) ? Math.min(4, Math.max(0, options.neighbors)) : 2;
     const frequencies = documents.map(document => {
       const result = new Map();
@@ -146,7 +148,7 @@
       .map(([topic, members]) => ({node: endpoint("topic", topic), features: members.flatMap(features)}));
     return lexicalPairs(documents, options, "lexical-topic").map(link => ({...link,
       source_members: {from: groups.get(link.from.key).map(paper => paper.key), to: groups.get(link.to.key).map(paper => paper.key)},
-      source_fields: [...fields]}));
+      source_fields: [...sourceFields]}));
   }
   function build(records, options = {}) {
     return {recorded: recorded(records), lexical: lexical(records, options), lexicalTopics: lexicalTopics(records, options)};
@@ -154,7 +156,7 @@
   function related(records, paperKey, options = {}) {
     const papers = normalized(records), byKey = new Map(papers.map(paper => [paper.key, paper]));
     if (!byKey.has(paperKey)) return [];
-    const settings = {neighbors: 2, threshold: .09, ...options}, found = new Map();
+    const settings = {neighbors: 2, threshold: defaultThreshold, ...options}, found = new Map();
     const links = [...recorded(papers), ...(settings.computed !== false ? lexical(papers, settings) : [])];
     for (const link of links) {
       if (link.from.type !== "paper" || link.to.type !== "paper") continue;

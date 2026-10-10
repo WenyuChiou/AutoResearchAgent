@@ -16,6 +16,7 @@
     running: ["Running…", "正在执行…", "正在執行…"],
     succeeded: ["Completed", "已完成", "已完成"],
     failed: ["Failed — previous attempts are retained", "执行失败，原尝试已保留", "執行失敗，原嘗試已保留"],
+    "rejected-known-unsent": ["Not executed: the project revision changed. Review the current version before a new explicit action.", "项目修订已变化，此操作未执行。请核对当前版本后明确提交新操作。", "專案修訂已變化，此操作未執行。請核對目前版本後明確提交新操作。"],
     "execution-unknown": ["Outcome unknown. Read history; do not submit again.", "结果未知。请读取历史核查，不要重复提交。", "結果未知。請讀取歷史核查，不要重複提交。"],
     unavailable: ["Unable to verify this source-bound response. Previous records are retained.", "无法核验绑定当前来源的回执，仍保留原记录。", "無法核驗綁定目前來源的回執，仍保留原紀錄。"],
     storage: ["Unable to save a recovery key. No action was submitted.", "无法保存恢复记录，尚未提交操作。", "無法儲存復原紀錄，尚未提交操作。"],
@@ -57,15 +58,20 @@
   const history = make("details", panel), historyTitle = make("summary", history), rows = make("div", history, undefined, "harness-history");
   const validateReceipt = async row => {
     const base = ["key", "project_ref", "method", "action", "status", "request", "request_sha256", "index_sha256", "input_canonical_sha256", "contract_version", "output_ref", "artifacts", "intent_revision", "research_execution", "model_execution", "scientific_admission"];
+    const rejected = row?.status === "rejected-known-unsent";
     const terminal = ["completed", "failed"].includes(row?.status), success = row?.status === "completed";
-    const fields = terminal ? [...base, "outcome", "completion_revision", success ? "result" : "error"] : base;
+    const fields = rejected ? [...base, "outcome", "completion_revision", "error", "rejection"] : terminal ? [...base, "outcome", "completion_revision", success ? "result" : "error"] : base;
     if (!exact(row, fields) || row.project_ref !== config.project_ref || row.index_sha256 !== config.index_sha256 || !hash(row.input_canonical_sha256) ||
         (view && row.input_canonical_sha256 !== view.input_canonical_sha256) || !validRequest(row.request) || row.key !== row.request.key || row.action !== row.request.action ||
         row.method !== "harness-ops/" + row.action || row.contract_version !== "1.0.0" || !/^[a-f0-9]{32}$/.test(row.output_ref) || !noExecution(row) ||
-        !["running", "completed", "failed", "execution-unknown"].includes(row.status) || !integer(row.intent_revision) || row.intent_revision !== row.request.expected_revision + 1 ||
+        !["running", "completed", "failed", "execution-unknown", "rejected-known-unsent"].includes(row.status) || !integer(row.intent_revision) || (!rejected && row.intent_revision !== row.request.expected_revision + 1) ||
         row.request_sha256 !== await requestHash(row.request) || !Array.isArray(row.artifacts) || row.artifacts.length > 7 || new Set(row.artifacts.map(item => item.name)).size !== row.artifacts.length ||
         !row.artifacts.every(item => exact(item, ["name", "sha256", "size"]) && files.includes(item.name) && hash(item.sha256) && integer(item.size) && item.size <= 33554432) ||
         row.artifacts.reduce((total, item) => total + item.size, 0) > 134217728) throw Error("invalid-operation-receipt");
+    if (rejected && (!exact(row.rejection, ["type", "phase", "offer_revision", "observed_revision"]) || row.rejection.type !== "known-unsent" || row.rejection.phase !== "before-admission" ||
+        row.rejection.offer_revision !== row.request.expected_revision || !integer(row.rejection.observed_revision) || row.rejection.observed_revision === row.rejection.offer_revision ||
+        row.intent_revision !== row.rejection.observed_revision + 1 || row.completion_revision !== row.intent_revision || row.outcome !== "rejected-known-unsent" || row.artifacts.length !== 0 ||
+        !exact(row.error, ["code", "type"]) || row.error.code !== "stale-revision" || row.error.type !== "HarnessOpsError")) throw Error("invalid-known-unsent");
     if (terminal && (!integer(row.completion_revision) || row.completion_revision <= row.intent_revision || row.outcome !== (success ? "succeeded" : "failed"))) throw Error("invalid-terminal");
     if (success) {
       const result = row.result, common = ["input_canonical_sha256", "research_execution", "scientific_admission", "official_stage2_import_eligible"];
@@ -115,7 +121,7 @@
         const receipt = await validateReceipt(loaded.history.find(row => row.key === pending.key) || await request("/actions/" + encodeURIComponent(pending.key)));
         if (Object.keys(pending).some(name => receipt.request[name] !== pending[name]) || receipt.input_canonical_sha256 !== loaded.input_canonical_sha256 || (receipt.completion_revision ?? receipt.intent_revision) > loaded.revision) throw Error("recovery-binding-differs");
         state = receipt.status === "completed" ? "succeeded" : receipt.status;
-        if (["completed", "failed"].includes(receipt.status)) {sessionStorage.removeItem(storageKey); pending = null;}
+        if (["completed", "failed", "rejected-known-unsent"].includes(receipt.status)) {sessionStorage.removeItem(storageKey); pending = null;}
       } else state = pending === false ? "unavailable" : loaded.history.some(row => row.status === "execution-unknown") ? "execution-unknown" : loaded.history.some(row => row.status === "running") ? "running" : loaded.history_count >= loaded.action_limit ? "capacity" : "ready";
       view = loaded; readable = pending !== false;
     } catch {readable = false; state = pending ? "execution-unknown" : "unavailable";}

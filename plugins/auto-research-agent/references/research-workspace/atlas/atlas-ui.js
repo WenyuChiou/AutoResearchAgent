@@ -183,7 +183,12 @@
     backToLibrary: ["Back to whole library", "返回完整文献库", "返回完整文獻庫"],
     fixtureNotice: ["Simulated interface example · paper records are retained; routes, comparisons and scores are examples. Real Stage 2 has not run.", "界面模拟示例 · 论文记录保留原内容，路线、比较与分数仅供展示；真实 Stage 2 尚未执行。", "介面模擬範例 · 論文紀錄保留原內容，路線、比較與分數僅供展示；真實 Stage 2 尚未執行。"],
     simulatedReport: ["Open simulated Stage 2 report", "查看模拟 Stage 2 报告", "檢視模擬 Stage 2 報告"],
-    reserved: ["Stage contract preview · this companion performs no execution", "阶段契约预览 · 此图谱不执行研究", "階段契約預覽 · 此圖譜不執行研究"]
+    reserved: ["Stage contract preview · this companion performs no execution", "阶段契约预览 · 此图谱不执行研究", "階段契約預覽 · 此圖譜不執行研究"],
+    plannedUnconnected: ["Planned · not connected", "已规划 · 尚未连接", "已規劃 · 尚未連接"],
+    workflowInstructions: ["Workflow instructions", "工作流说明", "工作流程說明"],
+    actualStatus: ["Actual recorded status", "实际记录状态", "實際記錄狀態"],
+    supportStatus: ["Support status", "支持状态", "支援狀態"],
+    executionEnabled: ["Execution enabled", "是否启用执行", "是否啟用執行"]
   };
   const fieldLabels = {
     "Work / version": ["Work / version", "作品／版本", "作品／版本"],
@@ -213,7 +218,64 @@
   state.stage2Focus = null;
   state.reviews = {1: {choice: "reviewRevise", note: "", draft: "", accepted: false}, 2: {choice: "reviewRevise", note: "", draft: "", accepted: false}};
   let reviewSerial = 0;
-  let activeNetwork = null, activeNetworkStage = 1;
+  let activeNetwork = null, activeNetworkStage = 1, renderRevision = 0, focusFrame = 0, responsiveQuery = null, responsiveHandler = null, responsiveResizeHandler = null;
+  const descendants = root => (root?.children ? [...root.children].flatMap(child => [child, ...descendants(child)]) : []);
+  const containsNode = (root, node) => root === node || descendants(root).includes(node);
+  function captureNetworkFocus() {
+    const root = document.getElementById("atlas-network")?.children?.[0], active = document.activeElement;
+    if (!root || !active || !containsNode(root, active)) return null;
+    if (active.dataset?.nodeKey) return {type: "node", key: active.dataset.nodeKey, kind: active.dataset.nodeKind || "", className: active.className || ""};
+    if (String(active.className || "").includes("atlas-spatial-label")) return {type: "spatial-label", className: active.className,
+      title: active.title || "", label: active.textContent || ""};
+    const tag = String(active.tagName || "").toLowerCase(), controls = descendants(root).filter(node =>
+      String(node.tagName || "").toLowerCase() === tag && !node.dataset?.nodeKey);
+    const index = controls.indexOf(active);
+    return index < 0 ? null : {type: "control", tag, inputType: active.type || "", index};
+  }
+  function captureControlFocus() {
+    const active = document.activeElement, key = active?.dataset?.atlasFocus;
+    if (!key) return null;
+    const matches = descendants(document.body).filter(node => node.dataset?.atlasFocus === key);
+    const index = matches.indexOf(active);
+    return index < 0 ? null : {key, index};
+  }
+  function restoreControlFocus(saved, revision) {
+    if (!saved || revision !== renderRevision) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== document.documentElement) return;
+    const controls = descendants(document.body), matches = controls.filter(node => node.dataset?.atlasFocus === saved.key);
+    let replacement = matches[saved.index];
+    if (replacement?.disabled && saved.key.startsWith("page:")) {
+      const prefix = saved.key.slice(0, saved.key.lastIndexOf(":") + 1);
+      replacement = controls.find(node => node.dataset?.atlasFocus?.startsWith(prefix) && !node.disabled);
+    }
+    if (replacement && !replacement.disabled) replacement.focus?.({preventScroll: true});
+  }
+  function restoreNetworkFocus(saved, revision, attempt = 0) {
+    if (!saved || revision !== renderRevision) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== document.documentElement) return;
+    const root = document.getElementById("atlas-network")?.children?.[0], nodes = descendants(root);
+    const target = saved.type === "node" ? nodes.find(node => node.dataset?.nodeKey === saved.key &&
+      (!saved.kind || node.dataset.nodeKind === saved.kind) && (!saved.className || node.className === saved.className)) :
+      saved.type === "spatial-label" ? nodes.find(node => node.className === saved.className && node.title === saved.title && node.textContent === saved.label) :
+      nodes.filter(node => String(node.tagName || "").toLowerCase() === saved.tag && !node.dataset?.nodeKey &&
+        (!saved.inputType || node.type === saved.inputType))[saved.index];
+    const style = target && window.getComputedStyle?.(target), ready = target && !target.disabled && !target.hidden &&
+      target.style?.visibility !== "hidden" && style?.visibility !== "hidden" && style?.display !== "none" &&
+      (typeof target.getClientRects !== "function" || target.getClientRects().length > 0);
+    if (ready) { target.focus?.({preventScroll: true}); return; }
+    if (attempt >= 8) return;
+    focusFrame = window.requestAnimationFrame(() => { focusFrame = 0; restoreNetworkFocus(saved, revision, attempt + 1); });
+  }
+  function clearResponsiveLayout() {
+    if (responsiveQuery && responsiveHandler) {
+      if (responsiveQuery.removeEventListener) responsiveQuery.removeEventListener("change", responsiveHandler);
+      else responsiveQuery.removeListener?.(responsiveHandler);
+    }
+    if (responsiveResizeHandler) window.removeEventListener?.("resize", responsiveResizeHandler);
+    responsiveQuery = responsiveHandler = responsiveResizeHandler = null;
+  }
   function sharedNetwork(parent, rows, onSelect, focus) {
     if (!window.AtlasNetwork) return;
     const complete = state.stage === 1 ? archive : model.stage2Papers(payload);
@@ -241,6 +303,7 @@
   }
   function button(label, action, pressed) {
     const node = el("button", label === "" ? undefined : label); node.type = "button"; node.onclick = action;
+    if (label !== "") node.dataset.atlasFocus = `button:${label}`;
     if (pressed !== undefined) node.setAttribute("aria-pressed", String(pressed));
     return node;
   }
@@ -266,6 +329,7 @@
     const actions = el("div", undefined, "atlas-actions");
     for (const [label, step] of [[t("previous"), -1], [t("next"), 1]]) {
       const control = button(label, () => { state[field] += step; render(); });
+      control.dataset.atlasFocus = `page:${field}:${step}`;
       control.disabled = page + step < 0 || page + step >= pages; actions.append(control);
     }
     bar.append(actions); parent.append(bar);
@@ -300,6 +364,7 @@
   function paperRow(parent, paper, action = () => choosePaper(paper.key)) {
     const row = el("div", undefined, "atlas-row"), control = button("", action);
     control.className = "atlas-paper"; control.dataset.paperKey = paper.key;
+    control.dataset.atlasFocus = `paper:${paper.key}`;
     control.append(source("span", `${paper.work_id} · ${paper.year ?? t("unknown")} · ${paper.selection?.status ?? t("unknown")}`, "atlas-small"), source("strong", paper.title));
     control.append(source("span", `${t("relevance")}: ${text(paper.findings?.relevance ?? paper.cells?.relevance?.text)}`, "atlas-small"));
     row.append(control); parent.append(row); return row;
@@ -380,6 +445,7 @@
       if (node.fill) control.style.setProperty("--node-fill", node.fill);
       control.append(source("span", node.label)); if (node.sub) control.append(source("small", node.sub)); if (node.count !== undefined) control.append(el("strong", node.count));
       control.title = text(node.title || node.label); control.dataset.nodeKey = node.key || "";
+      control.dataset.atlasFocus = `node:${node.key || node.label}`;
       if (node.selected) control.setAttribute("aria-pressed", "true");
       control.onpointerenter = control.onfocus = control.onpointerleave = control.onblur = () => highlight(graphFocus() ? `${graphFocus().kind}:${graphFocus().key}` : null);
       control.setAttribute("aria-label", `${text(node.title || node.label)} ${node.count ?? ""}`); layer.append(control); controls.push({control, node});
@@ -410,11 +476,13 @@
   function groupGraph(parent) {
     const summaryFocus = Boolean(state.summaryGraphFocus), rows = summaryFocus ? papers : contextRows();
     const page = rows.length > 48 ? pagination(parent, rows.length, 48, summaryFocus ? "summaryGraphPage" : "graphPage") : 0, shown = ordered(rows).slice(page * 48, page * 48 + 48);
-    if (rows.length <= 48) parent.append(el("p", `${rows.length} ${t("records")}`, "atlas-small"));
+    const count = rows.length <= 48 ? el("p", `${rows.length} ${t("records")}`, "atlas-small") : null;
     if (window.AtlasNetwork && !state.planarFallback) {
       sharedNetwork(parent, shown, node => node.kind === "paper" ? focusPaper(node.key) : focusGroup(node.kind, node.key), graphFocus());
+      if (count) parent.append(count);
       return;
     }
+    if (count) parent.append(count);
     const layout = model.networkLayout(shown, {singleMethods: true}), nodes = [], edges = [], groupNodes = new Map();
     const palette = new Map(model.networkLayout(archive).groups.map(group => [group.key, group.colorIndex < 0 ? "#8b949a" : colors[group.colorIndex]]));
     layout.groups.forEach(group => {
@@ -462,7 +530,7 @@
   }
   function paperGraph(parent, paper) {
     if (window.AtlasNetwork && !state.planarFallback) {
-      const associations = window.AtlasAssociations.build(papers, {neighbors: 2, threshold: .09});
+      const associations = window.AtlasAssociations.build(papers, {neighbors: 2});
       const keys = new Set([paper.key]);
       [...associations.recorded, ...(state.graphSettings.computed ? associations.lexical : [])].forEach(edge => {
         if (edge.from.type === "paper" && edge.to.type === "paper" && [edge.from.key, edge.to.key].includes(paper.key)) {
@@ -527,7 +595,7 @@
     disclosure(parent, t("raw"), index.papers.find(row => model.key(row) === paper.key));
   }
   function relatedPapers(parent, paper) {
-    const rows = window.AtlasAssociations?.related(papers, paper.key, {neighbors: 2, threshold: .09, computed: state.graphSettings.computed}) || [];
+    const rows = window.AtlasAssociations?.related(papers, paper.key, {neighbors: 2, computed: state.graphSettings.computed}) || [];
     const section = el("section", undefined, "atlas-related"); section.append(el("h3", `${t("related")} · ${rows.length}`));
     const append = (container, row) => {
       const card = el("div", undefined, "atlas-related-paper");
@@ -550,8 +618,9 @@
     if (rows.length > 5) {const more = el("details"); more.append(el("summary", `${t("moreRelated")} · ${rows.length - 5}`)); rows.slice(5).forEach(row => append(more, row)); section.append(more);}
     parent.append(section);
   }
-  function choice(label, value, options, action) {
+  function choice(label, value, options, action, focusKey = label) {
     const field = el("label", label), select = el("select");
+    select.dataset.atlasFocus = `choice:${focusKey}`;
     options.forEach(([key, caption]) => { const option = source("option", caption); option.value = key; select.append(option); });
     select.value = value; select.onchange = () => action(select.value); field.append(select); return field;
   }
@@ -561,7 +630,7 @@
     const strip = el("div", undefined, "atlas-workflow-strip");
     names.forEach((name, i) => {
       const step = button("", () => { state.workflow[number] = i; state.productOpen = !state.productOpen || selected !== i; render(); }, selected === i);
-      step.className = "atlas-workflow-step"; step.dataset.workflowStep = i;
+      step.className = "atlas-workflow-step"; step.dataset.workflowStep = i; step.dataset.atlasFocus = `workflow:${number}:${i}`;
       const title = el("span"); title.append(el("strong", name), el("small", products[i]));
       const miniature = el("span", undefined, `atlas-workflow-mini atlas-workflow-mini-${i}`);
       for (let j = 0; j < 3; j++) miniature.append(el("i"));
@@ -641,6 +710,7 @@
         else focusSummary("topic", group.key);
         state.network = "global"; render();
       }, selected?.key === group.key); card.className = "atlas-topic-card"; card.style.setProperty("--category", palette.get(group.key) || "#8b949a");
+      card.dataset.atlasFocus = `topic-card:${group.key}`;
       const bubble = el("b", group.ids.length); bubble.style.width = bubble.style.height = `${unit * Math.sqrt(group.ids.length)}px`;
       card.append(bubble, source("strong", group.label)); cards.append(card);
     });
@@ -652,7 +722,7 @@
           state.summaryPaper = paper.key; focusSummary("paper", paper.key); state.fitNext = true; render();
           document.getElementById("atlas-paper-detail")?.scrollIntoView?.({behavior: "smooth", block: "start"});
         }, state.summaryPaper === paper.key); control.className = "atlas-summary-paper";
-        control.dataset.summaryPaper = paper.key; control.append(source("strong", paper.title), source("small", `${paper.work_id} · ${paper.year ?? t("unknown")}`)); list.append(control);
+        control.dataset.summaryPaper = paper.key; control.dataset.atlasFocus = `summary-paper:${paper.key}`; control.append(source("strong", paper.title), source("small", `${paper.work_id} · ${paper.year ?? t("unknown")}`)); list.append(control);
         if (state.summaryPaper === paper.key) {
           const preview = el("div", undefined, "atlas-summary-preview"); preview.append(source("p", paper.findings?.main_findings ?? paper.findings?.relevance));
           const url = safeUrl(paper.url); if (url) preview.append(link(t("publicLink"), url));
@@ -678,7 +748,9 @@
     const prepare = button(t("reviewPrepare"), () => {
       record.draft = `${t("stageReview")} · Stage ${state.stage}\n${t(record.choice)}\n${index.topic}\nProject: ${index.project_id}\nWorkspaceIndex SHA-256: ${payload.index_sha256}\n${record.note}\n${t("reviewMissing")}`;
       if (state.stage === 2 && payload.stage2) {
-        record.draft += `\nStage 2 selection SHA-256: ${text(payload.stage2.bridge_receipt?.selection_sha256)}\nStage 1 lineage attested: ${text(payload.stage2.bridge_receipt?.original_stage1_lineage_attested)}\nSimulated: ${payload.fixture === true || payload.stage2.fixture === true}`;
+        const fixtureFlags = [payload.fixture, payload.stage2.fixture];
+        const simulated = fixtureFlags.includes(true) ? true : fixtureFlags.every(flag => flag === false) ? false : null;
+        record.draft += `\nStage 2 selection SHA-256: ${text(payload.stage2.bridge_receipt?.selection_sha256)}\nStage 1 lineage attested: ${text(payload.stage2.bridge_receipt?.original_stage1_lineage_attested)}\nSimulated: ${text(simulated)}`;
       }
       record.requestRef = `review-${++reviewSerial}`;
       record.accepted = false;
@@ -707,11 +779,10 @@
   });
   function stage1() {
     const scope = el("div", undefined, "atlas-actions atlas-tabs"), included = archive.filter(p => p.selection?.status === "included"), pending = archive.filter(p => p.selection?.status === "pending");
-    scope.append(button(`${t("working")} · ${(included.length ? included : pending.length ? pending : archive).length}`, () => { state.scope = "working"; changeContext("library"); }, state.scope === "working"), button(`${t("archive")} · ${archive.length}`, () => { state.scope = "archive"; changeContext("library"); }, state.scope === "archive")); content.append(scope);
+    scope.append(button(`${t("working")} · ${(included.length ? included : pending.length ? pending : archive).length}`, () => { state.scope = "working"; changeContext("library"); }, state.scope === "working"), button(`${t("archive")} · ${archive.length}`, () => { state.scope = "archive"; changeContext("library"); }, state.scope === "archive"));
     const collectionStatus = el("details", undefined, "atlas-small atlas-collection-status");
     collectionStatus.append(el("summary", `${t("formalWorks")}: ${new Set(included.map(p => p.work_id)).size}`), el("p", t("unboundTarget")));
     if (state.scope === "working" && !included.length) collectionStatus.append(el("p", t(pending.length ? "noIncluded" : "archiveFallback")));
-    content.append(collectionStatus);
     const split = el("div", undefined, "atlas-split atlas-network-split"), graphPanel = panel(t("networkTitle")), detailPanel = panel(t("detail")); split.id = "atlas-network"; detailPanel.id = "atlas-paper-detail"; detailPanel.classList.add("atlas-detail-panel");
     if (state.libraryReturn) detailPanel.append(button(t("backToLibrary"), backToLibrary));
     const selected = papers.find(p => p.key === state.paper);
@@ -719,7 +790,7 @@
     for (const [mode, label] of [["global", "globalNetwork"], ["local", "localNetwork"]]) networkActions.append(button(t(label), () => { state.network = mode; state.similarity = mode === "local"; render(); }, state.network === mode));
     if (!window.AtlasNetwork || state.planarFallback) {
       const label = el("label", undefined, "atlas-check"), checkbox = el("input"); checkbox.type = "checkbox"; checkbox.checked = state.similarity;
-      checkbox.onchange = () => {state.similarity = checkbox.checked; render();}; label.append(checkbox, el("span", t("similarity"))); networkActions.append(label);
+      checkbox.dataset.atlasFocus = "similarity"; checkbox.onchange = () => {state.similarity = checkbox.checked; render();}; label.append(checkbox, el("span", t("similarity"))); networkActions.append(label);
     }
     networkActions.append(button(t("resetNetwork"), resetNetwork)); graphPanel.append(networkActions);
     if (state.network === "local" && selected) paperGraph(graphPanel, selected); else groupGraph(graphPanel);
@@ -730,14 +801,35 @@
       rows.forEach(p => paperRow(detailPanel, p));
     } else if (selected) paperDetail(detailPanel, selected);
     else detailPanel.append(el("p", t("selectNode"), "atlas-note"));
-    split.append(graphPanel, detailPanel); content.append(split);
+    split.append(graphPanel, detailPanel);
+    let arrangedPhone = null;
+    const arrange = phone => {
+      phone = Boolean(phone);
+      if (arrangedPhone === phone) return;
+      const group = new Set([split, scope, collectionStatus]), children = [...content.children];
+      const active = document.activeElement, retainFocus = active && [...group].some(node => containsNode(node, active));
+      const start = Math.min(...[split, scope, collectionStatus].map(node => children.indexOf(node)).filter(index => index >= 0));
+      const anchor = children.slice(start).find(node => !group.has(node)) || null;
+      (phone ? [split, scope, collectionStatus] : [scope, collectionStatus, split]).forEach(node => content.insertBefore(node, anchor));
+      if (retainFocus && (document.activeElement === document.body || document.activeElement === document.documentElement)) active.focus?.({preventScroll: true});
+      arrangedPhone = phone;
+    };
+    responsiveQuery = typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 700px)") : null;
+    arrange(responsiveQuery ? responsiveQuery.matches : window.innerWidth <= 700);
+    if (responsiveQuery) {
+      responsiveHandler = event => arrange(event.matches);
+      if (responsiveQuery.addEventListener) responsiveQuery.addEventListener("change", responsiveHandler);
+      else responsiveQuery.addListener?.(responsiveHandler);
+      responsiveResizeHandler = () => arrange(responsiveQuery.matches);
+      window.addEventListener?.("resize", responsiveResizeHandler);
+    }
     topicCounts(); stageReview(); workflow(); processPanel(); content.append(el("p", t("compactCollection"), "atlas-small"));
     const library = el("details"); library.id = "atlas-library"; library.open = state.libraryOpen; library.ontoggle = () => { state.libraryOpen = library.open; }; library.append(el("summary", `${t("library")} · ${papers.length}`));
-    const filters = el("div", undefined, "atlas-filters"), search = el("label", t("search")), input = el("input"); input.value = state.text; input.type = "search"; input.onchange = () => { state.text = input.value; state.page = 0; render(); }; search.append(input); filters.append(search);
-    filters.append(choice(t("topics"), state.topic, [["", t("all")], ...model.groups(papers, "topics").map(g => [g.key, g.label])], value => { state.topic = value; state.mode = value ? "topic" : "library"; state.page = 0; render(); }));
-    filters.append(choice(t("methods"), state.method, [["", t("all")], ...model.groups(papers, "methods").map(g => [g.key, g.label])], value => { state.method = value; state.page = 0; render(); }));
-    filters.append(choice(t("status"), state.status, ["", "included", "pending", "excluded", "unbound"].map(key => [key, t(key || "all")]), value => { state.status = value; state.page = 0; render(); })); library.append(filters);
-    const sorting = choice(t("sorting"), state.sort, [["recorded", t("originalOrder")], ["title", t("titleOrder")], ["year", t("yearOrder")], ["relevance", t("relevanceOrder")]], value => { state.sort = value; render(); }); sorting.querySelector('option[value="relevance"]').disabled = true; library.append(sorting);
+    const filters = el("div", undefined, "atlas-filters"), search = el("label", t("search")), input = el("input"); input.value = state.text; input.type = "search"; input.dataset.atlasFocus = "search"; input.onchange = () => { state.text = input.value; state.page = 0; render(); }; search.append(input); filters.append(search);
+    filters.append(choice(t("topics"), state.topic, [["", t("all")], ...model.groups(papers, "topics").map(g => [g.key, g.label])], value => { state.topic = value; state.mode = value ? "topic" : "library"; state.page = 0; render(); }, "topics"));
+    filters.append(choice(t("methods"), state.method, [["", t("all")], ...model.groups(papers, "methods").map(g => [g.key, g.label])], value => { state.method = value; state.page = 0; render(); }, "methods"));
+    filters.append(choice(t("status"), state.status, ["", "included", "pending", "excluded", "unbound"].map(key => [key, t(key || "all")]), value => { state.status = value; state.page = 0; render(); }, "status")); library.append(filters);
+    const sorting = choice(t("sorting"), state.sort, [["recorded", t("originalOrder")], ["title", t("titleOrder")], ["year", t("yearOrder")], ["relevance", t("relevanceOrder")]], value => { state.sort = value; render(); }, "sorting"); sorting.querySelector('option[value="relevance"]').disabled = true; library.append(sorting);
     const rows = model.filter(papers, {text: state.text, topic: state.topic, method: state.method, status: state.status}), page = pagination(library, rows.length, 12, "page");
     ordered(rows).slice(page * 12, page * 12 + 12).forEach(p => paperRow(library, p, () => openLibraryPaper(p.key))); content.append(library);
     if (state.scope === "archive") { content.append(el("p", t("archiveNote"), "atlas-small")); disclosure(content, t("searchRecords"), index.search || []); }
@@ -806,6 +898,7 @@
     content.append(el("p", t("compareNote"), "atlas-note"));
     literature.slice(page * 8, page * 8 + 8).forEach(row => {
       const field = el("label", undefined, "atlas-check"), input = el("input"); input.type = "checkbox"; input.checked = state.selected.has(row.key);
+      input.dataset.atlasFocus = `compare:${row.key}`;
       input.onchange = () => { if (input.checked) state.selected.add(row.key); else state.selected.delete(row.key); state.comparePage = 0; render(); };
       field.append(input, source("span", row.title)); library.append(field);
     }); library.append(button(t("clear"), () => { state.selected.clear(); render(); })); content.append(library);
@@ -902,10 +995,18 @@
   function later() {
     const stage = (index.stages || []).find(row => row.stage === state.stage), card = panel(t("reserved"));
     card.id = "atlas-process";
-    if (!stage) { card.append(el("p", t("unknown"))); content.append(card); return; }
+    card.append(el("p", t("plannedUnconnected"), "atlas-chip atlas-planned-status"), el("h3", t("workflowInstructions")));
+    if (!stage) {
+      card.append(el("p", t("unknown")), el("h3", t("actualStatus")));
+      kv(card, [[t("supportStatus"), null], [t("executionEnabled"), null]]);
+      card.append(link(t("original"), "./index.html")); content.append(card); return;
+    }
     card.append(source("p", stage.purpose));
-    kv(card, [[t("inputs"), stage.required_inputs], [t("outputs"), stage.expected_deliverables], ["Support status", stage.support_status], ["Execution enabled", stage.execution_enabled]]);
-    const flow = el("div", undefined, "atlas-flow"); (stage.node_flow || []).forEach(value => flow.append(el("span", caption(value)))); card.append(el("h3", t("flow")), flow, link(t("original"), "./index.html")); content.append(card);
+    kv(card, [[t("inputs"), stage.required_inputs], [t("outputs"), stage.expected_deliverables]]);
+    const flow = el("div", undefined, "atlas-flow"); (stage.node_flow || []).forEach(value => flow.append(el("span", caption(value))));
+    card.append(el("h3", t("flow")), flow, el("h3", t("actualStatus")));
+    kv(card, [[t("supportStatus"), stage.support_status], [t("executionEnabled"), stage.execution_enabled]]);
+    card.append(link(t("original"), "./index.html")); content.append(card);
   }
   function contract() {
     const stage = (index.stages || []).find(row => row.stage === state.stage);
@@ -915,6 +1016,9 @@
     kv(box, [[t("inputs"), stage.required_inputs], [t("outputs"), stage.expected_deliverables], ["Support status", stage.support_status], ["Execution enabled", stage.execution_enabled]]); content.append(box);
   }
   function render() {
+    const savedFocus = captureNetworkFocus(), savedControlFocus = savedFocus ? null : captureControlFocus(), revision = ++renderRevision;
+    if (focusFrame) { window.cancelAnimationFrame(focusFrame); focusFrame = 0; }
+    clearResponsiveLayout();
     if (activeNetwork) {
       state.graphPose[activeNetworkStage] = state.fitNext ? null : activeNetwork.snapshot(); activeNetwork.destroy(); activeNetwork = null;
     }
@@ -925,7 +1029,12 @@
     document.documentElement.dataset.atlasStage = String(state.stage);
     document.documentElement.lang = state.language; content.replaceChildren();
     const nav = document.getElementById("atlas-stages"); nav.replaceChildren();
-    t("stages").forEach((label, i) => { const control = button("", () => { state.stage = i + 1; state.groupPage = 0; state.page = 0; render(); }, state.stage === i + 1); control.append(el("span", i + 1, "atlas-stage-number"), el("span", label)); nav.append(control); });
+    t("stages").forEach((label, i) => {
+      const control = button("", () => { state.stage = i + 1; state.groupPage = 0; state.page = 0; render(); }, state.stage === i + 1), copy = el("span", undefined, "atlas-stage-copy");
+      control.dataset.atlasFocus = `stage:${i + 1}`;
+      copy.append(el("span", label)); if (i >= 2) copy.append(el("small", t("plannedUnconnected"), "atlas-stage-status"));
+      control.append(el("span", i + 1, "atlas-stage-number"), copy); nav.append(control);
+    });
     document.getElementById("atlas-language-label").textContent = t("language");
     document.getElementById("atlas-original").textContent = t("original");
     document.getElementById("atlas-project").textContent = text(index.topic); document.getElementById("atlas-project").translate = false;
@@ -936,6 +1045,8 @@
     if (payload.fixture === true) content.append(el("p", t("fixtureNotice"), "atlas-note atlas-fixture-notice"));
     if (state.stage === 1) stage1(); else if (state.stage === 2) stage2(); else later();
     if (state.stage <= 2) contract();
+    if (savedControlFocus) window.queueMicrotask(() => restoreControlFocus(savedControlFocus, revision));
+    if (savedFocus) window.queueMicrotask(() => restoreNetworkFocus(savedFocus, revision));
   }
   for (const [id, label] of [["atlas-view-workbench", "workbench"], ["atlas-view-files", "files"], ["atlas-view-history", "history"], ["atlas-view-settings", "settings"]]) {
     const control = document.getElementById(id); if (!control) continue;
