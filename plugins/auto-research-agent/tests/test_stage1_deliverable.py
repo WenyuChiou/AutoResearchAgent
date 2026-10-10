@@ -182,9 +182,7 @@ class ResearchDeliverableTests(unittest.TestCase):
                         for a in result["attempts"]
                     ],
                     "extracted_text_sha256": result["extracted_text_sha256"],
-                    "result": {
-                        key: result.get(key) for key in sources.RESULT_FIELDS
-                    },
+                    "result": {key: result.get(key) for key in sources.RESULT_FIELDS},
                 }
             )
         )
