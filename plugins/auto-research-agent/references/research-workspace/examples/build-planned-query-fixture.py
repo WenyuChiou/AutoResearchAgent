@@ -55,6 +55,37 @@ def save(path, value):
         stream.write(canonical(value))
 
 
+def install_demo_bootstrap(server, credential):
+    """Add an example-only memory bootstrap before the normal host consumes its own."""
+    anchor = b'<script src="/host-panel.js"></script>'
+    for view in server.views:
+        route = view["url"]
+        raw = server._assets[route]
+        bootstrap_route = "/stage2-demo-bootstrap/" + view["ref"] + ".js"
+        if raw.count(anchor) != 1 or bootstrap_route in server._assets:
+            raise ValueError("Stage2 demo bootstrap placement differs")
+        enabled = view["ref"] == "stage2"
+        bootstrap = (
+            b"window.WORKSPACE_STAGE2_DEMO="
+            + canonical(
+                dict(
+                    enabled=enabled,
+                    project_ref=view["ref"],
+                    credential=credential if enabled else "",
+                )
+            )
+            + b";"
+        )
+        tag = ('<script src="' + bootstrap_route + '"></script>').encode("utf8")
+        changed = raw.replace(anchor, tag + anchor, 1)
+        server._assets[route] = changed
+        server._assets[bootstrap_route] = bootstrap
+        server.host_binding["served_files"][route] = digest(changed)
+        server.host_binding["served_files"][bootstrap_route] = digest(bootstrap)
+    server.host_binding["stage2_demo_overlay"] = "independent synthetic example"
+    server._assets["/host-binding.json"] = canonical(server.host_binding)
+
+
 def git(repo, *args):
     result = subprocess.run(
         ["git", "-c", "core.longpaths=true", *args],
@@ -483,6 +514,7 @@ def main():
                 native_script=notice_raw,
             )
             if demo is not None:
+                install_demo_bootstrap(server, credential)
                 demo_module.install(server, demo)
             receipt.update(
                 status="serving",

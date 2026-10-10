@@ -1,8 +1,10 @@
 /* Demo-only Stage2 worker: fixed server case, explicit one-shot POST, reads never run. */
 (() => {
   "use strict";
-  const host = window.WORKSPACE_HOST;
-  if (!host?.credential || host.current_case !== "stage2") return;
+  const host = window.WORKSPACE_STAGE2_DEMO;
+  delete window.WORKSPACE_STAGE2_DEMO;
+  if (host?.enabled !== true || host.project_ref !== "stage2" ||
+      typeof host.credential !== "string" || !host.credential) return;
   const api = "/api/stage2-demo/stage2";
   const lang = () => document.documentElement.lang;
   const text = (en, hans, hant) => lang() === "zh-Hans" ? hans : lang() === "zh-Hant" ? hant : en;
