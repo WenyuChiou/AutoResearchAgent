@@ -155,6 +155,22 @@ def validate_scope_input(spec, permit):
     _brief(SOURCE.pinned(path, spec["input_version"], MAX_BRIEF), spec["input_version"])
 
 
+def query_source_alias(args):
+    path = getattr(args, "query_registration", None)
+    expected = getattr(args, "query_registration_sha256", None)
+    if path is not None or expected is not None:
+        SOURCE.require(
+            path is not None and expected is not None,
+            "query registration path and SHA required",
+        )
+        alias = "research_workspace_native.atlas_local_source"
+        SOURCE.require(
+            alias not in sys.modules, "preloaded query source helper refused"
+        )
+        sys.modules[alias] = SOURCE  # Same raw-pinned loader class identity.
+    return path, expected
+
+
 def preflight(args):
     helper_paths = bootstrap(args)
     permit = SOURCE.decode(SOURCE.pinned(args.permit, args.permit_sha256))
@@ -259,6 +275,7 @@ def preflight(args):
     authority.loader = loader
     sys.dont_write_bytecode = True
     sys.meta_path.insert(0, loader)
+    query_path, query_sha = query_source_alias(args)
     from stage1_deliverable.common import private_output
     from research_workspace_native.host_config import load_config
     from research_workspace_native.stage_inputs import snapshot_inputs, source_digest
@@ -280,11 +297,23 @@ def preflight(args):
         == permit["stage_source_sha256"],
         "saved stage inputs differ",
     )
+    authority.query_registration = None
+    if query_path is not None:
+        from research_workspace_native.atlas_query_launcher import QueryRegistration
+
+        authority.query_registration = QueryRegistration(
+            SOURCE, authority, query_path, query_sha
+        )
     return authority, config, attempt
 
 
 def launch(args):
     if not args.enable_native:
+        if any(
+            getattr(args, k, None) is not None
+            for k in ("query_registration", "query_registration_sha256")
+        ):
+            raise ValueError("query registration requires explicit native host launch")
         return {
             "status": "disabled",
             "actual_codex_process_observed": False,
@@ -301,7 +330,7 @@ def launch(args):
 
     attempt.mkdir()
     (attempt / "native").mkdir()
-    runtime = operations = stages = server = None
+    runtime = operations = stages = server = queries = None
     original_error = None
     receipt = dict(
         kind="LocalCodexAtlasAttempt",
@@ -318,6 +347,12 @@ def launch(args):
         _load(args.spec, args.spec_sha256)
         credential = secrets.token_urlsafe(32)
         authenticate = token_authenticator({credential: "local-viewer"})
+        if getattr(authority, "query_registration", None) is not None:
+            queries = authority.query_registration.create_service(authenticate)
+        receipt["planned_queries_registered"] = queries is not None
+        receipt["query_execution_authority"] = (
+            "separate-research-permit" if queries is not None else "disabled"
+        )
         receipt.update(status="composing", actual_codex_process_observed=None)
         runtime = compose_runtime(
             [(args.spec, args.spec_sha256)],
@@ -343,6 +378,7 @@ def launch(args):
         stages = StageActions(
             attempt / "stages.sqlite3",
             authenticate=authenticate,
+            **({"planned_queries": queries} if queries is not None else {}),
             registrations={
                 authority.spec["project_ref"]: dict(
                     project_id=authority.spec["project_id"],
@@ -421,7 +457,7 @@ def launch(args):
                 except BaseException as error:
                     cleanup_errors.append(error)
             else:
-                for resource in (runtime, operations, stages):
+                for resource in (runtime, operations, stages, queries):
                     if resource is not None:
                         try:
                             if resource is runtime:
@@ -460,6 +496,8 @@ def main(argv=None):
         parser.add_argument("--" + name, type=Path)
     for name in ("config", "spec", "permit"):
         parser.add_argument("--" + name + "-sha256")
+    parser.add_argument("--query-registration", type=Path)
+    parser.add_argument("--query-registration-sha256")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args(argv)
