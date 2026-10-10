@@ -29,7 +29,7 @@ class SavedAdmissionEvidenceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="saved-admission-evidence-")
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name) / "evidence"
+        self.root = Path(self.temp.name).resolve() / "evidence"
         self.root.mkdir()
 
     def write(self, name, raw):

@@ -70,7 +70,7 @@ def snapshot_fixture(count=30):
 class SavedSourceAdmissionTests(unittest.TestCase):
     def test_identical_bytes_cannot_substitute_an_unqualified_source_id(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
 
             def save(name, value):
                 raw = json.dumps(value).encode()
@@ -335,7 +335,7 @@ class ExternalAcceptanceBindingTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.snapshot = snapshot_fixture()
         self.snapshot["bindings"]["view"]["path"] = "view/view-manifest.json"
         self.proof = self.save("proof.bin", b"synthetic observed evidence")
