@@ -102,7 +102,8 @@ def _load(path, expected):
         "permit_sha256",
     }
     _require(
-        set(spec) in (fields, fields | {"thread_config"}), "runtime spec fields differ"
+        fields <= set(spec) <= fields | {"thread_config", "handshake_timeout_seconds"},
+        "runtime spec fields differ",
     )
     if "thread_config" in spec:
         _thread_config(spec["thread_config"])
@@ -202,6 +203,14 @@ def _load(path, expected):
     _require(
         limits["timeout_seconds"] <= limits["lifetime_seconds"], "timeout exceeds lease"
     )
+    if "handshake_timeout_seconds" in spec:
+        budget = spec["handshake_timeout_seconds"]
+        _require(
+            type(budget) is int
+            and limits["timeout_seconds"] <= budget <= 120
+            and budget <= limits["lifetime_seconds"],
+            "bounded handshake budget exceeds timeout or lease",
+        )
     return path, expected, spec
 
 

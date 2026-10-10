@@ -65,9 +65,16 @@ def _account(value):
 
 
 class BootstrapSession(BootstrapContext):
-    def open_thread(self, client_info, *, timeout=10):
-        deadline = _deadline(timeout)
+    def open_thread(self, client_info, *, timeout=10, total_timeout=None):
+        _deadline(timeout)  # Validate finite/nonboolean before any I/O.
         _require(0 < timeout <= 30, "bootstrap deadline must be within 30 seconds")
+        budget = timeout if total_timeout is None else total_timeout
+        deadline = _deadline(budget)
+        _require(timeout <= budget <= 120, "bounded total handshake timeout required")
+
+        def step_deadline():
+            return min(deadline, _deadline(timeout))
+
         with self.store._lock:
             _require(
                 self.store.snapshot(self.project_id).get("bootstrap", {}).get("phase")
@@ -78,16 +85,16 @@ class BootstrapSession(BootstrapContext):
             try:
                 self._context()
                 hello = self._send(
-                    "initialize", {"clientInfo": client_info}, 1, deadline
+                    "initialize", {"clientInfo": client_info}, 1, step_deadline()
                 )
                 _require(
                     isinstance(hello.get("userAgent"), str) and hello["userAgent"],
                     "invalid hello",
                 )
-                self._send("initialized", None, None, deadline)
+                self._send("initialized", None, None, step_deadline())
                 self.transport.initialized = True
                 account = self._send(
-                    "account/read", {"refreshToken": False}, "1", deadline
+                    "account/read", {"refreshToken": False}, "1", step_deadline()
                 )
                 _require(
                     type(account.get("requiresOpenaiAuth")) is bool
@@ -113,7 +120,7 @@ class BootstrapSession(BootstrapContext):
                 _require(
                     dispatched["status"] == "dispatching", "bootstrap dispatch refused"
                 )
-                result = self._send("thread/start", self.params, 2, deadline)
+                result = self._send("thread/start", self.params, 2, step_deadline())
                 _require(
                     isinstance(result.get("thread"), dict)
                     and isinstance(result["thread"].get("id"), str)

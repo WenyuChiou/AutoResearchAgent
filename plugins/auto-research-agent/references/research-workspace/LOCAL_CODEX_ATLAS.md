@@ -20,6 +20,12 @@ names disabled. Inherited CODEX_HOME/config.toml bytes are pinned; additional
 project config layers are refused. These denials do not attest all built-in tools
 are absent. Never copy auth or permit command/file approval Accept.
 
+An optional server-owned `handshake_timeout_seconds` (at most 120 seconds and
+never longer than the existing process lease) separates the total four-step
+handshake from its per-step I/O limit of at most 30 seconds. It must be included
+in the exact spec/permit identity before startup; omitted fields retain the old
+single total timeout. This does not increase message limits, turns or lease.
+
 Permit fields are exactly: kind=LocalCodexAtlasPermit, schema_version=1.0.0,
 spec_identity_sha256, host_config, user_config, source_manifest, attempt_root,
 brief_path, stage_inputs, stage_source_sha256, max_turns, lease_seconds, sandbox,

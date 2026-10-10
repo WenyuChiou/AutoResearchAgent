@@ -70,6 +70,16 @@ class RuntimeSpecTests(unittest.TestCase):
         self.assertEqual(sha(path.read_bytes()), digest)
         self.assertFalse(Path(spec["store_path"]).exists())
 
+    def test_optional_handshake_budget_is_pinned_and_never_expands_lease(self):
+        value = {**self.spec, "handshake_timeout_seconds": 10}
+        self.assertEqual(self.load(value)[2], value)
+        for budget in (True, 0, 1, 31, 121, float("inf"), "10"):
+            with self.subTest(budget=budget), self.assertRaises(ValueError):
+                self.load({**self.spec, "handshake_timeout_seconds": budget})
+        with self.assertRaises(ValueError):
+            self.load({**value, "untrusted_browser_timeout": 10})
+        self.assertFalse(Path(self.spec["store_path"]).exists())
+
     def test_hash_project_schema_principal_and_limits_fail_closed(self):
         cases = [
             {"index_sha256": "0" * 64},

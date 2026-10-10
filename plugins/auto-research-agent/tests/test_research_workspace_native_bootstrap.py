@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -90,6 +91,76 @@ class BootstrapTests(unittest.TestCase):
         boot = self.bootstrap(**options)
         self.responses()
         return boot.open_thread(dict(name="synthetic-client", version="1"))
+
+    def test_explicit_handshake_total_preserves_each_step_limit(self):
+        boot = self.bootstrap()
+        self.responses()
+        allowed = boot._allowed
+
+        def delayed(method):
+            time.sleep(0.12)
+            return allowed(method)
+
+        with patch.object(boot, "_allowed", side_effect=delayed):
+            boot.open_thread(
+                dict(name="synthetic-client", version="1"),
+                timeout=0.3,
+                total_timeout=1.2,
+            )
+        self.assertEqual(self.state()["bootstrap"]["phase"], "ready")
+        self.assertEqual(len(self.channel.sent), 4)
+        self.assertNotIn(
+            "turn/start", [json.loads(raw).get("method") for raw in self.channel.sent]
+        )
+
+    def test_legacy_total_deadline_still_stops_without_resend(self):
+        boot = self.bootstrap()
+        self.responses()
+        allowed = boot._allowed
+
+        def delayed(method):
+            time.sleep(0.12)
+            return allowed(method)
+
+        with patch.object(boot, "_allowed", side_effect=delayed):
+            with self.assertRaises(ValueError):
+                boot.open_thread(
+                    dict(name="synthetic-client", version="1"), timeout=0.3
+                )
+        before = len(self.channel.sent)
+        with self.assertRaises(ValueError):
+            boot.open_thread(
+                dict(name="synthetic-client", version="1"), total_timeout=120
+            )
+        self.assertEqual(len(self.channel.sent), before)
+        self.assertEqual(self.state()["bootstrap"]["phase"], "failed")
+
+    def test_invalid_budget_and_late_cached_response_cannot_bind_thread(self):
+        boot = self.bootstrap()
+        self.responses()
+        for budget in (True, -1, 121, float("inf"), float("nan")):
+            with self.subTest(budget=budget), self.assertRaises(ValueError):
+                boot.open_thread(
+                    dict(name="synthetic-client", version="1"), total_timeout=budget
+                )
+        self.assertEqual(len(self.channel.sent), 0)
+        response = boot.transport.wait_response
+
+        def late(*args, **kwargs):
+            reply = response(*args, **kwargs)
+            time.sleep(0.15)
+            return reply
+
+        with patch.object(boot.transport, "wait_response", side_effect=late):
+            with self.assertRaises(ValueError):
+                boot.open_thread(
+                    dict(name="synthetic-client", version="1"),
+                    timeout=0.1,
+                    total_timeout=0.5,
+                )
+        self.assertIsNone(self.state()["thread_id"])
+        self.assertEqual(self.state()["bootstrap"]["phase"], "failed")
+        self.assertEqual(len(self.channel.sent), 1)
 
     def test_same_transport_preserves_typed_ids_partial_buffer_and_raw_frames(self):
         boot = self.bootstrap()

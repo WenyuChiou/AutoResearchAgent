@@ -207,6 +207,11 @@ def compose_runtime(registrations, *, authenticate=None, gates=None, enabled=Fal
             boot.open_thread(
                 dict(name="harness-atlas", version="1"),
                 timeout=spec["limits"]["timeout_seconds"],
+                **(
+                    {"total_timeout": spec["handshake_timeout_seconds"]}
+                    if "handshake_timeout_seconds" in spec
+                    else {}
+                ),
             )
             controller = InjectedSessionController.adopt_ready(
                 boot, admit_action=lambda a, g=gate: g("admit_action", a)

@@ -362,11 +362,13 @@ class BootstrapContext:
             reply = self.transport.wait_response(
                 rpc_id, timeout=max(0, deadline - time.monotonic())
             )
+            _require(time.monotonic() < deadline, "bootstrap RPC deadline expired")
             _require(
                 "error" not in reply and isinstance(reply.get("result"), dict),
                 "bootstrap RPC rejected",
             )
             return reply["result"]
+        _require(time.monotonic() < deadline, "bootstrap RPC deadline expired")
 
     def _fail(self, error):
         self.failure = "bootstrap failed; no automatic resend"
