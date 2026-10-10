@@ -23,9 +23,9 @@ from stage1_eval.model import _api_schema
 from stage1_eval.model_calls import (
     MODEL_CALL_ARCHIVE_VERSION,
     _attempt_files,
-    _command,
     _normalize_policy,
     _request_record,
+    _namespace_command,
     replay_native_model_call_archive,
 )
 from stage2_common import Stage2Error, canonical_hash
@@ -71,6 +71,10 @@ def _write_faithful_model_archive(root, label, prompt, schema, value, config, po
     (archive / "prompt.txt").write_bytes(prompt.encode("utf-8"))
     (archive / "schema.json").write_bytes(schema_raw)
     (archive / "generation-schema.json").write_bytes(generation_raw)
+    if "native_namespace" in config:
+        (archive / "native-namespace.json").write_bytes(
+            Path(config["native_namespace"]["path"]).read_bytes()
+        )
     files = _attempt_files(archive, 1)
     stdout = b"\n".join(
         [
@@ -93,8 +97,8 @@ def _write_faithful_model_archive(root, label, prompt, schema, value, config, po
         "archive_version": MODEL_CALL_ARCHIVE_VERSION,
         "attempt": 1,
         "request_fingerprint_sha256": request["request_fingerprint_sha256"],
-        "command": _command(
-            config["codex"],
+        "command": _namespace_command(
+            config,
             config["model"],
             config["reasoning"],
             archive / "generation-schema.json",
