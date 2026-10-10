@@ -346,9 +346,7 @@ def _counterfeit_saved_import(index):
     base = deepcopy(result)
     base.pop("source_rerun")
     base["schema_version"] = (
-        "2.0.0"
-        if base["supplement"]["status"] != "not-provided"
-        else "1.0.0"
+        "2.0.0" if base["supplement"]["status"] != "not-provided" else "1.0.0"
     )
     extension["data"]["base_index_sha256"] = sha(canonical(base))
     row["attempt_id"] = sha(
@@ -553,9 +551,7 @@ class SavedPublicImportTests(unittest.TestCase):
         selected = artifact_map(receipt)[receipt["attempts"][1]["raw_path"]]
         selected_path = output / row["saved_import_archive"]["root"] / selected
         selected_path.write_bytes(b"tampered contained source")
-        with self.assertRaisesRegex(
-            DeliverableError, "bytes changed while exporting"
-        ):
+        with self.assertRaisesRegex(DeliverableError, "bytes changed while exporting"):
             rerun_files(attached, output)
 
     def test_saved_public_import_attach_replays_contained_sdk_archive(self):

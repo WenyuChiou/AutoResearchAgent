@@ -95,8 +95,7 @@ def _saved_public_import(receipt, selected):
         and receipt.get("raw_path") == attempts[1]["raw_path"]
         and receipt.get("raw_sha256") == attempts[1].get("raw_sha256")
         and receipt.get("source_version") == "sha256:" + attempts[1]["raw_sha256"]
-        and diagnostics.get("manifest_schema_version")
-        == "saved-public-source-input/v1"
+        and diagnostics.get("manifest_schema_version") == "saved-public-source-input/v1"
         and diagnostics.get("manifest_sha256") == attempts[0].get("raw_sha256")
         and diagnostics.get("original_http_acquisition_verified") is False
     )
@@ -320,9 +319,7 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
             ]
             row["saved_import_archive"] = {
                 "root": archive_root,
-                "provenance_utf8": archive_members[provenance_relative].decode(
-                    "utf-8"
-                ),
+                "provenance_utf8": archive_members[provenance_relative].decode("utf-8"),
                 "members": {
                     relative: {"sha256": sha(content), "bytes": len(content)}
                     for relative, content in sorted(archive_members.items())
