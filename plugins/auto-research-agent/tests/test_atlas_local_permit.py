@@ -1,5 +1,7 @@
 """Offline byte/protocol checks only; no real or fake child is launched."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from copy import deepcopy
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
