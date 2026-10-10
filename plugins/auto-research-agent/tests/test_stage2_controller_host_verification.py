@@ -17,7 +17,11 @@ from stage1_eval import model_calls
 from stage1_eval.common import EvaluationError
 from stage2_common import Stage2Error, canonical_hash
 from stage2_live import historical_verifier as host
-from stage2_live.controller import _replay_model_config, verify_controller
+from stage2_live.controller import (
+    _replay_model_config,
+    _verify_saved_ideation_extraction,
+    verify_controller,
+)
 from stage2_live.replay import verify_extraction
 
 
@@ -110,6 +114,105 @@ class ControllerNamespaceReplayTests(unittest.TestCase):
         ):
             with self.subTest(request=request), self.assertRaises(Stage2Error):
                 _replay_model_config(request)
+        self.dispatch.assert_not_called()
+
+
+class ControllerExtractionSummaryReplayTests(unittest.TestCase):
+    def setUp(self):
+        case = fixtures.Stage2ControllerTests()
+        case.setUp()
+        self.addCleanup(case.doCleanups)
+        case.test_reconstructed_config_authenticates_faithful_extraction_archive()
+        self.output = case.root / "faithful-extraction"
+        self.sources = case.root / "archive-sources"
+        self.result = json.loads(
+            (self.output / "result.json").read_text(encoding="utf-8")
+        )
+        self.packet = json.loads(
+            (self.output / "input-packet.json").read_text(encoding="utf-8")
+        )
+        self.raw = (self.output / "raw-proposal.bin").read_text(encoding="utf-8")
+        self.summary = {
+            **copy.deepcopy(self.result),
+            "replay_receipt": {
+                "result_sha256": fixtures.digest(self.output / "result.json"),
+                "unit_receipts": copy.deepcopy(self.result["unit_receipts"]),
+            },
+        }
+        self.dispatch = self.enterContext(
+            patch.object(
+                model_calls,
+                "call_model_v31",
+                side_effect=AssertionError("dispatch forbidden"),
+            )
+        )
+
+    def replay(self, summary):
+        return _verify_saved_ideation_extraction(
+            self.output, summary, self.raw, self.packet, self.sources, fixtures.SNAPSHOT
+        )
+
+    def inventory(self):
+        return {
+            p.relative_to(self.output).as_posix(): fixtures.digest(p)
+            for p in self.output.rglob("*")
+            if p.is_file()
+        }
+
+    def test_receipted_workflow_summary_replays_exact_archive_without_writes(self):
+        before = self.inventory()
+        original = copy.deepcopy(self.summary)
+        config, policy = self.replay(self.summary)
+        self.assertEqual(config["model"], "test-model")
+        request = json.loads((self.output / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual(policy, request["execution_policy"])
+        self.assertEqual(self.summary, original)
+        self.assertEqual(self.inventory(), before)
+        self.dispatch.assert_not_called()
+
+    def test_every_nonreceipt_payload_field_divergence_is_rejected(self):
+        for key in self.result:
+            with self.subTest(key=key):
+                summary = copy.deepcopy(self.summary)
+                summary[key] = {"changed": True}
+                with self.assertRaisesRegex(Stage2Error, "model-replay-mismatch"):
+                    self.replay(summary)
+        self.dispatch.assert_not_called()
+
+    def test_missing_or_extra_summary_fields_are_rejected(self):
+        for key in self.result:
+            with self.subTest(missing=key):
+                summary = copy.deepcopy(self.summary)
+                summary.pop(key)
+                with self.assertRaisesRegex(Stage2Error, "model-replay-mismatch"):
+                    self.replay(summary)
+        with self.assertRaisesRegex(Stage2Error, "model-replay-mismatch"):
+            self.replay({**self.summary, "other_metadata": "untrusted"})
+        self.dispatch.assert_not_called()
+
+    def test_result_and_unit_receipt_drift_is_rejected(self):
+        for key in ("result", "unit"):
+            with self.subTest(key=key):
+                summary = copy.deepcopy(self.summary)
+                if key == "result":
+                    summary["replay_receipt"]["result_sha256"] = "f" * 64
+                else:
+                    summary["replay_receipt"]["unit_receipts"]["extraction"] = "f" * 64
+                with self.assertRaisesRegex(Stage2Error, "artifact-missing-or-changed"):
+                    self.replay(summary)
+        self.dispatch.assert_not_called()
+
+    def test_changed_source_and_archived_result_remain_rejected(self):
+        source = self.sources / self.packet["sources"][0]["path"]
+        original_source = source.read_bytes()
+        source.write_bytes(original_source + b"changed")
+        with self.assertRaises((Stage2Error, ValueError)):
+            self.replay(self.summary)
+        source.write_bytes(original_source)
+        result_path = self.output / "result.json"
+        result_path.write_bytes(result_path.read_bytes() + b"\n")
+        with self.assertRaisesRegex(Stage2Error, "artifact-missing-or-changed"):
+            self.replay(self.summary)
         self.dispatch.assert_not_called()
 
 
@@ -416,6 +519,24 @@ class HistoricalHostVerificationTests(unittest.TestCase):
         dispatch.assert_not_called()
         self.assertEqual(verified["result"], result)
         self.assertFalse(verified["scientific_approval"])
+        summary = {**copy.deepcopy(result), "replay_receipt": copy.deepcopy(receipt)}
+        with patch.object(
+            model_calls,
+            "call_model_v31",
+            side_effect=AssertionError("dispatch forbidden"),
+        ) as summary_dispatch:
+            config, policy = _verify_saved_ideation_extraction(
+                output,
+                summary,
+                args["raw_proposal"],
+                packet,
+                args["source_root"],
+                fixtures.SNAPSHOT,
+                historical_binding=self.binding,
+            )
+        self.assertEqual(config, args["expected_config"])
+        self.assertEqual(policy, request["execution_policy"])
+        summary_dispatch.assert_not_called()
         self.assertEqual(
             before,
             {
