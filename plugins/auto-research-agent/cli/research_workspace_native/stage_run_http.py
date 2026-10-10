@@ -1,4 +1,4 @@
-"""Integrated Atlas overlay for explicitly permitted real content-only stage units."""
+"""Integrated Atlas overlay for explicitly permitted saved-content stage units."""
 
 import json
 from pathlib import Path
@@ -15,7 +15,7 @@ ROUTE = re.compile(
 
 
 class StageRunHost(AtlasHost):
-    """Preserves the existing graph/detail UI; adds a separate real execution panel.
+    """Preserves the existing graph/detail UI; adds a separate execution panel.
 
     A service registration does not mean a model has run. The landing and panel
     distinguish admission, actual completed output and independent assessment.
@@ -59,7 +59,7 @@ class StageRunHost(AtlasHost):
         )
         self._assets["/"] = self._assets["/"].replace(
             b"Research/model execution is not enabled.",
-            b"A bounded real model pilot is registered. Open a case and explicitly run each unit; no automatic execution.",
+            b"A bounded stage workflow is registered. Inspect each unit receipt for native/model evidence; registration alone does not demonstrate execution. No automatic execution.",
         )
         self.host_binding["served_files"] = {
             route: sha(raw)

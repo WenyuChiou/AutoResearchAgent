@@ -101,8 +101,9 @@ class StageRunHttpTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertEqual(sha(served), expected)
         self.assertIn(
-            b"A bounded real model pilot is registered.", self.request("GET", "/")[1]
+            b"A bounded stage workflow is registered.", self.request("GET", "/")[1]
         )
+        self.assertNotIn(b"real model pilot", self.request("GET", "/")[1])
         self.assertEqual(self.model.writes, 0)
 
     def test_explicit_action_and_get_recovery_dispatch_once(self):

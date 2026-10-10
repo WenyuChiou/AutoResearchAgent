@@ -17,8 +17,8 @@ class Element {
 }
 const clone = value => JSON.parse(JSON.stringify(value)), response = value => ({ok: true, json: async () => clone(value)});
 const deferred = () => { let resolve; const promise = new Promise(r => resolve = r); return {promise, resolve}; };
-async function mount({blockFirst = null, failFirst = false, loseRun = false, nativeOperation = false} = {}) {
-  const html = new Element("html"), body = new Element("body"); html.lang = "en"; html.append(body);
+async function mount({blockFirst = null, failFirst = false, loseRun = false, nativeOperation = false, language = "en"} = {}) {
+  const html = new Element("html"), body = new Element("body"); html.lang = language; html.append(body);
   const document = {documentElement: html, body, createElement: t => new Element(t), querySelector: () => null, addEventListener() {}};
   const calls = [], storage = new Map(), timers = [], server = {failNext: false, jobs: [], revision: 1};
   const snapshot = () => ({ready: true, blocked: null, budget: {reserved: server.jobs.length, max_calls: 8, seconds_remaining: 120}, pipeline: {status: "pending", candidates: []}, jobs: clone(server.jobs), deliveries: {}, revision: server.revision, next_task: {phase: "source-review", task_sha256: "a".repeat(64)}});
@@ -64,6 +64,12 @@ async function mount({blockFirst = null, failFirst = false, loseRun = false, nat
     refresh: () => buttons()[1].click(), postCount: () => calls.filter(c => c.method === "POST").length};
 }
 (async () => {
+  for (const [language, boundary] of [["en", "registration alone does not demonstrate execution"], ["zh-Hans", "仅注册不证明已执行"], ["zh-Hant", "僅註冊不證明已執行"]]) {
+    const registered = await mount({language});
+    assert.ok(registered.html.textContent.includes(boundary), language);
+    assert.equal(registered.postCount(), 0);
+    assert.ok(!/real model execution|真实模型执行|真實模型執行/.test(registered.html.textContent));
+  }
   const gate = deferred(), single = await mount({blockFirst: gate});
   assert.equal(single.calls.length, 1);
   await single.refresh(); await single.timers[0]();
@@ -100,5 +106,5 @@ async function mount({blockFirst = null, failFirst = false, loseRun = false, nat
   assert.ok(nativeUnknown.notice().textContent.includes("Request outcome unknown"), "successful GET must not turn native uncertainty into success");
   assert.equal(nativeUnknown.buttons().find(n => n.textContent === "Stop this model turn").disabled, true);
   assert.equal(nativeUnknown.postCount(), 1);
-  console.log("Stage run read recovery: GET single-flight, saved history recovery, expanded history, saved run loss reconciliation, native unknown retained and no implicit POST PASS");
+  console.log("Stage run read recovery: truthful registration in three languages, GET single-flight, saved history recovery, expanded history, saved run loss reconciliation, native unknown retained and no implicit POST PASS");
 })().catch(error => { console.error(error); process.exitCode = 1; });
