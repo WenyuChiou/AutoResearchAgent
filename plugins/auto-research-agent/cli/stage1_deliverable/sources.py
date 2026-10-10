@@ -23,7 +23,7 @@ from .common import (
 )
 from .records import _keys, public_uri, timestamp
 
-HUB_SHA = "929bdd6d963acf4be5bc9d80ce3c5c0a0f77a834"
+HUB_SHA = "cfc40cc27d45a78783266f9f4312290778ae6f5e"
 STATES = (
     "available",
     "abstract-only",
@@ -216,10 +216,12 @@ def validate_receipt_shape(result):
 def receipt_digest(result):
     """Match v1 serialization in the immutable merged SDK pin.
 
-    That SDK does not replay diagnostics. Their exact bytes remain bound by
-    source-result, archive and package hashes; a newer checksum variant must
-    not be accepted or silently converted under this runtime.
+    Nonempty diagnostics are receipt claims and are re-extracted during SDK
+    replay. Absent or empty diagnostics retain the exact legacy v1 digest.
     """
+    claims = {key: result.get(key) for key in RESULT_FIELDS}
+    if result.get("diagnostics"):
+        claims["diagnostics"] = result["diagnostics"]
     return sha(
         canonical(
             {
@@ -229,7 +231,7 @@ def receipt_digest(result):
                     {k: a[k] for k in ATTEMPT_FIELDS} for a in result["attempts"]
                 ],
                 "extracted_text_sha256": result["extracted_text_sha256"],
-                "result": {key: result.get(key) for key in RESULT_FIELDS},
+                "result": claims,
             }
         )
     )

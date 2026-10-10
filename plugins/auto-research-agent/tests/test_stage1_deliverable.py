@@ -135,14 +135,14 @@ class ResearchDeliverableTests(unittest.TestCase):
         result["diagnostics"] = {}
         self.assertEqual(sources.receipt_digest(result), legacy)
 
-    def test_nonempty_legacy_diagnostics_replay_against_pinned_sdk(self):
-        records = self.make_records()
+    def test_nonempty_sdk_diagnostics_archive_and_replay(self):
+        records = self.make_records(
+            raw=full_source_pdf(), content_type="application/pdf"
+        )
         path = self.inputs / "source/source-fetch-result.json"
         result = read_json(path)
-        result["diagnostics"] = {"body_completeness": "pending", "pages_total": 3}
+        self.assertTrue(result["diagnostics"])
         self.assertEqual(result["receipt_sha256"], sources.receipt_digest(result))
-        write_json(path, result)
-        records["sources"][0]["result_sha256"] = sha(path.read_bytes())
         archive = self.root / "diagnostics-archive"
         sources.stage_source(records["sources"][0], self.inputs, archive)
         self.assertEqual((archive / "original.json").read_bytes(), path.read_bytes())
@@ -151,23 +151,24 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.assertEqual(observation["returncode"], 0)
         self.assertFalse(observation["network_acquisition"])
 
-    def test_diagnostics_file_tamper_rejects_before_sdk_replay(self):
+    def test_tampered_diagnostics_reject_before_sdk_replay(self):
         records = self.make_records()
         path = self.inputs / "source/source-fetch-result.json"
         result = read_json(path)
         result["diagnostics"] = {"body_completeness": "pending"}
+        result["receipt_sha256"] = sources.receipt_digest(result)
         write_json(path, result)
-        records["sources"][0]["result_sha256"] = sha(path.read_bytes())
         result["diagnostics"]["body_completeness"] = "confirmed"
         write_json(path, result)
+        records["sources"][0]["result_sha256"] = sha(path.read_bytes())
         with patch("stage1_deliverable.sources.subprocess.run") as replay:
-            with self.assertRaisesRegex(DeliverableError, "source result changed"):
+            with self.assertRaisesRegex(DeliverableError, "original source receipt"):
                 sources.stage_source(
                     records["sources"][0], self.inputs, self.root / "tampered-archive"
                 )
         replay.assert_not_called()
 
-    def test_new_diagnostics_checksum_rejects_under_legacy_sdk_pin(self):
+    def test_unbound_legacy_diagnostics_reject_without_silent_conversion(self):
         self.make_records()
         result = read_json(self.inputs / "source/source-fetch-result.json")
         result["diagnostics"] = {"body_completeness": "pending"}
@@ -182,8 +183,7 @@ class ResearchDeliverableTests(unittest.TestCase):
                     ],
                     "extracted_text_sha256": result["extracted_text_sha256"],
                     "result": {
-                        key: result.get(key)
-                        for key in (*sources.RESULT_FIELDS, "diagnostics")
+                        key: result.get(key) for key in sources.RESULT_FIELDS
                     },
                 }
             )
@@ -192,10 +192,12 @@ class ResearchDeliverableTests(unittest.TestCase):
         archive = self.root / "diagnostics-archive"
         archive.mkdir()
         write_json(archive / "original.json", result)
+        original = (archive / "original.json").read_bytes()
         with patch("stage1_deliverable.sources.subprocess.run") as replay:
             with self.assertRaisesRegex(DeliverableError, "original source receipt"):
                 sources.validate_archive(archive)
         replay.assert_not_called()
+        self.assertEqual((archive / "original.json").read_bytes(), original)
 
     def make_records(self, raw=HTML, content_type="text/html", status=200, title=TITLE):
         with (

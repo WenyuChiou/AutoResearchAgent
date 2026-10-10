@@ -25,3 +25,6 @@ plugins/auto-research-agent/references/research-workspace/prototype.html text eo
 plugins/auto-research-agent/references/research-workspace/literature-reference.js text eol=lf
 plugins/auto-research-agent/references/research-workspace/workspace-i18n.js text eol=lf
 plugins/auto-research-agent/references/research-workspace/workspace.css text eol=lf
+
+# Preserve the pinned upstream WebGL bundle verbatim.
+plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js -text
