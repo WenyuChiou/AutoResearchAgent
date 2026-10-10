@@ -3,18 +3,20 @@
 Run the repository example to inspect Stage 1 and Stage 2 in a browser. It builds
 new private outputs from existing public synthetic fixtures, verifies manifests,
 and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
-search, source import or session resume is required.
+search, protected source import, new source acquisition or session resume is required.
 
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
-These review slices start from main `1aa3b71f`; they are not yet merged or
-accepted by the core team. Native runtime guards from that main are retained.
+These stacked review slices are not yet merged or accepted by the core team.
+Existing native runtime guards remain enforced.
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-harness-launch-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --branch codex/atlas-portable-cases-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
-From the repository root, use Python with the plugin test requirements installed:
+From the repository root, use Python with the plugin test requirements installed.
+The [per-user setup guide](PORTABLE_ATLAS_SETUP.md) includes virtual-environment
+installation; use that environment's Python for the following commands:
 
 ```powershell
 python -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/attempt-1 --serve --harness-operations --open
@@ -25,12 +27,26 @@ writable `TEMP`/`TMP` directory outside Git if the local environment requires it
 The command prints a loopback URL and `fixture-receipt.json`; keep the terminal
 running and open that URL. Stop with Ctrl+C. A previous output is never overwritten.
 
-With `--harness-operations`, each case has three real repository operations:
+With `--harness-operations`, each case has real repository operations:
 validate the saved workspace, derive its conservative literature selection, and
-export its literature files. The outputs and operation history are retained in
-`attempt-1/harness-operations`; source snapshots remain unchanged. These are
+export its literature files. It also registers saved Stage 1 checkpoint,
+Stage 2 completion inspection and explicit review/hold/request-next actions.
+Their outputs and history are retained in `attempt-1/harness-operations`,
+`stage-results` and `stage-actions.sqlite3`; source snapshots remain unchanged. These are
 saved-input functions, not searches, Stage 2 generation, scientific evaluation
 or a native Codex session. The fixture launcher registers no native runtime.
+`--stage-actions` serves only the stage actions without the literature operations.
+The Stage 1 ledger and Stage 2 saved delivery are independent synthetic cases,
+not an end-to-end research run. A successful checkpoint can still report blocked
+readiness. Requesting the next stage records a request; it grants no execution
+authority. Refresh/reconnect reads history without restarting operations.
+
+The example writes an unconfirmed synthetic `brief.json` into each view root and
+separately pins `stage-inputs.json` in `fixture-receipt.json`. These added inputs
+are not attested by the original read-only view manifest and are not researcher
+intake or research permission. Native preparation inventories them separately.
+Use the [per-user setup guide](PORTABLE_ATLAS_SETUP.md) to prepare your own bounded
+Codex text session. Keep saved-case checks and actual research execution separate.
 
 The graph initially shows no relationships. Select a paper, direction or method
 to reveal its direct connections; select it again to clear. Hover reads names
@@ -64,6 +80,9 @@ server credential and process-held owner replace the closed owner. Existing
 attempts and failures stay saved; unfinished attempts become `execution-unknown`.
 Reading history does not recompute anything. A saved key never automatically
 resubmits. Without `--harness-operations-reuse`, an existing root is rejected.
+This plain host reuse command reopens literature-operation history; it does not
+register StageActions or a native session. The fixture's stage database is retained
+separately. Rebuilding into the same output directory is refused.
 
 # Attach an already admitted server session
 

@@ -14,6 +14,9 @@ version string or model catalog alone does not establish compatible execution.
 
 Run the direct script from your complete review checkout:
 
+For a new local installation, use the [per-user preparation guide](PORTABLE_ATLAS_SETUP.md)
+to create your own pinned bundle first. Preparation does not start Codex.
+
 ```powershell
 python -B -X utf8 plugins/auto-research-agent/cli/research_workspace_native/atlas_local_launcher.py --enable-native --repo ABSOLUTE_CHECKOUT --config PRIVATE/host.json --config-sha256 CONFIG_SHA --spec PRIVATE/runtime-spec.json --spec-sha256 SPEC_SHA --permit PRIVATE/permit.json --permit-sha256 PERMIT_SHA --open
 ```
