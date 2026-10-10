@@ -33,6 +33,7 @@ plugins/auto-research-agent/references/research-workspace/atlas/atlas-*.js text 
 plugins/auto-research-agent/references/research-workspace/atlas/atlas.css text eol=lf
 plugins/auto-research-agent/references/research-workspace/atlas/atlas.html text eol=lf
 plugins/auto-research-agent/references/research-workspace/examples/planned-query-fixture-notice.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/examples/stage2-demo-panel.js text eol=lf
 plugins/auto-research-agent/references/research-workspace/tests/localization.html text eol=lf
 plugins/auto-research-agent/references/research-workspace/workspace-*.js text eol=lf
 plugins/auto-research-agent/references/research-workspace/workspace-*.css text eol=lf

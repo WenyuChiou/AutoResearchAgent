@@ -1,4 +1,4 @@
-"""Actual Git checkout regression for all 53 observed Atlas CRLF mismatches."""
+"""Actual Git checkout regression for retained and new owned Atlas assets."""
 
 from pathlib import Path
 import subprocess
@@ -28,6 +28,7 @@ ASSETS = (
     "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
     "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
     "plugins/auto-research-agent/references/research-workspace/examples/planned-query-fixture-notice.js",
+    "plugins/auto-research-agent/references/research-workspace/examples/stage2-demo-panel.js",
     "plugins/auto-research-agent/references/research-workspace/tests/localization.html",
     "plugins/auto-research-agent/references/research-workspace/workspace-closeout.css",
     "plugins/auto-research-agent/references/research-workspace/workspace-literature-selection.js",
@@ -118,7 +119,7 @@ class PortableAtlasGitCheckoutTests(unittest.TestCase):
             timeout=15,
         )
 
-    def test_autocrlf_checkout_preserves_all_fifty_three_identified_atlas_paths(self):
+    def test_autocrlf_checkout_preserves_retained_and_new_atlas_paths(self):
         self.assertEqual(self.git("config", "--get", "core.autocrlf").strip(), b"true")
         for relative, expected in self.expected.items():
             with self.subTest(path=relative):
