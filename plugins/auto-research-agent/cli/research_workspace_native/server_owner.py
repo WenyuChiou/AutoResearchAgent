@@ -40,6 +40,7 @@ class SessionOwners:
         verify_source,
         admit_attach,
         start_offer=None,
+        approval_policy=None,
     ):
         """Trusted configuration; pre-admission refusal leaves resources borrowed."""
         _require(
@@ -106,6 +107,8 @@ class SessionOwners:
                 )
                 if start_offer is not None:
                     options["start_offer"] = start_offer
+                if approval_policy is not None:
+                    options["approval_policy"] = approval_policy
                 self.api.register(project_ref, **options)
                 channel_bound()
                 _require(not self._closed, "registry closed before transfer")

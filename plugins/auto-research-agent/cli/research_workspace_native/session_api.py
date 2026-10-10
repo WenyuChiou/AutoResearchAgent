@@ -72,6 +72,7 @@ class SessionApi:
         _check(callable(authenticate), "identity-check-required")
         self._authenticate, self._projects = authenticate, {}
         self._start_offers = {}
+        self._approval_policies = {}
         self._lock = threading.RLock()
         self._guards = threading.local()
 
@@ -102,6 +103,7 @@ class SessionApi:
         input_version,
         verify_source,
         start_offer=None,
+        approval_policy=None,
     ):
         """Trusted startup only; all roots and controller identities stay server-side."""
         _check(
@@ -133,6 +135,10 @@ class SessionApi:
         )
         registration = (controller, frozenset(principals), binding, verify_source)
         _check(start_offer is None or callable(start_offer), "invalid-start-offer")
+        _check(
+            approval_policy is None or callable(approval_policy),
+            "invalid-approval-policy",
+        )
         with self._lock, controller.store._lock:
             _check(
                 project_ref not in self._projects
@@ -162,6 +168,33 @@ class SessionApi:
                 current["session_api_binding"] = deepcopy(binding)
             self._projects[project_ref] = registration
             self._start_offers[project_ref] = start_offer
+            self._approval_policies[project_ref] = approval_policy
+
+    def _can_accept(self, binding, principal, request):
+        """A displayed approval is not authority; recheck its trusted policy on POST."""
+        if (
+            request["method"]
+            not in {
+                "item/commandExecution/requestApproval",
+                "item/fileChange/requestApproval",
+            }
+            or request["status"] != "pending"
+        ):
+            return False
+        policy = self._approval_policies.get(binding["project_ref"])
+        if policy is None:
+            return False
+        try:
+            return (
+                policy(
+                    deepcopy(
+                        dict(binding=binding, principal=principal, request=request)
+                    )
+                )
+                is True
+            )
+        except Exception:
+            return False
 
     def _message_offer(self, controller, principal, binding):
         callback = self._start_offers.get(binding["project_ref"])
@@ -381,6 +414,7 @@ class SessionApi:
                         method=item["method"],
                         status=item["status"],
                         payload=payload,
+                        can_accept=self._can_accept(binding, principal, item),
                     )
                 )
             actions = [
@@ -664,6 +698,12 @@ class SessionApi:
                         ),
                         body["result"],
                     )
+                    if result.get("decision") == "accept":
+                        _check(
+                            self._can_accept(binding, principal, request),
+                            "approval-not-admitted",
+                            403,
+                        )
                 else:
                     matches = [
                         (k, row)
@@ -710,6 +750,18 @@ class SessionApi:
                 self._source(self._projects[project_ref])
                 revision = controller._context()["revision"]
                 if kind == "answer":
+
+                    def answer_admission(limit=10):
+                        self._admission_check(limit)
+                        self._source(self._projects[project_ref])
+                        if result.get("decision") == "accept":
+                            _check(
+                                self._can_accept(binding, principal, request),
+                                "approval-not-admitted",
+                                403,
+                            )
+                        return self._admission_check(limit)
+
                     controller.answer(
                         key,
                         request_key,
@@ -717,7 +769,7 @@ class SessionApi:
                         result,
                         revision,
                         timeout=self._admission_check(),
-                        pre_dispatch=self._admission_check,
+                        pre_dispatch=answer_admission,
                     )
                 elif kind == "message":
                     _check(

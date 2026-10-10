@@ -15,6 +15,7 @@
     source: ["Bound source version", "绑定来源版本", "綁定來源版本"],
     send: ["Send answer", "提交回答", "提交回答"],
     decline: ["Decline request", "拒绝请求", "拒絕請求"],
+    accept: ["Approve this request", "批准本次请求", "核准本次請求"],
     cancel: ["Cancel request", "取消请求", "取消請求"],
     interrupt: ["Interrupt active turn", "中断当前执行", "中斷目前執行"],
     approval: ["Native approval request", "原生审批请求", "原生核准請求"],
@@ -158,9 +159,9 @@
       } else if (["item/commandExecution/requestApproval", "item/fileChange/requestApproval"].includes(r.method)) {
         label("h3", "approval", card);
         make("pre", JSON.stringify(r.payload, null, 2), card, true);
-        for (const decision of ["decline", "cancel"]) {
+        for (const decision of ["accept", "decline", "cancel"]) {
           const button = label("button", decision, card);
-          button.type = "button"; button.disabled = locked;
+          button.type = "button"; button.disabled = locked || (decision === "accept" && r.can_accept !== true);
           button.onclick = () => submit("answer", r, {decision});
         }
       } else make("p", r.method + " · unsupported", card, true);

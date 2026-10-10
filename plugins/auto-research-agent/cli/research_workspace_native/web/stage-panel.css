@@ -1,0 +1,12 @@
+.stage-actions-panel { padding: 24px; margin-top: 20px; }
+.stage-actions-panel h2 { font-size: 22px; margin: 0 0 12px; }
+.stage-actions-panel > p { max-width: 86ch; line-height: 1.6; color: #486171; }
+.stage-actions-controls { display: flex; flex-wrap: wrap; gap: 10px; }
+.stage-actions-panel button, .stage-actions-panel select { font: inherit; padding: 10px 16px; border-radius: 8px; background: #fff; border: 1px solid #cddada; color: #213e51; }
+.stage-actions-panel button:disabled { opacity: .5; cursor: default; }
+.stage-review-form { display: grid; gap: 12px; max-width: 800px; margin: 20px 0; }
+.stage-review-form textarea { display: block; width: 100%; box-sizing: border-box; padding: 12px; min-height: 82px; border: 1px solid #cddada; border-radius: 8px; font: inherit; }
+.stage-review-form label { display: flex; align-items: center; gap: 10px; }
+.stage-action-record { margin: 14px 0; padding: 16px; background: #f1f6f4; border-radius: 8px; }
+.stage-action-record p { margin: 8px 0; overflow-wrap: anywhere; }
+.stage-action-record code { display: block; margin: 8px 0; overflow-wrap: anywhere; }

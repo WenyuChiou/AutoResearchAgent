@@ -189,3 +189,21 @@ The receipt binds project_ref, index_sha256, input_version, client_key, offer_re
 The UI removes only the matching local intent; timeout, missing response and uncertain outcomes retain the original key and recover by GET.
 Transcript projections retain literal text, partial windows, failures and unknown state; dispatch is not completion.
 Synthetic fake-child and injected-channel tests do not establish native authentication or research quality.
+
+AtlasHost optionally takes the same runtime's ScopeApi, reusing the existing source-bound
+scope history, append and review HTTP handlers and three-language panel. Approval Accept
+is disabled by default. Trusted SessionApi registration may supply an approval_policy
+for one exact saved request; literal True is required again before dispatch and the
+controller's independent admission still applies. The browser cannot supply this policy,
+paths or permits. Saving scope or requesting the next stage is not execution authority.
+
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_atlas_scope_approval.py -v
+
+AtlasHost(stage_actions=...) exposes trusted saved-input StageActions over the same
+loopback host. The stage panel checks Stage1 checkpoint / Stage2 completion and
+records review, hold or request-next decisions without starting research. Every
+action binds project/index/input/source hashes, with intent-before-execution and
+GET-only recovery. Missing stage input stays missing; a WorkspaceStageReviewRecord
+is neither native-user attestation nor permission to execute the next stage.
+Run test_workspace_stage_http, test_workspace_stage_storage and test_workspace_stage_panel
+for repository-case HTTP/SQLite and synthetic DOM checks.
