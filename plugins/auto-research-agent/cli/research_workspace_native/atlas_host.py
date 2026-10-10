@@ -343,7 +343,9 @@ class AtlasHost(SessionHttpServer):
                 + stage_script
                 + '<script src="/host-panel.js"></script>'
                 + "".join(
-                    '<script src="' + route + '"></script>' for route in native_scripts
+                    '<script src="' + script + '"></script>'
+                    for script in native_scripts
+                    if script != "/session-scope.js" or row["ref"] in self.native_cases
                 )
                 + "</body>",
             )

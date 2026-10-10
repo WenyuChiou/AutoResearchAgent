@@ -9,11 +9,11 @@
 .harness-panel .harness-status { color: #617581; font-size: 16px; }
 .harness-panel .harness-status[data-state="succeeded"] { color: #267a70; }
 .harness-panel .harness-status[data-state="failed"] { color: #9a5044; }
-.harness-panel .harness-status[data-state="execution-unknown"] { color: #9b7133; }
+.harness-panel .harness-status[data-state="execution-unknown"] { color: #8a622b; }
 .harness-panel .harness-history { display: grid; gap: 8px; margin-top: 14px; max-height: 360px; overflow: auto; }
 .harness-panel .harness-record { background: #f5f7f4; border-radius: 8px; padding: 10px 13px; overflow-wrap: anywhere; }
 .harness-panel .harness-record strong { font-size: 16px; font-weight: 550; }
-.harness-panel code { display: block; color: #637480; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.harness-panel code { display: block; color: #526570; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .harness-panel .harness-record [data-artifact] { margin: 6px 7px 2px 0; font-size: 15px; }
 .harness-panel details { margin-top: 9px; }
 .harness-panel summary { cursor: pointer; font-size: 15px; }
