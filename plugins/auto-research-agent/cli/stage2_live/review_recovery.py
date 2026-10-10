@@ -17,6 +17,11 @@ from stage2_workflow.reviews import validate_review
 
 from .environment import verify_environment_capture, verify_environment_start
 from .native import _path_binding
+from .review_pre_dispatch import (
+    VERSION as PRE_DISPATCH_VERSION,
+    authenticate_pre_dispatch_predecessor,
+    namespace_output_allowed,
+)
 from .review_models import (
     _adapter_binding,
     _captured_input,
@@ -150,6 +155,53 @@ def recover_failed_review(
     extraction replay. Failed/partial recoveries require a separately authorized
     recovery interface; this operation never creates retry IDs to bypass them.
     """
+    return _recover_failed_review(
+        run_dir,
+        failed_action_id,
+        capture_dir,
+        capture_receipt,
+        original_preflight,
+        original_inventory_receipt,
+        candidate_id=candidate_id,
+        role=role,
+        source_root=source_root,
+        expected_snapshot_sha256=expected_snapshot_sha256,
+        expected_head=expected_head,
+        execution_preflight=execution_preflight,
+        native=native,
+        evaluator_home=evaluator_home,
+        extractor_workspace=extractor_workspace,
+        output_dir=output_dir,
+    )
+
+
+def continue_pre_dispatch_review_recovery(predecessor_binding, **kwargs):
+    """Explicit1.1 continuation of one proven pre-dispatch1.0 rejection only."""
+    if predecessor_binding is None:
+        raise Stage2Error("review-recovery-pre-dispatch-predecessor-required")
+    return _recover_failed_review(**kwargs, predecessor_binding=predecessor_binding)
+
+
+def _recover_failed_review(
+    run_dir,
+    failed_action_id,
+    capture_dir,
+    capture_receipt,
+    original_preflight,
+    original_inventory_receipt,
+    *,
+    candidate_id,
+    role,
+    source_root,
+    expected_snapshot_sha256,
+    expected_head,
+    execution_preflight,
+    native,
+    evaluator_home,
+    extractor_workspace,
+    output_dir,
+    predecessor_binding=None,
+):
     state = inspect_workflow(run_dir, expected_head=expected_head)
     snapshot = state["latest_snapshot"]
     snapshot_sha = snapshot["event"]["payload"]["snapshot_sha256"]
@@ -166,6 +218,14 @@ def recover_failed_review(
         raise Stage2Error("review-recovery-failed-current-review-required")
     packet = snapshot["packet"]
     validate_packet(packet, source_root)
+    home = Path(evaluator_home).resolve()
+    workspace = Path(extractor_workspace).resolve()
+    output = Path(output_dir).resolve()
+    early_config = _request_config(
+        native["codex"], home, native["model"], native["reasoning"]
+    )
+    if not namespace_output_allowed(early_config, output):
+        raise Stage2Error("review-recovery-namespace-output-scope")
     inputs = target["request"]["inputs"]
     if inputs.get("role") != role:
         raise Stage2Error("review-recovery-role-mismatch")
@@ -184,7 +244,7 @@ def recover_failed_review(
     capture = Path(capture_dir).resolve()
     if _sha(capture / "run.json") != capture_receipt:
         raise Stage2Error("review-recovery-capture-receipt-mismatch")
-    record, _ = _captured_input(capture, capture_receipt, view, "review_view")
+    record, raw = _captured_input(capture, capture_receipt, view, "review_view")
     _original_capture_binding(
         target["request"],
         record,
@@ -198,9 +258,6 @@ def recover_failed_review(
     if original_environment.get("status") != "verified":
         raise Stage2Error("review-recovery-original-environment-not-verified")
     capture_binding = _path_binding(capture)
-    home = Path(evaluator_home).resolve()
-    workspace = Path(extractor_workspace).resolve()
-    output = Path(output_dir).resolve()
     protected = [state["root"], capture, Path(source_root).resolve(), home, workspace]
     if Path(output_dir).is_symlink() or any(
         output == item or output in item.parents or item in output.parents
@@ -223,13 +280,27 @@ def recover_failed_review(
         "capture_tree_sha256": capture_binding["sha256"],
         "original_environment": original_environment,
     }
+    predecessor = None
+    version = VERSION
+    if predecessor_binding is not None:
+        predecessor = authenticate_pre_dispatch_predecessor(
+            state, predecessor_binding, recovery_inputs, packet, view, raw
+        )
+        prior_output = Path(predecessor["output_dir"])
+        if (
+            output == prior_output
+            or output in prior_output.parents
+            or prior_output in output.parents
+        ):
+            raise Stage2Error("review-recovery-pre-dispatch-output-collision")
+        version = PRE_DISPATCH_VERSION
+        recovery_inputs.update(
+            schema_version=version, pre_dispatch_predecessor=predecessor
+        )
     settings = {"execution": current, "output_dir": str(output), "formal_ready": False}
     action_id = (
-        "review-recovery-"
-        + canonical_hash([VERSION, failed_action_id, snapshot_sha, capture_receipt])[
-            :24
-        ]
-    )
+        "review-recovery-pre-dispatch-" if predecessor else "review-recovery-"
+    ) + canonical_hash([version, failed_action_id, snapshot_sha, capture_receipt])[:24]
     existing = state["actions"].get(action_id)
     if existing is None and output.exists() and any(output.iterdir()):
         raise Stage2Error("review-recovery-orphan-output-needs-recovery")
@@ -256,6 +327,19 @@ def recover_failed_review(
             raise Stage2Error("review-recovery-execution-changed-before-handoff")
         if _path_binding(capture) != capture_binding:
             raise Stage2Error("review-recovery-capture-changed-before-handoff")
+        if predecessor:
+            authenticate_pre_dispatch_predecessor(
+                state,
+                predecessor_binding,
+                {
+                    k: v
+                    for k, v in recovery_inputs.items()
+                    if k != "pre_dispatch_predecessor"
+                },
+                packet,
+                view,
+                raw,
+            )
         value = extract_review(
             packet,
             source_root,
@@ -299,6 +383,19 @@ def recover_failed_review(
             raise Stage2Error("review-recovery-original-changed-during-extraction")
         if _path_binding(capture) != capture_binding:
             raise Stage2Error("review-recovery-capture-changed-during-extraction")
+        if predecessor:
+            authenticate_pre_dispatch_predecessor(
+                retained,
+                predecessor_binding,
+                {
+                    k: v
+                    for k, v in recovery_inputs.items()
+                    if k != "pre_dispatch_predecessor"
+                },
+                packet,
+                view,
+                raw,
+            )
         replayed_record, _ = _captured_input(
             capture, capture_receipt, view, "review_view"
         )
@@ -329,7 +426,7 @@ def recover_failed_review(
                 raise Stage2Error("review-recovery-extraction-handoff-mismatch")
         summary = {
             "kind": "Stage2FailedReviewExtractionRecovery",
-            "schema_version": VERSION,
+            "schema_version": version,
             "action_id": action_id,
             "binding": recovery_inputs,
             "review_result": value,
