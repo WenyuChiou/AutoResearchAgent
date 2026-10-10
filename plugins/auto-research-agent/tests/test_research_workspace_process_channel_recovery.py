@@ -2,11 +2,13 @@
 
 import sqlite3
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from native_process_channel_fixtures import OwnedProcessCase
 import research_workspace_native.process_channel as module
+from research_workspace_native import process_deadline
 
 
 class ObservationTests(OwnedProcessCase):
@@ -27,17 +29,30 @@ class ObservationTests(OwnedProcessCase):
         self.assertTrue(channel.closed)
 
     def test_write_result_after_absolute_deadline_is_unknown_not_success(self):
-        channel = self.channel()
+        channel = self.channel(lifetime=30)
         observe = channel._observe
+        clock = [time.monotonic()]
+        controlled = SimpleNamespace(monotonic=lambda: clock[0])
+        observed_returns = []
 
         def delayed(event, **payload):
             if event == "write-returned":
-                time.sleep(0.1)
+                observed_returns.append(payload["count"])
+                clock[0] += 3
             return observe(event, **payload)
 
-        with patch.object(channel, "_observe", side_effect=delayed):
+        # Keep actual fake-child I/O, then expire exactly after the one write.
+        with (
+            patch.object(process_deadline, "time", controlled),
+            patch.object(channel, "_observe", side_effect=delayed),
+            patch.object(
+                channel.process.stdin, "write", wraps=channel.process.stdin.write
+            ) as writes,
+        ):
             with self.assertRaisesRegex(ValueError, "unknown"):
-                channel.write(b"synthetic\n", 0.05)
+                channel.write(b"synthetic\n", 2)
+            writes.assert_called_once_with(b"synthetic\n")
+        self.assertEqual(observed_returns, [10])
         self.assertTrue(channel.closed)
 
     def test_post_spawn_database_busy_cannot_delay_lease_cleanup(self):
