@@ -109,6 +109,26 @@ async function test(name, callback) {
   await callback(); assertions++; console.log("PASS " + name);
 }
 (async () => {
+  await test("interrupt is visible only for an explicitly active turn; completion retains history without I/O", async () => {
+    const view = copy(fixture);
+    view.operations = [
+      {action_ref: "7".repeat(64), action_sha256: "8".repeat(64), can_interrupt: true},
+      {action_ref: "9".repeat(64), action_sha256: "a".repeat(64), can_interrupt: false},
+      {action_ref: "b".repeat(64), action_sha256: "c".repeat(64), can_interrupt: "true"},
+    ];
+    const state = await mount({view});
+    const interrupts = () => flatten(state.html).filter(e => e.dataset.nativeLabel === "interrupt");
+    assert.equal(interrupts().length, 1);
+    assert.equal(interrupts()[0].disabled, false);
+    const completed = copy(view); completed.revision++;
+    completed.operations[0].can_interrupt = false;
+    completed.actions.push({kind: "message", status: "completed", target_ref: "7".repeat(64)});
+    await state.refresh(completed);
+    assert.equal(interrupts().length, 0);
+    assert.ok(state.document.getElementById("native-history").textContent.includes("message · completed"));
+    assert.ok(state.calls.every(call => call.method === "GET"));
+    assert.equal(state.storage.size, 0);
+  });
   await test("actual typed API fixture, literal source text and failed terminal", async () => {
     const state = await mount();
     assert.equal(articles(state).length, 4);

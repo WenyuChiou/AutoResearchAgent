@@ -55,7 +55,7 @@ class NativeAtlasChatTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn(
-            "PASS 22 tests; actual fixture plus DOM substitute", result.stdout
+            "PASS 23 tests; actual fixture plus DOM substitute", result.stdout
         )
 
 

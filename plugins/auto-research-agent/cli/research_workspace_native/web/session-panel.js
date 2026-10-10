@@ -196,6 +196,7 @@
     }
     if (!questions.childElementCount) label("p", "empty", questions);
     for (const op of view.operations) {
+      if (op.can_interrupt !== true) continue;
       const button = label("button", "interrupt", operations);
       button.disabled = busy || !op.can_interrupt || Boolean(view.failure) || held(op.action_ref);
       button.onclick = () => submit("interrupt", op);
