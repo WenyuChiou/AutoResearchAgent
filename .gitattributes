@@ -46,3 +46,7 @@ plugins/auto-research-agent/tests/research_workspace_native_browser/core_panel_p
 
 # Preserve the pinned upstream WebGL bundle verbatim.
 plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js -text
+
+# Preserve the real stage pilot overlay on Windows downloads.
+plugins/auto-research-agent/references/research-workspace/web/*.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/web/*.css text eol=lf
