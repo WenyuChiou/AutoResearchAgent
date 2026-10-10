@@ -5,14 +5,23 @@ new private outputs from existing public synthetic fixtures, verifies manifests,
 and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
 search, protected source import, new source acquisition or session resume is required.
 
+The optional [Stage 2 controller demo](STAGE2_REPOSITORY_DEMO.md) generates a new
+synthetic workflow and delivery from an explicit UI action. Its fixed legacy
+fixture is independent of the saved Stage 1 and ordinary daily_v3 scoring.
+
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
 These stacked review slices are not yet merged or accepted by the core team.
 Existing native runtime guards remain enforced.
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-empty-inventory-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-stage2-demo-ui-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
+
+The checkout keeps Git source bytes unchanged. Its local `core.autocrlf=false`
+setting does not change your global Git preferences and also protects older
+review assets without an explicit line-ending rule. A source-byte mismatch
+remains a failure; do not bypass the source checks.
 
 From the repository root, use Python with the plugin test requirements installed.
 The [per-user setup guide](PORTABLE_ATLAS_SETUP.md) includes virtual-environment
@@ -40,6 +49,40 @@ The Stage 1 ledger and Stage 2 saved delivery are independent synthetic cases,
 not an end-to-end research run. A successful checkpoint can still report blocked
 readiness. Requesting the next stage records a request; it grants no execution
 authority. Refresh/reconnect reads history without restarting operations.
+
+To demonstrate a passing saved Stage 1 check, choose a separate new output:
+
+```powershell
+& .venv/Scripts/python.exe -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/ready-case-1 --demonstrate-ready-saved-case --serve --harness-operations --open
+```
+
+This optional mode runs the existing public coverage fixture through the real
+ledger and coverage gate. It preserves the reviewed work/version, claim IDs and
+saved source references in the displayed paper and the checked input. It does
+not substitute an unrelated paper into the view. The saved rounds have qualified
+yields `1, 0, 0`; missing paper findings stay Unknown. These are synthetic saved
+inputs, not retrieved literature, a complete Stage 1 delivery package or evidence
+of scientific adequacy. Stage 2 remains an independent saved example; the receipt
+does not claim continuous Stage 1-to-Stage 2 research lineage.
+
+In the stage panel, choose a stage and press **Check this stage**. An attempt
+marked completed means the saved-input function returned and its result was
+recorded. Read **Latest stage check** separately: `pass` or `ready` means the
+particular saved check passed; `blocked` or `incomplete` means the listed work
+remains. A failed attempt preserves its error. An unknown outcome requires
+**Read saved history**, rather than another submission. Inspect the full check
+and output references, then enter a review reason and confirm its source version.
+Changing stages clears that reason and confirmation. **Request next stage**
+records a request only; it never starts research, authorizes a model call or
+automatically feeds the independent Stage 2 fixture.
+
+中文使用步骤：选择 Stage 1 或 Stage 2，点击「检查本阶段」。操作完成表示保存材料的
+检查已结束并留下回执；还要看「本阶段最近检查」是否通过、受阻或交付未完整。
+查看待处理事项、完整检查记录及产物位置后，再填写审阅理由并确认当前来源版本。
+切换阶段会清空上一阶段的理由和确认，防止错用。「申请进入下一阶段」只记录申请，
+不会自动开始研究、调用模型或执行下一阶段。结果未知时读取历史，不重复提交。
+默认案例保留证据不足的受阻情况；新增选项展示保存的 synthetic 覆盖案例正常通过。
+页面论文与该 Stage 1 ledger 使用同一作品、版本和保存来源；Stage 2 仍是独立示例。
 
 The example writes an unconfirmed synthetic `brief.json` into each view root and
 separately pins `stage-inputs.json` in `fixture-receipt.json`. These added inputs

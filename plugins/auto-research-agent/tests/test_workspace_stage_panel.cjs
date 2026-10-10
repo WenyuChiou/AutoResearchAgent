@@ -86,6 +86,40 @@ async function mount({server={view:view(),records:new Map()},storage=new Map(),m
   releaseDigest();await awaitingReview;assert.equal(reviewFinished,true);assert.equal(heldReview.calls.filter(c=>c.method==="POST").length,1,"awaited review finishes exactly one durable action");assert.equal(heldReview.storage.size,0);
   console.log("Review submit awaits the asynchronous digest and recovery boundary PASS");
   const recordCards=instance=>instance.all().filter(n=>n.className==="stage-action-record");
+  const draft=instance=>({note:instance.all().find(n=>n.tagName==="TEXTAREA"),confirm:instance.all().find(n=>n.tagName==="INPUT"),decision:instance.select()[1]});
+  for(const switchBy of ["select","sidebar"]){
+    const instance=await mount(), fields=draft(instance), before=instance.calls.length;
+    fields.note.value="Stage 1 evidence only";fields.confirm.checked=true;fields.decision.value="request-next";
+    instance.html.lang="zh-Hans";instance.observers.forEach(fn=>fn());
+    assert.equal(fields.note.value,"Stage 1 evidence only","language change preserves the same-stage draft");assert.equal(fields.confirm.checked,true);
+    if(switchBy==="select"){instance.select()[0].value="2";instance.select()[0].onchange();}
+    else{instance.html.dataset.atlasStage="2";instance.observers.forEach(fn=>fn());}
+    assert.equal(fields.note.value,"","stage change clears the prior stage's review reason");assert.equal(fields.confirm.checked,false,"new stage requires fresh source confirmation");assert.equal(fields.decision.value,"review");
+    assert.equal(instance.calls.length,before,"clearing another stage's form does not dispatch or read history");
+    const form=instance.all().find(n=>n.tagName==="FORM");await form.onsubmit({preventDefault(){}});await instance.flush();
+    assert.equal(instance.calls.filter(c=>c.method==="POST").length,0,"prior confirmation must not authorize a new-stage decision");
+  }
+  const explained=await mount({readiness:"blocked",blockers:["live-coverage-not-evaluated","recorded-backend-failures-require-review"]});await explained.submit();
+  for(const [lang,coverage,backend,completed]of[["en","Live coverage has not been evaluated","Recorded search backend failures need review","no research was started"],["zh-Hans","尚未评估实际检索的覆盖情况","已记录的检索服务失败需要审阅","未启动研究"],["zh-Hant","尚未評估實際檢索的覆蓋情況","已記錄的檢索服務失敗需要審閱","未啟動研究"]]){
+    explained.html.lang=lang;explained.observers.forEach(fn=>fn());assert.ok(summary(explained).textContent.includes(coverage));assert.ok(summary(explained).textContent.includes(backend));assert.ok(explained.panel().textContent.includes(completed));
+  }
+  console.log("Stage changes clear review reason/confirmation; same-stage translation preserves them; saved checks are not research execution PASS");
+  for(const [initial,preview]of[["1","3"],["2","6"]]){
+    const instance=await mount();instance.html.dataset.atlasStage=initial;instance.observers.forEach(fn=>fn());
+    const fields=draft(instance),before=instance.calls.length;
+    fields.note.value="Prior stage review";fields.confirm.checked=true;fields.decision.value="request-next";
+    instance.html.dataset.atlasStage=preview;instance.observers.forEach(fn=>fn());assert.equal(instance.panel().hidden,true);
+    assert.equal(fields.note.value,"");assert.equal(fields.confirm.checked,false);assert.equal(fields.decision.value,"review");
+    instance.html.dataset.atlasStage=initial;instance.observers.forEach(fn=>fn());assert.equal(instance.panel().hidden,false);
+    assert.equal(fields.note.value,"");assert.equal(fields.confirm.checked,false);assert.equal(fields.decision.value,"review");
+    assert.equal(instance.calls.length,before,"preview round trip cannot perform I/O");assert.equal(instance.calls.filter(c=>c.method==="POST").length,0);
+    fields.note.value="Fresh visible-stage draft";fields.confirm.checked=true;fields.decision.value="hold";
+    instance.html.lang="zh-Hant";instance.observers.forEach(fn=>fn());assert.equal(fields.note.value,"Fresh visible-stage draft");assert.equal(fields.confirm.checked,true);assert.equal(fields.decision.value,"hold");
+  }
+  const manualDraft=await mount();manualDraft.select()[0].value="2";manualDraft.select()[0].onchange();
+  const manualFields=draft(manualDraft);manualFields.note.value="Stage 2 dropdown draft";manualFields.confirm.checked=true;
+  manualDraft.html.lang="zh-Hans";manualDraft.observers.forEach(fn=>fn());assert.equal(manualDraft.select()[0].value,"2");assert.equal(manualFields.note.value,"Stage 2 dropdown draft");assert.equal(manualFields.confirm.checked,true);
+  console.log("Stage1→3→1 and Stage2→6→2 retire prior review confirmation with zero I/O; language-only redraw preserves visible drafts PASS");
   const detailCards=instance=>instance.all().filter(n=>n.tagName==="ARTICLE"&&n.children.some(child=>child.tagName==="H3"));
   const stageReview=await mount({readiness:"ready",blockers:[]});stageReview.html.dataset.atlasStage="2";stageReview.observers.forEach(fn=>fn());await stageReview.submit();
   const originalNote="Keep this version · 保留原稿\nReason: <b>await researcher choice</b> / 等待研究者決定";

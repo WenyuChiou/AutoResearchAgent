@@ -55,6 +55,37 @@ def save(path, value):
         stream.write(canonical(value))
 
 
+def install_demo_bootstrap(server, credential):
+    """Add an example-only memory bootstrap before the normal host consumes its own."""
+    anchor = b'<script src="/host-panel.js"></script>'
+    for view in server.views:
+        route = view["url"]
+        raw = server._assets[route]
+        bootstrap_route = "/stage2-demo-bootstrap/" + view["ref"] + ".js"
+        if raw.count(anchor) != 1 or bootstrap_route in server._assets:
+            raise ValueError("Stage2 demo bootstrap placement differs")
+        enabled = view["ref"] == "stage2"
+        bootstrap = (
+            b"window.WORKSPACE_STAGE2_DEMO="
+            + canonical(
+                dict(
+                    enabled=enabled,
+                    project_ref=view["ref"],
+                    credential=credential if enabled else "",
+                )
+            )
+            + b";"
+        )
+        tag = ('<script src="' + bootstrap_route + '"></script>').encode("utf8")
+        changed = raw.replace(anchor, tag + anchor, 1)
+        server._assets[route] = changed
+        server._assets[bootstrap_route] = bootstrap
+        server.host_binding["served_files"][route] = digest(changed)
+        server.host_binding["served_files"][bootstrap_route] = digest(bootstrap)
+    server.host_binding["stage2_demo_overlay"] = "independent synthetic example"
+    server._assets["/host-binding.json"] = canonical(server.host_binding)
+
+
 def git(repo, *args):
     result = subprocess.run(
         ["git", "-c", "core.longpaths=true", *args],
@@ -263,6 +294,11 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--expected-head")
     parser.add_argument("--serve", action="store_true")
+    parser.add_argument(
+        "--demonstrate-stage2-run",
+        action="store_true",
+        help="Fixed legacy synthetic Stage2 controller; no live authority",
+    )
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--lifetime", type=int, default=120)
     args = parser.parse_args()
@@ -340,7 +376,7 @@ def main():
 
     builder.fixture_index = index
     query_case = planned_query_fixture.QueryCase("runTest")
-    server = query = operations = stages = timer = None
+    server = query = operations = stages = timer = demo = None
     setup_done = False
     boundary = ExitStack()
     receipt = dict(
@@ -420,6 +456,36 @@ def main():
             },
             planned_queries=query,
         )
+        if args.demonstrate_stage2_run:
+            demo_path = builder_path.with_name("stage2-demo.py")
+            panel_path = builder_path.with_name("stage2-demo-panel.js")
+            demo_raw, panel_raw = demo_path.read_bytes(), panel_path.read_bytes()
+            for path, raw in ((demo_path, demo_raw), (panel_path, panel_raw)):
+                relative = path.relative_to(args.repo).as_posix()
+                if digest(git(args.repo, "show", "HEAD:" + relative)) != digest(raw):
+                    raise ValueError("Stage2 demo source/Git bytes differ")
+            demo_module = types.ModuleType("installed_fixed_stage2_demo")
+            demo_module.__file__ = str(demo_path)
+            exec(compile(demo_raw, str(demo_path), "exec"), demo_module.__dict__)
+            fixed_pins = dict(proof["files"])
+            fixed_pins.update({"tests/" + k: v for k, v in test_hashes.items()})
+            demo = demo_module.RepositoryStage2Demo(
+                output / "stage2-run-demo",
+                repo=args.repo,
+                sources=fixed_pins,
+                project_ref="stage2",
+                index_sha256=views[1]["index_sha256"],
+                authenticate=authenticate,
+            )
+            notice_raw += b"\n" + panel_raw
+            receipt.update(
+                stage2_run_demo=True,
+                stage2_demo_case_sha256=demo.case_sha256,
+                stage2_demo_scope="legacy Stage2Packet 1.0.0 controller fixture; independent lineage; no scores",
+                stage2_demo_script_sha256=digest(demo_raw),
+                stage2_demo_panel_sha256=digest(panel_raw),
+                native_script_role="fixture notice and fixed synthetic Stage2 action",
+            )
         operations = create_harness_operations(
             files, views, output / "harness-operations", credential
         )
@@ -447,6 +513,9 @@ def main():
                 timeout=30,
                 native_script=notice_raw,
             )
+            if demo is not None:
+                install_demo_bootstrap(server, credential)
+                demo_module.install(server, demo)
             receipt.update(
                 status="serving",
                 origin=server.expected_origin,
@@ -479,6 +548,8 @@ def main():
             finally:
                 timer.cancel()
             receipt["query_history"] = query.view(credential, "case")
+            if demo is not None:
+                receipt["stage2_demo_history"] = demo.view(credential, "stage2")
             receipt["injected_children"] = deepcopy(query_case.children)
         else:
             print(
@@ -502,6 +573,11 @@ def main():
             timer.cancel()
         primary_failed = receipt["status"] == "failed"
         cleanup_errors = close_fixture(server, stages, operations, query, boundary)
+        if demo is not None:
+            try:
+                demo.close()
+            except Exception as error:
+                cleanup_errors.append("Stage2 demo close: " + type(error).__name__)
         query_closed = query is None or query._closed
         receipt["retained_query_attempt_status"] = "not-created"
         if setup_done and query_case.root.exists():

@@ -1,5 +1,7 @@
 """Offline byte/protocol checks only; no real or fake child is launched."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from copy import deepcopy
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -316,6 +318,79 @@ class LocalLauncherTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(launcher.LauncherError, "expired"):
                     authority.verify(event, full=True)
+
+    def test_expiry_is_typed_before_reads_and_never_mutates_admission(self):
+        with tempfile.TemporaryDirectory() as folder:
+            authority = self.real_authority(folder)
+            event = dict(spec_sha256=authority.sha, spec=authority.spec)
+            for monotonic, wall in (
+                (authority.deadline, authority.permit["expires_at_unix"] - 1),
+                (authority.deadline - 1, authority.permit["expires_at_unix"]),
+            ):
+                with (
+                    self.subTest(monotonic=monotonic, wall=wall),
+                    patch.object(launcher.time, "monotonic", return_value=monotonic),
+                    patch.object(launcher.time, "time", return_value=wall),
+                    patch.object(
+                        launcher, "pinned", side_effect=AssertionError("no reads")
+                    ),
+                ):
+                    with self.assertRaises(launcher.PermitLeaseExpired):
+                        authority.verify(event)
+            self.assertEqual(
+                (authority.epoch, authority.phase, authority.starts), (None, -1, 0)
+            )
+
+    def test_expiry_during_read_becomes_typed_passive_stop_without_authority(self):
+        from research_workspace_native.process_deadline import SessionLeaseExpired
+
+        with tempfile.TemporaryDirectory() as folder:
+            authority = self.real_authority(folder)
+            event = dict(spec_sha256=authority.sha, spec=authority.spec)
+            clock = [authority.deadline - 1]
+            original = launcher.pinned
+
+            def expire_after_read(*args, **kwargs):
+                value = original(*args, **kwargs)
+                clock[0] = authority.deadline
+                return value
+
+            with (
+                patch.object(launcher.time, "monotonic", side_effect=lambda: clock[0]),
+                patch.object(launcher, "pinned", side_effect=expire_after_read),
+            ):
+                with self.assertRaises(SessionLeaseExpired):
+                    authority.callbacks()["verify_source"](event)
+            self.assertEqual(
+                (authority.epoch, authority.phase, authority.starts), (None, -1, 0)
+            )
+
+    def test_observed_source_drift_is_not_relabelled_as_expiry(self):
+        from research_workspace_native.process_deadline import SessionLeaseExpired
+
+        with tempfile.TemporaryDirectory() as folder:
+            authority = self.real_authority(folder)
+            event = dict(spec_sha256=authority.sha, spec=authority.spec)
+            clock = [authority.deadline - 1]
+            original = launcher.pinned
+
+            def changed_after_read(*args, **kwargs):
+                if Path(args[0]) == authority.path:
+                    authority.path.write_bytes(b"changed source bytes")
+                    clock[0] = authority.deadline
+                return original(*args, **kwargs)
+
+            with (
+                patch.object(launcher.time, "monotonic", side_effect=lambda: clock[0]),
+                patch.object(launcher, "pinned", side_effect=changed_after_read),
+            ):
+                with self.assertRaises(launcher.LauncherError) as observed:
+                    authority.callbacks()["verify_source"](event)
+            self.assertNotIsInstance(observed.exception, SessionLeaseExpired)
+            self.assertNotIsInstance(observed.exception, launcher.PermitLeaseExpired)
+            self.assertEqual(
+                (authority.epoch, authority.phase, authority.starts), (None, -1, 0)
+            )
 
 
 if __name__ == "__main__":

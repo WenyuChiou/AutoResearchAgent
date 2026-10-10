@@ -6,7 +6,7 @@ const hash = c => c.repeat(64), copy = value => JSON.parse(JSON.stringify(value)
 const flatten = e => [e, ...e.children.flatMap(flatten)];
 const visible = e => e.tagName === "DETAILS" && !e.open ? e.children.find(c => c.tagName === "SUMMARY")?.textContent || "" : e._text + e.children.map(visible).join(" ");
 const tick = () => new Promise(resolve => setImmediate(resolve));
-async function mount(locale, observed = true) {
+async function mount(locale, observed = true, errorCode = null) {
   class Element {
     constructor(tag) {this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attrs = {}; this._text = ""; this.value = "";}
     get textContent() {return this._text + this.children.map(e => e.textContent).join("");}
@@ -43,6 +43,7 @@ async function mount(locale, observed = true) {
     versions: [{version_ref: snapshot.version_ref, sha256: snapshot.sha256, parent_ref: null}], actions: []};
   const snapshots = new Map([[snapshot.version_ref, copy(snapshot)]]);
   const calls = [], storage = new Map(), observers = [];
+  let refusal = errorCode;
   const window = {WORKSPACE_NATIVE_ATLAS: {enabled: true, credential: "memory-only", project_ref: base.project_ref,
     index_sha256: base.index_sha256, input_version: base.input_version}};
   const context = vm.createContext({window, document, TextEncoder, crypto: {randomUUID: () => "12345678-1234-1234-1234-123456789abc", subtle: {digest: async (_algorithm, bytes) => Uint8Array.from(require("node:crypto").createHash("sha256").update(bytes).digest()).buffer}},
@@ -50,6 +51,7 @@ async function mount(locale, observed = true) {
     MutationObserver: class {constructor(callback) {observers.push(callback);} observe() {}},
     fetch: async (url, options) => {
       calls.push({url, ...options});
+      if (refusal) return {ok: false, json: async () => ({error: refusal})};
       if (options.method === "POST") {
         const request = JSON.parse(options.body);
         if (url.endsWith("/answers")) return {ok: false, json: async () => ({error: "approval-not-admitted"})};
@@ -71,7 +73,7 @@ async function mount(locale, observed = true) {
     }});
   for (const script of ["session-panel.js", "session-scope.js"]) vm.runInContext(fs.readFileSync(path.join(assets, script), "utf8"), context, {filename: script});
   await tick(); await tick(); await tick();
-  return {html, document, calls, storage, observers};
+  return {html, document, calls, storage, observers, refuse: code => {refusal = code;}};
 }
 async function submitScope(state) {
   const form = state.document.getElementById("native-scope-form");
@@ -106,6 +108,26 @@ async function submitScope(state) {
     assert.equal([...state.storage.values()].map(JSON.parse).flat().length, 1); // No unknown-key clearing.
     console.log("PASS readable collapsed source records and exact saved decision: " + locale);
   }
+  for (const [locale, expected] of [
+    ["en", "Session permission expired"], ["zh-Hans", "会话许可已到期"], ["zh-Hant", "工作階段許可已到期"],
+  ]) {
+    const expired = await mount(locale, true, "session-lease-expired");
+    assert.ok(visible(expired.html).includes(expected));
+    assert.equal(expired.calls.filter(c => c.method === "POST").length, 0);
+    assert.equal(expired.storage.size, 0);
+    assert.ok(!visible(expired.html).includes("session-lease-expired"));
+  }
+  const failure = await mount("en", true, "source-check-failed");
+  assert.ok(visible(failure.html).includes("source-check-failed"));
+  assert.ok(!visible(failure.html).includes("Session permission expired"));
+  const stopped = await mount("en");
+  stopped.refuse("session-lease-expired");
+  await flatten(stopped.html).find(e => e.dataset.nativeLabel === "refresh").onclick();
+  assert.ok(visible(stopped.html).includes("Session permission expired"));
+  assert.ok(flatten(stopped.html).filter(e => ["send", "decline", "cancel"].includes(e.dataset.nativeLabel)).every(e => e.disabled));
+  assert.equal(stopped.calls.filter(c => c.method === "POST").length, 0);
+  assert.equal(stopped.storage.size, 0);
+  console.log("PASS typed expiry in three languages disables stale answers without POST or intent changes; source failure remains distinct");
   const uncertain = await mount("en", false);
   await submitScope(uncertain);
   const text = visible(uncertain.document.getElementById("native-scope-panel"));

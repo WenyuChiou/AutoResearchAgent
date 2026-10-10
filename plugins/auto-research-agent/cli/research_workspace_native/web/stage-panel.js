@@ -25,7 +25,7 @@
     loading: ["Reading…", "正在读取…", "正在讀取…"],
     ready: ["Connected to saved inputs", "已连接已保存输入", "已連線已儲存輸入"],
     running: ["Checking…", "正在检查…", "正在檢查…"],
-    completed: ["Saved", "已保存", "已儲存"],
+    completed: ["Saved check / decision completed; no research was started", "已完成保存材料检查／决定记录；未启动研究", "已完成儲存材料檢查／決定紀錄；未啟動研究"],
     failed: ["Failed; this attempt is retained", "失败，已保留本次尝试", "失敗，已保留本次嘗試"],
     unknown: ["Outcome unknown. Read history; do not submit again.", "结果未知，请读取历史核查，不要重复提交。", "結果未知，請讀取歷史核查，不要重複提交。"],
     error: ["Unable to verify the response. Records are retained.", "无法核验回执，记录仍然保留。", "無法核驗回執，紀錄仍然保留。"],
@@ -67,6 +67,8 @@
     unfinished: ["Recorded actions are unfinished", "已有操作尚未完成", "已有操作尚未完成"],
     extraction: ["Evidence extraction is incomplete", "证据提取尚未完整", "證據擷取尚未完整"],
     sourceRead: ["Source reading failure needs review", "来源读取失败需要审阅", "來源讀取失敗需要審閱"],
+    coverageMissing: ["Live coverage has not been evaluated", "尚未评估实际检索的覆盖情况", "尚未評估實際檢索的覆蓋情況"],
+    backendFailures: ["Recorded search backend failures need review", "已记录的检索服务失败需要审阅", "已記錄的檢索服務失敗需要審閱"],
     storage: ["Unable to save recovery information. Nothing was submitted.", "无法保存恢复信息，尚未提交。", "無法儲存復原資訊，尚未提交。"],
   };
   const t = key => labels[key][({en:0,"zh-Hans":1,"zh-Hant":2})[document.documentElement.lang] ?? 0];
@@ -93,6 +95,7 @@
   const confirmText=make("span",confirmLabel), submit=make("button",form);submit.type="submit";
   const history=make("details",panel), historyTitle=make("summary",history), rows=make("div",history);
   let view=null,pending=null,busy=false,readable=false,state="loading",sequence=0,details=null,detailSequence=0;
+  let observedAtlasStage=document.documentElement.dataset.atlasStage;
   const checks=new Map();
   const remember=row=>{if(row.result && row.action!=="review-stage")checks.set(row.client_key,row);return row;};
   try {const raw=sessionStorage.getItem(storage); if(raw!==null) {
@@ -138,7 +141,7 @@
     if(result){
       const blockers=result.readiness.blockers;
       if(blockers.length){make("p",summary,t("blockers"));const list=make("ul",summary);
-        const names={"closest-work-unverified":"closestWork","unfinished-actions":"unfinished","extraction-incomplete":"extraction","source-read-failure-requires-review":"sourceRead"};
+        const names={"closest-work-unverified":"closestWork","unfinished-actions":"unfinished","extraction-incomplete":"extraction","source-read-failure-requires-review":"sourceRead","live-coverage-not-evaluated":"coverageMissing","recorded-backend-failures-require-review":"backendFailures"};
         for(const blocker of blockers){const text=typeof blocker==="string"?(names[blocker]?t(names[blocker]):blocker):blocker.reason || blocker.message || blocker.check_id || JSON.stringify(blocker);make("li",list,text).translate=false;}
       }else make("p",summary,t("noBlockers"));
       if(result.handoff?.papers)make("p",summary,t("includedPapers")+": "+result.handoff.papers.length);
@@ -232,7 +235,8 @@
     finally{busy=false;await recover();}
   };
   check.type=refresh.type="button";check.onclick=()=>execute(false);refresh.onclick=recover;
-  stage.onchange=()=>{++detailSequence;details=null;render();};form.onsubmit=event=>{event.preventDefault();return execute(true);};
+  const clearStageReview=()=>{++detailSequence;details=null;note.value="";confirm.checked=false;decision.value="review";};
+  stage.onchange=()=>{clearStageReview();render();};form.onsubmit=event=>{event.preventDefault();return execute(true);};
   const mount=()=>{
     const anchor=document.getElementById("atlas-stage-review"), content=document.getElementById("atlas-content");
     if(anchor && panel.previousSibling!==anchor)anchor.after(panel);
@@ -242,7 +246,7 @@
   if(content)new MutationObserver(mount).observe(content,{childList:true,subtree:true});
   new MutationObserver(()=>{
     const active=document.documentElement.dataset.atlasStage;
-    if(["1","2"].includes(active) && stage.value!==active){stage.value=active;++detailSequence;details=null;}
+    if(active!==observedAtlasStage){observedAtlasStage=active;clearStageReview();if(["1","2"].includes(active))stage.value=active;}
     panel.hidden=Boolean(active && !["1","2"].includes(active));
     if(panel.hidden){++detailSequence;details=null;}
     render();mount();

@@ -359,6 +359,32 @@ class SessionApiTests(unittest.TestCase):
                         self.api.answer("token-a", p.ref, body)
                 self.assertEqual(p.channel.calls, calls)
 
+    def test_typed_expiry_has_safe_code_but_source_errors_still_fail_closed(self):
+        from research_workspace_native.process_deadline import SessionLeaseExpired
+
+        p = self.project()
+        original = self.api._projects[p.ref]
+        for error, expected in (
+            (SessionLeaseExpired("private expiry detail"), "session-lease-expired"),
+            (
+                ValueError("permit/lease expired; private source path"),
+                "source-check-failed",
+            ),
+        ):
+
+            def refused(binding, error=error):
+                raise error
+
+            self.api._projects[p.ref] = (*original[:3], refused)
+            with self.assertRaises(SessionApiError) as observed:
+                self.api.view("token-a", p.ref)
+            self.assertEqual(str(observed.exception), expected)
+            self.assertEqual(observed.exception.code, expected)
+            with self.assertRaises(SessionApiError) as untrusted:
+                self.api.view("wrong-token", p.ref)
+            self.assertEqual(untrusted.exception.code, "authentication-required")
+            self.assertNotIn("write", p.channel.calls)
+
 
 if __name__ == "__main__":
     unittest.main()

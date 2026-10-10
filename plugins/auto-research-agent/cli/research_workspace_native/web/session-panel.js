@@ -31,6 +31,7 @@
     empty: ["No pending questions", "没有待回答问题", "沒有待回答問題"],
     status: ["Observed status (dispatch is separate from resolution and completion)", "观察状态（派发、请求解决和执行完成分别记录）", "觀察狀態（派發、請求解決與執行完成分別記錄）"],
     error: ["Read or submission failed. Refresh history; do not resend.", "读取或提交失败。请刷新历史，不要重发。", "讀取或提交失敗。請重新整理歷史，不要重送。"],
+    leaseExpired: ["Session permission expired; further actions are blocked. Saved records remain; no automatic reconnect or resend.", "会话许可已到期，后续操作已阻止。保存记录保留；不会自动重连或重发。", "工作階段許可已到期，後續操作已阻止。儲存紀錄保留；不會自動重新連線或重送。"],
     storage: ["Local intent storage is unavailable; submission is blocked.", "本地意图存储不可用，提交已阻止。", "本機意圖儲存不可用，提交已阻止。"],
     unknown: ["Local intent has no observed server receipt yet", "本地意图尚未观察到服务端回执", "本機意圖尚未觀察到伺服器回執"],
     saved: ["Operation record saved; observed status", "操作记录已保存，观察状态", "操作紀錄已儲存，觀察狀態"],
@@ -101,7 +102,11 @@
   const drafts = new Map(), extensions = []; let noticeKey = null, noticeReason = "";
   const locale = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
   const t = key => rows[key][locale()];
-  const showNotice = (key, reason = "") => {noticeKey = key; noticeReason = reason; notice.textContent = key ? t(key) + (reason ? " · " + reason : "") : "";};
+  const showNotice = (key, reason = "") => {
+    if (key === "error" && reason === "session-lease-expired") {key = "leaseExpired"; reason = "";}
+    noticeKey = key; noticeReason = reason;
+    notice.textContent = key ? t(key) + (reason ? " · " + reason : "") : "";
+  };
   const translate = () => {
     boundary.dataset.nativeLabel = window.NativeHostDisplay?.nativeReady() === true ? "nativeBoundary" : "boundary";
     root.querySelectorAll("[data-native-label]").forEach(e => e.textContent = t(e.dataset.nativeLabel)); if (noticeKey) notice.textContent = t(noticeKey) + (noticeReason ? " · " + noticeReason : "");
@@ -219,7 +224,13 @@
     const current = generation, sequence = ++readSequence;
     let loaded;
     try {loaded = await request("GET");}
-    catch (error) {if (current !== generation || sequence !== readSequence) return; throw error;}
+    catch (error) {
+      if (current !== generation || sequence !== readSequence) return;
+      if (error.code === "session-lease-expired" && view) {
+        view = {...view, failure: "session-lease-expired"}; render();
+      }
+      throw error;
+    }
     if (current !== generation || sequence !== readSequence || (view && loaded.revision < view.revision)) return;
     if (Object.hasOwn(loaded, "project_id") && (typeof loaded.project_id !== "string" ||
         !loaded.project_id || loaded.project_id.length > 128 ||
