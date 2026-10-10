@@ -251,4 +251,3 @@ snapshot hash as source run/state, and carries the missing historical trace and
 unverified claims in unresolved items. It adds no invented ledger events.
 The versioned external import receipt binds copied full notes and cumulative
 resources; candidate count stays zero and Stage2 remains not-started.
-
