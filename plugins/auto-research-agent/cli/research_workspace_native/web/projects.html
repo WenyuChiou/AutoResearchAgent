@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Harness Research Studio</title>
+  <link rel="stylesheet" href="/projects.css">
+  <script src="/project-bootstrap.js" defer></script>
+  <script src="/projects.js" defer></script>
+</head>
+<body>
+  <aside class="studio-nav">
+    <a class="brand" href="/">harness<span>RESEARCH STUDIO</span></a>
+    <button id="new-project" class="new-project" data-text="newProject">New project</button>
+    <div class="nav-title" data-text="projects">PROJECTS</div>
+    <nav id="project-list" aria-label="Research projects"></nav>
+    <div class="nav-title" data-text="savedViews">SAVED RESULTS</div>
+    <nav id="view-list" aria-label="Saved research results"></nav>
+    <p class="nav-foot" data-text="ownAccount">Your projects · Your own Codex account</p>
+  </aside>
+  <div class="studio-body">
+    <header class="topbar">
+      <span id="project-heading" data-text="workspace">Research workspace</span>
+      <button id="recover-intents" data-text="refresh">Refresh saved state</button>
+      <label><span class="sr-only" data-text="language">Language</span>
+        <select id="language"><option value="en">English</option><option value="zh-Hans">简体中文</option><option value="zh-Hant">繁體中文</option></select>
+      </label>
+    </header>
+    <main>
+      <div class="page-heading"><p class="eyebrow" data-text="eyebrow">TOPIC → EVIDENCE → RESEARCH DIRECTIONS</p>
+        <h1 data-text="title">Start with your research question</h1>
+        <p data-text="intro">Use the same Harness workflow for different topics. Confirm the scope and resources, then review each saved step.</p>
+      </div>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+      <section id="create-card" class="card">
+        <h2 data-text="topic">Research topic</h2>
+        <form id="create-form">
+          <label for="topic" data-text="topicLabel">Topic or area you would like to explore</label>
+          <textarea id="topic" rows="2" maxlength="4096" required></textarea>
+          <label for="needs" data-text="needsLabel">What do you need to learn or decide? One question per line.</label>
+          <textarea id="needs" rows="3" maxlength="12000" required></textarea>
+          <p class="subtle" data-text="suggestionHelp">For topic suggestions, describe your interests first. Codex suggestions remain proposals until you choose and confirm them.</p>
+          <button class="primary" type="submit" data-text="create">Create research project</button>
+        </form>
+      </section>
+      <div id="project-content" hidden>
+        <section class="card project-summary"><div><span id="project-state" class="badge"></span><h2 id="topic-heading"></h2><p id="needs-summary"></p></div><button id="refresh" data-text="refresh">Refresh saved state</button></section>
+        <details class="card"><summary data-text="reviseTitle">Choose or revise the topic</summary><p class="subtle" data-text="reviseHelp">A new topic creates a new input version. Previous scope answers, plans and results remain in history.</p><form id="revise-form"><label for="revised-topic" data-text="topicLabel">Topic or area you would like to explore</label><textarea id="revised-topic" rows="2" maxlength="4096" required></textarea><button type="submit" data-text="revise">Save a new topic version</button></form></details>
+        <details id="intake-card" class="card" open>
+          <summary data-text="confirmTitle">Confirm the research scope</summary>
+          <p class="subtle" data-text="confirmHelp">A proposed count is not a submitted answer. Saving these settings does not start a model call or a search.</p>
+          <form id="confirm-form">
+            <div class="field-grid">
+              <label><span data-text="geography">Geographic scope</span><select id="geography"><option value="" data-text="choose">Choose explicitly</option><option value="unrestricted" data-text="unrestricted">Unrestricted</option><option value="specified" data-text="specified">Specify a region</option><option value="not-applicable" data-text="notApplicable">Not applicable to this research</option></select></label>
+              <label><span data-text="geographyValue">Region / explanation</span><input id="geography-value" maxlength="1000"></label>
+              <label><span data-text="formalCount">Target formally usable papers</span><input id="formal-count" type="number" min="1" max="10000" value="30" required></label>
+              <label><span data-text="priorityCount">Priority reading target</span><input id="priority-count" type="number" min="1" max="10000" value="30" required></label>
+            </div>
+            <label for="resources" data-text="resources">Research resources, timing, constraints and alternatives</label><textarea id="resources" rows="3" maxlength="8192" required></textarea>
+            <details><summary data-text="budgetTitle">Run budget and tool consent</summary>
+              <div class="budget-grid">
+                <label><span data-text="modelCalls">Model calls</span><input id="model-calls" type="number" min="0" max="10000" value="0"></label>
+                <label><span data-text="seconds">Execution seconds</span><input id="seconds" type="number" min="0" max="86400" value="0"></label>
+                <label><span data-text="searchCalls">Search attempts</span><input id="search-calls" type="number" min="0" max="10000" value="0"></label>
+                <label><span data-text="sourceReads">Source reads</span><input id="source-reads" type="number" min="0" max="10000" value="0"></label>
+                <label><span data-text="rounds">Search rounds</span><input id="rounds" type="number" min="0" max="10000" value="0"></label>
+              </div>
+              <label class="check"><input id="search-consent" type="checkbox"><span data-text="searchConsent">Request public external search</span></label>
+              <label class="check"><input id="read-consent" type="checkbox"><span data-text="readConsent">Request lawful public source reading</span></label>
+              <p class="subtle" data-text="consentHelp">Requests remain separate from a registered execution permit. Browser/computer fallback requires its own applicable consent. Unknown token usage and price stay Unknown.</p>
+            </details>
+            <label for="confirmation" data-text="confirmation">Your confirmation or constraints, saved verbatim</label><textarea id="confirmation" rows="2" maxlength="4096" required></textarea>
+            <div class="actions"><button class="primary" type="submit" data-text="confirm">Confirm and save this scope version</button><button type="button" id="configure" data-text="configure">Save resources for topic suggestions</button></div>
+          </form>
+        </details>
+        <section class="stage-grid">
+          <article class="card"><p class="eyebrow">STAGE 01</p><h2 data-text="stage1Title">Literature & evidence</h2><p id="stage1-state"></p><p data-text="stage1Outputs">Knowledge network · Complete screening library · Source notes · Bibliography · Coverage and stop decision</p><div id="plan-summary" class="status-box"></div><div class="actions"><button id="suggest-topic" data-text="suggestTopic">Ask Codex for topic options</button><button id="plan-search" data-text="planSearch">Ask Codex to propose a search plan</button></div><p id="model-state" class="subtle"></p><details><summary data-text="authorizationTitle">Authorize a bounded Codex content task</summary><p id="authorization-budget"></p><p class="subtle" data-text="authorizationHelp">This authorizes one content call only. No search, commands, file changes or stage completion is granted. Sending the offered task is a separate step.</p><label for="model-consent" data-text="confirmation">Your confirmation, saved verbatim</label><textarea id="model-consent" rows="2" maxlength="4096"></textarea><div class="actions"><button id="authorize-topic" data-text="authorizeTopic">Authorize topic options</button><button id="authorize-plan" data-text="authorizePlan">Authorize search-plan proposal</button></div></details><div id="model-result"></div></article>
+          <article class="card"><p class="eyebrow">STAGE 02</p><h2 data-text="stage2Title">Comparison & research directions</h2><p id="stage2-state"></p><p data-text="stage2Outputs">Shared comparison dimensions · Evidence-backed opportunities · Candidate routes · Independent review · Selection package</p><div id="stage2-offer" class="status-box"></div><button id="activate-stage2" data-text="activateStage2">Accept this Stage1 evidence for Stage2</button><p class="subtle" data-text="activationHelp">Import binds saved evidence. It does not start research, approve a direction or unlock Stage3.</p></article>
+        </section>
+        <section class="card"><div class="section-heading"><h2 data-text="ledgerTitle">Stage1 coverage and saved evidence</h2><button id="ledger-init" data-text="ledgerInit">Initialize the bound evidence ledger</button></div><p class="subtle" data-text="ledgerHelp">A ledger records the real Harness plan and evidence history. Initialization and a checkpoint do not execute a search or complete Stage1.</p><p id="ledger-state"></p><div class="actions"><button id="ledger-checkpoint" data-text="ledgerCheckpoint">Check the current evidence gate</button><button id="ledger-export" data-text="ledgerExport">Export saved ledger artifacts</button></div><details><summary data-text="plannedQueries">Planned queries</summary><div id="ledger-queries"></div></details></section>
+        <section class="card"><div class="section-heading"><h2 data-text="nativeTitle">Codex questions and approvals</h2><button id="native-refresh" data-text="nativeRefresh">Read current session</button></div><p class="subtle" data-text="nativeHelp">Content tasks can ask questions. Tool requests may only be declined or cancelled here. Reading does not start or resume a session.</p><div id="native-questions"></div></section>
+        <section class="card"><div class="section-heading"><h2 data-text="historyTitle">Saved actions and results</h2><button id="history-refresh" data-text="refreshHistory">Read action history</button></div><div id="history" class="history"></div><button id="history-more" data-text="moreHistory" hidden>Read more history</button><div id="output-reader" hidden><h3 data-text="viewOutput">Read full output</h3><p id="output-identity" class="subtle"></p><pre id="output-text"></pre><button id="output-next" data-text="nextOutput" hidden>Read next part</button></div></section>
+        <details class="card workflow"><summary data-text="workflowTitle">Workflow, expected outputs and remaining connections</summary><ol><li><strong data-text="workflow1">1. Confirm the scope</strong><span data-text="output1">Versioned ResearchBrief and resource limits</span></li><li><strong data-text="workflow2">2. Search, read and screen</strong><span data-text="output2">Query/source attempts, keep/reject reasons and source-bound claims</span></li><li><strong data-text="workflow3">3. Check coverage and deliver Stage1</strong><span data-text="output3">Real coverage gate, canonical reports and accepted evidence handoff</span></li><li><strong data-text="workflow4">4. Compare and propose Stage2 routes</strong><span data-text="output4">Comparison, candidates, independent checks and retained revisions</span></li><li><strong data-text="workflow5">5. Review and select</strong><span data-text="output5">User choice and unresolved conditions; Stage3–6 planned/unconnected</span></li></ol><p class="subtle" data-text="completionHelp">A completed call, a valid artifact and an accepted research stage are different states. A partial result or Unknown is retained; refresh reads history and never resends.</p></details>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
