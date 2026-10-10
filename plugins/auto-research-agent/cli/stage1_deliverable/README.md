@@ -10,7 +10,7 @@ assess scientific claims or replace `stage1_export`. Readiness remains
 
 Use Python 3.11 and the committed `requirements-test.txt` lock, including
 openpyxl 3.1.5, python-docx 1.2.0 and research-hub-pipeline from merge
-`929bdd6d963acf4be5bc9d80ce3c5c0a0f77a834`. DOCX is available in this declared
+`cfc40cc27d45a78783266f9f4312290778ae6f5e`. DOCX is available in this declared
 runtime. A missing dependency fails rather than silently omitting a view.
 Install into a dedicated environment from the plugin directory:
 
