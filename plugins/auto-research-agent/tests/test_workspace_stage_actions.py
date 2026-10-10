@@ -101,6 +101,51 @@ class StageActionTests(unittest.TestCase):
     def execute(self, body):
         return self.service.execute("a", "case", body, deadline=time.monotonic() + 30)
 
+    def test_system_temp_alias_is_canonicalized_but_linked_outputs_stay_refused(self):
+        import os
+        import stat
+        from stage1_deliverable.common import DeliverableError
+
+        canonical_root = self.root / "canonical-temp"
+        canonical_root.mkdir()
+        alias = self.root / "system-temp-alias"
+        resolve, lstat = Path.resolve, os.lstat
+
+        def resolved(path, *args, **kwargs):
+            if path == alias:
+                return canonical_root
+            return resolve(path, *args, **kwargs)
+
+        def metadata(path, *args, **kwargs):
+            if Path(path) == alias:
+                return SimpleNamespace(st_mode=stat.S_IFLNK, st_file_attributes=0)
+            return lstat(path, *args, **kwargs)
+
+        case = StageActionTests("runTest")
+        with (
+            patch.object(
+                tempfile,
+                "TemporaryDirectory",
+                return_value=SimpleNamespace(name=str(alias), cleanup=lambda: None),
+            ),
+            patch.object(Path, "resolve", resolved),
+            patch.object(os, "lstat", metadata),
+        ):
+            case.setUp()
+            self.addCleanup(case.doCleanups)
+            case.start()
+            self.assertEqual(case.root, canonical_root)
+            self.assertEqual(case.service.view("a", "case")["history_count"], 0)
+            registrations = case.registrations()
+            registrations["case"]["output_root"] = str(alias / "forbidden")
+            with self.assertRaisesRegex(DeliverableError, "linked artifact"):
+                mod.StageActions(
+                    canonical_root / "refused.sqlite3",
+                    registrations=registrations,
+                    authenticate=lambda _: "principal-a",
+                )
+            self.assertFalse((canonical_root / "refused.sqlite3").exists())
+
     def test_stage1_real_checkpoint_validates_copy_and_retains_original(self):
         ledger = self.stage1()
         original = mod.source_digest(mod.snapshot_inputs(self.inputs))
