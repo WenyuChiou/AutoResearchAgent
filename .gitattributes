@@ -26,5 +26,22 @@ plugins/auto-research-agent/references/research-workspace/literature-reference.j
 plugins/auto-research-agent/references/research-workspace/workspace-i18n.js text eol=lf
 plugins/auto-research-agent/references/research-workspace/workspace.css text eol=lf
 
+# Preserve raw Git bytes for the local Atlas assets on autocrlf checkouts.
+plugins/auto-research-agent/cli/research_workspace_native/web/*.js text eol=lf
+plugins/auto-research-agent/cli/research_workspace_native/web/*.css text eol=lf
+plugins/auto-research-agent/references/research-workspace/atlas/atlas-*.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/atlas/atlas.css text eol=lf
+plugins/auto-research-agent/references/research-workspace/atlas/atlas.html text eol=lf
+plugins/auto-research-agent/references/research-workspace/examples/planned-query-fixture-notice.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/tests/localization.html text eol=lf
+plugins/auto-research-agent/references/research-workspace/workspace-*.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/workspace-*.css text eol=lf
+plugins/auto-research-agent/references/stage1-source-capability-resolution.csv text eol=lf
+plugins/auto-research-agent/tests/*.js text eol=lf
+plugins/auto-research-agent/tests/*.cjs text eol=lf
+plugins/auto-research-agent/tests/browser/workspace-records.js text eol=lf
+plugins/auto-research-agent/tests/browser/native-session/browser_driver.cjs text eol=lf
+plugins/auto-research-agent/tests/research_workspace_native_browser/core_panel_path.js text eol=lf
+
 # Preserve the pinned upstream WebGL bundle verbatim.
 plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js -text

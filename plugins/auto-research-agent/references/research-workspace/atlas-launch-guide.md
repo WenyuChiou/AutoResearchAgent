@@ -10,9 +10,14 @@ These stacked review slices are not yet merged or accepted by the core team.
 Existing native runtime guards remain enforced.
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-walkthrough-case-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-portable-web-assets-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
+
+The checkout keeps Git source bytes unchanged. Its local `core.autocrlf=false`
+setting does not change your global Git preferences and also protects older
+review assets without an explicit line-ending rule. A source-byte mismatch
+remains a failure; do not bypass the source checks.
 
 From the repository root, use Python with the plugin test requirements installed.
 The [per-user setup guide](PORTABLE_ATLAS_SETUP.md) includes virtual-environment
