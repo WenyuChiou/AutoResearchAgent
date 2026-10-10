@@ -18,12 +18,12 @@ const response = value => ({ok: true, json: async () => JSON.parse(JSON.stringif
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const hashRequest = (body, projectRef = "case-one") => crypto.createHash("sha256").update(JSON.stringify(Object.fromEntries(Object.entries({...body, project_ref: projectRef}).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)))).digest("hex");
 const baseView = () => ({project_ref: "case-one", project_id: "project-one", index_sha256: h, input_canonical_sha256: c, revision: 1, capabilities: ["validate-index", "derive-literature-selection", "export-selection"], operation_scope: "offline-saved-input", research_execution: false, model_execution: false, scientific_admission: false, history: [], history_count: 0, history_limit: 64, action_limit: 128});
-async function mount({enabled = true, storage = new Map(), server = {view: baseView()}, mode = "normal", transform = value => value, storageError = false} = {}) {
+async function mount({enabled = true, storage = new Map(), server = {view: baseView()}, mode = "normal", transform = value => value, storageError = false, digestDelay = 0} = {}) {
   const html = new Element("html"), body = new Element("body"), content = new Element("main"), review = new Element("section"); html.lang = "en"; html.append(body); body.append(content); content.id = "atlas-content"; review.id = "atlas-stage-review"; content.append(review);
   const document = {documentElement: html, body, createElement: tag => new Element(tag), getElementById: id => flatten(html).find(node => node.id === id)};
   let nextKey = 0;
   const calls = [], observers = [], urls = [], window = {WORKSPACE_HARNESS: {enabled, project_ref: server.view.project_ref, index_sha256: server.view.index_sha256}, WORKSPACE_HOST: {credential: secret}, WORKSPACE_VIEW: {index: {project_id: server.view.project_id}}, addEventListener() {}};
-  const context = vm.createContext({document, window, location: {origin: "http://127.0.0.1:1"}, MutationObserver: class {constructor(callback) {observers.push(callback);} observe() {}}, sessionStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => {if (storageError) throw Error("synthetic-storage-error"); storage.set(key, value);}, removeItem: key => storage.delete(key)}, crypto: {...crypto.webcrypto, subtle: crypto.webcrypto.subtle, randomUUID: () => "11111111-1111-1111-1111-" + String(++nextKey).padStart(12, "0")}, TextEncoder, Blob, URL: {createObjectURL: () => {urls.push("created"); return "blob:synthetic";}, revokeObjectURL: () => urls.push("revoked")}, setTimeout: callback => callback(),
+  const context = vm.createContext({document, window, location: {origin: "http://127.0.0.1:1"}, MutationObserver: class {constructor(callback) {observers.push(callback);} observe() {}}, sessionStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => {if (storageError) throw Error("synthetic-storage-error"); storage.set(key, value);}, removeItem: key => storage.delete(key)}, crypto: {...crypto.webcrypto, subtle: {digest: async (...args) => {if (digestDelay > 0) await new Promise(resolve => setTimeout(resolve, digestDelay)); return crypto.webcrypto.subtle.digest(...args);}}, randomUUID: () => "11111111-1111-1111-1111-" + String(++nextKey).padStart(12, "0")}, TextEncoder, Blob, URL: {createObjectURL: () => {urls.push("created"); return "blob:synthetic";}, revokeObjectURL: () => urls.push("revoked")}, setTimeout: callback => callback(),
     fetch: async (url, options) => {
       calls.push({url, ...options}); assert.equal(options.headers.Authorization, "Bearer " + secret); assert.equal(url.includes(secret), false);
       if (options.method === "POST") {
@@ -46,7 +46,13 @@ async function mount({enabled = true, storage = new Map(), server = {view: baseV
       if (url.includes("/actions/")) return server.view.history.length ? response(transform(server.view.history.at(-1))) : {ok: false, json: async () => ({error: "action-not-found"})};
       return response(transform(server.view));
     }});
-  vm.runInContext(source, context); for (let i = 0; i < 10; i++) await tick();
+  vm.runInContext(source, context);
+  // recover() hashes saved receipts asynchronously; event-loop turns are not a completion boundary.
+  const recoveryDeadline = Date.now() + 5000;
+  while (enabled && document.getElementById("harness-history-refresh")?.disabled !== false) {
+    if (Date.now() >= recoveryDeadline) throw Error("initial Harness recovery did not settle within 5 seconds");
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
   const nodes = () => flatten(html), action = () => nodes().find(node => node.dataset.harnessAction === "validate-index"), refresh = () => nodes().find(node => node.id === "harness-history-refresh");
   const submit = async () => {await action().onclick(); for (let i = 0; i < 10; i++) await tick();};
   return {html, content, review, document, window, storage, server, calls, observers, urls, nodes, action, refresh, submit};
@@ -74,6 +80,15 @@ async function mount({enabled = true, storage = new Map(), server = {view: baseV
     assert.equal(posted.length, 2, "only a new explicit action may POST");
     assert.notEqual(posted[0].key, posted[1].key); assert.ok(posted[1].expected_revision > posted[0].expected_revision);
   }
+  // Delayed hashing must complete before restored known-unsent controls become available.
+  const delayedRefusal = await mount({mode: "stale"}); await delayedRefusal.submit();
+  const delayedPending = delayedRefusal.server.view.history[0].request;
+  const delayedStorage = new Map([["atlas-harness-intent:case-one:" + h, JSON.stringify(delayedPending)]]);
+  const delayedRecovery = await mount({server: delayedRefusal.server, storage: delayedStorage, digestDelay: 25});
+  assert.equal(delayedRecovery.action().disabled, false, "delayed pending recovery must finish before controls are assessed");
+  assert.equal(delayedStorage.size, 0); assert.equal(delayedRecovery.nodes().find(node => node.attrs.role === "status").dataset.state, "rejected-known-unsent");
+  await delayedRecovery.refresh().onclick();
+  assert.equal(delayedRecovery.calls.filter(call => call.method === "POST").length, 0, "delayed recovery and refresh are GET only");
   const unrecorded = await mount({mode: "unrecorded"}); await unrecorded.submit();
   assert.equal(unrecorded.storage.size, 1); assert.equal(unrecorded.action().disabled, true);
   assert.equal(unrecorded.nodes().find(node => node.attrs.role === "status").dataset.state, "execution-unknown");

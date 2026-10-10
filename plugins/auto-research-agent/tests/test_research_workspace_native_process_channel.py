@@ -32,6 +32,85 @@ class OwnedProcessTests(OwnedProcessCase):
             self.state()["process_channels"]["synthetic-epoch"]["authenticated_process"]
         )
 
+    def test_stdout_burst_survives_delayed_consumer_without_losing_binding(self):
+        raw = b"x" * (4096 * 12)
+        self.child.write_text(
+            "import os,sys\nos.write(1,b'x'*(4096*12))\nfor line in sys.stdin.buffer:pass\n",
+            encoding="utf8",
+        )
+        channel = self.channel(lifetime=30)
+        before = self.state()["intents"]["spawn"]["payload"]
+        with self.store._lock:
+            until = time.monotonic() + 3
+            while not channel._stdout.full() and time.monotonic() < until:
+                time.sleep(0.01)
+            self.assertTrue(
+                channel._stdout.full(), "synthetic burst did not fill queue"
+            )
+            time.sleep(1.25)  # Simulate a consumer occupied by source admission.
+            diagnostic = dict(
+                closed=channel.closed,
+                failure=channel.failure,
+                payload_unchanged=self.state()["intents"]["spawn"]["payload"] == before,
+            )
+            if channel.closed:
+                try:
+                    channel.read(4096, 0)
+                except Exception as error:
+                    diagnostic.update(
+                        read_error=type(error).__name__, read_reason=str(error)
+                    )
+            self.assertFalse(channel.closed, diagnostic)
+        with patch.object(
+            channel.process.stdin, "write", wraps=channel.process.stdin.write
+        ) as writes:
+            received = b""
+            while len(received) < len(raw):
+                received += channel.read(4096, 2)
+            self.assertEqual(received, raw)
+            writes.assert_not_called()
+        self.assertEqual(self.state()["intents"]["spawn"]["payload"], before)
+        channel.close()
+        self.assertTrue(channel.reap()["leader_reaped"])
+
+    def test_full_stdout_queue_close_reaps_and_exits_all_workers(self):
+        self.child.write_text(
+            "import os,sys\nos.write(1,b'x'*(4096*12))\nfor line in sys.stdin.buffer:pass\n",
+            encoding="utf8",
+        )
+        channel = self.channel(lifetime=30)
+        until = time.monotonic() + 3
+        while not channel._stdout.full() and time.monotonic() < until:
+            time.sleep(0.01)
+        self.assertTrue(channel._stdout.full(), "synthetic burst did not fill queue")
+        before = tuple(channel._workers)
+        channel.close()
+        self.assertTrue(channel.reap()["leader_reaped"])
+        until = time.monotonic() + 0.5
+        while any(worker.is_alive() for worker in before) and time.monotonic() < until:
+            time.sleep(0.01)
+        self.assertFalse(any(worker.is_alive() for worker in before))
+
+    def test_full_stdout_queue_wait_stays_within_process_lease(self):
+        self.child.write_text(
+            "import os,sys\nos.write(1,b'x'*(4096*12))\nfor line in sys.stdin.buffer:pass\n",
+            encoding="utf8",
+        )
+        channel = self.channel(lifetime=5)
+        until = time.monotonic() + 3
+        while not channel._stdout.full() and time.monotonic() < until:
+            time.sleep(0.01)
+        self.assertTrue(channel._stdout.full(), "synthetic burst did not fill queue")
+        time.sleep(max(0, channel.deadline - time.monotonic()) + 0.15)
+        self.assertTrue(channel.closed)
+        self.assertTrue(channel.reap()["leader_reaped"])
+        with patch.object(
+            channel.process.stdin, "write", wraps=channel.process.stdin.write
+        ) as writes:
+            with self.assertRaises(TimeoutError):
+                channel.write(b"never", 1)
+            writes.assert_not_called()
+
     def test_nonliteral_source_admission_owner_and_version_have_zero_spawn(self):
         before = self.state()
         with patch(
@@ -75,11 +154,69 @@ class OwnedProcessTests(OwnedProcessCase):
 
     def test_lifetime_expires_even_with_no_ui_calls(self):
         self.child.write_text("import time\ntime.sleep(30)\n", encoding="utf8")
-        channel = self.channel(lifetime=0.3)
-        time.sleep(0.5)
-        self.assertTrue(channel.closed)
-        self.assertTrue(channel.reap()["leader_reaped"])
-        self.assertIn("TimeoutError", channel.failure)
+        channel, expire = self.channel_with_controlled_lease_expiry()
+        with (
+            patch.object(channel, "read", wraps=channel.read) as read,
+            patch.object(channel, "write", wraps=channel.write) as write,
+        ):
+            expire()
+            until = time.monotonic() + 5
+            while not channel.closed and time.monotonic() < until:
+                time.sleep(0.01)
+            self.assertTrue(channel.closed)
+            self.assertTrue(channel.reap()["leader_reaped"])
+            self.assertIn("TimeoutError", channel.failure)
+            read.assert_not_called()
+            write.assert_not_called()
+
+    def test_expired_construction_keeps_failure_and_reaps_real_fake_child(self):
+        import research_workspace_native.process_channel as module
+
+        observe = module.OwnedProcessChannel._observe
+
+        def expire_started(channel, event, *, deadline=None, **payload):
+            if event == "process-started":
+                self.owned.append(channel)  # Constructor failure still owns cleanup.
+            result = observe(channel, event, deadline=deadline, **payload)
+            if event == "process-started":
+                deadline.until = time.monotonic() - 1
+                deadline.check()
+            return result
+
+        with (
+            patch.object(
+                module.subprocess, "Popen", wraps=module.subprocess.Popen
+            ) as spawn,
+            patch.object(
+                module.OwnedProcessChannel,
+                "_observe",
+                autospec=True,
+                side_effect=expire_started,
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "construction failed") as failure:
+                self.channel(lifetime=30)
+            self.assertIsInstance(failure.exception.__cause__, TimeoutError)
+            native_argv = [str(Path(sys.executable).resolve()), "app-server", "--stdio"]
+            # Windows physical cleanup also invokes taskkill through Popen.
+            # Count only the exact fixed native argv, retaining real cleanup.
+            self.assertEqual(
+                [
+                    call.args[0]
+                    for call in spawn.call_args_list
+                    if call.args[0] == native_argv
+                ],
+                [native_argv],
+            )
+            self.assertEqual(len(self.owned), 1)
+            channel = self.owned[0]
+            self.assertTrue(channel.closed)
+            self.assertTrue(channel.reap()["leader_reaped"])
+        self.assertEqual(self.state()["intents"]["spawn"]["status"], "dispatching")
+        with patch.object(module.subprocess, "Popen") as spawn:
+            with self.assertRaises(ValueError):
+                self.channel(connection_id="no-implicit-relaunch")
+            spawn.assert_not_called()
 
     def test_stream_overflow_closes_and_reports_failure(self):
         self.child.write_text(
@@ -101,6 +238,8 @@ class OwnedProcessTests(OwnedProcessCase):
         channel = self.channel(lifetime=30)
         entered, returned = threading.Event(), threading.Event()
         deadlines, expired = [], []
+        operation_thread = threading.get_ident()
+        background_deadline = threading.Event()
         deadline, queue, raw_write = (
             module.Deadline,
             module.queue,
@@ -110,7 +249,12 @@ class OwnedProcessTests(OwnedProcessCase):
 
         def capture_deadline(timeout, lease):
             value = deadline(timeout, lease)
-            deadlines.append(value)
+            # The real stdout reader creates its own backpressure deadline on
+            # EOF after kill. It must not count as this write's deadline.
+            if threading.get_ident() == operation_thread:
+                deadlines.append(value)
+            else:
+                background_deadline.set()
             return value
 
         def blocked_write(data):
@@ -151,6 +295,11 @@ class OwnedProcessTests(OwnedProcessCase):
             write.assert_called_once_with(data)
             self.assertTrue(channel.closed)
             self.assertTrue(channel.reap()["leader_reaped"])
+            self.assertTrue(
+                background_deadline.wait(2),
+                "real stdout EOF must retain its independent deadline",
+            )
+            self.assertEqual(expired, deadlines)
             self.assertTrue(returned.wait(2), "blocked writer must exit after reap")
             with self.assertRaises(ValueError):
                 channel.write(b"never", 1)
@@ -224,11 +373,12 @@ class OwnedProcessTests(OwnedProcessCase):
 
     def test_sqlite_writer_lock_cannot_delay_lease_physical_cleanup(self):
         self.child.write_text("import time\ntime.sleep(30)\n", encoding="utf8")
-        channel = self.channel(lifetime=0.3)
+        channel, expire = self.channel_with_controlled_lease_expiry()
         competing = sqlite3.connect(self.path)
         competing.execute("BEGIN IMMEDIATE")
         try:
-            until = time.monotonic() + 1.5
+            expire()
+            until = time.monotonic() + 5
             while channel.process.poll() is None and time.monotonic() < until:
                 time.sleep(0.02)
             self.assertTrue(channel.closed)

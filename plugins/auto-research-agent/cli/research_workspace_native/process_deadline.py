@@ -10,6 +10,10 @@ import time
 _GUARDS = threading.BoundedSemaphore(4)
 
 
+class SessionLeaseExpired(TimeoutError):
+    """A trusted permit reports expiry; generic timeouts retain failure status."""
+
+
 class Deadline:
     def __init__(self, timeout, lease):
         if (

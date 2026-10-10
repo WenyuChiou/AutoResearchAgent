@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 import time
+import threading
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 from research_workspace_native.frame_journal import FrameJournal
@@ -73,6 +74,52 @@ class OwnedProcessCase(unittest.TestCase):
         channel = OwnedProcessChannel(**options)
         self.owned.append(channel)
         return channel
+
+    def channel_with_controlled_lease_expiry(self):
+        """Let construction finish, then expire the actual lease without UI I/O.
+
+        Only this channel's lease wait is controlled. Startup deadlines, source
+        checks, physical fake-child cleanup and SQLite observations stay real.
+        """
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        import research_workspace_native.process_channel as module
+
+        entered, release = threading.Event(), threading.Event()
+        operation_thread = threading.get_ident()
+        observed_timeouts = []
+
+        class ControlledLeaseEvent(threading.Event):
+            def wait(self, timeout=None):
+                if threading.get_ident() != operation_thread and not entered.is_set():
+                    observed_timeouts.append(timeout)
+                    entered.set()
+                    release.wait(10)
+                    # The test has moved this channel's lease into the past.
+                    # Run the real lease timeout branch and physical cleanup.
+                    return super().wait(0)
+                return super().wait(timeout)
+
+        event = ControlledLeaseEvent()
+        replacement = SimpleNamespace(
+            RLock=threading.RLock,
+            Lock=threading.Lock,
+            Event=lambda: event,
+            Thread=threading.Thread,
+        )
+        self.addCleanup(release.set)
+        with patch.object(module, "threading", replacement):
+            channel = self.channel(lifetime=30)
+        self.assertTrue(entered.wait(5), "lease watcher did not register")
+        self.assertEqual(len(observed_timeouts), 1)
+        self.assertGreater(observed_timeouts[0], 0)
+        self.assertLessEqual(observed_timeouts[0], 30)
+
+        def expire():
+            channel.deadline = time.monotonic() - 1
+            release.set()
+
+        return channel, expire
 
     def _assert_write_lock_and_expired_journal_wait_do_not_dispatch(self):
         from unittest.mock import patch

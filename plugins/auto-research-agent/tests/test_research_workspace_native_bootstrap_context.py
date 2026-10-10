@@ -65,6 +65,28 @@ class BootstrapContextTests(unittest.TestCase):
         self.assertEqual(self.store.snapshot("alpha"), before)
         self.assertEqual(self.channel.calls, [])
 
+    def test_obsolete_policy_is_rejected_before_recording_or_io(self):
+        payload = dict(
+            self.store.snapshot("alpha")["intents"]["new-session"]["payload"]
+        )
+        payload["approvalPolicy"] = "on-failure"
+        self.store.bind_project("beta", "a" * 64)
+        owner = self.store.acquire_owner("beta", "legacy-fixture")
+        self.store.record_intent(
+            "beta",
+            owner,
+            "legacy-policy",
+            "thread/start",
+            payload,
+            self.store.snapshot("beta")["revision"],
+        )
+        before = self.store.snapshot("beta")
+        with self.assertRaisesRegex(ValueError, "bounded server thread parameters"):
+            self.context(project_id="beta", owner=owner, intent_key="legacy-policy")
+        self.assertEqual(self.store.snapshot("beta"), before)
+        self.assertEqual(self.channel.calls, [])
+        self.assertEqual(self.channel.closed, 0)
+
     def test_payload_mutation_rejects_without_io(self):
         context = self.context()
         self.addCleanup(context.channel.close)

@@ -13,7 +13,7 @@ import time
 
 from .controller import InjectedSessionController
 from .process_channel import OwnedProcessChannel
-from .process_deadline import Deadline
+from .process_deadline import Deadline, SessionLeaseExpired
 from .session_api import SessionApi
 from .store import _require
 
@@ -41,8 +41,10 @@ class SessionOwners:
         admit_attach,
         start_offer=None,
         approval_policy=None,
+        trusted_stage_unit=False,
     ):
         """Trusted configuration; pre-admission refusal leaves resources borrowed."""
+        _require(type(trusted_stage_unit) is bool, "literal stage unit opt-in required")
         _require(
             type(controller) is InjectedSessionController
             and type(owned_channel) is OwnedProcessChannel
@@ -105,6 +107,8 @@ class SessionOwners:
                     input_version=input_version,
                     verify_source=lambda value: self._source(verify_source, value),
                 )
+                if trusted_stage_unit:
+                    options["trusted_stage_unit"] = True
                 if start_offer is not None:
                     options["start_offer"] = start_offer
                 if approval_policy is not None:
@@ -247,9 +251,14 @@ class SessionOwner:
 
     def _run(self):
         failure = "pump-stopped"
+        phase = "source-check"
         try:
             while not self._stop.is_set():
-                deadline = Deadline(0.1, self.channel.deadline)
+                phase = "source-check"
+                # Source verification shares a lock with full action admission.
+                # Keep every poll verified within the bounded I/O allowance and
+                # process lease; waiting grants no write or model authority.
+                deadline = Deadline(30, self.channel.deadline)
                 deadline.guard(lambda: self._verifier(deepcopy(self.binding)))
                 _require(not self.channel.closed, "owned process closed")
                 # Poll only queued bytes/complete frames. Idle timeout observations
@@ -259,10 +268,13 @@ class SessionOwner:
                     or self.channel._buffer
                     or not self.channel._stdout.empty()
                 ):
+                    phase = "passive-read"
                     self.controller.pump(0)
                 self._stop.wait(0.01)
+        except SessionLeaseExpired:
+            failure = "session-lease-expired"
         except BaseException as error:
-            failure = "pump-failed:" + type(error).__name__
+            failure = "pump-failed:" + phase + ":" + type(error).__name__
         finally:
             with self._lock:
                 self._running = False

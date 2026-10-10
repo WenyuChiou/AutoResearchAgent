@@ -4,11 +4,25 @@ No launcher, authentication attestation, resume, model turn or execution permit
 is provided. A trusted server records a version-bound thread/start intent first.
 """
 
+import os
+
 from stage1_deliverable.common import canonical, sha
 from .bootstrap_context import BootstrapContext, _rpc_id
 from .frame_journal import _validated
 from .store import _require
 from .transport import _deadline, _encode
+from .runtime_spec import _notification_opt_out
+
+
+def _cwd_matches(observed, requested, *, windows=None):
+    if not isinstance(observed, str) or not isinstance(requested, str):
+        return False
+    if windows is None:
+        windows = os.name == "nt"
+    # Only separators vary. Do not normalize case, dot segments, aliases or roots.
+    if windows:
+        return observed.replace("\\", "/") == requested.replace("\\", "/")
+    return observed == requested
 
 
 def _account(value):
@@ -52,9 +66,23 @@ def _account(value):
 
 
 class BootstrapSession(BootstrapContext):
-    def open_thread(self, client_info, *, timeout=10):
-        deadline = _deadline(timeout)
+    def open_thread(
+        self, client_info, *, timeout=10, total_timeout=None, notification_opt_out=None
+    ):
+        initialize = {"clientInfo": client_info}
+        if notification_opt_out is not None:
+            initialize["capabilities"] = {
+                "optOutNotificationMethods": _notification_opt_out(notification_opt_out)
+            }
+        _deadline(timeout)  # Validate finite/nonboolean before any I/O.
         _require(0 < timeout <= 30, "bootstrap deadline must be within 30 seconds")
+        budget = timeout if total_timeout is None else total_timeout
+        deadline = _deadline(budget)
+        _require(timeout <= budget <= 120, "bounded total handshake timeout required")
+
+        def step_deadline():
+            return min(deadline, _deadline(timeout))
+
         with self.store._lock:
             _require(
                 self.store.snapshot(self.project_id).get("bootstrap", {}).get("phase")
@@ -64,17 +92,15 @@ class BootstrapSession(BootstrapContext):
             )
             try:
                 self._context()
-                hello = self._send(
-                    "initialize", {"clientInfo": client_info}, 1, deadline
-                )
+                hello = self._send("initialize", initialize, 1, step_deadline())
                 _require(
                     isinstance(hello.get("userAgent"), str) and hello["userAgent"],
                     "invalid hello",
                 )
-                self._send("initialized", None, None, deadline)
+                self._send("initialized", None, None, step_deadline())
                 self.transport.initialized = True
                 account = self._send(
-                    "account/read", {"refreshToken": False}, "1", deadline
+                    "account/read", {"refreshToken": False}, "1", step_deadline()
                 )
                 _require(
                     type(account.get("requiresOpenaiAuth")) is bool
@@ -100,12 +126,12 @@ class BootstrapSession(BootstrapContext):
                 _require(
                     dispatched["status"] == "dispatching", "bootstrap dispatch refused"
                 )
-                result = self._send("thread/start", self.params, 2, deadline)
+                result = self._send("thread/start", self.params, 2, step_deadline())
                 _require(
                     isinstance(result.get("thread"), dict)
                     and isinstance(result["thread"].get("id"), str)
                     and result["thread"]["id"]
-                    and result.get("cwd") == self.params["cwd"]
+                    and _cwd_matches(result.get("cwd"), self.params["cwd"])
                     and result.get("model") == self.params["model"]
                     and result.get("approvalPolicy") == self.params["approvalPolicy"]
                     and isinstance(result.get("sandbox"), dict)

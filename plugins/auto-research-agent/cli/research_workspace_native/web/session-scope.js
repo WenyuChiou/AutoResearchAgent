@@ -20,33 +20,57 @@
       reviewed: ["Reviewed", "已审阅", "已審閱"],
       changes: ["Changes requested", "需要修改", "需要修改"],
       note: ["Review note", "审阅意见", "審閱意見"],
+      rejected: ["This decision was not applied because the project changed. Review the current version and submit a new decision explicitly.", "项目已变化，此决定未应用。请核对当前版本后明确提交新的决定。", "專案已變化，此決定未套用。請核對目前版本後明確提交新的決定。"],
       held: ["Local intent retained. Read history to recover; do not resubmit.", "本地意图已保留，请读取历史恢复，不要重新提交。", "本機意圖已保留，請讀取歷史恢復，不要重新提交。"],
       unavailable: ["Scope overlay unavailable for this session", "本会话的范围覆盖层不可用", "本工作階段的範圍覆蓋層不可用"],
       large: ["Decision is too large or local intent storage is unavailable", "决定过长或本地意图存储不可用", "決定過長或本機意圖儲存不可用"],
+      observations: ["Source binding & complete record", "来源绑定与完整记录", "來源綁定與完整紀錄"],
+      saved: ["Decision record saved", "决定记录已保存", "決定紀錄已儲存"],
+      description: ["Original research request", "原始研究要求", "原始研究要求"],
+      current: ["Current scope", "当前范围", "目前範圍"],
     };
     const el = (tag, parent, text) => {
       const e = document.createElement(tag); if (text !== undefined) e.textContent = text;
       e.setAttribute("translate", "no"); parent?.append(e); return e;
     };
     const translated = (tag, parent, key) => {const e = el(tag, parent); e.dataset.scopeLabel = key; return e;};
+    const observations = (parent, value) => {
+      const detail = el("details", parent); detail.className = "native-observations";
+      translated("summary", detail, "observations");
+      el("pre", detail, JSON.stringify(value, null, 2));
+    };
     const box = el("section", root); box.id = "native-scope-panel";
     translated("h3", box, "title"); translated("p", box, "boundary");
     const notice = el("p", box); notice.setAttribute("role", "status");
     const content = el("div", box);
     let view = null, history = null, selected = null, snapshot = null, sequence = 0, busy = false, loading = false;
-    let noticeKey = null; const index = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
+    let noticeKey = null, noticeReason = ""; const index = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
     const t = key => rows[key][index()];
-    const showNotice = key => {noticeKey = key; notice.textContent = key ? t(key) : "";}; const translate = () => {box.querySelectorAll("[data-scope-label]").forEach(e => e.textContent = t(e.dataset.scopeLabel)); box.querySelectorAll("[data-scope-aria]").forEach(e => e.setAttribute("aria-label", t(e.dataset.scopeAria))); if (noticeKey) notice.textContent = t(noticeKey);};
+    const showNotice = (key, reason = "") => {noticeKey = key; noticeReason = reason; notice.textContent = key ? t(key) + (reason ? " · " + reason : "") : "";}; const translate = () => {box.querySelectorAll("[data-scope-label]").forEach(e => e.textContent = t(e.dataset.scopeLabel)); box.querySelectorAll("[data-scope-aria]").forEach(e => e.setAttribute("aria-label", t(e.dataset.scopeAria))); if (noticeKey) notice.textContent = t(noticeKey) + (noticeReason ? " · " + noticeReason : "");};
     new MutationObserver(translate).observe(document.documentElement, {attributes: true, attributeFilter: ["lang"]});
     const ledgerName = () => `native-scope-intents:${view.project_ref}:${view.index_sha256}:${view.input_version}`;
     const intents = () => {
       const records = JSON.parse(sessionStorage.getItem(ledgerName()) || "[]");
       if (!Array.isArray(records) || records.length > 128 || records.some(r => !r ||
-        Object.keys(r).sort().join() !== "key,kind,target" || !/^[a-z0-9-]{36}$/.test(r.key) ||
-        !/^[0-9a-f]{64}$/.test(r.target) || !["versions", "reviews"].includes(r.kind))) throw Error("local-intents-invalid");
+        !["key,kind,target", "key,kind,request,request_sha256,target"].includes(Object.keys(r).sort().join()) || !/^[a-z0-9-]{36}$/.test(r.key) ||
+        !/^[0-9a-f]{64}$/.test(r.target) || !["versions", "reviews"].includes(r.kind) ||
+        (r.request !== undefined && (!r.request || !/^[0-9a-f]{64}$/.test(r.request_sha256) || r.request.key !== r.key ||
+          r.request.index_sha256 !== view.index_sha256 || r.request.input_version !== view.input_version ||
+          (r.kind === "versions" ? r.request.parent_ref : r.request.version_ref) !== r.target)))) throw Error("local-intents-invalid");
       return records;
     };
-    const held = kind => intents().some(r => r.kind === kind && r.target === selected &&
+    const stable = value => JSON.stringify(value, (_key, item) => item && typeof item === "object" && !Array.isArray(item) ?
+      Object.fromEntries(Object.keys(item).sort().map(k => [k, item[k]])) : item);
+    const digest = async value => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(stable(value))))].map(b => b.toString(16).padStart(2, "0")).join("");
+    const rejected = local => local.request && history.actions.find(a => a.client_key === local.key &&
+      a.kind === (local.kind === "versions" ? "append" : "review") && a.status === "rejected-known-unsent" &&
+      a.failure === "stale-revision" && a.execution_authorized === false && a.version_ref === local.target &&
+      a.submitted_request_sha256 === local.request_sha256 &&
+      /^[0-9a-f]{64}$/.test(a.action_ref) && /^[0-9a-f]{64}$/.test(a.request_sha256) &&
+      a.version_sha256 === (local.kind === "versions" ? local.request.parent_sha256 : local.request.version_sha256) &&
+      a.submitted_revision === local.request.revision && Number.isSafeInteger(a.observed_revision) &&
+      a.observed_revision > a.submitted_revision && stable(a.submitted_request) === stable(local.request));
+    const held = kind => intents().some(r => r.kind === kind && r.target === selected && !rejected(r) &&
       !history.actions.some(a => a.client_key === r.key && ["version-saved", "review-recorded"].includes(a.status)));
     const field = (parent, key, tag = "textarea") => {
       const label = el("label", parent); translated("span", label, key);
@@ -61,12 +85,27 @@
     const render = () => {
       content.replaceChildren(); if (!history || !snapshot) return;
       const version = field(content, "version", "select");
-      for (const row of history.versions) {
-        const option = el("option", version, row.sha256); option.value = row.version_ref;
+      for (const [i, row] of history.versions.entries()) {
+        const option = el("option", version, "v" + (i + 1)); option.value = row.version_ref;
+        option.title = row.sha256;
       }
       version.value = selected;
       version.onchange = async () => {selected = version.value; await load(view);};
-      el("pre", content, JSON.stringify(snapshot, null, 2));
+      translated("h4", content, "description");
+      el("p", content, snapshot.original_description);
+      translated("h4", content, "current");
+      for (const row of snapshot.scope_fields) {
+        const saved = snapshot.scope?.[row.field];
+        el("p", content, row.field + " · " + (saved?.status || "Unknown") + " · " + (saved?.value ?? "Unknown"));
+        if (row.reason) el("p", content, row.reason);
+      }
+      for (const decision of snapshot.decisions || []) {
+        const card = el("article", content);
+        el("p", card, decision.field + " · " + decision.status + " · " + (decision.value ?? "Unknown"));
+        if (decision.reason) el("p", card, decision.reason);
+        if (decision.user_input) el("p", card, decision.user_input);
+      }
+      observations(content, snapshot);
       const form = el("form", content); form.id = "native-scope-form";
       const choiceField = field(form, "field", "select");
       for (const row of snapshot.scope_fields) el("option", choiceField, row.field).value = row.field;
@@ -95,9 +134,17 @@
       reviewForm.onsubmit = event => {event.preventDefault(); if (reviewed.checked) submit("reviews", {
         version_ref: snapshot.version_ref, version_sha256: snapshot.sha256, decision: decision.value, note: note.value,
       });};
-      for (const action of history.actions) el("pre", content, JSON.stringify(action, null, 2));
+      for (const action of history.actions) {
+        const card = el("article", content);
+        el("p", card, action.kind + " · " + action.status + (action.decision ? " · " + action.decision : ""));
+        if (action.note) el("p", card, action.note);
+        if (action.failure) el("p", card, action.failure);
+        if (action.status === "rejected-known-unsent") translated("p", card,
+          intents().some(local => local.key === action.client_key && rejected(local) === action) ? "rejected" : "held");
+        observations(card, action);
+      }
       for (const local of intents()) if (!history.actions.some(a => a.client_key === local.key)) {
-        translated("p", content, "held"); el("code", content, local.key + " · " + local.target);
+        translated("p", content, "held"); observations(content, local);
       }
       translate();
     };
@@ -116,22 +163,38 @@
         if (current !== sequence) return;
         if (value.version_ref !== ref || value.sha256 !== saved.versions.find(v => v.version_ref === ref).sha256) throw Error("scope-version-differs");
         history = saved; selected = ref; snapshot = value; loading = false; render();
-      } catch {if (current === sequence) {history = null; snapshot = null; loading = false; content.replaceChildren(); showNotice("unavailable");}}
+      } catch (error) {if (current === sequence) {history = null; snapshot = null; loading = false; content.replaceChildren(); showNotice("unavailable", error.code || error.message);}}
     };
     const submit = async (kind, body) => {
       if (busy || loading || !available() || !history || !snapshot || selected !== snapshot.version_ref || held(kind)) return;
       const key = crypto.randomUUID();
-      body = {key, revision: history.revision, index_sha256: view.index_sha256, input_version: view.input_version, confirmed: true, ...body};
+      const submittedBinding = view, submittedSequence = sequence;
+      body = {key, revision: Number.isSafeInteger(snapshot.revision) && snapshot.revision >= history.revision ? snapshot.revision : history.revision, index_sha256: view.index_sha256, input_version: view.input_version, confirmed: true, ...body};
+      busy = true; render();
+      let requestHash;
       try {
         const previous = intents(), encoded = JSON.stringify(body);
         if (previous.length >= 128 || /\\u[dD][89aAbBcCdDeEfF][0-9a-fA-F]{2}/.test(encoded) || new TextEncoder().encode(encoded).length > 32768) throw Error("scope-body-bound");
-        sessionStorage.setItem(ledgerName(), JSON.stringify([...previous, {key, kind, target: selected}]));
+        requestHash = await digest(body);
+        if (!view || sequence !== submittedSequence || ["project_ref", "index_sha256", "input_version"].some(k => view[k] !== submittedBinding[k])) throw Error("scope-view-changed");
+        sessionStorage.setItem(ledgerName(), JSON.stringify([...previous, {key, kind, target: selected, request: body, request_sha256: requestHash}]));
         if (!intents().some(r => r.key === key)) throw Error("intent-unobserved");
-      } catch {showNotice("large"); return;}
-      busy = true; showNotice("held");
+      } catch (error) {busy = false; render(); showNotice("large", error.message); return;}
+      showNotice("held");
       try {await write("/scope/" + kind, body); if (kind === "versions") selected = null;}
-      catch {showNotice("held");}
-      finally {busy = false; if (view) await load(view);}
+      catch (error) {showNotice("held", error.code || error.message);}
+      finally {
+        busy = false;
+        if (view) await load(view);
+        const saved = history && view && ["project_ref", "index_sha256", "input_version"].every(k => view[k] === submittedBinding[k]) &&
+          history.actions.find(a => a.client_key === key && a.kind === (kind === "versions" ? "append" : "review") &&
+            a.status === (kind === "versions" ? "version-saved" : "review-recorded") && /^[0-9a-f]{64}$/.test(a.action_ref) &&
+            history.versions.some(v => v.version_ref === a.version_ref && v.sha256 === a.version_sha256 &&
+              (kind === "versions" ? v.parent_ref === body.parent_ref : v.version_ref === body.version_ref)));
+        if (saved) showNotice("saved", saved.status);
+        else if (history && view && ["project_ref", "index_sha256", "input_version"].every(k => view[k] === submittedBinding[k]) &&
+          rejected({key, kind, target: kind === "versions" ? body.parent_ref : body.version_ref, request: body, request_sha256: requestHash})) showNotice("rejected", "stale-revision");
+      }
     };
     translate();
     return {refresh: load, clear() {sequence++; view = null; history = null; snapshot = null; selected = null; loading = false; content.replaceChildren(); showNotice(null);}};
