@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 # ruff: noqa: E402
 from stage2_common import Stage2Error
 from stage2_live.environment import verify_environment_capture
-from stage2_live.preflight import PreflightError, _actual_runtime
+from stage2_live.preflight import PreflightError, _actual_runtime, _load_jsonl
 from stage2_live.session_selection import select_production_session
 
 
@@ -114,6 +114,82 @@ class ProductionSessionSelectionTests(unittest.TestCase):
         self.assertEqual(old.read_bytes(), before)
         with self.assertRaisesRegex(PreflightError, "malformed native session JSONL"):
             self.verify_environment(production=False)
+
+    def test_literal_lf_records_preserve_unicode_separators_in_all_bodies(self):
+        for separator in ("\u0085", "\u2028", "\u2029"):
+            with self.subTest(separator=repr(separator)):
+                text = "before" + separator + "after"
+                body = {
+                    "type": "event_msg",
+                    "payload": {"type": "message", "text": text},
+                }
+                selected = [*self.primary, body]
+                old = [metadata("old-thread"), copy.deepcopy(body)]
+                for name, rows in (
+                    ("unrelated-filename.jsonl", selected),
+                    ("old.jsonl", old),
+                ):
+                    path = self.sessions / name
+                    raw = (
+                        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows)
+                        + "\n"
+                    ).encode("utf-8")
+                    path.write_bytes(raw)
+                    # Formal replay uses this same strict native-session loader.
+                    self.assertEqual(_load_jsonl(path), rows)
+                    self.assertEqual(path.read_bytes(), raw)
+                self.assertEqual(
+                    select_production_session(self.root, "current-thread"), selected
+                )
+                self.assertEqual(self.verify_environment()["status"], "verified")
+
+    def test_unicode_body_does_not_hide_later_conflicting_ownership(self):
+        for separator in ("\u0085", "\u2028", "\u2029"):
+            with self.subTest(separator=repr(separator)):
+                rows = [
+                    metadata("old-thread"),
+                    {
+                        "type": "event_msg",
+                        "payload": {
+                            "type": "message",
+                            "text": "body" + separator + "text",
+                        },
+                    },
+                    metadata("current-thread"),
+                ]
+                path = self.sessions / "old.jsonl"
+                raw = (
+                    "\n".join(json.dumps(row, ensure_ascii=False) for row in rows)
+                    + "\n"
+                ).encode("utf-8")
+                path.write_bytes(raw)
+                with self.assertRaisesRegex(PreflightError, "conflicting identities"):
+                    select_production_session(self.root, "current-thread")
+                self.assertEqual(path.read_bytes(), raw)
+
+    def test_crlf_records_pass_but_cr_only_records_are_not_jsonl(self):
+        path = self.sessions / "unrelated-filename.jsonl"
+        rows = [
+            *self.primary,
+            {"type": "event_msg", "payload": {"text": "before\u0085after"}},
+        ]
+        raw = (
+            "\r\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\r\n"
+        ).encode("utf-8")
+        path.write_bytes(raw)
+        self.assertEqual(_load_jsonl(path), rows)
+        self.assertEqual(select_production_session(self.root, "current-thread"), rows)
+        self.assertEqual(path.read_bytes(), raw)
+
+        raw = "\r".join(json.dumps(row) for row in rows).encode("utf-8")
+        path.write_bytes(raw)
+        with self.assertRaisesRegex(PreflightError, "malformed native session JSONL"):
+            _load_jsonl(path)
+        with self.assertRaisesRegex(
+            PreflightError, "unclassified native session JSONL"
+        ):
+            select_production_session(self.root, "current-thread")
+        self.assertEqual(path.read_bytes(), raw)
 
     def test_selected_primary_and_child_bodies_are_strict(self):
         for rows in (
