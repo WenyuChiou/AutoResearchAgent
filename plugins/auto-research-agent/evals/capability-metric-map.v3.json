@@ -60,7 +60,8 @@
             "typed pre-admission message rejection and first-offer revision recovery are verified with real HTTP/SQLite and synthetic channels; unverifiable source/credential/offer and admitted keys never release local uncertainty",
             "Raw source reads request at most 64 KiB per read, preserve exact bytes and maximum-plus-one overflow rejection, reject invalid bounds before I/O, and freshly check every ancestor for each file. Same-size drift, dangling links and permission errors remain explicit failures; short reads continue to EOF within the unchanged byte bound; measured local speed does not attest native authentication or universal performance.",
             "Stage-input and query-source reads also preserve exact EOF bytes with bounded 64-KiB requests; 64-MiB total/512 files/2048 entries and 32-MiB query-source limits, growth sentinels, hashes and error codes remain enforced. Synthetic deadline and final-permit expiry cases retain zero backend children; deadlines, permits and budgets are not extended.",
-            "Read-only planned-query refresh restores the latest completed receipt by admitted request revision and verifies its semantic hash; unknown or mismatched local intent never adopts another action, failed/refused observations remain distinct, and refresh sends zero POSTs."
+            "Read-only planned-query refresh restores the latest completed receipt by admitted request revision and verifies its semantic hash; unknown or mismatched local intent never adopts another action, failed/refused observations remain distinct, and refresh sends zero POSTs.",
+            "An example-only fixed legacy Stage2 controller demo saves a once-only intent before its bounded isolated SyntheticAdapter child; exact source/project/confirmation and absolute deadlines precede work, and GET, replay or owner recovery never restart it. Its new workflow and delivery are synthetic, independent of Stage1 and separate from daily_v3, model execution and scientific completion."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         }
@@ -99,6 +100,7 @@
         "plugins/auto-research-agent/tests/atlas_test_paths.py",
         "plugins/auto-research-agent/tests/test_workspace_stage_inputs.py",
         "plugins/auto-research-agent/tests/test_workspace_stage_actions.py",
+        "plugins/auto-research-agent/tests/test_stage2_demo.py",
         "plugins/auto-research-agent/tests/test_workspace_stage_storage.py",
         "plugins/auto-research-agent/tests/test_workspace_stage_http.py",
         "plugins/auto-research-agent/tests/test_workspace_stage_panel.py",
