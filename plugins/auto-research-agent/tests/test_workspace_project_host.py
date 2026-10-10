@@ -1,0 +1,289 @@
+"""Actual local HTTP, SQLite and brief compiler; no process/model/search calls."""
+
+import http.client
+import json
+from pathlib import Path
+import sys
+import tempfile
+import threading
+import unittest
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
+from research_workspace_native.http import token_authenticator
+from research_workspace_native.project_contract import measurement
+from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.project_intake import ProjectIntakeService
+from research_workspace_native.project_stage1 import ProjectStage1Service
+from stage1_deliverable.common import sha
+from test_workspace_project_intake import compile_body, submit_body
+
+
+class ProjectHostTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix="project-http-")
+        self.token = "local-project-test-token-with-at-least-32-characters"
+        self.projects = ProjectIntakeService(
+            Path(self.tmp.name),
+            authenticate=token_authenticator({self.token: "local-viewer"}),
+        )
+        self.host = ProjectHost(
+            projects=self.projects,
+            credential=self.token,
+            stage1=ProjectStage1Service(self.projects),
+            files={},
+            views=[],
+            port=0,
+        )
+        self.worker = threading.Thread(target=self.host.serve_forever, daemon=True)
+        self.worker.start()
+
+    def tearDown(self):
+        self.host.shutdown()
+        self.host.server_close()
+        self.worker.join(3)
+        self.assertFalse(self.worker.is_alive())
+        self.projects.close()
+        self.tmp.cleanup()
+
+    def request(self, path, body=None, *, headers=None, raw=None):
+        supplied = {"Authorization": "Bearer " + self.token}
+        if body is not None or raw is not None:
+            supplied.update(
+                {
+                    "Content-Type": "application/json",
+                    "Origin": self.host.expected_origin,
+                }
+            )
+        supplied.update(headers or {})
+        client = http.client.HTTPConnection(
+            "127.0.0.1", self.host.server_port, timeout=5
+        )
+        try:
+            client.request(
+                "POST" if body is not None or raw is not None else "GET",
+                path,
+                body=json.dumps(body).encode() if body is not None else raw,
+                headers=supplied,
+            )
+            response = client.getresponse()
+            data = response.read()
+            return response.status, data
+        finally:
+            client.close()
+
+    def post(self, path, body):
+        code, raw = self.request(path, body)
+        self.assertEqual(code, 200, raw)
+        return json.loads(raw)
+
+    def get(self, path):
+        code, raw = self.request(path)
+        self.assertEqual(code, 200, raw)
+        return json.loads(raw)
+
+    def new(self, topic="Polyphonic music transcription"):
+        receipt = self.post(
+            "/api/projects",
+            {
+                "key": "create-" + str(len(self.projects.list(self.token))),
+                "topic": topic,
+            },
+        )
+        ref = receipt["project_ref"]
+        return ref, self.get("/api/projects/" + ref)
+
+    def test_two_topics_real_confirm_compile_and_common_stage_metrics(self):
+        for topic in (
+            "Polyphonic music transcription",
+            "Aircraft sensor drift diagnosis",
+        ):
+            ref, view = self.new(topic)
+            path = "/api/projects/" + ref
+            self.post(path + "/confirm", submit_body(view))
+            confirmed = self.get(path)
+            self.post(path + "/compile", compile_body(confirmed))
+            contract = self.get(path + "/contract")
+            self.assertEqual(contract["kind"], "HarnessUiProjectView")
+            self.assertEqual(
+                contract["identity"]["brief_sha256"], self.get(path)["brief_sha256"]
+            )
+            self.assertTrue(contract["stages"]["1"]["intake"]["readiness"])
+            self.assertFalse(contract["stages"]["1"]["accepted"])
+            self.assertFalse(contract["stages"]["2"]["connected"])
+            self.assertIsNone(
+                contract["stages"]["1"]["metrics"]["actual_model_calls"]["value"]
+            )
+            for number in ("3", "4", "5", "6"):
+                self.assertEqual(contract["stages"][number]["status"], "planned")
+                self.assertFalse(contract["stages"][number]["connected"])
+            self.assertEqual(self.get(path)["brief"]["original_description"], topic)
+        self.assertEqual(len(self.get("/api/projects")), 2)
+
+    def test_create_response_loss_recovery_has_same_key_and_no_duplicate(self):
+        ref, _ = self.new()
+        with patch(
+            "research_workspace_native.project_intake.create_brief",
+            side_effect=AssertionError("read produced"),
+        ):
+            saved = self.get("/api/projects/actions/create-0")["action"]
+            self.assertEqual(saved["project_ref"], ref)
+            self.assertEqual(saved["status"], "saved")
+            self.get("/api/projects/" + ref + "/history")
+        self.assertEqual(len(self.get("/api/projects")), 1)
+
+    def test_known_unsent_rejection_is_durable_and_existing_receipts_not_replaced(self):
+        ref, view = self.new()
+        body = submit_body(view)
+        body["revision"] = 900
+        status, raw = self.request("/api/projects/" + ref + "/confirm", body)
+        self.assertEqual(status, 409)
+        rejected = json.loads(raw)["receipt"]
+        self.assertEqual(rejected["status"], "known-unsent")
+        self.assertEqual(rejected["project_ref"], ref)
+        self.assertEqual(rejected["key"], body["key"])
+        self.assertEqual(
+            self.get("/api/projects/" + ref + "/history")["actions"][-1]["status"],
+            "known-unsent",
+        )
+        replay = self.post("/api/projects/" + ref + "/confirm", body)
+        self.assertEqual(replay["status"], "known-unsent")
+        self.assertEqual(
+            self.get("/api/projects/" + ref)["brief_sha256"], view["brief_sha256"]
+        )
+
+    def test_version_change_keeps_old_plan_and_resets_readiness(self):
+        ref, view = self.new()
+        path = "/api/projects/" + ref
+        self.post(path + "/confirm", submit_body(view))
+        self.post(path + "/compile", compile_body(self.get(path)))
+        current = self.get(path)
+        binding = {
+            name: current[name]
+            for name in ("revision", "input_version", "brief_sha256")
+        }
+        self.post(
+            path + "/revise",
+            dict(key="new-topic", topic="Music annotation costs", **binding),
+        )
+        changed = self.get(path)
+        self.assertEqual(changed["input_version"], 2)
+        self.assertFalse(changed["stage1_intake_ready"])
+        self.assertEqual(len(self.get(path + "/history")["versions"]), 3)
+        self.assertIsNone(changed["plan"])
+
+    def test_host_origin_auth_fields_duplicate_json_and_unconnected_rejected(self):
+        ref, view = self.new()
+        for headers, expected in (
+            ({"Origin": "null"}, 403),
+            ({"Authorization": "Bearer invalid"}, 401),
+            ({"Host": "attacker.example"}, 403),
+        ):
+            self.assertEqual(
+                self.request("/api/projects", headers=headers)[0], expected
+            )
+        body = submit_body(view)
+        body["owner"] = "caller-owned"
+        status, raw = self.request("/api/projects/" + ref + "/confirm", body)
+        self.assertEqual(status, 400)
+        self.assertIsNone(json.loads(raw).get("receipt"))
+        self.assertEqual(
+            self.request("/api/projects", raw=b'{"key":"a","key":"b","topic":"x"}')[0],
+            400,
+        )
+        self.assertEqual(
+            self.request("/api/projects/" + ref + "/models/offers")[0], 409
+        )
+        self.assertEqual(self.request("/api/projects/" + ref + "/stage2")[0], 409)
+        self.assertEqual(
+            self.request("/api/projects/" + ref + "/stage3", {"key": "run"})[0], 404
+        )
+
+    def test_served_portal_hashes_and_bootstrap_credential_boundary(self):
+        binding = self.get("/host-binding.json")
+        for path in ("/", "/projects.html", "/projects.js", "/projects.css"):
+            status, raw = self.request(path)
+            self.assertEqual(status, 200)
+            self.assertEqual(sha(raw), binding["served_files"][path])
+            self.assertNotIn(self.token.encode(), raw)
+        status, raw = self.request("/project-bootstrap.js")
+        self.assertEqual(status, 200)
+        self.assertIn(self.token.encode(), raw)
+        self.assertEqual(
+            self.request(
+                "/project-bootstrap.js", headers={"Origin": "https://external.example"}
+            )[0],
+            403,
+        )
+
+    def test_stage1_real_http_ledger_gate_and_export_are_not_stage_completion(self):
+        ref, view = self.new()
+        path = "/api/projects/" + ref
+        self.post(path + "/confirm", submit_body(view))
+        self.post(path + "/compile", compile_body(self.get(path)))
+        current = self.get(path)
+        identity = {
+            name: current[name]
+            for name in ("revision", "input_version", "brief_sha256")
+        }
+        offer = self.get(path + "/stage1")["initialization_offer"]
+        self.post(
+            path + "/stage1/initialize",
+            dict(
+                identity,
+                key="ledger-init",
+                confirmed=True,
+                offer_ref=offer["offer_ref"],
+                offer_sha256=offer["offer_sha256"],
+            ),
+        )
+        snapshot = self.get(path + "/overview")
+        self.assertEqual(snapshot["stage1"]["stage1_status"], "offline-ledger-active")
+        self.assertFalse(snapshot["stage1"]["stage1_complete"])
+        for action in ("checkpoint", "export"):
+            current, stage = self.get(path), self.get(path + "/stage1")
+            identity = {
+                name: current[name]
+                for name in ("revision", "input_version", "brief_sha256")
+            }
+            receipt = self.post(
+                path + "/stage1/" + action,
+                dict(
+                    identity,
+                    key="ledger-" + action,
+                    confirmed=True,
+                    ledger_state_sha256=stage["ledger"]["state_sha256"],
+                ),
+            )
+            self.assertEqual(receipt["status"], "saved")
+        self.assertIsNone(self.get(path + "/stage1")["canonical_package"])
+        contract = self.get(path + "/contract")
+        self.assertFalse(contract["stages"]["1"]["accepted"])
+
+    def test_extra_read_suffixes_rejected_and_overview_does_not_produce(self):
+        ref, _ = self.new()
+        for suffix in ("history/offers", "contract/actions", "overview/native"):
+            self.assertEqual(
+                self.request("/api/projects/" + ref + "/" + suffix)[0], 400
+            )
+        with patch(
+            "research_workspace_native.project_intake.create_brief",
+            side_effect=AssertionError("GET produced"),
+        ):
+            snapshot = self.get("/api/projects/" + ref + "/overview")
+            self.assertEqual(snapshot["project"]["project_ref"], ref)
+            self.assertIsNone(snapshot["models"])
+
+    def test_measurement_does_not_turn_unknown_into_zero(self):
+        self.assertIsNone(measurement("calls")["value"])
+        with self.assertRaises(ValueError):
+            measurement("calls", value=0)
+        with self.assertRaises(ValueError):
+            measurement("calls", value=True, status="recorded")
+        for value in (float("nan"), float("inf")):
+            with self.assertRaises(ValueError):
+                measurement("seconds", value=value, status="recorded")
+
+
+if __name__ == "__main__":
+    unittest.main()
