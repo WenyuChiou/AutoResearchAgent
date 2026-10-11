@@ -19,6 +19,7 @@ from research_workspace.json_bytes import decode_json
 from stage1_deliverable.common import canonical, safe_path, sha
 
 from .http import MAX_RESPONSE
+from .project_atlas_shell import renderer_assets
 from .project_stage1 import _basis
 from .project_stage1_delivery import ProjectStage1DeliveryService
 from .session_api import SessionApiError, _check, _hash, _text
@@ -135,8 +136,11 @@ class ProjectStage1AtlasService:
             if name != "atlas.html"
         }
         assets["atlas-model.js"] = model_asset()
-        self._renderer_sha256 = MappingProxyType(
+        self._base_renderer_sha256 = MappingProxyType(
             {name: sha(raw) for name, raw in assets.items()}
+        )
+        self._renderer_sha256 = MappingProxyType(
+            {name: sha(raw) for name, raw in renderer_assets(assets).items()}
         )
 
     @property
@@ -229,8 +233,16 @@ class ProjectStage1AtlasService:
                 _check(
                     all(
                         sha(files[name]) == digest
-                        for name, digest in self.renderer_sha256.items()
+                        for name, digest in self._base_renderer_sha256.items()
                     ),
+                    "stage1-atlas-renderer-bytes-differ",
+                )
+                derived = renderer_assets(
+                    {name: files[name] for name in self._base_renderer_sha256}
+                )
+                _check(
+                    {name: sha(raw) for name, raw in derived.items()}
+                    == self.renderer_sha256,
                     "stage1-atlas-renderer-bytes-differ",
                 )
                 data = files["atlas-data.js"]

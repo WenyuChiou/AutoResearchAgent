@@ -1,0 +1,19 @@
+{
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "unittest",
+    "-v",
+    "test_project_atlas_screening",
+    "test_capability_metric_map"
+  ],
+  "seconds": 26.281999999999243,
+  "exit_code": 0,
+  "source_inventory_sha256": "74ded909bf6d570963a96f8ea7409bc4b5d76704b6b0333be1e19942387f44c3",
+  "source_inventory_after_unchanged": true,
+  "native_model_search_acquisition_calls": 0,
+  "full_suite": false
+}

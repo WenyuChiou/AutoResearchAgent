@@ -11,7 +11,7 @@ from contextlib import ExitStack, contextmanager
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
@@ -528,6 +528,41 @@ class ProjectStage1AtlasHttpTests(unittest.TestCase):
             self.assertNotIn(
                 fixture.saved["records"]["papers"][0]["title"].encode(), raw
             )
+            # The helper and derived UI are code-only assets bound to this host.
+            for name in ("atlas-ui.js", "project-atlas-screening.js"):
+                status, raw = request("/project-atlas-static/" + name, token=None)
+                self.assertEqual(status, 200, raw)
+                self.assertEqual(
+                    sha(raw), fixture.host.project_stage1_atlas.renderer_sha256[name]
+                )
+            status, raw = request("/project-atlas-child.js", token=None)
+            self.assertEqual(status, 200, raw)
+            self.assertLess(
+                raw.index(b'"project-atlas-screening.js"'), raw.index(b'"atlas-ui.js"')
+            )
+            with (
+                patch.object(
+                    atlas.ProjectStage1AtlasService,
+                    "renderer_sha256",
+                    new_callable=PropertyMock,
+                    return_value={},
+                ),
+                patch(
+                    "research_workspace_native.project_host.AtlasHost.__init__"
+                ) as bind,
+                self.assertRaisesRegex(ValueError, "renderer snapshot differs"),
+            ):
+                from research_workspace_native.project_host import ProjectHost
+
+                ProjectHost(
+                    projects=fixture.fixture.intake,
+                    credential=fixture.token,
+                    stage1=fixture.fixture.stage1,
+                    files={},
+                    views=[],
+                    port=0,
+                )
+            bind.assert_not_called()
             for absent in ("/atlas-data.js", "/wiki/" + "0" * 64 + ".md"):
                 status, raw = request(absent)
                 self.assertEqual(status, 404, raw)

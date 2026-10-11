@@ -1,0 +1,17 @@
+{
+  "kind": "SavedLedgerPresenterSourceInventory",
+  "paths": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_atlas_shell.py": "ad8f62c96f88043610c5970db914bfe6202abe0ea861630234ec1a56b25dadb8",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "cac4f26a4839d1884a849cf922e18f1f3374c8ce46317e2b160722048d224a95",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_atlas.py": "abacf37a4dcb733613fe1360e5097f080c3420a4e8b8789b661c751386849fbe",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/project-atlas-child.js": "1478255f8a38e5f4d54b5f990c6f02c7765568c90729f32fd3163b0464767d82",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/project-atlas-screening.js": "bd6c704f236d6837c08bab9ea83961a2c8c96ce38975deb9aef6f0e6f40b5839",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "294cbac8a4e6e4ad1ba3d387c62aab00e6051f76dc19df386032b9746bbbb361",
+    "plugins/auto-research-agent/tests/test_project_stage1_atlas.py": "f2de0ecf54999ce007eb1a9a0949892004c12368091a92f0792bdf8d03eaa976",
+    "plugins/auto-research-agent/tests/test_project_atlas_screening.py": "c95d7e80785a6696e0380c031039b2e0b570b668882572ac32c644883b09a8c6",
+    "plugins/auto-research-agent/tests/browser/project-atlas-screening-test.cjs": "3172851b9a2af51dadf72a27b40451e48de0ea09e3b6b74fa151fe032b5b6d88"
+  },
+  "recorded_after_final_focused_run": true,
+  "no_full_suite": true,
+  "no_live_native_model_search": true
+}

@@ -1,0 +1,13 @@
+test_missing_duplicate_or_already_derived_ledger_entry_is_refused (test_project_atlas_screening.ProjectAtlasScreeningTests.test_missing_duplicate_or_already_derived_ledger_entry_is_refused) ... ok
+test_saved_mixed_library_real_renderer_selection_and_trilingual_history (test_project_atlas_screening.ProjectAtlasScreeningTests.test_saved_mixed_library_real_renderer_selection_and_trilingual_history) ... ok
+test_all_standardized_capability_entry_points_are_registered (test_capability_metric_map.CapabilityMetricMapTests.test_all_standardized_capability_entry_points_are_registered) ... ok
+test_capability_ids_and_owner_paths_are_unique (test_capability_metric_map.CapabilityMetricMapTests.test_capability_ids_and_owner_paths_are_unique) ... ok
+test_capability_ids_are_canonical_and_match_kind (test_capability_metric_map.CapabilityMetricMapTests.test_capability_ids_are_canonical_and_match_kind) ... ok
+test_each_capability_has_valid_metrics_measures_and_tests (test_capability_metric_map.CapabilityMetricMapTests.test_each_capability_has_valid_metrics_measures_and_tests) ... ok
+test_foundation_does_not_claim_measured_improvement (test_capability_metric_map.CapabilityMetricMapTests.test_foundation_does_not_claim_measured_improvement) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 25.559s
+
+OK
+{"kind":"SavedScreeningPresenterDOM","passed":true,"languages":3,"exact_version_selections":12,"checks":["derived-v6-hook","legacy-fallback","unmatched-refusal","unknown-rounds","literal-source-text","bounded-pagination","immutable-data"],"native_model_search_calls":0}

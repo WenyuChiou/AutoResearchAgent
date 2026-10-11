@@ -1,0 +1,44 @@
+[
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-31cb326855f24ec4b1f31533d4ad75cd\\raw.log",
+    "original_sha256": "e2b93dbfcbaba0a8b4698e2237b94ea0b04ab34dc2683bdba5469859e5e7abdb",
+    "public_path": "initial-presenter.log",
+    "public_sha256": "7afc231fa9aa8d893dba6e55313979496c711210132ba18d0fda274a532bef8e",
+    "transformation": "CRLF to LF only"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-31cb326855f24ec4b1f31533d4ad75cd\\receipt.json",
+    "original_sha256": "602ff36102dd92f49fdaee7661489cd0145b8c14ff82fb6622c9354bb7e00e83",
+    "public_path": "initial-presenter.json",
+    "public_sha256": "602ff36102dd92f49fdaee7661489cd0145b8c14ff82fb6622c9354bb7e00e83",
+    "transformation": "CRLF to LF only"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-50e9d82ea66a4276a581bed6650e9e24\\raw.log",
+    "original_sha256": "f0a922453fd63b92c6bdede13a637dd6a2b8ebdad1bd7ed14ac7b8d65dfb352a",
+    "public_path": "http-renderer.log",
+    "public_sha256": "1a9add646d74a1ba791c35853b4879a10f54622fab7a0878f53f63c0ed1bc936",
+    "transformation": "CRLF to LF only"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-50e9d82ea66a4276a581bed6650e9e24\\receipt.json",
+    "original_sha256": "2bd34d66ecdc88080bfdb3aff61b8a480b24a64c285fe98aca0af55b519cbdf4",
+    "public_path": "http-renderer.json",
+    "public_sha256": "2bd34d66ecdc88080bfdb3aff61b8a480b24a64c285fe98aca0af55b519cbdf4",
+    "transformation": "CRLF to LF only"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-2860bf11c43d44fdb5f3ee1b145f8ea7\\raw.log",
+    "original_sha256": "337f6f42c4ba4efbc33136d2f944e93994a746e6562ce31495198c2e12cb6076",
+    "public_path": "final-presenter-map.log",
+    "public_sha256": "44bb340d2d0ebfff2f4a5f400e6e9b2a296ae594f0db0b4439d185653b1eeed3",
+    "transformation": "CRLF to LF only"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-2860bf11c43d44fdb5f3ee1b145f8ea7\\receipt.json",
+    "original_sha256": "154581238b0897f9a46735cd39f4995cf7ff7612f47caaebac4f1bf3a0256170",
+    "public_path": "final-presenter-map.json",
+    "public_sha256": "154581238b0897f9a46735cd39f4995cf7ff7612f47caaebac4f1bf3a0256170",
+    "transformation": "CRLF to LF only"
+  }
+]

@@ -178,7 +178,7 @@ class ProjectHost(AtlasHost):
         ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
         self._assets.update(atlas_shell)
-        # Keep all saved v6 graph files unchanged. Navigation is a host overlay.
+        # Reviewed v6 source stays intact; the native ledger is a pinned overlay.
         self._assets["/"] = self._assets["/projects.html"]
         self.host_binding.update(
             project_operations="versioned-intake-and-explicit-registered-actions",

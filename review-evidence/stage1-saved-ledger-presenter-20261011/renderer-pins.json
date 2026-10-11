@@ -1,0 +1,29 @@
+{
+  "base": {
+    "atlas.css": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+    "atlas-ui.js": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667",
+    "atlas-associations.js": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa",
+    "atlas-spatial.js": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+    "atlas-network.js": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+    "vendor/3d-force-graph-1.80.1.min.js": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9",
+    "vendor/3d-force-graph-LICENSE.txt": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded",
+    "vendor/THIRD_PARTY_LICENSES.txt": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280",
+    "vendor/vendor-lock.json": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa",
+    "atlas-model.js": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+  },
+  "derived": {
+    "atlas.css": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+    "atlas-ui.js": "a10bfecb5f99f10bf4c6af8e780f75b32cc4cc4a026a2d17b0b4fbf1feb4163a",
+    "atlas-associations.js": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa",
+    "atlas-spatial.js": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+    "atlas-network.js": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+    "vendor/3d-force-graph-1.80.1.min.js": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9",
+    "vendor/3d-force-graph-LICENSE.txt": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded",
+    "vendor/THIRD_PARTY_LICENSES.txt": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280",
+    "vendor/vendor-lock.json": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa",
+    "atlas-model.js": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e",
+    "project-atlas-screening.js": "bd6c704f236d6837c08bab9ea83961a2c8c96ce38975deb9aef6f0e6f40b5839"
+  },
+  "canonical_index_payload_sha_unchanged": true,
+  "base_A_current_ready_head_not_propagated": true
+}

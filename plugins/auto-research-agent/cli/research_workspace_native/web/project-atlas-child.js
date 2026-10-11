@@ -49,7 +49,7 @@
     const languageControl = document.getElementById("atlas-language"); if (languageControl) languageControl.value = language;
     window.WORKSPACE_VIEW = item.payload;
     try {
-      for (const name of ["atlas-model.js", "vendor/3d-force-graph-1.80.1.min.js", "atlas-associations.js", "atlas-spatial.js", "atlas-network.js", "atlas-ui.js"]) await script(name);
+      for (const name of ["atlas-model.js", "vendor/3d-force-graph-1.80.1.min.js", "atlas-associations.js", "atlas-spatial.js", "atlas-network.js", "project-atlas-screening.js", "atlas-ui.js"]) await script(name);
       ready();
       if (languageControl) languageControl.addEventListener("change", () => {
         if (Object.hasOwn(messages, languageControl.value)) {
