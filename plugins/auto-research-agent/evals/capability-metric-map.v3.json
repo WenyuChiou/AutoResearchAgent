@@ -45,7 +45,8 @@
             "Fake OS child composition retains one bootstrap/recording channel; lock/SQLite/guard/write timeout and persistence failure stop dispatch, raw read bytes survive failed observation, and cleanup precedes journal evidence.",
             "One explicitly started owner pump retains questions and replies; passive GET and same-key multi-tab replay create no extra write, and physical cleanup starts before independent store locks.",
             "HTTP message response loss recovers via history without resend; expired queued submissions create no extra native I/O; atlas bindings refuse unrelated project/index versions and never substitute records hash for input version.",
-            "typed pre-admission message rejection and first-offer revision recovery are verified with real HTTP/SQLite and synthetic channels; unverifiable source/credential/offer and admitted keys never release local uncertainty"
+            "typed pre-admission message rejection and first-offer revision recovery are verified with real HTTP/SQLite and synthetic channels; unverifiable source/credential/offer and admitted keys never release local uncertainty",
+            "Bootstrap frame validation reuses the transaction state and rejects a version changed during source verification; original fixed-deadline fake-child failures report per-method elapsed time without changing the deadline or retrying."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         }
