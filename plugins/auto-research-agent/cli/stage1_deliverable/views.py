@@ -68,6 +68,23 @@ def tables(records, sources):
         findings.append({**key, **row["findings"], "claim_ids": row["claim_ids"]})
     claims = []
     for row in records["claims"]:
+        if records["schema_version"] == "1.1.0":
+            matches = [
+                x
+                for x in sources
+                if x["source_id"] == row["source_id"] and x["source_version"]
+            ]
+            source = matches[0] if matches else None
+            claims.append(
+                {
+                    **row,
+                    "source_sha256": row["core_event"]["payload"]["source_ref"][
+                        "sha256"
+                    ],
+                    "source_version": source["source_version"] if source else None,
+                }
+            )
+            continue
         source = next(
             x
             for x in sources
@@ -80,7 +97,7 @@ def tables(records, sources):
                 "source_version": source["source_version"],
             }
         )
-    return {
+    result = {
         "Papers": papers,
         "Classification": classification,
         "Findings": findings,
@@ -88,9 +105,19 @@ def tables(records, sources):
         "Screening": records["screening"],
         "Coverage": records["coverage"],
     }
+    if records["schema_version"] == "1.1.0":
+        result["Core claim history"] = records["core_claim_history"]
+    return result
 
 
 EMPTY_HEADERS = {
+    "Core claim history": [
+        "schema_version",
+        "sequence",
+        "previous_sha256",
+        "event_sha256",
+        "payload",
+    ],
     "Claims": [
         "claim_id",
         "work_id",
@@ -105,7 +132,7 @@ EMPTY_HEADERS = {
         "quote",
         "source_sha256",
         "source_version",
-    ]
+    ],
 }
 
 
@@ -205,6 +232,22 @@ def review_lines(records):
         )
     lines.extend(["## Evidence and limitations", ""])
     for claim in records["claims"]:
+        if records["schema_version"] == "1.1.0":
+            event = claim["core_event"]["payload"]
+            location = (
+                "Unknown: no locator recorded"
+                if event["locator"] is None
+                else cell(event["locator"])
+            )
+            lines.extend(
+                [
+                    f"{claim['claim_id']} [{claim['work_id']} / {claim['version_id']}]: {claim['text']}",
+                    f"{claim['relation']}; {claim['evidence_level']}; {location}",
+                    "Original Core event: " + cell(claim["core_event"]),
+                    "",
+                ]
+            )
+            continue
         lines.extend(
             [
                 f"{claim['claim_id']} [{claim['work_id']} / {claim['version_id']}]: {claim['text']}",
@@ -213,6 +256,17 @@ def review_lines(records):
                 f"and canonical records, claim_id {claim['claim_id']}. "
                 "CSV cells use formula-safe escaping. Original extraction "
                 "spacing and character offsets are preserved for audit.",
+                "",
+            ]
+        )
+    if records["schema_version"] == "1.1.0":
+        lines.extend(
+            [
+                "## Preserved Core claim history",
+                "",
+                "Original events include superseded versions; absence of a locator is not evidence or acceptance.",
+                "",
+                cell(records["core_claim_history"]),
                 "",
             ]
         )

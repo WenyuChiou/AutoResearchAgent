@@ -29,6 +29,32 @@ def _require(condition, message):
 
 def validate_index(index):
     """Validate the presentation contract, never scientific correctness."""
+    if index.get("schema_version") == "1.1.0":
+        from stage1_deliverable.core_records import validate_extension
+
+        fields = {
+            "canonical_records_version",
+            "core_claim_history",
+            "core_artifacts",
+            "stage2_canonical_consumer",
+        }
+        _require(
+            fields <= set(index)
+            and index["canonical_records_version"] == "1.1.0"
+            and index["stage2_canonical_consumer"]
+            == {
+                "status": "unconnected",
+                "reason": "canonical-records-1.1-consumer-required",
+            },
+            "workspace Core records extension differs",
+        )
+        validate_extension(index)
+        legacy = deepcopy(index)
+        for field in fields:
+            legacy.pop(field)
+        legacy["schema_version"] = "1.0.0"
+        validate_index(legacy)
+        return index
     if index.get("schema_version") == "3.0.0":
         from .source_rerun import validate_rerun_index
 
@@ -124,11 +150,15 @@ def _package(root, expected):
     manifest = decode_json(bound_read("deliverable/provenance_manifest.json"))
     _require(
         manifest.get("kind") == "Stage1ResearchDeliverable"
-        and manifest.get("schema_version") == "1.0.0",
+        and manifest.get("schema_version") in {"1.0.0", "1.1.0"},
         "unsupported canonical package",
     )
     _require(inventory(delivery) == manifest["files"], "deliverable inventory mismatch")
     records = validate_records(manifest["canonical_records"])
+    _require(
+        records["schema_version"] == manifest["schema_version"],
+        "canonical package version differs",
+    )
     original = bound_read("deliverable/records.original.json")
     _require(
         sha(original) == manifest["original_input_sha256"],
@@ -241,6 +271,11 @@ def _source_records(package_root, bound_read, records):
             levels[paper["evidence_level"]] <= maximum,
             "paper evidence level exceeds source",
         )
+    if records["schema_version"] == "1.1.0":
+        from stage1_deliverable.core_records import validate_artifacts
+
+        validate_artifacts(records, lambda path: bound_read("deliverable/" + path))
+        return output
     for claim in records["claims"]:
         receipt = by_id[claim["source_id"]]
         _require(
@@ -357,7 +392,7 @@ def project_package(
     readiness = decode_json(readiness_raw)
     result = {
         "kind": "WorkspaceIndex",
-        "schema_version": "1.0.0",
+        "schema_version": records["schema_version"],
         "project_id": project_id,
         "status": "partial-review-only",
         "topic": records["topic"],
@@ -421,6 +456,16 @@ def project_package(
             },
         },
     }
+    if records["schema_version"] == "1.1.0":
+        result.update(
+            canonical_records_version="1.1.0",
+            core_claim_history=deepcopy(records["core_claim_history"]),
+            core_artifacts=deepcopy(records["core_artifacts"]),
+            stage2_canonical_consumer={
+                "status": "unconnected",
+                "reason": "canonical-records-1.1-consumer-required",
+            },
+        )
     _require(
         _package(root, expected_manifest_sha256) == (outer, manifest, records),
         "package changed during projection",

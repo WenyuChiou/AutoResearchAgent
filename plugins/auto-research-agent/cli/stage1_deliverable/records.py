@@ -87,6 +87,9 @@ def _indexed(rows, field):
 
 
 def validate_records(records):
+    from .core_records import VERSION, extended, validate_extension
+
+    core = extended(records)
     _keys(
         records,
         (
@@ -99,13 +102,14 @@ def validate_records(records):
             "claims",
             "screening",
             "coverage",
+            *(("core_claim_history", "core_artifacts") if core else ()),
         ),
         "records",
     )
-    if (
-        records["kind"] != "Stage1ResearchRecords"
-        or records["schema_version"] != "1.0.0"
-    ):
+    if records["kind"] != "Stage1ResearchRecords" or records["schema_version"] not in {
+        "1.0.0",
+        VERSION,
+    }:
         raise DeliverableError("unsupported canonical record version")
     _text(records["topic"])
     timestamp(records["as_of"])
@@ -232,14 +236,19 @@ def validate_records(records):
                 "start",
                 "end",
                 "quote",
+                *(("core_event",) if core else ()),
             ),
             "claim",
         )
         version(claim)
-        for name in ("text", "locator", "quote"):
+        for name in (
+            ("text",)
+            if core and claim["locator"] is None
+            else ("text", "locator", "quote")
+        ):
             _text(claim[name])
         source = sources.get(claim["source_id"])
-        if (
+        if not (core and claim["source_id"] is None) and (
             not source
             or source["work_id"] != claim["work_id"]
             or source["version_id"] != claim["version_id"]
@@ -247,12 +256,16 @@ def validate_records(records):
             raise DeliverableError("claim source work/version differs")
         if claim["claim_id"] not in papers[claim["work_id"]]["claim_ids"]:
             raise DeliverableError("orphan claim")
-        if (
-            claim["relation"]
-            not in {"supports", "partial", "contradicts", "unverified"}
-            or claim["evidence_level"] not in LEVELS
-        ):
+        from .core_records import RELATIONS, LEVELS as CORE_LEVELS
+
+        if claim["relation"] not in (
+            RELATIONS if core else {"supports", "partial", "contradicts", "unverified"}
+        ) or claim["evidence_level"] not in (CORE_LEVELS if core else LEVELS):
             raise DeliverableError("invalid claim relation or level")
+        if core and claim["locator"] is None:
+            if any(claim[k] is not None for k in ("start", "end", "quote")):
+                raise DeliverableError("nullable locator has invented source span")
+            continue
         if (
             type(claim["start"]) is not int
             or type(claim["end"]) is not int
@@ -315,4 +328,6 @@ def validate_records(records):
             raise DeliverableError("coverage references unknown work")
         if need["stop_decision"] not in {"stop", "continue"}:
             raise DeliverableError("stop decision must remain explicit")
+    if core:
+        validate_extension(records)
     return records

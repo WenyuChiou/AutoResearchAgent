@@ -96,3 +96,6 @@ review-evidence/stage1-source-owned-20261011/*.log -text whitespace=cr-at-eol
 review-evidence/stage1-adapter-integration-20261011/*.log -text whitespace=cr-at-eol
 review-evidence/model-retirement-20261011/*.log -text whitespace=cr-at-eol
 review-evidence/stage1-coverage-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-core-records-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-claim-review-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-reading-delivery-20261011/*.log -text whitespace=cr-at-eol

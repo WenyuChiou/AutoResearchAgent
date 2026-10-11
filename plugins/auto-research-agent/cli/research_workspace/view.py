@@ -132,6 +132,8 @@ def _write_view(
     stage2_attachment, stage2_files = None, {}
     supplied = (stage2_delivery, stage2_bridge, expected_stage2_bridge_sha256)
     if any(value is not None for value in supplied):
+        if index["schema_version"] == "1.1.0":
+            raise DeliverableError("canonical-records-1.1 Stage2 consumer unconnected")
         if not all(value is not None for value in supplied):
             raise DeliverableError(
                 "Stage 2 delivery, bridge and receipt hash are required"
@@ -149,6 +151,7 @@ def _write_view(
     expected_index_sha256 = sha(raw)
     if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") not in {
         "1.0.0",
+        "1.1.0",
         "2.0.0",
         "3.0.0",
     }:

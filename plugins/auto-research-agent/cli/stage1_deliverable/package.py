@@ -55,6 +55,11 @@ def derive(records, root, runtime):
         maximum = max([levels[s["evidence_level"]] for s in available], default=0)
         if levels[paper["evidence_level"]] > maximum:
             raise DeliverableError("abstract or metadata cannot become full text")
+    if records["schema_version"] == "1.1.0":
+        from .core_records import read_artifacts
+
+        read_artifacts(records, root)
+        return manifests, paper_files
     for claim in records["claims"]:
         _, result, archive, mapping = source_by_id[claim["source_id"]]
         if result["status"] != "available" or not result.get("extracted_text_path"):
@@ -120,6 +125,20 @@ def build(records_path, output, expected_records_sha256):
             records_path.parent,
             safe_path(output, "sources/" + source["source_id"]),
         )
+    if records["schema_version"] == "1.1.0":
+        from .core_records import read_artifacts
+
+        read_artifacts(records, records_path.parent)
+        for artifact in records["core_artifacts"]:
+            target = safe_path(output, artifact["artifact_path"])
+            target.parent.mkdir(exist_ok=True)
+            raw = safe_path(records_path.parent, artifact["artifact_path"]).read_bytes()
+            if target.exists():
+                if target.read_bytes() != raw:
+                    raise DeliverableError("Core source archive collision")
+            else:
+                with target.open("xb") as stream:
+                    stream.write(raw)
     manifests, paper_files = derive(records, output, runtime)
     generated = views.render(records, manifests)
     generated.update(paper_files)
@@ -132,7 +151,7 @@ def build(records_path, output, expected_records_sha256):
             stream.write(data)
     manifest = {
         "kind": "Stage1ResearchDeliverable",
-        "schema_version": "1.0.0",
+        "schema_version": records["schema_version"],
         "experimental": True,
         "improvement": "not yet demonstrated",
         "canonical_records": records,
@@ -177,13 +196,15 @@ def validate(root, expected_sha256):
     )
     if (
         manifest.get("kind") != "Stage1ResearchDeliverable"
-        or manifest.get("schema_version") != "1.0.0"
+        or manifest.get("schema_version") not in {"1.0.0", "1.1.0"}
         or manifest["experimental"] is not True
         or manifest["improvement"] != "not yet demonstrated"
         or manifest["docx"] != DOCX
     ):
         raise DeliverableError("unsupported package contract")
     records = validate_records(manifest["canonical_records"])
+    if manifest["schema_version"] != records["schema_version"]:
+        raise DeliverableError("package and canonical record versions differ")
     original = (root / "records.original.json").read_bytes()
     if (
         sha(original) != manifest["original_input_sha256"]
@@ -204,6 +225,8 @@ def validate(root, expected_sha256):
         if safe_path(root, name).read_bytes() != data:
             raise DeliverableError("canonical-to-view semantic replay differs: " + name)
     allowed = {*generated, "records.original.json"}
+    if records["schema_version"] == "1.1.0":
+        allowed.update(row["artifact_path"] for row in records["core_artifacts"])
     for source in records["sources"]:
         archive = safe_path(root, "sources/" + source["source_id"])
         original = read_json(archive / "original.json")
