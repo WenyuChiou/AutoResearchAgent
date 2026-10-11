@@ -250,3 +250,47 @@ separate panel. The existing Core journal keeps those observations intact.
 Source acquisition, model reading, coverage completion and new-topic end-to-end
 Stage1 acceptance remain separate pending interfaces; Stage2 execution is deferred
 and Stage3–6 stay planned/unconnected. Local/CI fixtures are engineering evidence.
+
+## Saved SDK source observation completion
+
+`complete_saved_source` in `project_stage1_source_observation` is a local bridge
+from an original SDK receipt to one already saved `SourceReadStarted` event.
+It does not download, start a model, authorize acquisition or retry a reader.
+The owner supplies the exact captured start payload, fixed private materials
+root, original receipt path/hash and externally verified runtime hash. The
+start request must contain the SDK's six normalized fields: `operation`, `doi`,
+`url`, `title`, `output_dir` and `public_only`. Any timeout or execution budget
+stays in the owner's separate intent. The original SDK directory cannot be
+relocated or rewritten to fit this interface.
+
+Before any Core artifact save, the helper checks the entire receipt and SDK
+digest, all declared raw/text artifacts, and start/attempt/observation time
+ordering. It uses the existing explicit SDK-to-Core outcome mapping and keeps
+the full SDK attempt history in the original receipt. Only an `available`
+outcome supplies nonempty UTF-8 text; HTTP, network, parse and other unavailable
+outcomes remain failures. A network failure without response bytes binds the
+actual SDK receipt as its failure artifact. The declared runtime hash is marked
+`saved-sdk-observation; not execution attestation`: it does not authenticate a
+process, verify reading fidelity, identify a paper or support a scientific claim.
+
+One exclusive Core writer lock covers the local completion. The optional
+`check_current` callback runs before each mutation and after completion. The
+owning wrapper remains responsible for current project, candidate, decision,
+version, permit, budget and frontier checks, durable intent before external
+I/O, and the final action commit. Core journal effects cannot roll back:
+partial artifact saves remain pending, and a completed local event followed by
+owner failure must retain an unknown action rather than a usable success.
+The wrapper must refuse automatic replay or adoption after reopen. Repeating a
+completed source intent refuses. After a valid completion, a fresh checkpoint
+and the existing `ProjectStage1RecordsService.register_source` bind the source
+description into the saved registry; they do not create a reading record or
+change coverage, stop or Stage 2 eligibility.
+
+`test_project_stage1_source_observation.SourceObservationTests` exercises real
+Core/SQLite and the SDK parser against authored HTTP mocks. Its eight checks
+cover available completion/registration/reopen, HTTP 503, timeout, changed
+start/request/version, receipt/time/artifact tampering, partial receipts,
+owner refusal before or after a raw save, and the fixed materials root. The
+captured run passed 8 tests in 13.960s with unchanged source inventories. This
+is an offline helper result; the production owner wrapper, source worker, real
+acquisition, model reading and full Stage 1 acceptance need separate evidence.
