@@ -450,3 +450,30 @@ the canonical delivery. A review-only/partial package does not complete Stage1.
 Stage2 refuses a 1.1 package until its consumer is implemented; Stage3-6 remain
 planned/unconnected. A failed or uncertain prepare is retained for reconciliation;
 refresh and same-key replay cannot repeat the file producer.
+
+### Preserve the reviewed v6 interface
+
+Saved Stage1/Stage2 pages retain their dark sidebar, 2D/3D graph, paper detail,
+compact direction summary and folded process history. The host adds a **Codex &
+Harness** button to the top bar. It opens existing project operations in a lazy
+drawer with separate styles. Closing it retains both the graph and operation
+document. Opening, closing, translation and refresh never dispatch research.
+Select the operation project explicitly; a historical saved case is not the
+current project's result or permission. Original package/renderer files stay
+unchanged and derived host assets have separate hashes.
+
+When starting `run-project-workspace.py`, pass the existing private, pinned
+`--views-config <views.json> --views-sha256 <SHA256>` alongside the existing
+project/runtime flags. `/` redirects to the first registered view, preserving
+its relative asset/note paths; the config order chooses this landing view.
+Omitting the config registers no saved cases: the initial topic-intake page is
+then available, but an old `/views/.../atlas.html` URL cannot exist. A new topic
+does not receive an invented graph. Its validated saved delivery opens through
+the existing private v6 viewer. `/projects.html` remains a separate operation
+entry, not a replacement saved-results UI.
+
+Only the derived `/projects-panel.html` allows same-origin framing. Atlas parent
+pages allow that frame but still forbid being embedded themselves. External
+framing, unsafe Host/Origin and API admission checks remain rejected; an iframe
+separates styles, not same-origin script privileges. Stage2 execution remains
+deferred and Stage3–6 planned/unconnected.

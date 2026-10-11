@@ -1,0 +1,23 @@
+/* The reviewed Atlas keeps its CSS; operation styles are isolated in the frame. */
+#project-operations-open{border:1px solid #b9cece;background:#edf5f2;color:#193747;border-radius:7px;padding:8px 12px;font:inherit;white-space:nowrap;cursor:pointer}
+#project-operations-dialog{box-sizing:border-box;position:fixed;inset:12px 12px 12px auto;margin:0;width:min(920px,82vw);height:calc(100dvh - 24px);max-width:calc(100vw - 24px);max-height:none;padding:0;border:1px solid #cbdad7;border-radius:12px;color:#193747;background:#fff;box-shadow:0 16px 60px #16333c38}
+#project-operations-dialog[open]{display:flex;flex-direction:column}
+#project-operations-dialog::backdrop{background:#19374735}
+#project-operations-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid #dce4e2}
+#project-operations-dialog h2{margin:0;font-size:20px}
+#project-operations-dialog>p{margin:0;padding:10px 20px;font-size:14px;line-height:1.6;background:#f3f7f4}
+#project-operations-close{font:inherit;background:#fff;border:1px solid #cbdad7;color:inherit;border-radius:7px;padding:8px 12px;cursor:pointer}
+#project-operations-frame{border:0;width:100%;min-height:0;flex:1;background:#f6f6f1}
+.project-embedded .studio-nav{position:static;width:100%;padding:10px 20px;background:#edf3f1;color:#193747;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;max-height:180px;overflow:auto}
+.project-embedded .studio-nav .brand,.project-embedded .nav-foot{display:none}
+.project-embedded .new-project{width:auto;margin:0}
+.project-embedded .nav-title{margin:0;font-size:12px}
+.project-embedded .studio-nav nav{display:flex;flex-wrap:wrap;gap:4px}
+.project-embedded .studio-nav nav button,.project-embedded .studio-nav nav a{width:auto;color:#193747;font-size:14px;max-width:340px}
+.project-embedded .studio-nav nav button[aria-current=true]{background:#d4e6df;color:#193747}
+.project-embedded .studio-body{margin:0}
+.project-embedded .topbar{height:auto;min-height:58px;padding:10px 20px;flex-wrap:wrap}
+.project-embedded main{padding:20px}
+.project-embedded .page-heading{margin-bottom:16px}
+.project-embedded h1{font-size:26px}
+@media(max-width:760px){#project-operations-dialog{inset:8px;width:calc(100vw - 16px);height:calc(100dvh - 16px);max-width:none}#project-operations-open{font-size:13px;padding:7px}.project-embedded .budget-grid,.project-embedded .field-grid{grid-template-columns:1fr}}

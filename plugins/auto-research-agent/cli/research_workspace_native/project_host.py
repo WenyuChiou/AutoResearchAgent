@@ -20,6 +20,7 @@ from .project_stage1_delivery import ProjectStage1DeliveryService
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
 from .project_atlas_shell import shell_assets
+from .project_ui_overlay import PANEL, PANEL_CSP, PARENT_CSP, install_project_overlay
 from .project_stage1_library import ProjectStage1LibraryService
 from .project_stage1_source_service import ProjectStage1SourceService
 from .project_source_dispatcher import ProjectSourceDispatcher
@@ -202,8 +203,14 @@ class ProjectHost(AtlasHost):
         ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
         self._assets.update(atlas_shell)
-        # Reviewed v6 source stays intact; the native ledger is a pinned overlay.
+        self.project_panel_parents = install_project_overlay(
+            self._assets, self.views, ASSETS
+        )
+        # No package is invented for a new project. Existing saved views keep
+        # their original entry and renderer, with operations in a lazy drawer.
         self._assets["/"] = self._assets["/projects.html"]
+        if self.views:
+            self._assets.pop("/")  # A redirect has no served HTML byte hash.
         self.host_binding.update(
             project_operations="versioned-intake-and-explicit-registered-actions",
             project_model_provider=models is not None,
@@ -224,6 +231,8 @@ class ProjectHost(AtlasHost):
             and getattr(models, "reading_records", None) is not None,
             project_stage2_import=stage2 is not None,
             project_execution_authority=False,
+            project_operations_presentation="additive-v6-drawer",
+            project_home_route=self.views[0]["url"] if self.views else "/projects.html",
         )
         self.host_binding["served_files"] = {
             path: sha(raw)
@@ -297,6 +306,14 @@ class ProjectHost(AtlasHost):
 
 
 class ProjectHandler(AtlasHandler):
+    def send_header(self, keyword, value):
+        if keyword.lower() == "content-security-policy":
+            if self.path == PANEL:
+                value = PANEL_CSP
+            elif self.path in self.server.project_panel_parents:
+                value = PARENT_CSP
+        super().send_header(keyword, value)
+
     def _project(self, method):
         if SOURCE_ROUTE.fullmatch(self.path) is not None:
             return handle_sources(self, method)
@@ -668,6 +685,39 @@ class ProjectHandler(AtlasHandler):
             self._reply(500, {"error": "project-operation-failed"})
 
     def do_GET(self):
+        if self.path == "/" and self.server.views:
+            # Redirect rather than alias HTML: the reviewed view uses relative
+            # assets, notes and links under its original saved-package route.
+            if (
+                self.headers.get("Host") != self.server.expected_host
+                or self.headers.get("Origin") not in (None, self.server.expected_origin)
+                or self.headers.get("Sec-Fetch-Site")
+                not in (None, "none", "same-origin")
+                or any(
+                    len(self.headers.get_all(name, [])) > 1
+                    for name in (
+                        "Host",
+                        "Origin",
+                        "Content-Length",
+                        "Transfer-Encoding",
+                    )
+                )
+                or self.headers.get("Transfer-Encoding") is not None
+                or self.headers.get("Content-Length", "0") != "0"
+            ):
+                return self._reply(403, {"error": "origin-or-host-rejected"})
+            self._remaining()
+            self.send_response(302)
+            for name, value in (
+                ("Location", self.server.views[0]["url"]),
+                ("Content-Length", "0"),
+                ("Cache-Control", "no-store"),
+                ("Connection", "close"),
+            ):
+                self.send_header(name, value)
+            self.close_connection = True
+            self.end_headers()
+            return
         if self.path.startswith("/api/projects"):
             return self._project("GET")
         if self.path == "/project-bootstrap.js":

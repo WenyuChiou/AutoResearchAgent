@@ -1,0 +1,15 @@
+{
+  "kind": "PreservedV6ReviewEvidence/1",
+  "files": {
+    "browser-receipt.json": "f1a962ad6322b9f789d4d00f63185a8c075c5f7411a3874c113311c7a0d99380",
+    "focused-tests.txt": "1d68f22d41db9126e6da5724808e195b64202f4b7dd86a7330947653cc306fa8",
+    "main-synthetic.png": "98bd8a77cbde29d0c5ec627be3aca3c511c3d99191d2345e53eba6cc3173cdfc",
+    "map-tests.txt": "37c3dc28b366d6d1bb698299a0bffe8b7e3b3fec7e4ee03f16d7505ff6f6141e",
+    "operations-synthetic.png": "3964b6fc3b3546e0b64e6227fde763afef32802b2fe0abe4f4c94cda5b70ca40",
+    "README.md": "f5000064891cfe7897066bd0f467e93e35770f405d78595d44d0edc8b628438b"
+  },
+  "raw_capture_sha256": {
+    "focused-tests.txt": "f350718f1a93f78a38b33d34c0208d03c162593b55785af64759375dadff279c",
+    "map-tests.txt": "003223b75eb6e1410ecb8873727db05afe952045f147a74d514c18052c4f1227"
+  }
+}
