@@ -803,7 +803,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
         )
         payload = resolution_payload(self.packet)
         adapter = StubModel({"resolution-extraction": payload})
-        output = self.root / "controller-resolution-out"
+        output = (self.root / "controller-resolution-out").resolve()
         result = extract_resolution(
             **self.resolution_args(reviews, capture, receipt, output.name, adapter)
         )
