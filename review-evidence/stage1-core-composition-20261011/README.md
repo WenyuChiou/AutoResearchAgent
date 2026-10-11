@@ -1,0 +1,9 @@
+# Concurrent Core repair and offline composition
+
+This normal integration retains Core commit `6e0daba8ed7206b9de2905f219054bda5d9b955b`'s `stage_pipeline.py` and `views.py` bytes exactly. The complete prompt is capped at 10,000 UTF-8 bytes before a task or intent is saved. Core's lossless JSON compaction and equivalent assessment-schema references remain intact. Both empty-Screening regressions are retained, with independent temporary output paths.
+
+The earlier local `47807a1d` refusal-only approach is superseded. Its published logs and manifests remain historical and unchanged. The obsolete expectations that normal extraction/final tasks must refuse, and the test-only 16KiB override, have been removed. Eight broader production-boundary cases still cover aggregate sources, eight-MiB input, Unicode limits, retained maximum replies, semantic repair, and true reopen of an oversized legacy intent.
+
+The first composition run failed two Core final-step cases because the authored prompt was 10,012 bytes, including absolute temporary artifact paths. That failed 22-test run and its diagnostic are retained. Only the neutral fixture filename (`unit-N.jsonl`) and authored rationale (`Authored evidence remains unknown.`) were shortened; exact artifact bytes/hash, thread, unknown/null/blocking status and original schemas remain verified. Production evidence is never truncated and the ceiling is never overridden.
+
+The final pipeline run, map run and screening run are separate; their actual counts and times are in the raw logs and manifest. This evidence covers authored offline behavior only. It does not demonstrate native Windows research, a user's Codex authentication, live model/search execution, universal platform acceptance, or scientific improvement. Stage2 daily_v3 assessment remains incomplete; Stage3–6 remain planned/unconnected. Hosted exact-head CI and Core review are still required.

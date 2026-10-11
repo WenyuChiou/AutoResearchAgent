@@ -6,10 +6,11 @@ import unittest
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cli"))
 sys.path.insert(0, str(HERE))
-from stage_pipeline_fixture_helpers import (
-    SemanticStagePipelineFixture as StagePipelineFixture,
+from stage_pipeline_fixture_helpers import StagePipelineFixture
+from research_workspace_native.stage_pipeline import (
+    MAX_TASK_PROMPT_BYTES,
+    StagePipeline,
 )
-from research_workspace_native.stage_pipeline import StagePipeline
 from stage2_common import canonical_hash
 
 
@@ -17,7 +18,7 @@ class StagePipelineTests(StagePipelineFixture):
     def test_eight_budget_keeps_ninth_guard_and_publishes_pending(self):
         for _ in range(8):
             self.assertLessEqual(
-                len(self.pipeline.next_task()["prompt"].encode()), 16384
+                len(self.pipeline.next_task()["prompt"].encode()), MAX_TASK_PROMPT_BYTES
             )
             self.step()
         self.assertIsNone(self.pipeline.next_task())

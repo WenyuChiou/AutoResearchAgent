@@ -293,7 +293,7 @@ class ScreeningRecordsTests(unittest.TestCase):
                     findings=dict.fromkeys(FINDINGS, "Unknown"),
                 )
             )
-        root = self.records_path.parent / "all-unscreened-input"
+        root = self.records_path.parent / "all-unscreened-detailed-input"
         root.mkdir()
         path = root / "records.json"
         write_json(path, records)
@@ -305,7 +305,9 @@ class ScreeningRecordsTests(unittest.TestCase):
             target = root / item["artifact_path"]
             target.parent.mkdir(exist_ok=True)
             target.write_bytes(ledger.read_ref(item["source_ref"]))
-        output = _io_root(private_output(case.fixture_root / "all-unscreened-package"))
+        output = _io_root(
+            private_output(case.fixture_root / "all-unscreened-detailed-package")
+        )
         receipt = build(path, output, sha(original))
         self.assertEqual(
             validate_package(output, receipt["manifest_sha256"])["status"], "passed"
@@ -394,6 +396,140 @@ class ScreeningRecordsTests(unittest.TestCase):
                 seed,
             )
         self.assertFalse(seed.exists())
+        self.case.runner.assert_not_called()
+
+    def test_all_unscreened_package_keeps_empty_screening_and_discovery_library(self):
+        intake = self.case.intake
+        ref = intake.create(
+            "alice-token", {"key": "all-unscreened", "topic": self.original["topic"]}
+        )["project_ref"]
+        intake.submit("alice-token", ref, submit_body(intake.read("alice-token", ref)))
+        intake.compile(
+            "alice-token", ref, compile_body(intake.read("alice-token", ref))
+        )
+        offer = self.case.stage1.read("alice-token", ref)["initialization_offer"]
+        self.case.stage1.initialize(
+            "alice-token",
+            ref,
+            dict(
+                bound_body(intake.read("alice-token", ref), "initialize"),
+                offer_ref=offer["offer_ref"],
+                offer_sha256=offer["offer_sha256"],
+                confirmed=True,
+            ),
+        )
+        state = intake._load(intake._principal("alice-token"), ref)
+        run = state["stage1_runs"][state["stage1_active"]]
+        ledger = CoverageLedger(intake._path(ref, run["path"]))
+        coverage = ledger.coverage_state()
+        planned = next(iter(coverage.queries))
+        query = ledger.start_planned(planned)
+        backend = ledger.start(
+            "backend",
+            {"input": coverage.arguments(planned)},
+            backend="openalex",
+            parent_id=query,
+        )
+        raw = ledger.save_bytes(canonical(self.metadata), producer=backend)
+        empty = ledger.save_bytes(b"", producer=backend)
+        ledger.finish(
+            backend,
+            outcome="success_nonempty",
+            http_status=200,
+            exit_code=0,
+            stdout=empty,
+            stderr=empty,
+            records=raw,
+        )
+        ledger.complete_query(query)
+        ledger.extract()
+        ledger.checkpoint()
+        report = validate_run(ledger.root)
+        self.assertTrue(report["valid"], report)
+        library = _project(ref, intake.binding(ref), run, ledger, report)
+        records = deepcopy(self.records)
+        for key in (
+            "papers",
+            "sources",
+            "claims",
+            "screening",
+            "core_claim_history",
+            "core_artifacts",
+        ):
+            records[key] = []
+        records.update(
+            screening_library=library,
+            screening_artifacts=artifacts(library),
+            screening_journal={
+                "path": "screening_events.jsonl",
+                "sha256": library["binding"]["journal_sha256"],
+            },
+        )
+        for row in library["rows"]:
+            metadata = row["metadata"]
+            records["papers"].append(
+                dict(
+                    work_id=row["work_id"],
+                    version_id=row["selected_version_id"],
+                    title=metadata["title"],
+                    authors=metadata["authors"],
+                    year=metadata["year"],
+                    doi=metadata.get("doi"),
+                    venue="Unknown",
+                    url=None,
+                    evidence_level="metadata",
+                    source_ids=[],
+                    claim_ids=[],
+                    roles=[],
+                    classification=dict.fromkeys(CLASSIFICATION, "Unknown"),
+                    findings=dict.fromkeys(FINDINGS, "Unknown"),
+                    reading_status="discovery-only",
+                )
+            )
+        for need in records["coverage"]:
+            need["work_ids"] = []
+        inputs = self.case.fixture_root / "all-unscreened-input"
+        inputs.mkdir()
+        path = inputs / "records.json"
+        write_json(path, records)
+        (inputs / "screening_events.jsonl").write_bytes(
+            (ledger.root / "stage_events.jsonl").read_bytes()
+        )
+        for item in records["screening_artifacts"]:
+            target = inputs / item["artifact_path"]
+            target.parent.mkdir(exist_ok=True)
+            target.write_bytes(ledger.read_ref(item["source_ref"]))
+        validate_records(records)
+        self.assertEqual(records["screening"], [])
+        self.assertEqual(library["counts"]["not_screened"], len(self.metadata))
+        output = _io_root(
+            private_output(self.case.fixture_root / "all-unscreened-package")
+        )
+        receipt = build(path, output, sha(path.read_bytes()))
+        self.assertEqual(
+            validate_package(output, receipt["manifest_sha256"])["status"], "passed"
+        )
+        headers = sorted(self.records["screening"][0])
+        self.assertEqual(
+            list(
+                csv.reader(
+                    io.StringIO(
+                        (output / "search_and_screening.csv").read_text(
+                            encoding="utf-8-sig"
+                        )
+                    )
+                )
+            ),
+            [headers],
+        )
+        workbook = load_workbook(output / "literature_catalog.xlsx", read_only=True)
+        try:
+            self.assertEqual(list(workbook["Screening"].values), [tuple(headers)])
+            self.assertEqual(
+                workbook["Screening library"].max_row, len(self.metadata) + 1
+            )
+        finally:
+            workbook.close()
         self.case.runner.assert_not_called()
 
     def test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution(

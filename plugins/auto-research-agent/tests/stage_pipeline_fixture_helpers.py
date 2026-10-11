@@ -8,7 +8,6 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cli"))
@@ -65,7 +64,7 @@ class StagePipelineFixture(unittest.TestCase):
                 axis: dict(
                     status="unknown",
                     score=None,
-                    rationale="Synthetic source does not establish this enabling condition.",
+                    rationale="Authored evidence remains unknown.",
                     evidence_ids=[],
                     blocking=True,
                     next_check="Obtain bounded evidence.",
@@ -179,7 +178,9 @@ class StagePipelineFixture(unittest.TestCase):
         value = self.output(task) if text is None else text
         if isinstance(value, dict):
             value = json.dumps(value)
-        path = self.root / f"injected-native-{self.uid}.jsonl"
+        # Keep artificial artifact labels compact; their absolute TEMP roots also
+        # enter review context and the production prompt ceiling remains active.
+        path = self.root / f"unit-{self.uid}.jsonl"
         path.write_text(
             json.dumps({"injected_test_final": value, "unit": self.uid}),
             encoding="utf8",
@@ -201,19 +202,3 @@ class StagePipelineFixture(unittest.TestCase):
         self.pipeline.begin_task(task["task_sha256"])
         self.pipeline.accept(task["task_sha256"], self.receipt(task, text))
         return task
-
-
-class SemanticStagePipelineFixture(StagePipelineFixture):
-    """Retain historical nine-phase semantics under a test-only 16 KiB ceiling.
-
-    This fixture does not attest production context readiness. Actual 10,000-byte
-    policy checks use StagePipelineFixture directly without this override.
-    """
-
-    def setUp(self):
-        override = patch(
-            "research_workspace_native.stage_pipeline.MAX_PROMPT_BYTES", 16384
-        )
-        override.start()
-        self.addCleanup(override.stop)
-        super().setUp()
