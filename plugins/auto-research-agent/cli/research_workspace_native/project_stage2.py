@@ -57,6 +57,10 @@ def _verified_inputs(binding, inputs):
         ),
         "stage1 manifest",
     )
+    _check(
+        manifest.get("canonical_records", {}).get("schema_version") != "1.1.0",
+        "stage2-canonical-records-1.1-consumer-unconnected",
+    )
     handoff = decode(
         _raw(inputs["handoff_path"], inputs["handoff_sha256"]), "stage1 handoff"
     )

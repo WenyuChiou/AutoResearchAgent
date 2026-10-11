@@ -29,6 +29,19 @@ from .session_api import _check
 
 MAX_ENTRIES = 1024
 MAX_RECORDS = 256
+READING_ACTION_FIELDS = {
+    "key",
+    "revision",
+    "input_version",
+    "brief_sha256",
+    "ledger_state_sha256",
+    "output_ref",
+    "draft_sha256",
+    "offer_ref",
+    "offer_sha256",
+    "review",
+    "confirmed",
+}
 
 
 class ProjectStage1RecordsService:
@@ -83,7 +96,9 @@ class ProjectStage1RecordsService:
 
         return check
 
-    def _register(self, project_ref, context, kind, payload, check_current):
+    def _register(
+        self, project_ref, context, kind, payload, check_current, action_body=None
+    ):
         principal, state, binding, *_ = context
         entry = dict(basis=self._basis(context), payload=payload)
         _check(
@@ -98,6 +113,39 @@ class ProjectStage1RecordsService:
             brief_sha256=binding["brief_sha256"],
             entry_sha256=digest,
         )
+        if action_body is not None:
+            _check(
+                kind == "stage1-reading-registry"
+                and type(action_body) is dict
+                and "entry_sha256" not in action_body,
+                "saved-reading-action-body-invalid",
+                400,
+            )
+            _keys(action_body, READING_ACTION_FIELDS, "human saved reading action")
+            _keys(
+                action_body["review"],
+                ("classification", "findings", "roles"),
+                "human reading review",
+            )
+            _check(
+                action_body["confirmed"] is True
+                and action_body["input_version"] == binding["input_version"]
+                and action_body["brief_sha256"] == binding["brief_sha256"]
+                and action_body["ledger_state_sha256"] == context[5]["state_sha256"]
+                and all(
+                    action_body["review"][field] == payload[field]
+                    for field in ("classification", "findings", "roles")
+                ),
+                "saved-reading-action-binding-differs",
+            )
+            body = deepcopy(action_body)
+
+        def reserve(current, _, __):
+            check_current()
+            _check(
+                entry["ref"] not in current.get("stage1_saved_registries", {}),
+                "saved-reading-entry-already-registered",
+            )
 
         def save(current, _, __):
             entries = current.setdefault("stage1_saved_registries", {})
@@ -106,7 +154,13 @@ class ProjectStage1RecordsService:
             return {"registry_entry": entry}
 
         result = self.intake._perform(
-            principal, project_ref, kind, body, save, check_deadline=check_current
+            principal,
+            project_ref,
+            kind,
+            body,
+            save,
+            check_deadline=check_current,
+            **({"reserve": reserve} if action_body is not None else {}),
         )
         _check(result["status"] == "saved", "stage1-saved-registration-unobserved")
         return deepcopy(result["registry_entry"])
@@ -138,9 +192,37 @@ class ProjectStage1RecordsService:
                 "stage1-saved-registry-action-differs",
             )
             entry = receipt["registry_entry"]
+            request = receipt["request"]
+            if "entry_sha256" not in request:
+                _keys(
+                    request,
+                    READING_ACTION_FIELDS - {"revision"},
+                    "human saved reading action",
+                )
+                _keys(
+                    request["review"],
+                    ("classification", "findings", "roles"),
+                    "human reading review",
+                )
+                _check(
+                    receipt["kind"] == "stage1-reading-registry"
+                    and request["confirmed"] is True
+                    and request["input_version"]
+                    == entry["basis"]["binding"]["input_version"]
+                    and request["brief_sha256"]
+                    == entry["basis"]["binding"]["brief_sha256"]
+                    and all(
+                        request["review"][field] == entry["payload"][field]
+                        for field in ("classification", "findings", "roles")
+                    ),
+                    "stage1-saved-registry-receipt-differs",
+                )
             _check(
                 entry["ref"] == receipt["kind"] + "-" + entry["sha256"]
-                and receipt["request"]["entry_sha256"] == entry["sha256"],
+                and (
+                    "entry_sha256" not in request
+                    or request["entry_sha256"] == entry["sha256"]
+                ),
                 "stage1-saved-registry-receipt-differs",
             )
             observed.append(entry)
@@ -227,6 +309,10 @@ class ProjectStage1RecordsService:
                 )
 
     def _reading(self, context, value, source_entries):
+        core = value.get("schema_version") == "1.1.0"
+        _check(
+            "schema_version" not in value or core, "saved-reading-version-unsupported"
+        )
         _keys(
             value,
             (
@@ -240,6 +326,7 @@ class ProjectStage1RecordsService:
                 "findings",
                 "roles",
                 "claims",
+                *(("schema_version",) if core else ()),
             ),
             "saved reading",
         )
@@ -300,6 +387,11 @@ class ProjectStage1RecordsService:
                 "saved exact claim span",
             )
             event = events.get(claim["claim_id"])
+            if core:
+                self._core_span(
+                    ledger, value, selected, sources, events, seen, claim, event
+                )
+                continue
             _check(
                 event is not None
                 and event["kind"] == "ClaimEvidence"
@@ -363,14 +455,167 @@ class ProjectStage1RecordsService:
             roles.add(role["role"])
         return candidate, selected
 
-    def register_reading(self, project_ref, *, reading, expected_ledger_state_sha256):
+    @staticmethod
+    def _core_span(ledger, value, selected, sources, events, seen, claim, event):
+        from stage1_deliverable.core_records import RELATIONS, LEVELS
+
+        _check(
+            event is not None
+            and event["kind"] == "ClaimEvidence"
+            and event["work_id"] == value["work_id"]
+            and event["version_id"] == selected
+            and event["relation"] in RELATIONS
+            and event["evidence_level"] in LEVELS,
+            "saved-reading-claim-enum-or-binding-differs",
+        )
+        _check(
+            claim["claim_id"] not in seen,
+            "saved-reading-claim-duplicate-or-source-differs",
+        )
+        seen.add(claim["claim_id"])
+        source_id = claim["source_id"]
+        if source_id is None:
+            _check(
+                event["source_ref"]["producer"] not in sources,
+                "saved-reading-claim-source-differs",
+            )
+        else:
+            _check(
+                source_id in sources and event["source_ref"]["producer"] == source_id,
+                "saved-reading-claim-source-differs",
+            )
+            finish = events[sources[source_id]["finish_event_id"]]
+            _check(
+                event["source_ref"] in (finish["raw_ref"], finish["text_ref"]),
+                "saved-reading-claim-source-differs",
+            )
+        raw = ledger.read_ref(event["source_ref"])
+        _check(claim["text_sha256"] == sha(raw), "saved-reading-claim-span-differs")
+        if event["locator"] is None:
+            _check(
+                all(claim[k] is None for k in ("start", "end", "quote")),
+                "saved-reading-null-locator-differs",
+            )
+        else:
+            text = raw.decode("utf8")
+            _check(
+                type(claim["start"]) is int
+                and type(claim["end"]) is int
+                and 0 <= claim["start"] < claim["end"] <= len(text)
+                and text[claim["start"] : claim["end"]]
+                == claim["quote"]
+                == event["locator"]["quote"],
+                "saved-reading-claim-span-differs",
+            )
+
+    def derive_reading_payload(
+        self,
+        project_ref,
+        work_id,
+        *,
+        classification,
+        findings,
+        roles,
+        expected_ledger_state_sha256,
+    ):
+        """Read exact current spans for an explicit human review; never save it."""
+        with self.intake._lock:
+            context = self._context(project_ref, expected_ledger_state_sha256)
+            ledger = context[4]
+            evidence = ledger.coverage_state().evidence
+            candidate = ledger.candidates().get(work_id)
+            _check(
+                candidate is not None and work_id in evidence.decisions,
+                "saved-reading-work-unavailable",
+            )
+            review = evidence.current().get(work_id)
+            selected = (
+                review["version_id"]
+                if review
+                else candidate["discoveries"][-1]["version_id"]
+            )
+            source_entries = [
+                entry["payload"]
+                for entry in self._entries(context)
+                if entry["ref"].startswith("stage1-source-registry-")
+            ]
+            source_ids = [
+                s["source_id"]
+                for s in source_entries
+                if s["work_id"] == work_id and s["version_id"] == selected
+            ]
+            spans = []
+            for row in ledger.events():
+                event = row["payload"]
+                if event["kind"] != "ClaimEvidence" or (
+                    event["work_id"],
+                    event["version_id"],
+                ) != (work_id, selected):
+                    continue
+                raw = ledger.read_ref(event["source_ref"])
+                quote = event["locator"]["quote"] if event["locator"] else None
+                start = None
+                if quote is not None:
+                    text = raw.decode("utf8")
+                    start = text.find(quote)
+                    _check(
+                        start >= 0 and text.find(quote, start + 1) < 0,
+                        "saved-reading-claim-quote-ambiguous",
+                    )
+                spans.append(
+                    dict(
+                        claim_id=event["event_id"],
+                        source_id=event["source_ref"]["producer"]
+                        if event["source_ref"]["producer"] in source_ids
+                        else None,
+                        text_sha256=sha(raw),
+                        start=start,
+                        end=start + len(quote) if quote is not None else None,
+                        quote=quote,
+                    )
+                )
+            payload = dict(
+                schema_version="1.1.0",
+                work_id=work_id,
+                version_id=selected,
+                candidate_event_id=candidate["event_id"],
+                decision_event_id=evidence.decisions[work_id]["event_id"],
+                review_event_id=review["event_id"] if review else None,
+                source_ids=source_ids,
+                classification=deepcopy(classification),
+                findings=deepcopy(findings),
+                roles=deepcopy(roles),
+                claims=spans,
+            )
+            self._reading(context, payload, source_entries)
+            return payload
+
+    def register_reading(
+        self,
+        project_ref,
+        *,
+        reading,
+        expected_ledger_state_sha256,
+        action_body=None,
+        check_current=None,
+    ):
         reading = deepcopy(reading)
         with self.intake._lock:
             context = self._context(project_ref, expected_ledger_state_sha256)
             with self.guard(*context[3:6]) as guard_check:
-                check_current = self._mutation_check(
+                original_check = self._mutation_check(
                     project_ref, expected_ledger_state_sha256, guard_check
                 )
+                extra_check = check_current
+
+                def check_current():
+                    if extra_check is not None:
+                        extra_check()
+                    fresh = original_check()
+                    if extra_check is not None:
+                        extra_check()
+                    return fresh
+
                 context = check_current()
                 sources = [
                     entry["payload"]
@@ -386,6 +631,7 @@ class ProjectStage1RecordsService:
                     "stage1-reading-registry",
                     reading,
                     check_current,
+                    action_body,
                 )
 
     def _records(self, context, entries):
@@ -401,6 +647,8 @@ class ProjectStage1RecordsService:
             if entry["ref"].startswith("stage1-reading-registry-")
         ]
         events = {row["payload"]["event_id"]: row["payload"] for row in ledger.events()}
+        journal = {row["payload"]["event_id"]: row for row in ledger.events()}
+        core = any(row.get("schema_version") == "1.1.0" for row in readings)
         papers, claims, source_rows = [], [], []
         _check(
             len(ledger.candidates()) <= MAX_RECORDS and len(sources) <= MAX_RECORDS,
@@ -449,10 +697,17 @@ class ProjectStage1RecordsService:
                         source_id=span["source_id"],
                         relation=event["relation"],
                         evidence_level=event["evidence_level"],
-                        locator=f"characters {span['start']}:{span['end']}",
+                        locator=f"characters {span['start']}:{span['end']}"
+                        if event["locator"] is not None
+                        else None,
                         start=span["start"],
                         end=span["end"],
                         quote=span["quote"],
+                        **(
+                            {"core_event": deepcopy(journal[span["claim_id"]])}
+                            if core
+                            else {}
+                        ),
                     )
                 )
             papers.append(
@@ -520,7 +775,7 @@ class ProjectStage1RecordsService:
         ]
         records = dict(
             kind="Stage1ResearchRecords",
-            schema_version="1.0.0",
+            schema_version="1.1.0" if core else "1.0.0",
             topic=ledger.manifest["research_run"]["objective"],
             as_of=context[6]["created_at"],
             papers=papers,
@@ -529,13 +784,45 @@ class ProjectStage1RecordsService:
             screening=screening,
             coverage=needs,
         )
+        if core:
+            from stage1_deliverable.core_records import artifact_path
+
+            history = [
+                deepcopy(row)
+                for row in journal.values()
+                if row["payload"]["kind"] == "ClaimEvidence"
+            ]
+            refs = {
+                canonical(row["payload"]["source_ref"]): row["payload"]["source_ref"]
+                for row in history
+            }
+            records.update(
+                core_claim_history=history,
+                core_artifacts=[
+                    dict(source_ref=deepcopy(ref), artifact_path=artifact_path(ref))
+                    for ref in refs.values()
+                ],
+            )
         validate_records(records)
-        _records_match(records, ledger, self.root)
+        _records_match(records, ledger, self.root, check_core_archives=False)
         return records
 
     def produce_records(
-        self, project_ref, *, expected_ledger_state_sha256, expected_checkpoint_event_id
+        self,
+        project_ref,
+        *,
+        expected_ledger_state_sha256,
+        expected_checkpoint_event_id,
+        action_body=None,
+        check_current=None,
     ):
+        _check(
+            check_current is None or callable(check_current),
+            "saved-producer-extra-check-required",
+        )
+        extra_check = check_current
+        if extra_check is not None:
+            extra_check()
         with self.intake._lock:
             context = self._context(
                 project_ref, expected_ledger_state_sha256, require_checkpoint=True
@@ -554,6 +841,7 @@ class ProjectStage1RecordsService:
                 )
                 entries = self._entries(context)
                 records = self._records(context, entries)
+                ledger = context[4]
                 raw = canonical(records) + b"\n"
                 _check(len(raw) <= MAX_RECORD_BYTES, "stage1-saved-records-too-large")
                 digest = sha(raw)
@@ -578,9 +866,36 @@ class ProjectStage1RecordsService:
                     records_sha256=digest,
                 )
                 path = safe_path(self.root, body["key"] + ".json")
+                if action_body is not None:
+                    _keys(
+                        action_body,
+                        (
+                            "key",
+                            "revision",
+                            "input_version",
+                            "brief_sha256",
+                            "ledger_state_sha256",
+                            "checkpoint_event_id",
+                            "confirmed",
+                        ),
+                        "human records preparation",
+                    )
+                    _check(
+                        action_body["confirmed"] is True
+                        and action_body["input_version"] == binding["input_version"]
+                        and action_body["brief_sha256"] == binding["brief_sha256"]
+                        and action_body["ledger_state_sha256"]
+                        == expected_ledger_state_sha256
+                        and action_body["checkpoint_event_id"]
+                        == expected_checkpoint_event_id,
+                        "saved-records-action-binding-differs",
+                    )
+                    body = deepcopy(action_body)
                 write_error = []
 
                 def check_current():
+                    if extra_check is not None:
+                        extra_check()
                     if write_error:
                         raise OSError(write_error[0])
                     current = check_frontier()
@@ -588,10 +903,29 @@ class ProjectStage1RecordsService:
                         current[6]["event_id"] == expected_checkpoint_event_id,
                         "stage1-checkpoint-event-differs",
                     )
+                    if extra_check is not None:
+                        extra_check()
 
                 def write(current, _, __):
-                    temporary = safe_path(self.root, body["key"] + ".partial")
+                    temporary = path.with_suffix(".partial")
                     try:
+                        check_current()
+                        if records["schema_version"] == "1.1.0":
+                            for artifact in records["core_artifacts"]:
+                                target = safe_path(self.root, artifact["artifact_path"])
+                                target.parent.mkdir(exist_ok=True)
+                                observed = ledger.read_ref(artifact["source_ref"])
+                                check_current()
+                                if not target.exists():
+                                    with target.open("xb") as stream:
+                                        _check(
+                                            stream.write(observed) == len(observed),
+                                            "stage1-records-partial-write",
+                                        )
+                                        stream.flush()
+                                        os.fsync(stream.fileno())
+                                _raw(target, artifact["source_ref"]["sha256"])
+                            _records_match(records, ledger, self.root)
                         with temporary.open("xb") as stream:
                             _check(
                                 stream.write(raw) == len(raw),
@@ -600,9 +934,11 @@ class ProjectStage1RecordsService:
                             stream.flush()
                             os.fsync(stream.fileno())
                         _raw(temporary, digest)
+                        check_current()
                         # Exclusive publication cannot overwrite another name.
                         os.link(temporary, path)
                         temporary.unlink()
+                        check_current()
                     except (ValueError, OSError, KeyError, TypeError) as error:
                         # Return the attempted output to the shared store first;
                         # its post-work check records unknown with observation.
@@ -629,10 +965,17 @@ class ProjectStage1RecordsService:
                 _raw(path, digest)
                 # A distinct durable registration reuses its own content key.
                 # A partial file/action never becomes an offer or acceptance.
-                return self.delivery.register_records(
+                check_current()
+                offer = self.delivery.register_records(
                     project_ref,
                     records_path=path,
                     expected_records_sha256=digest,
                     expected_ledger_state_sha256=expected_ledger_state_sha256,
                     check_deadline=check_current,
+                )
+                check_current()
+                return (
+                    dict(result, delivery_offer=offer)
+                    if action_body is not None
+                    else offer
                 )

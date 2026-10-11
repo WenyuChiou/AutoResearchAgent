@@ -84,6 +84,10 @@ def wiki_files(index) -> dict[str, bytes]:
         )
     if availability is not None:
         readme += "## Saved-source availability\n\n" + _fence(availability["counts"])
+    if index["schema_version"] == "1.1.0":
+        readme += "## Original Core claim history\n\n" + _fence(
+            index["core_claim_history"]
+        )
     for ordinal, paper in enumerate(index["papers"]):
         identity = [paper["work_id"], paper["version_id"]]
         filename = sha(canonical(identity)) + ".md"
@@ -102,6 +106,14 @@ def wiki_files(index) -> dict[str, bytes]:
                 "pointer": f"/papers/{ordinal}",
             }
         )
+        if index["schema_version"] == "1.1.0":
+            note += "## Original Core claim history for this work\n\n" + _fence(
+                [
+                    row
+                    for row in index["core_claim_history"]
+                    if row["payload"]["work_id"] == paper["work_id"]
+                ]
+            )
         note += "## Original complete paper record\n\n" + _fence(paper)
         findings = paper.get("findings") or {}
         for field, label in FINDINGS:

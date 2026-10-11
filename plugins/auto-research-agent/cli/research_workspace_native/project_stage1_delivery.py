@@ -80,7 +80,7 @@ def _checkpoint(ledger, report):
     return checkpoint, ref, handoff
 
 
-def _records_match(records, ledger, root):
+def _records_match(records, ledger, root, *, check_core_archives=True):
     """Enrichment must refer to saved observations, never invent their history."""
     validate_records(records)
     _check(
@@ -224,6 +224,35 @@ def _records_match(records, ledger, root):
     )
     for claim in records["claims"]:
         event = events.get(claim["claim_id"])
+        if records["schema_version"] == "1.1.0":
+            journal = next(
+                row
+                for row in ledger.events()
+                if row["payload"]["event_id"] == claim["claim_id"]
+            )
+            _check(journal == claim["core_event"], "stage1-claim-history-differs")
+            producer = event["source_ref"]["producer"]
+            expected_source_id = producer if producer in source_receipts else None
+            _check(
+                claim["source_id"] == expected_source_id,
+                "stage1-claim-source-bytes-differ",
+            )
+            if claim["source_id"] is not None:
+                source = events.get(claim["source_id"])
+                _check(
+                    source is not None
+                    and source["kind"] == "SourceReadStarted"
+                    and source["event_id"] == event["source_ref"]["producer"],
+                    "stage1-claim-source-bytes-differ",
+                )
+            raw = ledger.read_ref(event["source_ref"])
+            if claim["locator"] is not None:
+                text = raw.decode("utf8")
+                _check(
+                    text[claim["start"] : claim["end"]] == claim["quote"],
+                    "stage1-claim-span-differs",
+                )
+            continue
         _check(
             event is not None
             and event["kind"] == "ClaimEvidence"
@@ -252,6 +281,15 @@ def _records_match(records, ledger, root):
             text[claim["start"] : claim["end"]] == claim["quote"],
             "stage1-claim-span-differs",
         )
+    if records["schema_version"] == "1.1.0":
+        from stage1_deliverable.core_records import read_artifacts
+
+        history = [
+            row for row in ledger.events() if row["payload"]["kind"] == "ClaimEvidence"
+        ]
+        _check(records["core_claim_history"] == history, "stage1-claim-history-differs")
+        if check_core_archives:
+            read_artifacts(records, root)
 
 
 def _source_attempt(receipt):
