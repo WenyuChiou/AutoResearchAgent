@@ -769,6 +769,10 @@ class ProjectStage1QueryService:
         This is not a browser endpoint or a search admission. It protects saved
         producers that already checked project ownership/current input binding.
         """
+        require(
+            not self.closing and getattr(self.stage1, "query_service", None) is self,
+            "project-query-saved-owner-unavailable",
+        )
         service = self.services.get(ref)
         require(service is not None, "project-query-owner-reopen-required")
         with service._lock:

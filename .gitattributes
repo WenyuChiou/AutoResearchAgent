@@ -83,3 +83,4 @@ review-evidence/stage1-main329-integration-20261011/*.json whitespace=cr-at-eol
 review-evidence/stage1-main329-integration-20261011/*.log binary
 review-evidence/stage1-saved-records-20261011/OWNER_GUARD.md text eol=lf
 review-evidence/stage1-saved-records-20261011/owner-guard-manifest.json text eol=lf
+review-evidence/stage1-screening-library-20261011/backend-final32.log -text whitespace=cr-at-eol

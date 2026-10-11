@@ -10,6 +10,7 @@ from unittest.mock import patch
 from planned_query_fixture import QueryCase
 import project_stage1_query_cases as helpers
 from research_workspace_native.session_api import SessionApiError
+from research_workspace_native.project_stage1_library import ProjectStage1LibraryService
 from stage1_deliverable.common import canonical, sha
 from stage1_ledger.validation import validate_run
 from test_workspace_project_intake import bound_body
@@ -65,6 +66,108 @@ class ProjectQueryHistoryCases(QueryCase):
         self.assertEqual(observed["status"], "completed", observed)
         self.assertEqual(observed.get("outcome"), "observed", observed)
         return observed
+
+    def saved_inventory(self):
+        """Semantic stores plus physical artifacts, excluding SQLite lock files."""
+        case = self.case
+        service = case.queries.services[case.ref]
+        return (
+            {
+                path.relative_to(case.root).as_posix(): sha(path.read_bytes())
+                for path in case.root.rglob("*")
+                if path.is_file() and ".sqlite" not in path.name
+            },
+            tuple(case.intake.db.iterdump()),
+            tuple(service.store.db.iterdump()),
+            len(case.children),
+        )
+
+    def test_screening_get_refuses_closing_and_replaced_outer_owner_without_restore(
+        self,
+    ):
+        case = self.initialized()
+        library = ProjectStage1LibraryService(case.stage1)
+        original = library.read("alice-token", case.ref)
+        before = self.saved_inventory()
+        with (
+            patch.object(case.queries, "closing", True),
+            patch.object(
+                case.queries, "reopen", side_effect=AssertionError("GET restored")
+            ),
+            patch.object(
+                case.queries,
+                "restore_owner",
+                side_effect=AssertionError("GET restored"),
+            ),
+            self.assertRaisesRegex(
+                SessionApiError, "project-query-saved-owner-unavailable"
+            ),
+        ):
+            library.read("alice-token", case.ref)
+        self.assertEqual(before, self.saved_inventory())
+        self.assertEqual(original, library.read("alice-token", case.ref))
+
+        # A new real bridge has no live owner. GET must not adopt the still-held
+        # old owner's connection or perform explicit restore_owner on its behalf.
+        case.stage1.query_service = None
+        replacement = case.bridge()
+        before = self.saved_inventory()
+        with (
+            patch.object(
+                replacement, "reopen", side_effect=AssertionError("GET restored")
+            ),
+            patch.object(
+                replacement, "restore_owner", side_effect=AssertionError("GET restored")
+            ),
+        ):
+            with self.assertRaisesRegex(
+                SessionApiError, "project-query-saved-owner-unavailable"
+            ):
+                case.queries.saved_frontier(case.ref)
+            with self.assertRaisesRegex(
+                SessionApiError, "project-query-owner-reopen-required"
+            ):
+                library.read("alice-token", case.ref)
+        self.assertEqual(replacement.services, {})
+        self.assertEqual(before, self.saved_inventory())
+        self.assertEqual(case.children, [])
+
+    def test_screening_get_refuses_inner_closing_and_real_sqlite_owner_loss(self):
+        case = self.initialized()
+        library = ProjectStage1LibraryService(case.stage1)
+        original = library.read("alice-token", case.ref)
+        service = case.queries.services[case.ref]
+        before = self.saved_inventory()
+        with (
+            patch.object(service, "_closing", True),
+            self.assertRaisesRegex(SessionApiError, "query-service-closing"),
+        ):
+            library.read("alice-token", case.ref)
+        self.assertEqual(before, self.saved_inventory())
+        self.assertEqual(original, library.read("alice-token", case.ref))
+
+        # Release the actual SQLite owner transaction, not a synthetic facade.
+        project = service._projects[case.ref]
+        connection = service.store._owners[project["pid"]][1]
+        self.assertTrue(connection.in_transaction)
+        connection.rollback()
+        self.assertFalse(connection.in_transaction)
+        before = self.saved_inventory()
+        with (
+            patch.object(
+                case.queries, "reopen", side_effect=AssertionError("GET reclaimed")
+            ),
+            patch.object(
+                case.queries,
+                "restore_owner",
+                side_effect=AssertionError("GET reclaimed"),
+            ),
+            self.assertRaisesRegex(SessionApiError, "query-ledger-owner-lost"),
+        ):
+            library.read("alice-token", case.ref)
+        self.assertFalse(connection.in_transaction)
+        self.assertEqual(before, self.saved_inventory())
+        self.assertEqual(case.children, [])
 
     def test_outer_counter_reset_rejects_before_a_new_backend_attempt(self):
         case = self.initialized()
