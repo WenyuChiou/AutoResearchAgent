@@ -67,3 +67,4 @@ review-evidence/project-search-bridge-20261011/** -text
 review-evidence/project-search-bridge-20261011/**/*.json whitespace=cr-at-eol
 review-evidence/project-search-bridge-20261011/**/*.log binary
 review-evidence/project-search-bridge-20261011/**/*.bin binary
+review-evidence/project-search-bridge-20261011/delivery-final24/commit-message.txt whitespace=cr-at-eol
