@@ -78,11 +78,24 @@ class OwnedProcessTests(OwnedProcessCase):
 
     def test_lifetime_expires_even_with_no_ui_calls(self):
         self.child.write_text("import time\ntime.sleep(30)\n", encoding="utf8")
-        channel = self.channel(lifetime=0.3)
-        time.sleep(0.5)
+        # Admission consumes lifetime too; leave room to reach the watchdog.
+        channel = self.channel(lifetime=5)
+        time.sleep(5.2)
         self.assertTrue(channel.closed)
         self.assertTrue(channel.reap()["leader_reaped"])
         self.assertIn("TimeoutError", channel.failure)
+
+    def test_lifetime_cleanup_survives_slow_admission(self):
+        from research_workspace_native.process_channel import OwnedProcessChannel
+
+        admit = OwnedProcessChannel._admit
+
+        def slow_admit(channel):
+            time.sleep(0.35)
+            return admit(channel)
+
+        with patch.object(OwnedProcessChannel, "_admit", slow_admit):
+            self.test_lifetime_expires_even_with_no_ui_calls()
 
     def test_stream_overflow_closes_and_reports_failure(self):
         self.child.write_text(
@@ -202,12 +215,17 @@ class OwnedProcessTests(OwnedProcessCase):
 
     def test_close_starts_physical_cleanup_while_other_thread_holds_store(self):
         channel = self.channel()
-        entered, release = threading.Event(), threading.Event()
+        entered, release, left = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
 
         def holder():
             with self.store._lock:
                 entered.set()
-                release.wait(2)
+                release.wait(10)
+                left.set()
 
         worker = threading.Thread(target=holder)
         worker.start()
@@ -216,13 +234,16 @@ class OwnedProcessTests(OwnedProcessCase):
             start = time.monotonic()
             channel.close()
             self.assertLess(time.monotonic() - start, 0.2)
-            until = time.monotonic() + 1
+            until = time.monotonic() + 5
             while channel.process.poll() is None and time.monotonic() < until:
                 time.sleep(0.01)
             self.assertIsNotNone(channel.process.poll())
+            self.assertFalse(left.is_set())
+            self.assertFalse(channel._cleanup_done.is_set())
         finally:
             release.set()
             worker.join(2)
+        self.assertFalse(worker.is_alive())
         self.assertTrue(channel.reap()["leader_reaped"])
 
     def test_sqlite_writer_lock_cannot_delay_lease_physical_cleanup(self):
@@ -257,11 +278,20 @@ class OwnedProcessTests(OwnedProcessCase):
             competing.execute("BEGIN IMMEDIATE")
             channel.deadline = time.monotonic() + 0.3
             lease_gate.set()
-            until = time.monotonic() + 1.5
-            while channel.process.poll() is None and time.monotonic() < until:
+            # Close intent and leader exit precede publication of the physical
+            # report. Observe that phase while the writer lock still blocks
+            # the journal, without treating scheduler latency as a lease limit.
+            until = time.monotonic() + 5
+            while (
+                channel.process.poll() is None
+                or not isinstance(channel._cleanup_result, dict)
+                or "journal_cleanup_observed" not in channel._cleanup_result
+            ) and time.monotonic() < until:
                 time.sleep(0.02)
             self.assertTrue(channel.closed)
             self.assertIsNotNone(channel.process.poll())
+            self.assertIsInstance(channel._cleanup_result, dict)
+            self.assertIn("journal_cleanup_observed", channel._cleanup_result)
             with self.assertRaises(TimeoutError):
                 channel.reap(timeout=0.1)
             self.assertFalse(channel._cleanup_result["journal_cleanup_observed"])
@@ -283,6 +313,19 @@ class OwnedProcessTests(OwnedProcessCase):
             return observe(channel, event, **payload)
 
         with patch.object(OwnedProcessChannel, "_observe", slow_started):
+            self.test_sqlite_writer_lock_cannot_delay_lease_physical_cleanup()
+
+    def test_sqlite_cleanup_waits_for_physical_report_publication(self):
+        import research_workspace_native.process_channel as module
+
+        original = module._cleanup
+
+        def delayed_report(process):
+            result = original(process)
+            time.sleep(1.8)
+            return result
+
+        with patch.object(module, "_cleanup", side_effect=delayed_report):
             self.test_sqlite_writer_lock_cannot_delay_lease_physical_cleanup()
 
     def test_store_lock_and_sqlite_busy_raw_write_return_at_deadline(self):
