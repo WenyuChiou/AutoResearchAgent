@@ -1,0 +1,12 @@
+{"command": ["D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe", "-B", "-X", "utf8", "-m", "unittest", "-v", "test_stage1_core_records"], "head": "90b8aa3deaf01565fedfa9d0f884e140cb8ec951", "scope": "Actual B checkout; authored source/HTTP, real SDK/Core/SQLite, no native/model/search"}
+test_complete_core_history_package_projection_and_wiki_without_promotion (test_stage1_core_records.CoreRecordsTests.test_complete_core_history_package_projection_and_wiki_without_promotion) ... ok
+test_human_preparation_preserves_request_hash_deadline_and_no_rewrite (test_stage1_core_records.CoreRecordsTests.test_human_preparation_preserves_request_hash_deadline_and_no_rewrite) ... ok
+test_human_registry_uses_original_request_hash_and_preserves_history (test_stage1_core_records.CoreRecordsTests.test_human_registry_uses_original_request_hash_and_preserves_history) ... ok
+test_legacy_records_and_rendered_formats_remain_legacy (test_stage1_core_records.CoreRecordsTests.test_legacy_records_and_rendered_formats_remain_legacy) ... ok
+test_rewritten_event_nullable_span_and_incomplete_history_refused (test_stage1_core_records.CoreRecordsTests.test_rewritten_event_nullable_span_and_incomplete_history_refused) ... ok
+test_stage2_explicitly_refuses_new_format_before_import (test_stage1_core_records.CoreRecordsTests.test_stage2_explicitly_refuses_new_format_before_import) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 78.700s
+
+OK
