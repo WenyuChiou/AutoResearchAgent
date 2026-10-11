@@ -294,3 +294,28 @@ owner refusal before or after a raw save, and the fixed materials root. The
 captured run passed 8 tests in 13.960s with unchanged source inventories. This
 is an offline helper result; the production owner wrapper, source worker, real
 acquisition, model reading and full Stage 1 acceptance need separate evidence.
+
+## Distinct controlled acquisition and saved-public parsing
+
+`acquired_source_parser.parse_acquired_source` verifies an externally saved
+`PublicSourceAcquisitionReceipt`, its exact server request/job/runtime binding,
+every bounded raw response, selected successful hop and original hashes. It
+requires literal parse admission and an explicitly supplied trusted runner;
+the default refuses before parsing. Original acquisition bytes are retained.
+An exclusive intent and saved-public manifest precede the runner, and repeated
+or ambiguous work cannot adopt an old output or automatically retry.
+
+The SDK's public `import_saved_public_source` parser writes a separate receipt.
+Its `source import-saved` operation, two saved-input attempts and
+`original_http_acquisition_verified=False` remain unchanged. The returned
+bundle binds both original receipts and all declared artifacts. It cannot be
+passed off as `source fetch` or silently completed through the legacy Core
+source-observation helper. A successful body is not an identity, reading,
+claim or stage-acceptance verdict; parser failures keep their real status.
+
+An injected synchronous parser is an offline test seam. Before/after deadline
+checks cannot interrupt a hung parser; production needs a separately owned,
+bounded parser process and current job/permission/budget checks. This helper
+does not dispatch from GET, mutate Core, register a paper, grant protected
+import authority or connect the full Stage 1 UI execution path. Stage 2 keeps
+its existing source-bound interfaces; Stage 3–6 remain planned/unconnected.
