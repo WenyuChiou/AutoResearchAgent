@@ -18,6 +18,8 @@ PLUGIN_CI = {
     ".github/workflows/blocking-ci.yml",
     ".github/scripts/ci_scope.py",
     ".github/scripts/test_ci_scope.py",
+    ".github/scripts/stage1_test_scope.py",
+    ".github/scripts/test_stage1_test_scope.py",
     ".github/scripts/validate_research_pr.py",
     ".github/scripts/test_validate_research_pr.py",
     ".github/scripts/check_research_pr_dependencies.py",

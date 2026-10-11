@@ -149,7 +149,9 @@
         "A configured saved-record producer requires one existing exact project/run/root owner; intake-to-query locks and immediate precommit frontier checks reject drift without implicit reopen, search, source acquisition, model calls or acceptance. Shutdown is serialized with its commit.",
         "saved source completion grants no fetch/model authority; the owner wrapper binds the current project/decision/version/permit and final commit, and retains unknown outcomes because Core journal effects cannot roll back",
         "The acquisition parsing bridge requires explicit admission and a configured runner; synchronous before/after checks are not hard parser containment, and dual receipts cannot be converted into authenticated source fetch or scientific acceptance.",
-        "All lanes share the exact confirmed resource version; immutable reservations survive failed/unknown work. Controlled transport and saved-public parsing preserve distinct original receipts; no new source or model authority follows from a body, caller hash, fixture or CI result. Cleanup allowance and outer process containment remain separately required."
+        "All lanes share the exact confirmed resource version; immutable reservations survive failed/unknown work. Controlled transport and saved-public parsing preserve distinct original receipts; no new source or model authority follows from a body, caller hash, fixture or CI result. Cleanup allowance and outer process containment remain separately required.",
+        "Saved-record delivery requires the complete Core ClaimEvidence identity set for every selected work/version, including partial or contradictory evidence; a self-consistent reduced records hash cannot omit existing claims or change Unknown findings.",
+        "SavedSdkSourceImport is a distinct local observation after unchanged SDK import-saved parsing; original acquired/SDK/local Core times remain separate, original HTTP verification stays false, legacy fetch equality and full source/claim histories remain required."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
@@ -289,7 +291,8 @@
         "plugins/auto-research-agent/tests/test_acquired_source_parser.py",
         "plugins/auto-research-agent/tests/test_project_resource_budget.py",
         "plugins/auto-research-agent/tests/test_bounded_public_source.py",
-        "plugins/auto-research-agent/tests/test_bounded_source_resolver.py"
+        "plugins/auto-research-agent/tests/test_bounded_source_resolver.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_saved_import.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

@@ -679,6 +679,137 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
                         self.register(fixture, path)
             build.assert_not_called()
 
+    def saved_claim_history(self):
+        fixture = self.saved()
+        ledger, records = fixture["ledger"], fixture["records"]
+        original = records["claims"][0]
+        for relation in ("partial", "contradicts"):
+            claim = deepcopy(original)
+            claim_id = ledger.claim(
+                work_id=claim["work_id"],
+                version_id=claim["version_id"],
+                claim_text=claim["text"],
+                relation=relation,
+                evidence_level=claim["evidence_level"],
+                locator={"section": claim["locator"], "quote": claim["quote"]},
+                source_ref=ledger.event(original["claim_id"])["source_ref"],
+                verifier={
+                    "actor": "fixture",
+                    "actor_type": "agent",
+                    "method": "exact-span",
+                },
+            )
+            claim.update(claim_id=claim_id, relation=relation)
+            records["claims"].append(claim)
+            records["papers"][0]["claim_ids"].append(claim_id)
+        write_json(fixture["path"], records)
+        fixture["checkpoint"] = ledger.checkpoint()
+        self.assertTrue(validate_run(ledger.root)["valid"])
+        return fixture
+
+    def test_omitted_selected_claims_refuse_with_consistent_records_hash(self):
+        fixture = self.saved_claim_history()
+        before = self.intake.history("alice-token", fixture["ref"])
+        journal = fixture["ledger"].root / "stage_events.jsonl"
+        ledger_before = journal.read_bytes()
+        with patch(
+            "research_workspace_native.project_stage1_delivery.package.build"
+        ) as build:
+            for removed in ("partial", "all"):
+                with self.subTest(removed=removed):
+                    records = deepcopy(fixture["records"])
+                    records["claims"] = [
+                        row
+                        for row in records["claims"]
+                        if removed != "all" and row["relation"] != removed
+                    ]
+                    records["papers"][0]["claim_ids"] = [
+                        row["claim_id"] for row in records["claims"]
+                    ]
+                    path = fixture["path"].with_name("omitted-" + removed + ".json")
+                    write_json(path, records)
+                    with self.assertRaises(SessionApiError) as error:
+                        self.register(fixture, path)
+                    self.assertEqual(
+                        error.exception.code, "stage1-claim-history-differs"
+                    )
+            build.assert_not_called()
+        self.assertEqual(before, self.intake.history("alice-token", fixture["ref"]))
+        self.assertEqual(ledger_before, journal.read_bytes())
+
+    def test_duplicate_or_wrong_version_claims_refuse_before_delivery(self):
+        fixture = self.saved_claim_history()
+        before = self.intake.history("alice-token", fixture["ref"])
+        with patch(
+            "research_workspace_native.project_stage1_delivery.package.build"
+        ) as build:
+            for mutation in ("duplicate", "version"):
+                with self.subTest(mutation=mutation):
+                    records = deepcopy(fixture["records"])
+                    if mutation == "duplicate":
+                        records["claims"].append(deepcopy(records["claims"][0]))
+                    else:
+                        records["claims"][1]["version_id"] = "foreign-version"
+                    path = fixture["path"].with_name("claim-" + mutation + ".json")
+                    write_json(path, records)
+                    expected = (
+                        "duplicate claim_id"
+                        if mutation == "duplicate"
+                        else "wrong work/version binding"
+                    )
+                    with self.assertRaisesRegex(ValueError, expected):
+                        self.register(fixture, path)
+            build.assert_not_called()
+        self.assertEqual(before, self.intake.history("alice-token", fixture["ref"]))
+
+    def test_complete_claim_history_and_unknowns_survive_delivery_and_reopen(self):
+        fixture = self.saved_claim_history()
+        offer = self.register(fixture)
+        body = self.body(fixture, offer)
+        first = self.delivery.deliver("alice-token", fixture["ref"], body)
+        binding = self.delivery.binding(fixture["ref"])
+        output = Path(binding["deliverable_dir"])
+        manifest = read_json(output / "provenance_manifest.json")
+        self.assertEqual(first["counts"]["claims"], 3)
+        self.assertEqual(manifest["canonical_records"], fixture["records"])
+        self.assertEqual(
+            [row["relation"] for row in manifest["canonical_records"]["claims"]],
+            ["supports", "partial", "contradicts"],
+        )
+        self.assertTrue(
+            all(
+                value.startswith("Unknown:")
+                for value in manifest["canonical_records"]["papers"][0][
+                    "findings"
+                ].values()
+            )
+        )
+        before = {
+            path.relative_to(output).as_posix(): path.read_bytes()
+            for path in output.rglob("*")
+            if path.is_file()
+        }
+        self.reopen()
+        with (
+            patch(
+                "research_workspace_native.project_stage1_delivery.package.build"
+            ) as build,
+            patch(
+                "research_workspace_native.project_stage1_delivery.package.validate"
+            ) as validate,
+        ):
+            replay = self.delivery.deliver("alice-token", fixture["ref"], body)
+            self.assertTrue(replay["replayed"])
+            self.assertEqual(replay["artifact_ref"], first["artifact_ref"])
+            build.assert_not_called()
+            validate.assert_not_called()
+        after = {
+            path.relative_to(output).as_posix(): path.read_bytes()
+            for path in output.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(before, after)
+
     def test_foreign_principal_project_and_client_paths_never_build(self):
         first, second = self.saved("first"), self.saved("second")
         offer = self.register(first)

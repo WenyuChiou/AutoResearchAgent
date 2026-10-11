@@ -27,7 +27,7 @@ class ProjectHostTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="project-http-")
         self.token = "local-project-test-token-with-at-least-32-characters"
         self.projects = ProjectIntakeService(
-            Path(self.tmp.name),
+            Path(self.tmp.name).resolve(),
             authenticate=token_authenticator({self.token: "local-viewer"}),
         )
         self.host = ProjectHost(
