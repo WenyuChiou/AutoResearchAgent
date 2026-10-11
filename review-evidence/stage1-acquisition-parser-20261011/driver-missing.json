@@ -1346,11 +1346,11 @@
   },
   "scope": "Offline authored parser inputs, controlled transport/socket/resolver/process and SQLite fixtures; exact selected tests only. No actual external DNS/HTTP search/source/native/model/research/scoring.",
   "publication": {
-    "transformation": "Known local path prefixes replaced; original commands, scenarios, inventories and outcomes retained. Not a raw copy.",
+    "transformation": "Known local path prefixes including escaped representations replaced; public logs normalized CRLF to LF. Original private bytes unchanged. Not a raw copy.",
     "original_private_receipt_sha256": "9a93481187d15103c6782654ecff221ea1831596cb2902b24785c08ab92a6e47",
     "published_log_sha256": {
       "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stderr.log": "4803be644427156e367e70666ba85b64ba85a4f33e19a70e1c267471802d3687"
+      "stderr.log": "ddc4b2a7beed562f613ea7a65f90cd509f10d7f4e7a564743e980cab083a949c"
     }
   }
 }

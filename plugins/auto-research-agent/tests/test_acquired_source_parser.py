@@ -291,6 +291,44 @@ class AcquiredSourceParserTests(unittest.TestCase):
             self.assertEqual(before, self.inventory())
         self.assertEqual(self.parser_calls, 0)
 
+    def test_failure_sidecar_and_overlong_acquisition_refuse_before_parser(self):
+        arguments, receipt = self.fixture()
+        acquisition = arguments["acquisition_receipt_path"].parent
+        (acquisition / "public-source-acquisition-failure.json").write_bytes(
+            b'{"phase":"post-receipt-publication"}\n'
+        )
+        before = self.inventory()
+        with self.assertRaisesRegex(SessionApiError, "acquisition-failure-observed"):
+            parse_acquired_source(**arguments)
+        self.assertEqual(self.inventory(), before)
+        self.assertEqual(self.parser_calls, 0)
+
+        arguments, receipt = self.fixture()
+        began = datetime.fromisoformat(receipt["started_at"])
+        receipt["started_at"] = (began - timedelta(seconds=31)).isoformat()
+        receipt["attempts"][0]["started_at"] = receipt["started_at"]
+        self.rehash(arguments, receipt)
+        before = self.inventory()
+        with self.assertRaisesRegex(SessionApiError, "time-order"):
+            parse_acquired_source(**arguments)
+        self.assertEqual(self.inventory(), before)
+        self.assertEqual(self.parser_calls, 0)
+
+        arguments, receipt = self.fixture()
+        original = arguments["acquisition_receipt_path"].read_bytes()
+
+        def late_failure(**kwargs):
+            result = self.runner(**kwargs)
+            failure = arguments["acquisition_receipt_path"].parent
+            (failure / "public-source-acquisition-failure.json").write_bytes(b"{}\n")
+            return result
+
+        arguments["parser_runner"] = late_failure
+        with self.assertRaisesRegex(SessionApiError, "acquisition-failure-observed"):
+            parse_acquired_source(**arguments)
+        self.assertEqual(arguments["acquisition_receipt_path"].read_bytes(), original)
+        self.assertEqual(self.parser_calls, 1)
+
     def test_rehashed_count_size_peer_and_selected_hop_tamper_refuse(self):
         for changed in ("count", "size", "bound", "peer", "status", "sequence", "uri"):
             arguments, receipt = self.fixture()
