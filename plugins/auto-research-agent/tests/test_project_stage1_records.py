@@ -648,10 +648,11 @@ class SavedStage1RecordsTests(unittest.TestCase):
         self.register_all(fixture)
         context = self.producer._context
 
-        def fail_after_file(*args):
+        def fail_after_file(*args, require_checkpoint=False):
+            self.assertTrue(require_checkpoint)
             if list(self.fixture_root.glob("stage1-records-*.json")):
                 raise OSError("authored state drift after exclusive file publication")
-            return context(*args)
+            return context(*args, require_checkpoint=require_checkpoint)
 
         with patch.object(self.producer, "_context", side_effect=fail_after_file):
             with self.assertRaises(SessionApiError) as error:
