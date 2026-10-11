@@ -91,11 +91,9 @@ def _records_match(records, ledger, root):
     candidates = ledger.candidates()
     _check(set(papers) == set(candidates), "stage1-records-work-set-differs")
     events = {row["payload"]["event_id"]: row["payload"] for row in ledger.events()}
-    reviews = {
-        row["work_id"]: row
-        for row in events.values()
-        if row["kind"] == "CoverageWorkReview"
-    }
+    # Historical reviews stay in the journal. Only the Core replay's current
+    # included review may select a version after screening or discovery changes.
+    reviews = ledger.coverage_state().evidence.current()
     decisions = [row for row in events.values() if row["kind"] == "DecisionEvent"]
     recorded = {row["decision_id"]: row for row in records["screening"]}
     _check(
@@ -170,12 +168,13 @@ def _records_match(records, ledger, root):
             if row["kind"] == "SourceReadFinished"
             and row["attempt_id"] == event["event_id"]
         )
+        observed = _source_attempt(receipt)
         _check(
             finish["outcome"] == _source_outcome(receipt)
             and event["source_uri"]
             == (receipt["request"]["url"] or receipt["source_url"])
             and finish["resolved_uri"] == receipt["final_url"]
-            and finish["http_status"] == receipt["attempts"][-1]["http_status"]
+            and finish["http_status"] == observed["http_status"]
             and datetime.fromisoformat(finish["observed_at"].replace("Z", "+00:00"))
             == datetime.fromisoformat(receipt["retrieved_at"].replace("Z", "+00:00")),
             "stage1-source-observation-differs",
@@ -187,7 +186,7 @@ def _records_match(records, ledger, root):
                 "stage1-source-text-bytes-differ",
             )
         if finish["raw_ref"] is not None:
-            raw_hash = receipt["raw_sha256"] or receipt["attempts"][-1]["raw_sha256"]
+            raw_hash = receipt["raw_sha256"] or observed["raw_sha256"]
             _check(
                 (
                     raw_hash == sha(ledger.read_ref(finish["raw_ref"]))
@@ -238,11 +237,36 @@ def _records_match(records, ledger, root):
         )
 
 
+def _source_attempt(receipt):
+    """Bind the selected response; terminal failures have no selected source."""
+    path, digest = receipt["raw_path"], receipt["raw_sha256"]
+    if path is None:
+        _check(
+            digest is None and receipt["status"] != "available",
+            "stage1-source-observation-differs",
+        )
+        return receipt["attempts"][-1]
+    selected = [
+        row
+        for row in receipt["attempts"]
+        if row["raw_path"] == path and row["raw_sha256"] == digest
+    ]
+    _check(
+        isinstance(path, str)
+        and bool(path)
+        and _hash(digest)
+        and len(selected) == 1
+        and selected[0]["final_url"] == receipt["final_url"],
+        "stage1-source-observation-differs",
+    )
+    return selected[0]
+
+
 def _source_outcome(receipt):
     """Explicit boundary between the fetcher's observations and ledger enums."""
     if receipt["status"] == "available":
         return "available"
-    attempt = receipt["attempts"][-1]
+    attempt = _source_attempt(receipt)
     status, outcome = attempt["http_status"], attempt["outcome"]
     if status == 429:
         return "rate_limited"

@@ -55,7 +55,9 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
         self.stage1 = ProjectStage1Service(self.intake, query_runner=self.runner)
         self.delivery = ProjectStage1DeliveryService(self.stage1)
 
-    def saved(self, key="one", topic="Aircraft diagnosis with sensor drift"):
+    def saved(
+        self, key="one", topic="Aircraft diagnosis with sensor drift", *, doi=None
+    ):
         created = self.intake.create("alice-token", {"key": key, "topic": topic})
         ref = created["project_ref"]
         self.intake.submit(
@@ -93,6 +95,8 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
             year=2024,
             version="v1",
         )
+        if doi is not None:
+            metadata["doi"] = doi
         refs = ledger.save_bytes(canonical([metadata]), producer=attempt)
         empty = ledger.save_bytes(b"", producer=attempt)
         ledger.finish(
@@ -129,7 +133,7 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
         self.inputs.mkdir()
         records = package_fixture.ResearchDeliverableTests.make_records(self)
         records_path = self.records
-        receipt = read_json(self.inputs / "source/source-fetch-result.json")
+        receipt = read_json(self.inputs / records["sources"][0]["result_path"])
         text = Path(receipt["extracted_text_path"]).read_bytes()
         raw_ref = ledger.save_bytes(
             Path(receipt["raw_path"]).read_bytes(), producer=source
@@ -164,7 +168,11 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
         )
         paper = records["papers"][0]
         paper.update(
-            work_id=work, version_id=version, source_ids=[source], claim_ids=[claim_id]
+            work_id=work,
+            version_id=version,
+            doi=doi,
+            source_ids=[source],
+            claim_ids=[claim_id],
         )
         paper["classification"] = {
             name: "Unknown: not assessed in authored fixture."
@@ -225,6 +233,306 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
             offer_ref=offer["offer_ref"],
             offer_sha256=offer["offer_sha256"],
         )
+
+    def append_screening(self, fixture, status):
+        ledger, records = fixture["ledger"], fixture["records"]
+        work = records["papers"][0]["work_id"]
+        discovery = ledger.candidates()[work]["discoveries"][-1]
+        reason = "Authored screening " + status + "; no scientific endorsement."
+        event = ledger.decide(
+            work,
+            status,
+            reason="fixture-screening",
+            rationale=reason,
+            evidence_refs=[discovery["source_ref"]],
+        )
+        row = deepcopy(records["screening"][0])
+        row.update(
+            decision_id=event,
+            status=status,
+            reason=reason,
+            observed_at=ledger.event(event)["created_at"],
+        )
+        records["screening"].append(row)
+        write_json(fixture["path"], records)
+        return event
+
+    def reviewed(self):
+        fixture = self.saved()
+        ledger, records = fixture["ledger"], fixture["records"]
+        paper = records["papers"][0]
+        self.append_screening(fixture, "include")
+        review = ledger.review_work(
+            work_id=paper["work_id"],
+            version_id=paper["version_id"],
+            cluster_claims={records["coverage"][0]["need_id"]: paper["claim_ids"][0]},
+            identity_status="unverifiable",
+            identity_claims={
+                key: None
+                for key in ("title", "authors", "year", "identifier", "version")
+            },
+            closest=False,
+            assessor="fixture",
+            rationale="Authored cluster attestation; identity remains unverified.",
+        )
+        fixture["checkpoint"] = ledger.checkpoint()
+        self.assertTrue(validate_run(ledger.root)["valid"])
+        self.assertEqual(
+            ledger.coverage_state().evidence.current()[paper["work_id"]], review
+        )
+        return fixture, review
+
+    def test_screening_reversal_preserves_historical_review_without_reusing_it(self):
+        fixture, review = self.reviewed()
+        previous = self.register(fixture)
+        self.append_screening(fixture, "exclude")
+        fixture["checkpoint"] = fixture["ledger"].checkpoint()
+        self.assertTrue(validate_run(fixture["ledger"].root)["valid"])
+        self.assertEqual(fixture["ledger"].coverage_state().evidence.current(), {})
+        offer = self.register(fixture)
+        self.assertNotEqual(previous["offer_ref"], offer["offer_ref"])
+        self.delivery.deliver("alice-token", fixture["ref"], self.body(fixture, offer))
+        binding = self.delivery.binding(fixture["ref"])
+        records = read_json(
+            Path(binding["deliverable_dir"]) / "provenance_manifest.json"
+        )["canonical_records"]
+        self.assertEqual(records["screening"], fixture["records"]["screening"])
+        self.assertEqual(
+            [row["status"] for row in records["screening"]],
+            ["pending", "include", "exclude"],
+        )
+        self.assertEqual(fixture["ledger"].event(review["event_id"]), review)
+        self.assertFalse(binding["eligible_for_stage2"])
+
+    def test_new_candidate_revision_uses_latest_version_and_preserves_old_review(self):
+        fixture, review = self.reviewed()
+        previous = self.register(fixture)
+        ledger, records = fixture["ledger"], fixture["records"]
+        paper = records["papers"][0]
+        work, old_version = paper["work_id"], paper["version_id"]
+        state = ledger.coverage_state()
+        planned = list(state.queries)[1]
+        query = ledger.start_planned(planned)
+        attempt = ledger.start(
+            "backend",
+            {"input": state.arguments(planned)},
+            backend="openalex",
+            parent_id=query,
+        )
+        metadata = deepcopy(ledger.candidates()[work]["discoveries"][-1]["record"])
+        metadata["version"] = "v2"
+        raw = ledger.save_bytes(canonical([metadata]), producer=attempt)
+        empty = ledger.save_bytes(b"", producer=attempt)
+        ledger.finish(
+            attempt,
+            outcome="success_nonempty",
+            http_status=200,
+            exit_code=0,
+            stdout=empty,
+            stderr=empty,
+            records=raw,
+        )
+        ledger.complete_query(query)
+        ledger.extract()
+        version = ledger.candidates()[work]["discoveries"][-1]["version_id"]
+        self.assertNotEqual(version, old_version)
+        self.assertEqual(ledger.coverage_state().evidence.current(), {})
+        source = ledger.start_source(
+            work_id=work,
+            version_id=version,
+            source_uri="https://example.org/study",
+            tool="research_hub.source_fetch",
+            request={"public_only": True},
+            actor="fixture",
+            reason="Authored new version; no external acquisition.",
+        )
+        self.inputs = fixture["path"].parent / "v2"
+        self.inputs.mkdir()
+        fresh = package_fixture.ResearchDeliverableTests.make_records(self)
+        receipt = read_json(self.inputs / "source/source-fetch-result.json")
+        raw_ref = ledger.save_bytes(
+            Path(receipt["raw_path"]).read_bytes(), producer=source
+        )
+        text_ref = ledger.save_bytes(
+            Path(receipt["extracted_text_path"]).read_bytes(), producer=source
+        )
+        ledger.finish_source(
+            attempt_id=source,
+            outcome="available",
+            observed_at=receipt["retrieved_at"].replace("+00:00", "Z"),
+            http_status=200,
+            resolved_uri=receipt["final_url"],
+            raw_ref=raw_ref,
+            text_ref=text_ref,
+            extraction={"method": "research_hub", "version": "fixture"},
+            reason="Real parser output from an authored v2 source.",
+        )
+        claim = deepcopy(records["claims"][0])
+        claim_id = ledger.claim(
+            work_id=work,
+            version_id=version,
+            claim_text=claim["text"],
+            relation=claim["relation"],
+            evidence_level=claim["evidence_level"],
+            locator={"section": claim["locator"], "quote": claim["quote"]},
+            source_ref=text_ref,
+            verifier={
+                "actor": "fixture",
+                "actor_type": "agent",
+                "method": "exact-span",
+            },
+        )
+        paper.update(version_id=version, source_ids=[source], claim_ids=[claim_id])
+        fresh["sources"][0].update(
+            source_id=source,
+            work_id=work,
+            version_id=version,
+            result_path="v2/source/source-fetch-result.json",
+        )
+        claim.update(claim_id=claim_id, source_id=source, version_id=version)
+        records.update(sources=fresh["sources"], claims=[claim])
+        for decision in records["screening"]:
+            # Core DecisionEvent is work-bound; canonical v1 has one selected
+            # version per work. Original event IDs and history stay unchanged.
+            decision["version_id"] = version
+        write_json(fixture["path"], records)
+        fixture["checkpoint"] = ledger.checkpoint()
+        self.assertTrue(validate_run(ledger.root)["valid"])
+        offer = self.register(fixture)
+        self.assertNotEqual(previous["offer_ref"], offer["offer_ref"])
+        self.delivery.deliver("alice-token", fixture["ref"], self.body(fixture, offer))
+        binding = self.delivery.binding(fixture["ref"])
+        delivered = read_json(
+            Path(binding["deliverable_dir"]) / "provenance_manifest.json"
+        )["canonical_records"]
+        self.assertEqual(delivered["papers"][0]["version_id"], version)
+        self.assertEqual(delivered["claims"][0]["claim_id"], claim_id)
+        self.assertEqual(ledger.event(review["event_id"]), review)
+        self.assertEqual(len(ledger.candidates()[work]["discoveries"]), 2)
+        self.assertFalse(binding["eligible_for_stage2"])
+
+    def test_available_source_binds_selected_response_before_failed_terminal_attempt(
+        self,
+    ):
+        original = package_fixture.ResearchDeliverableTests.make_records
+        doi = "10.5555/authored-fixture"
+        for status in (404, 503):
+            with self.subTest(terminal_status=status):
+
+                def produce(owner):
+                    records = original(owner)
+
+                    def response(url, **_):
+                        if url == "https://example.org/study":
+                            return package_fixture.Response(
+                                package_fixture.HTML, "text/html", 200
+                            )
+                        return package_fixture.Response(
+                            b"Authored inaccessible fallback", "text/plain", status
+                        )
+
+                    with (
+                        patch(
+                            "research_hub.source_fetch._resolve_host_addresses",
+                            return_value=("93.184.216.34",),
+                        ),
+                        patch("requests.Session.get", side_effect=response) as requests,
+                    ):
+                        receipt = package_fixture.fetch_public_source(
+                            output_dir=owner.inputs / "selected-source",
+                            doi=doi,
+                            url="https://example.org/study",
+                            title=package_fixture.TITLE,
+                        ).to_dict()
+                    self.assertGreater(requests.call_count, 1)
+                    self.assertEqual(receipt["status"], "available")
+                    self.assertEqual(receipt["attempts"][-1]["http_status"], status)
+                    selected = next(
+                        row
+                        for row in receipt["attempts"]
+                        if row["raw_path"] == receipt["raw_path"]
+                    )
+                    self.assertEqual(selected["http_status"], 200)
+                    self.assertEqual(selected["raw_sha256"], receipt["raw_sha256"])
+                    self.assertEqual(selected["final_url"], receipt["final_url"])
+                    path = owner.inputs / "selected-source/source-fetch-result.json"
+                    records["sources"][0].update(
+                        result_path="selected-source/source-fetch-result.json",
+                        result_sha256=sha(path.read_bytes()),
+                    )
+                    records["papers"][0]["doi"] = doi
+                    return records
+
+                with patch.object(
+                    package_fixture.ResearchDeliverableTests,
+                    "make_records",
+                    side_effect=produce,
+                ):
+                    fixture = self.saved("selected-" + str(status), doi=doi)
+                self.assertTrue(validate_run(fixture["ledger"].root)["valid"])
+                offer = self.register(fixture)
+                self.delivery.deliver(
+                    "alice-token", fixture["ref"], self.body(fixture, offer)
+                )
+                binding = self.delivery.binding(fixture["ref"])
+                manifest = read_json(
+                    Path(binding["deliverable_dir"]) / "provenance_manifest.json"
+                )
+                self.assertEqual(manifest["canonical_records"], fixture["records"])
+                self.assertFalse(binding["eligible_for_stage2"])
+
+    def test_selected_source_attempt_ambiguity_or_mismatch_rejects_before_build(self):
+        fixture = self.saved()
+        original_records = deepcopy(fixture["records"])
+        original_path = (
+            fixture["path"].parent / original_records["sources"][0]["result_path"]
+        )
+        original_bytes = original_path.read_bytes()
+        for variant in ("duplicate", "digest-mismatch"):
+            with self.subTest(variant=variant):
+                receipt = read_json(original_path)
+                selected = next(
+                    row
+                    for row in receipt["attempts"]
+                    if row["raw_path"] == receipt["raw_path"]
+                    and row["raw_sha256"] == receipt["raw_sha256"]
+                )
+                if variant == "duplicate":
+                    duplicate = deepcopy(selected)
+                    duplicate["sequence"] = len(receipt["attempts"]) + 1
+                    receipt["attempts"].append(duplicate)
+                else:
+                    receipt["raw_sha256"] = sha(b"authored selected digest mismatch")
+                receipt["receipt_sha256"] = package_fixture.sources.receipt_digest(
+                    receipt
+                )
+                package_fixture.sources.validate_receipt_shape(receipt)
+                # Rehashed adversarial copies cannot replace the saved SDK
+                # observation. Keep its original receipt and raw bytes intact.
+                tampered_path = original_path.with_name(variant + "-receipt.json")
+                write_json(tampered_path, receipt)
+                records = deepcopy(original_records)
+                records["sources"][0].update(
+                    result_path=tampered_path.relative_to(
+                        fixture["path"].parent
+                    ).as_posix(),
+                    result_sha256=sha(tampered_path.read_bytes()),
+                )
+                write_json(fixture["path"], records)
+                with patch(
+                    "research_workspace_native.project_stage1_delivery.package.build"
+                ) as build:
+                    with self.assertRaises(SessionApiError) as error:
+                        self.register(fixture)
+                    self.assertEqual(
+                        error.exception.code, "stage1-source-observation-differs"
+                    )
+                    build.assert_not_called()
+                self.assertEqual(original_path.read_bytes(), original_bytes)
+                self.assertEqual(
+                    sha(Path(fixture["receipt"]["raw_path"]).read_bytes()),
+                    fixture["receipt"]["raw_sha256"],
+                )
 
     def test_real_package_replay_preserves_unknowns_and_actual_incomplete_handoff(self):
         fixture = self.saved()
