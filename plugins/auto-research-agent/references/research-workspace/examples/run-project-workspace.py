@@ -177,6 +177,7 @@ def parser():
     value.add_argument("--views-sha256")
     value.add_argument("--stage1-query-runtime", type=Path)
     value.add_argument("--stage1-query-runtime-sha256")
+    value.add_argument("--stage1-materials-root", type=Path)
     value.add_argument("--port", type=int, default=0)
     value.add_argument("--open", action="store_true")
     value.add_argument("--enable-content-model", action="store_true")
@@ -225,6 +226,27 @@ def inspect_inputs(args):
         not any((parent / ".git").exists() for parent in (root, *root.parents)),
         "project root must stay outside every Git checkout",
     )
+    materials = getattr(args, "stage1_materials_root", None)
+    if materials is not None:
+        require(
+            query_runtime is not None, "saved Stage1 materials require query runtime"
+        )
+        materials = unlinked(materials)
+        require(materials.is_dir(), "saved Stage1 materials root must already exist")
+        require(
+            not materials.is_relative_to(repo) and not repo.is_relative_to(materials),
+            "saved Stage1 materials and repository must not overlap",
+        )
+        require(
+            not materials.is_relative_to(root) and not root.is_relative_to(materials),
+            "saved Stage1 materials and project storage must not overlap",
+        )
+        require(
+            not any(
+                (parent / ".git").exists() for parent in (materials, *materials.parents)
+            ),
+            "saved Stage1 materials must stay outside every Git checkout",
+        )
     windows_root_preflight(root, model=args.enable_content_model)
     helper = plugin / HELPER
     helper_raw = raw_file(helper)
@@ -263,6 +285,7 @@ def inspect_inputs(args):
         user_config=config,
         executable=executable,
         query_runtime=query_runtime,
+        stage1_materials_root=materials,
     )
 
 
@@ -376,6 +399,7 @@ def prepare(args, checked, *, source=None, inventory=None):
             stage1=stage1,
             stage2=stage2,
             queries=queries,
+            stage1_materials_root=checked.get("stage1_materials_root"),
             credential=credential,
             files=files,
             views=views,
@@ -417,6 +441,9 @@ def main(argv=None):
         stage2="registered-canonical-import-only; native execution unconnected",
         stages3_to6="planned/unconnected",
         execution_authorized=False,
+        stage1_saved_records_configuration=checked["stage1_materials_root"] is not None,
+        stage1_source_acquisition=False,
+        stage1_automatic_reading=False,
     )
     if args.check_only:
         receipt["status"] = "filesystem-and-raw-loader-preflight-only"
@@ -436,6 +463,7 @@ def main(argv=None):
                         "credential",
                         "files",
                         "views",
+                        "stage1_materials_root",
                     )
                 },
                 host="127.0.0.1",

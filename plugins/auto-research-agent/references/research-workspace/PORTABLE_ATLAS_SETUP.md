@@ -136,6 +136,21 @@ queued work, runner completion and research acceptance are different states.
 Refresh never resends. After a restart, restore the saved ledger owner explicitly;
 expired permission permits local checkpoint/export but refuses new searches.
 
+To configure the trusted saved-observation producer, optionally add
+`--stage1-materials-root ABSOLUTE_EXISTING_PRIVATE_DIRECTORY` with the paired
+query-runtime options. The directory must be original, unlinked private storage
+outside every Git checkout, separate from both the checkout and `--projects-root`
+in either direction. Saved SDK bundles remain at their recorded output directory;
+copying a bundle or changing its hashes does not establish source acquisition.
+Read-only preflight and preparation report configuration only. When the portal
+host is created, the attached query owner constructs its saved-record service
+using the same intake and Stage1 delivery service. Registrations remain trusted
+server-side operations; the browser cannot submit source paths or inject owners.
+Local production requires a query-owned run and an unchanged saved frontier.
+Offline ledger initialization does not grant query ownership. No downloader,
+automatic reader, model call or research acceptance is enabled by this option,
+and omitting it preserves the existing unconfigured behavior.
+
 This connects the planned-query segment. Automatic source acquisition/reading and
 the complete Stage1 coverage/delivery loop are still pending, so it is not yet a
 one-click new-topic research run. Stage2 currently retains its source-bound input,

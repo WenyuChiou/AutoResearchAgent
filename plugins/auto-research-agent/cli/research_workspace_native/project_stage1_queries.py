@@ -5,6 +5,7 @@ service, loading history or reopening SQLite never initializes/probes a runtime.
 """
 
 from copy import deepcopy
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import shutil
@@ -800,8 +801,139 @@ class ProjectStage1QueryService:
             )
             return result
 
+    @contextmanager
+    def saved_records_guard(self, run, ledger, report):
+        """Hold an existing owner for local records; never reopen or dispatch.
+
+        The returned check must run inside the intake action transaction before
+        it commits. A check only on context exit is too late to revoke a saved
+        receipt. Intake always precedes the query lock, including shutdown.
+        """
+        with self.intake._lock:
+            require(run.get("query_owned") is True, "project-query-owner-required")
+            require(not self.closing, "project-query-records-owner-unavailable")
+            root = ledger.root.as_posix()
+            expected_state = report.get("state_sha256")
+            require(report.get("valid") is True, "project-query-records-state-differs")
+
+            def resolve():
+                matches = [
+                    (ref, service)
+                    for ref, service in self.services.items()
+                    if (service._projects.get(ref) or {})
+                    .get("item", {})
+                    .get("ledger_root")
+                    == root
+                ]
+                require(len(matches) == 1, "project-query-records-owner-ambiguous")
+                return matches[0]
+
+            ref, service = resolve()
+            original_run = deepcopy(run)
+
+            def current():
+                require(
+                    not self.closing
+                    and not service._closing
+                    and not service._closed
+                    and self.services.get(ref) is service
+                    and getattr(self.stage1, "query_service", None) is self,
+                    "project-query-records-owner-unavailable",
+                )
+                require(
+                    resolve() == (ref, service),
+                    "project-query-records-owner-unavailable",
+                )
+                row = self.intake.db.execute(
+                    "SELECT principal FROM intake_projects WHERE ref=?", (ref,)
+                ).fetchone()
+                require(row is not None, "project-query-records-project-unavailable")
+                state = self.intake._load(row[0], ref)
+                binding = self.intake.binding(ref)
+                active = state.get("stage1_active")
+                require(
+                    active == original_run["run_ref"]
+                    and state.get("stage1_runs", {}).get(active) == original_run,
+                    "project-query-records-run-stale",
+                )
+                registration = bound_run(
+                    self.intake, state, _basis(binding), original_run
+                )
+                job = next(iter(state["stage1_query_jobs"].values()))
+                require(
+                    derived_registration(
+                        self.intake,
+                        ref,
+                        state["stage1_query_authorization"],
+                        job["receipt"],
+                        self.config,
+                        write=False,
+                    )
+                    == registration,
+                    "project-query-records-registration-differs",
+                )
+                project = service._projects.get(ref)
+                require(
+                    project is not None
+                    and project["item"] == registration
+                    and registration["project_id"] == binding["project_id"]
+                    and registration["principals"] == [row[0]]
+                    and registration["ledger_root"] == root,
+                    "project-query-records-binding-differs",
+                )
+                saved = service.store.snapshot(project["pid"])
+                _, _, frontier = service._saved_frontier(ref, project, saved)
+                require(
+                    frontier["state_sha256"] == expected_state
+                    and sha((ledger.root / "run_manifest.json").read_bytes())
+                    == original_run["manifest_sha256"],
+                    "project-query-records-state-differs",
+                )
+                return frontier
+
+            with service._lock:
+                before = current()
+
+                def check_current():
+                    require(
+                        current() == before,
+                        "project-query-records-frontier-changed",
+                    )
+
+                yield check_current
+                check_current()
+
+    def create_records_service(self, delivery, *, materials_root):
+        """Trusted bootstrap only; configured does not mean sources were read."""
+        from .project_stage1_delivery import ProjectStage1DeliveryService
+        from .project_stage1_records import ProjectStage1RecordsService
+
+        require(
+            isinstance(delivery, ProjectStage1DeliveryService)
+            and delivery.stage1 is self.stage1
+            and delivery.intake is self.intake,
+            "project-query-records-delivery-differs",
+        )
+        root = Path(materials_root).resolve()
+        source = Path(self.config["execution_source_root"]).resolve()
+        require(
+            not root.is_relative_to(self.intake.root)
+            and not self.intake.root.is_relative_to(root)
+            and not root.is_relative_to(source)
+            and not source.is_relative_to(root),
+            "project-query-records-storage-overlap",
+        )
+        return ProjectStage1RecordsService(
+            delivery,
+            materials_root=materials_root,
+            mutation_guard=self.saved_records_guard,
+        )
+
     def close(self):
-        self.closing = True
+        # Serialize the stop transition with saved producers' final check and
+        # commit. Release intake before joining workers to avoid a lock cycle.
+        with self.intake._lock:
+            self.closing = True
         for worker in self.workers.values():
             worker.join(2)
         require(

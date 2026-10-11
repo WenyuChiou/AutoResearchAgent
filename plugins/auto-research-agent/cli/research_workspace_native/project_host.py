@@ -39,7 +39,15 @@ class ProjectHost(AtlasHost):
     """One local user's projects; each service still owns its admission checks."""
 
     def __init__(
-        self, *, projects, credential, models=None, stage1=None, stage2=None, **options
+        self,
+        *,
+        projects,
+        credential,
+        models=None,
+        stage1=None,
+        stage2=None,
+        stage1_materials_root=None,
+        **options,
     ):
         if not isinstance(projects, ProjectIntakeService):
             raise ValueError("trusted project intake service required")
@@ -57,6 +65,22 @@ class ProjectHost(AtlasHost):
         self.project_stage1_delivery = (
             None if stage1 is None else ProjectStage1DeliveryService(stage1)
         )
+        self.project_stage1_records = None
+        if stage1_materials_root is not None:
+            from .project_stage1_queries import ProjectStage1QueryService
+
+            queries = getattr(stage1, "query_service", None)
+            if (
+                not isinstance(queries, ProjectStage1QueryService)
+                or queries.stage1 is not stage1
+                or queries.intake is not projects
+            ):
+                raise ValueError(
+                    "saved records require the attached trusted query owner"
+                )
+            self.project_stage1_records = queries.create_records_service(
+                self.project_stage1_delivery, materials_root=stage1_materials_root
+            )
         # Saved package build/replay is bounded filesystem work. The generic
         # 5-second socket default can expire after work but before commit; use
         # the existing hard 30-second HTTP cap, still checked before admission
@@ -72,6 +96,9 @@ class ProjectHost(AtlasHost):
             project_operations="versioned-intake-and-explicit-registered-actions",
             project_model_provider=models is not None,
             project_stage1_ledger=stage1 is not None,
+            project_stage1_saved_records=self.project_stage1_records is not None,
+            project_stage1_source_acquisition=False,
+            project_stage1_automatic_reading=False,
             project_stage2_import=stage2 is not None,
             project_execution_authority=False,
         )

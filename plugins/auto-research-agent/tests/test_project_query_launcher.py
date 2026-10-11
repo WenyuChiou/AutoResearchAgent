@@ -87,7 +87,7 @@ class ProjectQueryLauncherTests(unittest.TestCase):
         with patch("subprocess.Popen", side_effect=AssertionError("process forbidden")):
             return LAUNCHER["inspect_inputs"](self.args)
 
-    def worker(self, code):
+    def worker(self, code, *extra_arguments):
         return subprocess.run(
             [
                 sys.executable,
@@ -98,6 +98,7 @@ class ProjectQueryLauncherTests(unittest.TestCase):
                 code,
                 str(self.script),
                 *self.arguments(),
+                *extra_arguments,
             ],
             stdin=subprocess.DEVNULL,
             capture_output=True,
@@ -163,6 +164,124 @@ class ProjectQueryLauncherTests(unittest.TestCase):
             with self.subTest(digest=digest), self.assertRaises(ValueError):
                 self.inspect()
         self.assertFalse((self.root / "projects").exists())
+
+    def test_saved_materials_require_runtime_and_existing_original_directory(self):
+        materials = self.root / "materials"
+        materials.mkdir()
+        (materials / "original-observation.txt").write_bytes(b"saved observation")
+        self.args.stage1_materials_root = materials
+        checked = self.inspect()
+        self.assertEqual(checked["stage1_materials_root"], materials)
+        self.assertEqual(
+            (materials / "original-observation.txt").read_bytes(), b"saved observation"
+        )
+        self.args.stage1_query_runtime = None
+        self.args.stage1_query_runtime_sha256 = None
+        with self.assertRaisesRegex(ValueError, "require query runtime"):
+            self.inspect()
+        self.assertFalse((self.root / "projects").exists())
+        self.assertEqual(
+            [p.name for p in materials.iterdir()], ["original-observation.txt"]
+        )
+
+    def test_saved_materials_preflight_refuses_missing_file_git_and_store_overlap(self):
+        materials = self.root / "materials"
+        materials.mkdir()
+        file_path = self.root / "not-directory"
+        file_path.write_bytes(b"original")
+        git_parent = self.root / "other-checkout"
+        git_parent.mkdir()
+        (git_parent / ".git").write_bytes(b"gitdir: retained")
+        git_materials = git_parent / "materials"
+        git_materials.mkdir()
+        for path, reason in (
+            (self.root / "missing", "must already exist"),
+            (file_path, "must already exist"),
+            (self.repo, "repository must not overlap"),
+            (git_materials, "outside every Git checkout"),
+        ):
+            self.args.stage1_materials_root = path
+            with self.subTest(path=path), self.assertRaisesRegex(ValueError, reason):
+                self.inspect()
+        # These two roots are otherwise valid and separate from the repository.
+        for root, path in (
+            (materials / "projects", materials),
+            (materials, materials),
+            (materials, materials / "inputs"),
+        ):
+            path.mkdir(exist_ok=True)
+            self.args.projects_root = root
+            self.args.stage1_materials_root = path
+            with (
+                self.subTest(root=root, materials=path),
+                self.assertRaisesRegex(ValueError, "project storage must not overlap"),
+            ):
+                self.inspect()
+        self.assertFalse((self.root / "projects").exists())
+        self.assertFalse((materials / "projects").exists())
+        self.assertEqual(file_path.read_bytes(), b"original")
+        self.assertFalse(list(self.root.rglob("*.sqlite*")))
+
+    def test_saved_materials_reparse_ancestor_is_rejected_without_output(self):
+        materials = self.root / "materials"
+        materials.mkdir()
+        self.args.stage1_materials_root = materials
+        original = Path.lstat
+
+        def lstat(path, *args, **kwargs):
+            result = original(path, *args, **kwargs)
+            if path == materials:
+                from types import SimpleNamespace
+
+                return SimpleNamespace(st_mode=result.st_mode, st_file_attributes=0x400)
+            return result
+
+        with (
+            patch.object(Path, "lstat", lstat),
+            self.assertRaisesRegex(ValueError, "links/reparse"),
+        ):
+            self.inspect()
+        self.assertFalse((self.root / "projects").exists())
+        self.assertFalse(list(materials.iterdir()))
+
+    def test_fresh_saved_materials_check_and_prepare_pass_configuration_only(self):
+        materials = self.root / "materials"
+        materials.mkdir()
+        extra = ("--stage1-materials-root", str(materials))
+        code = """
+import json, runpy, subprocess, sys
+from unittest.mock import patch
+ns = runpy.run_path(sys.argv[1])
+ns['inspect_inputs'].__globals__['windows_root_preflight'] = lambda root, **kw: None
+with patch('subprocess.Popen', side_effect=AssertionError('runtime process forbidden')):
+    assert ns['main']([*sys.argv[2:], '--check-only']) == 0
+assert not any(name.startswith('research_workspace_native') for name in sys.modules)
+"""
+        result = self.worker(code, *extra)
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        receipt = json.loads(result.stdout)
+        self.assertTrue(receipt["stage1_saved_records_configuration"])
+        self.assertFalse(receipt["stage1_source_acquisition"])
+        self.assertFalse(receipt["stage1_automatic_reading"])
+        self.fake_services()
+        code = """
+import runpy, subprocess, sys
+from pathlib import Path
+from unittest.mock import patch
+ns = runpy.run_path(sys.argv[1]); args = ns['parser']().parse_args(sys.argv[2:])
+ns['inspect_inputs'].__globals__['windows_root_preflight'] = lambda root, **kw: None
+with patch('subprocess.Popen', side_effect=AssertionError('runtime process forbidden')):
+    checked = ns['inspect_inputs'](args)
+    source, files = ns['install_source'](checked)
+    services = ns['prepare'](args, checked, source=source, inventory=files)
+    assert services['stage1_materials_root'] == Path(args.stage1_materials_root)
+    assert services['stage1'].query_service is services['queries']
+    services['queries'].close(); services['models'].close(); services['projects'].close()
+"""
+        result = self.worker(code, *extra)
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        self.assertFalse((self.root / "projects").exists())
+        self.assertFalse(list(materials.iterdir()))
 
     def test_strict_json_schema_caps_and_backends_fail_without_process(self):
         bad = []

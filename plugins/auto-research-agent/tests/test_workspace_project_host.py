@@ -1,6 +1,7 @@
 """Actual local HTTP, SQLite and brief compiler; no process/model/search calls."""
 
 import http.client
+from contextlib import nullcontext
 import json
 from pathlib import Path
 import sys
@@ -15,6 +16,8 @@ from research_workspace_native.project_contract import measurement
 from research_workspace_native.project_host import ProjectHost
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage1 import ProjectStage1Service
+from research_workspace_native.project_stage1_queries import ProjectStage1QueryService
+from research_workspace_native.project_stage1_records import ProjectStage1RecordsService
 from stage1_deliverable.common import sha
 from test_workspace_project_intake import compile_body, submit_body
 
@@ -201,6 +204,9 @@ class ProjectHostTests(unittest.TestCase):
 
     def test_served_portal_hashes_and_bootstrap_credential_boundary(self):
         binding = self.get("/host-binding.json")
+        self.assertFalse(binding["project_stage1_saved_records"])
+        self.assertFalse(binding["project_stage1_source_acquisition"])
+        self.assertFalse(binding["project_stage1_automatic_reading"])
         for path in ("/", "/projects.html", "/projects.js", "/projects.css"):
             status, raw = self.request(path)
             self.assertEqual(status, 200)
@@ -215,6 +221,93 @@ class ProjectHostTests(unittest.TestCase):
             )[0],
             403,
         )
+
+    def test_saved_records_host_requires_attached_same_intake_typed_query_owner(self):
+        stage1 = self.host.project_stage1
+        queries = object.__new__(ProjectStage1QueryService)
+        queries.stage1, queries.intake = stage1, self.projects
+        for attached, owner_stage, owner_intake in (
+            (None, stage1, self.projects),
+            (object(), stage1, self.projects),
+            (queries, object(), self.projects),
+            (queries, stage1, object()),
+        ):
+            stage1.query_service = attached
+            queries.stage1, queries.intake = owner_stage, owner_intake
+            with (
+                self.subTest(owner=attached),
+                patch.object(
+                    ProjectStage1QueryService, "create_records_service"
+                ) as factory,
+                self.assertRaisesRegex(ValueError, "trusted query owner"),
+            ):
+                ProjectHost(
+                    projects=self.projects,
+                    credential=self.token,
+                    stage1=stage1,
+                    stage1_materials_root="never-resolved-by-host",
+                    files={},
+                    views=[],
+                    port=0,
+                )
+            factory.assert_not_called()
+        self.assertEqual(self.projects.list(self.token), [])
+
+    def test_saved_records_host_passes_exact_delivery_and_root_without_reader(self):
+        stage1 = self.host.project_stage1
+        queries = object.__new__(ProjectStage1QueryService)
+        queries.stage1, queries.intake = stage1, self.projects
+        stage1.query_service = queries
+        materials = tempfile.TemporaryDirectory(prefix="project-host-materials-")
+        self.addCleanup(materials.cleanup)
+        root = Path(materials.name).resolve()
+        created = []
+
+        def construct(owner, delivery, *, materials_root):
+            # Only the host forwarding boundary uses a synthetic guard here.
+            # The actual query-owner guard has its own real SQLite tests.
+            self.assertIs(owner, queries)
+            self.assertIs(delivery.stage1, stage1)
+            self.assertIs(delivery.intake, self.projects)
+            self.assertEqual(materials_root, root)
+            records = ProjectStage1RecordsService(
+                delivery,
+                materials_root=root,
+                mutation_guard=lambda *args: nullcontext(),
+            )
+            created.append(records)
+            return records
+
+        configured = None
+        try:
+            with patch.object(
+                ProjectStage1QueryService,
+                "create_records_service",
+                autospec=True,
+                side_effect=construct,
+            ) as factory:
+                configured = ProjectHost(
+                    projects=self.projects,
+                    credential=self.token,
+                    stage1=stage1,
+                    stage1_materials_root=root,
+                    files={},
+                    views=[],
+                    port=0,
+                )
+            factory.assert_called_once_with(
+                queries, configured.project_stage1_delivery, materials_root=root
+            )
+            self.assertIs(configured.project_stage1_records, created[0])
+            binding = json.loads(configured._assets["/host-binding.json"])
+            self.assertTrue(binding["project_stage1_saved_records"])
+            self.assertFalse(binding["project_stage1_source_acquisition"])
+            self.assertFalse(binding["project_stage1_automatic_reading"])
+            self.assertFalse(list(root.iterdir()))
+            self.assertEqual(self.projects.list(self.token), [])
+        finally:
+            if configured is not None:
+                configured.server_close()
 
     def test_stage1_real_http_ledger_gate_and_export_are_not_stage_completion(self):
         ref, view = self.new()

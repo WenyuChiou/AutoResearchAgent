@@ -84,7 +84,8 @@
           "expected_direction": "establish-measurement",
           "hard_measures": [
             "Explicit project/source/plan/runtime/cap seals, original consent, durable intent and exact request-to-runner admission preserve cumulative probe/attempt/time reservations across failures and true SQLite reopen. History/state divergence, wrong client keys, copied ledger roots and rehashed replacement registration refuse without new execution.",
-            "The real Core, runner import/extraction, HTTP and SQLite paths are tested with mocked external probe/backend only. UI refresh and response-loss recovery create no second dispatch; an expired permit still allows saved checkpoint/export while fresh search refuses. Backend attempts are not provider HTTP calls, bytes, price, model reading, native attestation or Stage1 completion."
+            "The real Core, runner import/extraction, HTTP and SQLite paths are tested with mocked external probe/backend only. UI refresh and response-loss recovery create no second dispatch; an expired permit still allows saved checkpoint/export while fresh search refuses. Backend attempts are not provider HTTP calls, bytes, price, model reading, native attestation or Stage1 completion.",
+            "Saved source/reading/records/offer commits recheck the active input, original bootstrap receipt, current registration and complete owned ledger frontier; post-SQL ownership loss rolls back saved state, retains unknown observations and same-key history never redispatches. Optional portable materials roots do not overlap the project store and advertise configuration separately from reading/execution."
           ],
           "human_judgment": "Maintainers review the retained source-bound traces; actual search/native/research acceptance requires a separate applicable scope and budget."
         }
@@ -93,7 +94,8 @@
         "no implicit reconnect, turn creation, retries or default approvals",
         "caller owns durable persistence, project authority and admitted process lifecycle",
         "no unadmitted launcher or model calls, frozen input access or scientific score changes",
-        "default passive and synthetic paths start no production launcher or model call; explicit local text requires its exact restricted permit, while frozen-input access, research authority and scientific score changes remain separate and ungranted"
+        "default passive and synthetic paths start no production launcher or model call; explicit local text requires its exact restricted permit, while frozen-input access, research authority and scientific score changes remain separate and ungranted",
+        "A configured saved-record producer requires one existing exact project/run/root owner; intake-to-query locks and immediate precommit frontier checks reject drift without implicit reopen, search, source acquisition, model calls or acceptance. Shutdown is serialized with its commit."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
@@ -223,7 +225,8 @@
         "plugins/auto-research-agent/tests/test_project_query_history.py",
         "plugins/auto-research-agent/tests/test_project_stage1_query_http.py",
         "plugins/auto-research-agent/tests/test_project_query_launcher.py",
-        "plugins/auto-research-agent/tests/test_project_stage1_records.py"
+        "plugins/auto-research-agent/tests/test_project_stage1_records.py",
+        "plugins/auto-research-agent/tests/test_project_saved_record_owner.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
