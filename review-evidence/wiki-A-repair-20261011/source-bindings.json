@@ -1,0 +1,253 @@
+{
+  "kind": "WikiATargetedRepairBindings.v1",
+  "prior_head": "1332583933dfdea2fd4377c570e7beb18a78fe04",
+  "composed_main": "f7e036c2527e5204062319d1fb65a2f0e89bbcd1",
+  "main_imports": [
+    {
+      "path": ".github/scripts/ci_scope.py",
+      "sha256": "beaa0340c105506d92ff708f0eae75644f922b9e6b24d78e7b304fecc080a623",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": ".github/scripts/stage1_test_scope.py",
+      "sha256": "a38905b88946e09c3ac14143cc9a2a644f6454fed2bbe7c32dc5ed531cb3a452",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": ".github/scripts/test_stage1_test_scope.py",
+      "sha256": "f38865f46db3e0364cc29a11144df7806424e842664ff6baa3877173d9d34981",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": ".github/workflows/stage1-plugin.yml",
+      "sha256": "29928c0207519c9b2a573d3ded9b6b105010e63d36779bd10282beb69f7d71b6",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "plugins/auto-research-agent/CONTRIBUTING.md",
+      "sha256": "aae3ab91f607efff054862ef08be0154839d68a9f9b82d2b4ee33d6ca30344c8",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_research_workspace_native_process_channel.py",
+      "sha256": "ac01261f87497434652fe8bbfdba223e90296977dcb1fae4b030560b28d5c8f4",
+      "byte_identical_to_main": true
+    }
+  ],
+  "prior_capture_comparison": [
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace/atlas.py",
+      "current_sha256": "47931ae5f82bb96b99ec12fcb7cbf5fea8d480dd2cf15a19da8041eb2fe27a51",
+      "capture_sha256": "47931ae5f82bb96b99ec12fcb7cbf5fea8d480dd2cf15a19da8041eb2fe27a51",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace/view.py",
+      "current_sha256": "e66a91d5c5a9e4291e36b768ca10bc09cfa7a1a37c8a37bdb4cffa971598fe38",
+      "capture_sha256": "e66a91d5c5a9e4291e36b768ca10bc09cfa7a1a37c8a37bdb4cffa971598fe38",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/session_api.py",
+      "current_sha256": "eb9c4b4707a7123980c9fe7ab2ab812a09a090a7559d87dd3503084fdba469a7",
+      "capture_sha256": "5ee6988ad54bdee43475f04663ed9c3ec425046c5aeb9adb9afa995cf1c76145",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/web/native-atlas-chat.js",
+      "current_sha256": "e23007dc01c829727b9054bde9416619caa29ccec2bc55a35d2d34d8e7985552",
+      "capture_sha256": "ec77bcc40f92db4a6c635ed3cfcccf0115da7acd2c8872b4a78385383812af76",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/web/session-panel.js",
+      "current_sha256": "4757953df1c12d8982d61796a1e5602ccc84b913ee64365cbf80af1f559585ec",
+      "capture_sha256": "260d382bab92c540a5db04513ee60a859d8e45c03e27f119abd9462715f412cd",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/capability-metric-map.v3.json",
+      "current_sha256": "5c7b9c3bedf1f9c35cc84b83f7bb2d2016aa6fc6ccb22810d37ea31d594e1701",
+      "capture_sha256": "3fc86e111f9fd8a033985f29af0d57649934d61197fa566b6a11b923fbdb37a2",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas-launch-guide.md",
+      "current_sha256": "3ce7ed93486579ab0cc579041b3d30d9930e4663e1abc7556f5e458f1f6148be",
+      "capture_sha256": "75a999f75a50f5b7c6528d660883711296303f2574f4d06fad1537ed58106f03",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v1.md",
+      "current_sha256": "360ec66744a32f1b85baf75d0c9955642b4d9fb7510381018b0149ee1ca49cf0",
+      "capture_sha256": "360ec66744a32f1b85baf75d0c9955642b4d9fb7510381018b0149ee1ca49cf0",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v2.md",
+      "current_sha256": "f4342b51f8482d747ebd58b62a36bbeb6c86097d05109cc31bed23252d0787e2",
+      "capture_sha256": "f4342b51f8482d747ebd58b62a36bbeb6c86097d05109cc31bed23252d0787e2",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v3.md",
+      "current_sha256": "15abb6215c57f3dceb41ee82c7a2a653b179e54a419f6ffebd5f060e8d0bed5c",
+      "capture_sha256": "15abb6215c57f3dceb41ee82c7a2a653b179e54a419f6ffebd5f060e8d0bed5c",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js",
+      "current_sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+      "capture_sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js",
+      "current_sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+      "capture_sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+      "current_sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667",
+      "capture_sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
+      "current_sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+      "capture_sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
+      "current_sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3",
+      "capture_sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py",
+      "current_sha256": "ba371988bc9dd15a215dff52e5301478307c1efb0821843668eb4baf638c5582",
+      "capture_sha256": "ba371988bc9dd15a215dff52e5301478307c1efb0821843668eb4baf638c5582",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test-native-atlas-chat.cjs",
+      "current_sha256": "d54835c7932a50287feef00d3e825b3f754f6161cdff28e79460d1d966d6dab9",
+      "capture_sha256": "157a10188f6c8015b6f15637f90c72ca4b484074741e01f294963043d81b1169",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test-native-atlas-drawer.cjs",
+      "current_sha256": "69c39842f130a481f4a47bc4455639b397f03c0f9886fca088f7a855c57f34ba",
+      "capture_sha256": "69c39842f130a481f4a47bc4455639b397f03c0f9886fca088f7a855c57f34ba",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_native_atlas_chat.py",
+      "current_sha256": "e3b4bd2992cb64a612b90f4ebf72b8241878b4c8c7ead9e296a8b2a661daa0d5",
+      "capture_sha256": "e3b4bd2992cb64a612b90f4ebf72b8241878b4c8c7ead9e296a8b2a661daa0d5",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_native_message_api.py",
+      "current_sha256": "059f7878a4838e60a3d7c1ab473aa5ea748141056c10ff55f07d101ec185083d",
+      "capture_sha256": "059f7878a4838e60a3d7c1ab473aa5ea748141056c10ff55f07d101ec185083d",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_native_message_transcript.py",
+      "current_sha256": "07b1cd9c63a3ceda3864ed108b5b4c5a5fdc5bfa77d86bfde68e81d0fc665cf3",
+      "capture_sha256": "07b1cd9c63a3ceda3864ed108b5b4c5a5fdc5bfa77d86bfde68e81d0fc665cf3",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_research_workspace_atlas_host.py",
+      "current_sha256": "7bef38d88940e8cb34d82cc3662dbff3083f454620e4634f9cefe08bcfaed5e7",
+      "capture_sha256": "7bef38d88940e8cb34d82cc3662dbff3083f454620e4634f9cefe08bcfaed5e7",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_research_workspace_native_http.py",
+      "current_sha256": "75bfdeba3c82460f18a3d8afc331b49c7e36161a8674a8390cc358f92cfa90fc",
+      "capture_sha256": "75bfdeba3c82460f18a3d8afc331b49c7e36161a8674a8390cc358f92cfa90fc",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_research_workspace_native_scope_http.py",
+      "current_sha256": "3d7a705a284770b9660a2a5c6d0f6dfc77b070c7cfdd526e410fc3c5f0e56129",
+      "capture_sha256": "3d7a705a284770b9660a2a5c6d0f6dfc77b070c7cfdd526e410fc3c5f0e56129",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_research_workspace_native_session_api.py",
+      "current_sha256": "cd412c3d22bcc6af1e7dea4baee9b2307ac83de80f13ed64cd281b525950ec37",
+      "capture_sha256": "101ca0514659a18aa3946252ed3eda3cbeb2671d72482da61a61bcd5dfa8aaf6",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_assets.py",
+      "current_sha256": "bd5fae1a304bf9c5791df810d76d4b0702be365b52353d98793b9287106e9ba0",
+      "capture_sha256": "bd5fae1a304bf9c5791df810d76d4b0702be365b52353d98793b9287106e9ba0",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_browser.js",
+      "current_sha256": "dbb14046d16db144663e21dd48cb84cdd99644175171b456e40ab5e947b61178",
+      "capture_sha256": "44e96e1f3b1d6876654a076da9820044d17f029f3843f16add8ecbb607dd0eea",
+      "byte_identical_to_capture": false
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_language.js",
+      "current_sha256": "39e7ea32f62f12716eec4941010d82e4b18e85ed62f9877f2be144f7c5a7f0b4",
+      "capture_sha256": "39e7ea32f62f12716eec4941010d82e4b18e85ed62f9877f2be144f7c5a7f0b4",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_navigation.py",
+      "current_sha256": "3e8fbeaaa06f354c5df64823fd30927f91e5b5bba0cc2d5dfc14190a5fbfb826",
+      "capture_sha256": "3e8fbeaaa06f354c5df64823fd30927f91e5b5bba0cc2d5dfc14190a5fbfb826",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_network.js",
+      "current_sha256": "c9a7a3734290561792d582b531e0f410ec347b54796da575112509424acf7ccc",
+      "capture_sha256": "c9a7a3734290561792d582b531e0f410ec347b54796da575112509424acf7ccc",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_review.js",
+      "current_sha256": "45f13d734e46a616b5c8c2cf6e0ff0bb20163279840f5b44c084f0c2436b5517",
+      "capture_sha256": "45f13d734e46a616b5c8c2cf6e0ff0bb20163279840f5b44c084f0c2436b5517",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_review.py",
+      "current_sha256": "9c72256b7026e3e8d0749ae78f1d5e88bb60d0760bd97f1b72f00ab2b4d3a572",
+      "capture_sha256": "9c72256b7026e3e8d0749ae78f1d5e88bb60d0760bd97f1b72f00ab2b4d3a572",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_semantics.js",
+      "current_sha256": "883d06af8a8a68132d1065bd57288a019b8991d6bcd87415ef7f535e0603fca6",
+      "capture_sha256": "883d06af8a8a68132d1065bd57288a019b8991d6bcd87415ef7f535e0603fca6",
+      "byte_identical_to_capture": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_workspace_atlas_spatial.js",
+      "current_sha256": "5fa1d6750333d012aea8f508851214496a484e854a572512eb33ff2e7f8ccfb8",
+      "capture_sha256": "5fa1d6750333d012aea8f508851214496a484e854a572512eb33ff2e7f8ccfb8",
+      "byte_identical_to_capture": true
+    }
+  ],
+  "new_selector": {
+    "path": "plugins/auto-research-agent/tests/test_workspace_atlas_rendered.py",
+    "sha256": "a8099801e2f83ca4ec2f41814e61347d0ec0cd0ea522c8bc9194cfa168b59cb4"
+  },
+  "frozen_v1": {
+    "path": "plugins/auto-research-agent/evals/capability-metric-map.v1.json",
+    "sha256": "b75122de16fe93317958c5d81ab29310a9185103c03eaf2ea22202b7cfa00598",
+    "unchanged": true
+  },
+  "limit": "Source hashes identify reuse boundaries; current publication CI and review remain PR gates. Rendered capture preceded whitespace-only Ruff formatting of the selector; browser driver and product bytes are unchanged."
+}

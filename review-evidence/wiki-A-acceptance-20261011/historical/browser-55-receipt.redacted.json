@@ -1,0 +1,956 @@
+{
+  "created_at": "2026-10-10T19:04:30.449Z",
+  "head_before": "d5550b08be6313ce175162c393a8a4770974f0f5",
+  "head_after": "d5550b08be6313ce175162c393a8a4770974f0f5",
+  "tree": "c163b54b8d9989c26e932eba06c1fd58d49e442d",
+  "status_after": "",
+  "chrome": "155.0.8059.39",
+  "scope": "installed headless Chrome, temporary read-only HTTP server, saved real Stage1 and explicitly labelled simulated Stage2 display fixture; no actual Harness/native/model/search/scoring",
+  "results": [
+    {
+      "name": "stage1 1440: initial graph selection and retained status",
+      "status": "PASS",
+      "details": {
+        "nodes": 39,
+        "linksRetained": 53,
+        "papers": 15,
+        "visibleRelations": 0,
+        "mode": 3
+      }
+    },
+    {
+      "name": "stage1 1440: overflow and typography",
+      "status": "PASS",
+      "details": {
+        "width": 1440,
+        "scroll": 1440,
+        "rootFont": "17px",
+        "bodyFont": "17px"
+      }
+    },
+    {
+      "name": "stage1 1440: process collapsed and below content",
+      "status": "PASS",
+      "details": {
+        "network": 365,
+        "summary": 1394,
+        "process": 2576
+      }
+    },
+    {
+      "name": "stage1 1440: topic summary selects incident links",
+      "status": "PASS",
+      "details": {
+        "focus": {
+          "kind": "topic",
+          "key": "U.S. aging and consumption"
+        },
+        "relations": 4,
+        "text": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2]"
+      }
+    },
+    {
+      "name": "stage1 1440: summary paper synchronizes right detail and graph",
+      "status": "PASS",
+      "details": {
+        "workVersionKey": "[\"aguiar-hurst-2005\",\"source-beb263f75a5699b6906731ac\"]",
+        "title": "Consumption versus Expenditure",
+        "focusedRelations": 5
+      }
+    },
+    {
+      "name": "stage1 1440: 2D/3D preserves focused identity and distinctive symbols",
+      "status": "PASS",
+      "details": {
+        "focus": {
+          "kind": "paper",
+          "key": "[\"aguiar-hurst-2005\",\"source-beb263f75a5699b6906731ac\"]"
+        },
+        "mode": 3
+      }
+    },
+    {
+      "name": "stage1 1440: source paths visible, long detail scroll and Unknown preserved",
+      "status": "PASS",
+      "details": {
+        "shape": {
+          "height": 900,
+          "scrollHeight": 2838,
+          "overflow": "auto",
+          "font": "17px"
+        },
+        "sourceLinks": 2,
+        "unknownCount": 1
+      }
+    },
+    {
+      "name": "stage1 1440: three-language UI preserves source title and identity",
+      "status": "PASS",
+      "details": [
+        {
+          "language": "zh-Hans",
+          "heading": "文献知识网络",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "作品／版本",
+            "作者",
+            "年份／出版信息",
+            "文献筛选状态",
+            "证据层级",
+            "已记录网址"
+          ]
+        },
+        {
+          "language": "zh-Hant",
+          "heading": "文獻知識網絡",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "作品／版本",
+            "作者",
+            "年份／出版資訊",
+            "文獻篩選狀態",
+            "證據層級",
+            "已記錄網址"
+          ]
+        },
+        {
+          "language": "en",
+          "heading": "Literature knowledge network",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "Work / version",
+            "Authors",
+            "Year / venue",
+            "Selection status",
+            "Evidence level",
+            "Recorded URL"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "stage1 1440: whole library paper links to upper detail",
+      "status": "PASS",
+      "details": {
+        "key": "[\"dosi-et-al-2010\",\"source-e8f93afaac4edb32be0ab960\"]",
+        "title": "Schumpeter Meeting Keynes: A Policy-Friendly Model of Endogenous Growth and Business Cycles"
+      }
+    },
+    {
+      "name": "stage1 1440: second click returns graph to no selected relationships",
+      "status": "PASS",
+      "details": {
+        "focus": null,
+        "relationships": 0
+      }
+    },
+    {
+      "name": "stage3 1440: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 1440,
+          "scroll": 1440,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage4 1440: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 1440,
+          "scroll": 1440,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage5 1440: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 1440,
+          "scroll": 1440,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage6 1440: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 1440,
+          "scroll": 1440,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage2 1440: saved fixture notice and assessment uncertainty",
+      "status": "PASS",
+      "details": {
+        "literature": 15,
+        "notice": "Simulated interface example · paper records are retained; routes, comparisons and scores are examples. Real Stage 2 has not run.",
+        "assessment": "Bound assessment status\nEvaluation status\naudit-required\n\nRecorded scores\n\nP4: 66.7% (4/6) · 3/3 criteria assessed · provisional\nP5: 50% (3/6) · 3/3 criteria assessed · provisional\nP6: Unknown (Unknown/6) · 1/3 criteria assessed · provisional\nRecorded audit status\n9 review records\nRecorded audit status\n\nRequired audit is pending. Recorded scores are provisional.\n\nImport byte verification preserves the records; it is separate from scientific approval, completed audit and execution authority.\n\nComplete original assessment, comments & attachment"
+      }
+    },
+    {
+      "name": "stage2 1440: direction graph and no initial relationship list",
+      "status": "PASS",
+      "details": {
+        "nodes": 39,
+        "papers": 15,
+        "relationships": 0
+      }
+    },
+    {
+      "name": "stage2 1440: comparison table contained horizontal scroll",
+      "status": "PASS",
+      "details": {
+        "page": {
+          "width": 1440,
+          "scroll": 1440,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        },
+        "matrix": {
+          "width": 1158,
+          "scroll": 1158,
+          "overflow": "auto"
+        }
+      }
+    },
+    {
+      "name": "stage2 1440: candidate routes and bottom workflow",
+      "status": "PASS",
+      "details": {
+        "page": {
+          "width": 1440,
+          "scroll": 1440,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        },
+        "buttons": [
+          "Direction sets",
+          "Paper comparison",
+          "Candidate routes & review",
+          "Previous",
+          "Next",
+          "MOCK-R01",
+          "aguiar-hurst-2005",
+          "hurd-rohwedder-2008",
+          "blundell-et-al-2024",
+          "gourinchas-parker-2002",
+          "de-nardi-et-al-2010",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=a0f1f67e70777b0280371710e4209c47131f322772dd53f7a14c4b32e7775a1f]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=8eb70f0af38cf3a8cc5ddafbef6542f1a750e3ffa0db800003bbccc4a4883933]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c8baa9193c06e303de7f668e1062172d4233501e8ff8653f1a150f6ba2f2bdc7]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=9726a7fbd52d4388f033272b5542ac838bc54bddeaf74e6991e74b972df4a8f8]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c9236485ced43576b8889b98273b89d1b0f2222496b3c3a98072d228e35420e3]",
+          "MOCK-R02",
+          "beckman-et-al-1996",
+          "barthelemy-toint-2013",
+          "windrum-et-al-2007",
+          "grimm-et-al-2005",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=4d34c6ba1e842f5a0aaa4c827ada0080f5d709bca1f9f148f7a59fb91d1da248]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=3c151f6736f60efa86974ac0e23ce3ceaec1ad33a98bd40f19df6138ed0db097]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c7eab04b62a277e21f2b24726d7f1bd7099c3e4f1e24dbefa1a2cc1bf2931f5c]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=2d6a1c2d92c894a05960122c32e06965fb74ffdb86a7f4b9593320672ceb23e0]",
+          "MOCK-R03",
+          "dosi-et-al-2010",
+          "wiese-et-al-2024",
+          "horton-et-al-2023",
+          "aher-et-al-2023",
+          "li-et-al-2024",
+          "liu-et-al-2026",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=24435a9b404d731316709e0d69c2f941b95aafac185255faccecdb82bfbd60cf]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ab46e3f3fccc3ffad98e4446648cda36839208ebcc3c27c7b5999a0bf0f65126]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=30793c3b868965ea27b02dd6e45f9632e78d5887eddcb1b73102e64764938e87]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=7b79a9048f662cd61710a37d7bdea9eecc5d41b48a05932d5cbc52b31c1dff23]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=bf56030da2a115cc397f4c7ac53556ee66e74138c91d0a42f3a178c359e46f8c]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=632fdc9ef8671abc3eeb71e268d72bd0bb59fa787571cb25c19153460976f230]",
+          "Keep improving",
+          "Request the next stage",
+          "Hold this stage",
+          "Prepare in Codex",
+          "1Bind literatureSource-bound input",
+          "2Compare topicsComparison record",
+          "3Explore routesCandidate routes",
+          "4Independent reviewAssessment & comments",
+          "5Choose & hand offSelection package"
+        ],
+        "panels": [
+          "Bound assessment status",
+          "Review this stage with Codex",
+          "Within-stage workflow"
+        ]
+      }
+    },
+    {
+      "name": "stage1 768: initial graph selection and retained status",
+      "status": "PASS",
+      "details": {
+        "nodes": 39,
+        "linksRetained": 53,
+        "papers": 15,
+        "visibleRelations": 0,
+        "mode": 3
+      }
+    },
+    {
+      "name": "stage1 768: overflow and typography",
+      "status": "PASS",
+      "details": {
+        "width": 768,
+        "scroll": 768,
+        "rootFont": "17px",
+        "bodyFont": "17px"
+      }
+    },
+    {
+      "name": "stage1 768: process collapsed and below content",
+      "status": "PASS",
+      "details": {
+        "network": 514,
+        "summary": 2491,
+        "process": 4351
+      }
+    },
+    {
+      "name": "stage1 768: topic summary selects incident links",
+      "status": "PASS",
+      "details": {
+        "focus": {
+          "kind": "topic",
+          "key": "U.S. aging and consumption"
+        },
+        "relations": 4,
+        "text": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2]"
+      }
+    },
+    {
+      "name": "stage1 768: summary paper synchronizes right detail and graph",
+      "status": "PASS",
+      "details": {
+        "workVersionKey": "[\"aguiar-hurst-2005\",\"source-beb263f75a5699b6906731ac\"]",
+        "title": "Consumption versus Expenditure",
+        "focusedRelations": 5
+      }
+    },
+    {
+      "name": "stage1 768: 2D/3D preserves focused identity and distinctive symbols",
+      "status": "PASS",
+      "details": {
+        "focus": {
+          "kind": "paper",
+          "key": "[\"aguiar-hurst-2005\",\"source-beb263f75a5699b6906731ac\"]"
+        },
+        "mode": 3
+      }
+    },
+    {
+      "name": "stage1 768: source paths visible, long detail scroll and Unknown preserved",
+      "status": "PASS",
+      "details": {
+        "shape": {
+          "height": 899,
+          "scrollHeight": 2598,
+          "overflow": "auto",
+          "font": "17px"
+        },
+        "sourceLinks": 2,
+        "unknownCount": 1
+      }
+    },
+    {
+      "name": "stage1 768: three-language UI preserves source title and identity",
+      "status": "PASS",
+      "details": [
+        {
+          "language": "zh-Hans",
+          "heading": "文献知识网络",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "作品／版本",
+            "作者",
+            "年份／出版信息",
+            "文献筛选状态",
+            "证据层级",
+            "已记录网址"
+          ]
+        },
+        {
+          "language": "zh-Hant",
+          "heading": "文獻知識網絡",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "作品／版本",
+            "作者",
+            "年份／出版資訊",
+            "文獻篩選狀態",
+            "證據層級",
+            "已記錄網址"
+          ]
+        },
+        {
+          "language": "en",
+          "heading": "Literature knowledge network",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "Work / version",
+            "Authors",
+            "Year / venue",
+            "Selection status",
+            "Evidence level",
+            "Recorded URL"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "stage1 768: whole library paper links to upper detail",
+      "status": "PASS",
+      "details": {
+        "key": "[\"dosi-et-al-2010\",\"source-e8f93afaac4edb32be0ab960\"]",
+        "title": "Schumpeter Meeting Keynes: A Policy-Friendly Model of Endogenous Growth and Business Cycles"
+      }
+    },
+    {
+      "name": "stage1 768: second click returns graph to no selected relationships",
+      "status": "PASS",
+      "details": {
+        "focus": null,
+        "relationships": 0
+      }
+    },
+    {
+      "name": "stage3 768: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 768,
+          "scroll": 768,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage4 768: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 768,
+          "scroll": 768,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage5 768: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 768,
+          "scroll": 768,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage6 768: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 768,
+          "scroll": 768,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage2 768: saved fixture notice and assessment uncertainty",
+      "status": "PASS",
+      "details": {
+        "literature": 15,
+        "notice": "Simulated interface example · paper records are retained; routes, comparisons and scores are examples. Real Stage 2 has not run.",
+        "assessment": "Bound assessment status\nEvaluation status\naudit-required\n\nRecorded scores\n\nP4: 66.7% (4/6) · 3/3 criteria assessed · provisional\nP5: 50% (3/6) · 3/3 criteria assessed · provisional\nP6: Unknown (Unknown/6) · 1/3 criteria assessed · provisional\nRecorded audit status\n9 review records\nRecorded audit status\n\nRequired audit is pending. Recorded scores are provisional.\n\nImport byte verification preserves the records; it is separate from scientific approval, completed audit and execution authority.\n\nComplete original assessment, comments & attachment"
+      }
+    },
+    {
+      "name": "stage2 768: direction graph and no initial relationship list",
+      "status": "PASS",
+      "details": {
+        "nodes": 39,
+        "papers": 15,
+        "relationships": 0
+      }
+    },
+    {
+      "name": "stage2 768: comparison table contained horizontal scroll",
+      "status": "PASS",
+      "details": {
+        "page": {
+          "width": 768,
+          "scroll": 768,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        },
+        "matrix": {
+          "width": 496,
+          "scroll": 700,
+          "overflow": "auto"
+        }
+      }
+    },
+    {
+      "name": "stage2 768: candidate routes and bottom workflow",
+      "status": "PASS",
+      "details": {
+        "page": {
+          "width": 768,
+          "scroll": 768,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        },
+        "buttons": [
+          "Direction sets",
+          "Paper comparison",
+          "Candidate routes & review",
+          "Previous",
+          "Next",
+          "MOCK-R01",
+          "aguiar-hurst-2005",
+          "hurd-rohwedder-2008",
+          "blundell-et-al-2024",
+          "gourinchas-parker-2002",
+          "de-nardi-et-al-2010",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=a0f1f67e70777b0280371710e4209c47131f322772dd53f7a14c4b32e7775a1f]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=8eb70f0af38cf3a8cc5ddafbef6542f1a750e3ffa0db800003bbccc4a4883933]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c8baa9193c06e303de7f668e1062172d4233501e8ff8653f1a150f6ba2f2bdc7]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=9726a7fbd52d4388f033272b5542ac838bc54bddeaf74e6991e74b972df4a8f8]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c9236485ced43576b8889b98273b89d1b0f2222496b3c3a98072d228e35420e3]",
+          "MOCK-R02",
+          "beckman-et-al-1996",
+          "barthelemy-toint-2013",
+          "windrum-et-al-2007",
+          "grimm-et-al-2005",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=4d34c6ba1e842f5a0aaa4c827ada0080f5d709bca1f9f148f7a59fb91d1da248]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=3c151f6736f60efa86974ac0e23ce3ceaec1ad33a98bd40f19df6138ed0db097]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c7eab04b62a277e21f2b24726d7f1bd7099c3e4f1e24dbefa1a2cc1bf2931f5c]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=2d6a1c2d92c894a05960122c32e06965fb74ffdb86a7f4b9593320672ceb23e0]",
+          "MOCK-R03",
+          "dosi-et-al-2010",
+          "wiese-et-al-2024",
+          "horton-et-al-2023",
+          "aher-et-al-2023",
+          "li-et-al-2024",
+          "liu-et-al-2026",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=24435a9b404d731316709e0d69c2f941b95aafac185255faccecdb82bfbd60cf]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ab46e3f3fccc3ffad98e4446648cda36839208ebcc3c27c7b5999a0bf0f65126]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=30793c3b868965ea27b02dd6e45f9632e78d5887eddcb1b73102e64764938e87]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=7b79a9048f662cd61710a37d7bdea9eecc5d41b48a05932d5cbc52b31c1dff23]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=bf56030da2a115cc397f4c7ac53556ee66e74138c91d0a42f3a178c359e46f8c]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=632fdc9ef8671abc3eeb71e268d72bd0bb59fa787571cb25c19153460976f230]",
+          "Keep improving",
+          "Request the next stage",
+          "Hold this stage",
+          "Prepare in Codex",
+          "1Bind literatureSource-bound input",
+          "2Compare topicsComparison record",
+          "3Explore routesCandidate routes",
+          "4Independent reviewAssessment & comments",
+          "5Choose & hand offSelection package"
+        ],
+        "panels": [
+          "Bound assessment status",
+          "Review this stage with Codex",
+          "Within-stage workflow"
+        ]
+      }
+    },
+    {
+      "name": "stage1 390: initial graph selection and retained status",
+      "status": "PASS",
+      "details": {
+        "nodes": 39,
+        "linksRetained": 53,
+        "papers": 15,
+        "visibleRelations": 0,
+        "mode": 3
+      }
+    },
+    {
+      "name": "stage1 390: overflow and typography",
+      "status": "PASS",
+      "details": {
+        "width": 390,
+        "scroll": 390,
+        "rootFont": "17px",
+        "bodyFont": "17px"
+      }
+    },
+    {
+      "name": "stage1 390: process collapsed and below content",
+      "status": "PASS",
+      "details": {
+        "network": 433,
+        "summary": 2527,
+        "process": 4874
+      }
+    },
+    {
+      "name": "stage1 390: topic summary selects incident links",
+      "status": "PASS",
+      "details": {
+        "focus": {
+          "kind": "topic",
+          "key": "U.S. aging and consumption"
+        },
+        "relations": 4,
+        "text": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2]"
+      }
+    },
+    {
+      "name": "stage1 390: summary paper synchronizes right detail and graph",
+      "status": "PASS",
+      "details": {
+        "workVersionKey": "[\"aguiar-hurst-2005\",\"source-beb263f75a5699b6906731ac\"]",
+        "title": "Consumption versus Expenditure",
+        "focusedRelations": 5
+      }
+    },
+    {
+      "name": "stage1 390: 2D/3D preserves focused identity and distinctive symbols",
+      "status": "PASS",
+      "details": {
+        "focus": {
+          "kind": "paper",
+          "key": "[\"aguiar-hurst-2005\",\"source-beb263f75a5699b6906731ac\"]"
+        },
+        "mode": 3
+      }
+    },
+    {
+      "name": "stage1 390: source paths visible, long detail scroll and Unknown preserved",
+      "status": "PASS",
+      "details": {
+        "shape": {
+          "height": 899,
+          "scrollHeight": 3430,
+          "overflow": "auto",
+          "font": "17px"
+        },
+        "sourceLinks": 2,
+        "unknownCount": 1
+      }
+    },
+    {
+      "name": "stage1 390: three-language UI preserves source title and identity",
+      "status": "PASS",
+      "details": [
+        {
+          "language": "zh-Hans",
+          "heading": "文献知识网络",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "作品／版本",
+            "作者",
+            "年份／出版信息",
+            "文献筛选状态",
+            "证据层级",
+            "已记录网址"
+          ]
+        },
+        {
+          "language": "zh-Hant",
+          "heading": "文獻知識網絡",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "作品／版本",
+            "作者",
+            "年份／出版資訊",
+            "文獻篩選狀態",
+            "證據層級",
+            "已記錄網址"
+          ]
+        },
+        {
+          "language": "en",
+          "heading": "Literature knowledge network",
+          "sourceTitle": "Consumption versus Expenditure",
+          "fields": [
+            "Work / version",
+            "Authors",
+            "Year / venue",
+            "Selection status",
+            "Evidence level",
+            "Recorded URL"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "stage1 390: whole library paper links to upper detail",
+      "status": "PASS",
+      "details": {
+        "key": "[\"dosi-et-al-2010\",\"source-e8f93afaac4edb32be0ab960\"]",
+        "title": "Schumpeter Meeting Keynes: A Policy-Friendly Model of Endogenous Growth and Business Cycles"
+      }
+    },
+    {
+      "name": "stage1 390: second click returns graph to no selected relationships",
+      "status": "PASS",
+      "details": {
+        "focus": null,
+        "relationships": 0
+      }
+    },
+    {
+      "name": "stage3 390: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 390,
+          "scroll": 390,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage4 390: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 390,
+          "scroll": 390,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage5 390: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 390,
+          "scroll": 390,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage6 390: planned and unconnected",
+      "status": "PASS",
+      "details": {
+        "label": "Planned · not connected",
+        "contentButtons": 0,
+        "overflow": {
+          "width": 390,
+          "scroll": 390,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        }
+      }
+    },
+    {
+      "name": "stage2 390: saved fixture notice and assessment uncertainty",
+      "status": "PASS",
+      "details": {
+        "literature": 15,
+        "notice": "Simulated interface example · paper records are retained; routes, comparisons and scores are examples. Real Stage 2 has not run.",
+        "assessment": "Bound assessment status\nEvaluation status\naudit-required\n\nRecorded scores\n\nP4: 66.7% (4/6) · 3/3 criteria assessed · provisional\nP5: 50% (3/6) · 3/3 criteria assessed · provisional\nP6: Unknown (Unknown/6) · 1/3 criteria assessed · provisional\nRecorded audit status\n9 review records\nRecorded audit status\n\nRequired audit is pending. Recorded scores are provisional.\n\nImport byte verification preserves the records; it is separate from scientific approval, completed audit and execution authority.\n\nComplete original assessment, comments & attachment"
+      }
+    },
+    {
+      "name": "stage2 390: direction graph and no initial relationship list",
+      "status": "PASS",
+      "details": {
+        "nodes": 39,
+        "papers": 15,
+        "relationships": 0
+      }
+    },
+    {
+      "name": "stage2 390: comparison table contained horizontal scroll",
+      "status": "PASS",
+      "details": {
+        "page": {
+          "width": 390,
+          "scroll": 390,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        },
+        "matrix": {
+          "width": 320,
+          "scroll": 700,
+          "overflow": "auto"
+        }
+      }
+    },
+    {
+      "name": "stage2 390: candidate routes and bottom workflow",
+      "status": "PASS",
+      "details": {
+        "page": {
+          "width": 390,
+          "scroll": 390,
+          "rootFont": "17px",
+          "bodyFont": "17px"
+        },
+        "buttons": [
+          "Direction sets",
+          "Paper comparison",
+          "Candidate routes & review",
+          "Previous",
+          "Next",
+          "MOCK-R01",
+          "aguiar-hurst-2005",
+          "hurd-rohwedder-2008",
+          "blundell-et-al-2024",
+          "gourinchas-parker-2002",
+          "de-nardi-et-al-2010",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=a0f1f67e70777b0280371710e4209c47131f322772dd53f7a14c4b32e7775a1f]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=8eb70f0af38cf3a8cc5ddafbef6542f1a750e3ffa0db800003bbccc4a4883933]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c8baa9193c06e303de7f668e1062172d4233501e8ff8653f1a150f6ba2f2bdc7]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=9726a7fbd52d4388f033272b5542ac838bc54bddeaf74e6991e74b972df4a8f8]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c9236485ced43576b8889b98273b89d1b0f2222496b3c3a98072d228e35420e3]",
+          "MOCK-R02",
+          "beckman-et-al-1996",
+          "barthelemy-toint-2013",
+          "windrum-et-al-2007",
+          "grimm-et-al-2005",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=4d34c6ba1e842f5a0aaa4c827ada0080f5d709bca1f9f148f7a59fb91d1da248]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=3c151f6736f60efa86974ac0e23ce3ceaec1ad33a98bd40f19df6138ed0db097]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=c7eab04b62a277e21f2b24726d7f1bd7099c3e4f1e24dbefa1a2cc1bf2931f5c]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=2d6a1c2d92c894a05960122c32e06965fb74ffdb86a7f4b9593320672ceb23e0]",
+          "MOCK-R03",
+          "dosi-et-al-2010",
+          "wiese-et-al-2024",
+          "horton-et-al-2023",
+          "aher-et-al-2023",
+          "li-et-al-2024",
+          "liu-et-al-2026",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=24435a9b404d731316709e0d69c2f941b95aafac185255faccecdb82bfbd60cf]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ab46e3f3fccc3ffad98e4446648cda36839208ebcc3c27c7b5999a0bf0f65126]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=30793c3b868965ea27b02dd6e45f9632e78d5887eddcb1b73102e64764938e87]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=7b79a9048f662cd61710a37d7bdea9eecc5d41b48a05932d5cbc52b31c1dff23]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=bf56030da2a115cc397f4c7ac53556ee66e74138c91d0a42f3a178c359e46f8c]",
+          "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=632fdc9ef8671abc3eeb71e268d72bd0bb59fa787571cb25c19153460976f230]",
+          "Keep improving",
+          "Request the next stage",
+          "Hold this stage",
+          "Prepare in Codex",
+          "1Bind literatureSource-bound input",
+          "2Compare topicsComparison record",
+          "3Explore routesCandidate routes",
+          "4Independent reviewAssessment & comments",
+          "5Choose & hand offSelection package"
+        ],
+        "panels": [
+          "Bound assessment status",
+          "Review this stage with Codex",
+          "Within-stage workflow"
+        ]
+      }
+    },
+    {
+      "name": "browser execution and outbound request boundary",
+      "status": "PASS",
+      "details": {
+        "pageErrors": 0,
+        "externalRequests": 0,
+        "httpErrorResponses": 0,
+        "nativeModelSearchScoring": 0
+      }
+    }
+  ],
+  "captures": [
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-1440-selected-3d-v3.png",
+      "sha256": "16f341d88f0a1e8a754eb01fb74d80c66948febacaaab841390c0a371183a970"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-directions-v3.png",
+      "sha256": "5f3d6932ce33ba0ac7d73c17eb54c1720b43fba6667143a39433e895d7fa8fa4"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-comparison-v3.png",
+      "sha256": "1e94385db1412ffe832e42e88d819a26c5b5f20c28cc8bc761947fb70692c9e2"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-candidates-v3.png",
+      "sha256": "91a98329854a704a9cee53e1086dca7a5033c5f9675e1be69f5793b72ace59e9"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-768-selected-3d-v3.png",
+      "sha256": "17c339501a0bda59ef250d8b1a963c85a9a715c9f4a8e411f65b6669c8ec0520"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-directions-v3.png",
+      "sha256": "b42c19f94c0a06069d716260194424009cca7ee58df098e4d2dc52c4160ea3ce"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-comparison-v3.png",
+      "sha256": "f5196bc4abf4c52351752edff0360c4458b0c7187c020381c1fefdd66fcb15bf"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-candidates-v3.png",
+      "sha256": "0d366f751c2d9c25cab1f468473481f5d332fd5639ab37fc6ead4afe7e11b171"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-390-selected-3d-v3.png",
+      "sha256": "9637a51cffddd39a95ec3e11da8bd39677c2937287709f90b7c6ce082f39d1ea"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-directions-v3.png",
+      "sha256": "d6e940504d75ed644eb7b7f0b9777c19d7ad8fb92229691f50db24f5608bbc44"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-comparison-v3.png",
+      "sha256": "2283ae45d7d92887769e6bcf7daeb2bdca4ec2387a8fd78c684f6f7931698bf3"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-candidates-v3.png",
+      "sha256": "139b8300beac672909a50cb7d04e496fce997d5dc5aef2b9f8abcdc344bf08da"
+    }
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "http_error_responses": []
+}
