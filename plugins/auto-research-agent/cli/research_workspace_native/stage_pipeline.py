@@ -54,6 +54,9 @@ PHASES = (
     "reconciliation",
     "reconciliation-extraction",
 )
+# UTF-8 bytes conservatively bound token count without a model-specific tokenizer.
+# Include every instruction, source, reply, schema and repair in this single item.
+MAX_PROMPT_BYTES = 10_000
 
 
 def _sha(raw):
@@ -352,6 +355,8 @@ class StagePipeline:
                     }
                 )
             )
+        if len(prompt.encode("utf8")) > MAX_PROMPT_BYTES:
+            raise Stage2Error("pipeline-aggregate-prompt-byte-bound-exceeded")
         task = dict(
             unit_key=f"pipeline-{self.position + 1:02d}-{self.attempt + 1:02d}",
             phase=phase,

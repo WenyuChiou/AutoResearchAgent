@@ -133,6 +133,16 @@ def tables(records, sources):
 
 
 EMPTY_HEADERS = {
+    "Screening": [
+        "decision_id",
+        "discovery_path",
+        "observed_at",
+        "query",
+        "reason",
+        "status",
+        "version_id",
+        "work_id",
+    ],
     "Core claim history": [
         "schema_version",
         "sequence",
