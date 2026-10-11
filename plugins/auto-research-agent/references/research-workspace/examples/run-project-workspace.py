@@ -334,6 +334,16 @@ def install_source(checked):
     source.require(files[HELPER] == digest(checked["helper_raw"]), "helper changed")
     loader = source.PinnedLoader(checked["repo"], files)
     sys.meta_path.insert(0, loader)
+    spec = loader.find_spec("research_workspace_native.atlas_local_source")
+    require(
+        spec is not None
+        and spec.origin == str(checked["helper"])
+        and spec.loader is loader,
+        "raw bootstrap helper origin differs",
+    )
+    # Reuse the already verified raw module/class identity for the query alias.
+    # Supply its real loader metadata; never reload or loosen origin checks.
+    source.__spec__, source.__loader__, source.__package__ = spec, loader, spec.parent
     return source, files
 
 

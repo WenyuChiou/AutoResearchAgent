@@ -41,6 +41,7 @@ class ProjectWorkspaceLauncherTests(unittest.TestCase):
             self.plugin / "cli/research_workspace_native/atlas_local_source.py"
         )
         self.helper.parent.mkdir(parents=True)
+        (self.helper.parent / "__init__.py").write_bytes(b"")
         shutil.copyfile(HELPER, self.helper)
         self.script = (
             self.plugin / "references/research-workspace/examples" / SCRIPT.name
@@ -239,7 +240,12 @@ assert not any(n.startswith('research_workspace_native') for n in sys.modules)
 import runpy, sys
 ns = runpy.run_path(sys.argv[1]); args = ns['parser']().parse_args(sys.argv[2:])
 ns['inspect_inputs'].__globals__['windows_root_preflight'] = lambda root, **kwargs: None
-ns['install_source'](ns['inspect_inputs'](args))
+source, files = ns['install_source'](ns['inspect_inputs'](args))
+assert source.__spec__.origin == source.__file__
+assert source.__spec__.loader is source.__loader__
+assert source.__loader__ in sys.meta_path
+assert source.__spec__.name == 'research_workspace_native.atlas_local_source'
+assert source.__package__ == 'research_workspace_native'
 import owned_probe
 assert owned_probe.VALUE == 'raw-source'
 assert type(owned_probe.__loader__).__name__ == 'PinnedLoader'
@@ -260,8 +266,8 @@ print('raw-source-only')
             (0, "raw-source-only", ""),
         )
         preload = code.replace(
-            "ns['install_source']",
-            "sys.modules['owned_probe'] = object()\nns['install_source']",
+            "source, files = ns['install_source']",
+            "sys.modules['owned_probe'] = object()\nsource, files = ns['install_source']",
         )
         rejected = self.worker(preload, *tail)
         self.assertNotEqual(rejected.returncode, 0)
