@@ -69,8 +69,9 @@ class ModelRecoveryTests(unittest.TestCase):
             "alice",
             ref,
             "synthetic-recovery-case",
-            lambda s: change(s["model_operations"]["jobs"][case.key])
-            or {"synthetic": True},
+            lambda s: (
+                change(s["model_operations"]["jobs"][case.key]) or {"synthetic": True}
+            ),
         )
 
     def test_true_reopen_retirement_preserves_unknown_budget_key_and_ui_intent(self):
@@ -180,8 +181,8 @@ class ModelRecoveryTests(unittest.TestCase):
         case = self.case
         ref, _, _ = self.unknown(principal="local-viewer")
         token = "local-retirement-credential-at-least-32-characters"
-        case.intake.authenticate = (
-            lambda value: "local-viewer" if value in {token, "alice-token"} else None
+        case.intake.authenticate = lambda value: (
+            "local-viewer" if value in {token, "alice-token"} else None
         )
         host = ProjectHost(
             projects=case.intake,
