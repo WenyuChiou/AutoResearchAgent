@@ -1,0 +1,63 @@
+{
+  "original_head": "4f39b27d752ff52f2257fe3b5aa8020e03007215",
+  "original_manifest": "publication-manifest.json",
+  "current_log_publication": [
+    {
+      "path": "saved-source-claims-http-repair-20261011-v1.log",
+      "original_sha256": "7e1c22516623fbf083b1b9fc779054c837bf4c9c52dcc131b26642e498bd2ff2",
+      "current_sha256": "6a4dad02f16e30ba05de56dc6760c555584e47f71cef1636d8348a5489977b12",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-claims-http-repair-20261011-v2.log",
+      "original_sha256": "db751d539c648f557e70843a506533dc5c62661835d0df209443efb4c226c30a",
+      "current_sha256": "70f195f6b3fc3ac2892397de5a84537f8e422b09a3be33ee7e12e8cc9ca981a4",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-claims-http-repair-20261011-v3.log",
+      "original_sha256": "3fd72392e0444b4fd031155b28144bfb114040d1602bf24d447b463a31c19db7",
+      "current_sha256": "b71cc4532d62bd0faaec010dcd1d18858f20a850adadcf97b8df9fa2a9ca6f88",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-claims-initial-20261011-v1.log",
+      "original_sha256": "02e5d494327e49715efad114cc1b2b927a9f39c1cd7481e3f864771746f8716e",
+      "current_sha256": "d590f43138448927d336e51f4df017768c13e8e46825feab85ba4932e79c2622",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-contract-regressions-20261011-v1.log",
+      "original_sha256": "c35d18848e81bcd8eecc1d029329ac1daa065952f293b5be4320460f4c64bfb6",
+      "current_sha256": "59002f3caa7e0806a84cf52f407c90a9dcb8b7226bba3d7e6533479739db2944",
+      "transformation": "CRLF to LF; remove one trailing progress-line ASCII space only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-host-repair-20261011-v1.log",
+      "original_sha256": "55ef5ddb96319e04bdfe1b38e0b717756b76c02a7cb09f1130394e433396bc5b",
+      "current_sha256": "395e8ffde5a023e87d2e8f281f4bd483fe0e90ff02373e12e1ce51cbff003848",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-map-20261011-v1.log",
+      "original_sha256": "ac701cde17c359ccf473d76dd74f4b72908538cc37a8aa6d9c97a431f3255dd0",
+      "current_sha256": "4d18a9acc949eda9dd80396dd90e4a4c0d4f0f00091d2357bd96aa5fc479a53e",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-related-20261011-v1.log",
+      "original_sha256": "139e1d227d1217a796b7b2a725ca701a7bcb5acce7644058b9529936f4e14b33",
+      "current_sha256": "d1fdc023d68244b226d9a0a39dcbd835ef01ed2b97bab1997b7134f39962f459",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    },
+    {
+      "path": "saved-source-validator-20261011-v1.log",
+      "original_sha256": "77d54b83d881a15873a4dd08b115cbd00520efa9adb6e93c74bf207fa0f4767b",
+      "current_sha256": "60756336755de714c98149eb07bf264dad3a05de312e25dd3d4cef525b347089",
+      "transformation": "CRLF to LF only; all test results/failures unchanged"
+    }
+  ],
+  "original_bytes_recoverable_from_git": true,
+  "private_raw_copies_retained": true,
+  "rerun_tests": false
+}
