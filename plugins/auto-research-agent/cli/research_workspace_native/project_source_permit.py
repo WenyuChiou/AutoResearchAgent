@@ -16,10 +16,7 @@ from stage1_deliverable.common import DeliverableError, canonical, sha
 from stage1_deliverable.records import public_uri
 from stage1_ledger.source_arguments import check_source_arguments
 
-from .planned_query_contract import tree_sha
-from .project_stage1 import ProjectStage1Service, _basis
 from .session_api import SessionApiError, _check, _hash
-from .project_resource_budget import resource_view
 
 CAP_MAXIMA = {
     "max_fetches": 128,
@@ -91,10 +88,17 @@ def configuration(config):
     """Validate externally verified policy bytes; never import/probe a runtime."""
     _check(
         type(config) is dict
-        and CONFIG_FIELDS <= set(config) <= CONFIG_FIELDS | {"url_policy"}
+        and CONFIG_FIELDS
+        <= set(config)
+        <= CONFIG_FIELDS | {"url_policy", "pipeline_sha256"}
         and _hash(config["runtime_sha256"])
         and _hash(config["execution_source_sha256"]),
         "project-source-configuration-invalid",
+        400,
+    )
+    _check(
+        "pipeline_sha256" not in config or _hash(config["pipeline_sha256"]),
+        "project-source-pipeline-hash-invalid",
         400,
     )
     caps = config["caps"]
@@ -121,6 +125,11 @@ def configuration(config):
         runtime_sha256=config["runtime_sha256"],
         execution_source_sha256=config["execution_source_sha256"],
         url_policy=deepcopy(policy),
+        **(
+            {"pipeline_sha256": config["pipeline_sha256"]}
+            if "pipeline_sha256" in config
+            else {}
+        ),
     )
 
 
@@ -255,6 +264,10 @@ def _selected(ledger, work_id, config):
 
 def proposal(intake, stage1, ref, principal, config, work_id):
     """Return a source-specific proposal over the current authenticated run."""
+    from .planned_query_contract import tree_sha
+    from .project_stage1 import ProjectStage1Service, _basis
+    from .project_resource_budget import resource_view
+
     _check(
         isinstance(stage1, ProjectStage1Service) and stage1.intake is intake,
         "project-source-stage1-service-required",
@@ -303,7 +316,17 @@ def proposal(intake, stage1, ref, principal, config, work_id):
                 )
             },
             url_policy=verified["url_policy"],
-            scope=["fetch-selected-public-source"],
+            scope=["fetch-selected-public-source"]
+            + (
+                ["parse-saved-source", "observe-saved-source-in-core"]
+                if "pipeline_sha256" in verified
+                else []
+            ),
+            **(
+                {"pipeline_sha256": verified["pipeline_sha256"]}
+                if "pipeline_sha256" in verified
+                else {}
+            ),
             allow_source_acquisition=True,
             allow_search=False,
             model_execution=False,

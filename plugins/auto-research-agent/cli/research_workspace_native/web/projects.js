@@ -224,7 +224,7 @@
     const actionKey = key(); body.key = actionKey;
     let sent = false;
     try {
-      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate"}[operation] || operation.replace("stage1/", "stage1-");
+      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute"}[operation] || operation.replace("stage1/", "stage1-");
       const request_sha256 = await requestHash(kind, body);
       remember({ key: actionKey, project_ref: ref || null, operation, kind, request_sha256 });
       sent = true;
@@ -272,6 +272,8 @@
     const queries = $("ledger-queries"); queries.replaceChildren();
     for (const query of state.stage1 && state.stage1.queries || []) { const card = document.createElement("div"); card.className = "history-row"; queries.append(card); text(card, "p", query.query); text(card, "p", query.purpose + " · " + query.status, "subtle"); }
     renderQueries();
+    renderSources();
+    renderReadingOffers();
     $("create-card").hidden = true; $("project-content").hidden = false;
     $("intake-card").open = !Boolean(project.intake_report && project.intake_report.necessary_clarification_complete);
     buttons();
@@ -303,6 +305,64 @@
     const delivery = state.stage1 && state.stage1.delivery;
     if (!delivery || delivery.canonical_package && delivery.canonical_package.status === "saved-evidence-validated") return null;
     return (delivery.offers || []).find((row) => row.status === "ready-for-saved-evidence-delivery") || null;
+  }
+  function renderSources() {
+    const source = state.stage1 && state.stage1.source_execution;
+    if (!source) return;
+    const area = $("query-observations"), lang = state.language;
+    text(area, "strong", {en: "Public source jobs", "zh-Hans": "公开来源任务", "zh-Hant": "公開來源任務"}[lang] || "Public source jobs");
+    text(area, "p", {en: "Acquisition, parsing and reading are separate observations. Refresh reads saved history and never repeats execution.", "zh-Hans": "取得、解析和阅读分别记录。刷新只读取历史，不会重复执行。", "zh-Hant": "取得、解析及閱讀分別記錄。重新整理只讀取歷史，不會重複執行。"}[lang], "subtle");
+    for (const job of Object.values(source.jobs || {})) {
+      const card = text(area, "div", "", "history-row");
+      text(card, "p", job.work_ref + " · " + job.status);
+      if (job.failure) text(card, "p", job.failure.code || "Unknown", "subtle");
+      if (job.processing) text(card, "p", job.processing.status || "Unknown", "subtle");
+    }
+    const project = state.project;
+    for (const grant of Object.values(source.grants || {})) {
+      if (!project || grant.status !== "authorized" || grant.input_version !== project.input_version
+          || grant.brief_sha256 !== project.brief_sha256 || grant.expires_at * 1000 <= Date.now()
+          || Object.values(source.jobs || {}).some(job => job.grant_ref === grant.grant_ref)) continue;
+      const card = text(area, "div", "", "history-row");
+      text(card, "p", grant.work_ref + " · " + {en: "Permission saved; not executed", "zh-Hans": "许可已保存，尚未执行", "zh-Hant": "許可已保存，尚未執行"}[lang]);
+      const button = text(card, "button", {en: "Execute this saved source permission", "zh-Hans": "执行此保存的来源许可", "zh-Hant": "執行此已保存的來源許可"}[lang]);
+      button.type = "button";
+      button.onclick = guarded(() => executeSourceGrant(grant, project.project_ref, project.input_version, project.brief_sha256));
+    }
+  }
+  async function executeSourceGrant(grant, ref, version, brief) {
+    if (state.busy || state.loading || !grant.grant_ref || !grant.grant_sha256) return;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== version
+        || state.project.brief_sha256 !== brief) return;
+    const result = await mutate("stage1/sources/execute", Object.assign(identity(), {
+      grant_ref: grant.grant_ref, grant_sha256: grant.grant_sha256, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }
+  function renderReadingOffers() {
+    const project = state.project, lang = state.language;
+    if (!project) return;
+    for (const offer of state.modelOffers) {
+      if (offer.operation !== "read-paper" || offer.available !== true || offer.input_version !== project.input_version
+          || offer.brief_sha256 !== project.brief_sha256) continue;
+      const card = text($("query-observations"), "div", "", "history-row");
+      text(card, "p", offer.work_ref + " · " + {en: "Reading permission saved; not executed", "zh-Hans": "阅读许可已保存，尚未执行", "zh-Hant": "閱讀許可已保存，尚未執行"}[lang]);
+      const button = text(card, "button", {en: "Execute this saved reading permission", "zh-Hans": "执行此保存的阅读许可", "zh-Hant": "執行此已保存的閱讀許可"}[lang]);
+      button.type = "button";
+      button.onclick = guarded(() => executeReadingOffer(offer, project.project_ref, project.input_version, project.brief_sha256));
+    }
+  }
+  async function executeReadingOffer(offer, ref, version, brief) {
+    if (state.busy || state.loading) return;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== version
+        || state.project.brief_sha256 !== brief || !state.modelOffers.some(row => row.offer_ref === offer.offer_ref
+          && row.offer_sha256 === offer.offer_sha256 && row.available === true)) return;
+    const result = await mutate("models/actions", Object.assign(identity(), {
+      offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
   }
   async function refreshList() {
     const value = await request(route());
@@ -584,6 +644,61 @@
   }
   $("authorize-topic").onclick = guarded(() => authorize("suggest-topic"));
   $("authorize-plan").onclick = guarded(() => authorize("plan-search"));
+  document.addEventListener("project-screen-paper", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || state.busy || !item || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    if (!["include", "exclude", "pending"].includes(item.decision) || !item.rationale.trim() || !bounded(item.rationale, 4096)) {
+      notice(t("missingChoice"), true); return;
+    }
+    const ref = project.project_ref;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== item.input_version
+        || state.project.brief_sha256 !== item.brief_sha256 || !state.stage1 || !state.stage1.ledger) return;
+    if (state.stage1.ledger.state_sha256 !== item.ledger_state_sha256) { notice(t("recovered"), true); return; }
+    const result = await mutate("stage1/screen", Object.assign(identity(), {
+      ledger_state_sha256: item.ledger_state_sha256, work_ref: item.work_ref,
+      decision: item.decision, rationale: item.rationale, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }));
+  document.addEventListener("project-acquire-paper", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || state.busy || !item || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    const ref = project.project_ref;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== item.input_version
+        || state.project.brief_sha256 !== item.brief_sha256) return;
+    const offer = await request(route(ref, "stage1/sources/works/" + encodeURIComponent(item.work_ref)));
+    if (!offer || offer.runner_connected !== true || !offer.offer_ref || !offer.offer_sha256) return;
+    const permission = await mutate("stage1/sources/authorize", Object.assign(identity(), {
+      work_ref: item.work_ref, offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true
+    }), ref);
+    if (!permission) return;
+    const grant = permission.result || permission;
+    await executeSourceGrant(grant, ref, item.input_version, item.brief_sha256);
+  }));
+  document.addEventListener("project-read-paper", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || !item || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    const input = $("model-consent").value;
+    if (!input.trim() || !bounded(input, 4096)) { notice(t("missingChoice"), true); $("model-consent").focus(); return; }
+    const ref = project.project_ref;
+    const permission = await mutate("models/authorize", Object.assign(identity(), {
+      operation: "read-paper", work_ref: item.work_ref, snapshot_sha256: item.snapshot_sha256,
+      user_input: input, confirmed: true
+    }), ref);
+    if (!permission || !state.project || state.project.project_ref !== ref) return;
+    await loadProject(ref);
+    const granted = permission.result || permission;
+    const offer = state.modelOffers.find(row => row.offer_ref === granted.offer_ref && row.offer_sha256 === granted.offer_sha256
+      && row.operation === "read-paper" && row.work_ref === item.work_ref
+      && row.snapshot_sha256 === item.snapshot_sha256 && row.available === true);
+    if (!offer) return;
+    await executeReadingOffer(offer, ref, item.input_version, item.brief_sha256);
+  }));
   $("native-refresh").onclick = guarded(() => native());
   async function ledger(operation) {
     if (!state.project || !state.stage1 || state.loading) return;

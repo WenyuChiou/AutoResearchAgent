@@ -166,14 +166,31 @@ class ProjectStage1RecordsService:
         expected_result_sha256,
         access_note,
         expected_ledger_state_sha256,
+        check_current=None,
     ):
         _text(access_note)
+        _check(
+            check_current is None or callable(check_current),
+            "saved-source-extra-check-required",
+        )
+        extra_check = check_current
+        if extra_check is not None:
+            extra_check()
         with self.intake._lock:
             context = self._context(project_ref, expected_ledger_state_sha256)
             with self.guard(*context[3:6]) as guard_check:
-                check_current = self._mutation_check(
+                original_check = self._mutation_check(
                     project_ref, expected_ledger_state_sha256, guard_check
                 )
+
+                def check_current():
+                    if extra_check is not None:
+                        extra_check()
+                    fresh = original_check()
+                    if extra_check is not None:
+                        extra_check()
+                    return fresh
+
                 context = check_current()
                 payload = describe_source(
                     context[4],

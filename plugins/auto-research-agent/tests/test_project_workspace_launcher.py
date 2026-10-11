@@ -94,6 +94,34 @@ class ProjectWorkspaceLauncherTests(unittest.TestCase):
             self.inspect()
         self.assertFalse(checked["root"].exists())
 
+    def test_complete_runtime_inventory_has_room_and_keeps_exact_byte_pin(self):
+        value = dict(
+            kind="ProjectStage1QueryRuntime",
+            schema_version="1.0.0",
+            pin={
+                "code_identity": {
+                    "files": {str(i).zfill(80): "a" * 64 for i in range(1000)}
+                }
+            },
+            caps=dict(
+                max_attempts=3,
+                max_reserved_seconds=200,
+                max_results=20,
+                validity_seconds=600,
+            ),
+            backends=["openalex"],
+        )
+        path = self.root / "runtime.json"
+        raw = json.dumps(value).encode("utf8")
+        self.assertGreater(len(raw), 65536)
+        path.write_bytes(raw)
+        load = LAUNCHER["query_runtime_config"]
+        self.assertEqual(load(path, sha(raw)), value)
+        path.write_bytes(raw + b"\n")
+        with self.assertRaisesRegex(ValueError, "bytes differ"):
+            load(path, sha(raw))
+        self.assertFalse((self.root / "projects").exists())
+
     def test_helper_launcher_and_views_require_exact_external_bytes(self):
         self.helper.write_bytes(self.helper.read_bytes() + b"\n# changed\n")
         with self.assertRaisesRegex(ValueError, "helper bytes differ"):
@@ -246,7 +274,7 @@ with patch('subprocess.Popen', side_effect=git_only):
                 code,
                 SCRIPT,
                 "--projects-root",
-                Path(folder) / "p",
+                Path(folder).resolve() / "p",
                 "--source-helper-sha256",
                 sha(HELPER.read_bytes()),
                 "--prepare-only",
@@ -310,7 +338,7 @@ with patch('subprocess.Popen', side_effect=git_only):
                 code,
                 SCRIPT,
                 "--projects-root",
-                Path(folder) / "p",
+                Path(folder).resolve() / "p",
                 "--source-helper-sha256",
                 sha(HELPER.read_bytes()),
             )

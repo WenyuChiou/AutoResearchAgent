@@ -144,40 +144,72 @@ def _intents(intake, state, principal, reservation_events):
     return intents
 
 
-def _query_basis(intake, state, principal, permit):
+def _query_basis(intake, state, principal, permit, authorization_id):
     identity = permit["binding"]
-    matches = []
+    settings = None
+    _check(
+        identity["project_id"] == state["project_id"],
+        "project-resource-query-binding-differs",
+    )
+    # A configure preserves input/brief identity. Reconstruct the last saved
+    # settings before this exact authorization, never today's mutable settings
+    # or a matching configuration published after permission issuance.
     for raw in intake.db.execute(
-        "SELECT payload FROM intake_events WHERE project=? AND kind=? ORDER BY id",
-        (state["project_ref"], "submit-saved"),
+        "SELECT id,kind,payload FROM intake_events WHERE project=? "
+        "AND kind IN ('submit-saved','configure-saved') AND id<? ORDER BY id DESC",
+        (state["project_ref"], authorization_id),
     ):
-        submitted = json.loads(raw[0])
+        submitted = json.loads(raw["payload"])
+        request = submitted.get("request")
+        _check(type(request) is dict, "project-resource-legacy-binding-unavailable")
+        kind = raw["kind"].removesuffix("-saved")
+        input_version = (
+            submitted.get("input_version")
+            if kind == "submit"
+            else request.get("input_version")
+        )
+        brief_sha256 = submitted.get("brief_sha256")
         if (
-            submitted.get("input_version") != identity["project_input_version"]
-            or submitted.get("brief_sha256") != identity["input_bytes_sha256"]
+            input_version != identity["project_input_version"]
+            or brief_sha256 != identity["input_bytes_sha256"]
         ):
             continue
+        digest = sha(canonical(dict(kind=kind, body=request)))
         action = intake.db.execute(
-            "SELECT receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
-            (principal, state["project_ref"], submitted["key"]),
+            "SELECT request_hash,receipt FROM intake_actions "
+            "WHERE principal=? AND project=? AND key=?",
+            (principal, state["project_ref"], submitted.get("key")),
         ).fetchone()
         _check(
-            action is not None and json.loads(action[0]) == submitted,
+            submitted.get("kind") == kind
+            and submitted.get("status") == "saved"
+            and submitted.get("project_ref") == state["project_ref"]
+            and submitted.get("key") == request.get("key")
+            and submitted.get("request_sha256") == digest
+            and type(input_version) is int
+            and request.get("input_version") == input_version
+            and request.get("confirmed") is True
+            and (kind != "configure" or request.get("brief_sha256") == brief_sha256)
+            and action is not None
+            and action["request_hash"] == digest
+            and json.loads(action["receipt"]) == submitted,
             "project-resource-legacy-binding-unavailable",
         )
         settings = {
-            key: deepcopy(submitted["request"][key])
+            key: deepcopy(request[key])
             for key in ("resource_envelope", "budgets", "consent", "user_input")
         }
         settings.update(
-            brief_sha256=submitted["brief_sha256"],
+            brief_sha256=brief_sha256,
             provenance="user-attested",
             execution_authorized=False,
         )
-        if sha(canonical(settings)) == identity["settings_sha256"]:
-            matches.append(settings)
-    _check(len(matches) == 1, "project-resource-legacy-binding-unavailable")
-    settings = matches[0]
+        _check(
+            sha(canonical(settings)) == identity["settings_sha256"],
+            "project-resource-legacy-binding-unavailable",
+        )
+        break
+    _check(settings is not None, "project-resource-legacy-binding-unavailable")
     return dict(
         project_ref=state["project_ref"],
         project_id=identity["project_id"],
@@ -200,7 +232,7 @@ def _query(intake, state, principal, intents):
         if KINDS[intent["kind"]] != "query":
             continue
         preceding = [
-            json.loads(event["payload"])
+            (event["id"], json.loads(event["payload"]))
             for event in authorizations
             if event["id"] < intent_id
             and json.loads(event["payload"])["request"]["input_version"]
@@ -209,7 +241,7 @@ def _query(intake, state, principal, intents):
             == intent["request"]["brief_sha256"]
         ]
         _check(preceding, "project-resource-query-permit-missing")
-        saved = preceding[-1]
+        authorization_id, saved = preceding[-1]
         path = "q1-" + saved["request_sha256"][:20] + "-permit.json"
         raw = intake._path(state["project_ref"], path).read_bytes()
         permit = json.loads(raw)
@@ -225,6 +257,10 @@ def _query(intake, state, principal, intents):
         _check(
             saved.get("kind") == "stage1-query-authorize"
             and saved.get("status") == "saved"
+            and saved.get("project_ref") == state["project_ref"]
+            and saved.get("key") == saved["request"].get("key")
+            and saved.get("request_sha256")
+            == sha(canonical(dict(kind=saved["kind"], body=saved["request"])))
             and saved.get("request_sha256") == permit["authorization_request_sha256"]
             and saved.get("permit_sha256") == sha(raw)
             and action == saved,
@@ -246,7 +282,7 @@ def _query(intake, state, principal, intents):
         rows[digest] = (
             seconds,
             0 if probe else 1,
-            _query_basis(intake, state, principal, permit),
+            _query_basis(intake, state, principal, permit, authorization_id),
         )
     actual = state.get("stage1_query_budget", dict(probes=0, attempts=0, seconds=0))
     _check(

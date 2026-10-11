@@ -18,6 +18,9 @@ from .project_intake import ProjectIntakeService
 from .project_contract import project_view
 from .project_stage1_delivery import ProjectStage1DeliveryService
 from .project_stage1_library import ProjectStage1LibraryService
+from .project_stage1_source_service import ProjectStage1SourceService
+from .project_source_dispatcher import ProjectSourceDispatcher
+from .project_stage1_source_http import ROUTE as SOURCE_ROUTE, handle_sources
 from .project_stage1_library_http import (
     DETAIL_ROUTE,
     PAGE_ROUTE,
@@ -30,7 +33,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|screen|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -54,13 +57,31 @@ class ProjectHost(AtlasHost):
         stage1=None,
         stage2=None,
         stage1_materials_root=None,
+        stage1_sources=None,
+        stage1_source_dispatcher=None,
         **options,
     ):
         if not isinstance(projects, ProjectIntakeService):
             raise ValueError("trusted project intake service required")
         if projects.authenticate(credential) != "local-viewer":
             raise ValueError("same local principal required")
-        for service in (models, stage1, stage2):
+        if stage1_sources is not None and (
+            not isinstance(stage1_sources, ProjectStage1SourceService)
+            or stage1_sources.stage1 is not stage1
+        ):
+            raise ValueError("same trusted Stage1 source service required")
+        if stage1_source_dispatcher is not None and (
+            type(stage1_source_dispatcher) is not ProjectSourceDispatcher
+            or stage1_source_dispatcher.service is not stage1_sources
+        ):
+            raise ValueError("same trusted Stage1 source dispatcher required")
+        for service in (
+            models,
+            stage1,
+            stage2,
+            stage1_sources,
+            stage1_source_dispatcher,
+        ):
             if service is not None and getattr(service, "intake", None) is not projects:
                 raise ValueError("same project intake binding required")
         self.projects, self.project_models, self.project_stage2 = (
@@ -69,6 +90,8 @@ class ProjectHost(AtlasHost):
             stage2,
         )
         self.project_stage1 = stage1
+        self.project_stage1_sources = stage1_sources
+        self.project_stage1_source_dispatcher = stage1_source_dispatcher
         self.project_stage1_library = (
             None if stage1 is None else ProjectStage1LibraryService(stage1)
         )
@@ -91,6 +114,11 @@ class ProjectHost(AtlasHost):
             self.project_stage1_records = queries.create_records_service(
                 self.project_stage1_delivery, materials_root=stage1_materials_root
             )
+            if models is not None:
+                from .project_model import ProjectModelService
+
+                if isinstance(models, ProjectModelService):
+                    models.attach_reading_records(self.project_stage1_records)
         # Saved package build/replay is bounded filesystem work. The generic
         # 5-second socket default can expire after work but before commit; use
         # the existing hard 30-second HTTP cap, still checked before admission
@@ -112,8 +140,15 @@ class ProjectHost(AtlasHost):
             project_model_provider=models is not None,
             project_stage1_ledger=stage1 is not None,
             project_stage1_saved_records=self.project_stage1_records is not None,
+            project_stage1_source_controls=stage1_sources is not None,
+            project_stage1_source_worker_connected=stage1_sources is not None
+            and stage1_sources.runner is not None,
+            project_stage1_source_dispatch_registered=stage1_source_dispatcher
+            is not None,
             project_stage1_source_acquisition=False,
             project_stage1_automatic_reading=False,
+            project_stage1_saved_text_reading=models is not None
+            and getattr(models, "reading_records", None) is not None,
             project_stage2_import=stage2 is not None,
             project_execution_authority=False,
         )
@@ -123,6 +158,17 @@ class ProjectHost(AtlasHost):
             if path != "/host-binding.json"
         }
         self._assets["/host-binding.json"] = canonical(self.host_binding)
+
+    def server_close(self):
+        try:
+            if self.project_stage1_source_dispatcher is not None:
+                self.source_dispatch_shutdown = (
+                    self.project_stage1_source_dispatcher.close()
+                )
+            elif self.project_stage1_sources is not None:
+                self.project_stage1_sources.close()
+        finally:
+            super().server_close()
 
     def overview(self, credential, ref):
         # One store lock joins matching saved revisions. Workers cannot commit
@@ -158,11 +204,18 @@ class ProjectHost(AtlasHost):
             )
             # One shared overview revision, with full history in bound GET pages.
             result["screening_library"] = descriptor(result)
+            result["source_execution"] = (
+                None
+                if self.project_stage1_sources is None
+                else self.project_stage1_sources.read(credential, ref)
+            )
             return result
 
 
 class ProjectHandler(AtlasHandler):
     def _project(self, method):
+        if SOURCE_ROUTE.fullmatch(self.path) is not None:
+            return handle_sources(self, method)
         called = None
         try:
             token, length = self._headers(method)
@@ -183,6 +236,28 @@ class ProjectHandler(AtlasHandler):
                     detail if detail is not None else screening,
                     detail=detail is not None,
                 )
+                if detail is not None:
+                    models = self.server.project_models
+                    reading_offer = getattr(models, "reading_offer", None)
+                    result["reading_offer"] = (
+                        dict(
+                            available=False,
+                            snapshot_sha256=None,
+                            blocked_reason="reading-model-or-records-unconnected",
+                            execution_authorized=False,
+                        )
+                        if not callable(reading_offer)
+                        else reading_offer(
+                            token,
+                            result["project_ref"],
+                            result["row"]["work_id"],
+                            expected_input_version=result["input_version"],
+                            expected_ledger_state_sha256=result["binding"][
+                                "ledger_state_sha256"
+                            ],
+                            check_deadline=self._remaining,
+                        )
+                    )
                 self._remaining()
                 return self._reply(200, result)
             if output is not None or page is not None:
@@ -308,6 +383,7 @@ class ProjectHandler(AtlasHandler):
                     and action
                     in {
                         "initialize",
+                        "screen",
                         "plan-query",
                         "execute-query",
                         "checkpoint",

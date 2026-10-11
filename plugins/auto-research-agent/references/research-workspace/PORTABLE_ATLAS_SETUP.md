@@ -151,8 +151,43 @@ Offline ledger initialization does not grant query ownership. No downloader,
 automatic reader, model call or research acceptance is enabled by this option,
 and omitting it preserves the existing unconfigured behavior.
 
-This connects the planned-query segment. Automatic source acquisition/reading and
-the complete Stage1 coverage/delivery loop are still pending, so it is not yet a
-one-click new-topic research run. Stage2 currently retains its source-bound input,
-workflow/frontier and delivery interfaces; full execution is deferred. Do not run
-repository fixtures as evidence of actual native, search or scientific success.
+For a Windows installation with the pinned SDK, add `--enable-public-sources` to
+register the contained public-source worker and saved SDK/Core bridge. This flag
+does not grant execution: the UI still saves a per-source permission bound to the
+project, input version, selected work, runtime, current ledger and original job
+deadline. The same source reservation covers acquisition, local parsing and Core
+registration. Failed or partial phases retain their bytes and unknown outcome;
+refresh never retries. A current recorded DOI is required by this adapter; a
+missing DOI or unavailable legal body is a visible refusal, not a fabricated PDF.
+The source worker uses Windows process containment. Other operating systems keep
+this source path unavailable until an equivalent admitted implementation exists.
+
+For own-account reading, use `--enable-content-model --model YOUR_MODEL`
+and optionally `--model-cap-seconds 60`; the default per-call ceiling is 120
+seconds. Select your installed Codex executable and home with `--codex` and
+`--codex-home` when discovery is unsuitable. Each teammate supplies their own
+installed runtime, login and byte-bound configuration. No shared account or token
+is included. A static HTML/file URL cannot run Codex: keep the local server open
+and use its printed HTTP URL. Startup and GET do not start a Codex call.
+
+The native launcher requires a physical executable path. If your installation's
+`bin` or `current` directory is a Windows junction, resolve it to the installed
+release before passing `--codex`; for example, use Python's
+`Path(codex_path).resolve(strict=True)`. Do not disable the executable or source
+checks to accept a mutable alias. Updating Codex requires a fresh registration.
+
+In the complete screening library, inspect a paper, save an explicit decision and
+reason, then choose **Acquire this public source**. Inspect the saved job history.
+When a verified saved text is available, enter the model confirmation and choose
+**Ask Codex to read this saved paper**. Reading is a separate budgeted call; its
+output is a draft requiring researcher review. Exact quotes and hashes are checked,
+but no scientific claim, score or stage-completion result is inferred. If a saved
+permission's response was lost, refresh history and explicitly execute that
+existing permission using its displayed recovery button; do not create a new
+permission or repeat a queued job. Rejected and superseded decisions stay visible.
+
+The full Stage1 coverage/delivery loop still requires the Core evidence and review
+gates; a completed source or model call is not complete Stage1. Stage2 retains its
+source-bound input, workflow/frontier and delivery interfaces; full execution is
+deferred. Stage3–6 stay planned/unconnected. Repository fixtures demonstrate only
+their stated engineering boundary, not actual search or scientific acceptance.

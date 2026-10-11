@@ -15,6 +15,7 @@ import unittest
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", action="append", required=True)
+    parser.add_argument("--complete-plugin", action="store_true")
     args = parser.parse_args()
     if not all(re.fullmatch(r"[A-Za-z0-9_.]{1,200}", name) for name in args.test):
         raise ValueError("test selector required")
@@ -31,6 +32,15 @@ def main():
         shutil.copytree(
             repo / "plugins/auto-research-agent/schemas", plugin / "schemas"
         )
+        if args.complete_plugin:
+            shutil.copytree(
+                repo / "plugins/auto-research-agent",
+                plugin,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns(
+                    "__pycache__", "*.pyc", ".ruff_cache", ".pytest_cache"
+                ),
+            )
         files = {
             "cli/" + p.relative_to(plugin / "cli").as_posix(): hashlib.sha256(
                 p.read_bytes()
@@ -46,6 +56,8 @@ def main():
             compile(Path(helper.__file__).read_bytes(), helper.__file__, "exec"),
             helper.__dict__,
         )
+        if args.complete_plugin:
+            files = helper.inventory(plugin)
         loader = helper.PinnedLoader(snapshot, files)
         sys.meta_path.insert(0, loader)
         sys.modules[helper.__name__] = helper
@@ -58,7 +70,7 @@ def main():
         return int(not result.wasSuccessful())
 
 
-def run_cases(module, testcase):
+def run_cases(module, testcase, *, complete_plugin=False):
     command = [
         sys.executable,
         "-I",
@@ -69,6 +81,8 @@ def run_cases(module, testcase):
         "--test",
         module,
     ]
+    if complete_plugin:
+        command.append("--complete-plugin")
     result = subprocess.run(
         command,
         stdin=subprocess.DEVNULL,

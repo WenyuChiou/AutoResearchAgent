@@ -152,7 +152,7 @@ class FakeProvider:
 class ProjectModelTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="project-model-")
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.intake = ProjectIntakeService(self.root, authenticate=authenticate)
         self.model = ProjectModelService(self.intake, provider_factory=self.factory)
         self.io, self.factories = 0, 0
@@ -480,7 +480,8 @@ class ProjectModelTests(unittest.TestCase):
             ],
         )
         self.output = canonical(request).decode()
-        offer, _ = self.register(ref, "plan-search")
+        # Both calls reserve their full windows; completion never refunds them.
+        offer, _ = self.register(ref, "plan-search", max_seconds=20)
         self.model.execute("alice-token", ref, self.body(ref, offer))
         job = self.finish(ref)
         self.assertEqual(job["status"], "plan-validated-not-executed")

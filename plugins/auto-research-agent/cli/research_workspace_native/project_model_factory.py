@@ -21,6 +21,7 @@ from . import atlas_local_source as source
 from .runtime_spec import DENIED_THREAD_CONFIG, _thread_config
 from .stage_inputs import snapshot_inputs, source_digest
 from .stage_model import StageModel
+from .project_model_reading import READ_OPERATION, reading_prompt
 
 MAX_CONTEXT = 65536
 HASH = re.compile(r"[0-9a-f]{64}")
@@ -279,12 +280,13 @@ class OwnAccountProjectModelFactory:
             "deny-only trusted content unit required",
         )
         source.require(
-            context.get("operation") in {"suggest-topic", "plan-search"},
+            context.get("operation")
+            in {"suggest-topic", "plan-search", READ_OPERATION},
             "bounded project content operation required",
         )
         validate_brief(
             context["brief"],
-            require_confirmed=context.get("operation") == "plan-search",
+            require_confirmed=context.get("operation") != "suggest-topic",
         )
         if context["brief"]["schema_version"] == "1.1.0":
             source.require(
@@ -303,6 +305,30 @@ class OwnAccountProjectModelFactory:
             and context["settings"].get("brief_sha256") == context["brief_sha256"],
             "settings brief version differs",
         )
+        if context["operation"] == READ_OPERATION:
+            snapshot = context.get("saved_reading")
+            source.require(
+                type(snapshot) is dict
+                and snapshot.get("kind") == "Stage1SavedTextReadingInput"
+                and snapshot.get("schema_version") == "1.0.0"
+                and snapshot.get("model_creates_core_claims") is False
+                and snapshot.get("scientific_acceptance") is False
+                and snapshot.get("work_id") == context.get("work_ref")
+                and all(
+                    snapshot.get(name) == context[name]
+                    for name in (
+                        "project_ref",
+                        "project_id",
+                        "input_version",
+                        "brief_sha256",
+                    )
+                )
+                and source.digest(source.canonical(snapshot))
+                == context.get("snapshot_sha256")
+                and source.digest(reading_prompt(snapshot).encode("utf8"))
+                == context.get("prompt_sha256"),
+                "saved reading source or prompt binding differs",
+            )
         output = private_output(source.unlinked(output_root).resolve())
         source.require(
             not output.exists() and output.parent.is_dir(),
@@ -330,6 +356,11 @@ class OwnAccountProjectModelFactory:
             for name in ("brief.json", "input-snapshot.json", "model-context.json")
         )
         _save(brief_path, raw_brief)
+        if context["operation"] == READ_OPERATION:
+            _save(
+                input_root / "saved-reading.json",
+                source.canonical(context["saved_reading"]) + b"\n",
+            )
         index_sha = _save(
             index_path,
             source.canonical(

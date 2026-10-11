@@ -30,8 +30,15 @@ from .session_api import SessionApiError, _check
 from .stage_run_service import StageUnitProvider
 from .transport import validate_answer
 from .project_resource_budget import reserve_resource, resource_view
+from .project_model_reading import (
+    READ_OPERATION,
+    READ_SCOPE,
+    reading_prompt,
+    saved_reading_snapshot,
+    validate_reading_draft,
+)
 
-OPERATIONS = {"suggest-topic", "plan-search"}
+OPERATIONS = {"suggest-topic", "plan-search", READ_OPERATION}
 PERMIT_FIELDS = {
     "kind",
     "schema_version",
@@ -168,7 +175,7 @@ def _prompt(operation, binding, as_of):
     return text
 
 
-def _offer_record(binding, permit, permit_sha256, project_ref):
+def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
     # Replay uses immutable permit bytes, never the current calendar date.
     as_of = (
         datetime.fromtimestamp(
@@ -177,7 +184,11 @@ def _offer_record(binding, permit, permit_sha256, project_ref):
         .date()
         .isoformat()
     )
-    prompt = _prompt(permit["operation"], binding, as_of)
+    prompt = (
+        reading_prompt(snapshot)
+        if permit["operation"] == READ_OPERATION
+        else _prompt(permit["operation"], binding, as_of)
+    )
     context = {
         key: deepcopy(binding[key])
         for key in ("project_id", "input_version", "brief_sha256", "brief", "settings")
@@ -196,6 +207,12 @@ def _offer_record(binding, permit, permit_sha256, project_ref):
         max_seconds=permit["max_seconds"],
         expires_at=permit["expires_at"],
     )
+    if snapshot is not None:
+        context.update(
+            saved_reading=deepcopy(snapshot),
+            snapshot_sha256=sha(canonical(snapshot)),
+            work_ref=permit["work_ref"],
+        )
     context["source_sha256"] = sha(canonical(context))
     offer_hash = sha(canonical(context))
     return dict(
@@ -225,6 +242,7 @@ class ProjectModelService:
         monotonic=time.monotonic,
         model=None,
         local_cap_seconds=600,
+        reading_records=None,
     ):
         _check(
             provider_factory is None or callable(provider_factory),
@@ -243,6 +261,9 @@ class ProjectModelService:
             "model-local-cap-invalid",
         )
         self.model, self.local_cap_seconds = model, local_cap_seconds
+        self.reading_records = None
+        if reading_records is not None:
+            self.attach_reading_records(reading_records)
         self._registrations, self._owners, self._workers, self._providers = (
             {},
             {},
@@ -251,6 +272,89 @@ class ProjectModelService:
         )
         self._tokens = {}
         self._closed = False
+
+    def attach_reading_records(self, records):
+        """Trusted host composition only; HTTP never accepts a service or path."""
+        from .project_stage1_records import ProjectStage1RecordsService
+
+        _check(
+            isinstance(records, ProjectStage1RecordsService)
+            and records.intake is self.intake
+            and (self.reading_records is None or self.reading_records is records),
+            "reading-records-composition-differs",
+        )
+        self.reading_records = records
+
+    def _reading_snapshot(self, ref, work_ref, check_deadline=None):
+        return saved_reading_snapshot(
+            self.reading_records, ref, work_ref, check_deadline=check_deadline
+        )
+
+    def reading_offer(
+        self,
+        credential,
+        project_ref,
+        work_ref,
+        *,
+        expected_input_version,
+        expected_ledger_state_sha256,
+        check_deadline=None,
+    ):
+        """Read source eligibility only; no permit, owner recovery or model start."""
+        principal = self.intake._principal(credential)
+        with self.intake._lock:
+            self.intake._load(principal, project_ref)
+            result = dict(
+                kind="Stage1SavedReadingOfferPreview",
+                schema_version="1.0.0",
+                project_ref=project_ref,
+                work_ref=work_ref,
+                operation=READ_OPERATION,
+                available=False,
+                snapshot_sha256=None,
+                blocked_reason=None,
+                authorization_required=True,
+                execution_authorized=False,
+                scientific_acceptance=False,
+            )
+            if (
+                self.factory is None
+                or self.model is None
+                or self.reading_records is None
+            ):
+                return dict(
+                    result, blocked_reason="reading-model-or-records-unconnected"
+                )
+            try:
+                snapshot = self._reading_snapshot(project_ref, work_ref, check_deadline)
+                _check(
+                    snapshot["input_version"] == expected_input_version
+                    and snapshot["ledger_state_sha256"] == expected_ledger_state_sha256,
+                    "reading-library-snapshot-stale",
+                )
+                result.update(
+                    available=True,
+                    snapshot_sha256=sha(canonical(snapshot)),
+                    source_count=len(snapshot["sources"]),
+                    source_failures_count=len(snapshot["source_failures"]),
+                    identity_statuses=sorted(
+                        {row["identity_status"] for row in snapshot["sources"]}
+                    ),
+                    saved_text_bytes=sum(
+                        row["text_bytes"] for row in snapshot["sources"]
+                    ),
+                    shown_excerpt_bytes=sum(
+                        row["excerpt_end_byte"] for row in snapshot["sources"]
+                    ),
+                    entire_saved_text_shown=all(
+                        row["entire_text_in_prompt"] for row in snapshot["sources"]
+                    ),
+                )
+            except SessionApiError as error:
+                result["blocked_reason"] = error.code
+            except (ValueError, OSError, KeyError, TypeError, UnicodeError):
+                result["blocked_reason"] = "reading-saved-source-verification-failed"
+            return result
 
     @staticmethod
     def _row(state):
@@ -405,13 +509,19 @@ class ProjectModelService:
         permit = decode(raw, "project model permit")
         _check(
             type(permit) is dict
-            and set(permit) == PERMIT_FIELDS
+            and set(permit)
+            == PERMIT_FIELDS
+            | (
+                {"work_ref", "snapshot_sha256"}
+                if operation == READ_OPERATION
+                else set()
+            )
             and permit["kind"] == "ProjectModelOperationPermit"
             and permit["schema_version"] == "1.0.0",
             "model-permit-fields",
         )
         binding = self.intake.brief_binding(
-            project_ref, require_confirmed=operation == "plan-search"
+            project_ref, require_confirmed=operation != "suggest-topic"
         )
         budget = budget_digest(binding)
         _check(
@@ -425,7 +535,12 @@ class ProjectModelService:
         )
         _check(
             permit["allow_model_calls"] is True
-            and permit["execution_scope"] == "project-content-planning-only"
+            and permit["execution_scope"]
+            == (
+                READ_SCOPE
+                if operation == READ_OPERATION
+                else "project-content-planning-only"
+            )
             and permit["external_search"] is False
             and permit["frozen_subjects"] is False,
             "model-permit-scope-invalid",
@@ -452,8 +567,15 @@ class ProjectModelService:
         principal = permit["principal"]
         with self.intake._lock:
             self.intake._load(principal, project_ref)
+        snapshot = None
+        if operation == READ_OPERATION:
+            snapshot = self._reading_snapshot(project_ref, permit["work_ref"])
+            _check(
+                permit["snapshot_sha256"] == sha(canonical(snapshot)),
+                "reading-permit-snapshot-differs",
+            )
         self._owner(principal, project_ref)
-        record = _offer_record(binding, permit, permit_sha256, project_ref)
+        record = _offer_record(binding, permit, permit_sha256, project_ref, snapshot)
         ref, offer_hash = record["offer_ref"], record["offer_sha256"]
 
         def save(state):
@@ -500,6 +622,8 @@ class ProjectModelService:
             "confirmed",
             "user_input",
         }
+        if type(body) is dict and body.get("operation") == READ_OPERATION:
+            fields.update({"work_ref", "snapshot_sha256"})
         _check(
             type(body) is dict
             and set(body) == fields
@@ -528,7 +652,7 @@ class ProjectModelService:
                 "model-provider-unconnected",
             )
             binding = self.intake.brief_binding(
-                project_ref, require_confirmed=body["operation"] == "plan-search"
+                project_ref, require_confirmed=body["operation"] != "suggest-topic"
             )
             _check(
                 binding["brief_sha256"] == body["brief_sha256"]
@@ -536,6 +660,16 @@ class ProjectModelService:
                 "model-authorization-source-differs",
             )
             digest = budget_digest(binding)
+            snapshot = (
+                self._reading_snapshot(project_ref, body["work_ref"], check_deadline)
+                if body["operation"] == READ_OPERATION
+                else None
+            )
+            if snapshot is not None:
+                _check(
+                    body["snapshot_sha256"] == sha(canonical(snapshot)),
+                    "reading-authorization-snapshot-differs",
+                )
             row = self._row(state)
             budgets = binding["settings"]["budgets"]
             _check(
@@ -587,14 +721,22 @@ class ProjectModelService:
                     self.clock() + seconds, timezone.utc
                 ).isoformat(),
                 allow_model_calls=True,
-                execution_scope="project-content-planning-only",
+                execution_scope=READ_SCOPE
+                if snapshot is not None
+                else "project-content-planning-only",
                 external_search=False,
                 frozen_subjects=False,
             )
+            if snapshot is not None:
+                permit.update(
+                    work_ref=body["work_ref"], snapshot_sha256=sha(canonical(snapshot))
+                )
             raw = canonical(permit) + b"\n"
             name = "content-permit-" + request_hash + ".json"
             artifact = _write_new(self.intake._path(project_ref, name), raw)
-            record = _offer_record(binding, permit, artifact["sha256"], project_ref)
+            record = _offer_record(
+                binding, permit, artifact["sha256"], project_ref, snapshot
+            )
             _check(len(row["offers"]) < 128, "model-offer-bound-exceeded")
             row["offers"][record["offer_ref"]] = record
             authorizations = row.setdefault("authorizations", {})
@@ -672,7 +814,7 @@ class ProjectModelService:
     @staticmethod
     def _public_offer(record):
         context = record["context"]
-        return {
+        result = {
             **{
                 k: deepcopy(context[k])
                 for k in (
@@ -691,6 +833,14 @@ class ProjectModelService:
             "scope": "content-only; no search or source acquisition",
             "confirmation_required": True,
         }
+        if context["operation"] == READ_OPERATION:
+            result.update(
+                work_ref=context["work_ref"],
+                snapshot_sha256=context["snapshot_sha256"],
+                scope=READ_SCOPE,
+                core_claims_created=False,
+            )
+        return result
 
     def _guard(self, ref, offer, *, allow_expired=False):
         _check(not self._closed and ref in self._owners, "model-owner-unavailable")
@@ -716,7 +866,7 @@ class ProjectModelService:
         if not allow_expired:
             _check(self.clock() < registration["expires"], "model-permit-expired")
         binding = self.intake.brief_binding(
-            ref, require_confirmed=offer["context"]["operation"] == "plan-search"
+            ref, require_confirmed=offer["context"]["operation"] != "suggest-topic"
         )
         _check(
             binding["input_version"] == offer["context"]["input_version"]
@@ -726,6 +876,13 @@ class ProjectModelService:
             and binding["settings"] == offer["context"]["settings"],
             "model-source-version-differs",
         )
+        if offer["context"]["operation"] == READ_OPERATION:
+            snapshot = self._reading_snapshot(ref, offer["context"]["work_ref"])
+            _check(
+                snapshot == offer["context"]["saved_reading"]
+                and sha(canonical(snapshot)) == offer["context"]["snapshot_sha256"],
+                "reading-source-snapshot-differs",
+            )
         with self.intake._lock:
             resource_view(
                 self.intake,
@@ -768,6 +925,9 @@ class ProjectModelService:
                 ),
                 "authorization_available": self.factory is not None
                 and self.model is not None,
+                "saved_reading_available": self.factory is not None
+                and self.model is not None
+                and self.reading_records is not None,
                 "local_cap_seconds": self.local_cap_seconds,
                 "native_authenticated": None,
                 "research_execution_connected": False,
@@ -786,11 +946,22 @@ class ProjectModelService:
                 public = self._public_offer(offer)
                 try:
                     self._guard(project_ref, offer)
-                    public["available"] = self.factory is not None
+                    reserved = sum(
+                        job.get("calls_reserved", 0)
+                        for job in state.get("model_operations", {})
+                        .get("jobs", {})
+                        .values()
+                        if job.get("offer_ref") == offer["offer_ref"]
+                        and job.get("offer_sha256") == offer["offer_sha256"]
+                    )
+                    spent = reserved >= offer["context"]["max_calls"]
+                    public["available"] = self.factory is not None and not spent
                     public["blocked_reason"] = (
-                        None
-                        if self.factory is not None
-                        else "model-provider-unconnected"
+                        "model-provider-unconnected"
+                        if self.factory is None
+                        else "model-permit-call-budget-exhausted"
+                        if spent
+                        else None
                     )
                 except (ValueError, OSError, KeyError) as error:
                     public.update(available=False, blocked_reason=str(error)[:256])
@@ -828,6 +999,9 @@ class ProjectModelService:
                 "started_at",
                 "finished_at",
                 "close_failure",
+                "work_ref",
+                "snapshot_sha256",
+                "reading_draft",
             )
             if k in job
         }
@@ -1379,6 +1553,11 @@ class ProjectModelService:
                 owner=self._tokens[project_ref],
             )
             job = row["jobs"][key]
+            if offer["context"]["operation"] == READ_OPERATION:
+                job.update(
+                    work_ref=offer["context"]["work_ref"],
+                    snapshot_sha256=offer["context"]["snapshot_sha256"],
+                )
             job["runtime_binding"] = self._runtime_identity(principal, project_ref, job)
             job["runtime_dir"] = self._runtime_relative(job["runtime_binding"])
 
@@ -1555,6 +1734,26 @@ class ProjectModelService:
                 "status": "content-review-pending",
                 "finished_at": self.clock(),
             }
+            if offer["context"]["operation"] == READ_OPERATION:
+                try:
+                    draft = validate_reading_draft(
+                        raw, offer["context"]["saved_reading"]
+                    )
+                    artifact = _write_new(
+                        folder / "reading-draft.json", canonical(draft) + b"\n"
+                    )
+                    result["reading_draft"] = {
+                        **artifact,
+                        "snapshot_sha256": draft["snapshot_sha256"],
+                        "work_id": draft["work_id"],
+                        "version_id": draft["version_id"],
+                        "evidence_count": len(draft["draft"]["evidence"]),
+                        "evidence_validation": draft["evidence_validation"],
+                        "researcher_acceptance": False,
+                        "core_claims_created": False,
+                    }
+                except (ValueError, KeyError, TypeError, UnicodeError) as error:
+                    result.update(status="validation-failed", failure=str(error)[:512])
             if offer["context"]["operation"] == "plan-search":
                 try:
                     request = decode(raw, "model plan proposal")

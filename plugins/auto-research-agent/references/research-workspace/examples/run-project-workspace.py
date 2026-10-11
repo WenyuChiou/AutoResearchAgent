@@ -72,7 +72,10 @@ def query_runtime_config(path, expected):
         isinstance(expected, str) and HASH.fullmatch(expected),
         "external Stage1 query runtime SHA256 required",
     )
-    raw = raw_file(path, 65536)
+    # A complete interpreter/dependency byte inventory exceeds 64 KiB on a
+    # normal installation. Keep the external hash and strict schema binding,
+    # with a finite bound large enough for the SDK's actual inventory.
+    raw = raw_file(path, 4 * 1024 * 1024)
     require(digest(raw) == expected, "Stage1 query runtime bytes differ")
 
     def pairs(items):
@@ -178,10 +181,21 @@ def parser():
     value.add_argument("--stage1-query-runtime", type=Path)
     value.add_argument("--stage1-query-runtime-sha256")
     value.add_argument("--stage1-materials-root", type=Path)
+    value.add_argument(
+        "--enable-public-sources",
+        action="store_true",
+        help="Register the contained Windows source worker; each source still needs UI authorization",
+    )
     value.add_argument("--port", type=int, default=0)
     value.add_argument("--open", action="store_true")
     value.add_argument("--enable-content-model", action="store_true")
     value.add_argument("--model")
+    value.add_argument(
+        "--model-cap-seconds",
+        type=int,
+        default=120,
+        help="Server per-call upper bound; shared project reservations are never refunded",
+    )
     value.add_argument("--codex")
     value.add_argument("--codex-home", type=Path)
     value.add_argument("--check-only", action="store_true")
@@ -195,6 +209,9 @@ def inspect_inputs(args):
         HASH.fullmatch(args.source_helper_sha256), "external helper SHA256 required"
     )
     require(0 <= args.port <= 65535, "loopback port invalid")
+    require(
+        0 < args.model_cap_seconds <= 600, "model per-call cap must be 1..600 seconds"
+    )
     require(
         bool(args.views_config) == bool(args.views_sha256),
         "saved views require their external configuration SHA256",
@@ -227,6 +244,12 @@ def inspect_inputs(args):
         "project root must stay outside every Git checkout",
     )
     materials = getattr(args, "stage1_materials_root", None)
+    require(
+        not args.enable_public_sources
+        or runtime_path is not None
+        and materials is not None,
+        "public source controls require the query runtime and private materials root",
+    )
     if materials is not None:
         require(
             query_runtime is not None, "saved Stage1 materials require query runtime"
@@ -340,7 +363,7 @@ def prepare(args, checked, *, source=None, inventory=None):
     credential = secrets.token_urlsafe(32)
     authenticate = token_authenticator({credential: "local-viewer"})
     projects = ProjectIntakeService(checked["root"], authenticate=authenticate)
-    models = queries = None
+    models = queries = sources = source_dispatcher = None
     try:
         factory = None
         if args.enable_content_model:
@@ -362,6 +385,7 @@ def prepare(args, checked, *, source=None, inventory=None):
             projects,
             provider_factory=factory,
             model=args.model,
+            local_cap_seconds=args.model_cap_seconds,
         )
         stage1, stage2 = ProjectStage1Service(projects), ProjectStage2Service(projects)
         if runtime is not None:
@@ -393,12 +417,58 @@ def prepare(args, checked, *, source=None, inventory=None):
                 caps=config["caps"],
                 backends=config["backends"],
             )
+        sources, source_dispatcher = None, None
+        if args.enable_public_sources:
+            from research_workspace_native.portable_source_worker_profile import (
+                prepare_source_worker_profile,
+                register_source_worker,
+            )
+            from research_workspace_native.project_source_dispatcher import (
+                ProjectSourceDispatcher,
+            )
+            from research_workspace_native.project_source_saved_pipeline import (
+                SourceSavedPipeline,
+            )
+            from research_workspace_native.project_stage1_delivery import (
+                ProjectStage1DeliveryService,
+            )
+            from research_workspace_native.saved_source_parser_factory import (
+                ContainedSavedSourceParserFactory,
+                prepare_saved_parser_runtime,
+            )
+
+            profile = prepare_source_worker_profile(
+                repo=checked["repo"],
+                materials_root=checked["stage1_materials_root"],
+                runtime_sha256=digest(source.canonical(runtime["value"]["pin"])),
+            )
+            runner, source_config = register_source_worker(profile)
+            records = queries.create_records_service(
+                ProjectStage1DeliveryService(stage1),
+                materials_root=checked["stage1_materials_root"],
+            )
+            parser_runtime = prepare_saved_parser_runtime(
+                sdk_root=Path(runtime["value"]["pin"]["code_identity"]["entry"]).parent
+            )
+            parser_factory = ContainedSavedSourceParserFactory(
+                worker=runner, runtime=parser_runtime
+            )
+            pipeline = SourceSavedPipeline(
+                stage1, records, parser_factory, phase_admission=True
+            )
+            source_config["pipeline_sha256"] = pipeline.binding_sha256
+            sources = runner.create_service(
+                projects, stage1, config=source_config, pipeline=pipeline
+            )
+            source_dispatcher = ProjectSourceDispatcher(sources)
         return dict(
             projects=projects,
             models=models,
             stage1=stage1,
             stage2=stage2,
             queries=queries,
+            stage1_sources=sources,
+            stage1_source_dispatcher=source_dispatcher,
             stage1_materials_root=checked.get("stage1_materials_root"),
             credential=credential,
             files=files,
@@ -407,14 +477,20 @@ def prepare(args, checked, *, source=None, inventory=None):
         )
     except BaseException:
         try:
-            if queries is not None:
-                queries.close()
+            if source_dispatcher is not None:
+                source_dispatcher.close()
+            elif sources is not None:
+                sources.close()
         finally:
             try:
-                if models is not None:
-                    models.close()
+                if queries is not None:
+                    queries.close()
             finally:
-                projects.close()
+                try:
+                    if models is not None:
+                        models.close()
+                finally:
+                    projects.close()
         raise
 
 
@@ -442,6 +518,8 @@ def main(argv=None):
         stages3_to6="planned/unconnected",
         execution_authorized=False,
         stage1_saved_records_configuration=checked["stage1_materials_root"] is not None,
+        stage1_source_acquisition_configuration=args.enable_public_sources,
+        stage1_saved_parser_core_configuration=args.enable_public_sources,
         stage1_source_acquisition=False,
         stage1_automatic_reading=False,
     )
@@ -464,6 +542,8 @@ def main(argv=None):
                         "files",
                         "views",
                         "stage1_materials_root",
+                        "stage1_sources",
+                        "stage1_source_dispatcher",
                     )
                 },
                 host="127.0.0.1",
@@ -485,13 +565,19 @@ def main(argv=None):
                 host.server_close()
         finally:
             try:
-                if services.get("queries") is not None:
-                    services["queries"].close()
+                if services.get("stage1_source_dispatcher") is not None:
+                    services["stage1_source_dispatcher"].close()
+                elif services.get("stage1_sources") is not None:
+                    services["stage1_sources"].close()
             finally:
                 try:
-                    services["models"].close()
+                    if services.get("queries") is not None:
+                        services["queries"].close()
                 finally:
-                    services["projects"].close()
+                    try:
+                        services["models"].close()
+                    finally:
+                        services["projects"].close()
 
 
 if __name__ == "__main__":
