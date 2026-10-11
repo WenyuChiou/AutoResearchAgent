@@ -13,13 +13,24 @@ READ_SCOPE = "stage1-saved-text-draft-only"
 MAX_EXCERPT_BYTES = 12000
 
 
-def saved_reading_snapshot(records, project_ref, work_ref, *, check_deadline=None):
+def saved_reading_snapshot(
+    records,
+    project_ref,
+    work_ref,
+    *,
+    check_deadline=None,
+    excerpt_bytes=MAX_EXCERPT_BYTES,
+):
     """Recheck original source bytes, current work/version and the owned frontier."""
     from .project_stage1_records import ProjectStage1RecordsService
     from .project_stage1_sources import source_record
 
     _check(
         isinstance(records, ProjectStage1RecordsService), "reading-records-unconnected"
+    )
+    _check(
+        type(excerpt_bytes) is int and 0 <= excerpt_bytes <= MAX_EXCERPT_BYTES,
+        "reading-excerpt-bound-invalid",
     )
     _check(
         type(work_ref) is str and 0 < len(work_ref) <= 256,
@@ -98,7 +109,7 @@ def saved_reading_snapshot(records, project_ref, work_ref, *, check_deadline=Non
                     "reading-saved-text-bound-exceeded",
                 )
                 raw.decode("utf8", errors="strict")
-                excerpt = raw[:MAX_EXCERPT_BYTES].decode("utf8", errors="ignore")
+                excerpt = raw[:excerpt_bytes].decode("utf8", errors="ignore")
                 excerpt_raw = excerpt.encode("utf8")
                 sources.append(
                     dict(

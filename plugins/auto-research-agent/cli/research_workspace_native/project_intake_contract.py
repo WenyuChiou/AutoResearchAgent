@@ -161,6 +161,19 @@ def refusal_shape(kind, body, key, project_ref):
     try:
         identifier(key)
         expected, optional = shapes[kind]
+        if kind == "stage1-claim" and "work_ref" in body:
+            expected = BOUND_FIELDS | {
+                "ledger_state_sha256",
+                "confirmed",
+                "work_ref",
+                "source_ref",
+                "offer_sha256",
+                "start_byte",
+                "end_byte",
+                "quote",
+                "review",
+            }
+            optional = set()
         _fields(body, expected, optional)
         if kind == "create":
             return project_ref is None and type(body["topic"]) is str

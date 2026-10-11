@@ -10,6 +10,7 @@
   <script src="/projects-coverage.js" defer></script>
   <script src="/projects-expansions.js" defer></script>
   <script src="/projects-reading.js" defer></script>
+  <script src="/projects-saved-claims.js" defer></script>
   <script src="/projects-atlas.js" defer></script>
   <script src="/projects.js" defer></script>
 </head>
@@ -98,6 +99,7 @@
         <section class="card"><div class="section-heading"><h2 data-text="nativeTitle">Codex questions and approvals</h2><button id="native-refresh" data-text="nativeRefresh">Read current session</button></div><p class="subtle" data-text="nativeHelp">Content tasks can ask questions. Tool requests may only be declined or cancelled here. Reading does not start or resume a session.</p><div id="native-questions"></div></section>
         <section class="card"><div class="section-heading"><h2 data-text="historyTitle">Saved actions and results</h2><button id="history-refresh" data-text="refreshHistory">Read action history</button></div><div id="history" class="history"></div><button id="history-more" data-text="moreHistory" hidden>Read more history</button><div id="output-reader" hidden><h3 data-text="viewOutput">Read full output</h3><p id="output-identity" class="subtle"></p><pre id="output-text"></pre><button id="output-next" data-text="nextOutput" hidden>Read next part</button></div></section>
         <section id="reading-card" class="card" hidden><h2 id="reading-title">Review a saved reading draft</h2><div id="reading-panel"></div></section>
+        <section id="source-claim-card" class="card" hidden><div id="source-claim-panel"></div></section>
         <details class="card workflow"><summary data-text="workflowTitle">Workflow, expected outputs and remaining connections</summary><ol><li><strong data-text="workflow1">1. Confirm the scope</strong><span data-text="output1">Versioned ResearchBrief and resource limits</span></li><li><strong data-text="workflow2">2. Search, read and screen</strong><span data-text="output2">Query/source attempts, keep/reject reasons and source-bound claims</span></li><li><strong data-text="workflow3">3. Check coverage and deliver Stage1</strong><span data-text="output3">Real coverage gate, canonical reports and accepted evidence handoff</span></li><li><strong data-text="workflow4">4. Compare and propose Stage2 routes</strong><span data-text="output4">Comparison, candidates, independent checks and retained revisions</span></li><li><strong data-text="workflow5">5. Review and select</strong><span data-text="output5">User choice and unresolved conditions; Stage3–6 planned/unconnected</span></li></ol><p class="subtle" data-text="completionHelp">A completed call, a valid artifact and an accepted research stage are different states. A partial result or Unknown is retained; refresh reads history and never resends.</p></details>
       </div>
     </main>

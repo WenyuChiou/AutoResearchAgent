@@ -36,7 +36,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -52,6 +52,10 @@ HISTORY_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/models/actions/([0-9]{1,4})"
 )
 ASSETS = Path(__file__).parent / "web"
+SAVED_CLAIM_ROUTE = re.compile(
+    r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/source-claims/([A-Za-z0-9_-]{1,256})"
+    r"(?:/([0-9a-f]{64})/([0-9]{1,7}))?"
+)
 
 
 class ProjectHost(AtlasHost):
@@ -125,6 +129,7 @@ class ProjectHost(AtlasHost):
         )
         self.project_stage1_records = None
         self.project_stage1_claims = None
+        self.project_saved_claims = None
         self.project_reading_review = None
         self.project_records_prepare = None
         if stage1_materials_root is not None:
@@ -146,6 +151,11 @@ class ProjectHost(AtlasHost):
 
             self.project_records_prepare = ProjectRecordsPrepareService(
                 self.project_stage1_records
+            )
+            from .project_saved_claims import ProjectSavedClaimService
+
+            self.project_saved_claims = ProjectSavedClaimService(
+                stage1, self.project_stage1_records, models
             )
             if models is not None:
                 from .project_model import ProjectModelService
@@ -187,6 +197,7 @@ class ProjectHost(AtlasHost):
             "projects-coverage.js",
             "projects-expansions.js",
             "projects-reading.js",
+            "projects-saved-claims.js",
             "projects-atlas.js",
         ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
@@ -199,6 +210,7 @@ class ProjectHost(AtlasHost):
             project_stage1_ledger=stage1 is not None,
             project_stage1_saved_records=self.project_stage1_records is not None,
             project_stage1_claim_review=self.project_stage1_claims is not None,
+            project_stage1_saved_claim_review=self.project_saved_claims is not None,
             project_stage1_reading_review=self.project_reading_review is not None,
             project_stage1_private_atlas=self.project_stage1_atlas is not None,
             project_stage1_source_controls=stage1_sources is not None,
@@ -319,6 +331,22 @@ class ProjectHandler(AtlasHandler):
             screening = PAGE_ROUTE.fullmatch(self.path)
             detail = DETAIL_ROUTE.fullmatch(self.path)
             reading = READING_ROUTE.fullmatch(self.path)
+            saved_claim = SAVED_CLAIM_ROUTE.fullmatch(self.path)
+            if saved_claim is not None:
+                if method != "GET" or length:
+                    raise SessionApiError("invalid-project-read", 400)
+                if self.server.project_saved_claims is None:
+                    raise SessionApiError("saved-claim-review-unconnected", 409)
+                result = self.server.project_saved_claims.view(
+                    token,
+                    saved_claim[1],
+                    saved_claim[2],
+                    saved_claim[3],
+                    int(saved_claim[4] or 0),
+                    check_deadline=self._remaining,
+                )
+                self._remaining()
+                return self._reply(200, result)
             if reading is not None:
                 if method != "GET" or length:
                     raise SessionApiError("invalid-project-read", 400)
@@ -492,6 +520,7 @@ class ProjectHandler(AtlasHandler):
                         "screen",
                         "coverage",
                         "claim",
+                        "source-claim",
                         "reading-review",
                         "review-stage2-input",
                         "prepare-delivery",
@@ -525,6 +554,12 @@ class ProjectHandler(AtlasHandler):
                             raise SessionApiError(
                                 "stage1-claim-review-unconnected", 409
                             )
+                    elif action == "source-claim":
+                        extension = self.server.project_saved_claims
+                        if extension is None:
+                            raise SessionApiError("saved-claim-review-unconnected", 409)
+                        called = ("stage1-claim", ref, body)
+                        action = "claim"
                     elif action == "reading-review":
                         extension = self.server.project_reading_review
                         if extension is None:

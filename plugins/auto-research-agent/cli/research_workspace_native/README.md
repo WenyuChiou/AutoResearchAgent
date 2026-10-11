@@ -429,6 +429,18 @@ its separate current checkpoint and canonical records gates. Canonical records
 claim event and historical source bytes; existing 1.0 records remain supported.
 These UI/adapter checks do not demonstrate a live Codex research run.
 
+Saved-source evidence review also works without a model draft. In the project
+literature library, open a paper and choose **Review evidence in saved source
+text**. Select a verbatim passage, enter one claim and its location, then explicitly
+review its relation and evidence level. Bounded pages cover the saved text beyond
+the model excerpt; this action makes no model or source-acquisition call. The
+server binds the current work/version, source registry, original text hash and
+owned ledger frontier before appending Core `ClaimEvidence`. Core identity
+review still requires five distinct primary-text claim IDs; these are human
+judgments, not automatic identity approval. Unknown values remain Unknown.
+The same durable `stage1-claim` history handles replay and uncertain writes;
+refresh after a lost response reads history without submitting again.
+
 After reviewing source quotations, separately review the draft classification
 and findings, check the explicit confirmation, and save the reading note. Unknown
 and all Core claims remain; this single SQLite action grants no source/model

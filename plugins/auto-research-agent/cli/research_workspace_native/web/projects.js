@@ -233,6 +233,7 @@
     if (window.ProjectExpansions) window.ProjectExpansions.render($("expansion-panel"), {value: state.stage1 && state.stage1.expansion_execution, language: state.language, blocked: projectBlocked, onAction: submitExpansion});
     if (window.ResearchProjectCoverage) window.ResearchProjectCoverage.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked, submit: submitCoverage});
     if (window.ResearchProjectReading) window.ResearchProjectReading.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
+    if (window.ResearchSavedClaims) window.ResearchSavedClaims.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
     document.querySelectorAll("button[data-reading-draft]").forEach(button => { button.disabled = blocked || !state.project || button.dataset.readingInput !== String(state.project.input_version) || button.dataset.readingBrief !== state.project.brief_sha256; });
   }
   async function openReadingDraft(ref, result) {
@@ -262,6 +263,39 @@
     const result = await mutate("stage1/claim", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, output_ref: item.output_ref, draft_sha256: item.draft_sha256, evidence_index: item.evidence_index, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
     if (result && generation === state.generation && state.project && state.project.project_ref === ref
         && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+    return result;
+  }
+  async function readSavedClaims(item, sourceRef, offset = 0) {
+    const project = state.project, generation = state.generation, language = state.language;
+    if (!project || state.busy || state.loading || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    const task = state.savedClaimGeneration = (state.savedClaimGeneration || 0) + 1;
+    const tail = "stage1/source-claims/" + encodeURIComponent(item.work_ref)
+      + (sourceRef ? "/" + encodeURIComponent(sourceRef) + "/" + offset : "");
+    const reply = await request(route(project.project_ref, tail));
+    if (generation !== state.generation || task !== state.savedClaimGeneration || reply.work_ref !== item.work_ref
+        || language !== state.language || state.busy || state.loading
+        || state.project !== project || reply.revision !== project.revision
+        || reply.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)) return;
+    state.savedClaimView = reply;
+    window.ResearchSavedClaims.render(reply, (source, next) => guarded(() => readSavedClaims(item, source, next))(), submitSavedClaim);
+    return true;
+  }
+  async function submitSavedClaim(item) {
+    const view = state.savedClaimView, project = state.project;
+    if (!view || !project || state.busy || state.loading || state.activeJob
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || item.revision !== project.revision
+        || item.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)
+        || item.work_ref !== view.work_ref || item.source_ref !== view.selected_source.source_ref
+        || item.offer_sha256 !== view.selected_source.offer_sha256) return null;
+    const ref = project.project_ref;
+    const result = await mutate("stage1/source-claim", Object.assign(identity(), {
+      ledger_state_sha256: item.ledger_state_sha256, work_ref: item.work_ref, source_ref: item.source_ref,
+      offer_sha256: item.offer_sha256, start_byte: item.start_byte, end_byte: item.end_byte,
+      quote: item.quote, review: item.review, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
     return result;
   }
   async function submitReadingReview(item) {
@@ -299,7 +333,7 @@
     const actionKey = key(); body.key = actionKey;
     let sent = false;
     try {
-      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/retire": "model-retirement", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute", "stage1/reading-review": "stage1-reading-registry", "stage1/prepare-delivery": "stage1-produce-records"}[operation] || operation.replace("stage1/", "stage1-");
+      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/retire": "model-retirement", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute", "stage1/source-claim": "stage1-claim", "stage1/reading-review": "stage1-reading-registry", "stage1/prepare-delivery": "stage1-produce-records"}[operation] || operation.replace("stage1/", "stage1-");
       const request_sha256 = await requestHash(kind, body);
       remember({ key: actionKey, project_ref: ref || null, operation, kind, request_sha256 });
       sent = true;
@@ -822,6 +856,8 @@
     const grant = permission.result || permission;
     await executeSourceGrant(grant, ref, item.input_version, item.brief_sha256);
   }));
+  document.addEventListener("project-review-source", guarded(event => readSavedClaims(event.detail)));
+  document.addEventListener("project-close-source-review", () => { state.savedClaimGeneration = (state.savedClaimGeneration || 0) + 1; state.savedClaimView = null; });
   document.addEventListener("project-read-paper", guarded(async event => {
     const item = event.detail, project = state.project;
     if (!project || state.loading || !item || item.project_ref !== project.project_ref

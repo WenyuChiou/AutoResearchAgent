@@ -116,6 +116,11 @@
     if (!area.querySelector("a")) append(area, "p", "Unknown", "subtle");
     append(area, "p", t("sourceNotRead"), "subtle");
     const reading = selected.reading_offer;
+    const claimButton = append(area, "button", {en: "Review evidence in saved source text", "zh-Hans": "审阅已保存原文的证据", "zh-Hant": "審閱已保存原文的證據"}[language]);
+    claimButton.type = "button";
+    claimButton.onclick = () => document.dispatchEvent(new CustomEvent("project-review-source", {detail: {
+      project_ref: basis.ref, input_version: basis.version, brief_sha256: basis.brief, work_ref: row.work_id
+    }}));
     if (sourceReady && !(reading && reading.available === true)) {
       const caption = {en: "Acquire this public source", "zh-Hans": "取得这篇公开来源", "zh-Hant": "取得這篇公開來源"}[language];
       const action = append(area, "button", caption); action.type = "button";

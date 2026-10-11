@@ -43,6 +43,7 @@ def main():
     sys.path[:0] = [str(plugin / "cli"), str(tests)]
 
     from research_workspace_native.project_host import ProjectHost
+    from research_workspace_native.project_saved_claims import ProjectSavedClaimService
     from research_workspace_native.project_reading_review import (
         ProjectReadingReviewService,
     )
@@ -81,6 +82,9 @@ def main():
             # already composed service only in the fixture, rather than weakening
             # production materials-root/query-owner construction checks.
             host.project_stage1_claims = context["claims"]
+            host.project_saved_claims = ProjectSavedClaimService(
+                case.stage1, case.producer, context["models"]
+            )
             host.project_reading_review = ProjectReadingReviewService(context["claims"])
             host.project_stage1_delivery = case.delivery
             host.project_stage1_records = case.producer

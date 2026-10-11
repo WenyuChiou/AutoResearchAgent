@@ -207,7 +207,13 @@ class ProjectHostTests(unittest.TestCase):
         self.assertFalse(binding["project_stage1_saved_records"])
         self.assertFalse(binding["project_stage1_source_acquisition"])
         self.assertFalse(binding["project_stage1_automatic_reading"])
-        for path in ("/", "/projects.html", "/projects.js", "/projects.css"):
+        for path in (
+            "/",
+            "/projects.html",
+            "/projects.js",
+            "/projects.css",
+            "/projects-saved-claims.js",
+        ):
             status, raw = self.request(path)
             self.assertEqual(status, 200)
             self.assertEqual(sha(raw), binding["served_files"][path])
@@ -239,7 +245,10 @@ class ProjectHostTests(unittest.TestCase):
                 patch.object(
                     ProjectStage1QueryService, "create_records_service"
                 ) as factory,
-                self.assertRaisesRegex(ValueError, "trusted query owner"),
+                self.assertRaisesRegex(
+                    ValueError,
+                    r"trusted query owner|^project-expansion-query-owner-required$",
+                ),
             ):
                 ProjectHost(
                     projects=self.projects,

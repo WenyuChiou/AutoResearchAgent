@@ -211,8 +211,8 @@ class ProjectStage1ClaimService:
                 (row := json.loads(raw[0]))["kind"] == "stage1-claim"
                 and row["status"] == "saved"
                 and row["request"]["input_version"] == body["input_version"]
-                and row["request"]["output_ref"] == body["output_ref"]
-                and row["request"]["evidence_index"] == index
+                and row["request"].get("output_ref") == body["output_ref"]
+                and row["request"].get("evidence_index") == index
                 for raw in rows
             ),
             "stage1-claim-evidence-already-reviewed",

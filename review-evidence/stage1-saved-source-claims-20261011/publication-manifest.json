@@ -1,0 +1,73 @@
+[
+  {
+    "path": "receipt.json",
+    "sha256": "ecda0fffb29d1a16884766f52776664409187d13c5655d2a54619acc2039ed60",
+    "original_sha256": "5ca2cdad0810545ad405b1068a2a1f2b8fca88b3fe5809d14456a74ab556eb38",
+    "transformation": "checkout-absolute source keys converted to repository-relative keys; all values preserved"
+  },
+  {
+    "path": "en.png",
+    "sha256": "7219c2fa832c8a13392f345038aa812ed110fe14b2975dd2d1d78013b1d235dd",
+    "transformation": "none"
+  },
+  {
+    "path": "zh-Hans.png",
+    "sha256": "a21b262f166368d90bbfaf532b532c2ba5fab4d0f5e655e70ca06d8ca0636cd9",
+    "transformation": "none"
+  },
+  {
+    "path": "zh-Hant.png",
+    "sha256": "1208562cb83fa998ed90bd43b6fe9eeab92bbc050d16ba4dc2995b23e63bb646",
+    "transformation": "none"
+  },
+  {
+    "path": "after-recovery.png",
+    "sha256": "7219c2fa832c8a13392f345038aa812ed110fe14b2975dd2d1d78013b1d235dd",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-claims-initial-20261011-v1.log",
+    "sha256": "02e5d494327e49715efad114cc1b2b927a9f39c1cd7481e3f864771746f8716e",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-claims-http-repair-20261011-v1.log",
+    "sha256": "7e1c22516623fbf083b1b9fc779054c837bf4c9c52dcc131b26642e498bd2ff2",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-claims-http-repair-20261011-v2.log",
+    "sha256": "db751d539c648f557e70843a506533dc5c62661835d0df209443efb4c226c30a",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-claims-http-repair-20261011-v3.log",
+    "sha256": "3fd72392e0444b4fd031155b28144bfb114040d1602bf24d447b463a31c19db7",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-related-20261011-v1.log",
+    "sha256": "139e1d227d1217a796b7b2a725ca701a7bcb5acce7644058b9529936f4e14b33",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-contract-regressions-20261011-v1.log",
+    "sha256": "c35d18848e81bcd8eecc1d029329ac1daa065952f293b5be4320460f4c64bfb6",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-host-repair-20261011-v1.log",
+    "sha256": "55ef5ddb96319e04bdfe1b38e0b717756b76c02a7cb09f1130394e433396bc5b",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-map-20261011-v1.log",
+    "sha256": "ac701cde17c359ccf473d76dd74f4b72908538cc37a8aa6d9c97a431f3255dd0",
+    "transformation": "none"
+  },
+  {
+    "path": "saved-source-validator-20261011-v1.log",
+    "sha256": "77d54b83d881a15873a4dd08b115cbd00520efa9adb6e93c74bf207fa0f4767b",
+    "transformation": "none"
+  }
+]
