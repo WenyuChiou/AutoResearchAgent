@@ -56,6 +56,11 @@ def refusal_shape(kind, body, key, project_ref):
             | {"ledger_state_sha256", "query_ref", "query_sha256", "confirmed"},
             set(),
         ),
+        "stage1-screen": (
+            BOUND_FIELDS
+            | {"ledger_state_sha256", "work_ref", "decision", "rationale", "confirmed"},
+            set(),
+        ),
         "stage1-checkpoint": (
             BOUND_FIELDS | {"ledger_state_sha256", "confirmed"},
             set(),

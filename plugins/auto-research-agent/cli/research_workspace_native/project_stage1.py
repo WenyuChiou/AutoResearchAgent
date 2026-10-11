@@ -18,7 +18,7 @@ from stage1_ledger.readiness import readiness
 from stage1_ledger.validation import validate_run
 
 from .project_intake import ProjectIntakeService
-from .project_intake_contract import _fields
+from .project_intake_contract import _fields, _text
 from .session_api import _check, _hash
 
 MAX_QUERIES = 256
@@ -382,6 +382,52 @@ class ProjectStage1Service:
             "stage1-execute-query",
             refuse,
             fields={"query_ref", "query_sha256"},
+            check_deadline=check_deadline,
+        )
+
+    def screen(self, credential, project_ref, body, *, check_deadline=None):
+        """Save an explicit user's selection; source and scientific states stay separate."""
+        _fields(
+            body,
+            BODY_FIELDS | {"ledger_state_sha256", "work_ref", "decision", "rationale"},
+        )
+        identifier(body["work_ref"])
+        _check(
+            body["decision"] in {"include", "exclude", "pending"},
+            "stage1-screening-decision-invalid",
+            400,
+        )
+        rationale = _text(body["rationale"])
+
+        def producer(_state, _run, ledger, _request_hash, actor):
+            candidate = ledger.candidates().get(body["work_ref"])
+            _check(candidate is not None, "stage1-screening-work-unavailable", 404)
+            discovery = candidate["discoveries"][-1]
+            event = ledger.decide(
+                body["work_ref"],
+                body["decision"],
+                reason="researcher-screening",
+                rationale=rationale,
+                evidence_refs=[discovery["source_ref"]],
+                actor=actor,
+                authorization={"input": rationale, "state_sha256": ledger.state_hash()},
+            )
+            return dict(
+                work_ref=body["work_ref"],
+                decision_event_id=event,
+                decision=body["decision"],
+                ledger_state_sha256=ledger.state_hash(),
+                scientific_acceptance=False,
+                stage1_complete=False,
+            )
+
+        return self._mutate(
+            credential,
+            project_ref,
+            body,
+            "stage1-screen",
+            producer,
+            fields={"work_ref", "decision", "rationale"},
             check_deadline=check_deadline,
         )
 

@@ -30,7 +30,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|checkpoint|export|deliver)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|screen|checkpoint|export|deliver)(?:/(answer|interrupt))?)?)?)?"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -278,6 +278,7 @@ class ProjectHandler(AtlasHandler):
                     and action
                     in {
                         "initialize",
+                        "screen",
                         "plan-query",
                         "execute-query",
                         "checkpoint",
