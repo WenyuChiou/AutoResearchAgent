@@ -1,0 +1,15 @@
+WARN `--no-project` was provided, but no project was found
+test_default_bound_overlay_order_hashes_and_zero_native_io (test_native_atlas_host_assets.NativeAtlasHostAssetsTests.test_default_bound_overlay_order_hashes_and_zero_native_io) ... ok
+test_default_no_runtime_has_no_control_assets_or_native_routes (test_native_atlas_host_assets.NativeAtlasHostAssetsTests.test_default_no_runtime_has_no_control_assets_or_native_routes) ... ok
+test_explicit_script_keeps_legacy_asset_choice (test_native_atlas_host_assets.NativeAtlasHostAssetsTests.test_explicit_script_keeps_legacy_asset_choice) ... ok
+test_unbound_case_bootstrap_disables_overlay_and_cannot_access_native (test_native_atlas_host_assets.NativeAtlasHostAssetsTests.test_unbound_case_bootstrap_disables_overlay_and_cannot_access_native) ... ok
+test_deadline_and_source_recheck_never_emit_recovery_authority (test_native_known_unsent.KnownUnsentTests.test_deadline_and_source_recheck_never_emit_recovery_authority) ... ok
+test_offer_publishes_actual_limit_without_native_io (test_native_known_unsent.KnownUnsentTests.test_offer_publishes_actual_limit_without_native_io) ... ok
+test_text_and_stale_rejections_bind_receipt_then_allow_recovery (test_native_known_unsent.KnownUnsentTests.test_text_and_stale_rejections_bind_receipt_then_allow_recovery) ... ok
+test_unverified_source_principal_offer_and_existing_key_have_no_receipt (test_native_known_unsent.KnownUnsentTests.test_unverified_source_principal_offer_and_existing_key_have_no_receipt) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 5.525s
+
+OK
+Actual exit code: 0

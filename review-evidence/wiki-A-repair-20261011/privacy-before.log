@@ -1,0 +1,26 @@
+test_public_views_and_action_receipts_hide_native_identity (test_research_workspace_native_session_api.SessionApiTests.test_public_views_and_action_receipts_hide_native_identity) ... FAIL
+test_view_keeps_controller_identity_private_without_io (test_research_workspace_native_session_api.SessionApiTests.test_view_keeps_controller_identity_private_without_io) ... FAIL
+
+======================================================================
+FAIL: test_public_views_and_action_receipts_hide_native_identity (test_research_workspace_native_session_api.SessionApiTests.test_public_views_and_action_receipts_hide_native_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-a-20261011\plugins\auto-research-agent\tests\test_research_workspace_native_session_api.py", line 184, in test_public_views_and_action_receipts_hide_native_identity
+    self.assertTrue(all("project_id" not in row for row in public))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_view_keeps_controller_identity_private_without_io (test_research_workspace_native_session_api.SessionApiTests.test_view_keeps_controller_identity_private_without_io)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-a-20261011\plugins\auto-research-agent\tests\test_research_workspace_native_session_api.py", line 115, in test_view_keeps_controller_identity_private_without_io
+    self.assertNotIn("project_id", view)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'project_id' unexpectedly found in {'project_ref': 'project-a', 'project_id': 'internal-a', 'index_sha256': '6d883ad09b93cfb4cfe062d5b903af9bfdcb395a61db98abc0f3c072e53a3b6e', 'input_version': '410ea61566cc3693b1be7afd1a77f2597a9164c4a7b3bca5c5522cec9fcdaa04', 'revision': 5, 'failure': None, 'requests': [], 'actions': [], 'operations': [], 'transcript': {'schema_version': '1.0.0', 'entries': [], 'window': {'event_limit': 128, 'entry_limit': 128, 'text_byte_limit': 65536, 'truncated': False, 'omitted_frames': 0}}}
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.331s
+
+FAILED (failures=2)
+Actual exit code: 1

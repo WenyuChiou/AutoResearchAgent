@@ -41,7 +41,7 @@ const knownUnsent = (body, binding = fixture) => ({schema_version: "NativeKnownU
 const rejected = receipt => ({ok: false, status: 400, json: async () => ({error: "synthetic-rejection", ...(receipt ? {receipt} : {})})});
 let keys = 0;
 async function mount({view = copy(fixture), storage = new Map(), failMessage = false, enabled = true,
-  locale = "en", maxTextBytes = 16384, hooks = {}, atlas = true, server = {view, offered: false}} = {}) {
+  locale = "en", maxTextBytes = 16384, hooks = {}, atlas = true, sourceProject = "fixture-project", server = {view, offered: false}} = {}) {
   const html = new Element("html"); html.lang = locale;
   const body = new Element("body"); html.append(body);
   const host = new Element("section"); host.id = "host-panel"; body.append(host);
@@ -50,7 +50,8 @@ async function mount({view = copy(fixture), storage = new Map(), failMessage = f
     createElement: tag => new Element(tag), querySelector: () => null,
     getElementById: id => flatten(html).find(e => e.id === id)};
   const window = atlas ? {WORKSPACE_NATIVE_ATLAS: {enabled, credential: "fixture-memory-only-secret", current_case: "fixture-case",
-    project_ref: fixture.project_ref, index_sha256: fixture.index_sha256, input_version: fixture.input_version}} : {};
+    project_ref: fixture.project_ref, source_project_id: sourceProject,
+    index_sha256: fixture.index_sha256, input_version: fixture.input_version}} : {};
   const listeners = new Map();
   window.addEventListener = (type, callback) => {if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(callback);};
   window.dispatchEvent = event => {for (const callback of listeners.get(event.type) || []) callback(event); return true;};
@@ -360,7 +361,7 @@ async function test(name, callback) {
     assert.equal(state.document.getElementById("native-chat-text"), undefined);
     assert.equal(state.calls.length, 0);
   });
-  const reviewView = () => ({...copy(fixture), project_id: "fixture-project"});
+  const reviewView = () => copy(fixture);
   const draft = (changes = {}) => ({project_id: "fixture-project", index_sha256: fixture.index_sha256,
     stage: "stage2", request_ref: "review-1", text: "Please revise Stage 2; keep unresolved evidence visible.", ...changes});
   await test("stage draft changes only the matching source-bound textarea, with no offer or POST", async () => {
@@ -374,15 +375,15 @@ async function test(name, callback) {
     assert.equal(state.document.getElementById("native-chat-send").disabled, true);
     assert.equal(state.calls.length, calls); assert.equal(state.storage.size, storage);
   });
-  await test("foreign project, source, missing server identity and stopped session leave draft unchanged", async () => {
+  await test("foreign project, source, missing Atlas bootstrap identity and stopped session leave draft unchanged", async () => {
     const samples = [
       {view: reviewView(), value: draft({project_id: "other-project"}), reason: "binding-mismatch"},
       {view: reviewView(), value: draft({index_sha256: "f".repeat(64)}), reason: "binding-mismatch"},
-      {view: copy(fixture), value: draft(), reason: "unavailable"},
+      {view: copy(fixture), sourceProject: null, value: draft(), reason: "unavailable"},
       {view: {...reviewView(), failure: "session-stopped"}, value: draft(), reason: "unavailable"},
     ];
-    for (const {view, value, reason} of samples) {
-      const state = await mount({view});
+    for (const {view, sourceProject, value, reason} of samples) {
+      const state = await mount({view, ...(sourceProject === null ? {sourceProject} : {})});
       const text = state.document.getElementById("native-chat-text"); text.value = "keep draft";
       assert.equal(state.reviewDraft(value).reason, reason); assert.equal(text.value, "keep draft");
       assert.equal(state.calls.length, 1); assert.equal(state.storage.size, 0);
@@ -418,7 +419,7 @@ async function test(name, callback) {
     }
   });
   await test("mismatched server project and busy preparation refuse a stage draft", async () => {
-    const foreign = await mount({view: {...reviewView(), project_id: "foreign-project"}});
+    const foreign = await mount({view: reviewView(), sourceProject: "foreign-project"});
     assert.equal(foreign.reviewDraft(draft()).reason, "unavailable");
     assert.equal(foreign.document.getElementById("native-chat-text").disabled, true);
     const state = await mount({view: reviewView()});

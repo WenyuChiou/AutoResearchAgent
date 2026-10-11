@@ -486,6 +486,7 @@ class AtlasHandler(SessionHandler):
                     current_case=ref,
                     enabled=native is not None,
                     project_ref=native["project_ref"] if native else None,
+                    source_project_id=native["project_id"] if native else None,
                     index_sha256=native["index_sha256"]
                     if native
                     else next(

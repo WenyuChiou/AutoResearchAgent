@@ -6,7 +6,8 @@ and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
 search, source import or session resume is required.
 
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
-Candidate A (#262) retains accepted main `347ae67a` and the reviewed Wiki/Atlas
+Candidate A (#262) retains current main `f7e036c2`, including the accepted
+`347ae67a` CI scope changes, and the reviewed Wiki/Atlas
 assets. It is not yet merged or accepted by the core team. This candidate's
 launcher is the saved-view review host below; the later ProjectHost/settings/
 research-execution integration belongs to candidates B/C (#271/#295).
@@ -72,6 +73,29 @@ filesystem route. Research records remain immutable; `host-binding.json` identif
 the served overlay separately. An unavailable Codex panel is the expected fixture
 state. A static `file:///` page cannot own a server-side Codex session.
 
+## Opt-in rendered navigation regression
+
+The permanent `test_workspace_atlas_rendered.py` selector builds a fresh synthetic
+Atlas export and checks keyboard navigation, phone navigation scrolling and page
+containment at 1440, 768 and 390 pixels. Run it with the test requirements, Node.js,
+an installed Playwright module and an installed Chromium browser available:
+
+```powershell
+$env:ATLAS_RENDERED_CHECK = '1'
+# Set NODE_PATH if Playwright is installed outside the checkout's module tree.
+# Set ATLAS_BROWSER_EXECUTABLE to an installed Chromium executable if needed.
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_atlas_rendered.py -v
+Remove-Item Env:ATLAS_RENDERED_CHECK
+```
+
+Use `TEMP`/`TMP` outside Git as described above. This command does not install a
+browser or dependencies. An explicitly selected check fails when a prerequisite
+is missing. Ordinary CI reports a transparent skip and supplies no browser PASS.
+Core owns the opt-in rendered acceptance and rechecks it when navigation or the
+rendered selector changes. The earlier screenshot evidence remains applicable
+only to unchanged page/style bytes and its recorded browser/viewports; it does
+not attest to other browsers, physical touch devices or native execution.
+
 # Attach an already admitted server session
 
 Native conversation requires trusted application code to supply an existing ready
@@ -100,7 +124,13 @@ separate evidence requirement.
 
 The stage review choices prepare a conversation draft. They do not approve a
 stage, grant a permit, select a research direction or start the next stage.
-The bridge accepts only Stage 1–6, a matching current server-read project/index,
+The generic session API exposes opaque `project_ref` and index/input bindings;
+it keeps the controller's project identity private. Only the trusted Atlas host,
+after matching its saved source to the registered runtime, supplies the public
+`source_project_id` in its Atlas bootstrap. The bridge correlates that identity
+with the current opaque session view and the saved Atlas index. An ordinary
+session page without that explicit Atlas binding cannot accept a stage draft.
+The bridge accepts only Stage 1–6, that matching source/index/input binding,
 and nonblank valid UTF-8 text up to 16 KiB. Busy or unsettled actions block it.
 After the draft appears, explicitly prepare the message and send it to the
 admitted session. Refresh and reconnect read history without automatic resend.

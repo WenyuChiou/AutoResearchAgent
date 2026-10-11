@@ -1,0 +1,30 @@
+test_saved_synthetic_export_navigation (test_workspace_atlas_rendered.AtlasRenderedNavigationTests.test_saved_synthetic_export_navigation) ... skipped 'set ATLAS_RENDERED_CHECK=1 to run the opt-in browser check; ordinary CI does not launch a browser'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK (skipped=1)
+ordinary_selector_exit=0
+test_saved_synthetic_export_navigation (test_workspace_atlas_rendered.AtlasRenderedNavigationTests.test_saved_synthetic_export_navigation) ... FAIL
+
+======================================================================
+FAIL: test_saved_synthetic_export_navigation (test_workspace_atlas_rendered.AtlasRenderedNavigationTests.test_saved_synthetic_export_navigation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-a-20261011\plugins\auto-research-agent\tests\test_workspace_atlas_rendered.py", line 36, in test_saved_synthetic_export_navigation
+    self.assertTrue(node.is_file(), f"Node.js executable does not exist: {node}")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Node.js executable does not exist: C:\temp\missing-atlas-node.exe
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)
+missing_node_exit=1
+test_saved_synthetic_export_navigation (test_workspace_atlas_rendered.AtlasRenderedNavigationTests.test_saved_synthetic_export_navigation) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 4.107s
+
+OK
+rendered_selector_exit=0

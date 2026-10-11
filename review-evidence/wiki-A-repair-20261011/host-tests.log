@@ -1,0 +1,39 @@
+WARN `--no-project` was provided, but no project was found
+test_bad_http_authority_and_caller_model_have_zero_intent (test_native_message_host.MessageHostTests.test_bad_http_authority_and_caller_model_have_zero_intent) ... ok
+test_failed_socket_construction_does_not_take_borrowed_runtime_ownership (test_native_message_host.MessageHostTests.test_failed_socket_construction_does_not_take_borrowed_runtime_ownership) ... ok
+test_first_offer_revision_and_typed_http_rejection_recover (test_native_message_host.MessageHostTests.test_first_offer_revision_and_typed_http_rejection_recover) ... ok
+test_host_bootstrap_binds_case_and_default_or_foreign_case_is_disabled (test_native_message_host.MessageHostTests.test_host_bootstrap_binds_case_and_default_or_foreign_case_is_disabled) ... ok
+test_host_rejects_forged_binding_credential_and_view_before_socket (test_native_message_host.MessageHostTests.test_host_rejects_forged_binding_credential_and_view_before_socket) ... ok
+test_real_http_offer_message_same_key_and_recovery_are_single_write (test_native_message_host.MessageHostTests.test_real_http_offer_message_same_key_and_recovery_are_single_write) ... ok
+test_response_loss_read_history_never_resends (test_native_message_host.MessageHostTests.test_response_loss_read_history_never_resends) ... ok
+test_semantic_registry_connects_only_existing_bound_runtime (test_native_message_host.MessageHostTests.test_semantic_registry_connects_only_existing_bound_runtime) ... ok
+test_slow_controller_admission_past_deadline_has_no_write (test_native_message_host.MessageHostTests.test_slow_controller_admission_past_deadline_has_no_write) ... ok
+test_waiting_for_sqlite_lock_past_deadline_cannot_record_or_write (test_native_message_host.MessageHostTests.test_waiting_for_sqlite_lock_past_deadline_cannot_record_or_write) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 13.489s
+
+OK
+WARN `--no-project` was provided, but no project was found
+test_native_atlas_host_assets (unittest.loader._FailedTest.test_native_atlas_host_assets) ... ERROR
+
+======================================================================
+ERROR: test_native_atlas_host_assets (unittest.loader._FailedTest.test_native_atlas_host_assets)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_native_atlas_host_assets
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\unittest\loader.py", line 419, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\unittest\loader.py", line 362, in _get_module_from_name
+    __import__(name)
+  File "C:\temp\lm-wiki-repair-a-20261011\plugins\auto-research-agent\tests\test_native_atlas_host_assets.py", line 7, in <module>
+    from research_workspace_native.atlas_host import AtlasHost
+ModuleNotFoundError: No module named 'research_workspace_native'
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)
+Actual final exit code: 1

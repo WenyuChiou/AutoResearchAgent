@@ -1,0 +1,63 @@
+{
+  "kind": "WikiATargetedRepairManifest.v1",
+  "files": [
+    {
+      "path": "privacy-before.log",
+      "task_log": "repair-a-privacy-before-private-temp.log",
+      "sha256": "e031c7c33acdd10fb8e7941a103fb27774f2c12f40b2b5d7cbf28ea0d26ea0f6",
+      "transform": "none"
+    },
+    {
+      "path": "api-chat-after.log",
+      "task_log": "repair-a-targeted-after.log",
+      "sha256": "30a7e4597e9c168ce73af8423b242bf8bda818c36a6da1e6fd28af91dcaab28a",
+      "transform": "none"
+    },
+    {
+      "path": "host-tests.log",
+      "task_log": "repair-a-native-host-final.log",
+      "sha256": "395d6b83312f652fa30f05d54353948f8a3736ded8945d0d57cee2f8e9b425f1",
+      "transform": "none"
+    },
+    {
+      "path": "assets-refusal-after.log",
+      "task_log": "repair-a-assets-targeted-final.log",
+      "sha256": "bee0a58618ac2593e9be9bee555dad402a11c0cb3bda1e5eccf54dbd07584943",
+      "transform": "none"
+    },
+    {
+      "path": "rendered-after.log",
+      "task_log": "repair-a-rendered-final-raw.log",
+      "sha256": "440d989eb08514175b253f8aa3d240c1f5a9078292dec3b634074e0f455410cc",
+      "transform": "none"
+    },
+    {
+      "path": "rendered-selection.log",
+      "task_log": "repair-rendered-final-verification.log",
+      "sha256": "22ec29fd115a2b7a360f4c5f37c0631f62b1eab467169e6e2b2d79b9b6b82722",
+      "transform": "none"
+    },
+    {
+      "path": "registry-after.log",
+      "task_log": "repair-a-registry-final.log",
+      "sha256": "1a189ccb5cb679f1f1f831f7019b4c465c2b3bbe00f983e021f1f6a717479dc4",
+      "transform": "none"
+    },
+    {
+      "path": "quality-after.log",
+      "task_log": "repair-a-quality-final-pass.log",
+      "sha256": "358d1f81963d20ad97dcc17c83c1e84b3c5e149e27e61f700638cc8336cda31e",
+      "transform": "none"
+    },
+    {
+      "path": "README.md",
+      "sha256": "04e01837b69e3a2bce2e3c775e8f0ff4b5ea4a386308021156e50dac34a3bddb",
+      "transform": "new targeted receipt"
+    },
+    {
+      "path": "source-bindings.json",
+      "sha256": "f393d5d7a3f5a873e353283f487808011fbfab8eb25d4320b3b4d1bc003ad80e",
+      "transform": "new targeted receipt"
+    }
+  ]
+}

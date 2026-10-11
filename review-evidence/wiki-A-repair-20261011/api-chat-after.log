@@ -1,0 +1,22 @@
+test_concurrent_replay_and_lost_response_reads_never_write_twice (test_research_workspace_native_session_api.SessionApiTests.test_concurrent_replay_and_lost_response_reads_never_write_twice) ... ok
+test_decline_and_interrupt_derive_exact_native_targets_on_server (test_research_workspace_native_session_api.SessionApiTests.test_decline_and_interrupt_derive_exact_native_targets_on_server) ... ok
+test_malformed_channel_and_owner_loss_preserve_unknown_without_retry (test_research_workspace_native_session_api.SessionApiTests.test_malformed_channel_and_owner_loss_preserve_unknown_without_retry) ... ok
+test_partial_write_unknown_is_durable_and_never_retried (test_research_workspace_native_session_api.SessionApiTests.test_partial_write_unknown_is_durable_and_never_retried) ... ok
+test_public_views_and_action_receipts_hide_native_identity (test_research_workspace_native_session_api.SessionApiTests.test_public_views_and_action_receipts_hide_native_identity) ... ok
+test_same_title_projects_and_principals_do_not_share_authority (test_research_workspace_native_session_api.SessionApiTests.test_same_title_projects_and_principals_do_not_share_authority) ... ok
+test_source_callback_and_index_byte_drift_fail_closed (test_research_workspace_native_session_api.SessionApiTests.test_source_callback_and_index_byte_drift_fail_closed) ... ok
+test_stale_versions_hash_revision_and_unknown_fields_have_zero_io (test_research_workspace_native_session_api.SessionApiTests.test_stale_versions_hash_revision_and_unknown_fields_have_zero_io) ... ok
+test_view_keeps_controller_identity_private_without_io (test_research_workspace_native_session_api.SessionApiTests.test_view_keeps_controller_identity_private_without_io) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 3.276s
+
+OK
+test_drawer_refresh_and_bounded_detail_scroll_contract (test_native_atlas_chat.NativeAtlasChatTests.test_drawer_refresh_and_bounded_detail_scroll_contract) ... ok
+test_typed_transcript_and_history_have_no_automatic_resend (test_native_atlas_chat.NativeAtlasChatTests.test_typed_transcript_and_history_have_no_automatic_resend) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.230s
+
+OK
+Actual final exit code: 0

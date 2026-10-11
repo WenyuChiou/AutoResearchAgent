@@ -163,7 +163,8 @@ and test modules, and keeps all three required platform jobs:
 | --- | --- |
 | Plugin README/CONTRIBUTING or prose, logs and images in `review-evidence/` only | Stage contract smoke tests; Python quality, spelling and PR validator regressions |
 | Atlas `atlas.html`/`atlas.css`, optionally with the above evidence | Workspace, Atlas, project and message interface tests, plugin loading and stage contracts; the same quality checks |
-| Runtime/API, JavaScript, prompts, schemas, registries, fixtures, dependencies, CI rules, mixed or unknown paths | Full plugin suite and quality checks |
+| Named CI workflow/runner files or existing standalone `test_*.py` files, optionally with the above docs/evidence | Affected test modules and modules referring to them, plugin loading and stage contracts; CI selection/validator/quality regressions |
+| Runtime/API, JavaScript, prompts, schemas, registries, shared fixtures, dependencies, deleted tests, mixed or unknown paths | Full plugin suite and quality checks |
 
 Manual calls or unavailable change history do not select a reduced suite.
 Changing only the PR description/base or making it Ready runs the PR contract
