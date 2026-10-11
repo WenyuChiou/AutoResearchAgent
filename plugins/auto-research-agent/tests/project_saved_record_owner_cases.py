@@ -256,10 +256,12 @@ class SavedRecordOwnerCases(ProjectQueryCases):
         try:
             with (
                 patch.object(self.intake, "_save", side_effect=late_loss),
-                self.assertRaisesRegex(SessionApiError, "owner-unavailable"),
+                self.assertRaisesRegex(
+                    SessionApiError, "intake-operation-failed"
+                ) as raised,
             ):
                 with self.queries.saved_records_guard(run, ledger, report) as check:
-                    result = self.intake._perform(
+                    self.intake._perform(
                         "alice",
                         self.ref,
                         "test-guarded-registry",
@@ -267,7 +269,15 @@ class SavedRecordOwnerCases(ProjectQueryCases):
                         produce,
                         check_deadline=check,
                     )
-                    self.assertEqual(result["status"], "execution-unknown")
+            receipt = raised.exception.receipt
+            self.assertEqual(receipt["status"], "execution-unknown")
+            self.assertEqual(
+                receipt["error"], "project-query-records-owner-unavailable"
+            )
+            self.assertEqual(receipt["failure_phase"], "post-work-before-commit")
+            self.assertEqual(
+                receipt["output_observation"], {"output": "retained observation"}
+            )
         finally:
             service._closing = False
         self.assertNotIn("guarded_output", self.intake._load("alice", self.ref))

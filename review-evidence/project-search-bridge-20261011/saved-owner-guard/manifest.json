@@ -1,0 +1,107 @@
+{
+  "kind": "Stage1SavedOwnerEngineeringEvidence.v1",
+  "source_head_before_test_only_correction": "2e8002d6066075059381d6e3ccae2941fc1c0504",
+  "stage_prerequisite": "7ae09a57b779b986639257116cda475f3d15a3bf",
+  "accepted_main": "960e3e9648fd213cf1d973e246fd1afb10024fc3",
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py": "caeebc4c3855bce7b7e254e46f9f6eb17e31f4f6a3be613b84659adc274314ac",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "3c7f644e0f44112b4c5660db19e89e89aeffd8030dc78fc26c40211b4c619b13",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_intake.py": "16ece00bdb85582a57560bb40674e8b5aab958c2c6f428f8d50be4e4c3776cf6",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "9d66e74854524c078d2df333f4f83b0ee213ffe407d6e33867e76681acfb7ebf",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "9e9adf556c564ef50a25c999e6a9683eb11263aa3b70a3cc137103dec023e2e8",
+    "plugins/auto-research-agent/tests/project_saved_record_owner_cases.py": "5fccc350dd45597ce1c9b2a5881d53dc1e97aabd02907fc2e736deb8378a0f9b",
+    "plugins/auto-research-agent/tests/test_project_saved_record_owner.py": "2b240c3fb6cb0874c998d0088f5d105022df03fbb7a6e3d25ce8f015f1b51143",
+    "plugins/auto-research-agent/tests/test_project_stage1_records.py": "b1f5511347b1f45605203c53665db6b4084b219d347c9fafd8df933b811aec0a",
+    "plugins/auto-research-agent/tests/test_project_query_launcher.py": "4e3dfd603f9dbc34549c24e50bae354ea100befabc5280468d7fa0d9165e7462",
+    "plugins/auto-research-agent/tests/test_workspace_project_host.py": "d04a9f2896f53751fdc44bbfebd33ef1801da0cbf16e44a472f651b527ba8b18",
+    "plugins/auto-research-agent/references/research-workspace/examples/run-project-workspace.py": "4ba5d325b93e356d0f499da1b1eb2409bb0ddfb031a31ad56396030c688db4cb",
+    "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md": "2adf0617b1d7383e5d2f0a168c8b1af477e25069e692bf786b10c49958762f83",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "7de81d0a4ef7d61464f364bf89dff4a10b01f021d7e2e8c15c052584365f838d"
+  },
+  "runs": [
+    {
+      "name": "before",
+      "exit_code": 1,
+      "summaries": [
+        [
+          "1",
+          "8.850"
+        ]
+      ],
+      "elapsed_seconds": 11.125,
+      "inventory_equal": true,
+      "files": {
+        "before-receipt.json": {
+          "sha256": "d7cd0314efce73425dc76495b4333654b600791390b0a99e3ab6d6727d9e9a1b",
+          "bytes": 206888
+        },
+        "before-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "before-stderr.log": {
+          "sha256": "c3d42f0f6121f268b0f8884af626bf861ffa9e9bf3f7a389bfbfa503504c9469",
+          "bytes": 1089
+        }
+      }
+    },
+    {
+      "name": "integration-original",
+      "exit_code": 1,
+      "summaries": [
+        [
+          "53",
+          "233.841"
+        ]
+      ],
+      "elapsed_seconds": 236.65699999999197,
+      "inventory_equal": true,
+      "files": {
+        "integration-original-receipt.json": {
+          "sha256": "1dc58700034be75b023ff331db6f98e2a5b0b6baae1435e27f2f7728d61bff8e",
+          "bytes": 207061
+        },
+        "integration-original-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "integration-original-stderr.log": {
+          "sha256": "7bfcc6df0bdc899824ef5f6e7b5bdaee6f4e2e8319ba8c2b1923d4799388b660",
+          "bytes": 12109
+        }
+      }
+    },
+    {
+      "name": "integration-corrected",
+      "exit_code": 0,
+      "summaries": [
+        [
+          "53",
+          "221.993"
+        ]
+      ],
+      "elapsed_seconds": 224.81299999999464,
+      "inventory_equal": true,
+      "files": {
+        "integration-corrected-receipt.json": {
+          "sha256": "50d4359bd8a6dd61e0a82553f32a602bae597a3f5864aa088320d1b55dafbab2",
+          "bytes": 207061
+        },
+        "integration-corrected-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "integration-corrected-stderr.log": {
+          "sha256": "7f3df15c61b40536166e3c1c49044a5eb02db89f591a74bcb9581d603fdfeb0e",
+          "bytes": 10195
+        }
+      }
+    }
+  ],
+  "actual_external_search": false,
+  "actual_source_acquisition": false,
+  "actual_native_or_model_calls": false,
+  "full_plugin_suite_claim": false,
+  "scientific_acceptance_claim": false,
+  "scope": "Real SQLite/Core/HTTP and complete ledger frontier with mocked external probe/backend. Typed host wiring; no automatic source/reading or full Stage1 acceptance."
+}

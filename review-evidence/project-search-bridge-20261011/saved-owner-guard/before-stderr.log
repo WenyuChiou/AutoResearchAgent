@@ -1,0 +1,17 @@
+test_lost_owner_after_saved_sql_rolls_back_and_history_never_reexecutes (project_saved_record_owner_cases.SavedRecordOwnerCases.test_lost_owner_after_saved_sql_rolls_back_and_history_never_reexecutes) ... FAIL
+
+======================================================================
+FAIL: test_lost_owner_after_saved_sql_rolls_back_and_history_never_reexecutes (project_saved_record_owner_cases.SavedRecordOwnerCases.test_lost_owner_after_saved_sql_rolls_back_and_history_never_reexecutes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_saved_record_owner_cases.py", line 208, in test_lost_owner_after_saved_sql_rolls_back_and_history_never_reexecutes
+    self.assertEqual(result["status"], "execution-unknown")
+AssertionError: 'saved' != 'execution-unknown'
+- saved
++ execution-unknown
+
+
+----------------------------------------------------------------------
+Ran 1 test in 8.850s
+
+FAILED (failures=1)
