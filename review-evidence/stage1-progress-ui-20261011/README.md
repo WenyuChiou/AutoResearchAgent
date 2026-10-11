@@ -1,0 +1,9 @@
+# Stage1 progress in the existing operation drawer
+
+The server joins the same project/revision/input/brief overview into seven read-only phases and a fixed next-step target. Unknown or active actions take precedence and direct the user to retained history or native questions; navigation never sends a POST, makes a key, grants permission or resends work. Counts, checkpoint and validated delivery cannot accept research.
+
+Current source-bound results:31 tests/13.410s/zero skips PASS (projection8, actual temporary HTTP/SQLite11, overlay3, retirement4, map5). Separate installed-Chrome4 groups PASS,0POST/page errors/cleanup, fixture and driver exit0; it verifies two authored projects, three languages, scope navigation and390/1024px containment. Authored DOM checks passed separately. No full local suite or real research/model/native/search/scoring run is claimed.
+
+Failures remain: initial projection8/2FAIL found incorrect first-query navigation; final8 passed after the correction. BrowserR1 incorrectly pinned a graph across intentional language rerender; driver assertions now pin the current graph after locale/viewport changes, without changing renderer production bytes. First map command ran0tests and is not accepted; correct map5 passed. First retirement selector failed import because its explicit CLI path was absent; corrected existing selector passed before any production change, confirming no retirement bug. Original unknown outcome/reserved budget remain.
+
+Original14 v6 renderer assets and frozenv1 bytes remain exact. The new card is confined to the existing project drawer. This screenshot is an authored UI fixture, not a new research result. Core owns cumulative size/dependency/current-main acceptance and merge. Private package050 is unreceived; real Stage1 complete acceptance remains unverified, Stage2 execution deferred, Stage3-6 planned/unconnected.

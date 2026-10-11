@@ -17,6 +17,7 @@ from .http import token_authenticator
 from .project_intake import ProjectIntakeService
 from .project_contract import project_view
 from .project_stage1_delivery import ProjectStage1DeliveryService
+from .project_stage1_progress import project_progress
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
 from .project_atlas_shell import shell_assets
@@ -203,6 +204,7 @@ class ProjectHost(AtlasHost):
             "projects-reading.js",
             "projects-saved-claims.js",
             "projects-atlas.js",
+            "projects-progress.js",
         ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
         self._assets.update(atlas_shell)
@@ -260,7 +262,7 @@ class ProjectHost(AtlasHost):
         # another input/version between the UI brief and its action offers.
         with self.projects._lock:
             project = self.projects.read(credential, ref)
-            return dict(
+            result = dict(
                 project=project,
                 models=None
                 if self.project_models is None
@@ -275,6 +277,9 @@ class ProjectHost(AtlasHost):
                 if self.project_stage2 is None
                 else self.project_stage2.read(credential, ref),
             )
+            if result["stage1"] is not None:
+                result["stage1"]["progress"] = project_progress(result)
+            return result
 
     def stage1_view(self, credential, ref):
         """Read saved delivery offers together with the same project revision."""

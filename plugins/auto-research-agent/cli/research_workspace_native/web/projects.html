@@ -12,6 +12,7 @@
   <script src="/projects-reading.js" defer></script>
   <script src="/projects-saved-claims.js" defer></script>
   <script src="/projects-atlas.js" defer></script>
+  <script src="/projects-progress.js" defer></script>
   <script src="/projects.js" defer></script>
 </head>
 <body>
@@ -51,6 +52,7 @@
       </section>
       <div id="project-content" hidden>
         <section class="card project-summary"><div><span id="project-state" class="badge"></span><h2 id="topic-heading"></h2><p id="needs-summary"></p></div><button id="refresh" data-text="refresh">Refresh saved state</button></section>
+        <section id="stage1-progress" class="card" aria-live="polite" hidden></section>
         <details class="card"><summary data-text="reviseTitle">Choose or revise the topic</summary><p class="subtle" data-text="reviseHelp">A new topic creates a new input version. Previous scope answers, plans and results remain in history.</p><form id="revise-form"><label for="revised-topic" data-text="topicLabel">Topic or area you would like to explore</label><textarea id="revised-topic" rows="2" maxlength="4096" required></textarea><button type="submit" data-text="revise">Save a new topic version</button></form></details>
         <details id="intake-card" class="card" open>
           <summary data-text="confirmTitle">Confirm the research scope</summary>

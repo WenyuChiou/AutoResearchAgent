@@ -1,0 +1,75 @@
+{
+  "kind": "Stage1ProgressUiEvidence.v1",
+  "parent": "295d91c8c4c8079562ff6eb4f25b6dfa588f3f7b",
+  "focused": "31 tests / 13.410s / zero skips PASS",
+  "browser": {
+    "checks": 4,
+    "passed": true,
+    "post_count": 0,
+    "page_errors": 0,
+    "cleanup": [],
+    "fixture_exit": 0,
+    "driver_exit": 0,
+    "scope": "installed Chrome + temporary HTTP/real SQLite/authored projects; three languages/390px/1024px"
+  },
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/README.md": "35b87fbadc481d52e6a35bd176ceef7ca76e4a59f1337c114178bf6988756fb6",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "63b5a01ef06e98bf54f48ee571e8e41065a4b8c203c54b77e476bdba40cd0be5",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_progress.py": "4d8d93a0f597476fbaa0c5b225c844ea5ebd8d8a4e9e4c9086c3adb50349d01e",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-progress.js": "e2e02f8f28ac283fa03fac102debfb059f9e78b42429f912197df33dee1de77f",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.css": "b09918399f205d452736c9ef1194eb849f07594696123052156972835fc9f7b3",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.html": "e403617ca106b1e48ac15e98aeb8c67bb5c1abc9aab165ae2109314ece7ddeeb",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "2a7cfc44cbceb42dd43cb3676291ce603560c628817d96097252b6801141d5a7",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "457c990bbe929465e5d4a7292c6c93305e36521c4d94ac326eb058becfb7952f",
+    "plugins/auto-research-agent/tests/browser/project-intake-fixture.py": "039326936d63a9bad3c6452ed41bf4c6eeb50de8e1bc3e17032165008b9c2d0a",
+    "plugins/auto-research-agent/tests/browser/project-operations-test.cjs": "cabe770417aea779153ff4c1f9c43462bf742ecd5f314f93ff953dcf95c751f3",
+    "plugins/auto-research-agent/tests/test_project_model_recovery.py": "a8685b5a140b0d512b6d4bd33861cfabcfa465b84879a216c33e67b2b8f90ea2",
+    "plugins/auto-research-agent/tests/test_project_progress_browser.cjs": "af1968161e775ed4caf33c578f623278afde3d6d9ff07cd72904dbd5a9d6745c",
+    "plugins/auto-research-agent/tests/test_project_stage1_progress.py": "06e7daabedfc52f238c8bc4b3daff777075237dc86b670416b628e02fab4c209",
+    "plugins/auto-research-agent/tests/test_workspace_project_host.py": "757c201c91f1ff3eda2347adc18d4c1633c82a2990a165b5e0bef4f6d7666677"
+  },
+  "logs": {
+    "focused-final-r2.log": {
+      "raw_sha256": "dddc935aabbc3207eff2a23d0f14e12b7aa6e1d47932810f746bd90050971d35",
+      "public_lf_sha256": "dddc935aabbc3207eff2a23d0f14e12b7aa6e1d47932810f746bd90050971d35"
+    },
+    "browser-r1.log": {
+      "raw_sha256": "0612cff2af94f5c04d63ac10d99bde3b7edc487a5afae315c97af249b74e14cf",
+      "public_lf_sha256": "06b069fcf012bf3161a3ad058cb19851c853bdf784de812543f3ac41abc1d087"
+    },
+    "browser-r3.log": {
+      "raw_sha256": "e7df9536fdce5b7c890b9eb6f51cd755626f122ae578468ba05c76e5c4da0074",
+      "public_lf_sha256": "9d0abf99f7c35a788cd26b9da469401630e1e1f1aabb7559c7f57e5d493a9775"
+    },
+    "map-r1.log": {
+      "raw_sha256": "5908c79981b1361a56b0a2d7bedb0e9bd7fc9a2efdfb1968be756dd713e25fab",
+      "public_lf_sha256": "0022ee81eaae586301bd919619db568337b011018f4f635ccdae17bcdd457edb"
+    },
+    "map-r2.log": {
+      "raw_sha256": "529f0ed3e2965f20cd8f2702c33cf2c3975e2ec2e272ea7633d9f4b47c7d499a",
+      "public_lf_sha256": "3e8ecb89ac34d9b0d7bb24f9f4af98ed225e3e53336e8f3b308c28a22dbc607b"
+    },
+    "retirement-before-r1.log": {
+      "raw_sha256": "3ef3b785963ab367e494252aa63a99d147dffa68538c5008030d92ec49c8d128",
+      "public_lf_sha256": "22eef69a074e37cfc035aac0f0259a8d412b6d57d62b205f0f3b8975f5527efe"
+    },
+    "retirement-before-r2.log": {
+      "raw_sha256": "57b72456bf9b4e35e905af84a61ccddf89368ac1cdbb0404ebbb11a52b1d6688",
+      "public_lf_sha256": "6a467399808b203f284eb2b8b26e833fdce2acb476ed15ac52c53422f0a19d34"
+    }
+  },
+  "original_renderer_pins_reused": "review-evidence/project-topic-entry-20261011/manifest.json (all14 verified unchanged)",
+  "frozen_v1_sha256": "b75122de16fe93317958c5d81ab29310a9185103c03eaf2ea22202b7cfa00598",
+  "screenshot": {
+    "file": "progress.png",
+    "sha256": "e729b6cc187b5b4a6eeaa68fc8873bbc49d151cb4fe8206dfb8d7e160559196a"
+  },
+  "new_model_native_search_scoring": 0,
+  "research_acceptance": false,
+  "limits": [
+    "Operational navigation only; no scientific completion or new execution authority.",
+    "Stage2 deferred; Stage3-6 planned/unconnected.",
+    "Actual own-account Stage1 full acceptance and Core package050 receipt pending."
+  ],
+  "initial_projection_failure": "8 tests,2 failures; exact toolchunk5202ca retained in contributor session, final8 source-bound receipt retained privately"
+}

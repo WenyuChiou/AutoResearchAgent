@@ -234,6 +234,7 @@
     if (window.ResearchProjectCoverage) window.ResearchProjectCoverage.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked, submit: submitCoverage});
     if (window.ResearchProjectReading) window.ResearchProjectReading.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
     if (window.ResearchSavedClaims) window.ResearchSavedClaims.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
+    if (window.ResearchStage1Progress) window.ResearchStage1Progress.render({project: state.project, view: state.stage1 && state.stage1.progress, language: state.language, busy: state.busy, loading: state.loading, held: pending.some(row => state.project && row.project_ref === state.project.project_ref)});
     if (typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("research-project-selection"));
     document.querySelectorAll("button[data-reading-draft]").forEach(button => { button.disabled = blocked || !state.project || button.dataset.readingInput !== String(state.project.input_version) || button.dataset.readingBrief !== state.project.brief_sha256; });
   }

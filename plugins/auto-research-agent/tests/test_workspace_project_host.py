@@ -342,6 +342,15 @@ class ProjectHostTests(unittest.TestCase):
         snapshot = self.get(path + "/overview")
         self.assertEqual(snapshot["stage1"]["stage1_status"], "offline-ledger-active")
         self.assertFalse(snapshot["stage1"]["stage1_complete"])
+        progress = snapshot["stage1"]["progress"]
+        self.assertEqual(
+            progress["binding"],
+            {
+                name: snapshot["project"][name]
+                for name in ("project_ref", "revision", "input_version", "brief_sha256")
+            },
+        )
+        self.assertFalse(progress["research_complete"])
         for action in ("checkpoint", "export"):
             current, stage = self.get(path), self.get(path + "/stage1")
             identity = {
@@ -375,6 +384,11 @@ class ProjectHostTests(unittest.TestCase):
             snapshot = self.get("/api/projects/" + ref + "/overview")
             self.assertEqual(snapshot["project"]["project_ref"], ref)
             self.assertIsNone(snapshot["models"])
+            progress = snapshot["stage1"]["progress"]
+            self.assertEqual(progress["kind"], "ProjectStage1Progress")
+            self.assertFalse(progress["research_complete"])
+            self.assertEqual(len(progress["phases"]), 7)
+            self.assertEqual(progress["next_action"]["target"], "scope")
 
     def test_measurement_does_not_turn_unknown_into_zero(self):
         self.assertIsNone(measurement("calls")["value"])

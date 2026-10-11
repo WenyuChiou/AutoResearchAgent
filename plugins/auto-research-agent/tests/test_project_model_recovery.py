@@ -88,6 +88,7 @@ class ModelRecoveryTests(unittest.TestCase):
         self.assertEqual({k: v for k, v in after.items() if k != "retirement"}, before)
         self.assertTrue(retired(after))
         view = case.model.read("alice-token", ref)
+        self.assertEqual(view["active_jobs"], [])
         self.assertEqual(
             (
                 view["unknown_count"],

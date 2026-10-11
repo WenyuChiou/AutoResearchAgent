@@ -467,6 +467,15 @@ does not grant Stage1 acceptance.
 
 ### Preserve the reviewed v6 interface
 
+The operation drawer includes a version-bound **Stage1 current progress** guide.
+It reads the same overview used by the existing controls, identifies held or
+uncertain work first, and navigates to scope, search, screening, reading,
+coverage, delivery or retained history. Navigation issues no POST and never
+creates a key, permit, session or retry. A saved step or validated package is
+labelled separately from accepted research. Missing evidence remains Unknown;
+old input versions cannot supply the current guide. English and both Chinese
+variants use the same source-bound states, with no changes to the original graph.
+
 Saved Stage1/Stage2 pages retain their dark sidebar, 2D/3D graph, paper detail,
 compact direction summary and folded process history. A compact **Project &
 research topic** section precedes Stage1. Select an existing project, or enter

@@ -84,9 +84,31 @@ let failure = null, cleanup = [];
         assert((await page.locator('#project-intake-summary').textContent()).includes(selected.topic));
         assert.equal(await page.locator('#project-intake-topic').inputValue(), selected.topic);
         assert.equal(await frame.locator('#project-heading').textContent(), selected.topic);
+        await frame.waitForFunction(ref => document.getElementById('stage1-progress').dataset.projectRef === ref, project.ref);
+        assert.equal(await frame.locator('#stage1-progress .progress-phases li').count(), 7);
+        assert.equal(await frame.locator('#stage1-progress').getAttribute('data-input-version'), String(selected.input_version));
+        await frame.locator('#stage1-progress button').click();
+        assert.equal(await frame.locator('#intake-card').evaluate(card => card.open), true);
+        assert.equal(posts.length, 0);
         assert.equal(await page.locator('#atlas-project').textContent(), savedAtlasName);
       }
       const selectedRef = projects[projects.length - 1].ref;
+      assert(await page.evaluate(() => window.retainedGraph === document.getElementById('atlas-network')));
+      for (const [lang, title] of [['en', 'Current progress'], ['zh-Hans', '当前进度'], ['zh-Hant', '目前進度']]) {
+        await page.locator('#project-operations-close').click(); await page.locator('#atlas-language').selectOption(lang); await page.locator('#project-operations-open').click();
+        await frame.waitForFunction(lang => document.getElementById('language').value === lang, lang);
+        assert((await frame.locator('#stage1-progress h2').textContent()).includes(title));
+      }
+      await shot(page, 'stage1-current-progress');
+      for (const width of [390, 1024]) {
+        await page.setViewportSize({width, height: 844});
+        assert(await frame.locator('#stage1-progress').evaluate(card => card.scrollWidth <= card.clientWidth && card.getBoundingClientRect().right <= innerWidth));
+      }
+      await shot(page, 'stage1-progress-tablet');
+      await page.setViewportSize({width: 1600, height: 1100});
+      // Language changes intentionally rebuild translated graph labels. The
+      // following project navigation must retain that current graph instance.
+      await page.evaluate(() => {window.retainedGraph = document.getElementById('atlas-network');});
       await page.locator('#project-operations-close').click(); await page.locator('#project-intake-confirm').click();
       await frame.waitForFunction(ref => window.ResearchProjectPortal.selection()?.project_ref === ref && document.getElementById('intake-card').open, selectedRef);
       await page.waitForFunction(() => !document.getElementById('project-intake-continue').disabled);
