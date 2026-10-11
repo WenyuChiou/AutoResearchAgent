@@ -1,0 +1,13 @@
+test_changed_owner_start_url_version_or_request_refuses_before_write (test_project_stage1_source_observation.SourceObservationTests.test_changed_owner_start_url_version_or_request_refuses_before_write) ... ok
+test_guard_refusal_before_write_and_after_raw_preserves_pending_history (test_project_stage1_source_observation.SourceObservationTests.test_guard_refusal_before_write_and_after_raw_preserves_pending_history) ... ok
+test_http_failure_preserves_receipt_attempt_bytes_without_text (test_project_stage1_source_observation.SourceObservationTests.test_http_failure_preserves_receipt_attempt_bytes_without_text) ... ok
+test_network_failure_records_exact_original_receipt_not_fabricated_response (test_project_stage1_source_observation.SourceObservationTests.test_network_failure_records_exact_original_receipt_not_fabricated_response) ... ok
+test_partial_receipt_and_artifact_hash_tamper_refuse_before_write (test_project_stage1_source_observation.SourceObservationTests.test_partial_receipt_and_artifact_hash_tamper_refuse_before_write) ... ok
+test_real_sdk_available_completion_registry_and_reopen_refuses_repeat (test_project_stage1_source_observation.SourceObservationTests.test_real_sdk_available_completion_registry_and_reopen_refuses_repeat) ... ok
+test_receipt_outside_fixed_materials_root_refuses_before_write (test_project_stage1_source_observation.SourceObservationTests.test_receipt_outside_fixed_materials_root_refuses_before_write) ... ok
+test_rehashed_receipt_request_or_prestart_time_refuses_before_write (test_project_stage1_source_observation.SourceObservationTests.test_rehashed_receipt_request_or_prestart_time_refuses_before_write) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 13.960s
+
+OK
