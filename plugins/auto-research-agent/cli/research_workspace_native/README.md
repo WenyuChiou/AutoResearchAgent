@@ -371,3 +371,41 @@ bounded parser process and current job/permission/budget checks. This helper
 does not dispatch from GET, mutate Core, register a paper, grant protected
 import authority or connect the full Stage 1 UI execution path. Stage 2 keeps
 its existing source-bound interfaces; Stage 3–6 remain planned/unconnected.
+
+## Shared resource reservations and controlled public-source transport
+
+`project_resource_budget` validates search, model and source reservations against
+the same project/input/brief/settings declaration. A reservation event and its
+next causal action intent are saved in the first SQLite transaction. Changing
+the mutable reservation map or counters cannot reduce that saved reservation;
+failed and unknown operations do not refund it. Historical query permits bind
+their original authorization bytes. Model offers bind the original action
+request, and recoverable legacy model windows conservatively reserve the original
+allowance. Missing historical evidence refuses execution; reads never migrate it.
+Declared/reserved seconds and calls remain separate from observed usage or cost.
+The final query checker runs outside the service lock, then rechecks local owner,
+closing, deadline and permit expiry before allowing a worker to proceed.
+
+`bounded_public_source.acquire_public_source` accepts a separately admitted exact
+request, numeric public-peer binding and an explicitly configured typed resolver.
+Its default resolver is unavailable. Redirects, aggregate HTTP attempts/body bytes
+and network/cleanup/file finalization share one deadline. Raw/error/partial bytes
+and original attempts remain private. A successful raw body is compared with the
+streamed write count/hash; drift or late completion cannot become a usable success.
+A receipt published before a later timeout remains immutable, with a separate
+exclusive failure observation that the acquisition parser must reject.
+
+`ProcessBoundedResolver` uses a fresh spawned child and waits for its sole writer
+to exit before reading bounded IPC. Private/mixed/malformed/late answers refuse,
+and failed cleanup poisons the resolver. Cleanup has an additional bounded
+allowance; synchronous process startup, filesystem operations and parser execution
+still need an outer owned hard-deadline worker. Resolver/transport hashes are
+bindings, not execution authentication or a source permit.
+Final physical-body verification also uses a bounded regular-file reader and
+stable identity checks; a filesystem without stable file identities refuses
+execution. An oversized probe never becomes a complete-file hash.
+
+These components do not yet create a durable acquisition job, grant a source
+permit, expose a source-run API/UI action, invoke a Codex reader, complete Core
+coverage, or finish the full Stage1 loop. GET remains passive. No actual external
+source/search/native/model/research/scoring execution is added by offline fixtures.

@@ -50,12 +50,14 @@ class PlannedQueryService:
         admit,
         verify_source,
         executor=execute_backend,
+        check_resources=None,
     ):
         require(
             callable(authenticate)
             and callable(admit)
             and callable(verify_source)
-            and callable(executor),
+            and callable(executor)
+            and (check_resources is None or callable(check_resources)),
             "query-gates-required",
             400,
         )
@@ -66,6 +68,7 @@ class PlannedQueryService:
         )
         self._auth, self._admit, self._execute = authenticate, admit, executor
         self._verify_source = verify_source
+        self._check_resources = check_resources
         self._lock, self._closed, self._workers, self._projects = (
             threading.RLock(),
             False,
@@ -713,6 +716,42 @@ class PlannedQueryService:
                     require(not self._closing, "query-service-closing", 503)
                     require(
                         self.store.snapshot(p["pid"])["owner"]["token"] == p["owner"],
+                        "query-owner-lost",
+                    )
+                require(
+                    time.monotonic() < deadline, "query-admission-deadline-expired", 408
+                )
+                require(
+                    time.time() + pin["timeout_seconds"] < permit["expires_at_unix"],
+                    "query-permit-expired-during-admission",
+                )
+                # No service lock is held here: project resources use the
+                # intake->service order elsewhere. This checker has no source
+                # callback, so the last verifier cannot cache resource state.
+                if self._check_resources is not None:
+                    require(
+                        self._check_resources(
+                            dict(
+                                project_ref=ref,
+                                principal=row["principal"],
+                                offer=deepcopy(target),
+                                client_key=row["client_key"],
+                                phase=deepcopy(event),
+                            )
+                        )
+                        is True,
+                        "query-final-resource-check-refused",
+                        403,
+                    )
+                # The resource checker can wait on local SQLite/files. Its
+                # return cannot cache ownership, shutdown or either deadline.
+                # Only callback-free checks remain, with no intake lock here.
+                with self._lock:
+                    require(not self._closing, "query-service-closing", 503)
+                    self._check_storage()
+                    require(
+                        (self.store.snapshot(p["pid"])["owner"] or {}).get("token")
+                        == p["owner"],
                         "query-owner-lost",
                     )
                 require(

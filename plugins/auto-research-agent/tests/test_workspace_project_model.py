@@ -1207,7 +1207,7 @@ class ProjectModelTests(unittest.TestCase):
 
     def test_short_digest_collision_retains_failure_without_dispatch_or_adoption(self):
         ref = self.project()
-        offer, _ = self.register(ref)
+        offer, _ = self.register(ref, max_seconds=20)
         with patch.object(
             self.model, "_runtime_relative", return_value="m/" + "a" * 24
         ):

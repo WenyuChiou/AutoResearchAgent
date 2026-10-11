@@ -29,6 +29,7 @@ from .project_query_permit import (
 from .project_stage1 import ProjectStage1Service, _basis
 from .query_execution_source import check_execution_source
 from .project_query_history import admitted_query, bound_run, reserved_intents
+from .project_resource_budget import reserve_resource, resource_view
 
 FIELDS = BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"}
 
@@ -258,7 +259,7 @@ class ProjectStage1QueryService:
             check_deadline=check_deadline,
         )
 
-    def _reserve(self, state, *, probe=False):
+    def _reserve(self, state, principal, key, request_hash, *, probe=False):
         authorization = state.get("stage1_query_authorization")
         require(authorization is not None, "project-query-permission-required")
         _, permit = inspect_seal(
@@ -283,6 +284,17 @@ class ProjectStage1QueryService:
             "project-query-total-budget-exhausted",
             429,
         )
+        reserve_resource(
+            self.intake,
+            state,
+            principal,
+            lane="query",
+            kind="stage1-query-bootstrap" if probe else "stage1-query-execute",
+            key=key,
+            request_sha256=request_hash,
+            seconds=seconds,
+            calls=0 if probe else 1,
+        )
         budget["seconds"] += seconds
         budget["probes" if probe else "attempts"] += 1
         return permit
@@ -303,7 +315,7 @@ class ProjectStage1QueryService:
                 and body["offer_sha256"] == offer["offer_sha256"],
                 "project-query-bootstrap-offer-differs",
             )
-            permit = self._reserve(state, probe=True)
+            permit = self._reserve(state, actor, body["key"], request_hash, probe=True)
             state["stage1_query_jobs"] = {
                 request_hash: dict(
                     status="dispatch-unobserved",
@@ -411,6 +423,7 @@ class ProjectStage1QueryService:
             require(
                 principal in permit["principals"], "project-query-principal-denied", 403
             )
+            resource_view(self.intake, state, principal)
         source_item = {
             k: self.config[k]
             for k in ("execution_source_root", "execution_source_sha256")
@@ -434,6 +447,7 @@ class ProjectStage1QueryService:
                 permit["limits"],
                 self.config["pin"]["timeout_seconds"],
             )
+            resource_view(self.intake, current, principal)
         require(
             self.admit(
                 dict(
@@ -475,8 +489,31 @@ class ProjectStage1QueryService:
                 permit["limits"],
                 self.config["pin"]["timeout_seconds"],
             )
+            resource_view(self.intake, current, principal)
 
     def _service(self, credential, ref, authorization, registration):
+        def final_resources(event):
+            with self.intake._lock:
+                principal, state = self._state(credential, ref)
+                require(
+                    not self.closing
+                    and state.get("stage1_query_authorization") == authorization
+                    and event["project_ref"] == ref
+                    and event["principal"] == principal,
+                    "project-query-authority-changed-after-final-source-check",
+                )
+                _, permit = inspect_seal(self.intake, ref, authorization, self.config)
+                intents = reserved_intents(
+                    self.intake,
+                    state,
+                    principal,
+                    permit["limits"],
+                    self.config["pin"]["timeout_seconds"],
+                )
+                admitted_query(intents, event, ref, principal)
+                resource_view(self.intake, state, principal)
+            return True
+
         def admission(event):
             self._guard(credential, ref, authorization, event["phase"])
             with self.intake._lock:
@@ -490,6 +527,7 @@ class ProjectStage1QueryService:
                     self.config["pin"]["timeout_seconds"],
                 )
                 admitted_query(intents, event, ref, event["principal"])
+                resource_view(self.intake, state, event["principal"])
             return True
 
         return PlannedQueryService(
@@ -498,6 +536,7 @@ class ProjectStage1QueryService:
             authenticate=self.intake.authenticate,
             admit=admission,
             verify_source=self.verify_source,
+            check_resources=final_resources,
         )
 
     def _bootstrap_worker(self, credential, ref, request_hash):
@@ -681,8 +720,8 @@ class ProjectStage1QueryService:
         self._request(body)
         principal = self.intake._principal(credential)
 
-        def reserve(state, _, __):
-            self._reserve(state)
+        def reserve(state, request_hash, actor):
+            self._reserve(state, actor, body["key"], request_hash)
             require(ref in self.services, "project-query-owner-reopen-required")
             offer = self.services[ref].offer(credential, ref)
             require(

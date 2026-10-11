@@ -29,6 +29,7 @@ from stage1_ledger.journal import decode
 from .session_api import SessionApiError, _check
 from .stage_run_service import StageUnitProvider
 from .transport import validate_answer
+from .project_resource_budget import reserve_resource, resource_view
 
 OPERATIONS = {"suggest-topic", "plan-search"}
 PERMIT_FIELDS = {
@@ -557,7 +558,11 @@ class ProjectModelService:
                 "model-unsettled-operation-requires-review",
             )
             scope = row["scopes"].get(str(state["input_version"]))
-            seconds = min(budgets["seconds"], self.local_cap_seconds)
+            resources = resource_view(self.intake, state, principal)
+            _check(resources["remaining"]["model_calls"] > 0, "model-budget-exhausted")
+            seconds = min(
+                math.floor(resources["remaining"]["seconds"]), self.local_cap_seconds
+            )
             if scope is not None:
                 _check(scope["budget_sha256"] == digest, "model-budget-version-differs")
                 _check(
@@ -721,6 +726,12 @@ class ProjectModelService:
             and binding["settings"] == offer["context"]["settings"],
             "model-source-version-differs",
         )
+        with self.intake._lock:
+            resource_view(
+                self.intake,
+                self.intake._load(registration["permit"]["principal"], ref),
+                registration["permit"]["principal"],
+            )
         return registration
 
     def read(self, credential, project_ref):
@@ -811,6 +822,7 @@ class ProjectModelService:
                 "verified_receipt",
                 "plan_manifest_sha256",
                 "calls_reserved",
+                "reservation_seconds",
                 "usage",
                 "cost",
                 "started_at",
@@ -1263,7 +1275,7 @@ class ProjectModelService:
         )
         key = body["key"]
 
-        def reserve(state, request_hash, _):
+        def reserve(state, request_hash, actor):
             registration = self._guard(project_ref, offer)
             _check(self.factory is not None, "model-provider-unconnected")
             row = self._row(state)
@@ -1289,15 +1301,17 @@ class ProjectModelService:
                 "model-zero-budget",
             )
             version = str(state["input_version"])
-            scope = row["scopes"].setdefault(
-                version,
-                {
-                    "budget_sha256": offer["context"]["budget_sha256"],
-                    "calls": 0,
-                    "started_at": self.clock(),
-                    "deadline_at": self.clock() + budgets["seconds"],
-                    "permits": {},
-                },
+            scope = deepcopy(
+                row["scopes"].get(
+                    version,
+                    {
+                        "budget_sha256": offer["context"]["budget_sha256"],
+                        "calls": 0,
+                        "started_at": self.clock(),
+                        "deadline_at": self.clock() + budgets["seconds"],
+                        "permits": {},
+                    },
+                )
             )
             _check(
                 scope["budget_sha256"] == offer["context"]["budget_sha256"],
@@ -1320,8 +1334,20 @@ class ProjectModelService:
                 and scope["calls"] < budgets["model_calls"],
                 "model-budget-exhausted",
             )
+            started_at = self.clock()
+            reserve_resource(
+                self.intake,
+                state,
+                actor,
+                lane="model",
+                kind="model-operation",
+                key=key,
+                request_sha256=request_hash,
+                seconds=deadline - started_at,
+            )
             scope["calls"] += 1
             lane["calls"] += 1
+            row["scopes"][version] = scope
             row["calls_reserved"] += 1
             row["jobs"][key] = dict(
                 **{
@@ -1343,8 +1369,9 @@ class ProjectModelService:
                 offer_sha256=offer["offer_sha256"],
                 request_sha256=request_hash,
                 status="intent-recorded",
-                started_at=self.clock(),
+                started_at=started_at,
                 deadline_at=deadline,
+                reservation_seconds=deadline - started_at,
                 provider_reserved=False,
                 calls_reserved=1,
                 usage=None,
@@ -1407,6 +1434,7 @@ class ProjectModelService:
         self._guard(ref, offer)
 
         def admit(state):
+            resource_view(self.intake, state, principal)
             job = self._row(state)["jobs"][key]
             _check(
                 job["status"] == "running" and self.clock() < job["deadline_at"],

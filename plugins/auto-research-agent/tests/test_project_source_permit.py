@@ -19,6 +19,10 @@ from research_workspace_native.project_source_permit import (
 )
 from research_workspace_native.project_stage1 import _basis
 from research_workspace_native.session_api import SessionApiError
+from research_workspace_native.project_resource_budget import (
+    reserve_resource,
+    resource_view,
+)
 from stage1_deliverable.common import canonical, sha
 from test_project_stage1_library import Stage1LibraryFixture
 from test_workspace_project_intake import bound_body, compile_body, submit_body
@@ -96,6 +100,31 @@ class ProjectSourcePermitTests(Stage1LibraryFixture, unittest.TestCase):
         with self.intake.db:
             self.intake._save(state, "authored-budget-fixture", {})
 
+    def reserve_source(self, key, seconds):
+        # Actual immutable intake intent/action; no transport/source is run.
+        body = bound_body(self.intake.read(self.token, self.ref), key)
+
+        def reserve(state, digest, principal):
+            reserve_resource(
+                self.intake,
+                state,
+                principal,
+                lane="source",
+                kind="stage1-source-execute",
+                key=key,
+                request_sha256=digest,
+                seconds=seconds,
+            )
+
+        return self.intake._perform(
+            self.principal,
+            self.ref,
+            "stage1-source-execute",
+            body,
+            lambda *_: dict(source_status="fixture-queued", source_executed=False),
+            reserve=reserve,
+        )
+
     def test_offer_binds_actual_candidate_decision_version_and_is_read_only(self):
         before = self.inventory()
         expected_git = [
@@ -146,7 +175,9 @@ class ProjectSourcePermitTests(Stage1LibraryFixture, unittest.TestCase):
         self.assertEqual(document["limits"]["max_reserved_seconds"], 120)
         self.assertEqual(
             document["binding"]["reservation_state_sha256"],
-            sha(canonical(dict(stage1_query_budget=None, stage1_source_budget=None))),
+            resource_view(
+                self.intake, self.intake._load(self.principal, self.ref), self.principal
+            )["reservation_state_sha256"],
         )
         self.assertIs(document["allow_source_acquisition"], True)
         self.assertIs(document["allow_search"], False)
@@ -169,17 +200,12 @@ class ProjectSourcePermitTests(Stage1LibraryFixture, unittest.TestCase):
         self.assertEqual(self.inventory(), before)
 
     def test_shared_seconds_and_source_fetch_reservations_are_not_double_granted(self):
-        self.state_budget(
-            query=dict(probes=1, attempts=1, seconds=65),
-            source=dict(fetches=1, seconds=40),
-        )
+        self.reserve_source("source-sixty-five", 65)
+        self.reserve_source("source-forty", 40)
         document = self.offer()[1]
         self.assertEqual(document["limits"]["max_reserved_seconds"], 75)
-        self.assertEqual(document["limits"]["max_fetches"], 2)
-        self.state_budget(
-            query=dict(probes=1, attempts=2, seconds=130),
-            source=dict(fetches=1, seconds=30),
-        )
+        self.assertEqual(document["limits"]["max_fetches"], 1)
+        self.reserve_source("source-fifty-five", 55)
         with self.assertRaises(SessionApiError) as error:
             self.offer()
         self.assertEqual(
@@ -190,10 +216,8 @@ class ProjectSourcePermitTests(Stage1LibraryFixture, unittest.TestCase):
     def test_fractional_reserved_seconds_are_preserved_and_nonfinite_values_refuse(
         self,
     ):
-        self.state_budget(
-            query=dict(probes=1, attempts=1, seconds=62.5),
-            source=dict(fetches=1, seconds=35.25),
-        )
+        self.reserve_source("source-fraction-one", 62.5)
+        self.reserve_source("source-fraction-two", 35.25)
         before = self.inventory()
         document = self.offer()[1]
         self.assertEqual(document["limits"]["max_reserved_seconds"], 82.25)
@@ -274,9 +298,12 @@ class ProjectSourcePermitTests(Stage1LibraryFixture, unittest.TestCase):
             self.check(document, offer)
         self.assertEqual(error.exception.code, "project-source-current-offer-differs")
         _, document, offer = self.offer()
-        self.state_budget(query=dict(probes=1, attempts=0, seconds=30))
+        self.reserve_source("source-new-reservation", 30)
         current = self.offer()[1]
-        self.assertEqual(current["limits"], document["limits"])
+        self.assertEqual(
+            current["limits"]["max_reserved_seconds"],
+            document["limits"]["max_reserved_seconds"],
+        )
         self.assertNotEqual(
             current["binding"]["reservation_state_sha256"],
             document["binding"]["reservation_state_sha256"],
@@ -284,6 +311,31 @@ class ProjectSourcePermitTests(Stage1LibraryFixture, unittest.TestCase):
         with self.assertRaises(SessionApiError) as error:
             self.check(document, offer)
         self.assertEqual(error.exception.code, "project-source-current-offer-differs")
+
+    def test_legacy_nonzero_bare_counters_are_not_execution_evidence(self):
+        original = self.intake._load(self.principal, self.ref)
+        for query, source, code in (
+            (
+                dict(probes=1, attempts=1, seconds=65),
+                None,
+                "project-resource-query-history-differs",
+            ),
+            (
+                None,
+                dict(fetches=1, seconds=35.25),
+                "project-resource-source-history-differs",
+            ),
+        ):
+            self.state_budget(query=query, source=source)
+            before = self.inventory()
+            with self.assertRaises(SessionApiError) as error:
+                self.offer()
+            self.assertEqual(error.exception.code, code)
+            self.assertEqual(self.inventory(), before)
+            with self.intake.db:
+                self.intake._save(
+                    deepcopy(original), "restore-legacy-budget-fixture", {}
+                )
 
     def test_foreign_principal_missing_work_and_raw_brief_drift_refuse(self):
         with self.assertRaises(SessionApiError) as error:

@@ -19,6 +19,7 @@ from stage1_ledger.source_arguments import check_source_arguments
 from .planned_query_contract import tree_sha
 from .project_stage1 import ProjectStage1Service, _basis
 from .session_api import SessionApiError, _check, _hash
+from .project_resource_budget import resource_view
 
 CAP_MAXIMA = {
     "max_fetches": 128,
@@ -148,17 +149,13 @@ def _budget(state, name, fields):
     return budget
 
 
-def _limits(state, settings, config):
+def _limits(state, settings, config, resources):
     _check(
         settings["consent"]["public_source_read"] is True,
         "project-source-consent-required",
     )
-    query = _budget(state, "stage1_query_budget", ("probes", "attempts", "seconds"))
-    source = _budget(state, "stage1_source_budget", ("fetches", "seconds"))
-    remaining_seconds = (
-        settings["budgets"]["seconds"] - query["seconds"] - source["seconds"]
-    )
-    remaining_fetches = settings["budgets"]["source_reads"] - source["fetches"]
+    remaining_seconds = resources["remaining"]["seconds"]
+    remaining_fetches = resources["remaining"]["source_reads"]
     caps = config["caps"]
     seconds = min(remaining_seconds, caps["max_reserved_seconds"])
     fetches = min(remaining_fetches, caps["max_fetches"])
@@ -268,7 +265,11 @@ def proposal(intake, stage1, ref, principal, config, work_id):
         state = intake._load(principal, ref)
         binding = intake.binding(ref)
         run, ledger, report = stage1._ledger(state, binding)
-        limits = _limits(state, binding["settings"], verified)
+        # Validate legacy scalar types, then require causal shared reservations.
+        _budget(state, "stage1_query_budget", ("probes", "attempts", "seconds"))
+        _budget(state, "stage1_source_budget", ("fetches", "seconds"))
+        resources = resource_view(intake, state, principal)
+        limits = _limits(state, binding["settings"], verified, resources)
         selected = _selected(ledger, work_id, verified)
         document = dict(
             kind="Stage1ProjectSourceAuthorizationOffer",
@@ -283,20 +284,24 @@ def proposal(intake, stage1, ref, principal, config, work_id):
                 manifest_sha256=run["manifest_sha256"],
                 ledger_state_sha256=report["state_sha256"],
                 journal_sha256=sha((ledger.root / "stage_events.jsonl").read_bytes()),
-                reservation_state_sha256=sha(
-                    canonical(
-                        {
-                            name: state.get(name)
-                            for name in ("stage1_query_budget", "stage1_source_budget")
-                        }
-                    )
-                ),
+                reservation_state_sha256=resources["reservation_state_sha256"],
             ),
             selected=selected,
             runtime_sha256=verified["runtime_sha256"],
             execution_source_sha256=verified["execution_source_sha256"],
             server_configuration_sha256=sha(canonical(verified)),
             limits=limits,
+            resources={
+                k: deepcopy(resources[k])
+                for k in (
+                    "declared",
+                    "reserved",
+                    "remaining",
+                    "actual_seconds",
+                    "usage_status",
+                    "automatic_refund",
+                )
+            },
             url_policy=verified["url_policy"],
             scope=["fetch-selected-public-source"],
             allow_source_acquisition=True,
