@@ -95,3 +95,49 @@ version-bound execution permit, tools and budget. Saved-case checks, real Codex
 text, stage research completion and scientific improvement are separate states.
 Remote public hosting also needs a separate authenticated access layer; this
 launcher intentionally binds loopback rather than exposing credentials publicly.
+
+## Universal topic portal and optional Stage1 queries
+
+Run `examples/run-project-workspace.py` from a complete checkout with its explicit
+repo and source-helper hash, and a new short `--projects-root` outside Git.
+Use `--check-only` for a read-only preflight; omit it to start the project portal.
+Teammates prepare their own content-provider configuration and Codex
+executable/configuration pins. No account files or another person's permit are
+portable. Existing saved Atlas views remain optional result snapshots.
+
+Search uses a separate installed, merged Research Hub runtime. The optional
+`--stage1-query-runtime ABSOLUTE_JSON_PATH` and
+`--stage1-query-runtime-sha256 EXACT_RAW_SHA256` must be paired. The external
+file has exactly these fields (replace the pin with the actual validated runtime;
+the example does not grant permission):
+
+```json
+{
+  "kind": "ProjectStage1QueryRuntime",
+  "schema_version": "1.0.0",
+  "pin": "REPLACE_WITH_THE_REAL_RUNTIME_PIN_OBJECT",
+  "caps": {"max_attempts": 2, "max_reserved_seconds": 100, "max_results": 3, "validity_seconds": 600},
+  "backends": ["openalex"]
+}
+```
+
+The runtime pin must satisfy the unchanged Core executable/environment/package/
+configuration/import checks. Its actual timeout also determines the reservation:
+30 seconds for bootstrap plus timeout+30 for each backend attempt. The displayed
+limits use the lower of researcher settings and server caps. Missing or changed
+configuration refuses; startup and checked-only do not probe or call the backend.
+
+In the portal: create a topic, explicitly confirm scope/resources, compile a
+search plan using an independently permitted Codex content call, then review the
+Stage1 search card. Authorize its offered limits, initialize that query runtime,
+refresh saved state, and explicitly execute the next offered query. Inspect the
+actual execution receipt and coverage gate before proceeding. Authorization,
+queued work, runner completion and research acceptance are different states.
+Refresh never resends. After a restart, restore the saved ledger owner explicitly;
+expired permission permits local checkpoint/export but refuses new searches.
+
+This connects the planned-query segment. Automatic source acquisition/reading and
+the complete Stage1 coverage/delivery loop are still pending, so it is not yet a
+one-click new-topic research run. Stage2 currently retains its source-bound input,
+workflow/frontier and delivery interfaces; full execution is deferred. Do not run
+repository fixtures as evidence of actual native, search or scientific success.

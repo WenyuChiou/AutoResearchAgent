@@ -1,0 +1,31 @@
+{
+  "kind": "OfflineProjectQueryContractRegression",
+  "exit_code": 1,
+  "test_selectors": [
+    "planned_query_contract_cases",
+    "project_planned_query_contract_cases"
+  ],
+  "subprocess_scope": "fresh isolated test loader and existing read-only git private-root checks; no SDK/runtime probe/search/native/model",
+  "raw_stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "raw_stderr_sha256": "c1787f7b278f860d24039e1974da999fbd4fe750c31d8f1e8cd8472236dfebf2",
+  "source_before": {
+    "cli/research_workspace_native/planned_query_contract.py": "47ea106eb7cde2044a02cd0da63f770fdeb002cc9fbcb127eb15eaec602edf3b",
+    "tests/project_planned_query_contract_cases.py": "3f6c1029356538507f5d07e10d25393d9525b6004e6f3b9dea534e60b835a6a6",
+    "tests/test_project_planned_query_contract.py": "45526ffd60f5940ef4acaf87f05b4f6b4f0c058fcc4f5c3aa852662b031df7c0",
+    "tests/planned_query_fixture.py": "cb6545fe70958a4802ba2da639f1ca4e6162d3be90035122077e0d0c7fe20651",
+    "tests/planned_query_raw_runner.py": "c975a1f81ea84e85777d21b535724f5f069d6f355b17dd864cca56fc14d39ccd",
+    "cli/stage1_brief/brief.py": "c10c39db766811519c30024b67fe0341ad11edcc17a6d075d44e6d6c3aad12ae",
+    "cli/stage1_retrieval/runtime_identity.py": "da4ee52b8922539039494c1b9683ed8e0516ae9ff9c405d64c3cddd164f1415f",
+    "cli/stage1_deliverable/common.py": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106"
+  },
+  "source_after": {
+    "cli/research_workspace_native/planned_query_contract.py": "47ea106eb7cde2044a02cd0da63f770fdeb002cc9fbcb127eb15eaec602edf3b",
+    "tests/project_planned_query_contract_cases.py": "3f6c1029356538507f5d07e10d25393d9525b6004e6f3b9dea534e60b835a6a6",
+    "tests/test_project_planned_query_contract.py": "45526ffd60f5940ef4acaf87f05b4f6b4f0c058fcc4f5c3aa852662b031df7c0",
+    "tests/planned_query_fixture.py": "cb6545fe70958a4802ba2da639f1ca4e6162d3be90035122077e0d0c7fe20651",
+    "tests/planned_query_raw_runner.py": "c975a1f81ea84e85777d21b535724f5f069d6f355b17dd864cca56fc14d39ccd",
+    "cli/stage1_brief/brief.py": "c10c39db766811519c30024b67fe0341ad11edcc17a6d075d44e6d6c3aad12ae",
+    "cli/stage1_retrieval/runtime_identity.py": "da4ee52b8922539039494c1b9683ed8e0516ae9ff9c405d64c3cddd164f1415f",
+    "cli/stage1_deliverable/common.py": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106"
+  }
+}

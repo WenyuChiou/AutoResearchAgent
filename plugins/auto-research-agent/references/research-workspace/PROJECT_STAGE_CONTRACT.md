@@ -7,7 +7,8 @@ starts an independent project with any topic, or explicitly asks their own Codex
 for topic proposals, confirms a versioned scope and resources, and reviews each
 saved operation and result. A demonstration topic is not a production default.
 
-Current adapters cover project intake, offline Stage1 ledger operations, canonical
+Current adapters cover project intake, offline Stage1 ledger operations, explicitly
+sealed planned-query bootstrap/execution, canonical
 delivery of trusted registered saved reading records, and source-bound Stage2
 import and workflow initialization. The separate native
 candidate supplies bounded Codex **content planning**. They do not yet form a
@@ -81,7 +82,7 @@ started by Stage2 import.
 | --- | --- | --- |
 | Project | create; confirm; configure; revise; compile | project list/detail; history; overview; contract; exact action recovery |
 | Stage1 | initialize; plan-query; checkpoint; export; deliver a registered saved-record offer | bound ledger, real core gate, planned queries, delivery offers/package hashes and action history |
-| Stage1 execution | execute-query currently refuses as unconnected | no search or source-read completion is inferred |
+| Stage1 search execution | query-authorize; query-bootstrap; query-execute; query-restore-owner | sealed limits, runtime job, reserved budgets, real runner receipts and retained failure/unknown history |
 | Stage2 | actions: activate a registered source-bound package | offers, saved activation and history |
 | Content planning | models/authorize; models/actions | models, offers, paginated actions and hashed UTF-8 output chunks |
 | Native content session | models/native/answer; models/native/interrupt | cached native requests, actions and terminal observations |
@@ -143,6 +144,63 @@ reopen do not execute workflow producers. There is no browser execution route,
 native/model/search dispatch, score, completion or next-stage permission. Stage2
 full execution is deferred while Stage1 integration is prioritized.
 
+## Explicit Stage1 search bridge
+
+The optional `ProjectStage1QueryService` wraps the existing `PlannedQueryService`
+and unchanged retrieval runner. Entering a topic, enabling a consent checkbox,
+registering a runtime, startup and GET never authorize or initialize that runtime.
+The browser selects server offers and submits only key/revision/input version,
+brief SHA, offer ref/SHA and explicit confirmation. Authorization also retains the
+researcher's original consent text. Caller roots, executables, RPCs, query text,
+runtime pins and permit paths are refused.
+
+`query-authorize` exclusively writes a project/source/plan/runtime/cap-bound seal
+and a separate input snapshot. That snapshot is not a canonical WorkspaceIndex.
+The integer project input version and original raw brief SHA are distinct from
+the legacy query adapter's brief-hash version domain; strict registration/permit
+1.1 adds these bindings without widening legacy 1.0.
+
+`query-bootstrap` durably reserves one 30-second probe budget and intent before
+Core.create, then saves a new immutable seed and exact writable clone. Old offline
+runs remain in history. The probe receipt says only that Core.create returned:
+it is not authenticated process/import attestation or retained raw probe output.
+Failures after entering Core.create and interrupted dispatch remain unknown and
+cannot automatically retry. A completed job binds the actual manifest, seed tree,
+current state, control database, project registration and permit.
+The bootstrap deadline and unchanged authority are checked inside the final
+SQLite transaction, including immediately before commit. A late callback or
+database write rolls back completion/activation and retains execution-unknown.
+
+`query-execute` reserves the next offered backend attempt and timeout+30 seconds
+before dispatch. Cumulative reservations are checked against immutable intake
+intent history, including failed and unknown actions. Admission binds the precise
+outer request/inner client key and current seal/config/raw execution source before
+the existing runner's I/O. Backend attempts are separate from provider HTTP calls,
+bytes and monetary cost; those resource limits are not yet demonstrated.
+
+Live ledger writes, local plan recording, checkpoint and export share the query
+owner/frontier. The bootstrap run identity cannot be replaced by a sibling copy.
+Checkpoint metadata must reference a real ledger event. Restoring an owner is an
+explicit local history operation, with no probe, source or search dispatch. It
+remains available after permit expiry; all new queries still refuse. GET and
+same-key response-loss recovery only read history. A lost bootstrap worker is
+shown as execution-unknown rather than running after a true store reopen.
+
+This first bridge retains one immutable query authorization/bootstrap per project.
+An expired seal or revised input cannot be replaced, reset or reused for another
+version. Versioned renewal/rerun generations, with separate retained budgets and
+attempts, remain a required extension; the UI reports stale/unavailable rather
+than silently granting new execution. Independent projects already have separate
+seals, roots and history.
+
+The common stage projection exposes search observations and separate reserved
+attempts/probes/seconds. Actual backend-attempt counts require saved runner
+receipts; token usage, cost, source reads and scientific scores remain Unknown
+when absent. `stage1_complete` and `accepted` remain false. Source acquisition,
+model reading, ledger-to-reading-record production and the full coverage loop
+still require their own adapters/permits; this search segment does not complete
+the full Stage1 goal. Stage2 execution and Stage3–6 remain unconnected.
+
 ## Adding a stage without rebuilding the UI
 
 A future adapter must use this same project store and binding, expose read-only
@@ -157,7 +215,7 @@ will reuse intake, identity, intent/history, metrics and native/API boundaries;
 it is **not** a promise that an unimplemented stage can be connected by changing
 HTML alone. Only the stage-specific views and output presentation should change.
 
-Remaining production work is authenticated retrieval/source acquisition,
+Remaining production work is authenticated source acquisition,
 ledger-to-reading-record production and authenticated retrieval/read/coverage,
 the full Stage2 generation/extraction and
 independent review/selection chain, stage execution permits and resource limits,

@@ -1,0 +1,24 @@
+test_authorization_is_explicit_persisted_and_same_key_replays_after_reopen (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_authorization_is_explicit_persisted_and_same_key_replays_after_reopen) ... ok
+test_bootstrap_commits_budget_and_dispatch_before_pure_probe (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_bootstrap_commits_budget_and_dispatch_before_pure_probe) ... ok
+test_constructors_get_and_served_buttons_have_zero_execution (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_constructors_get_and_served_buttons_have_zero_execution) ... ok
+test_execute_real_runner_imports_actual_core_bytes_after_durable_reservation (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_execute_real_runner_imports_actual_core_bytes_after_durable_reservation) ... ok
+test_owned_local_plan_checkpoint_and_export_share_durable_query_history (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_owned_local_plan_checkpoint_and_export_share_durable_query_history) ... FAIL
+test_query_route_path_injection_origin_and_stale_offer_do_not_spend_budget (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_query_route_path_injection_origin_and_stale_offer_do_not_spend_budget) ... ok
+test_response_body_loss_get_replay_and_explicit_owner_restore_do_not_repeat_io (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_response_body_loss_get_replay_and_explicit_owner_restore_do_not_repeat_io) ... ok
+test_strict_fields_origin_and_credentials_reject_without_reservation (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_strict_fields_origin_and_credentials_reject_without_reservation) ... ok
+
+======================================================================
+FAIL: test_owned_local_plan_checkpoint_and_export_share_durable_query_history (project_stage1_query_http_cases.ProjectStage1QueryHttpTests.test_owned_local_plan_checkpoint_and_export_share_durable_query_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_http_cases.py", line 614, in test_owned_local_plan_checkpoint_and_export_share_durable_query_history
+    view = self.get(self.base + "/stage1")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_http_cases.py", line 218, in get
+    self.assertEqual(status, 200, raw)
+AssertionError: 409 != 200 : b'{"error": "project-query-run-identity-differs"}'
+
+----------------------------------------------------------------------
+Ran 8 tests in 60.123s
+
+FAILED (failures=1)

@@ -1,0 +1,28 @@
+{
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\planned_query_raw_runner.py",
+    "--test",
+    "project_stage1_query_cases"
+  ],
+  "exit_code": 1,
+  "source_before": {
+    "cli/research_workspace_native/project_query_permit.py": "f9b1ee8973a5da2cc3ae245cb9473ca5e27d18ff2a5fc00f83512ce410efad9d",
+    "cli/research_workspace_native/project_stage1_queries.py": "19e6b1a9424632e283277e3f4502b1e5d68d45ca6c3c1906292554b1dcdf6b1b",
+    "cli/research_workspace_native/planned_query_contract.py": "47ea106eb7cde2044a02cd0da63f770fdeb002cc9fbcb127eb15eaec602edf3b",
+    "cli/research_workspace_native/planned_queries.py": "7c5b1c12e8587e2be2677976218587fa9236ab9bb7db3b429facb27c3abda90d",
+    "tests/project_stage1_query_cases.py": "66a9490e59d6a093e1213d1f15c228e3bdd994a381a2e8b94542298128a308ef"
+  },
+  "source_after": {
+    "cli/research_workspace_native/project_query_permit.py": "f9b1ee8973a5da2cc3ae245cb9473ca5e27d18ff2a5fc00f83512ce410efad9d",
+    "cli/research_workspace_native/project_stage1_queries.py": "19e6b1a9424632e283277e3f4502b1e5d68d45ca6c3c1906292554b1dcdf6b1b",
+    "cli/research_workspace_native/planned_query_contract.py": "47ea106eb7cde2044a02cd0da63f770fdeb002cc9fbcb127eb15eaec602edf3b",
+    "cli/research_workspace_native/planned_queries.py": "7c5b1c12e8587e2be2677976218587fa9236ab9bb7db3b429facb27c3abda90d",
+    "tests/project_stage1_query_cases.py": "66a9490e59d6a093e1213d1f15c228e3bdd994a381a2e8b94542298128a308ef"
+  },
+  "actual_model_or_search_calls": 0
+}

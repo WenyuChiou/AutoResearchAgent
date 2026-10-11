@@ -77,8 +77,13 @@ new projects; a displayed saved case does not automatically become that project'
 canonical Stage1 input.
 
 The portal connects actual offline ResearchBrief/compiler and Stage1 ledger,
-query-intent, checkpoint and export operations. External query execution remains
-unconnected until a separate applicable execution adapter/permit exists. Stage2
+query-intent, checkpoint and export operations. Optional planned-query execution
+uses a separately pinned merged Research Hub runtime and an explicit
+project/version-bound search permit. Follow the
+[query setup and four explicit actions](../PORTABLE_ATLAS_SETUP.md#universal-topic-portal-and-optional-stage1-queries).
+Startup and history refresh do not probe, search or grant permission. Source
+acquisition, model reading and the complete coverage/delivery loop remain pending.
+Stage2
 can activate a trusted, separately registered canonical Stage1 package, preserving
 its raw manifest/handoff/source hashes and researcher eligibility gate. Registration
 is currently a trusted Python service interface, not a browser import or a CLI
@@ -89,7 +94,8 @@ claim production create/resume, complete generation/extraction/independent judge
 scientific improvement, or an authenticated account before an actual authorized
 run. Stage3–6 stay planned/unconnected. Private source inputs, Unknown evidence,
 partial results, frozen subjects and paused evaluations retain their boundaries.
-The older two-source pilot's separate 8-call/900-second cap is unchanged.
+The older two-source pilot's separate 8-call/900-second grant is historical and
+expired; it does not authorize a new topic, source read or model call.
 
 Windows model mode checks the actual shortened server-owned runtime path before
 creating services: `projects-root/m/<24-hex>/n/<unit-64-hex>/` plus the original

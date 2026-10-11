@@ -71,6 +71,13 @@ def refusal_shape(kind, body, key, project_ref):
             set(),
         ),
     }
+    for operation in ("bootstrap", "execute", "restore-owner", "authorize"):
+        shapes["stage1-query-" + operation] = (
+            BOUND_FIELDS
+            | {"offer_ref", "offer_sha256", "confirmed"}
+            | ({"user_input"} if operation == "authorize" else set()),
+            set(),
+        )
     if kind not in shapes or type(body) is not dict or body.get("key") != key:
         return False
     try:

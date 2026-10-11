@@ -1,0 +1,38 @@
+{
+  "kind": "OfflineProjectQueryContractRegression",
+  "exit_code": 0,
+  "wrapper_exit_code": 0,
+  "test_selectors": [
+    "planned_query_contract_cases",
+    "project_planned_query_contract_cases"
+  ],
+  "wrapper_selectors": [
+    "test_planned_query_contract",
+    "test_project_planned_query_contract"
+  ],
+  "subprocess_scope": "fresh isolated test loader and existing read-only git private-root checks; no SDK/runtime probe/search/native/model",
+  "raw_stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "raw_stderr_sha256": "0b0195e7bcf129b05b14749bf15ce34d85c181660cf4c28047a99de41fc96e7e",
+  "raw_wrapper_stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "raw_wrapper_stderr_sha256": "1a9b944d71a0772f5c72389405b2eaec55cb24a394dce2afc6f28748ff86c4f8",
+  "source_before": {
+    "cli/research_workspace_native/planned_query_contract.py": "47ea106eb7cde2044a02cd0da63f770fdeb002cc9fbcb127eb15eaec602edf3b",
+    "tests/project_planned_query_contract_cases.py": "3f12db553a89f999c12185835623392aa836158ccaede605218e760fd7225b71",
+    "tests/test_project_planned_query_contract.py": "45526ffd60f5940ef4acaf87f05b4f6b4f0c058fcc4f5c3aa852662b031df7c0",
+    "tests/planned_query_fixture.py": "cb6545fe70958a4802ba2da639f1ca4e6162d3be90035122077e0d0c7fe20651",
+    "tests/planned_query_raw_runner.py": "c975a1f81ea84e85777d21b535724f5f069d6f355b17dd864cca56fc14d39ccd",
+    "cli/stage1_brief/brief.py": "c10c39db766811519c30024b67fe0341ad11edcc17a6d075d44e6d6c3aad12ae",
+    "cli/stage1_retrieval/runtime_identity.py": "da4ee52b8922539039494c1b9683ed8e0516ae9ff9c405d64c3cddd164f1415f",
+    "cli/stage1_deliverable/common.py": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106"
+  },
+  "source_after": {
+    "cli/research_workspace_native/planned_query_contract.py": "47ea106eb7cde2044a02cd0da63f770fdeb002cc9fbcb127eb15eaec602edf3b",
+    "tests/project_planned_query_contract_cases.py": "3f12db553a89f999c12185835623392aa836158ccaede605218e760fd7225b71",
+    "tests/test_project_planned_query_contract.py": "45526ffd60f5940ef4acaf87f05b4f6b4f0c058fcc4f5c3aa852662b031df7c0",
+    "tests/planned_query_fixture.py": "cb6545fe70958a4802ba2da639f1ca4e6162d3be90035122077e0d0c7fe20651",
+    "tests/planned_query_raw_runner.py": "c975a1f81ea84e85777d21b535724f5f069d6f355b17dd864cca56fc14d39ccd",
+    "cli/stage1_brief/brief.py": "c10c39db766811519c30024b67fe0341ad11edcc17a6d075d44e6d6c3aad12ae",
+    "cli/stage1_retrieval/runtime_identity.py": "da4ee52b8922539039494c1b9683ed8e0516ae9ff9c405d64c3cddd164f1415f",
+    "cli/stage1_deliverable/common.py": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106"
+  }
+}

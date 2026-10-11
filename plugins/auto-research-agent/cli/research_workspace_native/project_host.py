@@ -23,7 +23,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|checkpoint|export|deliver)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -106,10 +106,15 @@ class ProjectHost(AtlasHost):
     def stage1_view(self, credential, ref):
         """Read saved delivery offers together with the same project revision."""
         with self.projects._lock:
-            return dict(
+            result = dict(
                 self.project_stage1.read(credential, ref),
                 delivery=self.project_stage1_delivery.read(credential, ref),
             )
+            queries = getattr(self.project_stage1, "query_service", None)
+            result["query_execution"] = (
+                None if queries is None else queries.read(credential, ref)
+            )
+            return result
 
 
 class ProjectHandler(AtlasHandler):
@@ -251,6 +256,10 @@ class ProjectHandler(AtlasHandler):
                         "checkpoint",
                         "export",
                         "deliver",
+                        "query-authorize",
+                        "query-bootstrap",
+                        "query-execute",
+                        "query-restore-owner",
                     }
                     and resolution is None
                 ):
@@ -260,6 +269,13 @@ class ProjectHandler(AtlasHandler):
                     called = ("stage1-" + action, ref, body)
                     if action == "deliver":
                         extension = self.server.project_stage1_delivery
+                    elif action.startswith("query-"):
+                        extension = getattr(extension, "query_service", None)
+                        if extension is None:
+                            raise SessionApiError(
+                                "stage1-query-execution-unconnected", 409
+                            )
+                        action = action.removeprefix("query-")
                     result = getattr(extension, action.replace("-", "_"))(
                         token, ref, body, check_deadline=self._remaining
                     )

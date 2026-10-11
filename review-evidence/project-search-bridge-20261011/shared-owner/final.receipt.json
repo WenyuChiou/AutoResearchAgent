@@ -1,0 +1,36 @@
+{
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "planned_query_raw_runner.py",
+    "--test",
+    "test_planned_query_saved_mutations",
+    "--test",
+    "planned_query_core_cases",
+    "--test",
+    "planned_query_storage_cases",
+    "--test",
+    "planned_query_safety_cases",
+    "--test",
+    "planned_query_runner_cases"
+  ],
+  "cwd": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests",
+  "source_before": {
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\cli\\research_workspace_native\\planned_queries.py": "7c5b1c12e8587e2be2677976218587fa9236ab9bb7db3b429facb27c3abda90d",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\test_planned_query_saved_mutations.py": "773dd32c4a8232b3db38be2e7207ce4a1819c84df605fc9dee9e5f1ab1d9b010"
+  },
+  "started_at": "2026-10-10T23:46:04.303276+00:00",
+  "exit_code": 0,
+  "ended_at": "2026-10-10T23:47:41.213920+00:00",
+  "source_after": {
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\cli\\research_workspace_native\\planned_queries.py": "7c5b1c12e8587e2be2677976218587fa9236ab9bb7db3b429facb27c3abda90d",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\test_planned_query_saved_mutations.py": "773dd32c4a8232b3db38be2e7207ce4a1819c84df605fc9dee9e5f1ab1d9b010"
+  },
+  "logs": {
+    "final.stdout.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final.stderr.bin": "1e484e639ce783df7281860feb967e8d5c19fdc89fd2262311573e615beb3ab8"
+  }
+}

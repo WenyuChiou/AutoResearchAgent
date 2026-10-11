@@ -1,0 +1,31 @@
+test_admission_settings_drift_prevents_probe_and_retains_reserved_attempt (project_stage1_query_cases.ProjectQueryCases.test_admission_settings_drift_prevents_probe_and_retains_reserved_attempt) ... ok
+test_authorization_and_all_gets_never_probe_create_or_search (project_stage1_query_cases.ProjectQueryCases.test_authorization_and_all_gets_never_probe_create_or_search) ... ok
+test_caller_paths_changed_payload_and_other_project_are_rejected (project_stage1_query_cases.ProjectQueryCases.test_caller_paths_changed_payload_and_other_project_are_rejected) ... ok
+test_delivery_context_refuses_unknown_owned_writer_before_records_read (project_stage1_query_cases.ProjectQueryCases.test_delivery_context_refuses_unknown_owned_writer_before_records_read) ... ERROR
+test_expired_seal_restores_history_owner_but_refuses_new_search (project_stage1_query_cases.ProjectQueryCases.test_expired_seal_restores_history_owner_but_refuses_new_search) ... ok
+test_last_source_callback_cannot_widen_caps_before_probe (project_stage1_query_cases.ProjectQueryCases.test_last_source_callback_cannot_widen_caps_before_probe) ... ok
+test_live_bootstrap_preserves_offline_and_uses_original_integer_brief (project_stage1_query_cases.ProjectQueryCases.test_live_bootstrap_preserves_offline_and_uses_original_integer_brief) ... ok
+test_real_runner_capture_import_extract_then_owned_checkpoint_and_reopen (project_stage1_query_cases.ProjectQueryCases.test_real_runner_capture_import_extract_then_owned_checkpoint_and_reopen) ... ok
+test_runtime_config_drift_in_admission_is_refused_before_probe (project_stage1_query_cases.ProjectQueryCases.test_runtime_config_drift_in_admission_is_refused_before_probe) ... ok
+test_saved_package_production_keeps_ledger_frontier_without_inner_mutation (project_stage1_query_cases.ProjectQueryCases.test_saved_package_production_keeps_ledger_frontier_without_inner_mutation) ... ok
+test_unknown_bootstrap_retains_budget_and_same_key_no_second_probe (project_stage1_query_cases.ProjectQueryCases.test_unknown_bootstrap_retains_budget_and_same_key_no_second_probe) ... ok
+test_unobserved_bootstrap_after_true_store_reopen_remains_unknown (project_stage1_query_cases.ProjectQueryCases.test_unobserved_bootstrap_after_true_store_reopen_remains_unknown) ... ok
+test_admission_requires_the_exact_outer_intent_client_key (project_query_history_cases.ProjectQueryHistoryCases.test_admission_requires_the_exact_outer_intent_client_key) ... ok
+test_inner_counter_reset_cannot_hide_one_already_observed_attempt (project_query_history_cases.ProjectQueryHistoryCases.test_inner_counter_reset_cannot_hide_one_already_observed_attempt) ... ok
+test_outer_counter_reset_rejects_before_a_new_backend_attempt (project_query_history_cases.ProjectQueryHistoryCases.test_outer_counter_reset_rejects_before_a_new_backend_attempt) ... ok
+test_rehashed_registration_reopen_rejects_before_owner_construction (project_query_history_cases.ProjectQueryHistoryCases.test_rehashed_registration_reopen_rejects_before_owner_construction) ... ok
+test_sibling_ledger_copy_cannot_replace_the_query_owned_run (project_query_history_cases.ProjectQueryHistoryCases.test_sibling_ledger_copy_cannot_replace_the_query_owned_run) ... ok
+
+======================================================================
+ERROR: test_delivery_context_refuses_unknown_owned_writer_before_records_read (project_stage1_query_cases.ProjectQueryCases.test_delivery_context_refuses_unknown_owned_writer_before_records_read)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_cases.py", line 451, in test_delivery_context_refuses_unknown_owned_writer_before_records_read
+    service.store.update(
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ProjectStore' object has no attribute 'update'
+
+----------------------------------------------------------------------
+Ran 17 tests in 101.250s
+
+FAILED (errors=1)

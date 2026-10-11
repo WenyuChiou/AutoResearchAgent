@@ -10,10 +10,12 @@ import time
 
 from stage1_deliverable.common import canonical, sha
 from stage1_coverage.run import CoverageLedger
+from stage1_ledger.validation import validate_run
 from stage1_retrieval.runner import execute as execute_backend
 from stage1_retrieval.receipt import command
 from research_workspace_native.planned_query_contract import (
     KEY,
+    HASH,
     PROBE_TIMEOUT_SECONDS,
     inspect_registration,
     next_target,
@@ -28,6 +30,14 @@ from research_workspace_native.query_storage import (
     check_writer_paths,
 )
 from research_workspace_native.query_execution_source import check_execution_source
+
+
+SAVED_OPERATIONS = {
+    "stage1-plan-query",
+    "stage1-checkpoint",
+    "stage1-export",
+    "stage1-import-saved",
+}
 
 
 class PlannedQueryService:
@@ -227,6 +237,254 @@ class PlannedQueryService:
             429,
         )
         return item, permit, state, pin
+
+    def _saved_owner(self, p, saved):
+        require(not self._closing, "query-service-closing", 503)
+        require(
+            (saved.get("owner") or {}).get("token") == p["owner"]
+            and self.store._owners.get(p["pid"], (None,))[0] == p["owner"],
+            "query-owner-lost",
+        )
+        try:
+            held = (
+                self.store._owners[p["pid"]][1].in_transaction
+                and len(self.ledger_owners.connections) == len(self._projects)
+                and all(
+                    connection.in_transaction
+                    for connection in self.ledger_owners.connections
+                )
+            )
+        except sqlite3.Error:
+            held = False
+        require(held, "query-ledger-owner-lost")
+        require(saved.get("query_binding") == p["item"], "query-saved-binding-differs")
+        history = self.store.events(p["pid"])
+        require(
+            history
+            and history[-1]["revision"] == saved["revision"]
+            and history[-1]["state_sha256"] == sha(canonical(saved)),
+            "query-saved-state-history-differs",
+        )
+        marker = Path(str(self.store.path) + ".created")
+        expected = canonical(
+            dict(
+                kind="Stage1QueryBudgetJournal",
+                schema_version="1.0.0",
+                registrations={
+                    ref: entry["item"] for ref, entry in self._projects.items()
+                },
+            )
+        )
+        require(
+            self.store.path.is_file()
+            and marker.is_file()
+            and marker.stat().st_size == len(expected)
+            and marker.read_bytes() == expected,
+            "query-budget-marker-differs",
+        )
+
+    def _saved_frontier(self, ref, p, saved):
+        self._check_storage()
+        self._saved_owner(p, saved)
+        item, _, _, _ = inspect_registration(ref, p["item"], require_ready=False)
+        require(
+            not any(row["status"] != "completed" for row in saved["intents"].values()),
+            "query-unreconciled-action",
+        )
+        ledger = CoverageLedger(item["ledger_root"])
+        # An unexecuted planned search is not a pending external write. Backend
+        # and source attempts, including imported-source writes, must be settled.
+        require(
+            all(
+                ledger.event(key).get("kind") == "ActionStarted"
+                and ledger.event(key).get("operation") == "search"
+                for key in ledger.pending()
+            ),
+            "query-pending-write",
+        )
+        report = validate_run(ledger.root)
+        require(report["valid"], "query-saved-ledger-invalid")
+        events = ledger.events()
+        current = tree_sha(ledger.root)
+        require(current == saved["query_ledger_sha256"], "query-ledger-changed")
+        return (
+            ledger,
+            events,
+            dict(
+                tree_sha256=current,
+                state_sha256=report["state_sha256"],
+                ledger_state_sha256=report["state_sha256"],
+                journal_sequence=len(events),
+                journal_head_sha256=events[-1]["event_sha256"] if events else "0" * 64,
+            ),
+        )
+
+    @staticmethod
+    def _saved_observation(ledger, before):
+        report = validate_run(ledger.root)
+        after = ledger.events()
+        require(after[: len(before)] == before, "query-saved-history-differs")
+        return dict(
+            valid=report["valid"],
+            core_events=deepcopy(after[len(before) :]),
+            tree_sha256=tree_sha(ledger.root),
+            state_sha256=report["state_sha256"],
+            journal_sequence=len(after),
+            journal_head_sha256=after[-1]["event_sha256"] if after else "0" * 64,
+        )
+
+    def inspect_saved(self, token, ref):
+        """Read an owned saved frontier without offering or admitting a search.
+
+        No source verifier/admission callback runs under this lock. A project
+        adapter must check its current intake binding before taking the query lock.
+        """
+        with self._lock:
+            p, _ = self._access(token, ref)
+            saved = self.store.snapshot(p["pid"])
+            _, _, frontier = self._saved_frontier(ref, p, saved)
+            return dict(
+                project_ref=ref,
+                revision=saved["revision"],
+                **frontier,
+                budget=deepcopy(saved["query_budget"]),
+                operation_scope="saved-ledger-only",
+                execution_authorized=False,
+            )
+
+    def mutate_saved(
+        self, token, ref, key, request_sha256, expected_tree_sha256, operation, producer
+    ):
+        """Trusted local adapter only; producer(ledger) grants no external I/O.
+
+        There is no browser route. The adapter supplies an already-authorized
+        local Core producer after checking/reserving its intake action. Replay is
+        history-only; the existing ledger owner and lock serialize fresh writes.
+        """
+        with self._lock:
+            p, principal = self._access(token, ref)
+            require(
+                isinstance(key, str) and KEY.fullmatch(key), "query-key-invalid", 400
+            )
+            require(
+                isinstance(operation, str) and operation in SAVED_OPERATIONS,
+                "query-saved-operation-invalid",
+                400,
+            )
+            require(
+                all(
+                    isinstance(value, str) and HASH.fullmatch(value)
+                    for value in (request_sha256, expected_tree_sha256)
+                ),
+                "query-saved-hash-required",
+                400,
+            )
+            identity = dict(
+                operation=operation,
+                request_sha256=request_sha256,
+                expected_tree_sha256=expected_tree_sha256,
+            )
+            intent_key = sha(canonical([principal, key]))
+            saved = self.store.snapshot(p["pid"])
+            old = saved["intents"].get(intent_key)
+            if old is not None:
+                require(
+                    old.get("method") == "stage1/saved-ledger"
+                    and old.get("request") == identity,
+                    "query-idempotency-payload-differs",
+                )
+                return deepcopy(old)
+            require(callable(producer), "query-saved-producer-required", 400)
+            require(len(saved["intents"]) < 256, "query-saved-action-bound", 429)
+            ledger, before, frontier = self._saved_frontier(ref, p, saved)
+            require(
+                frontier["tree_sha256"] == expected_tree_sha256,
+                "query-saved-frontier-stale",
+            )
+            row = dict(
+                client_key=key,
+                principal=principal,
+                method="stage1/saved-ledger",
+                status="dispatch-unobserved",
+                request=identity,
+                request_sha256=request_sha256,
+                previous_frontier=frontier,
+                model_execution=False,
+                external_execution=False,
+                automatic_retry=False,
+            )
+            with self.store._edit(
+                p["pid"], p["owner"], saved["revision"], "saved-ledger-intent", row
+            ) as state:
+                state["intents"][intent_key] = deepcopy(row)
+            # This transaction has committed before the producer can touch Core.
+            try:
+                output = producer(ledger)
+                output = json.loads(canonical(output))
+                self._check_storage()
+                current = self.store.snapshot(p["pid"])
+                self._saved_owner(p, current)
+                require(
+                    current["query_budget"] == saved["query_budget"]
+                    and current["query_ledger_sha256"] == expected_tree_sha256
+                    and current["intents"].get(intent_key, {}).get("request")
+                    == identity,
+                    "query-saved-control-differs",
+                )
+                inspect_registration(ref, p["item"], require_ready=False)
+                require(
+                    all(
+                        ledger.event(key).get("kind") == "ActionStarted"
+                        and ledger.event(key).get("operation") == "search"
+                        for key in ledger.pending()
+                    ),
+                    "query-pending-write",
+                )
+                observation = self._saved_observation(ledger, before)
+                row["core_observation"] = observation
+                require(observation["valid"], "query-saved-ledger-invalid")
+                new_tree = observation["tree_sha256"]
+                row.update(
+                    status="completed",
+                    outcome="observed",
+                    result=output,
+                )
+                with self.store._edit(
+                    p["pid"], p["owner"], None, "saved-ledger-observation", row
+                ) as state:
+                    state["intents"][intent_key] = deepcopy(row)
+                    state["query_ledger_sha256"] = new_tree
+            except BaseException as error:
+                output = row.pop("result", None)
+                row.update(
+                    status="execution-unknown",
+                    outcome="unknown",
+                    error=dict(
+                        code="query-saved-operation-failed", type=type(error).__name__
+                    ),
+                )
+                if output is not None:
+                    row["output_observation"] = output
+                if "core_observation" not in row:
+                    try:
+                        row["core_observation"] = self._saved_observation(
+                            ledger, before
+                        )
+                    except (
+                        ValueError,
+                        OSError,
+                        KeyError,
+                        TypeError,
+                    ) as observation_error:
+                        row["observation_error"] = type(observation_error).__name__
+                self._check_control()
+                with self.store._edit(
+                    p["pid"], p["owner"], None, "saved-ledger-unknown", row
+                ) as state:
+                    state["intents"][intent_key] = deepcopy(row)
+                if not isinstance(error, Exception):
+                    raise
+            return deepcopy(row)
 
     def offer(self, token, ref):
         with self._lock:

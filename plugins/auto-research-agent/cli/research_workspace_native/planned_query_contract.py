@@ -40,6 +40,14 @@ FIELDS = {
     "parent_ledger_root",
     "parent_ledger_sha256",
 }
+PROJECT_BINDING_FIELDS = (
+    "registration_kind",
+    "project_input_version",
+    "project_binding_sha256",
+    "bootstrap_permit_sha256",
+    "bootstrap_receipt_sha256",
+)
+PROJECT_FIELDS = FIELDS | {"schema_version", *PROJECT_BINDING_FIELDS}
 
 
 def require(value, code, status=409):
@@ -78,9 +86,26 @@ def inspect_registration(ref, item, *, require_ready=True):
         isinstance(ref, str) and REF.fullmatch(ref), "query-project-ref-invalid", 400
     )
     require(
-        isinstance(item, dict) and set(item) == FIELDS, "query-registration-fields", 400
+        isinstance(item, dict) and set(item) in (FIELDS, PROJECT_FIELDS),
+        "query-registration-fields",
+        400,
     )
     item = deepcopy(item)
+    project_intake = set(item) == PROJECT_FIELDS
+    if project_intake:
+        require(
+            item["registration_kind"] == "project-intake"
+            and item["schema_version"] == "1.1.0"
+            and type(item["project_input_version"]) is int
+            and item["project_input_version"] > 0,
+            "query-project-registration-differs",
+            400,
+        )
+        for name in PROJECT_BINDING_FIELDS[2:]:
+            require(
+                isinstance(item[name], str) and HASH.fullmatch(item[name]),
+                "query-pin-required",
+            )
     require(
         isinstance(item["project_id"], str)
         and 0 < len(item["project_id"]) <= 128
@@ -123,12 +148,21 @@ def inspect_registration(ref, item, *, require_ready=True):
         tree_sha(item["parent_ledger_root"]) == item["parent_ledger_sha256"],
         "query-parent-source-differs",
     )
-    brief = decode(raw_file(item["brief_path"], item["brief_sha256"]), "query brief")
+    brief_raw = raw_file(item["brief_path"], item["brief_sha256"])
+    brief = decode(brief_raw, "query brief")
     validate_brief(brief, require_confirmed=True)
     require(brief["schema_version"] == "1.1.0", "query-version-bound-intake-required")
     require(
         brief["project_id"] == item["project_id"]
-        and brief["input_version"] == item["input_version"],
+        and (
+            (
+                type(brief["input_version"]) is int
+                and brief["input_version"] == item["project_input_version"]
+                and item["input_version"] == item["brief_sha256"] == sha(brief_raw)
+            )
+            if project_intake
+            else brief["input_version"] == item["input_version"]
+        ),
         "query-intake-project-differs",
     )
     require(
@@ -176,6 +210,8 @@ def inspect_registration(ref, item, *, require_ready=True):
             "parent_ledger_sha256",
         )
     }
+    if project_intake:
+        identity.update({name: item[name] for name in PROJECT_BINDING_FIELDS})
     require(
         isinstance(permit, dict)
         and set(permit)
@@ -195,9 +231,13 @@ def inspect_registration(ref, item, *, require_ready=True):
             "allow_search",
         }
         and permit["kind"] == "Stage1PlannedQueryPermit"
-        and permit["schema_version"] == "1.0.0"
+        and permit["schema_version"] == ("1.1.0" if project_intake else "1.0.0")
         and permit["project_ref"] == ref
         and permit["binding"] == identity
+        and (
+            not project_intake
+            or type(permit["binding"]["project_input_version"]) is int
+        )
         and permit["principals"] == item["principals"]
         and permit["allow_search"] is True,
         "query-research-permit-differs",

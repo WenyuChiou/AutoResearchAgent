@@ -1,0 +1,6 @@
+test_delivery_context_refuses_unknown_owned_writer_before_records_read (project_stage1_query_cases.ProjectQueryCases.test_delivery_context_refuses_unknown_owned_writer_before_records_read) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 5.633s
+
+OK

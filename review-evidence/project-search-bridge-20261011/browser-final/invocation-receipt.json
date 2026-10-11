@@ -1,0 +1,24 @@
+{
+  "kind": "SyntheticProjectQueryUiBrowserInvocation",
+  "command": [
+    "C:/Users/13795/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\test_project_query_panel_browser.cjs",
+    "--repo",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt",
+    "--playwright",
+    "C:/Users/13795/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright",
+    "--browser",
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "--output",
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\consolidation-20261010-v2\\query-browser-cd8ccdfb49f5\\browser-receipt.json"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 3.391,
+  "stdout_sha256": "45706c46dd58301be42ef77bef5d1ea6beaa89671e7b24b2206ffd7465e74b68",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "actual_core_host": false,
+  "actual_runtime_probe": false,
+  "actual_native_model": false,
+  "actual_search": false,
+  "all_api_authored_fixture": true
+}

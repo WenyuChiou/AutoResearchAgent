@@ -61,3 +61,9 @@ review-evidence/stage1-native-merge-20261010/** -text
 review-evidence/stage1-native-merge-20261010/*.json whitespace=cr-at-eol
 review-evidence/stage1-native-merge-20261010/*stdout.log binary
 review-evidence/stage1-native-merge-20261010/*stderr.log binary
+
+# Preserve source-bound synthetic search-bridge logs verbatim.
+review-evidence/project-search-bridge-20261011/** -text
+review-evidence/project-search-bridge-20261011/**/*.json whitespace=cr-at-eol
+review-evidence/project-search-bridge-20261011/**/*.log binary
+review-evidence/project-search-bridge-20261011/**/*.bin binary

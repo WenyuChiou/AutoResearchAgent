@@ -1,0 +1,19 @@
+# Project search bridge review evidence — 2026-10-11
+
+This is an interim engineering review packet. Each raw receipt and log belongs to its own recorded source snapshot and invocation. Historical failures remain visible; separate runs are not combined into one passing suite. Final source sealing is pending.
+
+| Evidence | Recorded result and boundary |
+| --- | --- |
+| [Final browser panel](browser-final/browser-receipt.json) | Installed Chrome, 8/8 checks. Current raw HTML/JS/CSS with entirely authored API fixtures. Three languages, four opaque actions, durable intent before POST, failed/unknown history, response loss and reload without automatic resend, and mobile layout. Five screenshots plus original logs, invocation and byte/label audit are retained. This does not execute the real host or search runtime. |
+| [Historical browser panel](browser/README.md) | Previous 8/8 capture for JS `772f574d…`; retained separately. Final browser capture uses JS `64831f6c…`. |
+| [Portable launcher](portable-launcher/receipt.json) | 7/7 checks; Ruff check and format check passed. Trusted JSON preflight and raw-loader construction use authored service classes. Result cap 100 accepted; 101/1001 refused. No actual runtime probe, native/model process or search. |
+| [Strict project contract](strict-project-contract/receipt.json) | 17 scenario checks passed; two discovery-wrapper checks passed in a separate invocation. Wrappers rerun scenarios and are not two additional distinct research cases. [Initial capture](history/strict-contract-initial/receipt.json) retains 16 passes and one ERROR: `formal-final-count: wrong project or stale input_version`. |
+| [Shared query/saved-write owner](shared-owner/final.receipt.json) | 51/51 offline checks passed in the recorded snapshot. [Earlier raw logs](history/shared-owner-initial/initial.stderr.bin) show 11/11 passed, not an initial failure; no separate initial source/exit receipt was present. |
+| [Historical HTTP v3](http-v3-before-fractional/final.receipt.json) | 8/8 real local HTTP checks passed on the earlier snapshot, before the fractional timeout correction. Account credentials were unused and external native/model/search calls were zero. This is historical source evidence. |
+| [Root batch before evaluator-loader repair](history/repaired-query-before-eval-loader/receipt.json) | Raw result: 35 tests, FAILED (errors=1). `test_stage1_general_eval` failed import because `validators` was unavailable to that invocation. This batch remains failed. |
+| [Isolated content invariant](last-invariant-isolated/receipt.json) | One separately invoked content-packet invariant passed. It does not turn the failed root batch into a pass or demonstrate research improvement. |
+| [Fractional-timeout regression history](history/before-fractional-upper-bound/receipt.json) | Raw result: 79 tests, FAILED (failures=1). The fractional-timeout reservation case observed `execution-unknown`; retained before the derived integer permit-bound correction. |
+| Final 43-check batch | **PENDING** — root will add its raw result, logs and source binding. No result is claimed here. |
+| New delivery proof | **PENDING** — root will add the actual artifact/evidence binding and verification scope. No fresh delivery or scientific completion is claimed here. |
+
+The retained core and format-only proofs are separate records. This packet does not establish formal A/B, frozen-rule changes, scientific quality gains, a fresh live pilot, or full-chain completion. No account credentials, private research payloads or real search responses were added by this packaging step. A final artifact/source manifest will be added after the pending evidence is reviewed; none is frozen by this README.

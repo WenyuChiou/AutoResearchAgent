@@ -1,10 +1,9 @@
 """Source-bound offline Stage1 ledger operations over the existing core.
 
 Initialization, planned-query intents, checkpoints and saved-artifact exports are
-real core operations. Query execution is deliberately unconnected: a callback,
-researcher budget or consent is not a sealed external execution permit. This
-adapter does not acquire sources, run a model, produce a canonical research
-package, or declare Stage1 scientifically complete.
+real core operations. The optional project query bridge owns live ledger writes
+and requires a separately sealed search permit. This ledger adapter itself does
+not acquire sources, run a model or declare Stage1 scientifically complete.
 """
 
 from copy import deepcopy
@@ -20,6 +19,7 @@ from stage1_ledger.validation import validate_run
 from .project_intake import ProjectIntakeService
 from .project_intake_contract import _fields
 from .session_api import _check, _hash
+from .project_query_history import bound_run
 
 MAX_QUERIES = 256
 BINDING_FIELDS = ("project_id", "input_version", "brief_sha256", "plan_manifest_sha256")
@@ -55,6 +55,7 @@ class ProjectStage1Service:
             400,
         )
         self.intake, self.query_runner = intake, query_runner
+        self.query_service = None
         self.backends, self.limit = list(backends), limit
 
     def _output(self, project_ref, relative):
@@ -84,6 +85,10 @@ class ProjectStage1Service:
         _check(
             run["binding"] == _basis(binding), "stage1-ledger-source-version-differs"
         )
+        if run.get("query_owned"):
+            bound_run(self.intake, state, _basis(binding), run)
+            _check(self.query_service is not None, "stage1-query-owner-unconnected")
+            self.query_service.saved_frontier(state["project_ref"])
         ledger = CoverageLedger(self.intake._path(state["project_ref"], run["path"]))
         _check(
             sha((ledger.root / "run_manifest.json").read_bytes())
@@ -92,6 +97,15 @@ class ProjectStage1Service:
         )
         report = validate_run(ledger.root)
         _check(report["valid"], "stage1-ledger-replay-failed")
+        if run.get("query_owned") and run.get("last_checkpoint") is not None:
+            _check(
+                any(
+                    row["payload"]["kind"] == "Checkpoint"
+                    and row["payload"]["event_id"] == run["last_checkpoint"]
+                    for row in ledger.events()
+                ),
+                "stage1-query-checkpoint-reference-differs",
+            )
         return run, ledger, report
 
     def _queries(self, run, ledger):
@@ -170,6 +184,25 @@ class ProjectStage1Service:
             if saved["binding"] != _basis(binding):
                 result["stage1_status"] = "stale-input"
                 return result
+            if saved.get("query_owned"):
+                if self.query_service is None:
+                    result["initialization_offer"] = None
+                    result["stage1_status"] = "query-runtime-unconnected"
+                    return result
+                service = self.query_service.services.get(project_ref)
+                if service is None:
+                    result["initialization_offer"] = None
+                    result["stage1_status"] = "owner-reopen-required"
+                    return result
+                else:
+                    history = service.view(credential, project_ref)["history"]
+                    pending = [row for row in history if row["status"] != "completed"]
+                    if pending:
+                        result["initialization_offer"] = None
+                        result["stage1_status"] = (
+                            "query-action-" + pending[-1]["status"]
+                        )
+                        return result  # Never replay files while an owned writer is active/unknown.
             run, ledger, report = self._ledger(state, binding)
             checkpoints = [
                 row["payload"]
@@ -179,7 +212,9 @@ class ProjectStage1Service:
             latest = checkpoints[-1] if checkpoints else None
             gate, next_action = readiness(report)
             result.update(
-                stage1_status="offline-ledger-active",
+                stage1_status="query-ledger-active"
+                if run.get("query_owned")
+                else "offline-ledger-active",
                 initialization_offer=None,
                 ledger=dict(
                     run_ref=run["run_ref"],
@@ -311,6 +346,26 @@ class ProjectStage1Service:
             )
             if check_deadline is not None:
                 check_deadline()
+            if run.get("query_owned"):
+                _check(self.query_service is not None, "stage1-query-owner-unconnected")
+                if kind == "stage1-deliver":
+                    return self.query_service.produce_saved(
+                        project_ref,
+                        state,
+                        run,
+                        ledger,
+                        lambda owned: producer(state, run, owned, request_hash, actor),
+                    )
+                return self.query_service.mutate(
+                    credential,
+                    project_ref,
+                    state,
+                    run,
+                    ledger,
+                    request_hash,
+                    kind,
+                    lambda owned: producer(state, run, owned, request_hash, actor),
+                )
             return producer(state, run, ledger, request_hash, actor)
 
         return self.intake._perform(

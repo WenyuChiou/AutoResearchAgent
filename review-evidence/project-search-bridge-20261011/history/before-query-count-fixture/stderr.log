@@ -1,0 +1,20 @@
+test_admission_settings_drift_prevents_probe_and_retains_reserved_attempt (project_stage1_query_cases.ProjectQueryCases.test_admission_settings_drift_prevents_probe_and_retains_reserved_attempt) ... ok
+test_authorization_and_all_gets_never_probe_create_or_search (project_stage1_query_cases.ProjectQueryCases.test_authorization_and_all_gets_never_probe_create_or_search) ... ok
+test_caller_paths_changed_payload_and_other_project_are_rejected (project_stage1_query_cases.ProjectQueryCases.test_caller_paths_changed_payload_and_other_project_are_rejected) ... ok
+test_live_bootstrap_preserves_offline_and_uses_original_integer_brief (project_stage1_query_cases.ProjectQueryCases.test_live_bootstrap_preserves_offline_and_uses_original_integer_brief) ... ok
+test_real_runner_capture_import_extract_then_owned_checkpoint_and_reopen (project_stage1_query_cases.ProjectQueryCases.test_real_runner_capture_import_extract_then_owned_checkpoint_and_reopen) ... ERROR
+test_unknown_bootstrap_retains_budget_and_same_key_no_second_probe (project_stage1_query_cases.ProjectQueryCases.test_unknown_bootstrap_retains_budget_and_same_key_no_second_probe) ... ok
+
+======================================================================
+ERROR: test_real_runner_capture_import_extract_then_owned_checkpoint_and_reopen (project_stage1_query_cases.ProjectQueryCases.test_real_runner_capture_import_extract_then_owned_checkpoint_and_reopen)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_cases.py", line 174, in test_real_runner_capture_import_extract_then_owned_checkpoint_and_reopen
+    self.assertGreater(stage_view["ledger"]["counts"]["CandidateFound"], 0)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+KeyError: 'CandidateFound'
+
+----------------------------------------------------------------------
+Ran 6 tests in 16.240s
+
+FAILED (errors=1)

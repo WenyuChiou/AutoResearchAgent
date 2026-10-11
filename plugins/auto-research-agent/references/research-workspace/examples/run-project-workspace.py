@@ -6,6 +6,7 @@ views remain optional snapshots, independent from the new versioned projects.
 """
 
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import os
@@ -22,6 +23,13 @@ REPO = Path(__file__).resolve().parents[5]
 HELPER = "cli/research_workspace_native/atlas_local_source.py"
 SCRIPT = "references/research-workspace/examples/run-project-workspace.py"
 HASH = re.compile(r"[0-9a-f]{64}")
+QUERY_BACKENDS = {"openalex", "crossref", "semantic-scholar", "arxiv", "pubmed"}
+QUERY_CAPS = {
+    "max_attempts": 128,
+    "max_reserved_seconds": 86400,
+    "max_results": 100,
+    "validity_seconds": 86400,
+}
 
 
 def require(condition, message):
@@ -56,6 +64,65 @@ def raw_file(path, maximum=256 * 1024):
 
 def digest(raw):
     return hashlib.sha256(raw).hexdigest()
+
+
+def query_runtime_config(path, expected):
+    """Read an external byte pin without importing or probing its runtime."""
+    require(
+        isinstance(expected, str) and HASH.fullmatch(expected),
+        "external Stage1 query runtime SHA256 required",
+    )
+    raw = raw_file(path, 65536)
+    require(digest(raw) == expected, "Stage1 query runtime bytes differ")
+
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            require(key not in result, "duplicate Stage1 query runtime field")
+            result[key] = value
+        return result
+
+    def constant(_):
+        raise ValueError("nonfinite Stage1 query runtime value")
+
+    try:
+        value = json.loads(
+            raw.decode("utf8"), object_pairs_hook=pairs, parse_constant=constant
+        )
+    except (UnicodeError, RecursionError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Stage1 query runtime JSON") from error
+    require(
+        isinstance(value, dict)
+        and set(value) == {"kind", "schema_version", "pin", "caps", "backends"}
+        and value["kind"] == "ProjectStage1QueryRuntime"
+        and value["schema_version"] == "1.0.0",
+        "unsupported Stage1 query runtime schema",
+    )
+    require(
+        isinstance(value["pin"], dict) and value["pin"],
+        "saved Stage1 query runtime pin required",
+    )
+    caps = value["caps"]
+    require(
+        isinstance(caps, dict)
+        and set(caps) == set(QUERY_CAPS)
+        and all(
+            type(caps[key]) is int and 1 <= caps[key] <= maximum
+            for key, maximum in QUERY_CAPS.items()
+        ),
+        "bounded Stage1 query runtime caps required",
+    )
+    backends = value["backends"]
+    require(
+        isinstance(backends, list)
+        and 1 <= len(backends) <= len(QUERY_BACKENDS)
+        and all(
+            type(backend) is str and backend in QUERY_BACKENDS for backend in backends
+        )
+        and len(set(backends)) == len(backends),
+        "Stage1 query runtime backends invalid",
+    )
+    return value
 
 
 def windows_root_preflight(root, *, platform=None, model=False):
@@ -108,6 +175,8 @@ def parser():
     value.add_argument("--projects-root", type=Path, required=True)
     value.add_argument("--views-config", type=Path)
     value.add_argument("--views-sha256")
+    value.add_argument("--stage1-query-runtime", type=Path)
+    value.add_argument("--stage1-query-runtime-sha256")
     value.add_argument("--port", type=int, default=0)
     value.add_argument("--open", action="store_true")
     value.add_argument("--enable-content-model", action="store_true")
@@ -129,6 +198,20 @@ def inspect_inputs(args):
         bool(args.views_config) == bool(args.views_sha256),
         "saved views require their external configuration SHA256",
     )
+    runtime_path = getattr(args, "stage1_query_runtime", None)
+    runtime_sha = getattr(args, "stage1_query_runtime_sha256", None)
+    require(
+        (runtime_path is None) == (runtime_sha is None),
+        "Stage1 query runtime path and SHA256 required together",
+    )
+    query_runtime = None
+    if runtime_path is not None:
+        runtime_path = unlinked(runtime_path)
+        query_runtime = dict(
+            path=runtime_path,
+            sha256=runtime_sha,
+            value=query_runtime_config(runtime_path, runtime_sha),
+        )
     repo, root = unlinked(args.repo), unlinked(args.projects_root)
     plugin = repo / "plugins/auto-research-agent"
     require((plugin / "cli").is_dir(), "complete plugin checkout required")
@@ -179,6 +262,7 @@ def inspect_inputs(args):
         home=home,
         user_config=config,
         executable=executable,
+        query_runtime=query_runtime,
     )
 
 
@@ -197,8 +281,26 @@ def install_source(checked):
     return source, files
 
 
-def prepare(args, checked):
+def prepare(args, checked, *, source=None, inventory=None):
     """Real services and strict factory only; no HTTP or native/model start."""
+    runtime = checked.get("query_runtime")
+    source = checked.get("source") if source is None else source
+    inventory = checked.get("inventory") if inventory is None else inventory
+    if runtime is not None:
+        require(
+            source is not None and isinstance(inventory, dict) and inventory,
+            "raw Stage1 query source loader required",
+        )
+        # PinnedLoader has already rejected preloads. Reuse its exact helper
+        # class so the query service can independently verify module origins.
+        alias = "research_workspace_native.atlas_local_source"
+        require(alias not in sys.modules, "preloaded query source helper refused")
+        require(
+            query_runtime_config(runtime["path"], runtime["sha256"])
+            == runtime["value"],
+            "Stage1 query runtime configuration differs",
+        )
+        sys.modules[alias] = source
     from research_workspace_native.atlas_host import load_views
     from research_workspace_native.http import token_authenticator
     from research_workspace_native.project_host import ProjectHost
@@ -215,7 +317,7 @@ def prepare(args, checked):
     credential = secrets.token_urlsafe(32)
     authenticate = token_authenticator({credential: "local-viewer"})
     projects = ProjectIntakeService(checked["root"], authenticate=authenticate)
-    models = None
+    models = queries = None
     try:
         factory = None
         if args.enable_content_model:
@@ -239,11 +341,41 @@ def prepare(args, checked):
             model=args.model,
         )
         stage1, stage2 = ProjectStage1Service(projects), ProjectStage2Service(projects)
+        if runtime is not None:
+            from research_workspace_native.project_stage1_queries import (
+                ProjectStage1QueryService,
+            )
+
+            source_files = deepcopy(inventory)
+            runtime_path, runtime_sha = runtime["path"], runtime["sha256"]
+
+            def source_proof(_):
+                query_runtime_config(runtime_path, runtime_sha)
+                return dict(
+                    repo=checked["repo"].as_posix(), files=deepcopy(source_files)
+                )
+
+            def admit(_):
+                query_runtime_config(runtime_path, runtime_sha)
+                return True  # The service still requires a separate saved UI permit.
+
+            config = deepcopy(runtime["value"])
+            queries = ProjectStage1QueryService(
+                stage1,
+                runtime_pin=config["pin"],
+                execution_source_root=checked["repo"].as_posix(),
+                execution_source_sha256=digest(source.canonical(source_files)),
+                verify_source=source_proof,
+                admit=admit,
+                caps=config["caps"],
+                backends=config["backends"],
+            )
         return dict(
             projects=projects,
             models=models,
             stage1=stage1,
             stage2=stage2,
+            queries=queries,
             credential=credential,
             files=files,
             views=views,
@@ -251,17 +383,22 @@ def prepare(args, checked):
         )
     except BaseException:
         try:
-            if models is not None:
-                models.close()
+            if queries is not None:
+                queries.close()
         finally:
-            projects.close()
+            try:
+                if models is not None:
+                    models.close()
+            finally:
+                projects.close()
         raise
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
     checked = inspect_inputs(args)
-    _, inventory = install_source(checked)
+    source, inventory = install_source(checked)
+    checked.update(source=source, inventory=inventory)
     receipt = dict(
         kind="OwnAccountProjectWorkspaceRegistration",
         schema_version="1.0.0",
@@ -274,7 +411,9 @@ def main(argv=None):
         actual_account_authentication="not-observed",
         native_calls=0,
         model_calls=0,
-        stage1="offline-ledger; external execution unconnected",
+        stage1="query runtime configured; separate UI authorization required"
+        if checked["query_runtime"] is not None
+        else "offline-ledger; external execution unconnected",
         stage2="registered-canonical-import-only; native execution unconnected",
         stages3_to6="planned/unconnected",
         execution_authorized=False,
@@ -318,9 +457,13 @@ def main(argv=None):
                 host.server_close()
         finally:
             try:
-                services["models"].close()
+                if services.get("queries") is not None:
+                    services["queries"].close()
             finally:
-                services["projects"].close()
+                try:
+                    services["models"].close()
+                finally:
+                    services["projects"].close()
 
 
 if __name__ == "__main__":

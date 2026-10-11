@@ -140,6 +140,12 @@
   Object.assign(words.en, {ledgerTitle: "Stage1 coverage and saved evidence", ledgerInit: "Initialize the bound evidence ledger", ledgerHelp: "A ledger records the real Harness plan and evidence history. Initialization and a checkpoint do not execute a search or complete Stage1.", ledgerCheckpoint: "Check the current evidence gate", ledgerExport: "Export saved ledger artifacts", plannedQueries: "Planned queries", moreHistory: "Read more history"});
   Object.assign(words["zh-Hans"], {ledgerTitle: "Stage1 覆盖与证据记录", ledgerInit: "初始化绑定的证据记录", ledgerHelp: "记录真实 Harness 计划与证据历史。初始化和检查点不会执行搜索，也不代表 Stage1 完成。", ledgerCheckpoint: "检查当前证据门", ledgerExport: "导出已保存记录", plannedQueries: "计划查询", moreHistory: "读取更多历史"});
   Object.assign(words["zh-Hant"], {ledgerTitle: "Stage1 覆蓋與證據紀錄", ledgerInit: "初始化綁定的證據紀錄", ledgerHelp: "紀錄真實 Harness 計畫與證據歷史。初始化和檢查點不會執行搜尋，也不代表 Stage1 完成。", ledgerCheckpoint: "檢查目前證據門", ledgerExport: "匯出已保存紀錄", plannedQueries: "計畫查詢", moreHistory: "讀取更多歷史"});
+  Object.assign(words.en, {queryTitle: "Stage1 search execution", queryHelp: "Authorize a bound search budget, initialize the runtime, then send one offered query. Each step retains an intent and its observed outcome. Refresh reads history; it never retries.", queryAuthorize: "Authorize these search limits", queryBootstrap: "Initialize the search runtime", queryExecute: "Execute the offered query", queryRestore: "Restore saved ledger ownership", querySaved: "Action recorded. Read the execution history for its actual outcome.", queryBudget: "Reserved budget", queryAttempts: "Backend attempts", queryNoReading: "Source acquisition and model reading need separate permits; they are not granted here.", queryUnavailable: "No search runtime is registered. Saved evidence remains readable.", queryOffer: "Next offered query", queryHistory: "Execution observations"});
+  Object.assign(words["zh-Hans"], {queryTitle: "Stage1 搜索执行", queryHelp: "先授权绑定的搜索预算，再初始化运行时，然后执行一条服务端提供的查询。每步保留意图和实际结果；刷新只读历史，不重试。", queryAuthorize: "授权此搜索范围与限额", queryBootstrap: "初始化搜索运行时", queryExecute: "执行当前查询", queryRestore: "恢复保存记录的写入控制", querySaved: "已记录操作，请读取执行历史确认实际结果。", queryBudget: "已预留预算", queryAttempts: "后端尝试次数", queryNoReading: "来源获取与模型阅读需要独立许可；此处未授予。", queryUnavailable: "尚未注册搜索运行时，保存的证据仍可读取。", queryOffer: "下一条可执行查询", queryHistory: "执行回执"});
+  Object.assign(words["zh-Hant"], {queryTitle: "Stage1 搜尋執行", queryHelp: "先授權綁定的搜尋預算，再初始化執行環境，然後執行一條伺服器提供的查詢。每步保留意圖和實際結果；重新整理只讀歷史，不重試。", queryAuthorize: "授權此搜尋範圍與限額", queryBootstrap: "初始化搜尋執行環境", queryExecute: "執行目前查詢", queryRestore: "恢復保存紀錄的寫入控制", querySaved: "已記錄操作，請讀取執行歷史確認實際結果。", queryBudget: "已預留預算", queryAttempts: "後端嘗試次數", queryNoReading: "來源取得與模型閱讀需要獨立許可；此處未授予。", queryUnavailable: "尚未註冊搜尋執行環境，保存的證據仍可讀取。", queryOffer: "下一條可執行查詢", queryHistory: "執行回執"});
+  Object.assign(words.en, {queryResultLimit: "Results per query", queryProbes: "Runtime probes"});
+  Object.assign(words["zh-Hans"], {queryResultLimit: "每次查询结果上限", queryProbes: "运行时探测次数"});
+  Object.assign(words["zh-Hant"], {queryResultLimit: "每次查詢結果上限", queryProbes: "執行環境探測次數"});
   const $ = (id) => document.getElementById(id);
   Object.assign(words.en, {ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
   Object.assign(words["zh-Hans"], {ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
@@ -208,6 +214,8 @@
     $("ledger-init").disabled = projectBlocked || !state.stage1 || !state.stage1.initialization_offer;
     for (const id of ["ledger-checkpoint", "ledger-export"]) $(id).disabled = projectBlocked || !state.stage1 || !state.stage1.ledger;
     $("ledger-deliver").disabled = projectBlocked || !availableDelivery();
+    const queries = state.stage1 && state.stage1.query_execution;
+    for (const [id, field] of [["query-authorize", "authorization_offer"], ["query-bootstrap", "bootstrap_offer"], ["query-execute", "query_offer"], ["query-restore-owner", "owner_offer"]]) $(id).disabled = projectBlocked || !queries || !queries[field];
   }
   async function mutate(operation, body, ref) {
     if (state.busy || state.loading) return null;
@@ -225,7 +233,7 @@
       // Its saved/queued admission is not a completed call. Only history's exact,
       // source-bound terminal job can reconcile a model-operation key.
       if (operation !== "models/actions" && !["queued", "running", "execution-unknown", "failed-or-unknown"].includes(result.model_status || result.status)) forget(actionKey);
-      notice(t("saved")); return result;
+      notice(t(operation.startsWith("stage1/query-") ? "querySaved" : "saved")); return result;
     } catch (error) {
       if (!sent) { pending = pending.filter((row) => row.key !== actionKey); }
       const record = pending.find((row) => row.key === actionKey), receipt = error.receipt;
@@ -262,9 +270,33 @@
     }
     const queries = $("ledger-queries"); queries.replaceChildren();
     for (const query of state.stage1 && state.stage1.queries || []) { const card = document.createElement("div"); card.className = "history-row"; queries.append(card); text(card, "p", query.query); text(card, "p", query.purpose + " · " + query.status, "subtle"); }
+    renderQueries();
     $("create-card").hidden = true; $("project-content").hidden = false;
     $("intake-card").open = !Boolean(project.intake_report && project.intake_report.necessary_clarification_complete);
     buttons();
+  }
+  function renderQueries() {
+    const value = state.stage1 && state.stage1.query_execution;
+    $("query-state").textContent = value ? value.status : t("queryUnavailable");
+    const limits = $("query-limits"), history = $("query-observations");
+    limits.replaceChildren(); history.replaceChildren();
+    if (!value) return;
+    const allowed = value.limits || value.authorization_offer && value.authorization_offer.document && value.authorization_offer.document.limits;
+    if (allowed) text(limits, "p", t("queryAttempts") + ": ≤ " + allowed.max_attempts + " · " + t("seconds") + ": ≤ " + allowed.max_reserved_seconds + " · " + t("queryResultLimit") + ": ≤ " + allowed.max_results);
+    if (value.budget) text(limits, "p", t("queryBudget") + ": " + value.budget.attempts + " " + t("queryAttempts") + " · " + value.budget.seconds + " s · " + t("queryProbes") + ": " + value.budget.probes, "subtle");
+    text(limits, "p", t("queryNoReading"), "subtle");
+    if (value.refusal || value.query_offer_refusal) text(limits, "p", value.refusal || value.query_offer_refusal, "subtle");
+    const offered = value.query_offer && value.query_offer.document;
+    if (offered) { text(history, "strong", t("queryOffer")); text(history, "p", offered.backend + " · " + (offered.arguments && offered.arguments.query || offered.planned_id)); }
+    const observations = (value.jobs || []).concat(rows(value.query_history, "history"));
+    if (observations.length) text(history, "strong", t("queryHistory"));
+    for (const row of observations) {
+      const card = document.createElement("div"); card.className = "history-row"; history.append(card);
+      text(card, "p", (row.operation || row.action || "runtime") + " · " + (row.status || "Unknown"));
+      if (row.error || row.failure) text(card, "p", typeof row.error === "object" ? row.error.code : row.error || row.failure);
+      const observation = row.result || row.receipt;
+      if (observation) text(card, "p", observation.execution_ref || observation.probe_observation || observation.outcome || "Unknown", "subtle");
+    }
   }
   function availableDelivery() {
     const delivery = state.stage1 && state.stage1.delivery;
@@ -564,6 +596,23 @@
   $("ledger-checkpoint").onclick = guarded(() => ledger("checkpoint"));
   $("ledger-export").onclick = guarded(() => ledger("export"));
   $("ledger-deliver").onclick = guarded(() => ledger("deliver"));
+  async function queryAction(operation, field) {
+    if (!state.project || state.loading || !state.stage1) return;
+    const view = state.stage1.query_execution, offer = view && view[field];
+    if (!offer) return;
+    const body = Object.assign(identity(), {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true});
+    if (operation === "authorize") {
+      const value = $("query-consent").value;
+      if (!value.trim() || !bounded(value, 4096)) { notice(t("missingChoice"), true); return; }
+      body.user_input = value;
+    }
+    const ref = state.project.project_ref, result = await mutate("stage1/query-" + operation, body, ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }
+  $("query-authorize").onclick = guarded(() => queryAction("authorize", "authorization_offer"));
+  $("query-bootstrap").onclick = guarded(() => queryAction("bootstrap", "bootstrap_offer"));
+  $("query-execute").onclick = guarded(() => queryAction("execute", "query_offer"));
+  $("query-restore-owner").onclick = guarded(() => queryAction("restore-owner", "owner_offer"));
   $("activate-stage2").onclick = guarded(async () => {
     const offer = availableStage2(); if (!offer) return;
     const ref = state.project.project_ref;
