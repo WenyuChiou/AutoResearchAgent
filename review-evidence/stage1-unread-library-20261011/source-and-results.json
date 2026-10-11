@@ -9,6 +9,7 @@
   ],
   "git_actions": "no commit or push by subagent",
   "kind": "Stage1CanonicalScreeningImplementationReceipt",
+  "log_hash_scope": "logs contains immutable ORIGINAL PRIVATE file hashes and paths; public run-* files are LF text copies, whose hashes are in published-copy-manifest.json",
   "logs": [
     {
       "command.txt": "d6fa02bddb29a92c030f0d4357afc13e6882706234ff68c0bf6f0bd615fa71e5",
@@ -32,6 +33,7 @@
       "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
+  "published_copy_manifest": "published-copy-manifest.json",
   "source_sha256": {
     "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py": "15d464e513466dd52d7f767d18085becec3961d56176975b7949ef7f5976c67a",
     "plugins/auto-research-agent/cli/research_workspace/projection.py": "4a6678bac05450617e35eae039aa8826dff369aac78b7a0f6bf6c0527b680646",
