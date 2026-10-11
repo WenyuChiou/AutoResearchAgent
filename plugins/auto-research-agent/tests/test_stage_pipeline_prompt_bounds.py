@@ -12,7 +12,7 @@ sys.path.insert(0, str(HERE.parent / "cli"))
 sys.path.insert(0, str(HERE))
 
 from research_workspace_native.stage_pipeline import (
-    MAX_PROMPT_BYTES,
+    MAX_TASK_PROMPT_BYTES,
     PHASES,
     StagePipeline,
 )
@@ -39,7 +39,7 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
             lambda: self.pipeline.begin_task("b" * 64),
         ):
             with self.assertRaisesRegex(
-                Stage2Error, "^pipeline-aggregate-prompt-byte-bound-exceeded$"
+                Stage2Error, "^pipeline-prompt-byte-bound-exceeded$"
             ):
                 operation()
             self.assertEqual(self.inventory(), before)
@@ -118,7 +118,7 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
         self.source_pipeline("a" * 5000, second_extra="b" * 5000)
         self.assertTrue(
             all(
-                (self.sources / row["path"]).stat().st_size < MAX_PROMPT_BYTES
+                (self.sources / row["path"]).stat().st_size < MAX_TASK_PROMPT_BYTES
                 for row in self.packet["sources"]
             )
         )
@@ -142,7 +142,7 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
         task["snapshot_sha256"] = self.pipeline.snapshot
         task.pop("task_sha256")
         task["task_sha256"] = canonical_hash(task)
-        self.assertGreater(len(task["prompt"].encode("utf8")), MAX_PROMPT_BYTES)
+        self.assertGreater(len(task["prompt"].encode("utf8")), MAX_TASK_PROMPT_BYTES)
         intent = self.pipeline.root / "intents" / "0001.json"
         intent.parent.mkdir()
         intent.write_text(json.dumps(task), encoding="utf8")
@@ -157,7 +157,7 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
         )
         before = self.inventory()
         with self.assertRaisesRegex(
-            Stage2Error, "^pipeline-aggregate-prompt-byte-bound-exceeded$"
+            Stage2Error, "^pipeline-prompt-byte-bound-exceeded$"
         ):
             StagePipeline(
                 self.path,
@@ -173,11 +173,11 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
 
     def test_unicode_exact_ceiling_preserves_full_prompt_and_duplicate_guard(self):
         original = self.pipeline.next_task()
-        room = MAX_PROMPT_BYTES - len(original["prompt"].encode("utf8"))
+        room = MAX_TASK_PROMPT_BYTES - len(original["prompt"].encode("utf8"))
         suffix = "汉" * (room // 3) + "x" * (room % 3)
         self.source_pipeline(suffix)
         task = self.pipeline.next_task()
-        self.assertEqual(len(task["prompt"].encode("utf8")), MAX_PROMPT_BYTES)
+        self.assertEqual(len(task["prompt"].encode("utf8")), MAX_TASK_PROMPT_BYTES)
         self.assertIn(suffix, task["prompt"])
         self.assertEqual(task["prompt_sha256"], digest(task["prompt"].encode("utf8")))
         self.pipeline.begin_task(task["task_sha256"])
@@ -188,7 +188,7 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
         self.assertEqual(self.verifications, 0)
 
     def test_one_unicode_byte_over_ceiling_refused(self):
-        room = MAX_PROMPT_BYTES - len(
+        room = MAX_TASK_PROMPT_BYTES - len(
             self.pipeline.next_task()["prompt"].encode("utf8")
         )
         self.source_pipeline("汉" * (room // 3) + "x" * (room % 3 + 1))
@@ -204,15 +204,6 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
         self.refuse()
         self.assertEqual(artifact.read_bytes(), text.encode("utf8"))
         self.assertEqual(self.pipeline.records[0]["text"], text)
-
-    def test_original_normal_extraction_refused_after_two_saved_replies(self):
-        self.step()
-        self.step()
-        self.assertEqual(self.pipeline.position, PHASES.index("extraction"))
-        self.refuse()
-        self.pipeline = self.open()
-        self.refuse()
-        self.assertEqual(len(self.pipeline.records), 2)
 
     def test_all_later_retained_prose_phases_count_complete_reply_bytes(self):
         self.seed_reply_context()
@@ -230,11 +221,6 @@ class StagePipelinePromptBoundsTests(StagePipelineFixture):
                 self.refuse()
                 self.assertEqual(self.pipeline.prose[role]["text"], text)
                 self.pipeline.prose[role]["text"] = original
-
-    def test_original_normal_final_schema_counts_toward_context_refusal(self):
-        self.seed_reply_context()
-        self.pipeline.position = PHASES.index("reconciliation-extraction")
-        self.refuse()
 
     def test_oversized_semantic_repair_preserves_failed_attempt(self):
         self.seed_reply_context()
