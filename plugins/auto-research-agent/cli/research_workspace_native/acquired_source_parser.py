@@ -183,6 +183,10 @@ def _uri(value):
 
 
 def _acquisition(path, digest, request, job_sha, runtime_sha):
+    _check(
+        not os.path.lexists(path.parent / "public-source-acquisition-failure.json"),
+        "acquired-parse-acquisition-failure-observed",
+    )
     raw = _read(path, MAX_JSON_BYTES, digest)
     receipt = decode(raw, "source acquisition receipt")
     _check(
@@ -211,7 +215,8 @@ def _acquisition(path, digest, request, job_sha, runtime_sha):
     began, ended = _time(receipt["started_at"]), _time(receipt["finished_at"])
     _check(
         began <= ended <= datetime.now(timezone.utc)
-        and ended <= _time(request["deadline_utc"]),
+        and ended <= _time(request["deadline_utc"])
+        and (ended - began).total_seconds() <= request["total_timeout_seconds"],
         "acquired-parse-time-order",
     )
     attempts = receipt["attempts"]
@@ -651,4 +656,8 @@ def parse_acquired_source(
     bundle_path = safe_path(output, "source-acquisition-parse-bundle.json")
     bundle_sha = _write_once(bundle_path, bundle)
     current()
+    _check(
+        not os.path.lexists(path.parent / "public-source-acquisition-failure.json"),
+        "acquired-parse-acquisition-failure-observed",
+    )
     return dict(bundle=bundle, bundle_path=str(bundle_path), bundle_sha256=bundle_sha)

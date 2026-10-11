@@ -12,6 +12,94 @@ import ci_scope
 
 
 class ScopeTests(unittest.TestCase):
+    def test_non_runtime_docs_and_evidence_select_only_contract_smoke(self):
+        self.assertEqual(
+            ci_scope.plugin_test_scope(
+                [
+                    "plugins/auto-research-agent/README.md",
+                    "plugins/auto-research-agent/CONTRIBUTING.md",
+                    "review-evidence/wiki/screenshots/mobile.png",
+                    "review-evidence/wiki/tests.log",
+                ]
+            ),
+            "docs",
+        )
+
+    def test_atlas_markup_and_styles_select_workspace_interface_checks(self):
+        assets = "plugins/auto-research-agent/references/research-workspace/atlas/"
+        self.assertEqual(
+            ci_scope.plugin_test_scope([assets + "atlas.html", assets + "atlas.css"]),
+            "ui",
+        )
+        self.assertEqual(
+            ci_scope.plugin_test_scope([assets + "atlas.css", "review-evidence/x.md"]),
+            "ui",
+        )
+
+    def test_executable_prompts_interfaces_governance_and_unknowns_keep_full_suite(
+        self,
+    ):
+        for path in [
+            "plugins/auto-research-agent/skills/stage1/SKILL.md",
+            "plugins/auto-research-agent/cli/research_workspace_native/atlas_host.py",
+            "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+            "plugins/auto-research-agent/requirements-test.txt",
+            "plugins/auto-research-agent/evals/capability-metric-map.v3.json",
+            "plugins/auto-research-agent/AGENTS.md",
+            ".github/workflows/stage1-plugin.yml",
+            ".github/workflows/research-pr-metadata.yml",
+            ".github/scripts/ci_scope.py",
+            "review-evidence/test.py",
+            "unknown.html",
+            "codex-rs/core/src/lib.rs",
+        ]:
+            with self.subTest(path=path):
+                self.assertEqual(ci_scope.plugin_test_scope([path]), "full")
+                self.assertEqual(
+                    ci_scope.plugin_test_scope(["review-evidence/x.md", path]), "full"
+                )
+        self.assertEqual(ci_scope.plugin_test_scope([]), "full")
+
+    def test_selected_suites_run_failure_and_do_not_run_unrelated_tests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            tests = Path(directory)
+            for name in (
+                "test_stage_contracts.py",
+                "test_workspace_widget.py",
+                "test_native_message_widget.py",
+                "test_stage2_widget.py",
+            ):
+                # Actual import/discovery and execution, without product processes.
+                (tests / name).write_text(
+                    "import unittest\nclass Example(unittest.TestCase):\n"
+                    "    def test_guard(self):\n        self.fail('synthetic failure')\n",
+                    encoding="utf-8",
+                )
+            try:
+                for scope, count in [("docs", 1), ("ui", 3), ("full", 4)]:
+                    with self.subTest(scope=scope):
+                        suite = ci_scope.plugin_suite(tests, scope)
+                        self.assertEqual(suite.countTestCases(), count)
+                        result = unittest.TestResult()
+                        suite.run(result)
+                        self.assertFalse(result.wasSuccessful())
+                        self.assertEqual(len(result.failures), count)
+                with self.assertRaises(ValueError):
+                    ci_scope.plugin_suite(tests, "skipped")
+            finally:
+                for name in (
+                    "test_stage_contracts",
+                    "test_workspace_widget",
+                    "test_native_message_widget",
+                    "test_stage2_widget",
+                ):
+                    sys.modules.pop(name, None)
+
+    def test_empty_selected_suite_is_an_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                ci_scope.plugin_suite(Path(directory), "ui")
+
     def test_plugin_changes_and_renames_preserve_engine_boundary(self):
         self.assertTrue(ci_scope.plugin_only(["plugins/auto-research-agent/skill.md"]))
         self.assertTrue(ci_scope.plugin_only([".github/workflows/stage1-plugin.yml"]))

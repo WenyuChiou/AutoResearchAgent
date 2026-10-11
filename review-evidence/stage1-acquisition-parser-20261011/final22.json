@@ -1274,11 +1274,11 @@
   "actual_native_or_model_calls": 0,
   "source_inventory_equal": true,
   "publication": {
-    "transformation": "Known local path prefixes replaced; original commands, scenarios, inventories and outcomes retained. Not a raw copy.",
+    "transformation": "Known local path prefixes including escaped representations replaced; public logs normalized CRLF to LF. Original private bytes unchanged. Not a raw copy.",
     "original_private_receipt_sha256": "70b91ffe0e4a7326bca0a018cdaf6469ae956e06c7b589cd2351e5409a6e0d0a",
     "published_log_sha256": {
       "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stderr.log": "c4cceaf1afb72d15cf45fe5aad46679e4be01fb59233045a1a2274270fde5482"
+      "stderr.log": "b6ae5f6b2f7ba3ea870c766ec4d7da10cecee45152b81b55164a7f208cad81fd"
     }
   }
 }
