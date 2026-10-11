@@ -1,6 +1,7 @@
 """Neutral fake-child setup; process import is delayed until explicit factory use."""
 
 import hashlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -152,7 +153,44 @@ class OwnedProcessCase(unittest.TestCase):
             verify_binding=lambda: True,
             admit_lifecycle=lambda offer: True,
         )
-        boot.open_thread(dict(name="synthetic-client", version="1"), timeout=10)
+        phases, send = [], boot._send
+
+        def timed_send(method, *args, **kwargs):
+            started = time.monotonic()
+            outcome = "raised"
+            try:
+                result = send(method, *args, **kwargs)
+                outcome = "returned"
+                return result
+            finally:
+                phases.append(
+                    dict(
+                        method=method,
+                        seconds=time.monotonic() - started,
+                        outcome=outcome,
+                    )
+                )
+
+        started = time.monotonic()
+        boot._send = timed_send
+        try:
+            boot.open_thread(dict(name="synthetic-client", version="1"), timeout=10)
+        except BaseException:
+            print(
+                json.dumps(
+                    dict(
+                        kind="FakeChildBootstrapTiming",
+                        deadline_seconds=10,
+                        startup_delay_seconds=startup_delay,
+                        elapsed_seconds=time.monotonic() - started,
+                        phases=phases,
+                    )
+                ),
+                file=sys.stderr,
+            )
+            raise
+        finally:
+            boot._send = send
         controller = InjectedSessionController.adopt_ready(
             boot, admit_action=lambda action: False
         )
