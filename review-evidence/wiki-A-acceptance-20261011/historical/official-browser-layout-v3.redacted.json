@@ -1,0 +1,1493 @@
+{
+  "status": "PASS",
+  "scope": "saved synthetic export; actual Chromium; no research/native execution",
+  "results": [
+    {
+      "width": 1440,
+      "geometry": {
+        "width": 688,
+        "parentWidth": 728,
+        "height": 550,
+        "mode": 3,
+        "destroyed": false,
+        "focus": null,
+        "hover": null,
+        "showLabels": false,
+        "nodes": 39,
+        "links": 53,
+        "focusedRelations": 0,
+        "papers": 15,
+        "camera": {
+          "position": {
+            "x": 84.69433833659897,
+            "y": 82.95433833659895,
+            "z": 874.9567131255619
+          },
+          "target": {
+            "x": -11.144999999999996,
+            "y": -12.88500000000002,
+            "z": -14.97999999999999
+          },
+          "up": {
+            "x": -0.011399510510685112,
+            "y": 0.9943164882177177,
+            "z": -0.1058525975992189
+          },
+          "mode": 3,
+          "zoom": 1,
+          "poses": {
+            "3": {
+              "position": {
+                "x": 84.69433833659897,
+                "y": 82.95433833659895,
+                "z": 874.9567131255619
+              },
+              "target": {
+                "x": -11.144999999999996,
+                "y": -12.88500000000002,
+                "z": -14.97999999999999
+              },
+              "up": {
+                "x": -0.011399510510685112,
+                "y": 0.9943164882177177,
+                "z": -0.1058525975992189
+              },
+              "mode": 3,
+              "zoom": 1
+            }
+          }
+        },
+        "labelsVisible": 3,
+        "labelsHidden": 36,
+        "labelsOmittedByLod": 6,
+        "visibleLabelIds": [
+          "[\"topic\",\"LLM agents and independent validation\"]",
+          "[\"topic\",\"Population data to agents\"]",
+          "[\"topic\",\"U.S. aging and consumption\"]"
+        ],
+        "eligibleLabelIds": [
+          "[\"topic\",\"U.S. aging and consumption\"]",
+          "[\"topic\",\"Calibration and independent validation\"]",
+          "[\"topic\",\"Household and economic simulation\"]",
+          "[\"topic\",\"LLM and generative-agent evidence\"]",
+          "[\"topic\",\"Population data to agents\"]",
+          "[\"topic\",\"Household/economic simulation and validation\"]",
+          "[\"topic\",\"LLM agents and independent validation\"]",
+          "[\"topic\",\"LLM agents and multi-period feedback\"]",
+          "[\"topic\",\"Multi-period endogenous feedback\"]"
+        ],
+        "labelRects": [
+          {
+            "id": "[\"topic\",\"LLM agents and independent validation\"]",
+            "x": 245.6925815634886,
+            "y": 184.3814651334592,
+            "width": 240,
+            "height": 44
+          },
+          {
+            "id": "[\"topic\",\"Population data to agents\"]",
+            "x": 54.065926774671425,
+            "y": 432.1042515078073,
+            "width": 202,
+            "height": 44
+          },
+          {
+            "id": "[\"topic\",\"U.S. aging and consumption\"]",
+            "x": 239.4330773316783,
+            "y": 252.1173288300385,
+            "width": 219,
+            "height": 44
+          }
+        ],
+        "topicMarkers": [
+          {
+            "id": "[\"topic\",\"U.S. aging and consumption\"]",
+            "x": 213.4330773316783,
+            "y": 274.1173288300385,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Calibration and independent validation\"]",
+            "x": 287.752824085441,
+            "y": 85.32020066813351,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Household and economic simulation\"]",
+            "x": 380.37001419282296,
+            "y": 85.33346294585043,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM and generative-agent evidence\"]",
+            "x": 458.6112255679163,
+            "y": 381.00398393093536,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Population data to agents\"]",
+            "x": 282.0659267746714,
+            "y": 454.1042515078073,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Household/economic simulation and validation\"]",
+            "x": 454.1060757302384,
+            "y": 151.26249835451253,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and independent validation\"]",
+            "x": 511.6925815634886,
+            "y": 206.3814651334592,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and multi-period feedback\"]",
+            "x": 491.430365826146,
+            "y": 296.44925587582156,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Multi-period endogenous feedback\"]",
+            "x": 374.87799860342164,
+            "y": 433.50340795676425,
+            "visible": true
+          }
+        ],
+        "methodMarkers": [
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=e393e24ef0ecc07d551a5337339c1b96e34e01d8e3076cd8246f3e6e758beeea]",
+            "x": 452.74934290215293,
+            "y": 348.2969445590849,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=77f36de46824cb98a24600e717d332e0f3dfe50a1c7163be65ef2ac38456d1eb]",
+            "x": 535.8206696587728,
+            "y": 264.3281707526373,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=33b28d0775d968511b0de68127490449cfd4b5115e0e6798c62ce86a5c0ce6dd]",
+            "x": 403.9827145311564,
+            "y": 145.57810249483657,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=58363f79860f1f4cc27c139689cedb4779ff2f8ef148551e7e69aa2f6a4492fd]",
+            "x": 210.58722983400037,
+            "y": 326.33919629137034,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=6b0e9de03c85a8685d98684e6fdc817490f6c1cccf299d7c8ced49ea52b5ae39]",
+            "x": 411.30098410664135,
+            "y": 21.119614320714817,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=0aff31e74a0d3ae1756d1d3915bc8bfddaa074e95d7a4655cde2dd2501ed945e]",
+            "x": 420.3448889153494,
+            "y": 410.152539209139,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=3a6d343d7792b7e35389747dfe58cfd115604b5806bbd14b000f7db6493d2420]",
+            "x": 280.89919877352366,
+            "y": 372.0187654689198,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=0239b32d71d0b117861a3d60e55b62da8c4fdec394bb5504b39230e8eb7c1054]",
+            "x": 482.38890153696565,
+            "y": 262.6298437587986,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=d8fca69f91f187dc1cfa93201732953edcace4d340f9247693c5990f182733cb]",
+            "x": 275.19071173537765,
+            "y": 221.54196942206724,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=226056620261ebac8702960a92376a0b4c09ea8dce30bba0532cc57ba4a5e19e]",
+            "x": 222.5148593571539,
+            "y": 149.75662955995736,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=d7fc638c8c9135788d2ba5de6c1fb745753016c4890940339e5eca79dde42614]",
+            "x": 155.49793179773224,
+            "y": 333.9864611514908,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ed2d23f8cfab17f542c4661198dc4e0abfede4b6a5bb791abe056588f4abdc1c]",
+            "x": 539.1313697882002,
+            "y": 150.35467398204088,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=a486c4a4fc6eb6cc75d25f0e847a94283d15952bfcf1ec9a87178ccb5eaf3c17]",
+            "x": 253.9049799281449,
+            "y": 85.82550412160971,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=62560603ccd730b5cfbf24c1abb4da516e3150db99e45055d0596c7d4956eb1d]",
+            "x": 355.5176545008897,
+            "y": 534.6579794723853,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=25f01357b4cf1410f8b0ffaca99dd24ce0b3788aaa904abd233e574e8111c731]",
+            "x": 491.78695561418806,
+            "y": 337.7747401905058,
+            "visible": false,
+            "shape": "cube"
+          }
+        ],
+        "symbolRects": [
+          {
+            "id": "[\"paper\",\"[\\\"aguiar-hurst-2005\\\",\\\"source-beb263f75a5699b6906731ac\\\"]\"]",
+            "kind": "paper",
+            "x": 204.7386585510102,
+            "y": 323.0513526607514,
+            "width": 31.26023813891527,
+            "height": 31.26023813891527,
+            "radius": 15.630119069457635
+          },
+          {
+            "id": "[\"paper\",\"[\\\"aher-et-al-2023\\\",\\\"source-34ac40e9e779cb564038ab5e\\\"]\"]",
+            "kind": "paper",
+            "x": 469.5078430539082,
+            "y": 364.7021932957951,
+            "width": 31.72890911392983,
+            "height": 31.72890911392983,
+            "radius": 15.864454556964915
+          },
+          {
+            "id": "[\"paper\",\"[\\\"barthelemy-toint-2013\\\",\\\"source-21ddb328e9ef656bcd65d6d8\\\"]\"]",
+            "kind": "paper",
+            "x": 267.81790958404804,
+            "y": 486.35699398579175,
+            "width": 39.511406390386014,
+            "height": 39.511406390386014,
+            "radius": 19.755703195193007
+          },
+          {
+            "id": "[\"paper\",\"[\\\"beckman-et-al-1996\\\",\\\"source-d5d13c722da7482c0eea7e3d\\\"]\"]",
+            "kind": "paper",
+            "x": 225.40993854517586,
+            "y": 392.3854442664158,
+            "width": 32.60139686159425,
+            "height": 32.60139686159425,
+            "radius": 16.300698430797127
+          },
+          {
+            "id": "[\"paper\",\"[\\\"blundell-et-al-2024\\\",\\\"source-7cb6c15171861c8475358e79\\\"]\"]",
+            "kind": "paper",
+            "x": 166.417454815191,
+            "y": 255.3864311077483,
+            "width": 33.09269458380038,
+            "height": 33.09269458380038,
+            "radius": 16.54634729190019
+          },
+          {
+            "id": "[\"paper\",\"[\\\"de-nardi-et-al-2010\\\",\\\"source-bd448a1f213c00cb1b6f7530\\\"]\"]",
+            "kind": "paper",
+            "x": 347.582930461766,
+            "y": 79.18679428427232,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"dosi-et-al-2010\\\",\\\"source-e8f93afaac4edb32be0ab960\\\"]\"]",
+            "kind": "paper",
+            "x": 357.97383174730885,
+            "y": 441.29559649863154,
+            "width": 38.38597593483212,
+            "height": 38.38597593483212,
+            "radius": 19.19298796741606
+          },
+          {
+            "id": "[\"paper\",\"[\\\"gourinchas-parker-2002\\\",\\\"source-262e25729db42611fef071c8\\\"]\"]",
+            "kind": "paper",
+            "x": 404.8953467364556,
+            "y": 75.59578861267615,
+            "width": 32.76735683571309,
+            "height": 32.76735683571309,
+            "radius": 16.383678417856544
+          },
+          {
+            "id": "[\"paper\",\"[\\\"grimm-et-al-2005\\\",\\\"source-1395e0271e4354a56353ba26\\\"]\"]",
+            "kind": "paper",
+            "x": 225.9459743554735,
+            "y": 115.0572555762657,
+            "width": 29.49624212234579,
+            "height": 29.49624212234579,
+            "radius": 14.748121061172895
+          },
+          {
+            "id": "[\"paper\",\"[\\\"horton-et-al-2023\\\",\\\"source-694994133d9cdb1f1146fcfa\\\"]\"]",
+            "kind": "paper",
+            "x": 408.59064169259386,
+            "y": 408.71398858639526,
+            "width": 30.576618551841648,
+            "height": 30.576618551841648,
+            "radius": 15.288309275920824
+          },
+          {
+            "id": "[\"paper\",\"[\\\"hurd-rohwedder-2008\\\",\\\"source-90826874517d4aa35482b05f\\\"]\"]",
+            "kind": "paper",
+            "x": 196.1025121521609,
+            "y": 187.26580547357054,
+            "width": 33.233465651274855,
+            "height": 33.233465651274855,
+            "radius": 16.616732825637428
+          },
+          {
+            "id": "[\"paper\",\"[\\\"li-et-al-2024\\\",\\\"source-28360a0369909c1a617c45ef\\\"]\"]",
+            "kind": "paper",
+            "x": 489.31475809037204,
+            "y": 293.2311317197285,
+            "width": 32.485733354360605,
+            "height": 32.485733354360605,
+            "radius": 16.242866677180302
+          },
+          {
+            "id": "[\"paper\",\"[\\\"liu-et-al-2026\\\",\\\"source-2a44215dd1fd23ecadf5ea65\\\"]\"]",
+            "kind": "paper",
+            "x": 492.9341375598168,
+            "y": 212.14182164120174,
+            "width": 30.533503836965565,
+            "height": 30.533503836965565,
+            "radius": 15.266751918482782
+          },
+          {
+            "id": "[\"paper\",\"[\\\"wiese-et-al-2024\\\",\\\"source-5a034bedccc76a1df7471cdc\\\"]\"]",
+            "kind": "paper",
+            "x": 441.4709039212713,
+            "y": 125.38759909950572,
+            "width": 30.4614622541919,
+            "height": 30.4614622541919,
+            "radius": 15.23073112709595
+          },
+          {
+            "id": "[\"paper\",\"[\\\"windrum-et-al-2007\\\",\\\"source-cde138480a6e51a91b1cbcfa\\\"]\"]",
+            "kind": "paper",
+            "x": 255.22791701609506,
+            "y": 35.8283410413376,
+            "width": 35.64508426378943,
+            "height": 35.64508426378943,
+            "radius": 17.822542131894714
+          },
+          {
+            "id": "[\"topic\",\"U.S. aging and consumption\"]",
+            "kind": "topic",
+            "x": 194.4330773316783,
+            "y": 255.1173288300385,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Calibration and independent validation\"]",
+            "kind": "topic",
+            "x": 268.752824085441,
+            "y": 66.32020066813351,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Household and economic simulation\"]",
+            "kind": "topic",
+            "x": 361.37001419282296,
+            "y": 66.33346294585043,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM and generative-agent evidence\"]",
+            "kind": "topic",
+            "x": 439.6112255679163,
+            "y": 362.00398393093536,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Population data to agents\"]",
+            "kind": "topic",
+            "x": 263.0659267746714,
+            "y": 435.1042515078073,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Household/economic simulation and validation\"]",
+            "kind": "topic",
+            "x": 435.1060757302384,
+            "y": 132.26249835451253,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and independent validation\"]",
+            "kind": "topic",
+            "x": 492.6925815634886,
+            "y": 187.3814651334592,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and multi-period feedback\"]",
+            "kind": "topic",
+            "x": 472.430365826146,
+            "y": 277.44925587582156,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Multi-period endogenous feedback\"]",
+            "kind": "topic",
+            "x": 355.87799860342164,
+            "y": 414.50340795676425,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          }
+        ],
+        "lifecycle": {
+          "pageVisible": true,
+          "intersecting": true,
+          "reducedMotion": false,
+          "pointerActive": false,
+          "dirty": false,
+          "scheduled": false,
+          "rendererRunning": false
+        },
+        "navigation": {
+          "noRotate": false,
+          "enableRotate": true,
+          "staticMoving": false,
+          "dynamicDampingFactor": 0.2
+        },
+        "faults": []
+      },
+      "candidateGeometry": [
+        {
+          "width": 347.328125,
+          "available": 347
+        },
+        {
+          "width": 347.328125,
+          "available": 347
+        },
+        {
+          "width": 347.34375,
+          "available": 347
+        }
+      ],
+      "keyboard": "PASS",
+      "overflow": "PASS",
+      "stage2Literature": "saved fixture or synthetic UI-only projection of exact Stage 1 identities"
+    },
+    {
+      "width": 768,
+      "geometry": {
+        "width": 496,
+        "parentWidth": 536,
+        "height": 520,
+        "mode": 3,
+        "destroyed": false,
+        "focus": null,
+        "hover": null,
+        "showLabels": false,
+        "nodes": 39,
+        "links": 53,
+        "focusedRelations": 0,
+        "papers": 15,
+        "camera": {
+          "position": {
+            "x": 84.69433833659897,
+            "y": 82.95433833659895,
+            "z": 874.9567131255619
+          },
+          "target": {
+            "x": -11.144999999999996,
+            "y": -12.88500000000002,
+            "z": -14.97999999999999
+          },
+          "up": {
+            "x": -0.011399510510685112,
+            "y": 0.9943164882177177,
+            "z": -0.1058525975992189
+          },
+          "mode": 3,
+          "zoom": 1,
+          "poses": {
+            "3": {
+              "position": {
+                "x": 84.69433833659897,
+                "y": 82.95433833659895,
+                "z": 874.9567131255619
+              },
+              "target": {
+                "x": -11.144999999999996,
+                "y": -12.88500000000002,
+                "z": -14.97999999999999
+              },
+              "up": {
+                "x": -0.011399510510685112,
+                "y": 0.9943164882177177,
+                "z": -0.1058525975992189
+              },
+              "mode": 3,
+              "zoom": 1
+            }
+          }
+        },
+        "labelsVisible": 0,
+        "labelsHidden": 39,
+        "labelsOmittedByLod": 9,
+        "visibleLabelIds": [],
+        "eligibleLabelIds": [
+          "[\"topic\",\"U.S. aging and consumption\"]",
+          "[\"topic\",\"Calibration and independent validation\"]",
+          "[\"topic\",\"Household and economic simulation\"]",
+          "[\"topic\",\"LLM and generative-agent evidence\"]",
+          "[\"topic\",\"Population data to agents\"]",
+          "[\"topic\",\"Household/economic simulation and validation\"]",
+          "[\"topic\",\"LLM agents and independent validation\"]",
+          "[\"topic\",\"LLM agents and multi-period feedback\"]",
+          "[\"topic\",\"Multi-period endogenous feedback\"]"
+        ],
+        "labelRects": [],
+        "topicMarkers": [
+          {
+            "id": "[\"topic\",\"U.S. aging and consumption\"]",
+            "x": 124.55490947722312,
+            "y": 259.1654745302182,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Calibration and independent validation\"]",
+            "x": 194.82085186259874,
+            "y": 80.66637154078077,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Household and economic simulation\"]",
+            "x": 282.38619523685077,
+            "y": 80.67891042153131,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM and generative-agent evidence\"]",
+            "x": 356.35970417330265,
+            "y": 360.2219484437934,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Population data to agents\"]",
+            "x": 189.44414895059842,
+            "y": 429.3349286982905,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Household/economic simulation and validation\"]",
+            "x": 352.1002897813163,
+            "y": 143.01181662608457,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and independent validation\"]",
+            "x": 406.54571347820735,
+            "y": 195.1242943079978,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and multi-period feedback\"]",
+            "x": 387.3887095083561,
+            "y": 280.2792964644131,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Multi-period endogenous feedback\"]",
+            "x": 277.1937441341441,
+            "y": 409.85776752275893,
+            "visible": true
+          }
+        ],
+        "methodMarkers": [
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=e393e24ef0ecc07d551a5337339c1b96e34e01d8e3076cd8246f3e6e758beeea]",
+            "x": 350.81756056203545,
+            "y": 329.2989294013167,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=77f36de46824cb98a24600e717d332e0f3dfe50a1c7163be65ef2ac38456d1eb]",
+            "x": 429.3577240410216,
+            "y": 249.91027052976617,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=33b28d0775d968511b0de68127490449cfd4b5115e0e6798c62ce86a5c0ce6dd]",
+            "x": 304.7109301021842,
+            "y": 137.63747872239094,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=58363f79860f1f4cc27c139689cedb4779ff2f8ef148551e7e69aa2f6a4492fd]",
+            "x": 121.86429002487309,
+            "y": 308.53887649365925,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=6b0e9de03c85a8685d98684e6fdc817490f6c1cccf299d7c8ced49ea52b5ae39]",
+            "x": 311.6300213371881,
+            "y": 19.967635357766735,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=0aff31e74a0d3ae1756d1d3915bc8bfddaa074e95d7a4655cde2dd2501ed945e]",
+            "x": 320.1806222472394,
+            "y": 387.7805825250041,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=3a6d343d7792b7e35389747dfe58cfd115604b5806bbd14b000f7db6493d2420]",
+            "x": 188.3410606586042,
+            "y": 351.72683280697873,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=0239b32d71d0b117861a3d60e55b62da8c4fdec394bb5504b39230e8eb7c1054]",
+            "x": 378.8404159985856,
+            "y": 248.3045795537732,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=d8fca69f91f187dc1cfa93201732953edcace4d340f9247693c5990f182733cb]",
+            "x": 182.94394564072067,
+            "y": 209.45786199904538,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=226056620261ebac8702960a92376a0b4c09ea8dce30bba0532cc57ba4a5e19e]",
+            "x": 133.14132157403645,
+            "y": 141.58808612941422,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=d7fc638c8c9135788d2ba5de6c1fb745753016c4890940339e5eca79dde42614]",
+            "x": 69.77986279058322,
+            "y": 315.76901781595495,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ed2d23f8cfab17f542c4661198dc4e0abfede4b6a5bb791abe056588f4abdc1c]",
+            "x": 432.4878405270256,
+            "y": 142.15350994665684,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=a486c4a4fc6eb6cc75d25f0e847a94283d15952bfcf1ec9a87178ccb5eaf3c17]",
+            "x": 162.81925375024613,
+            "y": 81.14411298770374,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=62560603ccd730b5cfbf24c1abb4da516e3150db99e45055d0596c7d4956eb1d]",
+            "x": 258.88941880084116,
+            "y": 505.49481695570967,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=25f01357b4cf1410f8b0ffaca99dd24ce0b3788aaa904abd233e574e8111c731]",
+            "x": 387.72584894432316,
+            "y": 319.35066345284184,
+            "visible": false,
+            "shape": "cube"
+          }
+        ],
+        "symbolRects": [
+          {
+            "id": "[\"paper\",\"[\\\"aguiar-hurst-2005\\\",\\\"source-beb263f75a5699b6906731ac\\\"]\"]",
+            "kind": "paper",
+            "x": 116.33473172095509,
+            "y": 305.43036978834675,
+            "width": 29.555134240429084,
+            "height": 29.555134240429084,
+            "radius": 14.777567120214542
+          },
+          {
+            "id": "[\"paper\",\"[\\\"aher-et-al-2023\\\",\\\"source-34ac40e9e779cb564038ab5e\\\"]\"]",
+            "kind": "paper",
+            "x": 366.66196070551314,
+            "y": 344.8093463887517,
+            "width": 29.998241344079133,
+            "height": 29.998241344079133,
+            "radius": 14.999120672039567
+          },
+          {
+            "id": "[\"paper\",\"[\\\"barthelemy-toint-2013\\\",\\\"source-21ddb328e9ef656bcd65d6d8\\\"]\"]",
+            "kind": "paper",
+            "x": 175.97329633400906,
+            "y": 459.82843067747586,
+            "width": 37.356238769092215,
+            "height": 37.356238769092215,
+            "radius": 18.678119384546108
+          },
+          {
+            "id": "[\"paper\",\"[\\\"beckman-et-al-1996\\\",\\\"source-d5d13c722da7482c0eea7e3d\\\"]\"]",
+            "kind": "paper",
+            "x": 135.8784873518027,
+            "y": 370.98260185188406,
+            "width": 30.823138850961755,
+            "height": 30.823138850961755,
+            "radius": 15.411569425480877
+          },
+          {
+            "id": "[\"paper\",\"[\\\"blundell-et-al-2024\\\",\\\"source-7cb6c15171861c8475358e79\\\"]\"]",
+            "kind": "paper",
+            "x": 80.10377546163514,
+            "y": 241.4562621382347,
+            "width": 31.28763851559313,
+            "height": 31.28763851559313,
+            "radius": 15.643819257796565
+          },
+          {
+            "id": "[\"paper\",\"[\\\"de-nardi-et-al-2010\\\",\\\"source-bd448a1f213c00cb1b6f7530\\\"]\"]",
+            "kind": "paper",
+            "x": 250.6238615274878,
+            "y": 74.10387823240292,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"dosi-et-al-2010\\\",\\\"source-e8f93afaac4edb32be0ab960\\\"]\"]",
+            "kind": "paper",
+            "x": 261.2116227429102,
+            "y": 417.2249275987062,
+            "width": 36.292195429295816,
+            "height": 36.292195429295816,
+            "radius": 18.146097714647908
+          },
+          {
+            "id": "[\"paper\",\"[\\\"gourinchas-parker-2002\\\",\\\"source-262e25729db42611fef071c8\\\"]\"]",
+            "kind": "paper",
+            "x": 305.5737823690125,
+            "y": 71.47238196107563,
+            "width": 30.980046462856023,
+            "height": 30.980046462856023,
+            "radius": 15.490023231428012
+          },
+          {
+            "id": "[\"paper\",\"[\\\"grimm-et-al-2005\\\",\\\"source-1395e0271e4354a56353ba26\\\"]\"]",
+            "kind": "paper",
+            "x": 136.32896293937483,
+            "y": 108.72508336630558,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"horton-et-al-2023\\\",\\\"source-694994133d9cdb1f1146fcfa\\\"]\"]",
+            "kind": "paper",
+            "x": 309.06751578208866,
+            "y": 386.4204982998645,
+            "width": 28.9088029944686,
+            "height": 28.9088029944686,
+            "radius": 14.4544014972343
+          },
+          {
+            "id": "[\"paper\",\"[\\\"hurd-rohwedder-2008\\\",\\\"source-90826874517d4aa35482b05f\\\"]\"]",
+            "kind": "paper",
+            "x": 108.16964785295215,
+            "y": 177.05130699319398,
+            "width": 31.420731161205225,
+            "height": 31.420731161205225,
+            "radius": 15.710365580602613
+          },
+          {
+            "id": "[\"paper\",\"[\\\"li-et-al-2024\\\",\\\"source-28360a0369909c1a617c45ef\\\"]\"]",
+            "kind": "paper",
+            "x": 385.38849855817,
+            "y": 277.236706353198,
+            "width": 30.713784262304443,
+            "height": 30.713784262304443,
+            "radius": 15.356892131152222
+          },
+          {
+            "id": "[\"paper\",\"[\\\"liu-et-al-2026\\\",\\\"source-2a44215dd1fd23ecadf5ea65\\\"]\"]",
+            "kind": "paper",
+            "x": 388.8104573292813,
+            "y": 200.57044955168163,
+            "width": 28.868039991312912,
+            "height": 28.868039991312912,
+            "radius": 14.434019995656456
+          },
+          {
+            "id": "[\"paper\",\"[\\\"wiese-et-al-2024\\\",\\\"source-5a034bedccc76a1df7471cdc\\\"]\"]",
+            "kind": "paper",
+            "x": 340.1543091619292,
+            "y": 118.54827551225995,
+            "width": 28.79992794941785,
+            "height": 28.79992794941785,
+            "radius": 14.399963974708925
+          },
+          {
+            "id": "[\"paper\",\"[\\\"windrum-et-al-2007\\\",\\\"source-cde138480a6e51a91b1cbcfa\\\"]\"]",
+            "kind": "paper",
+            "x": 164.07003063339897,
+            "y": 33.87406789362828,
+            "width": 33.70080694031,
+            "height": 33.70080694031,
+            "radius": 16.850403470155
+          },
+          {
+            "id": "[\"topic\",\"U.S. aging and consumption\"]",
+            "kind": "topic",
+            "x": 105.55490947722312,
+            "y": 240.1654745302182,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Calibration and independent validation\"]",
+            "kind": "topic",
+            "x": 175.82085186259874,
+            "y": 61.66637154078077,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Household and economic simulation\"]",
+            "kind": "topic",
+            "x": 263.38619523685077,
+            "y": 61.67891042153131,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM and generative-agent evidence\"]",
+            "kind": "topic",
+            "x": 337.35970417330265,
+            "y": 341.2219484437934,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Population data to agents\"]",
+            "kind": "topic",
+            "x": 170.44414895059842,
+            "y": 410.3349286982905,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Household/economic simulation and validation\"]",
+            "kind": "topic",
+            "x": 333.1002897813163,
+            "y": 124.01181662608457,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and independent validation\"]",
+            "kind": "topic",
+            "x": 387.54571347820735,
+            "y": 176.1242943079978,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and multi-period feedback\"]",
+            "kind": "topic",
+            "x": 368.3887095083561,
+            "y": 261.2792964644131,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Multi-period endogenous feedback\"]",
+            "kind": "topic",
+            "x": 258.1937441341441,
+            "y": 390.85776752275893,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          }
+        ],
+        "lifecycle": {
+          "pageVisible": true,
+          "intersecting": true,
+          "reducedMotion": false,
+          "pointerActive": false,
+          "dirty": false,
+          "scheduled": false,
+          "rendererRunning": false
+        },
+        "navigation": {
+          "noRotate": false,
+          "enableRotate": true,
+          "staticMoving": false,
+          "dynamicDampingFactor": 0.2
+        },
+        "faults": []
+      },
+      "candidateGeometry": [
+        {
+          "width": 126.65625,
+          "available": 127
+        },
+        {
+          "width": 126.671875,
+          "available": 127
+        },
+        {
+          "width": 126.671875,
+          "available": 127
+        }
+      ],
+      "keyboard": "PASS",
+      "overflow": "PASS",
+      "stage2Literature": "saved fixture or synthetic UI-only projection of exact Stage 1 identities"
+    },
+    {
+      "width": 390,
+      "geometry": {
+        "width": 332,
+        "parentWidth": 360,
+        "height": 420,
+        "mode": 3,
+        "destroyed": false,
+        "focus": null,
+        "hover": null,
+        "showLabels": false,
+        "nodes": 39,
+        "links": 53,
+        "focusedRelations": 0,
+        "papers": 15,
+        "camera": {
+          "position": {
+            "x": 84.69433833659897,
+            "y": 82.95433833659895,
+            "z": 874.9567131255619
+          },
+          "target": {
+            "x": -11.144999999999996,
+            "y": -12.88500000000002,
+            "z": -14.97999999999999
+          },
+          "up": {
+            "x": -0.011399510510685112,
+            "y": 0.9943164882177177,
+            "z": -0.1058525975992189
+          },
+          "mode": 3,
+          "zoom": 1,
+          "poses": {
+            "3": {
+              "position": {
+                "x": 84.69433833659897,
+                "y": 82.95433833659895,
+                "z": 874.9567131255619
+              },
+              "target": {
+                "x": -11.144999999999996,
+                "y": -12.88500000000002,
+                "z": -14.97999999999999
+              },
+              "up": {
+                "x": -0.011399510510685112,
+                "y": 0.9943164882177177,
+                "z": -0.1058525975992189
+              },
+              "mode": 3,
+              "zoom": 1
+            }
+          }
+        },
+        "labelsVisible": 0,
+        "labelsHidden": 39,
+        "labelsOmittedByLod": 9,
+        "visibleLabelIds": [],
+        "eligibleLabelIds": [
+          "[\"topic\",\"U.S. aging and consumption\"]",
+          "[\"topic\",\"Calibration and independent validation\"]",
+          "[\"topic\",\"Household and economic simulation\"]",
+          "[\"topic\",\"LLM and generative-agent evidence\"]",
+          "[\"topic\",\"Population data to agents\"]",
+          "[\"topic\",\"Household/economic simulation and validation\"]",
+          "[\"topic\",\"LLM agents and independent validation\"]",
+          "[\"topic\",\"LLM agents and multi-period feedback\"]",
+          "[\"topic\",\"Multi-period endogenous feedback\"]"
+        ],
+        "labelRects": [],
+        "topicMarkers": [
+          {
+            "id": "[\"topic\",\"U.S. aging and consumption\"]",
+            "x": 66.29434996237251,
+            "y": 209.32596019748394,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Calibration and independent validation\"]",
+            "x": 123.04761111979127,
+            "y": 65.15360778293832,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Household and economic simulation\"]",
+            "x": 193.77346538361027,
+            "y": 65.1637353404676,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM and generative-agent evidence\"]",
+            "x": 253.52129952459063,
+            "y": 290.948496819987,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Population data to agents\"]",
+            "x": 118.70488953702177,
+            "y": 346.77051933323463,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Household/economic simulation and validation\"]",
+            "x": 250.0810032849093,
+            "y": 115.50954419799139,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and independent validation\"]",
+            "x": 294.0561531939368,
+            "y": 157.60039155645975,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and multi-period feedback\"]",
+            "x": 278.58318844905693,
+            "y": 226.3794317597183,
+            "visible": true
+          },
+          {
+            "id": "[\"topic\",\"Multi-period endogenous feedback\"]",
+            "x": 189.5795625698856,
+            "y": 331.03896607607453,
+            "visible": true
+          }
+        ],
+        "methodMarkers": [
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=e393e24ef0ecc07d551a5337339c1b96e34e01d8e3076cd8246f3e6e758beeea]",
+            "x": 249.04495276164403,
+            "y": 265.97221220875576,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=77f36de46824cb98a24600e717d332e0f3dfe50a1c7163be65ef2ac38456d1eb]",
+            "x": 312.48123864851743,
+            "y": 201.85060312019576,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=33b28d0775d968511b0de68127490449cfd4b5115e0e6798c62ce86a5c0ce6dd]",
+            "x": 211.8049820056103,
+            "y": 111.16873281423884,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=58363f79860f1f4cc27c139689cedb4779ff2f8ef148551e7e69aa2f6a4492fd]",
+            "x": 64.1211573277821,
+            "y": 249.20447716795556,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=6b0e9de03c85a8685d98684e6fdc817490f6c1cccf299d7c8ced49ea52b5ae39]",
+            "x": 217.39347877234428,
+            "y": 16.127705481273132,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=0aff31e74a0d3ae1756d1d3915bc8bfddaa074e95d7a4655cde2dd2501ed945e]",
+            "x": 224.29973335353952,
+            "y": 313.20739357788796,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=3a6d343d7792b7e35389747dfe58cfd115604b5806bbd14b000f7db6493d2420]",
+            "x": 117.8139336088726,
+            "y": 284.0870572671751,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=0239b32d71d0b117861a3d60e55b62da8c4fdec394bb5504b39230e8eb7c1054]",
+            "x": 271.67879753731916,
+            "y": 200.55369887035528,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=d8fca69f91f187dc1cfa93201732953edcace4d340f9247693c5990f182733cb]",
+            "x": 113.45472532519744,
+            "y": 169.1775039223059,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=226056620261ebac8702960a92376a0b4c09ea8dce30bba0532cc57ba4a5e19e]",
+            "x": 73.2295289636448,
+            "y": 114.3596080276038,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=d7fc638c8c9135788d2ba5de6c1fb745753016c4890940339e5eca79dde42614]",
+            "x": 22.052966100086437,
+            "y": 255.04420669750206,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=ed2d23f8cfab17f542c4661198dc4e0abfede4b6a5bb791abe056588f4abdc1c]",
+            "x": 315.0094096564438,
+            "y": 114.81629649537668,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=a486c4a4fc6eb6cc75d25f0e847a94283d15952bfcf1ec9a87178ccb5eaf3c17]",
+            "x": 97.20016649058337,
+            "y": 65.53947587468379,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=62560603ccd730b5cfbf24c1abb4da516e3150db99e45055d0596c7d4956eb1d]",
+            "x": 174.79529980067943,
+            "y": 408.28427523345783,
+            "visible": false,
+            "shape": "cube"
+          },
+          {
+            "id": "[PRIVATE_SAVED_TEXT_REDACTED original_value_sha256=25f01357b4cf1410f8b0ffaca99dd24ce0b3788aaa904abd233e574e8111c731]",
+            "x": 278.8554933781072,
+            "y": 257.93707432729536,
+            "visible": false,
+            "shape": "cube"
+          }
+        ],
+        "symbolRects": [
+          {
+            "id": "[\"paper\",\"[\\\"aguiar-hurst-2005\\\",\\\"source-beb263f75a5699b6906731ac\\\"]\"]",
+            "kind": "paper",
+            "x": 57.59070291017545,
+            "y": 244.62948750306873,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"aher-et-al-2023\\\",\\\"source-34ac40e9e779cb564038ab5e\\\"]\"]",
+            "kind": "paper",
+            "x": 259.9570272664849,
+            "y": 276.61453108756217,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"barthelemy-toint-2013\\\",\\\"source-21ddb328e9ef656bcd65d6d8\\\"]\"]",
+            "kind": "paper",
+            "x": 107.82458550054575,
+            "y": 371.3998863164228,
+            "width": 30.17234669811296,
+            "height": 30.17234669811296,
+            "radius": 15.08617334905648
+          },
+          {
+            "id": "[\"paper\",\"[\\\"beckman-et-al-1996\\\",\\\"source-d5d13c722da7482c0eea7e3d\\\"]\"]",
+            "kind": "paper",
+            "x": 73.8881227816521,
+            "y": 298.0875998778717,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"blundell-et-al-2024\\\",\\\"source-7cb6c15171861c8475358e79\\\"]\"]",
+            "kind": "paper",
+            "x": 29.0269034272333,
+            "y": 193.65775805064067,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"de-nardi-et-al-2010\\\",\\\"source-bd448a1f213c00cb1b6f7530\\\"]\"]",
+            "kind": "paper",
+            "x": 165.42696507989402,
+            "y": 57.1608247261716,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"dosi-et-al-2010\\\",\\\"source-e8f93afaac4edb32be0ab960\\\"]\"]",
+            "kind": "paper",
+            "x": 176.67092606158138,
+            "y": 336.98936459895504,
+            "width": 29.312927077508107,
+            "height": 29.312927077508107,
+            "radius": 14.656463538754053
+          },
+          {
+            "id": "[\"paper\",\"[\\\"gourinchas-parker-2002\\\",\\\"source-262e25729db42611fef071c8\\\"]\"]",
+            "kind": "paper",
+            "x": 211.013073754202,
+            "y": 56.23886573240678,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"grimm-et-al-2005\\\",\\\"source-1395e0271e4354a56353ba26\\\"]\"]",
+            "kind": "paper",
+            "x": 73.11185468180273,
+            "y": 85.1241057958622,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"horton-et-al-2023\\\",\\\"source-694994133d9cdb1f1146fcfa\\\"]\"]",
+            "kind": "paper",
+            "x": 212.9984716486839,
+            "y": 309.7835729130413,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"hurd-rohwedder-2008\\\",\\\"source-90826874517d4aa35482b05f\\\"]\"]",
+            "kind": "paper",
+            "x": 51.74924161940962,
+            "y": 141.6921201557588,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"li-et-al-2024\\\",\\\"source-28360a0369909c1a617c45ef\\\"]\"]",
+            "kind": "paper",
+            "x": 275.3712770952218,
+            "y": 222.3255987758213,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"liu-et-al-2026\\\",\\\"source-2a44215dd1fd23ecadf5ea65\\\"]\"]",
+            "kind": "paper",
+            "x": 277.3897701470652,
+            "y": 159.65745617285,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"wiese-et-al-2024\\\",\\\"source-5a034bedccc76a1df7471cdc\\\"]\"]",
+            "kind": "paper",
+            "x": 238.06306676420772,
+            "y": 93.38127035485947,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"paper\",\"[\\\"windrum-et-al-2007\\\",\\\"source-cde138480a6e51a91b1cbcfa\\\"]\"]",
+            "kind": "paper",
+            "x": 97.82035062210127,
+            "y": 26.9697653322865,
+            "width": 28,
+            "height": 28,
+            "radius": 14
+          },
+          {
+            "id": "[\"topic\",\"U.S. aging and consumption\"]",
+            "kind": "topic",
+            "x": 47.29434996237251,
+            "y": 190.32596019748394,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Calibration and independent validation\"]",
+            "kind": "topic",
+            "x": 104.04761111979127,
+            "y": 46.15360778293832,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Household and economic simulation\"]",
+            "kind": "topic",
+            "x": 174.77346538361027,
+            "y": 46.163735340467596,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM and generative-agent evidence\"]",
+            "kind": "topic",
+            "x": 234.52129952459063,
+            "y": 271.948496819987,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Population data to agents\"]",
+            "kind": "topic",
+            "x": 99.70488953702177,
+            "y": 327.77051933323463,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Household/economic simulation and validation\"]",
+            "kind": "topic",
+            "x": 231.0810032849093,
+            "y": 96.50954419799139,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and independent validation\"]",
+            "kind": "topic",
+            "x": 275.0561531939368,
+            "y": 138.60039155645975,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"LLM agents and multi-period feedback\"]",
+            "kind": "topic",
+            "x": 259.58318844905693,
+            "y": 207.3794317597183,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          },
+          {
+            "id": "[\"topic\",\"Multi-period endogenous feedback\"]",
+            "kind": "topic",
+            "x": 170.5795625698856,
+            "y": 312.03896607607453,
+            "width": 38,
+            "height": 38,
+            "radius": 19
+          }
+        ],
+        "lifecycle": {
+          "pageVisible": true,
+          "intersecting": true,
+          "reducedMotion": false,
+          "pointerActive": false,
+          "dirty": false,
+          "scheduled": false,
+          "rendererRunning": false
+        },
+        "navigation": {
+          "noRotate": false,
+          "enableRotate": true,
+          "staticMoving": false,
+          "dynamicDampingFactor": 0.2
+        },
+        "faults": []
+      },
+      "candidateGeometry": [
+        {
+          "width": 320,
+          "available": 320
+        },
+        {
+          "width": 320,
+          "available": 320
+        },
+        {
+          "width": 320,
+          "available": 320
+        }
+      ],
+      "keyboard": "PASS",
+      "overflow": "PASS",
+      "stage2Literature": "saved fixture or synthetic UI-only projection of exact Stage 1 identities"
+    }
+  ]
+}

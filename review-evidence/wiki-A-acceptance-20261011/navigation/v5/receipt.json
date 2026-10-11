@@ -1,0 +1,175 @@
+{
+  "kind": "WikiACompatibilityBrowser.v1",
+  "created_at": "2026-10-11T03:40:53.357Z",
+  "head": "84e1a3db67a157fe598d1b730067c218a3164b14",
+  "chrome": "155.0.8059.39",
+  "command": [
+    "<LOCAL_WORKSPACE>/_private/workspace-return/atlas-current-sdk-env-20261010-v1/Scripts/python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-compatible-host-20261011.py",
+    "<LOCAL_WORKSPACE>/worktrees/ca-wiki",
+    "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v5"
+  ],
+  "captures": [
+    {
+      "file": "stage1-en-1440.png",
+      "language": "en",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "25c6e29e2e5b4e444c3bac7b1c63d08d48075fcbfb3eebda9869476d6e254ebb",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hans-1440.png",
+      "language": "zh-Hans",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "2cb30fd8d7dd6598f3d26a5432ba8575844ad0ba82acc50819717ab46b20b14a",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hant-1440.png",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "fe1c555c3c859b4eaa3fe7a6109587c4214a2141c8d1a800a98ddb6d61a1227d",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-en-768.png",
+      "language": "en",
+      "width": 768,
+      "height": 1000,
+      "sha256": "63c0ed12e97a0d47e53305900d1c0df79f080f80950420adcda6e7b3467cad27",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hans-768.png",
+      "language": "zh-Hans",
+      "width": 768,
+      "height": 1000,
+      "sha256": "be0a5e43080f62e88b4f206e29ec1c09d71359d72bbd5baf858e954ab594c280",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hant-768.png",
+      "language": "zh-Hant",
+      "width": 768,
+      "height": 1000,
+      "sha256": "afd52cfecc04704de03c1f3b4affd9862e8a341a0cfc2caaa36f2484053bfbb6",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-en-390.png",
+      "language": "en",
+      "width": 390,
+      "height": 1000,
+      "sha256": "d86acb4c1c45d3fd214bd44225616d1a62e106001110a1d913007048e5558aa2",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hans-390.png",
+      "language": "zh-Hans",
+      "width": 390,
+      "height": 1000,
+      "sha256": "18a740a3a70ecd6da9c3ecd29db8e4d0133e0c6780900c72e2603185a2628698",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hant-390.png",
+      "language": "zh-Hant",
+      "width": 390,
+      "height": 1000,
+      "sha256": "624e5fb4ebcd7fd2d17ba648499d526ecb78629749df60094bfcb3b403082a07",
+      "scope": "current source-generated public synthetic repository Stage1 fixture; Chrome viewport emulation"
+    },
+    {
+      "file": "stage2-en-1440.png",
+      "language": "en",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "1f3f8c8ba45752f8f2decb75428b4645ba3f8cc2084e4536217a90f773ef523a",
+      "scope": "original saved synthetic repository Stage2 fixture; not generated research"
+    },
+    {
+      "file": "stage2-zh-Hans-1440.png",
+      "language": "zh-Hans",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "e1a1993cef4b7566aa5d2af002ecbf06bd0c05dec957a82f3909346146420bb6",
+      "scope": "original saved synthetic repository Stage2 fixture; not generated research"
+    },
+    {
+      "file": "stage2-zh-Hant-1440.png",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "6e4bb23ed445f7de53147a9d6496a064c803ebe28fc9c8a11341b0dba982a4f8",
+      "scope": "original saved synthetic repository Stage2 fixture; not generated research"
+    }
+  ],
+  "checks": [
+    {
+      "name": "actual AtlasHost chooser → current generated repository Stage1 Atlas → saved Wiki → Atlas",
+      "status": "PASS"
+    },
+    {
+      "name": "historical r3 overlay → retained saved Wiki → browser Back; old index has no Atlas backlink",
+      "status": "PASS",
+      "limitation": "historical artifact is not rebuilt or modified"
+    },
+    {
+      "name": "stage1 en/1440 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hans/1440 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hant/1440 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 en/768 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hans/768 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hant/768 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 en/390 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hans/390 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hant/390 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "actual saved Stage2 Wiki → Atlas → Wiki links",
+      "status": "PASS"
+    }
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "host_exit": 0,
+  "cleanup": {
+    "source_inventory_equal": true,
+    "shutdown_thread_alive": false,
+    "actual_native_or_model_calls": 0
+  },
+  "actual_native_model_source_search_scoring": 0,
+  "scope": "Targeted A navigation and missing language screenshots only; prior full presentation checks retain original binding"
+}

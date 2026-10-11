@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(["page:page:1", "page:page:-1"].includes(await page.evaluate(() => document.activeElement.dataset.atlasFocus)))
+
+    at <LOCAL_WORKSPACE>\worktrees\ca-wiki\plugins\auto-research-agent\tests\test_workspace_atlas_browser.js:44:9 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

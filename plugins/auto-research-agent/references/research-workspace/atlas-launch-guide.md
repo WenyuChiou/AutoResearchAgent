@@ -60,8 +60,8 @@ the launcher above include both navigation links. Public review evidence uses
 repository synthetic fixtures and keeps private saved research notes out of the
 published screenshots. See the [separate fixed-head A acceptance evidence](https://github.com/WenyuChiou/AutoResearchAgent/blob/1332583933dfdea2fd4377c570e7beb18a78fe04/review-evidence/wiki-A-acceptance-20261011/README.md)
 for A commands, original bindings, screenshots and explicit remaining limits.
-That evidence package has not yet been propagated into this B candidate and
-does not establish a B runtime test result.
+That A evidence is now retained in this candidate for review; it does not
+establish a B runtime test result.
 
 With `--harness-operations`, each case has real repository operations:
 validate the saved workspace, derive its conservative literature selection, and
