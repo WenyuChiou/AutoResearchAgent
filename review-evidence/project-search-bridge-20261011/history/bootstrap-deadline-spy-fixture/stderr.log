@@ -1,0 +1,27 @@
+test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate (project_stage1_query_cases.ProjectQueryCases.test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate) ... FAIL
+test_bootstrap_late_sqlite_write_rolls_back_activation (project_stage1_query_cases.ProjectQueryCases.test_bootstrap_late_sqlite_write_rolls_back_activation) ... FAIL
+
+======================================================================
+FAIL: test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate (project_stage1_query_cases.ProjectQueryCases.test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_cases.py", line 472, in test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate
+    self._late_bootstrap("callback")
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_cases.py", line 531, in _late_bootstrap
+    self.assertEqual(probe.call_count, 1)
+AssertionError: 2 != 1
+
+======================================================================
+FAIL: test_bootstrap_late_sqlite_write_rolls_back_activation (project_stage1_query_cases.ProjectQueryCases.test_bootstrap_late_sqlite_write_rolls_back_activation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_cases.py", line 475, in test_bootstrap_late_sqlite_write_rolls_back_activation
+    self._late_bootstrap("sqlite")
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_cases.py", line 531, in _late_bootstrap
+    self.assertEqual(probe.call_count, 1)
+AssertionError: 2 != 1
+
+----------------------------------------------------------------------
+Ran 2 tests in 9.930s
+
+FAILED (failures=2)

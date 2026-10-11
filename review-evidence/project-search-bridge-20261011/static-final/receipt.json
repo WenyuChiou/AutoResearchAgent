@@ -1,0 +1,107 @@
+{
+  "checks": [
+    {
+      "argv": [
+        "D:/Codex_Learning/harness_building/worktrees/ca-native/scripts/.venv/Scripts/ruff.exe",
+        "check",
+        "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/planned_query_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_query_permit.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py",
+        "plugins/auto-research-agent/references/research-workspace/examples/run-project-workspace.py",
+        "plugins/auto-research-agent/tests/project_planned_query_contract_cases.py",
+        "plugins/auto-research-agent/tests/project_query_history_cases.py",
+        "plugins/auto-research-agent/tests/project_stage1_query_cases.py",
+        "plugins/auto-research-agent/tests/project_stage1_query_http_cases.py",
+        "plugins/auto-research-agent/tests/test_planned_query_saved_mutations.py",
+        "plugins/auto-research-agent/tests/test_project_planned_query_contract.py",
+        "plugins/auto-research-agent/tests/test_project_query_history.py",
+        "plugins/auto-research-agent/tests/test_project_query_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_delivery.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_queries.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_query_http.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.0319999999992433,
+      "stdout_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "D:/Codex_Learning/harness_building/worktrees/ca-native/scripts/.venv/Scripts/ruff.exe",
+        "format",
+        "--check",
+        "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/planned_query_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_query_permit.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py",
+        "plugins/auto-research-agent/references/research-workspace/examples/run-project-workspace.py",
+        "plugins/auto-research-agent/tests/project_planned_query_contract_cases.py",
+        "plugins/auto-research-agent/tests/project_query_history_cases.py",
+        "plugins/auto-research-agent/tests/project_stage1_query_cases.py",
+        "plugins/auto-research-agent/tests/project_stage1_query_http_cases.py",
+        "plugins/auto-research-agent/tests/test_planned_query_saved_mutations.py",
+        "plugins/auto-research-agent/tests/test_project_planned_query_contract.py",
+        "plugins/auto-research-agent/tests/test_project_query_history.py",
+        "plugins/auto-research-agent/tests/test_project_query_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_delivery.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_queries.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_query_http.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.046999999998661224,
+      "stdout_sha256": "7b4549ac2e9820f695aa60c4695796689a11c0dce1a49f0b01a6250eca9f55aa",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "C:/Users/13795/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe",
+        "--check",
+        "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.031000000002677552,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "C:/Users/13795/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe",
+        "--check",
+        "plugins/auto-research-agent/tests/test_project_query_panel_browser.cjs"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.046999999998661224,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.longpaths=true",
+        "diff",
+        "--check",
+        "4659a18eb86ade515962db440adb74c53b793226...HEAD"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.07800000000133878,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "python_paths": 22,
+  "scope": "Static and syntax only; no model/source/native execution."
+}

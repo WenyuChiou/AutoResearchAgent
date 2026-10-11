@@ -1,6 +1,6 @@
 # Project search bridge review evidence — 2026-10-11
 
-This is an interim engineering review packet. Each raw receipt and log belongs to its own recorded source snapshot and invocation. Historical failures remain visible; separate runs are not combined into one passing suite. Final source sealing is pending.
+This is an engineering review packet. Each raw receipt and log belongs to its own recorded source snapshot and invocation. Historical failures remain visible; separate runs are not combined into one passing suite. Named production source hashes and artifact hashes are sealed in manifest.json; each result keeps its exact source scope.
 
 | Evidence | Recorded result and boundary |
 | --- | --- |
@@ -13,7 +13,8 @@ This is an interim engineering review packet. Each raw receipt and log belongs t
 | [Root batch before evaluator-loader repair](history/repaired-query-before-eval-loader/receipt.json) | Raw result: 35 tests, FAILED (errors=1). `test_stage1_general_eval` failed import because `validators` was unavailable to that invocation. This batch remains failed. |
 | [Isolated content invariant](last-invariant-isolated/receipt.json) | One separately invoked content-packet invariant passed. It does not turn the failed root batch into a pass or demonstrate research improvement. |
 | [Fractional-timeout regression history](history/before-fractional-upper-bound/receipt.json) | Raw result: 79 tests, FAILED (failures=1). The fractional-timeout reservation case observed `execution-unknown`; retained before the derived integer permit-bound correction. |
-| Final 43-check batch | **PENDING** — root will add its raw result, logs and source binding. No result is claimed here. |
-| New delivery proof | **PENDING** — root will add the actual artifact/evidence binding and verification scope. No fresh delivery or scientific completion is claimed here. |
+| [Final integrated batch](integrated-final45/receipt.json) | 45/45 checks, 225.333s, actual exit0, source inventory equal; new query/history/real temporary HTTP, Host/map and three actual native invariant selectors. External probe/backend mocked. The fourth content invariant is separately retained above. No whole-plugin/full-native/scientific PASS. |
+| [Corrected delivery](delivery-final24/receipt.json) | Final affected delivery+HTTP24/24, 123.698s, source inventory equal. Prior related69/69, 276.565s uses identical production bytes but earlier test bytes. Initial3 tests/4 errors retained. Current Core review and selected raw response bind to the real saved SDK attempts; duplicate/mismatch selected receipt refuses before build. Actual external source fetch/model/scientific completion remains untested. |
+| [Bootstrap transaction deadline](deadline-guard/receipt.json) | Two corrected regressions pass10.541s: last callback expiry and SQLite-save expiry roll back completion/activation and retain unknown; same-key replay does not probe. Original1/5.337s defect failure and first2/9.930s wrong-spy fixture failures remain separate in history. |
 
-The retained core and format-only proofs are separate records. This packet does not establish formal A/B, frozen-rule changes, scientific quality gains, a fresh live pilot, or full-chain completion. No account credentials, private research payloads or real search responses were added by this packaging step. A final artifact/source manifest will be added after the pending evidence is reviewed; none is frozen by this README.
+The retained core and format-only proofs are separate records. This packet does not establish formal A/B, frozen-rule changes, scientific quality gains, a fresh live pilot, or full-chain completion. No account credentials, private research payloads or real search responses were added by this packaging step. The artifact/source manifest binds this packet without implying Core approval or access to historical private research materials.

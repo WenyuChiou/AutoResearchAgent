@@ -1,0 +1,7 @@
+test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate (project_stage1_query_cases.ProjectQueryCases.test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate) ... ok
+test_bootstrap_late_sqlite_write_rolls_back_activation (project_stage1_query_cases.ProjectQueryCases.test_bootstrap_late_sqlite_write_rolls_back_activation) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 10.541s
+
+OK

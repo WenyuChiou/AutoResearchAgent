@@ -1,0 +1,82 @@
+test_screening_reversal_preserves_historical_review_without_reusing_it (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_screening_reversal_preserves_historical_review_without_reusing_it) ... ERROR
+test_new_candidate_revision_uses_latest_version_and_preserves_old_review (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_new_candidate_revision_uses_latest_version_and_preserves_old_review) ... ERROR
+test_available_source_binds_selected_response_before_failed_terminal_attempt (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_available_source_binds_selected_response_before_failed_terminal_attempt) ... 
+  test_available_source_binds_selected_response_before_failed_terminal_attempt (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_available_source_binds_selected_response_before_failed_terminal_attempt) (terminal_status=404) ... ERROR
+  test_available_source_binds_selected_response_before_failed_terminal_attempt (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_available_source_binds_selected_response_before_failed_terminal_attempt) (terminal_status=503) ... ERROR
+
+======================================================================
+ERROR: test_screening_reversal_preserves_historical_review_without_reusing_it (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_screening_reversal_preserves_historical_review_without_reusing_it)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 292, in test_screening_reversal_preserves_historical_review_without_reusing_it
+    offer = self.register(fixture)
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 221, in register
+    return self.delivery.register_records(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 358, in register_records
+    _records_match(records, ledger, path.parent)
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 121, in _records_match
+    _check(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\session_api.py", line 36, in _check
+    raise SessionApiError(code, status)
+research_workspace_native.session_api.SessionApiError: stage1-records-review-stale
+
+======================================================================
+ERROR: test_new_candidate_revision_uses_latest_version_and_preserves_old_review (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_new_candidate_revision_uses_latest_version_and_preserves_old_review)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 401, in test_new_candidate_revision_uses_latest_version_and_preserves_old_review
+    offer = self.register(fixture)
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 221, in register
+    return self.delivery.register_records(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 358, in register_records
+    _records_match(records, ledger, path.parent)
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 121, in _records_match
+    _check(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\session_api.py", line 36, in _check
+    raise SessionApiError(code, status)
+research_workspace_native.session_api.SessionApiError: stage1-records-review-stale
+
+======================================================================
+ERROR: test_available_source_binds_selected_response_before_failed_terminal_attempt (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_available_source_binds_selected_response_before_failed_terminal_attempt) (terminal_status=404)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 473, in test_available_source_binds_selected_response_before_failed_terminal_attempt
+    offer = self.register(fixture)
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 221, in register
+    return self.delivery.register_records(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 358, in register_records
+    _records_match(records, ledger, path.parent)
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 173, in _records_match
+    _check(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\session_api.py", line 36, in _check
+    raise SessionApiError(code, status)
+research_workspace_native.session_api.SessionApiError: stage1-source-observation-differs
+
+======================================================================
+ERROR: test_available_source_binds_selected_response_before_failed_terminal_attempt (test_project_stage1_delivery.ProjectStage1DeliveryTests.test_available_source_binds_selected_response_before_failed_terminal_attempt) (terminal_status=503)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 473, in test_available_source_binds_selected_response_before_failed_terminal_attempt
+    offer = self.register(fixture)
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_delivery.py", line 221, in register
+    return self.delivery.register_records(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 358, in register_records
+    _records_match(records, ledger, path.parent)
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 173, in _records_match
+    _check(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\session_api.py", line 36, in _check
+    raise SessionApiError(code, status)
+research_workspace_native.session_api.SessionApiError: stage1-source-observation-differs
+
+----------------------------------------------------------------------
+Ran 3 tests in 7.341s
+
+FAILED (errors=4)
