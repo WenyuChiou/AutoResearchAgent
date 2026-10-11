@@ -34,3 +34,9 @@ review-evidence/stage1-priority-20261010/** -text
 review-evidence/stage1-priority-20261010/*.json whitespace=cr-at-eol
 review-evidence/stage1-priority-20261010/*stdout.log binary
 review-evidence/stage1-priority-20261010/*stderr.log binary
+review-evidence/stage1-saved-records-20261011/** -text
+review-evidence/stage1-saved-records-20261011/*.json whitespace=cr-at-eol
+review-evidence/stage1-saved-records-20261011/*stdout.log binary
+review-evidence/stage1-saved-records-20261011/*stderr.log binary
+review-evidence/stage1-saved-records-20261011/README.md text eol=lf
+review-evidence/stage1-saved-records-20261011/manifest.json text eol=lf

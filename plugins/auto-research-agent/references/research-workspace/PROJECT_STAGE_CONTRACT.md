@@ -165,3 +165,54 @@ and actual own-account/native acceptance. Existing saved v6/2D/3D result views
 remain separate from newly generated stage results until those source bindings
 exist. Offline fixtures, browser tests and actual research acceptance must be
 reported separately.
+
+## Saved-source and manual-reading registry seam
+
+`ProjectStage1RecordsService` is an injected server-side producer. Its three
+explicit operations register an original saved source receipt, register typed
+manual reading annotations, and produce current canonical records. It has no
+public path-taking route, downloader, model reader or automatic stage start.
+The trusted host must supply a context manager owning the current run's saved
+mutation frontier; an absent or refused guard cannot write a registry or file.
+The production query-owner wiring remains separate work.
+
+Sources require existing real Core `SourceReadStarted`/`SourceReadFinished`
+pairs. The SDK receipt stays in its original declared `output_dir`, beneath
+the fixed outside-Git materials root. Its raw receipt, every declared physical
+artifact, observation time, request/resolved URL, status and Core raw/text refs
+must agree. Registering saved bytes creates no fictitious read/import event,
+does not rewrite an original receipt and grants no protected-import authority.
+Candidates without a genuine completed source attempt block production;
+failed attempts remain distinct originals rather than invented full text.
+
+Manual annotations bind the current project/input/run/manifest, candidate,
+screening decision and effective review. Six classification and seven findings
+fields retain literal Unknowns. Every existing selected-version claim requires
+its actual Core claim ID, source ID, text hash and explicit UTF-8 character
+start/end/quote; repeated quotes are never resolved by first-match search.
+Incompatible historical claim enums are explicit blockers, never mapped
+silently. Roles require same-work claim references. Registration does not
+authenticate a model-produced reading or establish scientific truth.
+
+SQLite action and event receipts retain every annotation revision. Latest
+explicit saved event order selects a reading; JSON key order cannot select it.
+Self-rehashed mutable state, extra same-ref events, missing history and action
+receipt disagreement reject production. The output includes all candidates,
+every screening decision and every selected-version source attempt. Coverage
+and `stop`/`continue` come exclusively from the current Core checkpoint.
+
+Each run is bounded to 256 paper/source records, 256 claims per reading,
+256 KiB per registry entry, 1,024 retained entries and 16 MiB records/artifacts.
+The producer saves its intent before writing, verifies a fully written and
+synced temporary file, and publishes an exclusive final name without overwrite.
+The existing delivery service registers that immutable file with a separate
+idempotent action. This is not a filesystem/SQLite distributed transaction:
+crashes may retain a partial or complete orphan file and unknown intent. Such
+an outcome never becomes an offer automatically and is never rewritten or
+adopted on reopen. Same-key saved recovery performs no file producer again.
+
+Offline tests use two authored SDK HTTP sources with real Core/SQLite, typed
+saved annotations, canonical delivery and the actual offline package validator.
+They are engineering fixtures. Actual public acquisition, native model reading,
+complete coverage/researcher acceptance and source/model execution permits
+remain unconnected by this seam; Stage2 is unchanged.

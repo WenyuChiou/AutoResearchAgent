@@ -52,7 +52,8 @@
             "actual HTTP responses including the final landing page and stage overlay assets match their served-file hashes; registration and GET produce zero injected model writes",
             "the opt-in independent fixed SyntheticAdapter demo uses real HTTP/SQLite/controller and a bounded isolated raw-source worker; a source-pinned saved report never grants native, research, model, scoring or Stage3 authority",
             "Actual local HTTP/SQLite/core compiler/ledger fixtures isolate unrelated topics, reject mismatched revisions and unknown fields, preserve failed/unknown intents and old input versions, and recover lost responses without creating or executing another operation; installed-browser checks cover three languages, long text, desktop/tablet/mobile layout and real offline gate/export hashes. Stage1 search/source execution and full Stage2 research remain unconnected.",
-            "canonical saved-record delivery binds real source observations, all screening revisions and handoff, rejects mutable artifact/offer/source drift, preserves Unknown and failures, and recovers same-key SQLite history without rebuild; passive GET performs zero package build/source replay"
+            "canonical saved-record delivery binds real source observations, all screening revisions and handoff, rejects mutable artifact/offer/source drift, preserves Unknown and failures, and recovers same-key SQLite history without rebuild; passive GET performs zero package build/source replay",
+            "trusted saved-source and manual-reading registries bind original SDK/Core observations, current candidate/decision/review, physical hashes and exact claim offsets; all screening/source history and Core coverage are retained in atomic bounded records; guard refusal, action/event/state tampering and true SQLite reopen preserve no-rewrite outcomes without acquiring sources, invoking a model or granting acceptance"
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         }
@@ -132,6 +133,7 @@
         "plugins/auto-research-agent/tests/browser/project-intake-fixture.py",
         "plugins/auto-research-agent/tests/test_project_stage1_delivery.py",
         "plugins/auto-research-agent/tests/test_project_stage1_delivery_http.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_records.py",
         "plugins/auto-research-agent/tests/test_project_stage2_frontier.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
