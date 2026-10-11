@@ -99,3 +99,4 @@ review-evidence/stage1-coverage-20261011/*.log -text whitespace=cr-at-eol
 review-evidence/stage1-core-records-20261011/*.log -text whitespace=cr-at-eol
 review-evidence/stage1-claim-review-20261011/*.log -text whitespace=cr-at-eol
 review-evidence/stage1-reading-delivery-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-claim-review-20261011/stage1-claim-existing-20261011-v1.log -text -whitespace
