@@ -325,7 +325,8 @@ class ProjectStage1DeliveryService:
         _check(isinstance(stage1, ProjectStage1Service), "stage1-service-required")
         self.stage1, self.intake = stage1, stage1.intake
 
-    def _context(self, project_ref):
+    def _saved_context(self, project_ref):
+        """Validate live saved evidence without requiring a delivery checkpoint."""
         row = self.intake.db.execute(
             "SELECT principal FROM intake_projects WHERE ref=?", (project_ref,)
         ).fetchone()
@@ -333,8 +334,13 @@ class ProjectStage1DeliveryService:
         state = self.intake._load(row[0], project_ref)
         binding = self.intake.binding(project_ref)
         run, ledger, report = self.stage1._ledger(state, binding)
+        return row[0], state, binding, run, ledger, report
+
+    def _context(self, project_ref):
+        context = self._saved_context(project_ref)
+        ledger, report = context[4:6]
         checkpoint, ref, handoff = _checkpoint(ledger, report)
-        return row[0], state, binding, run, ledger, report, checkpoint, ref, handoff
+        return (*context, checkpoint, ref, handoff)
 
     def _check_offer(self, offer, context):
         _, _, binding, run, ledger, report, checkpoint, ref, handoff = context
