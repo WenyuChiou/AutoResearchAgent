@@ -85,3 +85,8 @@ review-evidence/stage1-saved-records-20261011/OWNER_GUARD.md text eol=lf
 review-evidence/stage1-saved-records-20261011/owner-guard-manifest.json text eol=lf
 review-evidence/stage1-screening-library-20261011/backend-final32.log -text whitespace=cr-at-eol
 review-evidence/stage1-screening-library-20261011/native-integration/*.log -text whitespace=cr-at-eol
+# Preserve the exact bounded offline source-observation receipts.
+review-evidence/stage1-source-observation-20261011/*.json text eol=lf
+review-evidence/stage1-source-observation-20261011/README.md text eol=lf
+review-evidence/stage1-source-observation-20261011/*stderr.log -text whitespace=cr-at-eol
+review-evidence/stage1-source-observation-20261011/*stdout.log -text
