@@ -398,7 +398,7 @@ def reconciliation_task(
 def _resolution_field_contract(task):
     return {
         "contract_id": "stage2-reconciliation-extraction-fields",
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "pending_categorical_ids": copy.deepcopy(task["pending"]["disagreements"]),
         "rules": {
             "addressed": (
@@ -411,6 +411,15 @@ def _resolution_field_contract(task):
                 "Every axis with status assessed must cite at least one existing, "
                 "source-supported evidence ID from the packet. If the saved reconciliation "
                 "does not support an axis, return status unknown with score null instead."
+            ),
+            "unknown_next_check": (
+                "For EVERY axis with status unknown (opportunity, value, answerability, "
+                "materials, execution), keep score null and provide a nonempty next_check. "
+                "Use the saved reconciliation and its source-bound review/task context to "
+                "describe the specific check needed to resolve that axis's missing evidence "
+                "or prerequisite. Check ALL unknown axes, including when a correction names "
+                "only the first invalid axis. A proposed check is still unperformed: do not "
+                "invent findings, source availability, permission, resources or human approval."
             ),
             "resolution": (
                 "Do not infer that a disagreement was resolved and do not auto-fill an "

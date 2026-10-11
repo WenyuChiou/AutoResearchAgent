@@ -525,7 +525,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             contract,
             {
                 "contract_id": "stage2-reconciliation-extraction-fields",
-                "schema_version": "1.0.0",
+                "schema_version": "1.1.0",
                 "pending_categorical_ids": ["opportunity", "disposition"],
                 "rules": contract["rules"],
             },
@@ -616,6 +616,106 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
         correction_prompt = adapter.calls[1]["prompt"]
         self.assertIn("stage2-reconciliation-extraction-fields", correction_prompt)
         self.assertIn('"pending_categorical_ids": []', correction_prompt)
+
+    def test_unknown_resolution_axes_keep_source_bound_followups(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        followups = {
+            "opportunity": "Compare the proposed increment with the closest source.",
+            "answerability": "Check whether the source measures the required outcome.",
+            "materials": "Check the source's stated access and reuse conditions.",
+            "execution": "Estimate the minimum workflow from the stated resources.",
+        }
+        capture, receipt, _ = self.capture(
+            "unknown-followups",
+            "reconciliation_task",
+            task,
+            json.dumps({"unverified_axes": followups}),
+            "session-unknown-followups",
+        )
+        payload = resolution_payload(self.packet)
+        payload["changed_judgment_reason"] = (
+            "The earlier checks did not establish the four axis-specific prerequisites."
+        )
+        payload["assessment"].update(
+            disposition="park",
+            next_step="Complete the saved source checks before recommending.",
+        )
+        for axis, next_check in followups.items():
+            payload["assessment"]["checks"][axis].update(
+                status="unknown",
+                score=None,
+                rationale=f"The saved reconciliation has not verified {axis}.",
+                evidence_ids=[],
+                blocking=True,
+                next_check=next_check,
+            )
+        adapter = StubModel({"resolution-extraction": payload})
+
+        result = extract_resolution(
+            **self.resolution_args(
+                reviews, capture, receipt, "unknown-followups-out", adapter
+            )
+        )
+
+        self.assertEqual(
+            result["resolution"]["assessment"]["checks"],
+            payload["assessment"]["checks"],
+        )
+        self.assertEqual(len(adapter.calls), 1)
+        prompt = json.loads(adapter.calls[0]["prompt"].split("\n", 1)[1])
+        rule = prompt["field_contract"]["rules"]["unknown_next_check"]
+        for axis in ("opportunity", "value", "answerability", "materials", "execution"):
+            self.assertIn(axis, rule)
+        self.assertIn("next_check", rule)
+        self.assertIn("saved reconciliation", rule)
+
+    def test_unknown_resolution_correction_does_not_fill_other_missing_followups(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "unknown-incomplete-correction",
+            "reconciliation_task",
+            task,
+            "The source checks for opportunity and answerability remain pending.",
+            "session-unknown-incomplete-correction",
+        )
+        initial = resolution_payload(self.packet)
+        initial["assessment"].update(
+            disposition="park", next_step="Complete the pending source checks."
+        )
+        for axis in ("opportunity", "answerability"):
+            initial["assessment"]["checks"][axis].update(
+                status="unknown",
+                score=None,
+                evidence_ids=[],
+                blocking=True,
+                next_check=None,
+            )
+        correction = copy.deepcopy(initial)
+        correction["assessment"]["checks"]["opportunity"]["next_check"] = (
+            "Compare the proposed increment with the closest source."
+        )
+        adapter = StubModel(
+            {
+                "resolution-extraction": initial,
+                "resolution-extraction-correction": correction,
+            }
+        )
+        output = self.root / "unknown-incomplete-correction-out"
+
+        with self.assertRaisesRegex(
+            Stage2Error, "unknown-next-check-required: answerability"
+        ):
+            extract_resolution(
+                **self.resolution_args(reviews, capture, receipt, output, adapter)
+            )
+
+        self.assertEqual(len(adapter.calls), 2)
+        for call in adapter.calls:
+            self.assertIn('"unknown_next_check"', call["prompt"])
+        self.assertFalse((output / "resolution.json").exists())
+        self.assertFalse((output / "resolution-extraction.unit.json").exists())
 
     def test_model_output_and_public_resolution_envelope_use_distinct_paths(self):
         reviews = self.independent_reviews()
