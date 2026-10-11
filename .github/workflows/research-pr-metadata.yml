@@ -1,0 +1,32 @@
+name: Research PR metadata
+
+# This workflow solely owns pr-contract for source and metadata events. It never
+# emits contracts (...) statuses that could overwrite a failed source check.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.11.3"
+      - name: Validate research PR explanation
+        run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/validate_research_pr.py
+      - name: Validate stacked and external dependencies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python .github/scripts/check_research_pr_dependencies.py
+      - name: Reject whitespace and line-ending errors
+        run: git diff --check ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
