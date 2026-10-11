@@ -1,0 +1,57 @@
+{
+  "actual_codex_model_calls": 0,
+  "actual_external_search": false,
+  "boundary": "authored acquisition transport; real installed SDK, Windows Job, SQLite, Harness ledger and saved registry",
+  "combined_suite": false,
+  "full_final_head_ci": "pending",
+  "integration": {
+    "original_source_reservation_seconds": 300,
+    "seconds": 227.653,
+    "status": "passed",
+    "tests": 1
+  },
+  "kind": "Stage1AdapterScopedEngineeringEvidence",
+  "logs_sha256": {
+    "saved-registration-checkpoint-fix-20261011-v1.log": "6fb0cdd073427bbc0e72e5a83a4130f76787c2e5e237e764a9fb09f79c889e70",
+    "source-job-cap-focused-20261011-v2.log": "19e3d9606924cb12cdfdb545ee4e35168e0169ec9df963df84c59ba0dffb87c9",
+    "source-saved-pipeline-focused-20261011-v8.log": "f8f4a8245bcfd12e85c1ce89e4d9e0423dcd5d85105b3ba94391ee69d6ca9932",
+    "source-saved-pipeline-focused-20261011-v9.log": "c1ab08b1d89451cd025def8632ba73c581e4ebe5f19b35cedd974d72fdfcadcc",
+    "source-saved-pipeline-worker-gate-deadline-20261011-v1.log": "293c66a9d50ca63f523f839a92a3fab940ed9e10d7ce4a66b902c1338ab2d524"
+  },
+  "preflight": {
+    "seconds": 0.036,
+    "status": "passed",
+    "tests": 2
+  },
+  "preserved_failure": {
+    "code": "stage1-current-checkpoint-required",
+    "run": "v8",
+    "status": "failed"
+  },
+  "registration": {
+    "production_scope": "checkpoint required for delivery; not for current saved-observation registration",
+    "seconds": 22.674,
+    "status": "passed",
+    "tests": 3
+  },
+  "schema_version": "1.0.0",
+  "scientific_acceptance": false,
+  "sdk_commit": "496a70415859a15031cb5da55d4495cb1d0a8e7d",
+  "source_sha256": {
+    "cli/research_workspace_native/portable_source_worker_profile.py": "b7375a03132119f7515117ae13d83452c87714b6fd58fede98ecf2ec6db0dd2e",
+    "cli/research_workspace_native/project_source_saved_pipeline.py": "1ce5febe3d514b60720ed016ee9014acd88bf7fc7bd31a0766067975d29f7514",
+    "cli/research_workspace_native/project_stage1_delivery.py": "b6a2ff3a63e858ae9d0e21f6e1d66a40b3babc7a42f7d5ef65b4a90bc7dc7cca",
+    "cli/research_workspace_native/project_stage1_records.py": "ab74b9125135770033d3b80f270ce2d25bc5e49fcc552f029e7c7ebb63ba2c51",
+    "references/research-workspace/examples/run-project-workspace.py": "9d69354a08e7b6ce3c040ddd6804184788a640324ce74106b58a518080d3f2f5",
+    "tests/source_saved_pipeline_cases.py": "1f57a1a11f2ecd76acbf0e4e5e78b0368cc338420b1f9c73361e662b3fd105b7",
+    "tests/test_project_stage1_records.py": "078d38aab1a09d41cf6698d1e2d9b1f2bfdab1684ca974a3104f7920b9152045",
+    "tests/test_source_saved_pipeline.py": "5cafbfbc659534e683069053d14be6a499ea93fc63e88691b47219516870b4fe"
+  },
+  "stage1_complete": false,
+  "stage2": "interface-only",
+  "worker_deadline": {
+    "seconds": 0.416,
+    "status": "passed",
+    "tests": 1
+  }
+}

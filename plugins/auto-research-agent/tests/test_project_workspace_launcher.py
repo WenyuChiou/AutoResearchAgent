@@ -94,6 +94,18 @@ class ProjectWorkspaceLauncherTests(unittest.TestCase):
             self.inspect()
         self.assertFalse(checked["root"].exists())
 
+    def test_source_job_cap_remains_bounded_before_store_creation(self):
+        self.assertEqual(self.args.source_cap_seconds, 60)
+        for cap in (0, 301, True):
+            with self.subTest(cap=cap):
+                self.args.source_cap_seconds = cap
+                with self.assertRaisesRegex(ValueError, "source cap"):
+                    self.inspect()
+                self.assertFalse((self.root / "projects").exists())
+        self.args.source_cap_seconds = 120
+        self.assertEqual(self.inspect()["root"], self.root / "projects")
+        self.assertFalse((self.root / "projects").exists())
+
     def test_complete_runtime_inventory_has_room_and_keeps_exact_byte_pin(self):
         value = dict(
             kind="ProjectStage1QueryRuntime",

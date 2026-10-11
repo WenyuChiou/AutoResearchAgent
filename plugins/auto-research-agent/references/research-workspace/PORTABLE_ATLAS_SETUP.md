@@ -162,6 +162,16 @@ missing DOI or unavailable legal body is a visible refusal, not a fabricated PDF
 The source worker uses Windows process containment. Other operating systems keep
 this source path unavailable until an equivalent admitted implementation exists.
 
+The source-job ceiling defaults to 60 seconds. For SDK parsing plus registration,
+configure `--source-cap-seconds 300` before startup if that fits the researcher's
+total budget. Values must remain within the unchanged Harness 1..300-second bound.
+The displayed source offer includes this limit, and each newly confirmed job
+reserves it against the existing project budget before execution. This does not
+extend an existing job, restore consumed time, or change the overall budget.
+The full contained SDK/Core/registry engineering case was verified with a new
+300-second reservation. Earlier shorter runs remain historical failures; they
+are not retrospectively extended or claimed as successful.
+
 For own-account reading, use `--enable-content-model --model YOUR_MODEL`
 and optionally `--model-cap-seconds 60`; the default per-call ceiling is 120
 seconds. Select your installed Codex executable and home with `--codex` and

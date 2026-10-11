@@ -182,6 +182,12 @@ def parser():
     value.add_argument("--stage1-query-runtime-sha256")
     value.add_argument("--stage1-materials-root", type=Path)
     value.add_argument(
+        "--source-cap-seconds",
+        type=int,
+        default=60,
+        help="Source-job ceiling including parsing/registration, within Harness 1..300 seconds",
+    )
+    value.add_argument(
         "--enable-public-sources",
         action="store_true",
         help="Register the contained Windows source worker; each source still needs UI authorization",
@@ -205,6 +211,10 @@ def parser():
 
 def inspect_inputs(args):
     """Filesystem-only checks; do not create an output or import owned modules."""
+    require(
+        type(args.source_cap_seconds) is int and 1 <= args.source_cap_seconds <= 300,
+        "source cap must remain within Harness 1..300 seconds",
+    )
     require(
         HASH.fullmatch(args.source_helper_sha256), "external helper SHA256 required"
     )
@@ -441,6 +451,7 @@ def prepare(args, checked, *, source=None, inventory=None):
                 repo=checked["repo"],
                 materials_root=checked["stage1_materials_root"],
                 runtime_sha256=digest(source.canonical(runtime["value"]["pin"])),
+                timeout_seconds=args.source_cap_seconds,
             )
             runner, source_config = register_source_worker(profile)
             records = queries.create_records_service(

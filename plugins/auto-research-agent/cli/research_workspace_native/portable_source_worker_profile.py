@@ -40,13 +40,19 @@ class PortableSourceWorkerProfile:
         return decode(self._raw)
 
 
-def prepare_source_worker_profile(*, repo, materials_root, runtime_sha256):
+def prepare_source_worker_profile(
+    *, repo, materials_root, runtime_sha256, timeout_seconds=60
+):
     """Derive one fixed server profile; no caller JSON/caps/argv/env are read.
 
     runtime_sha256 is the portable host's already verified runtime binding.
     It is deliberately not synthesized from a declared version string here.
     Raw hashes are physical configuration evidence, not authentication.
     """
+    require(
+        type(timeout_seconds) is int and 1 <= timeout_seconds <= 300,
+        "source-profile-timeout-outside-harness-bound",
+    )
     require(
         type(runtime_sha256) is str
         and len(runtime_sha256) == 64
@@ -109,6 +115,7 @@ def prepare_source_worker_profile(*, repo, materials_root, runtime_sha256):
         runtime_sha256=runtime_sha256,
         execution_source_sha256=inventory_sha,
     )
+    source["caps"]["timeout_seconds"] = timeout_seconds
     return PortableSourceWorkerProfile(
         dict(
             kind="PortableContainedSourceProfile",

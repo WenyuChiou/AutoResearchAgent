@@ -135,6 +135,10 @@ class SourceSavedPipelineCases(ProjectQueryCases):
             repo=get_source_proof()["repo"],
             materials_root=materials,
             runtime_sha256="1" * 64,
+            # The complete raw-pinned SDK/Core/registry path is measured under
+            # the unchanged Harness maximum, within this fixture's 600 budget.
+            # Earlier 60/120-second reservations remain separate failed runs.
+            timeout_seconds=300,
         )
         worker, source_config = register_source_worker(profile)
         runtime = prepare_saved_parser_runtime(

@@ -28,7 +28,7 @@ from .project_stage1_saved_import import (
     prepare_saved_sdk_import,
 )
 from .saved_source_parser_factory import ContainedSavedSourceParserFactory
-from .session_api import _check
+from .session_api import SessionApiError, _check
 
 
 class SourceJobDeadline:
@@ -300,6 +300,9 @@ class SourceSavedPipeline:
                     failure=dict(
                         code="source-pipeline-failed-or-unobserved",
                         error_type=error_type,
+                        error_code=error.code
+                        if isinstance(error, SessionApiError)
+                        else None,
                         parser_entered=entered,
                     ),
                 )
