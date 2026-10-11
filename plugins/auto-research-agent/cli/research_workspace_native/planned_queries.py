@@ -33,6 +33,7 @@ from research_workspace_native.query_execution_source import check_execution_sou
 
 
 SAVED_OPERATIONS = {
+    "stage1-claim",
     "stage1-coverage",
     "stage1-screen",
     "stage1-plan-query",

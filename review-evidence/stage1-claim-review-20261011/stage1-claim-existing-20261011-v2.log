@@ -1,0 +1,9 @@
+test_consumed_reading_permits_are_unavailable_after_success_or_unknown_failure (test_project_model_reading.SavedReadingTests.test_consumed_reading_permits_are_unavailable_after_success_or_unknown_failure) ... ok
+test_shared_queue_reserves_once_and_publishes_only_verified_reading_draft (test_project_model_reading.SavedReadingTests.test_shared_queue_reserves_once_and_publishes_only_verified_reading_draft) ... ok
+test_snapshot_replays_actual_saved_source_and_preserves_unknown_without_mutation (test_project_model_reading.SavedReadingTests.test_snapshot_replays_actual_saved_source_and_preserves_unknown_without_mutation) ... ok
+test_source_tamper_and_invented_or_wrong_quote_spans_refuse (test_project_model_reading.SavedReadingTests.test_source_tamper_and_invented_or_wrong_quote_spans_refuse) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 47.785s
+
+OK

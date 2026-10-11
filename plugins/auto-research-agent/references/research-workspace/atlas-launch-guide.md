@@ -232,5 +232,20 @@ Offers expire when the input or ledger changes. Refresh reads saved history;
 reusing the same request key returns that history without another Core write.
 An unobserved write retains execution-unknown and holds new saved Stage 1 writes.
 Closed-round saved observations remain readable through their existing owner;
-query execution still requires an open, ready, admitted round. The new-topic
-source-to-ClaimEvidence writer and complete live Stage 1 acceptance remain pending.
+query execution still requires an open, ready, admitted round.
+
+## Saved reading and delivery
+
+Open a saved read-paper result, choose an exact quote, and explicitly record the
+claim and source location. Pending stays pending. Separately review the reading
+classification/findings and confirm the reading note. Neither action accepts
+coverage or starts another model task. Unknown, rejected/pending works, old
+versions, failed source reads and original Core claim events remain available.
+
+For a delivery preview: check the current evidence gate, export the saved ledger,
+prepare its reading records, then build the canonical package. Inspect the gate
+and artifact hashes; a successful file save can still be partial/review-only.
+Do not treat it as accepted Stage1 or scientific improvement. Canonical 1.1 has
+no Stage2 consumer yet, so Stage2 remains unconnected for that package. Stage3-6
+are planned. Complete live Stage1 and each teammate own-account acceptance have
+not been demonstrated. Earlier expired permits do not authorize new work.

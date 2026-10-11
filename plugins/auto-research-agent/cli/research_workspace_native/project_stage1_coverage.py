@@ -32,7 +32,7 @@ def unresolved(service, ref, actor, version):
     return [
         row
         for raw in rows
-        if (row := json.loads(raw[0]))["kind"] == "stage1-coverage"
+        if (row := json.loads(raw[0]))["kind"] in {"stage1-coverage", "stage1-claim"}
         and row["status"] in {"intent-recorded", "execution-unknown"}
         and row["request"]["input_version"] == version
     ]

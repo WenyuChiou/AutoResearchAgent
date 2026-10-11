@@ -142,6 +142,7 @@
         }
       ],
       "guardrails": [
+        "Saved read-paper model output is only a draft. Explicit human claim review revalidates its raw output, checked draft, original snapshot and current source/version bytes; Core claim semantics and the shared saved owner remain authoritative. Same-key recovery is history-only, uncertain local append holds new writes across reopen, and claim creation alone grants no model/source authority, reading registration, coverage acceptance or stage completion.",
         "no implicit reconnect, turn creation, retries or default approvals",
         "caller owns durable persistence, project authority and admitted process lifecycle",
         "no unadmitted launcher or model calls, frozen input access or scientific score changes",
@@ -299,6 +300,8 @@
         "plugins/auto-research-agent/tests/test_project_stage1_saved_import.py",
         "plugins/auto-research-agent/tests/test_project_stage1_screening.py",
         "plugins/auto-research-agent/tests/test_project_model_reading.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_claims.py",
+        "plugins/auto-research-agent/tests/project_claim_browser_fixture.py",
         "plugins/auto-research-agent/tests/test_project_stage1_source_service.py",
         "plugins/auto-research-agent/tests/test_project_stage1_source_http.py",
         "plugins/auto-research-agent/tests/test_project_source_dispatch.py",

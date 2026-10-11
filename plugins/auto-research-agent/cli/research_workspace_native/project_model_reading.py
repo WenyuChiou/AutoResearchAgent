@@ -27,8 +27,18 @@ def saved_reading_snapshot(records, project_ref, work_ref, *, check_deadline=Non
         400,
     )
     with records.intake._lock:
-        context = records.delivery._context(project_ref)
-        principal, _, binding, run, ledger, report, checkpoint, *_ = context
+        # Reading saved sources precedes coverage completion and delivery.
+        # Keep the owned frontier/bytes checks, without demanding a fresh export gate.
+        context = records.delivery._saved_context(project_ref)
+        principal, _, binding, run, ledger, report = context
+        checkpoints = [
+            row["payload"]
+            for row in ledger.events()
+            if row["payload"]["kind"] == "Checkpoint"
+        ]
+        # Retain the last observation, even when later evidence made it stale.
+        # This snapshot never uses it as a completion/admission decision.
+        checkpoint = checkpoints[-1] if checkpoints else None
         with records.guard(run, ledger, report) as guard_check:
             current = records._mutation_check(
                 project_ref, report["state_sha256"], guard_check
@@ -263,6 +273,7 @@ def validate_reading_draft(raw, snapshot):
             _check(
                 claim is not None
                 and claim["source_ref"] == source["text_ref"]
+                and claim["locator"] is not None
                 and claim["locator"]["quote"] == span["quote"],
                 "reading-draft-existing-claim-differs",
             )

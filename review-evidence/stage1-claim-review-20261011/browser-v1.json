@@ -1,0 +1,13 @@
+{
+  "schema_version": "Stage1ClaimBrowserFailure.v1",
+  "original_log": {
+    "file": "stage1-claim-browser-20261011-v1.log",
+    "sha256": "ca4c254a7d1fbea30117f9ed25d02dd888e7aad7f2f38be8bfe88c6f921e25e5",
+    "bytes": 1214,
+    "public_raw_copy": false
+  },
+  "status": "failed-before-host-start",
+  "exception": "ValueError",
+  "message": "invalid server token map",
+  "interpretation": "Authored fixture credential failed the unchanged Host token syntax check. No browser claim save occurred in this attempt."
+}

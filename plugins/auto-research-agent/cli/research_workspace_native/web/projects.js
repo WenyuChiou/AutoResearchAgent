@@ -156,10 +156,10 @@
   Object.assign(words.en, {retire: "End this unsent attempt", retirementHelp: "Only a server-verified, never-dispatched attempt can be ended. Unknown outcome and reserved budget remain; this never reruns the task.", retirementReason: "Reason for ending this unsent attempt", retired: "Ended without resend · original outcome remains Unknown", retirementBlocked: "Native dispatch or cleanup remains unproven; this attempt stays held."});
   Object.assign(words["zh-Hans"], {retire: "结束这次未派发尝试", retirementHelp: "仅能结束服务端确认未派发的尝试。未知结果与已预留预算保留，不会重跑任务。", retirementReason: "结束这次未派发尝试的原因", retired: "已结束且不重发 · 原结果仍为 Unknown", retirementBlocked: "缺少原生派发或清理证据；这次尝试继续保持暂停。"});
   Object.assign(words["zh-Hant"], {retire: "結束這次未派發嘗試", retirementHelp: "僅能結束伺服器確認未派發的嘗試。未知結果與已預留預算保留，不會重跑任務。", retirementReason: "結束這次未派發嘗試的原因", retired: "已結束且不重送 · 原結果仍為 Unknown", retirementBlocked: "缺少原生派發或清理證據；這次嘗試繼續保持暫停。"});
-  Object.assign(words.en, {ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
-  Object.assign(words["zh-Hans"], {ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
-  Object.assign(words["zh-Hant"], {ledgerDeliver: "用已保存閱讀紀錄產生正式交付包", deliveryMissing: "尚無此版本綁定的閱讀紀錄。紀錄匯出與研究交付包是不同產物。", deliveryReady: "閱讀紀錄已綁定目前檢查點。產生檔案不代表覆蓋或研究品質通過。", deliverySaved: "已保存正式研究交付包 · 繼續前請檢查覆蓋判斷。"});
-  const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0 };
+  Object.assign(words.en, {ledgerPrepare: "Prepare saved reading delivery", ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
+  Object.assign(words["zh-Hans"], {ledgerPrepare: "准备已保存阅读交付", ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
+  Object.assign(words["zh-Hant"], {ledgerPrepare: "準備已保存閱讀交付", ledgerDeliver: "用已保存閱讀紀錄產生正式交付包", deliveryMissing: "尚無此版本綁定的閱讀紀錄。紀錄匯出與研究交付包是不同產物。", deliveryReady: "閱讀紀錄已綁定目前檢查點。產生檔案不代表覆蓋或研究品質通過。", deliverySaved: "已保存正式研究交付包 · 繼續前請檢查覆蓋判斷。"});
+  const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0, readingReview: null, readingGeneration: 0 };
   const storageKey = "harness-project-ui-intents-v1";
   let pending = [];
   try { pending = JSON.parse(sessionStorage.getItem(storageKey) || "[]"); } catch (_) {}
@@ -223,10 +223,57 @@
     document.querySelectorAll("button[data-model-retire]").forEach((button) => { button.disabled = blocked || !state.project; });
     $("ledger-init").disabled = projectBlocked || !state.stage1 || !state.stage1.initialization_offer;
     for (const id of ["ledger-checkpoint", "ledger-export"]) $(id).disabled = projectBlocked || !state.stage1 || !state.stage1.ledger;
+    $("ledger-prepare").disabled = projectBlocked || !availableSavedPreparation();
     $("ledger-deliver").disabled = projectBlocked || !availableDelivery();
     const queries = state.stage1 && state.stage1.query_execution;
     for (const [id, field] of [["query-authorize", "authorization_offer"], ["query-bootstrap", "bootstrap_offer"], ["query-execute", "query_offer"], ["query-restore-owner", "owner_offer"]]) $(id).disabled = projectBlocked || !queries || !queries[field];
     if (window.ResearchProjectCoverage) window.ResearchProjectCoverage.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked, submit: submitCoverage});
+    if (window.ResearchProjectReading) window.ResearchProjectReading.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
+    document.querySelectorAll("button[data-reading-draft]").forEach(button => { button.disabled = blocked || !state.project || button.dataset.readingInput !== String(state.project.input_version) || button.dataset.readingBrief !== state.project.brief_sha256; });
+  }
+  async function openReadingDraft(ref, result) {
+    const project = state.project, generation = state.generation, language = state.language;
+    const draftSha = result.reading_draft && result.reading_draft.sha256;
+    if (!window.ResearchProjectReading || state.busy || state.loading || !project || project.project_ref !== ref
+        || result.input_version !== project.input_version || result.brief_sha256 !== project.brief_sha256
+        || !/^[0-9a-f]{64}$/.test(result.output_ref || "") || !/^[0-9a-f]{64}$/.test(draftSha || "")) return;
+    const task = ++state.readingGeneration;
+    const reply = await request(route(ref, "stage1/reading/" + result.output_ref));
+    if (generation !== state.generation || task !== state.readingGeneration || language !== state.language
+        || !state.project || state.project.project_ref !== ref) return;
+    if (reply.output_ref !== result.output_ref || reply.draft_sha256 !== draftSha
+        || !window.ResearchProjectReading.render(reply, submitReadingClaim, submitReadingReview)) throw new Error("reading-draft-binding-differs");
+    state.readingReview = reply;
+  }
+  async function submitReadingClaim(item) {
+    const project = state.project, view = state.readingReview;
+    if (!project || state.busy || state.loading || state.activeJob || !view
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || !state.stage1 || !state.stage1.ledger
+        || item.ledger_state_sha256 !== state.stage1.ledger.state_sha256
+        || item.output_ref !== view.output_ref || item.draft_sha256 !== view.draft_sha256
+        || !rows(view, "offers").some(offer => offer.evidence_index === item.evidence_index && offer.offer_ref === item.offer_ref && offer.offer_sha256 === item.offer_sha256)) return null;
+    const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
+    const result = await mutate("stage1/claim", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, output_ref: item.output_ref, draft_sha256: item.draft_sha256, evidence_index: item.evidence_index, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+    return result;
+  }
+  async function submitReadingReview(item) {
+    const project = state.project, view = state.readingReview, offer = view && view.reading_review_offer;
+    if (!project || state.busy || state.loading || state.activeJob || !offer || item.confirmed !== true
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || !state.stage1 || !state.stage1.ledger
+        || item.ledger_state_sha256 !== state.stage1.ledger.state_sha256
+        || item.output_ref !== view.output_ref || item.draft_sha256 !== view.draft_sha256
+        || item.offer_ref !== offer.offer_ref || item.offer_sha256 !== offer.offer_sha256) return null;
+    const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
+    const result = await mutate("stage1/reading-review", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, output_ref: item.output_ref, draft_sha256: item.draft_sha256, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+    return result;
   }
   async function submitCoverage(item) {
     const project = state.project, view = state.stage1 && state.stage1.coverage_actions;
@@ -248,7 +295,7 @@
     const actionKey = key(); body.key = actionKey;
     let sent = false;
     try {
-      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/retire": "model-retirement", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute"}[operation] || operation.replace("stage1/", "stage1-");
+      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/retire": "model-retirement", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute", "stage1/reading-review": "stage1-reading-registry", "stage1/prepare-delivery": "stage1-produce-records"}[operation] || operation.replace("stage1/", "stage1-");
       const request_sha256 = await requestHash(kind, body);
       remember({ key: actionKey, project_ref: ref || null, operation, kind, request_sha256 });
       sent = true;
@@ -333,6 +380,10 @@
     if (!delivery || delivery.canonical_package && delivery.canonical_package.status === "saved-evidence-validated") return null;
     return (delivery.offers || []).find((row) => row.status === "ready-for-saved-evidence-delivery") || null;
   }
+  function availableSavedPreparation() {
+    const stage1 = state.stage1;
+    return Boolean(stage1 && stage1.ledger && stage1.checkpoint && stage1.checkpoint.current === true && stage1.saved_records_connected === true);
+  }
   function renderSources() {
     const source = state.stage1 && state.stage1.source_execution;
     if (!source) return;
@@ -406,6 +457,7 @@
   async function loadProject(ref) {
     const generation = ++state.generation;
     document.dispatchEvent(new Event("project-screening-clear"));
+    state.readingReview = null; ++state.readingGeneration;
     state.modelHistory = []; state.historyNext = null; state.output = null;
     $("output-reader").hidden = true; $("history-more").hidden = true;
     state.loading = true; state.activeJob = false; state.modelOffers = []; state.modelStatus = null; state.stage1 = null; state.stage2 = null; buttons();
@@ -502,6 +554,11 @@
       if (result.output_preview || result.output || result.final_text || result.proposal_text || result.text) text(card, "pre", result.output_preview || result.output || result.final_text || result.proposal_text || result.text);
       if (result.output_truncated) text(card, "p", t("preview"), "subtle");
       if (result.output_ref && result.output_sha256) { const button = text(card, "button", t("viewOutput")); button.type = "button"; button.onclick = guarded(() => readOutput(ref, result.output_ref, 0, result.output_sha256)); }
+      if (window.ResearchProjectReading && result.reading_draft && /^[0-9a-f]{64}$/.test(result.reading_draft.sha256 || "") && /^[0-9a-f]{64}$/.test(result.output_ref || "")) {
+        const button = text(card, "button", window.ResearchProjectReading.text("open")); button.type = "button";
+        button.dataset.readingDraft = result.output_ref; button.dataset.readingInput = String(result.input_version); button.dataset.readingBrief = result.brief_sha256;
+        button.onclick = guarded(() => openReadingDraft(ref, result));
+      }
       if (result.plan || result.plan_manifest_sha256) text(card, "p", t("planReady"));
       if (result.import_status || result.workflow_status) text(card, "p", result.import_status || result.workflow_status);
       const details = document.createElement("details"); card.append(details); text(details, "summary", t("sourceDetails"));
@@ -750,12 +807,16 @@
     if (operation === "initialize") { const offer = state.stage1.initialization_offer; if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
     else { if (!state.stage1.ledger) return; body.ledger_state_sha256 = state.stage1.ledger.state_sha256; }
     if (operation === "deliver") { const offer = availableDelivery(); if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
-    const ref = state.project.project_ref, result = await mutate("stage1/" + operation, body, ref);
-    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+    if (operation === "prepare-delivery") { if (!availableSavedPreparation()) return; body.checkpoint_event_id = state.stage1.checkpoint.event_id; }
+    const ref = state.project.project_ref, generation = state.generation, version = state.project.input_version, brief = state.project.brief_sha256;
+    const result = await mutate("stage1/" + operation, body, ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
   }
   $("ledger-init").onclick = guarded(() => ledger("initialize"));
   $("ledger-checkpoint").onclick = guarded(() => ledger("checkpoint"));
   $("ledger-export").onclick = guarded(() => ledger("export"));
+  $("ledger-prepare").onclick = guarded(() => ledger("prepare-delivery"));
   $("ledger-deliver").onclick = guarded(() => ledger("deliver"));
   async function queryAction(operation, field) {
     if (!state.project || state.loading || !state.stage1) return;

@@ -269,7 +269,7 @@ class ProjectIntakeService:
                 self.db.rollback()
                 receipt.update(
                     status="execution-unknown"
-                    if work_completed or kind == "stage1-coverage"
+                    if work_completed or kind in {"stage1-coverage", "stage1-claim"}
                     else "failed",
                     error=str(error)[:512],
                 )
@@ -278,7 +278,7 @@ class ProjectIntakeService:
                         failure_phase="post-work-before-commit",
                         output_observation=deepcopy(result),
                     )
-                elif kind == "stage1-coverage":
+                elif kind in {"stage1-coverage", "stage1-claim"}:
                     # A Core append can succeed before its producer raises.
                     # Keep this new local action held; failed is unlockable by UI.
                     receipt["failure_phase"] = "core-write-outcome-unobserved"

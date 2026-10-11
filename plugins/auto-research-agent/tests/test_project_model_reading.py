@@ -438,8 +438,16 @@ class SavedReadingTests(unittest.TestCase):
                         return object()
 
                     with patch.dict(os.environ, {"CODEX_HOME": str(own_home)}):
+                        import planned_query_fixture
+
+                        proof = getattr(planned_query_fixture, "RAW_SOURCE_PROOF", None)
+                        owned_repo = (
+                            Path(proof["repo"])
+                            if proof is not None
+                            else Path(__file__).resolve().parents[3]
+                        )
                         own_factory = OwnAccountProjectModelFactory(
-                            Path(__file__).resolve().parents[3],
+                            owned_repo,
                             executable,
                             config,
                             own_home,

@@ -193,6 +193,126 @@ class ProjectCoverageOwnedTests(unittest.TestCase):
         )
         self.assertEqual(case.children, [])
 
+    def test_claim_kind_uses_owned_writer_and_preserves_pending_metadata(self):
+        """Exercise the trusted saved-write wrapper, not model draft approval."""
+        if self.raw_child():
+            return
+        from stage1_deliverable.common import canonical, sha
+
+        case = self.case
+        with case.fake_runner(), case.no_probe():
+            queued = case.queries.execute(
+                "alice-token", case.ref, case.body("query_offer", "claim-candidate")
+            )
+            owner = case.queries.services[case.ref]
+            owner._workers[case.ref].join(30)
+        self.assertFalse(owner._workers[case.ref].is_alive())
+        self.assertEqual(
+            owner.get_action("alice-token", case.ref, queued["query_action_key"])[
+                "status"
+            ],
+            "completed",
+        )
+        ledger = self.ledger()
+        work_id, candidate = next(iter(ledger.candidates().items()))
+        version = candidate["version_ids"][0]
+        source_ref = candidate["discoveries"][0]["source_ref"]
+        args = dict(
+            work_id=work_id,
+            version_id=version,
+            claim_text="Unknown: authored metadata awaits human source review.",
+            relation="pending",
+            evidence_level="metadata",
+            locator=None,
+            source_ref=source_ref,
+            verifier=dict(actor="alice", actor_type="human", method="fixture-review"),
+        )
+        request = dict(
+            bound_body(case.intake.read("alice-token", case.ref), "owned-claim"),
+            ledger_state_sha256=ledger.state_hash(),
+            confirmed=True,
+            output_ref="synthetic-wrapper-output",
+            draft_sha256=sha(canonical(args)),
+            evidence_index=0,
+            offer_ref="synthetic-wrapper-offer",
+            offer_sha256=sha(canonical(args)),
+            review=dict(
+                claim_text=args["claim_text"],
+                relation="pending",
+                evidence_level="metadata",
+                section="Unknown",
+            ),
+        )
+        before = ledger.events()
+        budget = deepcopy(owner.view("alice-token", case.ref)["budget"])
+        child_count = len(case.children)
+
+        def produce(_, run, owned, request_sha, actor):
+            event = owned.claim(**args)
+            return dict(
+                claim_event_id=event,
+                ledger_state_sha256=owned.state_hash(),
+                scientific_acceptance=False,
+                reading_registration=False,
+            )
+
+        def mutate(payload):
+            return case.stage1._mutate(
+                "alice-token",
+                case.ref,
+                payload,
+                "stage1-claim",
+                produce,
+                fields={
+                    "output_ref",
+                    "draft_sha256",
+                    "evidence_index",
+                    "offer_ref",
+                    "offer_sha256",
+                    "review",
+                },
+                preflight=lambda *args: None,
+            )
+
+        with patch.object(owner, "mutate_saved", wraps=owner.mutate_saved) as write:
+            result = mutate(request)
+            self.assertEqual(result["status"], "saved")
+            self.assertEqual(write.call_count, 1)
+            self.assertEqual(write.call_args.args[5], "stage1-claim")
+            with patch.object(
+                CoverageLedger, "claim", side_effect=AssertionError("repeat")
+            ):
+                replay = mutate({**request, "revision": 999})
+                self.assertTrue(replay["replayed"])
+                self.assertEqual(replay["claim_event_id"], result["claim_event_id"])
+            self.assertEqual(write.call_count, 1)
+        self.assertEqual(ledger.events()[: len(before)], before)
+        self.assertEqual(len(ledger.events()), len(before) + 1)
+        claim = ledger.event(result["claim_event_id"], "ClaimEvidence")
+        self.assertEqual(
+            (claim["relation"], claim["evidence_level"]), ("pending", "metadata")
+        )
+        self.assertEqual(owner.view("alice-token", case.ref)["budget"], budget)
+        self.assertEqual(len(case.children), child_count)
+        self.assertFalse(result["scientific_acceptance"])
+
+        fresh = dict(
+            request,
+            key="closed-owner-claim",
+            revision=case.intake.read("alice-token", case.ref)["revision"],
+            ledger_state_sha256=ledger.state_hash(),
+        )
+        history = case.intake.history("alice-token", case.ref)["actions"]
+        case.queries.close()
+        with self.assertRaisesRegex(
+            SessionApiError, "project-query-saved-owner-unavailable"
+        ):
+            mutate(fresh)
+        self.assertEqual(
+            case.intake.history("alice-token", case.ref)["actions"], history
+        )
+        self.assertEqual(len(ledger.events()), len(before) + 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -88,7 +88,38 @@ def refusal_shape(kind, body, key, project_ref):
             },
             set(),
         ),
+        "stage1-claim": (
+            BOUND_FIELDS
+            | {
+                "ledger_state_sha256",
+                "output_ref",
+                "draft_sha256",
+                "evidence_index",
+                "offer_ref",
+                "offer_sha256",
+                "review",
+                "confirmed",
+            },
+            set(),
+        ),
         "stage1-export": (BOUND_FIELDS | {"ledger_state_sha256", "confirmed"}, set()),
+        "stage1-reading-registry": (
+            BOUND_FIELDS
+            | {
+                "ledger_state_sha256",
+                "output_ref",
+                "draft_sha256",
+                "offer_ref",
+                "offer_sha256",
+                "review",
+                "confirmed",
+            },
+            set(),
+        ),
+        "stage1-produce-records": (
+            BOUND_FIELDS | {"ledger_state_sha256", "checkpoint_event_id", "confirmed"},
+            set(),
+        ),
         "stage1-deliver": (
             BOUND_FIELDS
             | {"ledger_state_sha256", "offer_ref", "offer_sha256", "confirmed"},

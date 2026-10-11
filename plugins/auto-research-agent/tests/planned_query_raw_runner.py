@@ -59,6 +59,9 @@ def main():
         if args.complete_plugin:
             files = helper.inventory(plugin)
         loader = helper.PinnedLoader(snapshot, files)
+        helper.__spec__ = loader.find_spec(helper.__name__)
+        helper.__loader__ = loader
+        helper.__package__ = helper.__name__.rpartition(".")[0]
         sys.meta_path.insert(0, loader)
         sys.modules[helper.__name__] = helper
         sys.path[:0] = [str(plugin / "cli"), str(tests), str(tests)]

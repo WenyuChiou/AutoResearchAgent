@@ -33,7 +33,10 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|prepare-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+)
+READING_ROUTE = re.compile(
+    r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -99,6 +102,9 @@ class ProjectHost(AtlasHost):
             None if stage1 is None else ProjectStage1DeliveryService(stage1)
         )
         self.project_stage1_records = None
+        self.project_stage1_claims = None
+        self.project_reading_review = None
+        self.project_records_prepare = None
         if stage1_materials_root is not None:
             from .project_stage1_queries import ProjectStage1QueryService
 
@@ -114,11 +120,26 @@ class ProjectHost(AtlasHost):
             self.project_stage1_records = queries.create_records_service(
                 self.project_stage1_delivery, materials_root=stage1_materials_root
             )
+            from .project_records_prepare import ProjectRecordsPrepareService
+
+            self.project_records_prepare = ProjectRecordsPrepareService(
+                self.project_stage1_records
+            )
             if models is not None:
                 from .project_model import ProjectModelService
 
                 if isinstance(models, ProjectModelService):
                     models.attach_reading_records(self.project_stage1_records)
+                    from .project_stage1_claims import ProjectStage1ClaimService
+
+                    self.project_stage1_claims = ProjectStage1ClaimService(
+                        stage1, models, self.project_stage1_records
+                    )
+                    from .project_reading_review import ProjectReadingReviewService
+
+                    self.project_reading_review = ProjectReadingReviewService(
+                        self.project_stage1_claims
+                    )
         # Saved package build/replay is bounded filesystem work. The generic
         # 5-second socket default can expire after work but before commit; use
         # the existing hard 30-second HTTP cap, still checked before admission
@@ -132,6 +153,7 @@ class ProjectHost(AtlasHost):
             "projects.css",
             "projects-library.js",
             "projects-coverage.js",
+            "projects-reading.js",
         ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
         # Keep all saved v6 graph files unchanged. Navigation is a host overlay.
@@ -141,6 +163,8 @@ class ProjectHost(AtlasHost):
             project_model_provider=models is not None,
             project_stage1_ledger=stage1 is not None,
             project_stage1_saved_records=self.project_stage1_records is not None,
+            project_stage1_claim_review=self.project_stage1_claims is not None,
+            project_stage1_reading_review=self.project_reading_review is not None,
             project_stage1_source_controls=stage1_sources is not None,
             project_stage1_source_worker_connected=stage1_sources is not None
             and stage1_sources.runner is not None,
@@ -198,6 +222,7 @@ class ProjectHost(AtlasHost):
             result = dict(
                 self.project_stage1.read(credential, ref),
                 delivery=self.project_stage1_delivery.read(credential, ref),
+                saved_records_connected=self.project_records_prepare is not None,
             )
             queries = getattr(self.project_stage1, "query_service", None)
             result["query_execution"] = (
@@ -228,6 +253,21 @@ class ProjectHandler(AtlasHandler):
             page = HISTORY_ROUTE.fullmatch(self.path)
             screening = PAGE_ROUTE.fullmatch(self.path)
             detail = DETAIL_ROUTE.fullmatch(self.path)
+            reading = READING_ROUTE.fullmatch(self.path)
+            if reading is not None:
+                if method != "GET" or length:
+                    raise SessionApiError("invalid-project-read", 400)
+                extension = (
+                    self.server.project_reading_review
+                    or self.server.project_stage1_claims
+                )
+                if extension is None:
+                    raise SessionApiError("stage1-claim-review-unconnected", 409)
+                result = extension.view(
+                    token, reading[1], reading[2], check_deadline=self._remaining
+                )
+                self._remaining()
+                return self._reply(200, result)
             if screening is not None or detail is not None:
                 if method != "GET" or length:
                     raise SessionApiError("invalid-project-read", 400)
@@ -386,6 +426,9 @@ class ProjectHandler(AtlasHandler):
                         "initialize",
                         "screen",
                         "coverage",
+                        "claim",
+                        "reading-review",
+                        "prepare-delivery",
                         "plan-query",
                         "execute-query",
                         "checkpoint",
@@ -404,6 +447,28 @@ class ProjectHandler(AtlasHandler):
                     called = ("stage1-" + action, ref, body)
                     if action == "deliver":
                         extension = self.server.project_stage1_delivery
+                    elif action == "claim":
+                        extension = self.server.project_stage1_claims
+                        if extension is None:
+                            raise SessionApiError(
+                                "stage1-claim-review-unconnected", 409
+                            )
+                    elif action == "reading-review":
+                        extension = self.server.project_reading_review
+                        if extension is None:
+                            raise SessionApiError(
+                                "stage1-reading-review-unconnected", 409
+                            )
+                        called = ("stage1-reading-registry", ref, body)
+                        action = "review"
+                    elif action == "prepare-delivery":
+                        extension = self.server.project_records_prepare
+                        if extension is None:
+                            raise SessionApiError(
+                                "stage1-records-prepare-unconnected", 409
+                            )
+                        called = ("stage1-produce-records", ref, body)
+                        action = "prepare"
                     elif action.startswith("query-"):
                         extension = getattr(extension, "query_service", None)
                         if extension is None:

@@ -405,7 +405,36 @@ Final physical-body verification also uses a bounded regular-file reader and
 stable identity checks; a filesystem without stable file identities refuses
 execution. An oversized probe never becomes a complete-file hash.
 
-These components do not yet create a durable acquisition job, grant a source
-permit, expose a source-run API/UI action, invoke a Codex reader, complete Core
-coverage, or finish the full Stage1 loop. GET remains passive. No actual external
-source/search/native/model/research/scoring execution is added by offline fixtures.
+The low-level transport alone grants no source permission or model execution.
+The project host composes it with separate bound authorization, durable jobs and
+source/reading controls. GET remains passive. Offline fixtures make no actual
+external search/source/native/model/research/scoring call.
+
+Saved reading draft review is a separate local UI action. Open the saved
+`read-paper` result in project history, select its exact source quotation, and
+enter a claim, source location, relation and evidence level. The default relation
+is pending; summary/classification/findings retain their original Unknown values.
+`ProjectStage1ClaimService` resolves source/work/version and UTF-8 positions from
+the saved model artifacts, rechecks the current project and source bytes, then
+calls the unchanged Core `Ledger.claim`. A real saved claim returns its event ID
+and character locator; it does not register the whole reading, approve coverage,
+complete Stage1 or unlock Stage2. Refresh/response loss reads the same durable
+action history. A failed or unobserved append holds new writes across reconnect.
+
+Saved-source reading now retains the last checkpoint as historical evidence
+without requiring that checkpoint to be current. The current owned frontier,
+source SDK receipts and exact text hashes are still checked. Delivery retains
+its separate current checkpoint and canonical records gates. Canonical records
+1.1 retain every legal Core relation/evidence level, nullable locator, original
+claim event and historical source bytes; existing 1.0 records remain supported.
+These UI/adapter checks do not demonstrate a live Codex research run.
+
+After reviewing source quotations, separately review the draft classification
+and findings, check the explicit confirmation, and save the reading note. Unknown
+and all Core claims remain; this single SQLite action grants no source/model
+permission and appends no Core claim. Once all current readings are registered,
+check the evidence gate, export the saved ledger, prepare the records, then build
+the canonical delivery. A review-only/partial package does not complete Stage1.
+Stage2 refuses a 1.1 package until its consumer is implemented; Stage3-6 remain
+planned/unconnected. A failed or uncertain prepare is retained for reconciliation;
+refresh and same-key replay cannot repeat the file producer.

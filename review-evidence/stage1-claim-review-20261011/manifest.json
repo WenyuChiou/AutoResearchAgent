@@ -1,0 +1,100 @@
+{
+  "schema_version": "Stage1ClaimReviewEvidence.v1",
+  "packaged_at_utc": "2026-10-11T14:37:51.015Z",
+  "repo_head_observed_before_packaging": "54adb77ee8d57a3d80cbf640108b736befec71c2",
+  "worktree_clean_attested": false,
+  "evaluation_readiness": "implementation-only",
+  "stage1_complete": false,
+  "scientific_acceptance": false,
+  "private_packaging_helper": {
+    "file": "stage1-claim-review-evidence-20261011-v1.cjs",
+    "sha256": "889d907d8efc57729d7a07d693dba9d298918db4164a173b2c7afecd219b3b34"
+  },
+  "original_sources": {
+    "stage1-claim-existing-20261011-v1.log": {
+      "sha256": "8d4cf9303b839cb05e9ef135a20c122feb5766ecd401de16d628d2a2c141c9cc",
+      "bytes": 6652
+    },
+    "stage1-claim-existing-20261011-v2.log": {
+      "sha256": "2ba9b854cdb99129287f38ef49f3134584ac707cc55115afd87bc46797738417",
+      "bytes": 912
+    },
+    "stage1-claim-ui-20261011-v1.log": {
+      "sha256": "0d0e28921f46551049d707291479cdde5d73269ede2cc63311dfa0e300f697ea",
+      "bytes": 1392
+    },
+    "stage1-claim-browser-20261011-v1.log": {
+      "sha256": "ca4c254a7d1fbea30117f9ed25d02dd888e7aad7f2f38be8bfe88c6f921e25e5",
+      "bytes": 1214
+    },
+    "stage1-claim-browser-20261011-v2.log": {
+      "sha256": "79bb79a940d05af9a6345bd0044c96b40ca5165079cf363eda652a3c523b80ec",
+      "bytes": 83820
+    },
+    "stage1-claim-browser-20261011-v3.log": {
+      "sha256": "c61d49a53b0fb9b36da6cc9cb1928af69a07bd0783d865b8cc5a84717a446c7f",
+      "bytes": 84810
+    },
+    "stage1-claim-browser-20261011-v3-review.png": {
+      "sha256": "5d2e4a3ebc6db20ff9df074023d8af30c37cebf591bb13eb69d80ace4cc0489c",
+      "bytes": 60562
+    },
+    "stage1-claim-browser-20261011-v3.png": {
+      "sha256": "6900e0127c3e956bb1da0ff388bb35ac7191fc6731efe3398bfdc515707de73a",
+      "bytes": 54902
+    }
+  },
+  "artifacts": [
+    {
+      "path": "README.md",
+      "sha256": "9183099267f681a6185db18b2423665712bb31ed11412ab9719996fd72de2406",
+      "bytes": 3886
+    },
+    {
+      "path": "browser-observations.json",
+      "sha256": "fb7787bd9bf1df6414255569d7e50899bce5940fb6f6c9e05d27c566e229fbda",
+      "bytes": 2338
+    },
+    {
+      "path": "browser-v1.json",
+      "sha256": "4e46888ec15f4e3075ddbede6792c94194bb48009665cab76310a331b90f4fb4",
+      "bytes": 517
+    },
+    {
+      "path": "browser-v2.json",
+      "sha256": "be76c707043d8bb7c794b9416fc8f615356df4cd1f7229a8625816ae02ee1e00",
+      "bytes": 50425
+    },
+    {
+      "path": "browser-v3.json",
+      "sha256": "05be0fce8f6eff3df4c2f6388ec698f8ba72024613e4a587b63f7dbdc7be73ca",
+      "bytes": 51648
+    },
+    {
+      "path": "stage1-claim-browser-20261011-v3-review.png",
+      "sha256": "5d2e4a3ebc6db20ff9df074023d8af30c37cebf591bb13eb69d80ace4cc0489c",
+      "bytes": 60562
+    },
+    {
+      "path": "stage1-claim-browser-20261011-v3.png",
+      "sha256": "6900e0127c3e956bb1da0ff388bb35ac7191fc6731efe3398bfdc515707de73a",
+      "bytes": 54902
+    },
+    {
+      "path": "stage1-claim-existing-20261011-v1.log",
+      "sha256": "8d4cf9303b839cb05e9ef135a20c122feb5766ecd401de16d628d2a2c141c9cc",
+      "bytes": 6652
+    },
+    {
+      "path": "stage1-claim-existing-20261011-v2.log",
+      "sha256": "2ba9b854cdb99129287f38ef49f3134584ac707cc55115afd87bc46797738417",
+      "bytes": 912
+    },
+    {
+      "path": "stage1-claim-ui-20261011-v1.log",
+      "sha256": "0d0e28921f46551049d707291479cdde5d73269ede2cc63311dfa0e300f697ea",
+      "bytes": 1392
+    }
+  ],
+  "manifest_scope": "Hashes all payload artifacts and README; excludes manifest self-hash and checksum-index self-hash."
+}
