@@ -44,6 +44,10 @@ class ProjectQueryLauncherTests(unittest.TestCase):
             self.plugin / "cli/research_workspace_native/atlas_local_source.py"
         )
         self.helper.parent.mkdir(parents=True)
+        (self.helper.parent / "__init__.py").write_text(
+            "# Synthetic package marker for raw-loader configuration checks.\n",
+            encoding="utf8",
+        )
         shutil.copyfile(HELPER, self.helper)
         self.script = (
             self.plugin / "references/research-workspace/examples" / SCRIPT.name

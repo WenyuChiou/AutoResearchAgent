@@ -80,7 +80,15 @@ def offers(ledger, binding, run, report):
 
     blockers = deepcopy((report.get("coverage") or {}).get("blockers", []))
     add("human-action", dict(clusters=clusters, blockers=blockers))
-    if state.active is not None:
+    completed_queries = {row["query_id"] for row in state.completed.values()}
+    pending_round_queries = any(
+        row["operation"] == "search"
+        and row["arguments"].get("coverage", {}).get("round_number") == state.active
+        and query_id not in completed_queries
+        for query_id, row in state.starts.items()
+    )
+    # History remains readable while Core refuses a pending round's summary.
+    if state.active is not None and not pending_round_queries:
         add("close-round", dict(round_number=state.active, summary=state.summary()))
     next_round = len(state.closed) + 1
     max_rounds = min(
