@@ -52,6 +52,7 @@ jobs:
         run: python -c "import os; raise SystemExit(not (os.environ['SCOPE_RESULT'] == 'success' and os.environ['PLUGIN_TEST_SCOPE'] in ('docs', 'ui', 'full')))"
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
         if: needs.scope.outputs.plugin_test_scope != 'docs'
@@ -65,17 +66,12 @@ jobs:
       - run: codex --version
         if: needs.scope.outputs.plugin_test_scope != 'docs'
       - name: Check plugin and CI Python formatting
-        run: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
+        run: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Check plugin and CI Python quality
-        run: uv run --frozen --project scripts ruff check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
+        run: uv run --frozen --project scripts ruff check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Check plugin spelling
-        run: uvx --from codespell==2.4.3 codespell plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/fixtures/pr_bodies .github/scripts/fixtures/pr_evidence .github/scripts/criterion-submetric-map.v1.json .github/scripts/invariant-registry.v1.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
+        run: uvx --from codespell==2.4.3 codespell plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/fixtures/pr_bodies .github/scripts/fixtures/pr_evidence .github/scripts/criterion-submetric-map.v1.json .github/scripts/invariant-registry.v1.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Plugin loading and stage contracts
-        env:
-          PLUGIN_TEST_SCOPE: ${{ needs.scope.outputs.plugin_test_scope }}
-        run: uv run --isolated --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/ci_scope.py run-plugin
+        run: uv run --isolated --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py
       - name: Research PR contract tests
-        run: |
-          uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s .github/scripts -p "test_validate_research_pr.py" -v
-          uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s .github/scripts -p "test_check_research_pr_dependencies.py" -v
-          uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -m unittest discover -s .github/scripts -p "test_stage1_ci_quality.py" -v
+        run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py --contracts
