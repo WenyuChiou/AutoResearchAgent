@@ -1,0 +1,23 @@
+test_complete_core_history_package_projection_and_wiki_without_promotion (test_stage1_core_records.CoreRecordsTests.test_complete_core_history_package_projection_and_wiki_without_promotion) ... ERROR
+test_human_registry_uses_original_request_hash_and_preserves_history (test_stage1_core_records.CoreRecordsTests.test_human_registry_uses_original_request_hash_and_preserves_history) ... ok
+test_two_sources_reading_records_delivery_and_true_sqlite_reopen (test_project_stage1_records.SavedStage1RecordsTests.test_two_sources_reading_records_delivery_and_true_sqlite_reopen) ... ok
+test_json_key_order_preserves_views_and_original_input_binding (test_stage1_deliverable.ResearchDeliverableTests.test_json_key_order_preserves_views_and_original_input_binding) ... ok
+test_deterministic_lossless_projection_and_multiple_roles (test_research_workspace.WorkspaceTests.test_deterministic_lossless_projection_and_multiple_roles) ... ok
+
+======================================================================
+ERROR: test_complete_core_history_package_projection_and_wiki_without_promotion (test_stage1_core_records.CoreRecordsTests.test_complete_core_history_package_projection_and_wiki_without_promotion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 172, in test_complete_core_history_package_projection_and_wiki_without_promotion
+    shutil.copytree(package, presentation / "deliverable")
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 573, in copytree
+    return _copytree(entries=entries, src=src, dst=dst, symlinks=symlinks,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 527, in _copytree
+    raise Error(errors)
+shutil.Error: [('\\\\?\\D:\\Codex_Learning\\harness_building\\_temp\\nc4\\stage1-deliverable-test-rb3qjk9q\\p\\project-335ed8a9996b4f769c4678326aafeee8\\s1d-c07a74105c966a8efc2740e1\\papers\\work-02eaa8c817662fbffb9a3f1377d4654ff243f2d1b2a5a38bd3316379805b0039__version-7dac48935827bf6398bd66aa88ed47850ee5715a2fccb05d773f07eef419e8dd__e000031.html', 'D:\\Codex_Learning\\harness_building\\_temp\\nc4\\stage1-deliverable-test-rb3qjk9q\\input\\presentation\\deliverable\\papers\\work-02eaa8c817662fbffb9a3f1377d4654ff243f2d1b2a5a38bd3316379805b0039__version-7dac48935827bf6398bd66aa88ed47850ee5715a2fccb05d773f07eef419e8dd__e000031.html', "[Errno 2] No such file or directory: 'D:\\\\Codex_Learning\\\\harness_building\\\\_temp\\\\nc4\\\\stage1-deliverable-test-rb3qjk9q\\\\input\\\\presentation\\\\deliverable\\\\papers\\\\work-02eaa8c817662fbffb9a3f1377d4654ff243f2d1b2a5a38bd3316379805b0039__version-7dac48935827bf6398bd66aa88ed47850ee5715a2fccb05d773f07eef419e8dd__e000031.html'"), ('\\\\?\\D:\\Codex_Learning\\harness_building\\_temp\\nc4\\stage1-deliverable-test-rb3qjk9q\\p\\project-335ed8a9996b4f769c4678326aafeee8\\s1d-c07a74105c966a8efc2740e1\\papers\\work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa__version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf__e000012.html', 'D:\\Codex_Learning\\harness_building\\_temp\\nc4\\stage1-deliverable-test-rb3qjk9q\\input\\presentation\\deliverable\\papers\\work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa__version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf__e000012.html', "[Errno 2] No such file or directory: 'D:\\\\Codex_Learning\\\\harness_building\\\\_temp\\\\nc4\\\\stage1-deliverable-test-rb3qjk9q\\\\input\\\\presentation\\\\deliverable\\\\papers\\\\work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa__version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf__e000012.html'")]
+
+----------------------------------------------------------------------
+Ran 5 tests in 53.152s
+
+FAILED (errors=1)
