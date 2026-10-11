@@ -6,11 +6,14 @@ and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
 search, source import or session resume is required.
 
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
-These review slices start from main `1aa3b71f`; they are not yet merged or
-accepted by the core team. Native runtime guards from that main are retained.
+Candidate B (#271) adds saved-input Harness operations to the reviewed
+Wiki/Atlas assets. The clone below selects B's existing candidate branch; its
+fixed delivered head and accepted prerequisites are reported in the PR. B is not
+yet merged or accepted by the core team. This launcher is the saved-view review
+host, not C's final ProjectHost/settings/own-account research entry (#295).
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-harness-launch-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-stage-ui-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
@@ -22,8 +25,32 @@ python -B -X utf8 plugins/auto-research-agent/references/research-workspace/exam
 
 Choose a new output directory outside every Git checkout. On Windows, use a short,
 writable `TEMP`/`TMP` directory outside Git if the local environment requires it.
-The command prints a loopback URL and `fixture-receipt.json`; keep the terminal
-running and open that URL. Stop with Ctrl+C. A previous output is never overwritten.
+The command prints its actual loopback URL and `fixture-receipt.json`; keep the
+terminal running and open that URL. The default chooses an available port, so a
+previous `127.0.0.1:8770` address is not necessarily this process. Stop with
+Ctrl+C. A previous output is never overwritten. Clone settings preserve physical
+Git bytes for source binding and do not change global Git preferences.
+
+The saved-view navigation is: printed `/` case chooser → `/views/stage1/atlas.html`
+or `/views/stage2/atlas.html` → **Original workspace** (the same saved view's
+`index.html`) → its Atlas link. The brand and current Settings label also link
+to that legacy saved workspace; they are not the final project portal or an
+editable settings page. Browser Back follows the pages already visited; after a
+Wiki/Atlas round-trip it may return to the Wiki. Reopen the printed root URL to
+return directly to the case chooser. The original index remains the pinned
+saved package/reference view. The unique full-system
+ProjectHost `/` and real settings entry are deferred to C, without adding C
+functions to this candidate.
+
+The retained historical r3 overlay was made by adding Atlas files to an older
+Wiki. That old `index.html` has no forward Atlas link; use browser Back after
+opening it. Its original package and hashes are preserved. Fresh outputs from
+the launcher above include both navigation links. Public review evidence uses
+repository synthetic fixtures and keeps private saved research notes out of the
+published screenshots. See the [separate fixed-head A acceptance evidence](https://github.com/WenyuChiou/AutoResearchAgent/blob/1332583933dfdea2fd4377c570e7beb18a78fe04/review-evidence/wiki-A-acceptance-20261011/README.md)
+for A commands, original bindings, screenshots and explicit remaining limits.
+That evidence package has not yet been propagated into this B candidate and
+does not establish a B runtime test result.
 
 With `--harness-operations`, each case has three real repository operations:
 validate the saved workspace, derive its conservative literature selection, and
@@ -31,6 +58,9 @@ export its literature files. The outputs and operation history are retained in
 `attempt-1/harness-operations`; source snapshots remain unchanged. These are
 saved-input functions, not searches, Stage 2 generation, scientific evaluation
 or a native Codex session. The fixture launcher registers no native runtime.
+It also registers a separate saved-stage action panel. The reopening command
+below restores only the three Harness operations and their history; it does
+not attach that separate stage-action service or launch a stage runtime.
 
 The graph initially shows no relationships. Select a paper, direction or method
 to reveal its direct connections; select it again to clear. Hover reads names
