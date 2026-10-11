@@ -151,7 +151,8 @@
         "The acquisition parsing bridge requires explicit admission and a configured runner; synchronous before/after checks are not hard parser containment, and dual receipts cannot be converted into authenticated source fetch or scientific acceptance.",
         "All lanes share the exact confirmed resource version; immutable reservations survive failed/unknown work. Controlled transport and saved-public parsing preserve distinct original receipts; no new source or model authority follows from a body, caller hash, fixture or CI result. Cleanup allowance and outer process containment remain separately required.",
         "Saved-record delivery requires the complete Core ClaimEvidence identity set for every selected work/version, including partial or contradictory evidence; a self-consistent reduced records hash cannot omit existing claims or change Unknown findings.",
-        "SavedSdkSourceImport is a distinct local observation after unchanged SDK import-saved parsing; original acquired/SDK/local Core times remain separate, original HTTP verification stays false, legacy fetch equality and full source/claim histories remain required."
+        "SavedSdkSourceImport is a distinct local observation after unchanged SDK import-saved parsing; original acquired/SDK/local Core times remain separate, original HTTP verification stays false, legacy fetch equality and full source/claim histories remain required.",
+        "Only server-proven never-admitted model attempts may receive a retirement overlay; preserve Unknown, request identity, old owner, consumed reservations and failures. Dispatched or unverified runtime work remains held; retirement never starts, resumes, refunds or grants permission."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
@@ -270,6 +271,8 @@
         "plugins/auto-research-agent/tests/test_workspace_project_browser.cjs",
         "plugins/auto-research-agent/tests/browser/project-intake-fixture.py",
         "plugins/auto-research-agent/tests/test_workspace_project_model.py",
+        "plugins/auto-research-agent/tests/test_project_model_recovery.py",
+        "plugins/auto-research-agent/tests/browser/project-model-recovery-fixture.py",
         "plugins/auto-research-agent/tests/test_project_model_factory.py",
         "plugins/auto-research-agent/tests/test_project_workspace_launcher.py",
         "plugins/auto-research-agent/tests/test_project_stage1_delivery.py",

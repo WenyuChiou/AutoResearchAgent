@@ -33,7 +33,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|native|initialize|plan-query|execute-query|screen|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -416,6 +416,7 @@ class ProjectHandler(AtlasHandler):
                     "actions",
                     "authorize",
                     "native",
+                    "retire",
                 }:
                     extension = (
                         self.server.project_models
@@ -450,6 +451,13 @@ class ProjectHandler(AtlasHandler):
                             ref,
                             body,
                         )
+                    elif (
+                        operation == "models"
+                        and action == "retire"
+                        and resolution is None
+                    ):
+                        function = extension.retire
+                        called = ("model-retirement", ref, body)
                     else:
                         raise SessionApiError("unknown-project-write", 404)
                     result = function(token, ref, body, check_deadline=self._remaining)

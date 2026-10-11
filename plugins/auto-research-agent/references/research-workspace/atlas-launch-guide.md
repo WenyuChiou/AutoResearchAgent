@@ -204,3 +204,11 @@ Changing research content requires a new source version and appropriate recheck.
 UI review, nine-row synthetic scoring, native message delivery, completed research
 and scientific improvement are separate outcomes. Unknown, partial, audit-required
 and evaluator failure remain visible.
+
+In the C Projects portal, an uncertain model attempt is retained in **Saved
+actions and results**. **End this unsent attempt** requires your reason and a
+server check: no provider admission, no active worker, and no runtime content
+beyond its exact binding file. Ending it preserves the original Unknown,
+failure, request key and reserved budget. It does not resend or authorize work.
+Dispatched attempts with unverified process cleanup remain held; a missing PID
+or a browser confirmation cannot release them. Refresh only reads history.

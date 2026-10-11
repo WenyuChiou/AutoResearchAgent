@@ -42,6 +42,17 @@ def refusal_shape(kind, body, key, project_ref):
             BOUND_FIELDS | {"operation", "user_input", "confirmed"},
             set(),
         ),
+        "model-retirement": (
+            BOUND_FIELDS
+            | {
+                "job_ref",
+                "job_request_sha256",
+                "job_snapshot_sha256",
+                "confirmed",
+                "user_input",
+            },
+            set(),
+        ),
         "stage1-initialize": (
             BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"},
             set(),

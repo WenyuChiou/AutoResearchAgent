@@ -153,6 +153,9 @@
   Object.assign(words["zh-Hans"], {queryResultLimit: "每次查询结果上限", queryProbes: "运行时探测次数"});
   Object.assign(words["zh-Hant"], {queryResultLimit: "每次查詢結果上限", queryProbes: "執行環境探測次數"});
   const $ = (id) => document.getElementById(id);
+  Object.assign(words.en, {retire: "End this unsent attempt", retirementHelp: "Only a server-verified, never-dispatched attempt can be ended. Unknown outcome and reserved budget remain; this never reruns the task.", retirementReason: "Reason for ending this unsent attempt", retired: "Ended without resend · original outcome remains Unknown", retirementBlocked: "Native dispatch or cleanup remains unproven; this attempt stays held."});
+  Object.assign(words["zh-Hans"], {retire: "结束这次未派发尝试", retirementHelp: "仅能结束服务端确认未派发的尝试。未知结果与已预留预算保留，不会重跑任务。", retirementReason: "结束这次未派发尝试的原因", retired: "已结束且不重发 · 原结果仍为 Unknown", retirementBlocked: "缺少原生派发或清理证据；这次尝试继续保持暂停。"});
+  Object.assign(words["zh-Hant"], {retire: "結束這次未派發嘗試", retirementHelp: "僅能結束伺服器確認未派發的嘗試。未知結果與已預留預算保留，不會重跑任務。", retirementReason: "結束這次未派發嘗試的原因", retired: "已結束且不重送 · 原結果仍為 Unknown", retirementBlocked: "缺少原生派發或清理證據；這次嘗試繼續保持暫停。"});
   Object.assign(words.en, {ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
   Object.assign(words["zh-Hans"], {ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
   Object.assign(words["zh-Hant"], {ledgerDeliver: "用已保存閱讀紀錄產生正式交付包", deliveryMissing: "尚無此版本綁定的閱讀紀錄。紀錄匯出與研究交付包是不同產物。", deliveryReady: "閱讀紀錄已綁定目前檢查點。產生檔案不代表覆蓋或研究品質通過。", deliverySaved: "已保存正式研究交付包 · 繼續前請檢查覆蓋判斷。"});
@@ -217,6 +220,7 @@
     for (const id of ["authorize-topic", "authorize-plan"]) $(id).disabled = projectBlocked || !state.modelStatus || state.modelStatus.authorization_available !== true;
     $("authorize-plan").disabled ||= !state.project || !state.project.intake_report || !state.project.intake_report.necessary_clarification_complete;
     $("native-refresh").disabled = state.loading || !state.project;
+    document.querySelectorAll("button[data-model-retire]").forEach((button) => { button.disabled = blocked || !state.project; });
     $("ledger-init").disabled = projectBlocked || !state.stage1 || !state.stage1.initialization_offer;
     for (const id of ["ledger-checkpoint", "ledger-export"]) $(id).disabled = projectBlocked || !state.stage1 || !state.stage1.ledger;
     $("ledger-deliver").disabled = projectBlocked || !availableDelivery();
@@ -225,12 +229,12 @@
   }
   async function mutate(operation, body, ref) {
     if (state.busy || state.loading) return null;
-    if (pending.some((row) => row.project_ref === (ref || null))) { notice(t("unsent"), true); return null; }
+    if (pending.some((row) => row.project_ref === (ref || null) && !(operation === "models/retire" && row.kind === "model-operation" && row.key === body.job_ref && row.request_sha256 === body.job_request_sha256))) { notice(t("unsent"), true); return null; }
     state.busy = true; buttons(); notice(t("working"));
     const actionKey = key(); body.key = actionKey;
     let sent = false;
     try {
-      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute"}[operation] || operation.replace("stage1/", "stage1-");
+      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/retire": "model-retirement", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute"}[operation] || operation.replace("stage1/", "stage1-");
       const request_sha256 = await requestHash(kind, body);
       remember({ key: actionKey, project_ref: ref || null, operation, kind, request_sha256 });
       sent = true;
@@ -262,7 +266,7 @@
     $("stage1-state").textContent = state.stage1 && state.stage1.stage1_status || project.stage1_status || "not-started";
     $("stage2-state").textContent = state.stage2 && state.stage2.activation && state.stage2.activation.stage2_status || project.stage2_status || "not-started";
     $("plan-summary").textContent = t(project.plan ? "planReady" : "planMissing");
-    $("model-state").textContent = t(state.modelStatus && state.modelStatus.unknown_count > 0
+    $("model-state").textContent = t(state.modelStatus && (state.modelStatus.blocking_unknown_count ?? state.modelStatus.unknown_count) > 0
       ? "modelHeld" : state.modelOffers.some((row) => row.available === true)
         ? "modelReady" : state.modelStatus && state.modelStatus.authorization_available === true
           ? "modelConfigured" : "modelMissing");
@@ -416,7 +420,7 @@
     for (const row of rowsToCheck) {
       const record = pending.find((item) => item.key === row.key);
       const safeTerminal = row.kind === "model-operation"
-        ? row.operation ? ["content-review-pending", "plan-validated-not-executed", "validation-failed"].includes(row.status) : row.status === "known-unsent"
+        ? row.operation ? ["content-review-pending", "plan-validated-not-executed", "validation-failed"].includes(row.status) || Boolean(row.retirement && row.retirement.status === "retired-no-resend" && row.retirement.job_request_sha256 === row.request_sha256 && row.retirement.evidence && row.retirement.evidence.basis === "never-admitted-no-runtime") : row.status === "known-unsent"
         : ["saved", "failed", "known-unsent"].includes(row.status);
       if (record && safeTerminal && row.kind === record.kind && row.project_ref === record.project_ref && row.request_sha256 === record.request_sha256) forget(row.key);
     }
@@ -458,11 +462,28 @@
       if (!existing || row.operation || !existing.operation) unique.set(row.key, row);
     }
     all = Array.from(unique.values());
-    state.activeJob = Boolean(bootstrap.models && !state.modelStatus) || Boolean(state.modelStatus && (rows(state.modelStatus, "active_jobs").length || state.modelStatus.unknown_count));
+    state.activeJob = Boolean(bootstrap.models && !state.modelStatus) || Boolean(state.modelStatus && (rows(state.modelStatus, "active_jobs").length || (state.modelStatus.blocking_unknown_count ?? state.modelStatus.unknown_count)));
     for (const row of all) {
       const card = document.createElement("div"); card.className = "history-row"; list.append(card);
       text(card, "strong", (row.operation || row.kind || row.action || "action") + " · " + (row.status || "Unknown"));
       if (row.error || row.failure) text(card, "p", row.error || row.failure);
+      if (row.retirement && row.retirement.status === "retired-no-resend") text(card, "p", t("retired"), "subtle");
+      else if (row.retirement_offer) {
+        const offer = row.retirement_offer;
+        text(card, "p", t(offer.available ? "retirementHelp" : "retirementBlocked"), "subtle");
+        if (offer.available) {
+          const label = text(card, "label", t("retirementReason"));
+          const input = document.createElement("input"); label.append(input); input.maxLength = 4096;
+          const button = text(card, "button", t("retire")); button.type = "button";
+          button.dataset.modelRetire = offer.job_ref;
+          button.disabled = state.busy || state.loading;
+          button.onclick = guarded(async () => {
+            if (!state.project || state.project.project_ref !== ref || !input.value.trim() || !bounded(input.value, 4096)) return;
+            const result = await mutate("models/retire", Object.assign(identity(), {job_ref: offer.job_ref, job_request_sha256: offer.job_request_sha256, job_snapshot_sha256: offer.job_snapshot_sha256, confirmed: true, user_input: input.value}), ref);
+            if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+          });
+        }
+      }
       const result = row.result || row;
       if (result.output_preview || result.output || result.final_text || result.proposal_text || result.text) text(card, "pre", result.output_preview || result.output || result.final_text || result.proposal_text || result.text);
       if (result.output_truncated) text(card, "p", t("preview"), "subtle");
@@ -586,7 +607,7 @@
     }
     buttons();
   }
-  $("language").onchange = () => { state.language = $("language").value; translate(); };
+  $("language").onchange = guarded(async () => { state.language = $("language").value; translate(); if (state.project) await Promise.all([history(), native()]); });
   $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.project = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); $("topic").focus(); };
   $("create-form").onsubmit = async (event) => {
     event.preventDefault();

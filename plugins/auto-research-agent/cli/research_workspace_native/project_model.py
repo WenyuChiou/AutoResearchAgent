@@ -30,6 +30,7 @@ from .session_api import SessionApiError, _check
 from .stage_run_service import StageUnitProvider
 from .transport import validate_answer
 from .project_resource_budget import reserve_resource, resource_view
+from .project_model_recovery import public_retirement, retired, retire
 from .project_model_reading import (
     READ_OPERATION,
     READ_SCOPE,
@@ -687,6 +688,7 @@ class ProjectModelService:
                         "plan-validated-not-executed",
                         "validation-failed",
                     }
+                    and not retired(j)
                     for j in row["jobs"].values()
                 ),
                 "model-unsettled-operation-requires-review",
@@ -923,6 +925,11 @@ class ProjectModelService:
                     j["status"] in {"failed-or-unknown", "execution-unknown"}
                     for j in jobs
                 ),
+                "blocking_unknown_count": sum(
+                    j["status"] in {"failed-or-unknown", "execution-unknown"}
+                    and not retired(j)
+                    for j in jobs
+                ),
                 "authorization_available": self.factory is not None
                 and self.model is not None,
                 "saved_reading_available": self.factory is not None
@@ -1028,6 +1035,7 @@ class ProjectModelService:
                 output_bytes=job["raw_output"]["bytes"],
             )
         value["output_ref"] = _output_ref(job)
+        value.update(public_retirement(job))
         return value
 
     @staticmethod
@@ -1461,6 +1469,7 @@ class ProjectModelService:
             _check(
                 not any(
                     j["status"] in {"execution-unknown", "failed-or-unknown"}
+                    and not retired(j)
                     for j in row["jobs"].values()
                 ),
                 "model-unknown-requires-reconciliation",
@@ -1596,6 +1605,11 @@ class ProjectModelService:
         with self.intake._lock:
             return deepcopy(self._row(self.intake._load(principal, ref))["jobs"][key])
 
+    def retire(self, credential, project_ref, body, *, check_deadline=None):
+        return retire(
+            self, credential, project_ref, body, check_deadline=check_deadline
+        )
+
     def _admit(self, principal, ref, key, offer, event):
         _check(
             type(event) is dict
@@ -1615,6 +1629,7 @@ class ProjectModelService:
         def admit(state):
             resource_view(self.intake, state, principal)
             job = self._row(state)["jobs"][key]
+            _check(not retired(job), "model-retired-no-resend")
             _check(
                 job["status"] == "running" and self.clock() < job["deadline_at"],
                 "model-admission-expired",
