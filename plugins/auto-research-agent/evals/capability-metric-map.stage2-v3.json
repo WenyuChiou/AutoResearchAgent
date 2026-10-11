@@ -212,7 +212,10 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
-        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
+        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
+        "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_replays_frozen_v1_prompt_without_mutation",
+        "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_new_resolution_binds_v1_1_prompt_and_rejects_version_tampering",
+        "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_cannot_be_relabelled_as_new_contract"
       ],
       "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
       "research_followup_test_refs": [
@@ -405,7 +408,7 @@
       "failed_review_pre_dispatch_continuation_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_review_pre_dispatch.py"
       ],
-      "resolution_unknown_axis_followup_contract": "Reconciliation extraction field-contract1.1 explicitly requires a source-bound next_check for every unknown axis before the initial generation and bounded correction. Unknown scores remain null; missing followups still fail closed without automatic filling, fabricated evidence or additional semantic retries. Original rejected attempts and source/runtime/policy/external-receipt/human/formal guards remain unchanged; synthetic tests do not attest successful scientific extraction, complete rehearsals or improvement.",
+      "resolution_unknown_axis_followup_contract": "Reconciliation extraction field-contract1.1 explicitly requires a source-bound next_check for every unknown axis before the initial generation and bounded correction. Unknown scores remain null; missing followups still fail closed without automatic filling, fabricated evidence or additional semantic retries. Original rejected attempts and source/runtime/policy/external-receipt/human/formal guards remain unchanged; synthetic tests do not attest successful scientific extraction, complete rehearsals or improvement. New live resolution results seal field-contract1.1.0 in resolution_field_contract_version; strict read-only controller replay reconstructs frozen1.0.0 for older sealed results and rejects unsupported versions or changed prompt/version bindings without replaying models or executing archived source.",
       "resolution_unknown_axis_followup_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_live_review_models.py"
       ]

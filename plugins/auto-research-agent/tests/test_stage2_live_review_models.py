@@ -787,6 +787,125 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
         self.assertEqual(adapter.calls, [])
         self.assertEqual((output / "resolution.json").read_bytes(), collided_raw)
 
+    def _resolution_controller_archive(self, *, legacy):
+        from stage2_live import controller
+        from test_stage2_controller import _write_faithful_model_archive
+
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        raw = "The saved source-bound reconciliation retains the reviewed checks."
+        capture, receipt, record = self.capture(
+            "controller-resolution",
+            "reconciliation_task",
+            task,
+            raw,
+            "session-controller-resolution",
+        )
+        payload = resolution_payload(self.packet)
+        adapter = StubModel({"resolution-extraction": payload})
+        output = self.root / "controller-resolution-out"
+        result = extract_resolution(
+            **self.resolution_args(reviews, capture, receipt, output.name, adapter)
+        )
+        prompt = adapter.calls[0]["prompt"]
+        if legacy:
+            # Reproduce the frozen 1.0 request; never import old producer code.
+            prefix, body = prompt.split("\n", 1)
+            saved = json.loads(body)
+            saved["field_contract"]["schema_version"] = "1.0.0"
+            saved["field_contract"]["rules"].pop("unknown_next_check")
+            prompt = prefix + "\n" + json.dumps(saved, ensure_ascii=False)
+            result.pop("resolution_field_contract_version", None)
+        label = result["extraction_unit_label"]
+        config = {
+            "codex": str(self.codex.resolve()),
+            "codex_executable_sha256": hashlib.sha256(
+                self.codex.read_bytes()
+            ).hexdigest(),
+            "evaluator_home": str(self.extractor_home.resolve()),
+            "model": "test-model",
+            "reasoning": "high",
+        }
+        provenance = {
+            "initial": _write_faithful_model_archive(
+                output,
+                label,
+                prompt,
+                controller._resolution_replay_schema(self.packet),
+                payload,
+                config,
+                POLICY,
+            ),
+            "correction": None,
+        }
+        result["extraction_provenance"] = provenance
+        unit = {"label": label, "value": payload, "provenance": provenance}
+        unit_bytes = canonical(unit) + b"\n"
+        (output / f"{label}.unit.json").write_bytes(unit_bytes)
+        result["replay_receipt"]["unit_receipts"][label] = hashlib.sha256(
+            unit_bytes
+        ).hexdigest()
+        return output, result, reviews, label, config, record, raw
+
+    def _verify_controller_resolution_archive(self, archive):
+        from unittest.mock import patch
+        from stage2_live import controller
+
+        output, result, reviews, label, config, record, raw = archive
+        with (
+            patch(
+                "stage2_live.review_models._captured_input", return_value=(record, raw)
+            ),
+            patch(
+                "stage1_eval.model_calls.call_model_v31",
+                side_effect=AssertionError("synthetic replay must not dispatch"),
+            ) as dispatch,
+        ):
+            controller._verify_saved_resolution(
+                output, result, self.packet, SNAPSHOT, reviews, label, config, POLICY
+            )
+        dispatch.assert_not_called()
+
+    def test_historical_resolution_replays_frozen_v1_prompt_without_mutation(self):
+        archive = self._resolution_controller_archive(legacy=True)
+        output = archive[0]
+        before = {
+            p.relative_to(output).as_posix(): p.read_bytes()
+            for p in output.rglob("*")
+            if p.is_file()
+        }
+        self._verify_controller_resolution_archive(archive)
+        after = {
+            p.relative_to(output).as_posix(): p.read_bytes()
+            for p in output.rglob("*")
+            if p.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_new_resolution_binds_v1_1_prompt_and_rejects_version_tampering(self):
+        archive = self._resolution_controller_archive(legacy=False)
+        result = archive[1]
+        self.assertEqual(result["resolution_field_contract_version"], "1.1.0")
+        self._verify_controller_resolution_archive(archive)
+        result["resolution_field_contract_version"] = "1.0.0"
+        with self.assertRaisesRegex(
+            EvaluationError, "request fingerprint|archived model prompt changed"
+        ):
+            self._verify_controller_resolution_archive(archive)
+        result["resolution_field_contract_version"] = "99.0.0"
+        with self.assertRaisesRegex(
+            Stage2Error, "unsupported-resolution-field-contract"
+        ):
+            self._verify_controller_resolution_archive(archive)
+
+    def test_historical_resolution_cannot_be_relabelled_as_new_contract(self):
+        archive = self._resolution_controller_archive(legacy=True)
+        archive[1]["resolution_field_contract_version"] = "1.1.0"
+        with self.assertRaisesRegex(
+            EvaluationError, "request fingerprint|archived model prompt changed"
+        ):
+            self._verify_controller_resolution_archive(archive)
+
 
 if __name__ == "__main__":
     unittest.main()
