@@ -41,6 +41,8 @@
       planReady: "Confirmed brief and compiled plan are saved. Searches need a separate, bound tool permit.",
       modelMissing: "Codex content provider is not registered for this project. No model call is available.",
       modelReady: "Only registered, budgeted content tasks can run. Suggestions and planning do not complete Stage1.",
+      modelConfigured: "The local content service is configured. A bounded task permit is still required; this does not verify Codex account authentication.",
+      modelHeld: "An earlier task has an uncertain result, so new submissions stay held. Inspect saved operations below; refresh never resends the task.",
       stage2Missing: "No accepted canonical Stage1 package is registered for this project/version.",
       stage2Ready: "A source-bound Stage1 import is available for explicit review.",
       emptyHistory: "No actions are saved yet.", working: "Saving the action intent…",
@@ -82,6 +84,8 @@
       planReady: "已保存确认范围与编译计划。搜索仍需另行绑定的工具许可。",
       modelMissing: "此项目尚未注册 Codex 内容服务，当前不能调用模型。",
       modelReady: "只可运行已注册、预算绑定的内容任务。选题与规划不代表 Stage1 完成。",
+      modelConfigured: "本地内容服务已配置，仍需有界任务许可；这不代表 Codex 账号认证已通过。",
+      modelHeld: "此前任务结果尚不确定，已暂停新的送出。请查看下方保存的操作；刷新不会重发任务。",
       stage2Missing: "此项目/版本尚未注册已接受的规范 Stage1 交付包。",
       stage2Ready: "已有来源绑定的 Stage1 导入选项，等待明确审阅。",
       emptyHistory: "尚无保存操作。", working: "正在保存操作意图…",
@@ -122,6 +126,8 @@
       planReady: "已保存確認範圍與編譯計畫。搜尋仍需另行綁定的工具許可。",
       modelMissing: "此專案尚未註冊 Codex 內容服務，目前不能呼叫模型。",
       modelReady: "只可執行已註冊、預算綁定的內容任務。選題與規劃不代表 Stage1 完成。",
+      modelConfigured: "本機內容服務已設定，仍需有界任務許可；這不代表 Codex 帳號認證已通過。",
+      modelHeld: "先前任務結果仍不確定，已暫停新的送出。請查看下方保存的操作；重新整理不會重送任務。",
       stage2Missing: "此專案/版本尚未註冊已接受的規範 Stage1 交付包。",
       stage2Ready: "已有來源綁定的 Stage1 匯入選項，等待明確審閱。",
       emptyHistory: "尚無保存操作。", working: "正在保存操作意圖…",
@@ -256,7 +262,10 @@
     $("stage1-state").textContent = state.stage1 && state.stage1.stage1_status || project.stage1_status || "not-started";
     $("stage2-state").textContent = state.stage2 && state.stage2.activation && state.stage2.activation.stage2_status || project.stage2_status || "not-started";
     $("plan-summary").textContent = t(project.plan ? "planReady" : "planMissing");
-    $("model-state").textContent = t(state.modelOffers.some((row) => row.available === true) ? "modelReady" : "modelMissing");
+    $("model-state").textContent = t(state.modelStatus && state.modelStatus.unknown_count > 0
+      ? "modelHeld" : state.modelOffers.some((row) => row.available === true)
+        ? "modelReady" : state.modelStatus && state.modelStatus.authorization_available === true
+          ? "modelConfigured" : "modelMissing");
     $("stage2-offer").textContent = t(availableStage2() ? "stage2Ready" : "stage2Missing");
     const budgets = project.settings && project.settings.budgets;
     $("authorization-budget").textContent = budgets ? "1 × Codex · ≤ " + Math.min(budgets.seconds, state.modelStatus && state.modelStatus.local_cap_seconds || 600) + " s · " + budgets.model_calls + " " + t("modelCalls") : "Unknown";
