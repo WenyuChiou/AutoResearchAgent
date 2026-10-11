@@ -1,0 +1,6 @@
+test_worker_gate_refuses_expired_original_deadline_before_verifier (test_source_saved_pipeline.SourceSavedPipelineDeadlineTests.test_worker_gate_refuses_expired_original_deadline_before_verifier) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.416s
+
+OK

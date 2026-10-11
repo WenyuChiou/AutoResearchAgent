@@ -1,0 +1,9 @@
+{
+  "change": "Capture SessionApiError.code before defining the durable failure callback; success path unchanged.",
+  "final_pipeline_sha256": "84b27bf2981b83bfcff180a2d63f95bea37bee825cfaf8ddd292ae529a2019c4",
+  "kind": "PostScopedTestDiagnosticCaptureDelta",
+  "original_integration_status": "passed within new 300-second original reservation",
+  "original_manifest_sha256": "2ec50057009d11f50a65f5bcb8be2d954eb5235b66157b78c898835bc8687542",
+  "validation": "Ruff E4/E7/E9/F and diff check passed; no new complete pipeline run is attributed to this diagnostic-only change.",
+  "whole_final_head_suite": false
+}

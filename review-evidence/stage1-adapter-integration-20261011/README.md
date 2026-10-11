@@ -16,7 +16,7 @@ Earlier 60/120-second runs and the v8 checkpoint rejection remain failures; no
 deadline was extended in place. The transport, parser, registration and model
 permissions are separate from scientific review and stage completion.
 
-Relevant commands use Python 3.12 with -B -X utf8, the already cached SDK 1.2.0,
+Relevant commands use Python 3.11.9 with -B -X utf8, the already cached SDK 1.2.0,
 and a short writable TEMP outside Git. Entry points:
 - test_source_saved_pipeline.SourceSavedPipelineIntegrationTests.test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat
 - test_project_stage1_records.SavedStage1RecordsTests.test_saved_registration_does_not_require_a_delivery_checkpoint
@@ -25,3 +25,9 @@ and a short writable TEMP outside Git. Entry points:
 
 Stage2 execution and Stage3-6 remain unconnected. This pack is engineering
 evidence and reuses unchanged prior evidence only within its original boundary.
+
+After this snapshot, failure diagnostics capture the exception code before the
+durable callback rather than closing over Python's cleared exception variable.
+This changes only diagnostic capture; the successful SDK/Core/registry path is
+unchanged. Final source drift is recorded separately instead of changing the
+original manifest or relabeling the scoped test as a final-head full suite.

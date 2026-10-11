@@ -290,6 +290,7 @@ class SourceSavedPipeline:
             return deepcopy(followup)
         except BaseException as error:
             error_type = type(error).__name__
+            error_code = error.code if isinstance(error, SessionApiError) else None
 
             def unknown(actual, _state):
                 prior = actual.get("followup") or {}
@@ -300,9 +301,7 @@ class SourceSavedPipeline:
                     failure=dict(
                         code="source-pipeline-failed-or-unobserved",
                         error_type=error_type,
-                        error_code=error.code
-                        if isinstance(error, SessionApiError)
-                        else None,
+                        error_code=error_code,
                         parser_entered=entered,
                     ),
                 )

@@ -1,0 +1,8 @@
+test_saved_registration_does_not_require_a_delivery_checkpoint (test_project_stage1_records.SavedStage1RecordsTests.test_saved_registration_does_not_require_a_delivery_checkpoint) ... ok
+test_extra_source_deadline_is_checked_before_final_registry_commit (test_project_stage1_records.SavedStage1RecordsTests.test_extra_source_deadline_is_checked_before_final_registry_commit) ... ok
+test_two_sources_reading_records_delivery_and_true_sqlite_reopen (test_project_stage1_records.SavedStage1RecordsTests.test_two_sources_reading_records_delivery_and_true_sqlite_reopen) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 22.674s
+
+OK

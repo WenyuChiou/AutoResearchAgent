@@ -1,0 +1,50 @@
+test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat (test_source_saved_pipeline.SourceSavedPipelineIntegrationTests.test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat) ... FAIL
+
+======================================================================
+FAIL: test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat (test_source_saved_pipeline.SourceSavedPipelineIntegrationTests.test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_source_saved_pipeline.py", line 12, in test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat
+    run_cases(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\planned_query_raw_runner.py", line 95, in run_cases
+    testcase.assertEqual(result.returncode, 0, log)
+AssertionError: 1 != 0 : test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat (source_saved_pipeline_cases.SourceSavedPipelineCases.test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat) ... FAIL
+
+
+
+======================================================================
+
+FAIL: test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat (source_saved_pipeline_cases.SourceSavedPipelineCases.test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat)
+
+----------------------------------------------------------------------
+
+Traceback (most recent call last):
+
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\source_saved_pipeline_cases.py", line 218, in test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat
+
+    self.assertEqual(saved["followup"]["status"], "source-core-registered", saved)
+
+AssertionError: 'execution-unknown' != 'source-core-registered'
+
+- execution-unknown
+
++ source-core-registered
+
+ : {'key': 'authored-source-run', 'grant_ref': 'source-grant-f4b583769a2290805a1e264c69320079', 'job_binding_sha256': '93cedbfd736b8f33e9ff28e829d63e11efd33a79aa92b71d4c96ec18aa0fd714', 'input_version': 1, 'brief_sha256': 'd7db57e015789bca7809e2acf6e587a587af9ba39f96bc03e01d67ec1e18f711', 'work_ref': 'work-cca6b91dbd6d3cc52c69f3b416183782fe185a273c9bcd741064bf10ab6d90d4', 'saved_status': 'source-observation-saved', 'status': 'source-observation-saved', 'runner_invoked': True, 'invocation_claimed': True, 'invocation_observation': 'returned', 'result': {'artifacts': {'raw/001-response.html': 'bfed4ddcf62f0eb9ed56f5b4cfc6887863a56193f85bec3a88c86bad375ce0e0'}, 'body_complete': True, 'core_source_bridge': False, 'evidence_scope': 'saved-transport-observation-only', 'native_attestation': False, 'outcome': 'http-body-complete', 'parser_connected': False, 'raw_sha256': 'bfed4ddcf62f0eb9ed56f5b4cfc6887863a56193f85bec3a88c86bad375ce0e0', 'reading_complete': False, 'receipt_path': 'public-source-acquisition.json', 'receipt_sha256': '2c3d376ebd6d912fe0e8bd41982ef38c435c9824f87186abfa28db63015ce6f5', 'stage1_complete': False}, 'result_scope': 'historical-saved-observation', 'current_physical_bytes_verified': False, 'failure': None, 'followup': {'automatic_retry': False, 'bundle_path': 'D:\\Codex_Learning\\harness_building\\_temp\\r11\\ssp-y3db91tu\\project-7ab10c5900aa4a74aaf525ed198db030\\input-1\\p-93cedbfd736b8f33e9ff28e8\\source-acquisition-parse-bundle.json', 'bundle_sha256': '1bcaecf072a68588f9b132d47510873df713767882f42f13883835bf4b90b9c7', 'core_action_key': 'source-core-93cedbfd736b8f33e9ff28e829d63e11', 'failure': {'code': 'source-pipeline-failed-or-unobserved', 'error_code': 'stage1-current-checkpoint-required', 'error_type': 'SessionApiError', 'parser_entered': True}, 'original_deadline_utc': '2026-10-11T11:55:43.911975+00:00', 'parser_output_dir': 'D:\\Codex_Learning\\harness_building\\_temp\\r11\\ssp-y3db91tu\\project-7ab10c5900aa4a74aaf525ed198db030\\input-1\\p-93cedbfd736b8f33e9ff28e8', 'pipeline_sha256': 'b3e66b448d59dc85cdf6c210628ee21d70181a5f3aa8225147542698a84224d5', 'reading_complete': False, 'stage1_complete': False, 'status': 'execution-unknown'}, 'automatic_retry': False, 'execution_authorized': False}
+
+
+
+----------------------------------------------------------------------
+
+Ran 1 test in 204.432s
+
+
+
+FAILED (failures=1)
+
+
+
+----------------------------------------------------------------------
+Ran 1 test in 209.598s
+
+FAILED (failures=1)

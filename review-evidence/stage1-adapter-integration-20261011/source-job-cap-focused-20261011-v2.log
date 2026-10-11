@@ -1,0 +1,7 @@
+test_source_job_cap_remains_bounded_before_store_creation (test_project_workspace_launcher.ProjectWorkspaceLauncherTests.test_source_job_cap_remains_bounded_before_store_creation) ... ok
+test_default_preflight_never_creates_store_or_selects_model (test_project_workspace_launcher.ProjectWorkspaceLauncherTests.test_default_preflight_never_creates_store_or_selects_model) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.036s
+
+OK
