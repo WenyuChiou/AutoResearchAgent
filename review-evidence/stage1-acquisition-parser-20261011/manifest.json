@@ -1,0 +1,21 @@
+{
+  "kind": "BoundedSourceOfflineEvidence.v1",
+  "scope": "Offline selected component tests; not full research, authenticated native delivery or scientific acceptance",
+  "original_private_receipt_sha256": {
+    "driver-missing": "9a93481187d15103c6782654ecff221ea1831596cb2902b24785c08ab92a6e47",
+    "final22": "70b91ffe0e4a7326bca0a018cdaf6469ae956e06c7b589cd2351e5409a6e0d0a",
+    "registry5": "4e5c3f9ee9c138dff24b313a8cbff8fbbfff5257a1f473cb0925e2d0a5daf621"
+  },
+  "files": {
+    "driver-missing-stderr.log": "4803be644427156e367e70666ba85b64ba85a4f33e19a70e1c267471802d3687",
+    "driver-missing-stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "driver-missing.json": "4a253023910c8c1acde86eeb63db6a1374ee14f32497e381eba46318b014251d",
+    "final22-stderr.log": "c4cceaf1afb72d15cf45fe5aad46679e4be01fb59233045a1a2274270fde5482",
+    "final22-stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final22.json": "091aef9aaabdd79ca5eff8c36688fbc352da244589bcabf4edb7e9f33a06e301",
+    "README.md": "4b4e8cc123e49cb73475351b4cf3880a651f89d558fdcf3dbdd0b2397d76a240",
+    "registry5-stderr.log": "39a326af8cfd296fb66042671d9fe1fc4904a6895c0e578acfb603bcb2b9ef37",
+    "registry5-stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "registry5.json": "ca4619c70aca7e92531cea418f5b51a87870b34ffcedcaf6b6cc4e7b3ba7a95a"
+  }
+}
