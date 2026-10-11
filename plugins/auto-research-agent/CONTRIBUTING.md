@@ -154,6 +154,27 @@ AutoResearchAgent PR.
 
 ## Commits and merge
 
+### Necessary CI checks
+
+The Stage 1 workflow selects tests from the Git diff, prints the selected scope
+and test modules, and keeps all three required platform jobs:
+
+| Changed files | Plugin checks |
+| --- | --- |
+| Plugin README/CONTRIBUTING or prose, logs and images in `review-evidence/` only | Stage contract smoke tests; Python quality, spelling and PR validator regressions |
+| Atlas `atlas.html`/`atlas.css`, optionally with the above evidence | Workspace, Atlas, project and message interface tests, plugin loading and stage contracts; the same quality checks |
+| Runtime/API, JavaScript, prompts, schemas, registries, fixtures, dependencies, CI rules, mixed or unknown paths | Full plugin suite and quality checks |
+
+Manual calls or unavailable change history do not select a reduced suite.
+Changing only the PR description/base or making it Ready runs the PR contract
+and dependency validation without replacing the source test statuses. A base
+change still requires Core to verify the combined candidate against its new
+prerequisite before merge. New source commits cancel obsolete PR runs; pushes
+to main keep their own checks. A failed selector, failed test or empty suite is
+a failure, never an accepted skipped platform job. Report the actual selected
+checks and any remaining browser/native acceptance evidence; scoped CI does not
+prove scientific improvement or replace the registered tests for a capability.
+
 Each commit is single-purpose and includes these body fields:
 
 ```text
