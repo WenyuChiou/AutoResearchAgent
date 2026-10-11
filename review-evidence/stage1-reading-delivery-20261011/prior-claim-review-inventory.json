@@ -1,0 +1,58 @@
+{
+  "schema_version": "PriorClaimReviewInventory.v1",
+  "captured_at_utc": "2026-10-11T15:27:03.592Z",
+  "included_ignored_files": true,
+  "enumeration": "filesystem recursive enumeration, not git tracked-file inventory",
+  "file_count": 12,
+  "files": {
+    "review-evidence/stage1-claim-review-20261011/artifacts.sha256": {
+      "sha256": "47376ad60b5b0df1de1d9243a8fb53fd023b9c4d56adca6d81523186c0f53686",
+      "bytes": 1013
+    },
+    "review-evidence/stage1-claim-review-20261011/browser-observations.json": {
+      "sha256": "fb7787bd9bf1df6414255569d7e50899bce5940fb6f6c9e05d27c566e229fbda",
+      "bytes": 2338
+    },
+    "review-evidence/stage1-claim-review-20261011/browser-v1.json": {
+      "sha256": "4e46888ec15f4e3075ddbede6792c94194bb48009665cab76310a331b90f4fb4",
+      "bytes": 517
+    },
+    "review-evidence/stage1-claim-review-20261011/browser-v2.json": {
+      "sha256": "be76c707043d8bb7c794b9416fc8f615356df4cd1f7229a8625816ae02ee1e00",
+      "bytes": 50425
+    },
+    "review-evidence/stage1-claim-review-20261011/browser-v3.json": {
+      "sha256": "05be0fce8f6eff3df4c2f6388ec698f8ba72024613e4a587b63f7dbdc7be73ca",
+      "bytes": 51648
+    },
+    "review-evidence/stage1-claim-review-20261011/manifest.json": {
+      "sha256": "aeee6b200652e30a300cba8a35a5158708e6113d3d768c611a479066366fdaec",
+      "bytes": 3563
+    },
+    "review-evidence/stage1-claim-review-20261011/README.md": {
+      "sha256": "9183099267f681a6185db18b2423665712bb31ed11412ab9719996fd72de2406",
+      "bytes": 3886
+    },
+    "review-evidence/stage1-claim-review-20261011/stage1-claim-browser-20261011-v3-review.png": {
+      "sha256": "5d2e4a3ebc6db20ff9df074023d8af30c37cebf591bb13eb69d80ace4cc0489c",
+      "bytes": 60562
+    },
+    "review-evidence/stage1-claim-review-20261011/stage1-claim-browser-20261011-v3.png": {
+      "sha256": "6900e0127c3e956bb1da0ff388bb35ac7191fc6731efe3398bfdc515707de73a",
+      "bytes": 54902
+    },
+    "review-evidence/stage1-claim-review-20261011/stage1-claim-existing-20261011-v1.log": {
+      "sha256": "8d4cf9303b839cb05e9ef135a20c122feb5766ecd401de16d628d2a2c141c9cc",
+      "bytes": 6652
+    },
+    "review-evidence/stage1-claim-review-20261011/stage1-claim-existing-20261011-v2.log": {
+      "sha256": "2ba9b854cdb99129287f38ef49f3134584ac707cc55115afd87bc46797738417",
+      "bytes": 912
+    },
+    "review-evidence/stage1-claim-review-20261011/stage1-claim-ui-20261011-v1.log": {
+      "sha256": "0d0e28921f46551049d707291479cdde5d73269ede2cc63311dfa0e300f697ea",
+      "bytes": 1392
+    }
+  },
+  "attribution": "Older v1/v2/v3 claim-review evidence remains historical. Its baseline2-to3 claim POST is not this browser v4 baseline2-to2 reading-delivery observation."
+}

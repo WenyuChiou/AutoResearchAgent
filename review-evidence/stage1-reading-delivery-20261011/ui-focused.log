@@ -1,0 +1,27 @@
+{
+  "started_at_utc": "2026-10-11T14:47:45.523Z",
+  "node": "v24.19.0",
+  "command": [
+    "C:\\Users\\13795\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\browser\\project-reading-panel-test.cjs"
+  ],
+  "scope": "synthetic DOM/broker mock for explicit notes, kinds and saved preparation; no browser/API/native/model/search",
+  "hashes_before": {
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\browser\\project-reading-panel-test.cjs": "73be8c8e0b0f4a0723dcb3a306dbc355960dd2e1251e654ac2277e22456aadb9",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\cli\\research_workspace_native\\web\\projects-reading.js": "15bb47a9a3df588830b543a3a251414d3cafb2802baf3f03c8e44041a0c8a8de",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\cli\\research_workspace_native\\web\\projects.js": "8b242bc08f38fb553d706aa4063b34d61190fb082b144f1d61771a2572b1f122"
+  },
+  "hashes_after": {
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\browser\\project-reading-panel-test.cjs": "73be8c8e0b0f4a0723dcb3a306dbc355960dd2e1251e654ac2277e22456aadb9",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\cli\\research_workspace_native\\web\\projects-reading.js": "15bb47a9a3df588830b543a3a251414d3cafb2802baf3f03c8e44041a0c8a8de",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\cli\\research_workspace_native\\web\\projects.js": "8b242bc08f38fb553d706aa4063b34d61190fb082b144f1d61771a2572b1f122"
+  },
+  "source_unchanged": true,
+  "status": 0
+}
+PASS panel: explicit defaults, exact quote, Unicode/UTF-8, held/busy, stale version/language, bounded response
+PASS notes: folded form, explicit checkbox, 13 raw Unknown fields, roles0, Unicode/UTF-8, held/busy/no offer, stale version
+PASS brokers: claim/notes exact body and same-identity refresh; A pending / B starts / A saved; ref, input version and brief changes
+PASS intents: actual mutate registry/produce-records kinds, exact bodies, one POST each, no extra entry SHA
+PASS prepare: actual button disabled without current checkpoint/connection, exact saved body, late project guard
+PASS: project reading panel focused UI mock only

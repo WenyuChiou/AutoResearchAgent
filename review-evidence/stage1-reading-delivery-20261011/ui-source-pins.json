@@ -1,0 +1,5 @@
+{
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects-reading.js": "15bb47a9a3df588830b543a3a251414d3cafb2802baf3f03c8e44041a0c8a8de",
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "8b242bc08f38fb553d706aa4063b34d61190fb082b144f1d61771a2572b1f122",
+  "plugins/auto-research-agent/tests/browser/project-reading-panel-test.cjs": "73be8c8e0b0f4a0723dcb3a306dbc355960dd2e1251e654ac2277e22456aadb9"
+}

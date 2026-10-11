@@ -1,0 +1,8 @@
+{"command": ["D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe", "-B", "-X", "utf8", "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\planned_query_raw_runner.py", "--complete-plugin", "--test", "test_project_model_reading.SavedReadingTests.test_shared_queue_reserves_once_and_publishes_only_verified_reading_draft", "--test", "test_project_reading_review.ProjectReadingReviewTests.test_draft_drift_after_records_guard_refuses_before_saved_intent"], "scope": "synthetic provider; real saved Core/SQLite; no actual model/search/native calls"}
+test_shared_queue_reserves_once_and_publishes_only_verified_reading_draft (test_project_model_reading.SavedReadingTests.test_shared_queue_reserves_once_and_publishes_only_verified_reading_draft) ... ok
+test_draft_drift_after_records_guard_refuses_before_saved_intent (test_project_reading_review.ProjectReadingReviewTests.test_draft_drift_after_records_guard_refuses_before_saved_intent) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 26.303s
+
+OK
