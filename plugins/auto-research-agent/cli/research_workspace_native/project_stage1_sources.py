@@ -1,6 +1,5 @@
 """Inspect already saved, original public-reader observations; never acquire."""
 
-from datetime import datetime
 from pathlib import Path
 
 from stage1_deliverable import sources
@@ -14,6 +13,7 @@ from .project_stage1_delivery import (
     _source_outcome,
 )
 from .session_api import _check
+from .project_stage1_saved_import import source_observation_time_matches
 
 
 def source_record(ledger, materials_root, entry):
@@ -56,8 +56,14 @@ def source_record(ledger, materials_root, entry):
         and start["source_uri"] == (receipt["request"]["url"] or receipt["source_url"])
         and finish["resolved_uri"] == receipt["final_url"]
         and finish["http_status"] == observed["http_status"]
-        and datetime.fromisoformat(finish["observed_at"].replace("Z", "+00:00"))
-        == datetime.fromisoformat(receipt["retrieved_at"].replace("Z", "+00:00")),
+        and source_observation_time_matches(
+            start,
+            finish,
+            receipt,
+            entry["result_sha256"],
+            materials_root=materials_root,
+            result_path=path,
+        ),
         "saved-source-core-observation-differs",
     )
     artifacts = {

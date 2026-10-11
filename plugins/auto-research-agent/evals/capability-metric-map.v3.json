@@ -67,7 +67,9 @@
         "caller owns durable persistence, project authority and admitted process lifecycle",
         "no production launcher, frozen input access, model calls or scientific score changes",
         "saved source completion grants no fetch/model authority; the owner wrapper binds the current project/decision/version/permit and final commit, and retains unknown outcomes because Core journal effects cannot roll back",
-        "The acquisition parsing bridge requires explicit admission and a configured runner; synchronous before/after checks are not hard parser containment, and dual receipts cannot be converted into authenticated source fetch or scientific acceptance."
+        "The acquisition parsing bridge requires explicit admission and a configured runner; synchronous before/after checks are not hard parser containment, and dual receipts cannot be converted into authenticated source fetch or scientific acceptance.",
+        "Saved-record delivery requires the complete Core ClaimEvidence identity set for every selected work/version, including partial or contradictory evidence; a self-consistent reduced records hash cannot omit existing claims or change Unknown findings.",
+        "SavedSdkSourceImport is a distinct local observation after unchanged SDK import-saved parsing; original acquired/SDK/local Core times remain separate, original HTTP verification stays false, legacy fetch equality and full source/claim histories remain required."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_workspace_stage_inputs.py",
@@ -144,7 +146,8 @@
         "plugins/auto-research-agent/tests/test_project_stage1_library.py",
         "plugins/auto-research-agent/tests/test_project_stage1_library_http.py",
         "plugins/auto-research-agent/tests/test_project_stage1_source_observation.py",
-        "plugins/auto-research-agent/tests/test_acquired_source_parser.py"
+        "plugins/auto-research-agent/tests/test_acquired_source_parser.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_saved_import.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

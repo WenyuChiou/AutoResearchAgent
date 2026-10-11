@@ -41,7 +41,7 @@ class Stage1LibraryFixture:
             raise
 
     def _setUp(self):
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.token = "local-library-test-token-with-at-least-32-characters"
         self.principal = "local-viewer"
         self.intake = ProjectIntakeService(self.root, authenticate=library_authenticate)

@@ -6,7 +6,6 @@ This is saved-evidence delivery, not source acquisition or scientific acceptance
 """
 
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
 import os
 import stat
@@ -17,6 +16,7 @@ from stage1_deliverable.records import validate_records
 from stage1_ledger.journal import canonical, decode
 
 from .project_stage1 import _basis
+from .project_stage1_saved_import import source_observation_time_matches
 from .session_api import _check, _hash
 
 MAX_RECORD_BYTES = 16 * 1024 * 1024
@@ -175,8 +175,14 @@ def _records_match(records, ledger, root):
             == (receipt["request"]["url"] or receipt["source_url"])
             and finish["resolved_uri"] == receipt["final_url"]
             and finish["http_status"] == observed["http_status"]
-            and datetime.fromisoformat(finish["observed_at"].replace("Z", "+00:00"))
-            == datetime.fromisoformat(receipt["retrieved_at"].replace("Z", "+00:00")),
+            and source_observation_time_matches(
+                event,
+                finish,
+                receipt,
+                source["result_sha256"],
+                materials_root=root,
+                result_path=safe_path(root, source["result_path"]),
+            ),
             "stage1-source-observation-differs",
         )
         if finish["text_ref"] is not None:
@@ -205,6 +211,17 @@ def _records_match(records, ledger, root):
         and row["version_id"] == papers[row["work_id"]]["version_id"]
     }
     _check(set(source_receipts) == selected_sources, "stage1-source-history-differs")
+    selected_claims = {
+        row["event_id"]
+        for row in events.values()
+        if row["kind"] == "ClaimEvidence"
+        and row["work_id"] in papers
+        and row["version_id"] == papers[row["work_id"]]["version_id"]
+    }
+    _check(
+        {row["claim_id"] for row in records["claims"]} == selected_claims,
+        "stage1-claim-history-differs",
+    )
     for claim in records["claims"]:
         event = events.get(claim["claim_id"])
         _check(

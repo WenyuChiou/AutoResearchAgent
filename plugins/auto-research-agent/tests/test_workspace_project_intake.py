@@ -96,7 +96,7 @@ def compile_body(view):
 class ProjectIntakeTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="project-intake-")
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.service = ProjectIntakeService(self.root, authenticate=authenticate)
 
     def tearDown(self):

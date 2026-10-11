@@ -25,7 +25,7 @@ from test_workspace_project_intake import (
 class ProjectStage1Tests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="project-stage1-")
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.intake = ProjectIntakeService(self.root, authenticate=authenticate)
         self.runner = Mock(side_effect=AssertionError("external query dispatched"))
         self.service = ProjectStage1Service(self.intake, query_runner=self.runner)
