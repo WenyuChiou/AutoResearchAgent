@@ -5,6 +5,7 @@ import atlas_test_paths  # noqa: F401
 from contextlib import contextmanager
 from copy import deepcopy
 import json
+import shutil
 import sqlite3
 import threading
 import time
@@ -30,6 +31,52 @@ if fixtures.RAW_SOURCE_PROOF is None:
 else:
 
     class SavedMutationTests(QueryCase):
+        def test_existing_pending_source_refuses_query_offer_and_reopen_without_io(
+            self,
+        ):
+            # Existing saved Core history may contain a source attempt before a
+            # query owner attaches. Source events have no ActionStarted.operation.
+            from stage1_retrieval.runner import execute
+
+            query = self.ledger.start_planned(self.permit["planned_ids"][0])
+            with self.no_probe(), self.fake_runner():
+                execute(self.ledger_root, query, "openalex")
+            self.ledger.complete_query(query)
+            self.ledger.extract()
+            candidate = next(iter(self.ledger.candidates().values()))
+            self.ledger.start_source(
+                work_id=candidate["work_id"],
+                version_id=candidate["version_ids"][0],
+                source_uri="https://example.org/saved-pending",
+                tool="synthetic-no-io",
+                request={"public_only": True},
+                actor="researcher",
+                reason="existing saved pending source; never fetched",
+            )
+            parent = self.root / "pending-parent"
+            shutil.copytree(self.ledger_root, parent)
+            self.item["parent_ledger_root"] = str(parent)
+            self.item["parent_ledger_sha256"] = tree_sha(parent)
+            self.permit["binding"]["parent_ledger_sha256"] = tree_sha(parent)
+            self.write_permit()
+            service = self.service()
+            before = service.view("secret", "case")
+            with self.assertRaisesRegex(SessionApiError, "query-pending-source"):
+                service.offer("secret", "case")
+            self.assertEqual(service.view("secret", "case"), before)
+            service.close()
+            reopened = self.service()
+            with (
+                self.no_probe(),
+                patch.object(
+                    reopened, "_execute", side_effect=AssertionError("no I/O")
+                ),
+            ):
+                with self.assertRaisesRegex(SessionApiError, "query-pending-source"):
+                    reopened.offer("secret", "case")
+                self.assertEqual(reopened.view("secret", "case")["history"], [])
+            self.assertEqual(len(self.children), 1)
+
         def invoke(
             self, service, key="saved-1", operation="stage1-checkpoint", producer=None
         ):

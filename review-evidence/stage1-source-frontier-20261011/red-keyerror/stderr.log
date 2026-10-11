@@ -1,0 +1,23 @@
+test_existing_pending_source_refuses_query_offer_and_reopen_without_io (test_planned_query_saved_mutations.SavedMutationTests.test_existing_pending_source_refuses_query_offer_and_reopen_without_io) ... ERROR
+
+======================================================================
+ERROR: test_existing_pending_source_refuses_query_offer_and_reopen_without_io (test_planned_query_saved_mutations.SavedMutationTests.test_existing_pending_source_refuses_query_offer_and_reopen_without_io)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_planned_query_saved_mutations.py", line 63, in test_existing_pending_source_refuses_query_offer_and_reopen_without_io
+    service.offer("secret", "case")
+  File "D:\Codex_Learning\harness_building\_temp\fq10\pq-raw-yf0t15cc\plugins\auto-research-agent\cli\research_workspace_native\planned_queries.py", line 493, in offer
+    item, permit, state, pin = self._inspect(ref, p, saved)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\_temp\fq10\pq-raw-yf0t15cc\plugins\auto-research-agent\cli\research_workspace_native\planned_queries.py", line 225, in _inspect
+    not any(
+        ^^^^
+  File "D:\Codex_Learning\harness_building\_temp\fq10\pq-raw-yf0t15cc\plugins\auto-research-agent\cli\research_workspace_native\planned_queries.py", line 226, in <genexpr>
+    ledger.event(k)["operation"] == "backend" for k in ledger.pending()
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+KeyError: 'operation'
+
+----------------------------------------------------------------------
+Ran 1 test in 1.744s
+
+FAILED (errors=1)

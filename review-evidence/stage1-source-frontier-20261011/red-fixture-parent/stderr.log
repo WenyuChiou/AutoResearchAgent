@@ -1,0 +1,25 @@
+test_existing_pending_source_refuses_query_offer_and_reopen_without_io (test_planned_query_saved_mutations.SavedMutationTests.test_existing_pending_source_refuses_query_offer_and_reopen_without_io) ... ERROR
+
+======================================================================
+ERROR: test_existing_pending_source_refuses_query_offer_and_reopen_without_io (test_planned_query_saved_mutations.SavedMutationTests.test_existing_pending_source_refuses_query_offer_and_reopen_without_io)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_planned_query_saved_mutations.py", line 53, in test_existing_pending_source_refuses_query_offer_and_reopen_without_io
+    service = self.service()
+              ^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\planned_query_fixture.py", line 183, in service
+    service = PlannedQueryService(
+              ^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\_temp\fq10\pq-raw-lg2tpeay\plugins\auto-research-agent\cli\research_workspace_native\planned_queries.py", line 84, in __init__
+    database = budget_path(store_path, prepared)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\_temp\fq10\pq-raw-lg2tpeay\plugins\auto-research-agent\cli\research_workspace_native\query_storage.py", line 153, in budget_path
+    require(
+  File "D:\Codex_Learning\harness_building\_temp\fq10\pq-raw-lg2tpeay\plugins\auto-research-agent\cli\research_workspace_native\planned_query_contract.py", line 55, in require
+    raise SessionApiError(code, status)
+research_workspace_native.session_api.SessionApiError: query-clone-parent-bytes-differ
+
+----------------------------------------------------------------------
+Ran 1 test in 1.200s
+
+FAILED (errors=1)

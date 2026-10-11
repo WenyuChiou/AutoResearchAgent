@@ -1,0 +1,15 @@
+test_existing_pending_source_refuses_query_offer_and_reopen_without_io (test_planned_query_saved_mutations.SavedMutationTests.test_existing_pending_source_refuses_query_offer_and_reopen_without_io) ... ERROR
+
+======================================================================
+ERROR: test_existing_pending_source_refuses_query_offer_and_reopen_without_io (test_planned_query_saved_mutations.SavedMutationTests.test_existing_pending_source_refuses_query_offer_and_reopen_without_io)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_planned_query_saved_mutations.py", line 41, in test_existing_pending_source_refuses_query_offer_and_reopen_without_io
+    candidate = next(iter(self.ledger.candidates().values()))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+StopIteration
+
+----------------------------------------------------------------------
+Ran 1 test in 0.491s
+
+FAILED (errors=1)

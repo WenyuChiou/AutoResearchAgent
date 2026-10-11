@@ -221,11 +221,17 @@ class PlannedQueryService:
             "query-unreconciled-action",
         )
         ledger = CoverageLedger(item["ledger_root"])
+        pending = [ledger.event(key) for key in ledger.pending()]
         require(
-            not any(
-                ledger.event(k)["operation"] == "backend" for k in ledger.pending()
-            ),
+            not any(row.get("operation") == "backend" for row in pending),
             "query-pending-backend",
+        )
+        require(
+            all(
+                row.get("kind") == "ActionStarted" and row.get("operation") == "search"
+                for row in pending
+            ),
+            "query-pending-source",
         )
         require(
             saved["query_budget"]["attempts"] < permit["max_attempts"]
