@@ -8,11 +8,91 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cli"))
 sys.path.insert(0, str(HERE))
 from stage_pipeline_fixture_helpers import StagePipelineFixture
+from research_workspace_native.stage_pipeline import StagePipeline
 from stage2_common import Stage2Error
+from stage2_common import canonical_hash
+import hashlib
 import json
+from jsonschema import Draft202012Validator, ValidationError
 
 
 class StagePipelineSafetyTests(StagePipelineFixture):
+    def test_compact_extraction_keeps_original_payload_and_spans(self):
+        self.step()
+        self.step()
+        task = self.pipeline.next_task()
+        payload = json.loads(task["prompt"].rsplit("\n", 1)[1])
+        self.assertEqual(payload["packet"], self.pipeline.packet)
+        self.assertEqual(payload["generation_schema"], task["schema"])
+        self.assertEqual(
+            "".join(row["quote"] for row in payload["numbered_proposal_spans"]),
+            self.pipeline.prose["research"]["text"],
+        )
+
+    def test_compact_assessment_schema_keeps_original_validation(self):
+        self.pipeline.max_calls = 9
+        for _ in range(8):
+            self.step()
+        task = self.pipeline.next_task()
+        compact = json.loads(task["prompt"].rsplit("\n", 1)[1])
+        value = self.output(task)
+        for schema in (task["schema"], compact):
+            validator = Draft202012Validator(schema)
+            validator.validate(value)
+            wrong = deepcopy(value)
+            del wrong["assessment"]["checks"]["opportunity"]["rationale"]
+            with self.assertRaises(ValidationError):
+                validator.validate(wrong)
+            wrong = deepcopy(value)
+            wrong["assessment"]["checks"]["materials"]["score"] = 3
+            with self.assertRaises(ValidationError):
+                validator.validate(wrong)
+
+    def test_aggregate_source_prompt_is_refused_before_intent(self):
+        for index, row in enumerate(self.packet["sources"]):
+            path = self.sources / row["path"]
+            raw = path.read_bytes() + ("資料" * 1000).encode("utf8")
+            path.write_bytes(raw)
+            row["sha256"] = hashlib.sha256(raw).hexdigest()
+            self.assertLess(len(raw), 9000, index)
+        self.path.write_text(json.dumps(self.packet), encoding="utf8")
+        pipeline = StagePipeline(
+            self.path,
+            self.sources,
+            self.root / "oversized-pipeline",
+            expected_packet_sha256=canonical_hash(self.packet),
+            source_sha256="a" * 64,
+            verify_receipt=self.verify,
+        )
+        for operation in (pipeline.next_task, lambda: pipeline.begin_task("b" * 64)):
+            with self.assertRaisesRegex(Stage2Error, "pipeline-prompt-byte-bound"):
+                operation()
+        self.assertIsNone(pipeline.pending)
+        self.assertEqual(pipeline.records, [])
+        self.assertFalse(list((pipeline.root / "intents").glob("*.json")))
+        self.assertEqual(self.verifications, 0)
+
+    def test_retained_reply_cannot_expand_next_prompt_past_bound(self):
+        self.step("Retained summary. " * 1000)
+        before = list((self.pipeline.root / "intents").glob("*.json"))
+        with self.assertRaisesRegex(Stage2Error, "pipeline-prompt-byte-bound"):
+            self.pipeline.next_task()
+        self.assertEqual(list((self.pipeline.root / "intents").glob("*.json")), before)
+        self.assertIsNone(self.pipeline.pending)
+        self.assertEqual(len(self.pipeline.records), 1)
+        self.assertEqual(self.verifications, 1)
+
+    def test_semantic_repair_includes_prior_reply_in_prompt_bound(self):
+        self.step()
+        self.step()
+        self.step("{not JSON " * 1000)
+        self.assertEqual(self.pipeline.records[-1]["status"], "invalid")
+        before = list((self.pipeline.root / "intents").glob("*.json"))
+        with self.assertRaisesRegex(Stage2Error, "pipeline-prompt-byte-bound"):
+            self.pipeline.next_task()
+        self.assertEqual(list((self.pipeline.root / "intents").glob("*.json")), before)
+        self.assertIsNone(self.pipeline.pending)
+
     def test_multiple_candidates_are_accepted_then_require_selection(self):
         self.step()
         self.step()
