@@ -238,6 +238,12 @@ class ProjectStage1Service:
                     current=latest["state_sha256"] == report["state_sha256"],
                 ),
             )
+            from .project_stage1_coverage import offers, unresolved
+
+            result["coverage_actions"] = offers(ledger, binding, run, report)
+            result["coverage_actions"]["held"] = bool(
+                unresolved(self, project_ref, principal, state["input_version"])
+            )
             return result
 
     def offers(self, credential, project_ref):
@@ -327,6 +333,7 @@ class ProjectStage1Service:
         producer,
         *,
         fields=(),
+        preflight=None,
         check_deadline=None,
     ):
         _fields(body, BODY_FIELDS | {"ledger_state_sha256"} | set(fields))
@@ -336,6 +343,32 @@ class ProjectStage1Service:
             400,
         )
         principal = self.intake._principal(credential)
+
+        def reserve(state, _, actor):
+            from .project_stage1_coverage import unresolved
+
+            _check(
+                not unresolved(self, project_ref, actor, state["input_version"]),
+                "stage1-coverage-write-outcome-unobserved",
+            )
+            if preflight is None:
+                return
+            binding = self.intake.binding(project_ref)
+            run, ledger, report = self._ledger(state, binding)
+            _check(
+                report["state_sha256"] == body["ledger_state_sha256"],
+                "stage1-ledger-state-stale",
+            )
+            if run.get("query_owned"):
+                _check(self.query_service is not None, "stage1-query-owner-unconnected")
+                frontier = self.query_service.saved_frontier(project_ref)
+                _check(
+                    frontier["state_sha256"] == report["state_sha256"],
+                    "stage1-coverage-owner-state-differs",
+                )
+            if check_deadline is not None:
+                check_deadline()
+            preflight(state, run, ledger, report, actor)
 
         def work(state, request_hash, actor):
             binding = self.intake.binding(project_ref)
@@ -374,7 +407,15 @@ class ProjectStage1Service:
             kind,
             deepcopy(body),
             work,
+            reserve=reserve,
             check_deadline=check_deadline,
+        )
+
+    def coverage(self, credential, project_ref, body, *, check_deadline=None):
+        from .project_stage1_coverage import execute
+
+        return execute(
+            self, credential, project_ref, body, check_deadline=check_deadline
         )
 
     def plan_query(self, credential, project_ref, body, *, check_deadline=None):

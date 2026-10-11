@@ -1,0 +1,102 @@
+test_closed_owner_refuses_coverage_before_intent_or_core_write (test_project_coverage_owned.ProjectCoverageOwnedTests.test_closed_owner_refuses_coverage_before_intent_or_core_write) ... ok
+test_owned_coverage_commit_and_replay_preserve_query_budget (test_project_coverage_owned.ProjectCoverageOwnedTests.test_owned_coverage_commit_and_replay_preserve_query_budget) ... FAIL
+
+======================================================================
+FAIL: test_owned_coverage_commit_and_replay_preserve_query_budget (test_project_coverage_owned.ProjectCoverageOwnedTests.test_owned_coverage_commit_and_replay_preserve_query_budget)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_coverage_owned.py", line 64, in test_owned_coverage_commit_and_replay_preserve_query_budget
+    if self.raw_child():
+       ^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_coverage_owned.py", line 29, in raw_child
+    run_cases(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\planned_query_raw_runner.py", line 95, in run_cases
+    testcase.assertEqual(result.returncode, 0, log)
+AssertionError: 1 != 0 : test_owned_coverage_commit_and_replay_preserve_query_budget (test_project_coverage_owned.ProjectCoverageOwnedTests.test_owned_coverage_commit_and_replay_preserve_query_budget) ... ERROR
+
+
+
+======================================================================
+
+ERROR: test_owned_coverage_commit_and_replay_preserve_query_budget (test_project_coverage_owned.ProjectCoverageOwnedTests.test_owned_coverage_commit_and_replay_preserve_query_budget)
+
+----------------------------------------------------------------------
+
+Traceback (most recent call last):
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 254, in _perform
+
+    result = work(current, request_hash, principal)
+
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\project_stage1.py", line 392, in work
+
+    return self.query_service.mutate(
+
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_queries.py", line 799, in mutate
+
+    require(
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\planned_query_contract.py", line 55, in require
+
+    raise SessionApiError(code, status)
+
+research_workspace_native.session_api.SessionApiError: project-query-write-outcome-unknown
+
+
+
+The above exception was the direct cause of the following exception:
+
+
+
+Traceback (most recent call last):
+
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_coverage_owned.py", line 88, in test_owned_coverage_commit_and_replay_preserve_query_budget
+
+    result = case.stage1.coverage("alice-token", case.ref, body)
+
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\project_stage1.py", line 417, in coverage
+
+    return execute(
+
+           ^^^^^^^^
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_coverage.py", line 334, in execute
+
+    return service._mutate(
+
+           ^^^^^^^^^^^^^^^^
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\project_stage1.py", line 404, in _mutate
+
+    return self.intake._perform(
+
+           ^^^^^^^^^^^^^^^^^^^^^
+
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-ccfr8j65\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 316, in _perform
+
+    raise raised from error
+
+research_workspace_native.session_api.SessionApiError: intake-operation-failed
+
+
+
+----------------------------------------------------------------------
+
+Ran 1 test in 7.073s
+
+
+
+FAILED (errors=1)
+
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 15.579s
+
+FAILED (failures=1)

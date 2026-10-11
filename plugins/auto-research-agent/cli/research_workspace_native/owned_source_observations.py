@@ -27,7 +27,9 @@ class OwnedSourceObservations:
         service = self.service
         service._check_storage()
         service._saved_owner(project, saved)
-        item, _, _, _ = inspect_registration(ref, project["item"], require_ready=False)
+        item, _, _, _ = inspect_registration(
+            ref, project["item"], require_ready=False, allow_closed=True
+        )
         require(
             not any(row["status"] != "completed" for row in saved["intents"].values()),
             "source-unreconciled-local-action",
@@ -186,7 +188,9 @@ class OwnedSourceObservations:
                     and current["intents"][intent_key]["request"] == identity,
                     "source-local-control-differs",
                 )
-                inspect_registration(ref, project["item"], require_ready=False)
+                inspect_registration(
+                    ref, project["item"], require_ready=False, allow_closed=True
+                )
                 observation = service._saved_observation(ledger, before)
                 row["core_observation"] = observation
                 require(observation["valid"], "source-local-write-invalid")

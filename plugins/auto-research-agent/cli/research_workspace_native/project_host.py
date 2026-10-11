@@ -33,7 +33,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -131,6 +131,7 @@ class ProjectHost(AtlasHost):
             "projects.js",
             "projects.css",
             "projects-library.js",
+            "projects-coverage.js",
         ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
         # Keep all saved v6 graph files unchanged. Navigation is a host overlay.
@@ -384,6 +385,7 @@ class ProjectHandler(AtlasHandler):
                     in {
                         "initialize",
                         "screen",
+                        "coverage",
                         "plan-query",
                         "execute-query",
                         "checkpoint",

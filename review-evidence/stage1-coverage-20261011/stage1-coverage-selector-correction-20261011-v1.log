@@ -1,0 +1,6 @@
+test_producer_failure_retains_unknown_core_bytes_and_never_replays (test_planned_query_saved_mutations.SavedMutationTests.test_producer_failure_retains_unknown_core_bytes_and_never_replays) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 2.050s
+
+OK

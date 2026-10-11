@@ -152,7 +152,8 @@
         "All lanes share the exact confirmed resource version; immutable reservations survive failed/unknown work. Controlled transport and saved-public parsing preserve distinct original receipts; no new source or model authority follows from a body, caller hash, fixture or CI result. Cleanup allowance and outer process containment remain separately required.",
         "Saved-record delivery requires the complete Core ClaimEvidence identity set for every selected work/version, including partial or contradictory evidence; a self-consistent reduced records hash cannot omit existing claims or change Unknown findings.",
         "SavedSdkSourceImport is a distinct local observation after unchanged SDK import-saved parsing; original acquired/SDK/local Core times remain separate, original HTTP verification stays false, legacy fetch equality and full source/claim histories remain required.",
-        "Only server-proven never-admitted model attempts may receive a retirement overlay; preserve Unknown, request identity, old owner, consumed reservations and failures. Dispatched or unverified runtime work remains held; retirement never starts, resumes, refunds or grants permission."
+        "Only server-proven never-admitted model attempts may receive a retirement overlay; preserve Unknown, request identity, old owner, consumed reservations and failures. Dispatched or unverified runtime work remains held; retirement never starts, resumes, refunds or grants permission.",
+        "Explicit coverage offers bind the current saved Core ledger, input version and exact review payload. Review, query receipt, round open/close and human stop requests use the existing owned saved-mutation path; unknown effects hold new writes and same-key history never repeats Core events. Closed rounds remain readable for saved observations but cannot authorize query execution. This adapter creates no reading claims, external grants, stage completion or scientific scores."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
@@ -302,7 +303,10 @@
         "plugins/auto-research-agent/tests/test_project_stage1_source_http.py",
         "plugins/auto-research-agent/tests/test_project_source_dispatch.py",
         "plugins/auto-research-agent/tests/test_saved_source_parser_worker.py",
-        "plugins/auto-research-agent/tests/test_source_saved_pipeline.py"
+        "plugins/auto-research-agent/tests/test_source_saved_pipeline.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_coverage.py",
+        "plugins/auto-research-agent/tests/test_project_coverage_owned.py",
+        "plugins/auto-research-agent/tests/project_coverage_browser_fixture.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

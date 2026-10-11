@@ -268,7 +268,9 @@ class ProjectIntakeService:
             except BaseException as error:
                 self.db.rollback()
                 receipt.update(
-                    status="execution-unknown" if work_completed else "failed",
+                    status="execution-unknown"
+                    if work_completed or kind == "stage1-coverage"
+                    else "failed",
                     error=str(error)[:512],
                 )
                 if work_completed:
@@ -276,6 +278,10 @@ class ProjectIntakeService:
                         failure_phase="post-work-before-commit",
                         output_observation=deepcopy(result),
                     )
+                elif kind == "stage1-coverage":
+                    # A Core append can succeed before its producer raises.
+                    # Keep this new local action held; failed is unlockable by UI.
+                    receipt["failure_phase"] = "core-write-outcome-unobserved"
                 self.db.execute("BEGIN IMMEDIATE")
                 try:
                     self.db.execute(

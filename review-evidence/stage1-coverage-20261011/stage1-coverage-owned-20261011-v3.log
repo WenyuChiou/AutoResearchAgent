@@ -1,0 +1,7 @@
+test_closed_owner_refuses_coverage_before_intent_or_core_write (test_project_coverage_owned.ProjectCoverageOwnedTests.test_closed_owner_refuses_coverage_before_intent_or_core_write) ... ok
+test_owned_coverage_commit_and_replay_preserve_query_budget (test_project_coverage_owned.ProjectCoverageOwnedTests.test_owned_coverage_commit_and_replay_preserve_query_budget) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 16.886s
+
+OK

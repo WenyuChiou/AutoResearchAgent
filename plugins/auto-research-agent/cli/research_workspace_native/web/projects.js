@@ -226,6 +226,20 @@
     $("ledger-deliver").disabled = projectBlocked || !availableDelivery();
     const queries = state.stage1 && state.stage1.query_execution;
     for (const [id, field] of [["query-authorize", "authorization_offer"], ["query-bootstrap", "bootstrap_offer"], ["query-execute", "query_offer"], ["query-restore-owner", "owner_offer"]]) $(id).disabled = projectBlocked || !queries || !queries[field];
+    if (window.ResearchProjectCoverage) window.ResearchProjectCoverage.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked, submit: submitCoverage});
+  }
+  async function submitCoverage(item) {
+    const project = state.project, view = state.stage1 && state.stage1.coverage_actions;
+    if (!project || state.busy || state.loading || state.activeJob || !view
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || item.ledger_state_sha256 !== view.ledger_state_sha256
+        || !state.stage1.ledger || item.ledger_state_sha256 !== state.stage1.ledger.state_sha256
+        || !rows(view, "offers").some(offer => offer.operation === item.operation && offer.offer_ref === item.offer_ref && offer.offer_sha256 === item.offer_sha256)) return null;
+    const ref = project.project_ref;
+    const result = await mutate("stage1/coverage", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, operation: item.operation, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+    return result;
   }
   async function mutate(operation, body, ref) {
     if (state.busy || state.loading) return null;

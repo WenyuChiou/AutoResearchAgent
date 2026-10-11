@@ -81,7 +81,7 @@ def tree_sha(root):
     return source_digest(snapshot_inputs({1: {"ledger_root": str(root)}, 2: None}))
 
 
-def inspect_registration(ref, item, *, require_ready=True):
+def inspect_registration(ref, item, *, require_ready=True, allow_closed=False):
     require(
         isinstance(ref, str) and REF.fullmatch(ref), "query-project-ref-invalid", 400
     )
@@ -184,7 +184,8 @@ def inspect_registration(ref, item, *, require_ready=True):
     raw_file(pin["config"]["path"], pin["config"]["sha256"], maximum=1024 * 1024)
     state = CoverageLedger(item["ledger_root"]).coverage_state()
     require(
-        state.plan is not None and state.active is not None,
+        state.plan is not None
+        and (state.active is not None or (allow_closed and not require_ready)),
         "query-bound-open-plan-required",
     )
     bound_plan = decode(

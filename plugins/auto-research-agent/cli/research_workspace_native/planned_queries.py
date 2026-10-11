@@ -33,6 +33,7 @@ from research_workspace_native.query_execution_source import check_execution_sou
 
 
 SAVED_OPERATIONS = {
+    "stage1-coverage",
     "stage1-screen",
     "stage1-plan-query",
     "stage1-checkpoint",
@@ -78,7 +79,12 @@ class PlannedQueryService:
         )
         self._closing = False
         prepared = [
-            (ref, *inspect_registration(ref, item, require_ready=False))
+            (
+                ref,
+                *inspect_registration(
+                    ref, item, require_ready=False, allow_closed=True
+                ),
+            )
             for ref, item in registrations.items()
         ]
         for ref, item, _, _, _ in prepared:
@@ -296,7 +302,9 @@ class PlannedQueryService:
     def _saved_frontier(self, ref, p, saved):
         self._check_storage()
         self._saved_owner(p, saved)
-        item, _, _, _ = inspect_registration(ref, p["item"], require_ready=False)
+        item, _, _, _ = inspect_registration(
+            ref, p["item"], require_ready=False, allow_closed=True
+        )
         require(
             not any(row["status"] != "completed" for row in saved["intents"].values()),
             "query-unreconciled-action",
@@ -441,7 +449,9 @@ class PlannedQueryService:
                     == identity,
                     "query-saved-control-differs",
                 )
-                inspect_registration(ref, p["item"], require_ready=False)
+                inspect_registration(
+                    ref, p["item"], require_ready=False, allow_closed=True
+                )
                 require(
                     all(
                         ledger.event(key).get("kind") == "ActionStarted"

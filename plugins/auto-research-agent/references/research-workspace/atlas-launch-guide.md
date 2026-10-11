@@ -212,3 +212,25 @@ beyond its exact binding file. Ending it preserves the original Unknown,
 failure, request key and reserved budget. It does not resend or authorize work.
 Dispatched attempts with unverified process cleanup remain held; a missing PID
 or a browser confirmation cannot release them. Refresh only reads history.
+
+## Saved Stage 1 coverage review
+
+In the Projects portal, open **Coverage and stop review** below the saved ledger.
+Select one server-offered action, review its current source-bound fields, and
+explicitly save. Available actions are paper coverage review, query completeness
+receipt, bounded round open/close, and a human stop or cluster request. Paper
+reviews use existing Core claim IDs; this panel does not create claims from a
+model draft. Missing identity or truncation information stays Unknown.
+
+These are real local Core journal operations, not search or model execution.
+Opening a round does not execute its queries. The existing Core gate decides
+whether coverage is sufficient; a human stop request cannot bypass its blockers,
+and a sufficient coverage checkpoint alone does not complete Stage 1 or unlock
+Stage 2. Canonical delivery and its independent prerequisites remain required.
+
+Offers expire when the input or ledger changes. Refresh reads saved history;
+reusing the same request key returns that history without another Core write.
+An unobserved write retains execution-unknown and holds new saved Stage 1 writes.
+Closed-round saved observations remain readable through their existing owner;
+query execution still requires an open, ready, admitted round. The new-topic
+source-to-ClaimEvidence writer and complete live Stage 1 acceptance remain pending.
