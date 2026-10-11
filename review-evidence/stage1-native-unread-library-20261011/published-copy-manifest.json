@@ -1,0 +1,137 @@
+[
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-93b223aa0f134576a723a4bccf64cf74\\receipt.json",
+    "original_sha256": "ff5fc0014650f46909a45dfa9ef72b0b4b5fb76ff48c1f6c23c325ddf0e83dd3",
+    "published_path": "initial-five/receipt.json",
+    "published_sha256": "ff5fc0014650f46909a45dfa9ef72b0b4b5fb76ff48c1f6c23c325ddf0e83dd3",
+    "original_bytes": 780,
+    "published_bytes": 780,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-93b223aa0f134576a723a4bccf64cf74\\raw.log",
+    "original_sha256": "83caad6284152bf3f1c6bb944407ffb9c861d83be474c60c2805818b22a3cc94",
+    "published_path": "initial-five/raw.log",
+    "published_sha256": "52ede391badc5e4f4500d5fd5d3113acc623c48e9b3b1097eb60148e791d5e50",
+    "original_bytes": 4291,
+    "published_bytes": 4246,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-93b223aa0f134576a723a4bccf64cf74\\sources.json",
+    "original_sha256": "f3b654a411f3762f1df2af00e1b299e51b943aa66630de3bbf8a95fb1c4e3354",
+    "published_path": "initial-five/sources.json",
+    "published_sha256": "f3b654a411f3762f1df2af00e1b299e51b943aa66630de3bbf8a95fb1c4e3354",
+    "original_bytes": 106808,
+    "published_bytes": 106808,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-0de5b4cd526148568e495044f1258141\\receipt.json",
+    "original_sha256": "e9ff94196cf0e058dbaf89ce714fbfdc935b1acc7361918b28e0831151dfdc99",
+    "published_path": "fixture-repair-three/receipt.json",
+    "published_sha256": "e9ff94196cf0e058dbaf89ce714fbfdc935b1acc7361918b28e0831151dfdc99",
+    "original_bytes": 523,
+    "published_bytes": 523,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-0de5b4cd526148568e495044f1258141\\raw.log",
+    "original_sha256": "31e096eb2ae68a309934865005e72e3dee2028c71e158213f5c176605e997ad6",
+    "published_path": "fixture-repair-three/raw.log",
+    "published_sha256": "26283a17b2df0c4515353054ac83f8f5528c0697369ae71fb37335ec8ba16959",
+    "original_bytes": 3143,
+    "published_bytes": 3107,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-0de5b4cd526148568e495044f1258141\\sources.json",
+    "original_sha256": "d87dd70b7dc846b81acbed74537e041390dce00d678f7dbe51556528d98b61d6",
+    "published_path": "fixture-repair-three/sources.json",
+    "published_sha256": "d87dd70b7dc846b81acbed74537e041390dce00d678f7dbe51556528d98b61d6",
+    "original_bytes": 106808,
+    "published_bytes": 106808,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-ee42272a779647999a522e0b6eb898ec\\receipt.json",
+    "original_sha256": "d8ad9cef8b94edb683f411f644c425b18811670975f12c8e3382246ce1eda348",
+    "published_path": "repair-two/receipt.json",
+    "published_sha256": "d8ad9cef8b94edb683f411f644c425b18811670975f12c8e3382246ce1eda348",
+    "original_bytes": 737,
+    "published_bytes": 737,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-ee42272a779647999a522e0b6eb898ec\\raw.log",
+    "original_sha256": "81cff6ffde1db46cad5fdc3b6ff6a6df7581a4519fd2dd9deb0c4b0bf600cce0",
+    "published_path": "repair-two/raw.log",
+    "published_sha256": "28024e89c4be26513e900f6016ac4d065cecfabfed008b47c2175e67245540d9",
+    "original_bytes": 1485,
+    "published_bytes": 1466,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-ee42272a779647999a522e0b6eb898ec\\sources.json",
+    "original_sha256": "66929daaea71906c330cd33a0515bbbd26532e7c46cb85b03728b225038bbacc",
+    "published_path": "repair-two/sources.json",
+    "published_sha256": "66929daaea71906c330cd33a0515bbbd26532e7c46cb85b03728b225038bbacc",
+    "original_bytes": 106808,
+    "published_bytes": 106808,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-5afff35c27a54d2ab17838342228c6f3\\receipt.json",
+    "original_sha256": "c0464affa4f9618addd1acb436fe69f9961a92cb5355048898943fcc82f6a73d",
+    "published_path": "final-mixed/receipt.json",
+    "published_sha256": "c0464affa4f9618addd1acb436fe69f9961a92cb5355048898943fcc82f6a73d",
+    "original_bytes": 614,
+    "published_bytes": 614,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-5afff35c27a54d2ab17838342228c6f3\\raw.log",
+    "original_sha256": "6c07ba9f6e3cb0cfbda8b03c7baf5b008474569dc028691a898ab3337174ea3b",
+    "published_path": "final-mixed/raw.log",
+    "published_sha256": "a790165b036b2ad74f2a7f552409ffd86d7177ea4aa1ee7a58e1a0cddd53e1b4",
+    "original_bytes": 311,
+    "published_bytes": 305,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-5afff35c27a54d2ab17838342228c6f3\\sources.json",
+    "original_sha256": "843238693df89492aa854743b64bc7e59df21a02450050d049b95d51bf6e79bc",
+    "published_path": "final-mixed/sources.json",
+    "published_sha256": "843238693df89492aa854743b64bc7e59df21a02450050d049b95d51bf6e79bc",
+    "original_bytes": 106808,
+    "published_bytes": 106808,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-ab8737e58dcc408cb1d64f14dce7520a\\receipt.json",
+    "original_sha256": "79720097b7d4819dda533674b454596f278f32f51e8ba5cf0cbe3f0206efe9af",
+    "published_path": "map-five/receipt.json",
+    "published_sha256": "79720097b7d4819dda533674b454596f278f32f51e8ba5cf0cbe3f0206efe9af",
+    "original_bytes": 500,
+    "published_bytes": 500,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-ab8737e58dcc408cb1d64f14dce7520a\\raw.log",
+    "original_sha256": "c2ed47c0de2ce32e7be39428833143068cb33337b341206def31068d0710a100",
+    "published_path": "map-five/raw.log",
+    "published_sha256": "42652a6142e73a5dd728e5aed7123a89889e9d20217db05fee8fcb8e25318a0d",
+    "original_bytes": 947,
+    "published_bytes": 937,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  },
+  {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-ab8737e58dcc408cb1d64f14dce7520a\\sources.json",
+    "original_sha256": "843238693df89492aa854743b64bc7e59df21a02450050d049b95d51bf6e79bc",
+    "published_path": "map-five/sources.json",
+    "published_sha256": "843238693df89492aa854743b64bc7e59df21a02450050d049b95d51bf6e79bc",
+    "original_bytes": 106808,
+    "published_bytes": 106808,
+    "transformation": "UTF-8 text copy; CRLF to LF only; original retained"
+  }
+]

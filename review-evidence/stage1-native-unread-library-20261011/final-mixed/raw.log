@@ -1,0 +1,6 @@
+test_mixed_library_preserves_all_candidates_package_graph_and_reopen (test_project_stage1_discovery_records.DiscoveryRecordsTests.test_mixed_library_preserves_all_candidates_package_graph_and_reopen) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 24.115s
+
+OK

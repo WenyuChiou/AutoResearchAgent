@@ -1,0 +1,20 @@
+{
+  "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py": "e55e1ca98203c7c3f863eeb17b89724f27ed055c69a2c72999b9b5a5775e8e01",
+  "plugins/auto-research-agent/cli/research_workspace/projection.py": "4a6678bac05450617e35eae039aa8826dff369aac78b7a0f6bf6c0527b680646",
+  "plugins/auto-research-agent/cli/research_workspace/view.py": "1d72948296ea5e90c6b26bc0523601c5d8f570c55b6dbba3057052d638f55d9d",
+  "plugins/auto-research-agent/cli/research_workspace/wiki.py": "9ee6588584f1e559fb8b068649c0d2b8ddbe9de0f88556eee9e94754075dbe7e",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_records_recovery.py": "f90ac4fa01d3ae9e83c2f5d89b5a0dc1e151723df1f5e317c575d12e5e228929",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "8f09693ee643f40ba0c324364dbf5447232be5c262e968dd30c93c6e7894feb9",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "bab83e94867ed523c830bcdfd23667969d9eebd6c9b88f8ebdc36432a2485704",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_stage2.py": "5cfc19f409f600a6f6570cc0201668811b0a7968bba28edaa8fe6d9fa7143ee5",
+  "plugins/auto-research-agent/cli/stage1_deliverable/core_records.py": "3f143aa8f196a51e684a5dfaeef55c0f70804ba5109f7306da7c342b07d5d4a3",
+  "plugins/auto-research-agent/cli/stage1_deliverable/package.py": "b74909f20ae65e9763c4172a4ada4e6d215b7b868d8c8b665241fa0282b6d5a6",
+  "plugins/auto-research-agent/cli/stage1_deliverable/records.py": "7fac34d8455d8d5f02b06f43defea20f8cce13ed3734777d579f2713b64d66b6",
+  "plugins/auto-research-agent/cli/stage1_deliverable/screening_records.py": "056ab24a18e3a9e2eb6ece7245613eaf55f3b0e4649ba12ca2f9e6960a0c5fb7",
+  "plugins/auto-research-agent/cli/stage1_deliverable/views.py": "efb99f81c0a50f2a46b1dbba5d5b4a8894b5cf3aec50e61ff657b4599218002b",
+  "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "a9ec8ce188157d65b5aa043c1ad5baa0d11c9f485ac140dcb47b717069a5588b",
+  "plugins/auto-research-agent/references/research-workspace/PROJECT_STAGE_CONTRACT.md": "4ecd36548d06a03e2852059c40c62610998be085d15128366711b5bbb91cca3c",
+  "plugins/auto-research-agent/tests/test_project_stage1_discovery_records.py": "f23652c9c90a51a2a836460a5506abaac186e77e4789d0b68815a99c95072ddf",
+  "plugins/auto-research-agent/tests/test_project_stage1_records.py": "dfc003931cdc01f42e7b1d0d79ac4c8f970fcd959cf0f99734061b6c02f71ec2",
+  "plugins/auto-research-agent/tests/test_stage1_screening_records.py": "544e2d7b8667b468608ea347c0121c4049d492b8828ae01a8e72388d809327a1"
+}

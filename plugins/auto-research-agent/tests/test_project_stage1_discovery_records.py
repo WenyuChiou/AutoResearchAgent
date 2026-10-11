@@ -35,7 +35,7 @@ def discovery_candidates(case, fixture):
             authors=["Fixture"],
             year=2025,
             version="v1",
-            url="https://example.org/excluded",
+            doi="10.5555/authored-excluded",
         ),
         dict(
             title="Authored unscreened discovery",
@@ -56,9 +56,15 @@ def discovery_candidates(case, fixture):
         records=output,
     )
     ledger.complete_query(query)
-    ledger.extract()
+    extracted = ledger.extract()
+    if extracted["new_discoveries"] != 2 or extracted["extraction_failures"]:
+        raise AssertionError(f"Invalid authored candidate fixture: {extracted}")
     new = [c for w, c in ledger.candidates().items() if w not in previous]
-    excluded = next(c for c in new if c["discoveries"][-1]["record"].get("url"))
+    excluded = next(
+        c
+        for c in new
+        if c["discoveries"][-1]["record"]["title"] == "Authored excluded discovery"
+    )
     unscreened = next(c for c in new if c != excluded)
     ledger.decide(
         excluded["work_id"],
@@ -134,7 +140,9 @@ class DiscoveryRecordsTests(unittest.TestCase):
                     [
                         name
                         for name in files
-                        if name.startswith("wiki/") and name.endswith(".md")
+                        if name.startswith("wiki/")
+                        and name.endswith(".md")
+                        and name != "wiki/README.md"
                     ]
                 ),
                 4,
@@ -160,7 +168,7 @@ class DiscoveryRecordsTests(unittest.TestCase):
                 version_id=candidate["discoveries"][-1]["version_id"],
                 source_uri="https://example.org/pending",
                 tool="fixture",
-                request={},
+                request={"public_only": True},
                 actor="fixture",
                 reason="Saved pending intent only.",
             )

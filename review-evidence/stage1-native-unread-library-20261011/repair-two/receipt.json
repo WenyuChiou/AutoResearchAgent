@@ -1,0 +1,19 @@
+{
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "unittest",
+    "-v",
+    "test_project_stage1_discovery_records.DiscoveryRecordsTests.test_mixed_library_preserves_all_candidates_package_graph_and_reopen",
+    "test_project_stage1_discovery_records.DiscoveryRecordsTests.test_observed_source_cannot_be_hidden_as_discovery_only"
+  ],
+  "seconds": 32.01600000000326,
+  "exit_code": 1,
+  "source_inventory_sha256": "66929daaea71906c330cd33a0515bbbd26532e7c46cb85b03728b225038bbacc",
+  "source_inventory_after_unchanged": true,
+  "native_model_search_acquisition_calls": 0,
+  "full_suite": false
+}

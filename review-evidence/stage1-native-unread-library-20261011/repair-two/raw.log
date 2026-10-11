@@ -1,0 +1,19 @@
+test_mixed_library_preserves_all_candidates_package_graph_and_reopen (test_project_stage1_discovery_records.DiscoveryRecordsTests.test_mixed_library_preserves_all_candidates_package_graph_and_reopen) ... FAIL
+test_observed_source_cannot_be_hidden_as_discovery_only (test_project_stage1_discovery_records.DiscoveryRecordsTests.test_observed_source_cannot_be_hidden_as_discovery_only) ... ok
+
+======================================================================
+FAIL: test_mixed_library_preserves_all_candidates_package_graph_and_reopen (test_project_stage1_discovery_records.DiscoveryRecordsTests.test_mixed_library_preserves_all_candidates_package_graph_and_reopen)
+----------------------------------------------------------------------
+research_workspace_native.session_api.SessionApiError: stage2-canonical-records-1.2.0-consumer-unconnected
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_stage1_discovery_records.py", line 150, in test_mixed_library_preserves_all_candidates_package_graph_and_reopen
+    with self.assertRaisesRegex(
+AssertionError: "stage2-canonical-records-1.2-consumer-unconnected" does not match "stage2-canonical-records-1.2.0-consumer-unconnected"
+
+----------------------------------------------------------------------
+Ran 2 tests in 31.311s
+
+FAILED (failures=1)
