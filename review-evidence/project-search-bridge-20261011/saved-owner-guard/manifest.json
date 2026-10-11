@@ -103,5 +103,23 @@
   "actual_native_or_model_calls": false,
   "full_plugin_suite_claim": false,
   "scientific_acceptance_claim": false,
-  "scope": "Real SQLite/Core/HTTP and complete ledger frontier with mocked external probe/backend. Typed host wiring; no automatic source/reading or full Stage1 acceptance."
+  "scope": "Real SQLite/Core/HTTP and complete ledger frontier with mocked external probe/backend. Typed host wiring; no automatic source/reading or full Stage1 acceptance.",
+  "runner_captured_pinned_paths": [
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_intake.py",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py",
+    "plugins/auto-research-agent/tests/project_saved_record_owner_cases.py",
+    "plugins/auto-research-agent/tests/test_project_saved_record_owner.py",
+    "plugins/auto-research-agent/tests/test_project_stage1_records.py",
+    "plugins/auto-research-agent/tests/test_project_query_launcher.py",
+    "plugins/auto-research-agent/tests/test_workspace_project_host.py",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json"
+  ],
+  "supplemental_current_git_pinned_paths": [
+    "plugins/auto-research-agent/references/research-workspace/examples/run-project-workspace.py",
+    "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md"
+  ],
+  "supplemental_pin_scope": "Current physical/raw-Git equality only; not before/after runner capture or whole-final-head test."
 }

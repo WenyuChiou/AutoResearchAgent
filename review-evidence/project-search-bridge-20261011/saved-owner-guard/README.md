@@ -42,6 +42,10 @@ Core records require genuine source attempts for every paper; an unread broad
 screening bibliography cannot be promoted by fabricated attempts or annotations.
 That contract gap stays explicit. Full hosted CI and Core review remain pending.
 
-Raw receipts/logs are copied byte-for-byte. The manifest pins final source files;
+Raw receipts/logs are copied byte-for-byte. Eleven of the thirteen pinned source
+paths are in the runner's unchanged before/after inventory. The portable launcher
+example and PORTABLE_ATLAS_SETUP.md are supplemental current physical/Git pins,
+not captured before/after paths. Their separate owned launcher checks retain
+their own source scope. The manifest pins final source files;
 the captured pre-evidence tree is not represented as a whole-final-head run.
 Unchanged v6/browser evidence keeps its historical source attribution.
