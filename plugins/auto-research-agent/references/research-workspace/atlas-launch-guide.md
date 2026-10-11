@@ -6,11 +6,13 @@ and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
 search, source import or session resume is required.
 
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
-These review slices start from main `1aa3b71f`; they are not yet merged or
-accepted by the core team. Native runtime guards from that main are retained.
+Candidate A (#262) retains accepted main `347ae67a` and the reviewed Wiki/Atlas
+assets. It is not yet merged or accepted by the core team. This candidate's
+launcher is the saved-view review host below; the later ProjectHost/settings/
+research-execution integration belongs to candidates B/C (#271/#295).
 
 ```powershell
-git -c core.longpaths=true clone --branch codex/atlas-selected-relation-basis-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-selected-relation-basis-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
@@ -22,8 +24,28 @@ python -B -X utf8 plugins/auto-research-agent/references/research-workspace/exam
 
 Choose a new output directory outside every Git checkout. On Windows, use a short,
 writable `TEMP`/`TMP` directory outside Git if the local environment requires it.
-The command prints a loopback URL and `fixture-receipt.json`; keep the terminal
-running and open that URL. Stop with Ctrl+C. A previous output is never overwritten.
+The command prints its actual loopback URL and `fixture-receipt.json`; keep the
+terminal running and open that URL. The default chooses an available port, so a
+previous `127.0.0.1:8770` address is not necessarily this process. Stop with
+Ctrl+C. A previous output is never overwritten. Clone settings preserve physical
+Git bytes for source binding and do not change global Git preferences.
+
+The A navigation is: printed `/` case chooser → `/views/stage1/atlas.html`
+or `/views/stage2/atlas.html` → **Original workspace** (the same saved view's
+`index.html`) → its Atlas link. The brand and current Settings label also link
+to that legacy saved workspace; they are not the final project portal or an
+editable settings page. Browser Back returns to the case chooser. A's index
+remains the pinned saved package/reference view. The unique full-system
+ProjectHost `/` and real settings entry are deferred to C, without adding C
+functions to this candidate.
+
+The retained historical r3 overlay was made by adding Atlas files to an older
+Wiki. That old `index.html` has no forward Atlas link; use browser Back after
+opening it. Its original package and hashes are preserved. Fresh outputs from
+the launcher above include both navigation links. Public review evidence uses
+repository synthetic fixtures and keeps private saved research notes out of the
+published screenshots. See the [A acceptance evidence](../../../../review-evidence/wiki-A-acceptance-20261011/README.md)
+for commands, original bindings, screenshots and explicit remaining limits.
 
 The graph initially shows no relationships. Select a paper, direction or method
 to reveal its direct connections; select it again to clear. Hover reads names

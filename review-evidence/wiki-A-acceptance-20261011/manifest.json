@@ -1,0 +1,1736 @@
+{
+  "files": [
+    {
+      "published_path": "README.md",
+      "source_path_deidentified": null,
+      "original_sha256": null,
+      "published_sha256": "01761c6fa335bba526bc82f578ddef59d06f6c3e070143621ddd91042e6ec79b",
+      "original_bytes": null,
+      "published_bytes": 8423,
+      "transforms": [
+        "new public evidence summary/index derived from preserved capture receipts"
+      ],
+      "redactions": [],
+      "classification": "new engineering evidence documentation; no execution evidence fabrication"
+    },
+    {
+      "published_path": "capture-source-bindings.json",
+      "source_path_deidentified": null,
+      "original_sha256": null,
+      "published_sha256": "d5964e23893c399e53e041f627cc4e0c1375a70ee3c3a1e6e6e2dcc1985366e3",
+      "original_bytes": null,
+      "published_bytes": 48930,
+      "transforms": [
+        "new public evidence summary/index derived from preserved capture receipts"
+      ],
+      "redactions": [],
+      "classification": "new engineering evidence documentation; no execution evidence fabrication"
+    },
+    {
+      "published_path": "drivers/compatibility-host.capture.py",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-compatible-host-20261011.py",
+      "original_sha256": "170d880040d609d1a041bc021f3bba0cdf44ba8f002f7ae4a67e7e2ebdc5f937",
+      "published_sha256": "9313454eeabeccb2ec1c29ca072ce205a33de723164c0e6e25cbcc5094d93fd5",
+      "original_bytes": 4033,
+      "published_bytes": 4016,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "drivers/historical-browser.capture.js",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki_selfcheck_browser_v3.js",
+      "original_sha256": "9ec4af11c51a44a2e268d84400a4f304c8781e9b1fd3116069ed3a47a5810c0f",
+      "published_sha256": "2c1717df586df8d463a2890aa5a55677106b7974f104a05b4ceb5c1579371078",
+      "original_bytes": 13946,
+      "published_bytes": 13884,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "drivers/navigation-browser.capture.cjs",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-browser-20261011.cjs",
+      "original_sha256": "de8d09f6f573832cec5dc5cc3fe20dda35f00007bbeea938da51cbfd36367e5e",
+      "published_sha256": "14a9f99dd76bb7e5eb4a845ac64beec33d61249f913c3aec41eac65854536c08",
+      "original_bytes": 6840,
+      "published_bytes": 6710,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/browser-55-receipt.redacted.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\browser-selfcheck-receipt-v3.json",
+      "original_sha256": "a89cf4cc3aff0124ff004a80f763f56b117ca94e2f7065d4212ed775cfbefe0f",
+      "published_sha256": "3c0b63eeb15c10749b2a79ac97e1dc0185eba0145654c1d8d605a040f85cce9a",
+      "original_bytes": 44869,
+      "published_bytes": 33922,
+      "transforms": [
+        "JSON parse and readable serialization; no result/status/number removal",
+        "explicit private-text redaction at listed JSON paths",
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [
+        {
+          "json_path": "$.results[3].details.text",
+          "original_value_sha256": "ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[11]",
+          "original_value_sha256": "a0f1f67e70777b0280371710e4209c47131f322772dd53f7a14c4b32e7775a1f",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[12]",
+          "original_value_sha256": "8eb70f0af38cf3a8cc5ddafbef6542f1a750e3ffa0db800003bbccc4a4883933",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[13]",
+          "original_value_sha256": "c8baa9193c06e303de7f668e1062172d4233501e8ff8653f1a150f6ba2f2bdc7",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[14]",
+          "original_value_sha256": "9726a7fbd52d4388f033272b5542ac838bc54bddeaf74e6991e74b972df4a8f8",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[15]",
+          "original_value_sha256": "c9236485ced43576b8889b98273b89d1b0f2222496b3c3a98072d228e35420e3",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[21]",
+          "original_value_sha256": "4d34c6ba1e842f5a0aaa4c827ada0080f5d709bca1f9f148f7a59fb91d1da248",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[22]",
+          "original_value_sha256": "3c151f6736f60efa86974ac0e23ce3ceaec1ad33a98bd40f19df6138ed0db097",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[23]",
+          "original_value_sha256": "c7eab04b62a277e21f2b24726d7f1bd7099c3e4f1e24dbefa1a2cc1bf2931f5c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[24]",
+          "original_value_sha256": "2d6a1c2d92c894a05960122c32e06965fb74ffdb86a7f4b9593320672ceb23e0",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[32]",
+          "original_value_sha256": "24435a9b404d731316709e0d69c2f941b95aafac185255faccecdb82bfbd60cf",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[33]",
+          "original_value_sha256": "ab46e3f3fccc3ffad98e4446648cda36839208ebcc3c27c7b5999a0bf0f65126",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[34]",
+          "original_value_sha256": "30793c3b868965ea27b02dd6e45f9632e78d5887eddcb1b73102e64764938e87",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[35]",
+          "original_value_sha256": "7b79a9048f662cd61710a37d7bdea9eecc5d41b48a05932d5cbc52b31c1dff23",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[36]",
+          "original_value_sha256": "bf56030da2a115cc397f4c7ac53556ee66e74138c91d0a42f3a178c359e46f8c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].details.buttons[37]",
+          "original_value_sha256": "632fdc9ef8671abc3eeb71e268d72bd0bb59fa787571cb25c19153460976f230",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[21].details.text",
+          "original_value_sha256": "ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[11]",
+          "original_value_sha256": "a0f1f67e70777b0280371710e4209c47131f322772dd53f7a14c4b32e7775a1f",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[12]",
+          "original_value_sha256": "8eb70f0af38cf3a8cc5ddafbef6542f1a750e3ffa0db800003bbccc4a4883933",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[13]",
+          "original_value_sha256": "c8baa9193c06e303de7f668e1062172d4233501e8ff8653f1a150f6ba2f2bdc7",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[14]",
+          "original_value_sha256": "9726a7fbd52d4388f033272b5542ac838bc54bddeaf74e6991e74b972df4a8f8",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[15]",
+          "original_value_sha256": "c9236485ced43576b8889b98273b89d1b0f2222496b3c3a98072d228e35420e3",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[21]",
+          "original_value_sha256": "4d34c6ba1e842f5a0aaa4c827ada0080f5d709bca1f9f148f7a59fb91d1da248",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[22]",
+          "original_value_sha256": "3c151f6736f60efa86974ac0e23ce3ceaec1ad33a98bd40f19df6138ed0db097",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[23]",
+          "original_value_sha256": "c7eab04b62a277e21f2b24726d7f1bd7099c3e4f1e24dbefa1a2cc1bf2931f5c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[24]",
+          "original_value_sha256": "2d6a1c2d92c894a05960122c32e06965fb74ffdb86a7f4b9593320672ceb23e0",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[32]",
+          "original_value_sha256": "24435a9b404d731316709e0d69c2f941b95aafac185255faccecdb82bfbd60cf",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[33]",
+          "original_value_sha256": "ab46e3f3fccc3ffad98e4446648cda36839208ebcc3c27c7b5999a0bf0f65126",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[34]",
+          "original_value_sha256": "30793c3b868965ea27b02dd6e45f9632e78d5887eddcb1b73102e64764938e87",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[35]",
+          "original_value_sha256": "7b79a9048f662cd61710a37d7bdea9eecc5d41b48a05932d5cbc52b31c1dff23",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[36]",
+          "original_value_sha256": "bf56030da2a115cc397f4c7ac53556ee66e74138c91d0a42f3a178c359e46f8c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].details.buttons[37]",
+          "original_value_sha256": "632fdc9ef8671abc3eeb71e268d72bd0bb59fa787571cb25c19153460976f230",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[39].details.text",
+          "original_value_sha256": "ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[11]",
+          "original_value_sha256": "a0f1f67e70777b0280371710e4209c47131f322772dd53f7a14c4b32e7775a1f",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[12]",
+          "original_value_sha256": "8eb70f0af38cf3a8cc5ddafbef6542f1a750e3ffa0db800003bbccc4a4883933",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[13]",
+          "original_value_sha256": "c8baa9193c06e303de7f668e1062172d4233501e8ff8653f1a150f6ba2f2bdc7",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[14]",
+          "original_value_sha256": "9726a7fbd52d4388f033272b5542ac838bc54bddeaf74e6991e74b972df4a8f8",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[15]",
+          "original_value_sha256": "c9236485ced43576b8889b98273b89d1b0f2222496b3c3a98072d228e35420e3",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[21]",
+          "original_value_sha256": "4d34c6ba1e842f5a0aaa4c827ada0080f5d709bca1f9f148f7a59fb91d1da248",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[22]",
+          "original_value_sha256": "3c151f6736f60efa86974ac0e23ce3ceaec1ad33a98bd40f19df6138ed0db097",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[23]",
+          "original_value_sha256": "c7eab04b62a277e21f2b24726d7f1bd7099c3e4f1e24dbefa1a2cc1bf2931f5c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[24]",
+          "original_value_sha256": "2d6a1c2d92c894a05960122c32e06965fb74ffdb86a7f4b9593320672ceb23e0",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[32]",
+          "original_value_sha256": "24435a9b404d731316709e0d69c2f941b95aafac185255faccecdb82bfbd60cf",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[33]",
+          "original_value_sha256": "ab46e3f3fccc3ffad98e4446648cda36839208ebcc3c27c7b5999a0bf0f65126",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[34]",
+          "original_value_sha256": "30793c3b868965ea27b02dd6e45f9632e78d5887eddcb1b73102e64764938e87",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[35]",
+          "original_value_sha256": "7b79a9048f662cd61710a37d7bdea9eecc5d41b48a05932d5cbc52b31c1dff23",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[36]",
+          "original_value_sha256": "bf56030da2a115cc397f4c7ac53556ee66e74138c91d0a42f3a178c359e46f8c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].details.buttons[37]",
+          "original_value_sha256": "632fdc9ef8671abc3eeb71e268d72bd0bb59fa787571cb25c19153460976f230",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        }
+      ],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/failures/browser-v1.redacted.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\browser-selfcheck-receipt-v1.json",
+      "original_sha256": "f6de6a65bf74cafde4038fbfd47a965322edc745466e7ae135e31b17a9291d29",
+      "published_sha256": "1ef37a64bdd6241ed4b9fd95a82bdeb43cfe096a9fa82f1403baa1e92deeada3",
+      "original_bytes": 39965,
+      "published_bytes": 37913,
+      "transforms": [
+        "JSON parse and readable serialization; no result/status/number removal",
+        "explicit private-text redaction at listed JSON paths",
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/failures/browser-v2.redacted.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\browser-selfcheck-receipt-v2.json",
+      "original_sha256": "561f85745f44d076b29529b216d6230dcf3b7b9a1931599003e23a3c5e2e334b",
+      "published_sha256": "9c3b1616c74437c0ef5b4d56de26a542ffb43e01f0581da38e743946eabaae93",
+      "original_bytes": 47248,
+      "published_bytes": 32720,
+      "transforms": [
+        "JSON parse and readable serialization; no result/status/number removal",
+        "explicit private-text redaction at listed JSON paths",
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [
+        {
+          "json_path": "$.results[3].details.text",
+          "original_value_sha256": "ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].error",
+          "original_value_sha256": "0e87b586fc6f7dd4396bef69a3ae6d42a77337fbaec8847e70465c059491fede",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[17].stack",
+          "original_value_sha256": "7ec05451dc38f8b66b0dae4e92a15f33fef28009bd95847e27e19bf190b47937",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[21].details.text",
+          "original_value_sha256": "ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].error",
+          "original_value_sha256": "dc16327b200a7c26495dc6fad5a7e661a9e3695bc6e7098e101edd78166808cf",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[35].stack",
+          "original_value_sha256": "8e3288ab45f594e4e10ac6c75162bc571c7418aded7074f34bcd68f79535672f",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[39].details.text",
+          "original_value_sha256": "ade3d1b9ba6deb063c02d38459180bee9ad7dfead59179f1c2d8206ec340e1b2",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].error",
+          "original_value_sha256": "dff61fd9068d404d3771d82e1c1fca2c948d15633e6fb06758a5a50aecaffe4e",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[53].stack",
+          "original_value_sha256": "8cbd93a89b4b9080988c97bc57e0b34dc6cf4b5fd6a082954b1546d8e080a505",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        }
+      ],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/failures/official-layout-v1.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\official-browser-layout-v1.log",
+      "original_sha256": "0ed02c643efd8415c183cf8c347a9c40b8819919d89d8a501a7321de5860f70a",
+      "published_sha256": "0f7bb3ce3edc3b7c7831fb43931786261bc750dd36ae268a7b46ec895e5fb987",
+      "original_bytes": 367,
+      "published_bytes": 338,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/failures/official-layout-v2.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\official-browser-layout-v2.log",
+      "original_sha256": "6c6ce204bafdd55814362f58b124857a68d77ac4ec84e8979a1fcfdc10ab9a02",
+      "published_sha256": "7ad838fe1f8a430ff8046cfc19c84f08c1af7e725baed6b582606200445d05e0",
+      "original_bytes": 466,
+      "published_bytes": 437,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/final-selfcheck-receipt.public.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-fixed-v1\\final-selfcheck-receipt.json",
+      "original_sha256": "d3447cad7e5e9831fcdb9f3a4d21f35d33de64b444d2189168fc50758ca30de3",
+      "published_sha256": "1583405998726d23a0d29f14a4bfd19c0968eca7cfd83df97df3fdb582df0a94",
+      "original_bytes": 11809,
+      "published_bytes": 11543,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/focused-121-receipt.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-fixed-v1\\focused-tests-receipt.json",
+      "original_sha256": "9479c2296b3956ab16c156b45e9173c284979fe685f0c4736314521d71ac0039",
+      "published_sha256": "9479c2296b3956ab16c156b45e9173c284979fe685f0c4736314521d71ac0039",
+      "original_bytes": 3601,
+      "published_bytes": 3601,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/focused-121.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-fixed-v1\\focused-tests.log",
+      "original_sha256": "d7d9aa7c451b9f4bed3eb94c658b75f77448f303aa20ebb71fb8f9900efc678b",
+      "published_sha256": "06c1f4ded8df1250e45c31735ca471af08bfabddc654edf925d93367d2c62e95",
+      "original_bytes": 23128,
+      "published_bytes": 23082,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/official-browser-layout-v3.redacted.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\official-browser-layout-v3.log",
+      "original_sha256": "6ced31acf328dc233875ab804c72778af6a1a33acf2565ea6029c8e344a889ba",
+      "published_sha256": "cfa6ccbf4435811220e0db732a967fbbd94211f8429d1bca9461b4c00de290d2",
+      "original_bytes": 34594,
+      "published_bytes": 51745,
+      "transforms": [
+        "JSON parse and readable serialization; no result/status/number removal",
+        "explicit private-text redaction at listed JSON paths",
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[0].id",
+          "original_value_sha256": "e393e24ef0ecc07d551a5337339c1b96e34e01d8e3076cd8246f3e6e758beeea",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[1].id",
+          "original_value_sha256": "77f36de46824cb98a24600e717d332e0f3dfe50a1c7163be65ef2ac38456d1eb",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[2].id",
+          "original_value_sha256": "33b28d0775d968511b0de68127490449cfd4b5115e0e6798c62ce86a5c0ce6dd",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[3].id",
+          "original_value_sha256": "58363f79860f1f4cc27c139689cedb4779ff2f8ef148551e7e69aa2f6a4492fd",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[4].id",
+          "original_value_sha256": "6b0e9de03c85a8685d98684e6fdc817490f6c1cccf299d7c8ced49ea52b5ae39",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[5].id",
+          "original_value_sha256": "0aff31e74a0d3ae1756d1d3915bc8bfddaa074e95d7a4655cde2dd2501ed945e",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[6].id",
+          "original_value_sha256": "3a6d343d7792b7e35389747dfe58cfd115604b5806bbd14b000f7db6493d2420",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[7].id",
+          "original_value_sha256": "0239b32d71d0b117861a3d60e55b62da8c4fdec394bb5504b39230e8eb7c1054",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[8].id",
+          "original_value_sha256": "d8fca69f91f187dc1cfa93201732953edcace4d340f9247693c5990f182733cb",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[9].id",
+          "original_value_sha256": "226056620261ebac8702960a92376a0b4c09ea8dce30bba0532cc57ba4a5e19e",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[10].id",
+          "original_value_sha256": "d7fc638c8c9135788d2ba5de6c1fb745753016c4890940339e5eca79dde42614",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[11].id",
+          "original_value_sha256": "ed2d23f8cfab17f542c4661198dc4e0abfede4b6a5bb791abe056588f4abdc1c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[12].id",
+          "original_value_sha256": "a486c4a4fc6eb6cc75d25f0e847a94283d15952bfcf1ec9a87178ccb5eaf3c17",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[13].id",
+          "original_value_sha256": "62560603ccd730b5cfbf24c1abb4da516e3150db99e45055d0596c7d4956eb1d",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[0].geometry.methodMarkers[14].id",
+          "original_value_sha256": "25f01357b4cf1410f8b0ffaca99dd24ce0b3788aaa904abd233e574e8111c731",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[0].id",
+          "original_value_sha256": "e393e24ef0ecc07d551a5337339c1b96e34e01d8e3076cd8246f3e6e758beeea",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[1].id",
+          "original_value_sha256": "77f36de46824cb98a24600e717d332e0f3dfe50a1c7163be65ef2ac38456d1eb",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[2].id",
+          "original_value_sha256": "33b28d0775d968511b0de68127490449cfd4b5115e0e6798c62ce86a5c0ce6dd",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[3].id",
+          "original_value_sha256": "58363f79860f1f4cc27c139689cedb4779ff2f8ef148551e7e69aa2f6a4492fd",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[4].id",
+          "original_value_sha256": "6b0e9de03c85a8685d98684e6fdc817490f6c1cccf299d7c8ced49ea52b5ae39",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[5].id",
+          "original_value_sha256": "0aff31e74a0d3ae1756d1d3915bc8bfddaa074e95d7a4655cde2dd2501ed945e",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[6].id",
+          "original_value_sha256": "3a6d343d7792b7e35389747dfe58cfd115604b5806bbd14b000f7db6493d2420",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[7].id",
+          "original_value_sha256": "0239b32d71d0b117861a3d60e55b62da8c4fdec394bb5504b39230e8eb7c1054",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[8].id",
+          "original_value_sha256": "d8fca69f91f187dc1cfa93201732953edcace4d340f9247693c5990f182733cb",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[9].id",
+          "original_value_sha256": "226056620261ebac8702960a92376a0b4c09ea8dce30bba0532cc57ba4a5e19e",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[10].id",
+          "original_value_sha256": "d7fc638c8c9135788d2ba5de6c1fb745753016c4890940339e5eca79dde42614",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[11].id",
+          "original_value_sha256": "ed2d23f8cfab17f542c4661198dc4e0abfede4b6a5bb791abe056588f4abdc1c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[12].id",
+          "original_value_sha256": "a486c4a4fc6eb6cc75d25f0e847a94283d15952bfcf1ec9a87178ccb5eaf3c17",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[13].id",
+          "original_value_sha256": "62560603ccd730b5cfbf24c1abb4da516e3150db99e45055d0596c7d4956eb1d",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[1].geometry.methodMarkers[14].id",
+          "original_value_sha256": "25f01357b4cf1410f8b0ffaca99dd24ce0b3788aaa904abd233e574e8111c731",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[0].id",
+          "original_value_sha256": "e393e24ef0ecc07d551a5337339c1b96e34e01d8e3076cd8246f3e6e758beeea",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[1].id",
+          "original_value_sha256": "77f36de46824cb98a24600e717d332e0f3dfe50a1c7163be65ef2ac38456d1eb",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[2].id",
+          "original_value_sha256": "33b28d0775d968511b0de68127490449cfd4b5115e0e6798c62ce86a5c0ce6dd",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[3].id",
+          "original_value_sha256": "58363f79860f1f4cc27c139689cedb4779ff2f8ef148551e7e69aa2f6a4492fd",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[4].id",
+          "original_value_sha256": "6b0e9de03c85a8685d98684e6fdc817490f6c1cccf299d7c8ced49ea52b5ae39",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[5].id",
+          "original_value_sha256": "0aff31e74a0d3ae1756d1d3915bc8bfddaa074e95d7a4655cde2dd2501ed945e",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[6].id",
+          "original_value_sha256": "3a6d343d7792b7e35389747dfe58cfd115604b5806bbd14b000f7db6493d2420",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[7].id",
+          "original_value_sha256": "0239b32d71d0b117861a3d60e55b62da8c4fdec394bb5504b39230e8eb7c1054",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[8].id",
+          "original_value_sha256": "d8fca69f91f187dc1cfa93201732953edcace4d340f9247693c5990f182733cb",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[9].id",
+          "original_value_sha256": "226056620261ebac8702960a92376a0b4c09ea8dce30bba0532cc57ba4a5e19e",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[10].id",
+          "original_value_sha256": "d7fc638c8c9135788d2ba5de6c1fb745753016c4890940339e5eca79dde42614",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[11].id",
+          "original_value_sha256": "ed2d23f8cfab17f542c4661198dc4e0abfede4b6a5bb791abe056588f4abdc1c",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[12].id",
+          "original_value_sha256": "a486c4a4fc6eb6cc75d25f0e847a94283d15952bfcf1ec9a87178ccb5eaf3c17",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[13].id",
+          "original_value_sha256": "62560603ccd730b5cfbf24c1abb4da516e3150db99e45055d0596c7d4956eb1d",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        },
+        {
+          "json_path": "$.results[2].geometry.methodMarkers[14].id",
+          "original_value_sha256": "25f01357b4cf1410f8b0ffaca99dd24ce0b3788aaa904abd233e574e8111c731",
+          "reason": "private saved researcher text or annotation; numerical sibling fields and result/status structure retained"
+        }
+      ],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "historical/original-english-screenshots-index.public.md",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-fixed-v1\\screenshots-index-v1.md",
+      "original_sha256": "ee851d3fa77392b6d9cbdb8948dc702628854d84b6664bc635d55e7df25757ec",
+      "published_sha256": "d6e35337469615f6ce454fb1b59d521d93f81bdca47f1ba28efcc3d270728f51",
+      "original_bytes": 4917,
+      "published_bytes": 4662,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v1/failure.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v1\\failure.json",
+      "original_sha256": "87c6ac092e19e21ff29556e63401e658a248c94d257167a35778ab7555f83bc5",
+      "published_sha256": "87c6ac092e19e21ff29556e63401e658a248c94d257167a35778ab7555f83bc5",
+      "original_bytes": 172,
+      "published_bytes": 172,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v1/host-stderr.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v1\\host-stderr.log",
+      "original_sha256": "235089dc237aaf98af3a0ef01bc3953bdb95305f4da5ecbc7d0fde4e8fb9da8a",
+      "published_sha256": "b57f0222afaca36816f719fb75866e1765af0237e7340b555342eb6dd956a058",
+      "original_bytes": 1076,
+      "published_bytes": 1016,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v1/host-stdout.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v1\\host-stdout.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v2/failure.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v2\\failure.json",
+      "original_sha256": "ff3884da23f4a75c63fd972ece62d7cb3655db2058049c3857010002291bd844",
+      "published_sha256": "ff3884da23f4a75c63fd972ece62d7cb3655db2058049c3857010002291bd844",
+      "original_bytes": 263,
+      "published_bytes": 263,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v2/host-cleanup.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v2\\host-cleanup.json",
+      "original_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "published_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "original_bytes": 108,
+      "published_bytes": 108,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v2/host-stderr.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v2\\host-stderr.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v2/host-stdout.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v2\\host-stdout.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v3/failure.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v3\\failure.json",
+      "original_sha256": "87c6ac092e19e21ff29556e63401e658a248c94d257167a35778ab7555f83bc5",
+      "published_sha256": "87c6ac092e19e21ff29556e63401e658a248c94d257167a35778ab7555f83bc5",
+      "original_bytes": 172,
+      "published_bytes": 172,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v3/host-stderr.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v3\\host-stderr.log",
+      "original_sha256": "98ab319cd4917a6361c53e04aef4bbb50ef9c3a2ee2d1acef4c8633a150b5598",
+      "published_sha256": "ec5e87198ace744fa9abcba705d65babdd4088166ab93dacf4fd09df34065af8",
+      "original_bytes": 2513,
+      "published_bytes": 2304,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/failures/v3/host-stdout.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v3\\host-stdout.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v4/host-cleanup.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\host-cleanup.json",
+      "original_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "published_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "original_bytes": 108,
+      "published_bytes": 108,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v4/host-stderr.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\host-stderr.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v4/host-stdout.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\host-stdout.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v4/receipt.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\receipt.json",
+      "original_sha256": "7385acb7f3a9a96ab9049c3d26b259736bf0873a21b7fd42663c639ed96ebc36",
+      "published_sha256": "fcc422b23780aecb93839fa37f4dbee99d8032195e39b8e5eec16c7ec9c65678",
+      "original_bytes": 5803,
+      "published_bytes": 5733,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v5/host-cleanup.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\host-cleanup.json",
+      "original_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "published_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "original_bytes": 108,
+      "published_bytes": 108,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v5/host-stderr.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\host-stderr.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v5/host-stdout.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\host-stdout.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v5/receipt.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\receipt.json",
+      "original_sha256": "10b0f77916c657dc6d638e4ca7dd1591a88fb99b800f46c5f11e0c894b3a3f61",
+      "published_sha256": "44d754d1127962113a64c4af9b23ff6a0bbdda12045842ea53bee3aadb641c01",
+      "original_bytes": 6073,
+      "published_bytes": 6003,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v6/host-cleanup.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v6\\host-cleanup.json",
+      "original_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "published_sha256": "bd21efbc47a4088b5059c851c16f6efe4acdcddc469f70cc788292484782e27f",
+      "original_bytes": 108,
+      "published_bytes": 108,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v6/host-stderr.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v6\\host-stderr.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v6/host-stdout.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v6\\host-stdout.log",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "published_bytes": 0,
+      "transforms": [
+        "unchanged UTF-8 bytes"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "navigation/v6/receipt.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v6\\receipt.json",
+      "original_sha256": "18c6d91762825033ecab0895ba13df2fc6944c2fe10d3ffd324b2fe8d3c8130f",
+      "published_sha256": "399025953937fd1f05dabfc0af73ff2b6db3ed49e32c434f255ab89c6b022c17",
+      "original_bytes": 6151,
+      "published_bytes": 6081,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "saved-stage2/browser-driver.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v3\\browser-driver.log",
+      "original_sha256": "d64739c99e53c7e1241f1f3af9a50b92ff7058283edae4a783af07f2272d2395",
+      "published_sha256": "aa71a44f1ecf1cbcdde1774ccf4cd0af958c5bcc7e7b72b613d8ed512ce6eb9a",
+      "original_bytes": 253,
+      "published_bytes": 234,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "saved-stage2/browser-receipt.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v3\\browser-receipt-v3.json",
+      "original_sha256": "c1c95ef0eb7bd6cf55bdb9143259b10231bad5e2da3594dbb9be9bf9380358e7",
+      "published_sha256": "16cfd0bfa0423a81fd942e799db6026ecb91f121a8908bf943554470b4b8da23",
+      "original_bytes": 5864,
+      "published_bytes": 5807,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "saved-stage2/failures/browser-v1.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v1\\browser-receipt-v1.json",
+      "original_sha256": "a194426d14cbbe6285a456edc327befe5c20b779583ceec3669855081cd700dd",
+      "published_sha256": "c2fd760a7b8b4c07b4b127486d7cc4ec212268a7d501ece02414018fe1c3466f",
+      "original_bytes": 6054,
+      "published_bytes": 5940,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "saved-stage2/failures/browser-v1.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v1\\browser-driver.log",
+      "original_sha256": "dbcca06a038530d4074c7c7e27e7475e9f6d3622f73d32ef75305892cca6480b",
+      "published_sha256": "2de6b7784d07aeed532174a015d3f3f9713210d423bb5b1c7e5f5e536cfd725b",
+      "original_bytes": 984,
+      "published_bytes": 908,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "saved-stage2/failures/browser-v2.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v2\\browser-receipt-v2.json",
+      "original_sha256": "2ac92b28b2102fb6c6d8d1c9cdcf8b63460e0b61c87b7c72d9c79cc4469ebef3",
+      "published_sha256": "4244751eb448c17fbc646988e4a93e71966caa4809e6b766689f7dbf9c86f5b9",
+      "original_bytes": 5524,
+      "published_bytes": 5467,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "saved-stage2/failures/browser-v2.log",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v2\\browser-driver.log",
+      "original_sha256": "cda1b00e73a59e2bfe8b074a0db19dbc8078141dec7e86a9ba7cadc63c9c1f17",
+      "published_sha256": "4af669e29262f852002e048382bbf667204bff5621ebab9481fa32145d52140d",
+      "original_bytes": 253,
+      "published_bytes": 234,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "saved-stage2/projection-host-receipt.json",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v3\\projection-host-receipt.json",
+      "original_sha256": "ac0c67324d73bba60b7c9cc14f87bf21598eb783e5aecf263ba56b37e1b9c616",
+      "published_sha256": "88ba80d49583983b0221e78be60000a630177e081af6a2c23303de941bed6bc6",
+      "original_bytes": 22338,
+      "published_bytes": 22300,
+      "transforms": [
+        "known local workspace/user/executable path deidentification and CRLF to LF"
+      ],
+      "redactions": [],
+      "classification": "engineering evidence; not research execution proof"
+    },
+    {
+      "published_path": "screenshots-index.md",
+      "source_path_deidentified": null,
+      "original_sha256": null,
+      "published_sha256": "758fea1cac88034697e4a858bcd0f2697511232161b1269ec78778f482616335",
+      "original_bytes": null,
+      "published_bytes": 3623,
+      "transforms": [
+        "new public evidence summary/index derived from preserved capture receipts"
+      ],
+      "redactions": [],
+      "classification": "new engineering evidence documentation; no execution evidence fabrication"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-en-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-en-1440.png",
+      "original_sha256": "25c6e29e2e5b4e444c3bac7b1c63d08d48075fcbfb3eebda9869476d6e254ebb",
+      "published_sha256": "25c6e29e2e5b4e444c3bac7b1c63d08d48075fcbfb3eebda9869476d6e254ebb",
+      "original_bytes": 109818,
+      "published_bytes": 109818,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-en-390.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-en-390.png",
+      "original_sha256": "d86acb4c1c45d3fd214bd44225616d1a62e106001110a1d913007048e5558aa2",
+      "published_sha256": "d86acb4c1c45d3fd214bd44225616d1a62e106001110a1d913007048e5558aa2",
+      "original_bytes": 42095,
+      "published_bytes": 42095,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-en-768.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-en-768.png",
+      "original_sha256": "63c0ed12e97a0d47e53305900d1c0df79f080f80950420adcda6e7b3467cad27",
+      "published_sha256": "63c0ed12e97a0d47e53305900d1c0df79f080f80950420adcda6e7b3467cad27",
+      "original_bytes": 66885,
+      "published_bytes": 66885,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-zh-Hans-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-zh-Hans-1440.png",
+      "original_sha256": "2cb30fd8d7dd6598f3d26a5432ba8575844ad0ba82acc50819717ab46b20b14a",
+      "published_sha256": "2cb30fd8d7dd6598f3d26a5432ba8575844ad0ba82acc50819717ab46b20b14a",
+      "original_bytes": 111852,
+      "published_bytes": 111852,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-zh-Hans-390.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-zh-Hans-390.png",
+      "original_sha256": "18a740a3a70ecd6da9c3ecd29db8e4d0133e0c6780900c72e2603185a2628698",
+      "published_sha256": "18a740a3a70ecd6da9c3ecd29db8e4d0133e0c6780900c72e2603185a2628698",
+      "original_bytes": 45851,
+      "published_bytes": 45851,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-zh-Hans-768.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-zh-Hans-768.png",
+      "original_sha256": "be0a5e43080f62e88b4f206e29ec1c09d71359d72bbd5baf858e954ab594c280",
+      "published_sha256": "be0a5e43080f62e88b4f206e29ec1c09d71359d72bbd5baf858e954ab594c280",
+      "original_bytes": 62726,
+      "published_bytes": 62726,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-zh-Hant-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-zh-Hant-1440.png",
+      "original_sha256": "fe1c555c3c859b4eaa3fe7a6109587c4214a2141c8d1a800a98ddb6d61a1227d",
+      "published_sha256": "fe1c555c3c859b4eaa3fe7a6109587c4214a2141c8d1a800a98ddb6d61a1227d",
+      "original_bytes": 119225,
+      "published_bytes": 119225,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-zh-Hant-390.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-zh-Hant-390.png",
+      "original_sha256": "624e5fb4ebcd7fd2d17ba648499d526ecb78629749df60094bfcb3b403082a07",
+      "published_sha256": "624e5fb4ebcd7fd2d17ba648499d526ecb78629749df60094bfcb3b403082a07",
+      "original_bytes": 49001,
+      "published_bytes": 49001,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage1-zh-Hant-768.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage1-zh-Hant-768.png",
+      "original_sha256": "afd52cfecc04704de03c1f3b4affd9862e8a341a0cfc2caaa36f2484053bfbb6",
+      "published_sha256": "afd52cfecc04704de03c1f3b4affd9862e8a341a0cfc2caaa36f2484053bfbb6",
+      "original_bytes": 66400,
+      "published_bytes": 66400,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage2-en-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage2-en-1440.png",
+      "original_sha256": "a26dcf484713813a5b4f3fe38cd35361867522afb7be2e05b9bf32040f42a1f6",
+      "published_sha256": "a26dcf484713813a5b4f3fe38cd35361867522afb7be2e05b9bf32040f42a1f6",
+      "original_bytes": 102580,
+      "published_bytes": 102580,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage2-zh-Hans-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage2-zh-Hans-1440.png",
+      "original_sha256": "c4baa5f6a6baf6a1d7d9c38fa42d4bd43a115a86f53b0b2afb8644024abc18d7",
+      "published_sha256": "c4baa5f6a6baf6a1d7d9c38fa42d4bd43a115a86f53b0b2afb8644024abc18d7",
+      "original_bytes": 104125,
+      "published_bytes": 104125,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/navigation-v6/stage2-zh-Hant-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v6/stage2-zh-Hant-1440.png",
+      "original_sha256": "79d349955cdb83b04f34078d1f94193b38f4c305909ad613af55484cfb285a7e",
+      "published_sha256": "79d349955cdb83b04f34078d1f94193b38f4c305909ad613af55484cfb285a7e",
+      "original_bytes": 109199,
+      "published_bytes": 109199,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "targeted current public synthetic repository cases"
+    },
+    {
+      "published_path": "screenshots/saved-stage2-historical/saved-stage2-candidates-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/consolidation-20261010-v2/wiki-stage2-saved-case-v3/saved-stage2-candidates-1440.png",
+      "original_sha256": "777e199fa81b030cdf5dde9e107dc118991d752339491a001b0704065667c871",
+      "published_sha256": "777e199fa81b030cdf5dde9e107dc118991d752339491a001b0704065667c871",
+      "original_bytes": 53335,
+      "published_bytes": 53335,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "historical saved synthetic repository Stage2 case"
+    },
+    {
+      "published_path": "screenshots/saved-stage2-historical/saved-stage2-host-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/consolidation-20261010-v2/wiki-stage2-saved-case-v3/saved-stage2-host-1440.png",
+      "original_sha256": "828b491c2b7072d548fde5a93deae057a8307146efe5cc467b0416c793a65f25",
+      "published_sha256": "828b491c2b7072d548fde5a93deae057a8307146efe5cc467b0416c793a65f25",
+      "original_bytes": 23861,
+      "published_bytes": 23861,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "historical saved synthetic repository Stage2 case"
+    },
+    {
+      "published_path": "screenshots/saved-stage2-historical/saved-stage2-selected-paper-1440.png",
+      "source_path_deidentified": "<LOCAL_WORKSPACE>/_private/workspace-return/consolidation-20261010-v2/wiki-stage2-saved-case-v3/saved-stage2-selected-paper-1440.png",
+      "original_sha256": "4c360a27a2564c81bf78e8dfc438465f62a8a479a6e5a8ead0ade8aec5ab6e2e",
+      "published_sha256": "4c360a27a2564c81bf78e8dfc438465f62a8a479a6e5a8ead0ade8aec5ab6e2e",
+      "original_bytes": 37679,
+      "published_bytes": 37679,
+      "transforms": [
+        "unchanged PNG bytes; actual image privacy review completed"
+      ],
+      "redactions": [],
+      "classification": "historical saved synthetic repository Stage2 case"
+    }
+  ],
+  "excluded": [
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-en-1440.png",
+      "original_sha256": "34f5fa8ae2f7e9570db9e4c3fbe8d6c33aeae4b8ba65120ad71d500648d14d83",
+      "original_bytes": 130256,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-en-390.png",
+      "original_sha256": "2559d2be9ecc6fb9bec96441d5dcd60d922b1fac6e7b92d33665408f7deab9b0",
+      "original_bytes": 44745,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-en-768.png",
+      "original_sha256": "f66cd47dc539b4f36f8bb8da18a0a608486ba8d62c7fdd3db5ea68413fb4d716",
+      "original_bytes": 70701,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-zh-Hans-1440.png",
+      "original_sha256": "d49d0493192727fd23224577110e98ef08a7c0f38990d0e6dd6832b270f852f5",
+      "original_bytes": 135809,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-zh-Hans-390.png",
+      "original_sha256": "975fbb2328c5424dd51cc31dfb6e097c38fbd96fdfe508e56a8696915a6bc6c2",
+      "original_bytes": 50689,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-zh-Hans-768.png",
+      "original_sha256": "5fb8008ff9270ffd9d37a29d2a48c189f448a2a82ba76b6ce7a6ac82ae7cccc7",
+      "original_bytes": 69652,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-zh-Hant-1440.png",
+      "original_sha256": "b07d944e3f2c421542e206567802cceafd829e41480dc54590a974a095399b1a",
+      "original_bytes": 143461,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-zh-Hant-390.png",
+      "original_sha256": "5c5d435d0a374fc58f38c8e36ae0a0805f3b865b68611743d31fda43a4182d76",
+      "original_bytes": 54514,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage1-zh-Hant-768.png",
+      "original_sha256": "cbcc0c46fddfe6f433231b8f596682800a2e71617b90cc930f1afbc9263a6f24",
+      "original_bytes": 72667,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage2-en-1440.png",
+      "original_sha256": "1f3f8c8ba45752f8f2decb75428b4645ba3f8cc2084e4536217a90f773ef523a",
+      "original_bytes": 110123,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage2-zh-Hans-1440.png",
+      "original_sha256": "e1a1993cef4b7566aa5d2af002ecbf06bd0c05dec957a82f3909346146420bb6",
+      "original_bytes": 112052,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v4\\stage2-zh-Hant-1440.png",
+      "original_sha256": "6e4bb23ed445f7de53147a9d6496a064c803ebe28fc9c8a11341b0dba982a4f8",
+      "original_bytes": 119684,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-en-1440.png",
+      "original_sha256": "25c6e29e2e5b4e444c3bac7b1c63d08d48075fcbfb3eebda9869476d6e254ebb",
+      "original_bytes": 109818,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-en-390.png",
+      "original_sha256": "d86acb4c1c45d3fd214bd44225616d1a62e106001110a1d913007048e5558aa2",
+      "original_bytes": 42095,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-en-768.png",
+      "original_sha256": "63c0ed12e97a0d47e53305900d1c0df79f080f80950420adcda6e7b3467cad27",
+      "original_bytes": 66885,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-zh-Hans-1440.png",
+      "original_sha256": "2cb30fd8d7dd6598f3d26a5432ba8575844ad0ba82acc50819717ab46b20b14a",
+      "original_bytes": 111852,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-zh-Hans-390.png",
+      "original_sha256": "18a740a3a70ecd6da9c3ecd29db8e4d0133e0c6780900c72e2603185a2628698",
+      "original_bytes": 45851,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-zh-Hans-768.png",
+      "original_sha256": "be0a5e43080f62e88b4f206e29ec1c09d71359d72bbd5baf858e954ab594c280",
+      "original_bytes": 62726,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-zh-Hant-1440.png",
+      "original_sha256": "fe1c555c3c859b4eaa3fe7a6109587c4214a2141c8d1a800a98ddb6d61a1227d",
+      "original_bytes": 119225,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-zh-Hant-390.png",
+      "original_sha256": "624e5fb4ebcd7fd2d17ba648499d526ecb78629749df60094bfcb3b403082a07",
+      "original_bytes": 49001,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage1-zh-Hant-768.png",
+      "original_sha256": "afd52cfecc04704de03c1f3b4affd9862e8a341a0cfc2caaa36f2484053bfbb6",
+      "original_bytes": 66400,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage2-en-1440.png",
+      "original_sha256": "1f3f8c8ba45752f8f2decb75428b4645ba3f8cc2084e4536217a90f773ef523a",
+      "original_bytes": 110123,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage2-zh-Hans-1440.png",
+      "original_sha256": "e1a1993cef4b7566aa5d2af002ecbf06bd0c05dec957a82f3909346146420bb6",
+      "original_bytes": 112052,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v5\\stage2-zh-Hant-1440.png",
+      "original_sha256": "6e4bb23ed445f7de53147a9d6496a064c803ebe28fc9c8a11341b0dba982a4f8",
+      "original_bytes": 119684,
+      "reason": "superseded capture: v4 Stage1 uses private r3; v4/v5 Stage2 file naming did not establish selected Stage2 screen; do not use as final visual evidence",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-1440-selected-3d-v3.png",
+      "original_sha256": "16f341d88f0a1e8a754eb01fb74d80c66948febacaaab841390c0a371183a970",
+      "original_bytes": 125489,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-directions-v3.png",
+      "original_sha256": "5f3d6932ce33ba0ac7d73c17eb54c1720b43fba6667143a39433e895d7fa8fa4",
+      "original_bytes": 132319,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-comparison-v3.png",
+      "original_sha256": "1e94385db1412ffe832e42e88d819a26c5b5f20c28cc8bc761947fb70692c9e2",
+      "original_bytes": 83721,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-candidates-v3.png",
+      "original_sha256": "91a98329854a704a9cee53e1086dca7a5033c5f9675e1be69f5793b72ace59e9",
+      "original_bytes": 93924,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-768-selected-3d-v3.png",
+      "original_sha256": "17c339501a0bda59ef250d8b1a963c85a9a715c9f4a8e411f65b6669c8ec0520",
+      "original_bytes": 60491,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-directions-v3.png",
+      "original_sha256": "b42c19f94c0a06069d716260194424009cca7ee58df098e4d2dc52c4160ea3ce",
+      "original_bytes": 46989,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-comparison-v3.png",
+      "original_sha256": "f5196bc4abf4c52351752edff0360c4458b0c7187c020381c1fefdd66fcb15bf",
+      "original_bytes": 72374,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-candidates-v3.png",
+      "original_sha256": "0d366f751c2d9c25cab1f468473481f5d332fd5639ab37fc6ead4afe7e11b171",
+      "original_bytes": 73838,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-390-selected-3d-v3.png",
+      "original_sha256": "9637a51cffddd39a95ec3e11da8bd39677c2937287709f90b7c6ce082f39d1ea",
+      "original_bytes": 50101,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-directions-v3.png",
+      "original_sha256": "d6e940504d75ed644eb7b7f0b9777c19d7ad8fb92229691f50db24f5608bbc44",
+      "original_bytes": 35925,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-comparison-v3.png",
+      "original_sha256": "2283ae45d7d92887769e6bcf7daeb2bdca4ec2387a8fd78c684f6f7931698bf3",
+      "original_bytes": 46490,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-candidates-v3.png",
+      "original_sha256": "139b8300beac672909a50cb7d04e496fce997d5dc5aef2b9f8abcdc344bf08da",
+      "original_bytes": 39157,
+      "reason": "historical real-r3 source data or simulation derived from its index; screenshots may expose saved private researcher annotations",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v6\\ready.json",
+      "original_sha256": "dd6fd07f076291ce3dfb330057a1ce4e64101001b3d833d314792406e3c15d0b",
+      "original_bytes": 38220,
+      "reason": "private capture bootstrap/source inventory is not required for public package; source binding is summarized separately",
+      "published": false,
+      "public_inspection_available": false
+    },
+    {
+      "source_path_deidentified": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-navigation-20261011-v6\\host.json",
+      "original_sha256": "1ed1e3fbec44802f653f2087138b3afa3d0d39f170cd1237f2c9fcb28667ddb0",
+      "original_bytes": 1172,
+      "reason": "local saved-case manifest paths; no portable configuration or private case payload is published",
+      "published": false,
+      "public_inspection_available": false
+    }
+  ],
+  "known_path_deidentification_labels": [
+    "<LOCAL_WORKSPACE>",
+    "<LOCAL_USER_HOME>",
+    "<LOCAL_CHROME_EXECUTABLE>"
+  ],
+  "captured_heads": {
+    "historical": "d5550b08be6313ce175162c393a8a4770974f0f5",
+    "targeted": "84e1a3db67a157fe598d1b730067c218a3164b14"
+  },
+  "head_binding_claim": "These capture heads identify original runs; publishing this evidence creates a new head and is not a full rerun of it.",
+  "kind": "WikiAPublicAcceptanceEvidenceManifest.v1",
+  "publication_scope": "existing PR #262 A evidence only; no production/test/guide edits by evidence agent",
+  "privacy_review": {
+    "actual_images_inspected": 15,
+    "published_images": 15,
+    "private_r3_images_published": 0,
+    "native_model_source_search_scoring_calls": 0
+  },
+  "screenshots": [
+    {
+      "path": "screenshots/navigation-v6/stage1-en-1440.png",
+      "sha256": "25c6e29e2e5b4e444c3bac7b1c63d08d48075fcbfb3eebda9869476d6e254ebb",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "en",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-zh-Hans-1440.png",
+      "sha256": "2cb30fd8d7dd6598f3d26a5432ba8575844ad0ba82acc50819717ab46b20b14a",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hans",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-zh-Hant-1440.png",
+      "sha256": "fe1c555c3c859b4eaa3fe7a6109587c4214a2141c8d1a800a98ddb6d61a1227d",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hant",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-en-768.png",
+      "sha256": "63c0ed12e97a0d47e53305900d1c0df79f080f80950420adcda6e7b3467cad27",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "en",
+      "width": 768
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-zh-Hans-768.png",
+      "sha256": "be0a5e43080f62e88b4f206e29ec1c09d71359d72bbd5baf858e954ab594c280",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hans",
+      "width": 768
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-zh-Hant-768.png",
+      "sha256": "afd52cfecc04704de03c1f3b4affd9862e8a341a0cfc2caaa36f2484053bfbb6",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hant",
+      "width": 768
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-en-390.png",
+      "sha256": "d86acb4c1c45d3fd214bd44225616d1a62e106001110a1d913007048e5558aa2",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "en",
+      "width": 390
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-zh-Hans-390.png",
+      "sha256": "18a740a3a70ecd6da9c3ecd29db8e4d0133e0c6780900c72e2603185a2628698",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hans",
+      "width": 390
+    },
+    {
+      "path": "screenshots/navigation-v6/stage1-zh-Hant-390.png",
+      "sha256": "624e5fb4ebcd7fd2d17ba648499d526ecb78629749df60094bfcb3b403082a07",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hant",
+      "width": 390
+    },
+    {
+      "path": "screenshots/navigation-v6/stage2-en-1440.png",
+      "sha256": "a26dcf484713813a5b4f3fe38cd35361867522afb7be2e05b9bf32040f42a1f6",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "en",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/navigation-v6/stage2-zh-Hans-1440.png",
+      "sha256": "c4baa5f6a6baf6a1d7d9c38fa42d4bd43a115a86f53b0b2afb8644024abc18d7",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hans",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/navigation-v6/stage2-zh-Hant-1440.png",
+      "sha256": "79d349955cdb83b04f34078d1f94193b38f4c305909ad613af55484cfb285a7e",
+      "scope": "targeted current public synthetic repository cases",
+      "language": "zh-Hant",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/saved-stage2-historical/saved-stage2-host-1440.png",
+      "sha256": "828b491c2b7072d548fde5a93deae057a8307146efe5cc467b0416c793a65f25",
+      "scope": "historical saved synthetic repository Stage2 case",
+      "language": "en",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/saved-stage2-historical/saved-stage2-selected-paper-1440.png",
+      "sha256": "4c360a27a2564c81bf78e8dfc438465f62a8a479a6e5a8ead0ade8aec5ab6e2e",
+      "scope": "historical saved synthetic repository Stage2 case",
+      "language": "en",
+      "width": 1440
+    },
+    {
+      "path": "screenshots/saved-stage2-historical/saved-stage2-candidates-1440.png",
+      "sha256": "777e199fa81b030cdf5dde9e107dc118991d752339491a001b0704065667c871",
+      "scope": "historical saved synthetic repository Stage2 case",
+      "language": "en",
+      "width": 1440
+    }
+  ]
+}

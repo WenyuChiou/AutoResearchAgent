@@ -1,0 +1,88 @@
+{
+  "classification": "saved-repository-synthetic-fixture",
+  "label": "Saved repository Stage2 case / original synthetic fixture",
+  "created_at": "2026-10-10T19:10:12.658Z",
+  "chrome": "155.0.8059.39",
+  "results": [
+    {
+      "name": "AtlasHost landing labels saved original synthetic case",
+      "status": "PASS",
+      "observed": "Harness research studio\n\nChoose a complete bound workspace. Repository fixtures do not represent live research.\n\nSaved repository Stage2 case / original synthetic fixture\n\nRepository fixture · 3f058463f395ae7e…\n\nCodex connection check: not-checked. Research/model execution is not enabled."
+    },
+    {
+      "name": "saved canonical Stage2 selection and evaluation unchanged in browser payload",
+      "status": "PASS",
+      "observed": {
+        "literature": 1,
+        "candidates": 1,
+        "evaluationRows": 9,
+        "humanSelection": "pending",
+        "lineageAttested": false
+      }
+    },
+    {
+      "name": "saved assessment scores and pending human selection remain bounded",
+      "status": "PASS",
+      "observed": "Bound assessment status\nEvaluation status\ncompleted\n\nRecorded scores\n\nP4: 50% (3/6) · 3/3 criteria assessed\nP5: 50% (3/6) · 3/3 criteria assessed\nP6: 50% (3/6) · 3/3 criteria assessed\nRecorded audit status\n9 review records\nRecorded audit status\n\nImport byte verification preserves the records; it is separate from scientific approval, completed audit and execution authority.\n\nComplete original assessment, comments & attachment"
+    },
+    {
+      "name": "paper comparison shows stored synthetic paper and source-backed table",
+      "status": "PASS",
+      "observed": {
+        "text": "STAGE 02 / 06 · Comparison & directions\n\nCompare evidence, explore directions\nBound assessment status\nEvaluation status\ncompleted\n\nRecorded scores\n\nP4: 50% (3/6) · 3/3 criteria assessed\nP5: 50% (3/6) · 3/3 criteria assessed\nP6: 50% (3/6) · 3/3 criteria assessed\nRecorded audit status\n9 review records\nRecorded audit status\n\nImport byte verification preserves the records; it is separate from scientific approval, completed audit and execution authority.\n\nComplete original assessment, comments & attachment\nDirection sets\nPaper comparison\nCandidate routes & review\nOriginal verified Stage 2 report & evaluation\n\nSelection and pagination only change this view. Compare recorded conditions and missing fields before comparing outcomes; no performance ranking is inferred.\n\nPaper comparison\n1–1 of 1\nPrevious\nNext\nSynthetic household research\nClear selection\nSelected · 0\n0–0 of 0\nPrevious\nNext\nComparison field\nRelated papers\nRoutes using these papers\n\nNo exact work/version evidence link is recorded for these papers.\n\nReview this stage with Codex\n\nChoose a review request. Codex checks the current sources and unresolved items before any next-stage decision.\n\nKeep improving\nRequest the next stage\nHold this stage\nYour notes for this review\nPrepare in Codex\n\nThis prepares a message, not an approval or execution. Sending still requires the connected, source-bound session and its normal permissions.\n\nWithin-stage workflow\n\nArtifact browsing · no research is started\n\n1\nBind literature\nSource-bound input\n2\nCompare topics\nComparison record\n3\nExplore routes\nCandidate routes\n4\nIndependent review\nAssessment & comments\n5\nChoose & hand off\nSelection package\n\nWhen comparison needs revision: review → source checks → revised comparison; previous versions are retained.\n\nProcess & decisions\nRecorded stage workflow",
+        "paperButtons": 0
+      }
+    },
+    {
+      "name": "one saved candidate route appears without creating recommendations",
+      "status": "PASS",
+      "observed": {
+        "candidate": "candidate-table",
+        "question": "Can the bounded comparison improve measurement?",
+        "recommendations": 0
+      }
+    },
+    {
+      "name": "changed input route cards remain contained",
+      "status": "PASS",
+      "observed": {
+        "viewport": 1440,
+        "document": 1440
+      }
+    },
+    {
+      "name": "saved source artifact fetched matches manifest bytes",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n404 !== 200\n",
+      "stack": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n404 !== 200\n\n    at <LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki_stage2_saved_case_browser_v1.js:21:192\n    at async check (<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki_stage2_saved_case_browser_v1.js:5:78)\n    at async main (<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki_stage2_saved_case_browser_v1.js:21:1)"
+    },
+    {
+      "name": "passive host keeps native/model disconnected",
+      "status": "PASS",
+      "observed": {
+        "nativeSession": "not-connected",
+        "pageErrors": 0,
+        "externalRequests": 0,
+        "httpErrors": 0
+      }
+    }
+  ],
+  "captures": [
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v1\\saved-stage2-host-1440.png",
+      "sha256": "828b491c2b7072d548fde5a93deae057a8307146efe5cc467b0416c793a65f25"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v1\\saved-stage2-comparison-1440.png",
+      "sha256": "4bbadc5bf0c8fec561c70233bbafa0053e3ffc5b2c20cf59e901901dbed4ee9f"
+    },
+    {
+      "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v1\\saved-stage2-candidates-1440.png",
+      "sha256": "fc3ee0ee71bb2f5661e0d11cd6fa5af092765721040e040989983a18fcef5fa9"
+    }
+  ],
+  "pageErrors": [],
+  "externalRequests": [],
+  "httpErrors": [],
+  "nativeModelSearchScoringCalls": 0
+}

@@ -1,0 +1,175 @@
+{
+  "kind": "WikiACompatibilityBrowser.v1",
+  "created_at": "2026-10-11T03:38:57.421Z",
+  "head": "84e1a3db67a157fe598d1b730067c218a3164b14",
+  "chrome": "155.0.8059.39",
+  "command": [
+    "<LOCAL_WORKSPACE>/_private/workspace-return/atlas-current-sdk-env-20261010-v1/Scripts/python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "<LOCAL_WORKSPACE>\\_private\\workspace-return\\wiki-A-compatible-host-20261011.py",
+    "<LOCAL_WORKSPACE>/worktrees/ca-wiki",
+    "<LOCAL_WORKSPACE>/_private/workspace-return/wiki-A-navigation-20261011-v4"
+  ],
+  "captures": [
+    {
+      "file": "stage1-en-1440.png",
+      "language": "en",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "34f5fa8ae2f7e9570db9e4c3fbe8d6c33aeae4b8ba65120ad71d500648d14d83",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hans-1440.png",
+      "language": "zh-Hans",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "d49d0493192727fd23224577110e98ef08a7c0f38990d0e6dd6832b270f852f5",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hant-1440.png",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "b07d944e3f2c421542e206567802cceafd829e41480dc54590a974a095399b1a",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-en-768.png",
+      "language": "en",
+      "width": 768,
+      "height": 1000,
+      "sha256": "f66cd47dc539b4f36f8bb8da18a0a608486ba8d62c7fdd3db5ea68413fb4d716",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hans-768.png",
+      "language": "zh-Hans",
+      "width": 768,
+      "height": 1000,
+      "sha256": "5fb8008ff9270ffd9d37a29d2a48c189f448a2a82ba76b6ce7a6ac82ae7cccc7",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hant-768.png",
+      "language": "zh-Hant",
+      "width": 768,
+      "height": 1000,
+      "sha256": "cbcc0c46fddfe6f433231b8f596682800a2e71617b90cc930f1afbc9263a6f24",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-en-390.png",
+      "language": "en",
+      "width": 390,
+      "height": 1000,
+      "sha256": "2559d2be9ecc6fb9bec96441d5dcd60d922b1fac6e7b92d33665408f7deab9b0",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hans-390.png",
+      "language": "zh-Hans",
+      "width": 390,
+      "height": 1000,
+      "sha256": "975fbb2328c5424dd51cc31dfb6e097c38fbd96fdfe508e56a8696915a6bc6c2",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage1-zh-Hant-390.png",
+      "language": "zh-Hant",
+      "width": 390,
+      "height": 1000,
+      "sha256": "5c5d435d0a374fc58f38c8e36ae0a0805f3b865b68611743d31fda43a4182d76",
+      "scope": "same historical r3 saved-view overlay; Chrome viewport emulation"
+    },
+    {
+      "file": "stage2-en-1440.png",
+      "language": "en",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "1f3f8c8ba45752f8f2decb75428b4645ba3f8cc2084e4536217a90f773ef523a",
+      "scope": "original saved synthetic repository Stage2 fixture; not generated research"
+    },
+    {
+      "file": "stage2-zh-Hans-1440.png",
+      "language": "zh-Hans",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "e1a1993cef4b7566aa5d2af002ecbf06bd0c05dec957a82f3909346146420bb6",
+      "scope": "original saved synthetic repository Stage2 fixture; not generated research"
+    },
+    {
+      "file": "stage2-zh-Hant-1440.png",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "6e4bb23ed445f7de53147a9d6496a064c803ebe28fc9c8a11341b0dba982a4f8",
+      "scope": "original saved synthetic repository Stage2 fixture; not generated research"
+    }
+  ],
+  "checks": [
+    {
+      "name": "actual AtlasHost chooser → current generated repository Stage1 Atlas → saved Wiki → Atlas",
+      "status": "PASS"
+    },
+    {
+      "name": "historical r3 overlay → retained saved Wiki → browser Back; old index has no Atlas backlink",
+      "status": "PASS",
+      "limitation": "historical artifact is not rebuilt or modified"
+    },
+    {
+      "name": "stage1 en/1440 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hans/1440 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hant/1440 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 en/768 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hans/768 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hant/768 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 en/390 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hans/390 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "stage1 zh-Hant/390 capture/no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "actual saved Stage2 Wiki → Atlas → Wiki links",
+      "status": "PASS"
+    }
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "host_exit": 0,
+  "cleanup": {
+    "source_inventory_equal": true,
+    "shutdown_thread_alive": false,
+    "actual_native_or_model_calls": 0
+  },
+  "actual_native_model_source_search_scoring": 0,
+  "scope": "Targeted A navigation and missing language screenshots only; prior full presentation checks retain original binding"
+}

@@ -1,0 +1,431 @@
+{
+  "head": "d5550b08be6313ce175162c393a8a4770974f0f5",
+  "tree": "c163b54b8d9989c26e932eba06c1fd58d49e442d",
+  "classification": "saved-repository-synthetic-fixture",
+  "label": "Saved repository Stage2 case / original synthetic fixture",
+  "producer": "test_stage2_content_delivery.ContentDeliveryTests",
+  "source": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\atlas-cases-20261008-v1\\attempt4\\stage2-content-complete",
+  "source_before_after_unchanged": true,
+  "historical_stage1_r3_unchanged": true,
+  "source_manifest_bound_sha256": "dee285ab1d088b1c28ae208e3297993c35d0111725e206be4f3440804b699c06",
+  "source_manifest_file_sha256": "132f178e2484d4a108bf096f17eb9dbf409ed14de20ed6ffc9852bb654a173ff",
+  "source_selection_sha256": "bf33b405ca46cfc1f08d06696480f62d039074c17c089aeb3d5d7b0283ebf73c",
+  "bridge_canonical_sha256": "67c4d611337734933e1e854f0894649dbd33e0bb176164b0bd199d307e59af0b",
+  "input_index_sha256": "3f058463f395ae7eb8e892d3b8c9aab7f39841f741dfb29ae395e9b27abc93de",
+  "view": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-stage2-saved-case-v3\\view",
+  "view_manifest_sha256": "0c20710ca5366c9f360e5ab363e790ca39cb058e4828178a46f28a40912901fa",
+  "view_files": 50,
+  "load_views_success": true,
+  "http_get_exact_byte_checks": [
+    {
+      "route": "/views/stage2-saved-repository-case/index.html",
+      "sha256": "98c7c2bb1cdd4c507772ccab6dd8eec3f42129847d5d6a507c32ab13647bf640",
+      "bytes": 63465
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace.css",
+      "sha256": "3118ff4f64a2bc05ccbe8bf4276af84bc3074726e7ff98ad05c43da5ab961298",
+      "bytes": 9653
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-i18n.js",
+      "sha256": "7ac23acac478e03ff17e6d7567828df3fda58b5f473c552665501527587ae9fb",
+      "bytes": 22669
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/literature-reference.js",
+      "sha256": "06400e5785fe70e5348e90fe157804895efba7c197549d850ba31bb7c328ce1c",
+      "bytes": 28106
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-data.js",
+      "sha256": "12a7cf05ddb398e4be3503df139ecef0e79be0e100260072455af7a912278cec",
+      "bytes": 34647
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-records.js",
+      "sha256": "a59d80208ce85ff3d888efc8703fe61b03cfac480f76077f78509cc73a2beddd",
+      "bytes": 24013
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-literature-selection.js",
+      "sha256": "727891bafeec98de7e938149d1b9bc832065dbc8f19af416dab9452fdb62a88f",
+      "bytes": 2111
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-selection.css",
+      "sha256": "dc5b400163a50c2be495fc0d4d4aebf8f685b488026c1a957218bae70b3849a9",
+      "bytes": 3435
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-index.json",
+      "sha256": "3f058463f395ae7eb8e892d3b8c9aab7f39841f741dfb29ae395e9b27abc93de",
+      "bytes": 5706
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/references.bib",
+      "sha256": "00e286c4f91415617488d859f424da854326a2ef14ab1212e07c58086d996825",
+      "bytes": 315
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/wiki/1ad7ddba092fdf3131404f8942d1492b5cf6275dfcd56462ecd66b21c2ff53da.md",
+      "sha256": "767e1e12eb23227b0893ccdbc155982294024c06de669278d5aad7eb6352be3f",
+      "bytes": 1372
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/wiki/b8faea597d6d5558dda6fdb84d78b17d904ec2aeaa026df9a78999f66c2c6c20.md",
+      "sha256": "77bf84b8fc189b6417ecb2ff1016e356c6b1c686323e02a7e573b60d7b856baf",
+      "bytes": 1331
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/wiki/README.md",
+      "sha256": "32924bd4185445f46ae328f24776695877f157535aaa3705afb97aac4b39e615",
+      "bytes": 1606
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/core_selection.json",
+      "sha256": "bf33b405ca46cfc1f08d06696480f62d039074c17c089aeb3d5d7b0283ebf73c",
+      "bytes": 15917
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/evaluation_bundle.json",
+      "sha256": "ea9adf968d733948916a7d881b5c8ea5c1cf6665ba0ad96e9ab615c84ffce769",
+      "bytes": 51572
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/evaluation_projection.json",
+      "sha256": "880b4a41f2179fa85c676c0b33a0234eaec2263a02326c6366c8fd4a8424dffd",
+      "bytes": 8215
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/wiki_projection.json",
+      "sha256": "880b4a41f2179fa85c676c0b33a0234eaec2263a02326c6366c8fd4a8424dffd",
+      "bytes": 8215
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/selection.html",
+      "sha256": "fda6730bc1b46723b3ca7e89bc3a0e987ec7af1d427cfad774dfb118875f131f",
+      "bytes": 31808
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/selection.md",
+      "sha256": "50d1d9a452be9a342e435e07b28ea231be3b0e935669d41b79477c71ea88c564",
+      "bytes": 18511
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/content_gate.json",
+      "sha256": "f074b1e0a091fd7336f0d4b2ecebce36e409d30b5c3b6ea8ff9c52d0c736e9fd",
+      "bytes": 1182
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/sources/sources/src1.txt",
+      "sha256": "64c928c3e899496bc1be4a480b5e0b5d82817be6123a96cddba59d5b122f5c31",
+      "bytes": 65
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/bridge-receipt.json",
+      "sha256": "67c4d611337734933e1e854f0894649dbd33e0bb176164b0bd199d307e59af0b",
+      "bytes": 1110
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/evaluated-delivery-manifest.json",
+      "sha256": "50ab43c7112872f3ddea0deb669f109f90ef30404a56d3cd8fc620f8d131c106",
+      "bytes": 1637
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/README.md",
+      "sha256": "85de5b093295f3411b70887c2f01c7d98f8173c662102fb0e955d0a37c481944",
+      "bytes": 38099
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/workspace-attachment.json",
+      "sha256": "6935dfa3a22594336f3b3eec0ae631af52a5b929ad355fad117be47878bc83a6",
+      "bytes": 25477
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/report-reader.html",
+      "sha256": "58c35f2d3cbd58a02f8d8cb251e8209467c5d66112bafaac52e75508ecc644c0",
+      "bytes": 787
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/report-reader.js",
+      "sha256": "0919e3bb14abc91661f9bd866d5f316a3b1e689b25b99e37a7b95fbf255932c2",
+      "bytes": 214
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/literature/selection.json",
+      "sha256": "25dd131aaaeee123ae20b54281eeed4d2392eac597bcfb5b98c2d53aab6df7d1",
+      "bytes": 1071
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/literature/selection.csv",
+      "sha256": "844ed44398cc9c1d9d92674f183b00079a2bea52ba7892be7c9f9d30bbc42f67",
+      "bytes": 409
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/literature/included.bib",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/literature/screening.bib",
+      "sha256": "c342dde320e9a8632097a7f77e28cf31b35c2afb89c8f6111a2fc24cbf7dc2dd",
+      "bytes": 434
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/literature/selection.md",
+      "sha256": "43cfe885b8f8dea080158ea995e0c7a7179dd22205f9ff4724c0bd53cf403792",
+      "bytes": 359
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/literature/catalog.xlsx",
+      "sha256": "0d4934ad75a9e1c8464de92ef149b32d8bd20af5975f0f2510e0d9ff07330de8",
+      "bytes": 7175
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas.html",
+      "sha256": "56ad9cd9bc24533f222c360406b45b236311ec6e00664c91b2c99a527a4b41ab",
+      "bytes": 3096
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas.css",
+      "sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+      "bytes": 31553
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas-ui.js",
+      "sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667",
+      "bytes": 103447
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas-associations.js",
+      "sha256": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa",
+      "bytes": 11979
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas-spatial.js",
+      "sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+      "bytes": 39911
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas-network.js",
+      "sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+      "bytes": 7368
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/vendor/3d-force-graph-1.80.1.min.js",
+      "sha256": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9",
+      "bytes": 1389954
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/vendor/3d-force-graph-LICENSE.txt",
+      "sha256": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded",
+      "bytes": 1072
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/vendor/THIRD_PARTY_LICENSES.txt",
+      "sha256": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280",
+      "bytes": 25979
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/vendor/vendor-lock.json",
+      "sha256": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa",
+      "bytes": 21677
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas-model.js",
+      "sha256": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e",
+      "bytes": 12067
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas-data.js",
+      "sha256": "731ae98630a42ae2755e3ff1a903f5b5ef298c341e2b3eea5d0e4222666b2583",
+      "bytes": 44469
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/atlas-binding.json",
+      "sha256": "c99201cd88254907585fc6fffb789f37ea940f00695b31c5317afacd548cc411",
+      "bytes": 1641
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/stage2/comparison-view.json",
+      "sha256": "9de540d5c7b7f3ba8c3a1a373ef296d6f7ca10e98f7648087014fbf419dfe8cd",
+      "bytes": 9291
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-stage2.js",
+      "sha256": "0cc000c67fe79d35c7f42bc012a41ccb1f478dda6f31597d38375b462160d395",
+      "bytes": 6010
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/workspace-stage2.css",
+      "sha256": "fab8c8ef4667dc03701772e4e2a7b064be0d6916217923803df3f3befc0a77ac",
+      "bytes": 10953
+    },
+    {
+      "route": "/views/stage2-saved-repository-case/view-manifest.json",
+      "sha256": "0c20710ca5366c9f360e5ab363e790ca39cb058e4828178a46f28a40912901fa",
+      "bytes": 10013
+    },
+    {
+      "route": "/host-panel.js",
+      "sha256": "234f82392ff0094f8ad350f768d9dc14e12d334cdd6794c7000d6e1cea41954f",
+      "bytes": 18397
+    },
+    {
+      "route": "/host-panel.css",
+      "sha256": "43542db649bc71b30542cc46828989ceb2c36e622adecaeca06daa95710a8938",
+      "bytes": 3512
+    },
+    {
+      "route": "/host-binding.json",
+      "sha256": "80d3dc03238b6be1e6ee9afad221426956096252158f60736c3d722e13e72ac5",
+      "bytes": 13649
+    },
+    {
+      "route": "/",
+      "sha256": "94d140d2f8479c3f529b1d6a87d585c61416810258c7dadae0006a0869921ac8",
+      "bytes": 650
+    }
+  ],
+  "host_template_overlay_separately_bound": true,
+  "saved_payload_counts": {
+    "literature": 1,
+    "candidates": 1,
+    "evaluation_rows": 9
+  },
+  "scientific_truth_validated": false,
+  "formal_ready": false,
+  "stage3_authorized": false,
+  "original_real_r3_stage1_lineage_attested": false,
+  "native_runtime_registered": false,
+  "native_model_search_scoring_calls": 0,
+  "browser_exit": 0,
+  "server_worker_terminated": true,
+  "projection_receipt": {
+    "kind": "WorkspaceReadOnlyView",
+    "index_sha256": "3f058463f395ae7eb8e892d3b8c9aab7f39841f741dfb29ae395e9b27abc93de",
+    "reference_commit": "085f363179a79375fc8e3590dda9725e25eda71a",
+    "reference_assets": {
+      "prototype.html": "dfd49e7d0baf5cbf1645a08c34dafb48bba7b3db9d867adf313e91b1a810298e",
+      "literature-reference.js": "6a6cad0f744988da523cf548f9e0013269ac3c96d0366d208d63815128305b55",
+      "workspace-i18n.js": "d24fadd875728abfdd9d6a1734f430d82abf80ecf4538cf959d91245ce1bc24d",
+      "workspace.css": "7d61618949a42c9afdbbdedcad2556bf71a0d647c5d33b950063100cc932f4e4"
+    },
+    "reference_provenance": {
+      "commit_role": "historical-reference-base",
+      "asset_binding": "exact reference_assets SHA-256 values",
+      "commit_alone_reconstructs_assets": false
+    },
+    "bibtex_producer": "stage1_deliverable.views.bibtex",
+    "files": {
+      "index.html": "98c7c2bb1cdd4c507772ccab6dd8eec3f42129847d5d6a507c32ab13647bf640",
+      "workspace.css": "3118ff4f64a2bc05ccbe8bf4276af84bc3074726e7ff98ad05c43da5ab961298",
+      "workspace-i18n.js": "7ac23acac478e03ff17e6d7567828df3fda58b5f473c552665501527587ae9fb",
+      "literature-reference.js": "06400e5785fe70e5348e90fe157804895efba7c197549d850ba31bb7c328ce1c",
+      "workspace-data.js": "12a7cf05ddb398e4be3503df139ecef0e79be0e100260072455af7a912278cec",
+      "workspace-records.js": "a59d80208ce85ff3d888efc8703fe61b03cfac480f76077f78509cc73a2beddd",
+      "workspace-literature-selection.js": "727891bafeec98de7e938149d1b9bc832065dbc8f19af416dab9452fdb62a88f",
+      "workspace-selection.css": "dc5b400163a50c2be495fc0d4d4aebf8f685b488026c1a957218bae70b3849a9",
+      "workspace-index.json": "3f058463f395ae7eb8e892d3b8c9aab7f39841f741dfb29ae395e9b27abc93de",
+      "references.bib": "00e286c4f91415617488d859f424da854326a2ef14ab1212e07c58086d996825",
+      "wiki/1ad7ddba092fdf3131404f8942d1492b5cf6275dfcd56462ecd66b21c2ff53da.md": "767e1e12eb23227b0893ccdbc155982294024c06de669278d5aad7eb6352be3f",
+      "wiki/b8faea597d6d5558dda6fdb84d78b17d904ec2aeaa026df9a78999f66c2c6c20.md": "77bf84b8fc189b6417ecb2ff1016e356c6b1c686323e02a7e573b60d7b856baf",
+      "wiki/README.md": "32924bd4185445f46ae328f24776695877f157535aaa3705afb97aac4b39e615",
+      "stage2/core_selection.json": "bf33b405ca46cfc1f08d06696480f62d039074c17c089aeb3d5d7b0283ebf73c",
+      "stage2/evaluation_bundle.json": "ea9adf968d733948916a7d881b5c8ea5c1cf6665ba0ad96e9ab615c84ffce769",
+      "stage2/evaluation_projection.json": "880b4a41f2179fa85c676c0b33a0234eaec2263a02326c6366c8fd4a8424dffd",
+      "stage2/wiki_projection.json": "880b4a41f2179fa85c676c0b33a0234eaec2263a02326c6366c8fd4a8424dffd",
+      "stage2/selection.html": "fda6730bc1b46723b3ca7e89bc3a0e987ec7af1d427cfad774dfb118875f131f",
+      "stage2/selection.md": "50d1d9a452be9a342e435e07b28ea231be3b0e935669d41b79477c71ea88c564",
+      "stage2/content_gate.json": "f074b1e0a091fd7336f0d4b2ecebce36e409d30b5c3b6ea8ff9c52d0c736e9fd",
+      "stage2/sources/sources/src1.txt": "64c928c3e899496bc1be4a480b5e0b5d82817be6123a96cddba59d5b122f5c31",
+      "stage2/bridge-receipt.json": "67c4d611337734933e1e854f0894649dbd33e0bb176164b0bd199d307e59af0b",
+      "stage2/evaluated-delivery-manifest.json": "50ab43c7112872f3ddea0deb669f109f90ef30404a56d3cd8fc620f8d131c106",
+      "stage2/README.md": "85de5b093295f3411b70887c2f01c7d98f8173c662102fb0e955d0a37c481944",
+      "stage2/workspace-attachment.json": "6935dfa3a22594336f3b3eec0ae631af52a5b929ad355fad117be47878bc83a6",
+      "stage2/report-reader.html": "58c35f2d3cbd58a02f8d8cb251e8209467c5d66112bafaac52e75508ecc644c0",
+      "stage2/report-reader.js": "0919e3bb14abc91661f9bd866d5f316a3b1e689b25b99e37a7b95fbf255932c2",
+      "literature/selection.json": "25dd131aaaeee123ae20b54281eeed4d2392eac597bcfb5b98c2d53aab6df7d1",
+      "literature/selection.csv": "844ed44398cc9c1d9d92674f183b00079a2bea52ba7892be7c9f9d30bbc42f67",
+      "literature/included.bib": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "literature/screening.bib": "c342dde320e9a8632097a7f77e28cf31b35c2afb89c8f6111a2fc24cbf7dc2dd",
+      "literature/selection.md": "43cfe885b8f8dea080158ea995e0c7a7179dd22205f9ff4724c0bd53cf403792",
+      "literature/catalog.xlsx": "0d4934ad75a9e1c8464de92ef149b32d8bd20af5975f0f2510e0d9ff07330de8",
+      "atlas.html": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3",
+      "atlas.css": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+      "atlas-ui.js": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667",
+      "atlas-associations.js": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa",
+      "atlas-spatial.js": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+      "atlas-network.js": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+      "vendor/3d-force-graph-1.80.1.min.js": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9",
+      "vendor/3d-force-graph-LICENSE.txt": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded",
+      "vendor/THIRD_PARTY_LICENSES.txt": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280",
+      "vendor/vendor-lock.json": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa",
+      "atlas-model.js": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e",
+      "atlas-data.js": "731ae98630a42ae2755e3ff1a903f5b5ef298c341e2b3eea5d0e4222666b2583",
+      "atlas-binding.json": "c99201cd88254907585fc6fffb789f37ea940f00695b31c5317afacd548cc411",
+      "stage2/comparison-view.json": "9de540d5c7b7f3ba8c3a1a373ef296d6f7ca10e98f7648087014fbf419dfe8cd",
+      "workspace-stage2.js": "0cc000c67fe79d35c7f42bc012a41ccb1f478dda6f31597d38375b462160d395",
+      "workspace-stage2.css": "fab8c8ef4667dc03701772e4e2a7b064be0d6916217923803df3f3befc0a77ac"
+    },
+    "research_execution": "not-performed",
+    "rebuild": {
+      "entrypoint": "python -m research_workspace",
+      "project_id": "browser-contract-fixture",
+      "expected_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reference_commit": "085f363179a79375fc8e3590dda9725e25eda71a",
+      "reference_asset_policy": "use exact reference_assets hashes; commit is historical provenance",
+      "output_policy": "new directory outside Git",
+      "validation_mode": "byte-inventory",
+      "atlas": true
+    },
+    "adapter_sources": {
+      "__main__.py": "70fdee91d91dcf1ede9c6dc7d7721b5661a7062b46cb9f1f935fa758429b9390",
+      "projection.py": "891cd4e6e2beca7a9878970860947ddeb9c02a0d28795e911439b8e968fe8d9b",
+      "stages.py": "74e689a590131c74e6dcc396dd0c3e472e3e45a733a7bec85b76c231150329b8",
+      "view.py": "e66a91d5c5a9e4291e36b768ca10bc09cfa7a1a37c8a37bdb4cffa971598fe38",
+      "wiki.py": "1ce74f52fb4edab762c068b32892f369fcf79fa9fb93ed644b14659b337e6f19",
+      "literature_selection.py": "8de33befa8dca0458d3c7e51bdb67f1fecc11c80e5f2c5cda726c8718eed2108",
+      "body_completeness.py": "e182b18373e7b1c743e8f4938789ed4a178003143bfde69b47964eb87740a9a7",
+      "body_review.py": "4b225afafcc9eeb8f1811ae6527f60949c9e2b655ec42a8bb1e8a668ae250f16",
+      "body_review_attachment.py": "fb9bf45428e5267c9b4c5f904caa82710b7c65444590f178da9144c44df6a80d",
+      "json_bytes.py": "67570526c61982cd0174319485fb7705029436ec31feb154ca6a0a10c3c14ded",
+      "WorkspaceIndex.v1.schema.json": "55a95f406600a16887333b84f180d4b5a262172102af2fae868d1257691c6342",
+      "atlas.py": "47931ae5f82bb96b99ec12fcb7cbf5fea8d480dd2cf15a19da8041eb2fe27a51",
+      "atlas_model.py": "40491ca12bf9d103dd3900f3851130b1162c29e0f5571694a07d256c197da131",
+      "stage2_import.py": "936d4b2f5d798203a971971e3d29b6301950e30d0ae691028135c7d8f40854e1",
+      "stage2_presentation.py": "1bb83d8a99650564b219a91dbd0560ab8439da3405d1aa3a25f39959ad67946a",
+      "stage2_comparison.py": "df13ca449e4c0ff31cfa381d2469020a275256d72d3bb6d152f00ccae5665444",
+      "stage2_comparison_html.py": "85349aed138eab3e9732eb70e55388bbbaff8d84bc52722dc7c5ba1da7fb2e76"
+    },
+    "ui_sources": {
+      "workspace-records.js": "a59d80208ce85ff3d888efc8703fe61b03cfac480f76077f78509cc73a2beddd",
+      "workspace-literature-selection.js": "727891bafeec98de7e938149d1b9bc832065dbc8f19af416dab9452fdb62a88f",
+      "workspace-selection.css": "dc5b400163a50c2be495fc0d4d4aebf8f685b488026c1a957218bae70b3849a9",
+      "atlas.html": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3",
+      "atlas.css": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+      "atlas-ui.js": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667",
+      "atlas-associations.js": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa",
+      "atlas-spatial.js": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+      "atlas-network.js": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+      "vendor/3d-force-graph-1.80.1.min.js": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9",
+      "vendor/3d-force-graph-LICENSE.txt": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded",
+      "vendor/THIRD_PARTY_LICENSES.txt": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280",
+      "vendor/vendor-lock.json": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa",
+      "atlas-model.js": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+    },
+    "atlas_binding_sha256": "c99201cd88254907585fc6fffb789f37ea940f00695b31c5317afacd548cc411",
+    "stage2_attachment": {
+      "schema_version": "1.0.0",
+      "attachment_sha256": "6935dfa3a22594336f3b3eec0ae631af52a5b929ad355fad117be47878bc83a6",
+      "bridge_receipt_sha256": "67c4d611337734933e1e854f0894649dbd33e0bb176164b0bd199d307e59af0b",
+      "stage2_manifest_sha256": "dee285ab1d088b1c28ae208e3297993c35d0111725e206be4f3440804b699c06",
+      "evaluation_status": "completed",
+      "original_stage1_lineage_attested": false,
+      "stage3_authorized": false,
+      "formal_ready": false,
+      "improvement_demonstrated": false
+    }
+  }
+}
