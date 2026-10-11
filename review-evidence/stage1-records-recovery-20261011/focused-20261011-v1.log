@@ -1,0 +1,13 @@
+...F....
+======================================================================
+FAIL: test_real_http_get_and_repeated_post_have_no_producer_or_core_dispatch (test_project_records_recovery.ProjectRecordsRecoveryTests.test_real_http_get_and_repeated_post_have_no_producer_or_core_dispatch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_records_recovery.py", line 280, in test_real_http_get_and_repeated_post_have_no_producer_or_core_dispatch
+    self.assertEqual(status, 200, overview)
+AssertionError: 404 != 200 : {'error': 'project-unavailable'}
+
+----------------------------------------------------------------------
+Ran 8 tests in 58.432s
+
+FAILED (failures=1)
