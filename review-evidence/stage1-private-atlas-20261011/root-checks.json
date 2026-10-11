@@ -1,0 +1,45 @@
+[
+  {
+    "name": "ruff-version",
+    "argv": [
+      "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\scripts\\.venv\\Scripts\\ruff.exe",
+      "--version"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "ruff-check",
+    "argv": [
+      "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\scripts\\.venv\\Scripts\\ruff.exe",
+      "check",
+      "--isolated",
+      "--no-cache",
+      "--select",
+      "E4,E7,E9,F",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_atlas_shell.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_atlas.py",
+      "plugins/auto-research-agent/tests/test_project_stage1_atlas.py",
+      "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+      "plugins/auto-research-agent/tests/project_records_recovery_browser_fixture.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "ruff-format",
+    "argv": [
+      "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\scripts\\.venv\\Scripts\\ruff.exe",
+      "format",
+      "--check",
+      "--isolated",
+      "--no-cache",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_atlas_shell.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_atlas.py",
+      "plugins/auto-research-agent/tests/test_project_stage1_atlas.py",
+      "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+      "plugins/auto-research-agent/tests/project_records_recovery_browser_fixture.py"
+    ],
+    "exit_code": 0
+  }
+]

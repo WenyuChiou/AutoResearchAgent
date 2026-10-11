@@ -284,3 +284,38 @@ saved annotations, canonical delivery and the actual offline package validator.
 They are engineering fixtures. Actual public acquisition, native model reading,
 complete coverage/researcher acceptance and source/model execution permits
 remain unconnected by this seam; Stage2 is unchanged.
+
+### Open a saved Stage1 delivery in the v6 Atlas
+
+The project delivery card offers **Open saved literature network** only for
+the current `saved-evidence-validated` artifact. It opens the original v6
+graph, details, compact direction summary and bibliography in a separate
+window; **Return to project** restores the Harness workspace. This is a
+read-only projection of the same package, not another research execution.
+
+Authenticated GET routes bind project, input version, revision, artifact and
+manifest: `/api/projects/{ref}/stage1/atlas/{input}/{revision}/{artifact}/{sha}`.
+Notes and BibTeX use its `/files/{opaque_ref}/{sha}` catalog. Paths, owners,
+native IDs and permits cannot be supplied. Source/receipt/frontier checks,
+complete byte inventory and before/after deadline checks reject stale or
+changed evidence. Reading uses the pure canonical reader and existing local
+ledger checks, without package rebuild, source-runtime replay or action writes.
+Responses share the host's 1 MiB bound and refuse larger projections.
+Package traversal rejects unlisted paths before reading their content. Regular
+files are captured with explicit byte/count/aggregate limits; the pure reader
+uses that immutable snapshot rather than reopening disk content. A second
+bounded capture checks the physical package again before returning.
+
+The public shell contains reviewed code only. The original project window
+retains its in-memory credential, reads private JSON and transfers it through
+an exact-origin/window MessageChannel. The graph never receives the credential
+or private server paths; downloads are authenticated by the project window.
+Refreshing the graph rechecks the same saved binding with GET, never POST.
+Changing project/revision retires the view and ignores late responses.
+Directly opening the shell without its project window supplies no private data.
+
+Unknown, partial, pending audit and failed attempts retain their saved meaning.
+The bare package has no new readiness evidence or Stage2 execution authority.
+Source identities requiring unavailable semantic replay fail closed. Stage3–6
+remain planned/unconnected. Graph access does not demonstrate native/model
+execution or full Stage1/Stage2 acceptance.

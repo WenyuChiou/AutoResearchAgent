@@ -1,0 +1,8 @@
+test_renderer_snapshot_is_readonly_and_projection_drift_is_refused (test_project_stage1_atlas.ProjectStage1AtlasTests.test_renderer_snapshot_is_readonly_and_projection_drift_is_refused) ... ok
+test_reopened_get_preserves_evidence_and_performs_no_dispatch_or_write (test_project_stage1_atlas.ProjectStage1AtlasTests.test_reopened_get_preserves_evidence_and_performs_no_dispatch_or_write) ... ok
+test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly (test_project_stage1_atlas.ProjectStage1AtlasHttpTests.test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 38.697s
+
+OK

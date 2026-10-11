@@ -1,0 +1,14 @@
+test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly (test_project_stage1_atlas.ProjectStage1AtlasHttpTests.test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly) ... ok
+test_deadline_checks_refuse_before_validation_after_projection_and_after_final_recheck (test_project_stage1_atlas.ProjectStage1AtlasTests.test_deadline_checks_refuse_before_validation_after_projection_and_after_final_recheck) ... ok
+test_file_catalog_is_opaque_bound_and_only_exposes_notes_and_bibtex (test_project_stage1_atlas.ProjectStage1AtlasTests.test_file_catalog_is_opaque_bound_and_only_exposes_notes_and_bibtex) ... ok
+test_principal_revision_input_artifact_and_hash_must_match_latest_saved_delivery (test_project_stage1_atlas.ProjectStage1AtlasTests.test_principal_revision_input_artifact_and_hash_must_match_latest_saved_delivery) ... ok
+test_projection_json_and_bounds_cannot_be_bypassed (test_project_stage1_atlas.ProjectStage1AtlasTests.test_projection_json_and_bounds_cannot_be_bypassed) ... ok
+test_reopened_get_preserves_evidence_and_performs_no_dispatch_or_write (test_project_stage1_atlas.ProjectStage1AtlasTests.test_reopened_get_preserves_evidence_and_performs_no_dispatch_or_write) ... ok
+test_saved_artifact_and_canonical_bytes_tampering_are_refused (test_project_stage1_atlas.ProjectStage1AtlasTests.test_saved_artifact_and_canonical_bytes_tampering_are_refused) ... ok
+test_scope_revision_and_delivery_change_during_projection_fail_closed (test_project_stage1_atlas.ProjectStage1AtlasTests.test_scope_revision_and_delivery_change_during_projection_fail_closed) ... ok
+test_source_change_after_projection_and_current_brief_bytes_are_refused (test_project_stage1_atlas.ProjectStage1AtlasTests.test_source_change_after_projection_and_current_brief_bytes_are_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 136.247s
+
+OK

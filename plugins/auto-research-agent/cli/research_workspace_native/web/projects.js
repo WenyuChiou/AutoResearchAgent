@@ -347,6 +347,7 @@
       text(artifactArea, "p", delivered.status + " · " + delivered.counts.papers + " · " + delivered.artifact_kind);
       text(artifactArea, "p", "SHA-256: " + delivered.manifest_sha256, "subtle");
     }
+    const atlasEntry = document.createElement("div"); atlasEntry.id = "project-atlas-entry"; artifactArea.append(atlasEntry);
     const queries = $("ledger-queries"); queries.replaceChildren();
     for (const query of state.stage1 && state.stage1.queries || []) { const card = document.createElement("div"); card.className = "history-row"; queries.append(card); text(card, "p", query.query); text(card, "p", query.purpose + " · " + query.status, "subtle"); }
     renderQueries();
@@ -355,6 +356,7 @@
     $("create-card").hidden = true; $("project-content").hidden = false;
     $("intake-card").open = !Boolean(project.intake_report && project.intake_report.necessary_clarification_complete);
     buttons();
+    document.dispatchEvent(new CustomEvent("project-atlas-state", {detail: {project, artifact: delivered, language: state.language}}));
   }
   function renderQueries() {
     const value = state.stage1 && state.stage1.query_execution;

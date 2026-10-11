@@ -17,6 +17,8 @@ from .http import token_authenticator
 from .project_intake import ProjectIntakeService
 from .project_contract import project_view
 from .project_stage1_delivery import ProjectStage1DeliveryService
+from .project_stage1_atlas import ProjectStage1AtlasService
+from .project_atlas_shell import shell_assets
 from .project_stage1_library import ProjectStage1LibraryService
 from .project_stage1_source_service import ProjectStage1SourceService
 from .project_source_dispatcher import ProjectSourceDispatcher
@@ -37,6 +39,9 @@ ROUTE = re.compile(
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
+)
+ATLAS_ROUTE = re.compile(
+    r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/atlas/([0-9]{1,7})/([0-9]{1,10})/([A-Za-z0-9_-]{1,128})/([0-9a-f]{64})(?:/files/([0-9a-f]{64})/([0-9a-f]{64}))?"
 )
 ACTION_ROUTE = re.compile(r"/api/projects/actions/([A-Za-z0-9_-]{1,128})")
 OUTPUT_ROUTE = re.compile(
@@ -101,6 +106,11 @@ class ProjectHost(AtlasHost):
         self.project_stage1_delivery = (
             None if stage1 is None else ProjectStage1DeliveryService(stage1)
         )
+        self.project_stage1_atlas = (
+            None
+            if stage1 is None
+            else ProjectStage1AtlasService(self.project_stage1_delivery)
+        )
         self.project_stage1_records = None
         self.project_stage1_claims = None
         self.project_reading_review = None
@@ -145,6 +155,16 @@ class ProjectHost(AtlasHost):
         # the existing hard 30-second HTTP cap, still checked before admission
         # and before commit. This grants no native/model execution time.
         options.setdefault("timeout", 30)
+        atlas_shell = shell_assets(ASSETS)
+        renderer = {
+            path.removeprefix("/project-atlas-static/"): sha(raw)
+            for path, raw in atlas_shell.items()
+            if path.startswith("/project-atlas-static/")
+        }
+        if self.project_stage1_atlas is not None and (
+            renderer != self.project_stage1_atlas.renderer_sha256
+        ):
+            raise ValueError("project atlas renderer snapshot differs")
         super().__init__(credential=credential, **options)
         self.RequestHandlerClass = ProjectHandler
         for filename in (
@@ -154,8 +174,10 @@ class ProjectHost(AtlasHost):
             "projects-library.js",
             "projects-coverage.js",
             "projects-reading.js",
+            "projects-atlas.js",
         ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
+        self._assets.update(atlas_shell)
         # Keep all saved v6 graph files unchanged. Navigation is a host overlay.
         self._assets["/"] = self._assets["/projects.html"]
         self.host_binding.update(
@@ -165,6 +187,7 @@ class ProjectHost(AtlasHost):
             project_stage1_saved_records=self.project_stage1_records is not None,
             project_stage1_claim_review=self.project_stage1_claims is not None,
             project_stage1_reading_review=self.project_reading_review is not None,
+            project_stage1_private_atlas=self.project_stage1_atlas is not None,
             project_stage1_source_controls=stage1_sources is not None,
             project_stage1_source_worker_connected=stage1_sources is not None
             and stage1_sources.runner is not None,
@@ -254,6 +277,25 @@ class ProjectHandler(AtlasHandler):
                 raise SessionApiError("cross-site-rejected", 403)
             if self.server.authenticate(token) is None:
                 raise SessionApiError("credential-rejected", 401)
+            atlas = ATLAS_ROUTE.fullmatch(self.path)
+            if atlas is not None:
+                if method != "GET" or length:
+                    raise SessionApiError("invalid-project-read", 400)
+                if self.server.project_stage1_atlas is None:
+                    raise SessionApiError("stage1-atlas-unconnected", 409)
+                result = self.server.project_stage1_atlas.read(
+                    token,
+                    atlas[1],
+                    input_version=int(atlas[2]),
+                    revision=int(atlas[3]),
+                    artifact_ref=atlas[4],
+                    manifest_sha256=atlas[5],
+                    file_ref=atlas[6],
+                    file_sha256=atlas[7],
+                    check_deadline=self._remaining,
+                )
+                self._remaining()
+                return self._reply(200, result)
             output = OUTPUT_ROUTE.fullmatch(self.path)
             page = HISTORY_ROUTE.fullmatch(self.path)
             screening = PAGE_ROUTE.fullmatch(self.path)

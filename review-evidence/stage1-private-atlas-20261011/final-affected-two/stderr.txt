@@ -1,0 +1,7 @@
+test_consumed_document_checked_against_external_snapshot (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_consumed_document_checked_against_external_snapshot) ... ok
+test_immutable_snapshot_projection_never_reopens_package_content (test_project_stage1_atlas.ProjectStage1AtlasTests.test_immutable_snapshot_projection_never_reopens_package_content) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 15.265s
+
+OK

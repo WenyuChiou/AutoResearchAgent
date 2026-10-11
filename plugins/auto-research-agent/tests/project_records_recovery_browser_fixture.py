@@ -14,7 +14,10 @@ from unittest.mock import patch
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stop-file", type=Path, required=True)
+    parser.add_argument("--lease-seconds", type=int, default=180)
     args = parser.parse_args()
+    if not 1 <= args.lease_seconds <= 600:
+        parser.error("fixture lease must be 1-600 seconds")
     tests = Path(__file__).resolve().parent
     plugin = tests.parent
     stop_path = args.stop_file
@@ -90,7 +93,7 @@ def main():
                         kind="SyntheticSavedRecordsRecoveryBrowserFixture",
                         url=host.expected_origin + "/",
                         project_ref=fixture["ref"],
-                        lease_seconds=180,
+                        lease_seconds=args.lease_seconds,
                         executed_sources=loader.EXECUTED_SOURCES,
                         ui_sources={
                             p.name: hashlib.sha256(p.read_bytes()).hexdigest()
@@ -108,7 +111,7 @@ def main():
                 flush=True,
             )
             stop = threading.Event()
-            for _ in range(1800):
+            for _ in range(args.lease_seconds * 10):
                 if stop_path.exists():
                     break
                 stop.wait(0.1)

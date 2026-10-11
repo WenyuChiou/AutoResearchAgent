@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "D:/Codex_Learning/harness_building/_private/workspace-return/atlas-current-sdk-env-20261010-v1/Scripts/python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "unittest",
+    "test_project_stage1_atlas.ProjectStage1AtlasTests.test_renderer_snapshot_is_readonly_and_projection_drift_is_refused",
+    "test_project_stage1_atlas.ProjectStage1AtlasTests.test_reopened_get_preserves_evidence_and_performs_no_dispatch_or_write",
+    "test_project_stage1_atlas.ProjectStage1AtlasHttpTests.test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly",
+    "-v"
+  ],
+  "cwd": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt",
+  "exit_code": 0,
+  "elapsed_seconds": 39.42199999999866,
+  "source_hashes": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_atlas.py": "d371a76c39d29f790f53cb135b3cb8da094c2b6508c2c1447dd17abf56204840",
+    "plugins/auto-research-agent/tests/test_project_stage1_atlas.py": "495720bf1faa1de00cbb3c4c060a388ca56a8bde0aca25cf6c4759af2f78e95d"
+  }
+}

@@ -1,0 +1,53 @@
+test_growth_after_fstat_uses_max_plus_one_instead_of_unbounded_read (test_project_stage1_atlas.ProjectStage1AtlasBoundedReadTests.test_growth_after_fstat_uses_max_plus_one_instead_of_unbounded_read) ... ok
+test_special_file_and_windows_reparse_metadata_are_rejected_without_open (test_project_stage1_atlas.ProjectStage1AtlasBoundedReadTests.test_special_file_and_windows_reparse_metadata_are_rejected_without_open) ... ok
+test_unlisted_sparse_large_file_is_refused_before_any_artifact_content_read (test_project_stage1_atlas.ProjectStage1AtlasBoundedReadTests.test_unlisted_sparse_large_file_is_refused_before_any_artifact_content_read) ... ok
+test_whole_path_count_and_aggregate_bytes_are_bounded_before_content (test_project_stage1_atlas.ProjectStage1AtlasBoundedReadTests.test_whole_path_count_and_aggregate_bytes_are_bounded_before_content) ... ok
+test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly (test_project_stage1_atlas.ProjectStage1AtlasHttpTests.test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly) ... ok
+test_deadline_checks_refuse_before_validation_after_projection_and_after_final_recheck (test_project_stage1_atlas.ProjectStage1AtlasTests.test_deadline_checks_refuse_before_validation_after_projection_and_after_final_recheck) ... ok
+test_file_catalog_is_opaque_bound_and_only_exposes_notes_and_bibtex (test_project_stage1_atlas.ProjectStage1AtlasTests.test_file_catalog_is_opaque_bound_and_only_exposes_notes_and_bibtex) ... ok
+test_immutable_snapshot_projection_never_reopens_package_content (test_project_stage1_atlas.ProjectStage1AtlasTests.test_immutable_snapshot_projection_never_reopens_package_content) ... ok
+test_principal_revision_input_artifact_and_hash_must_match_latest_saved_delivery (test_project_stage1_atlas.ProjectStage1AtlasTests.test_principal_revision_input_artifact_and_hash_must_match_latest_saved_delivery) ... ok
+test_projection_json_and_bounds_cannot_be_bypassed (test_project_stage1_atlas.ProjectStage1AtlasTests.test_projection_json_and_bounds_cannot_be_bypassed) ... ok
+test_renderer_snapshot_is_readonly_and_projection_drift_is_refused (test_project_stage1_atlas.ProjectStage1AtlasTests.test_renderer_snapshot_is_readonly_and_projection_drift_is_refused) ... ok
+test_reopened_get_preserves_evidence_and_performs_no_dispatch_or_write (test_project_stage1_atlas.ProjectStage1AtlasTests.test_reopened_get_preserves_evidence_and_performs_no_dispatch_or_write) ... ok
+test_saved_artifact_and_canonical_bytes_tampering_are_refused (test_project_stage1_atlas.ProjectStage1AtlasTests.test_saved_artifact_and_canonical_bytes_tampering_are_refused) ... ok
+test_scope_revision_and_delivery_change_during_projection_fail_closed (test_project_stage1_atlas.ProjectStage1AtlasTests.test_scope_revision_and_delivery_change_during_projection_fail_closed) ... ok
+test_source_change_after_projection_and_current_brief_bytes_are_refused (test_project_stage1_atlas.ProjectStage1AtlasTests.test_source_change_after_projection_and_current_brief_bytes_are_refused) ... ok
+test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping) ... ok
+test_consumed_document_checked_against_external_snapshot (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_consumed_document_checked_against_external_snapshot) ... ERROR
+test_core_11_bare_projection_preserves_nulls_history_and_stage2_gate (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_core_11_bare_projection_preserves_nulls_history_and_stage2_gate) ... ok
+test_external_manifest_hash_extra_and_tampered_inventory_fail_closed (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_external_manifest_hash_extra_and_tampered_inventory_fail_closed) ... ok
+test_identity_mismatch_requires_replay_but_adapter_never_launches_it (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_identity_mismatch_requires_replay_but_adapter_never_launches_it) ... ok
+test_rehashed_manifest_version_and_unsafe_path_refused (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_rehashed_manifest_version_and_unsafe_path_refused) ... ok
+test_rehashed_quote_or_canonical_view_rewrite_still_refused (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_rehashed_quote_or_canonical_view_rewrite_still_refused) ... ok
+
+======================================================================
+ERROR: test_consumed_document_checked_against_external_snapshot (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_consumed_document_checked_against_external_snapshot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_workspace_canonical_delivery.py", line 202, in test_consumed_document_checked_against_external_snapshot
+    self.project()
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_workspace_canonical_delivery.py", line 44, in project
+    return project_canonical_delivery(self.root, "authored-project", self.digest)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace\canonical_delivery.py", line 162, in project_canonical_delivery
+    manifest, records, files = _delivery(root, expected_manifest_sha256, artifact_bytes)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace\canonical_delivery.py", line 110, in _delivery
+    original = _read(root, files, "deliverable/records.original.json", artifact_bytes)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1189, in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: CanonicalDeliveryTests.test_consumed_document_checked_against_external_snapshot.<locals>.transient() takes 3 positional arguments but 4 were given
+
+----------------------------------------------------------------------
+Ran 22 tests in 179.416s
+
+FAILED (errors=1)
