@@ -1,4 +1,20 @@
-/* The reviewed Atlas keeps its CSS; operation styles are isolated in the frame. */
+/* Project setup is scoped by ID; the reviewed Atlas keeps its own CSS. */
+#project-intake-card{box-sizing:border-box;width:calc(100% - 52px);max-width:1628px;min-width:0;margin:24px auto 0;padding:22px 24px;border:1px solid #cbdad7;border-radius:12px;background:#fffefa;color:#193747;font-size:18px;line-height:1.6;overflow-wrap:anywhere}
+#project-intake-card *{box-sizing:border-box;min-width:0}
+#project-intake-step{margin:0 0 5px;color:#58766e;font-size:14px;letter-spacing:.08em}
+#project-intake-title{margin:0 0 8px;font-size:25px;line-height:1.4}
+#project-intake-help{margin:0 0 12px;color:#52636c}
+#project-intake-summary{margin:0 0 16px;padding:10px 14px;border-radius:7px;background:#edf5f2}
+#project-intake-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+#project-intake-fields label{display:flex;flex-direction:column;gap:7px;font-weight:500}
+#project-intake-fields select,#project-intake-fields textarea{width:100%;max-width:100%;padding:10px 12px;border:1px solid #b9cece;border-radius:7px;background:#fff;color:inherit;font:inherit;font-size:17px;line-height:1.5}
+#project-intake-fields textarea{resize:vertical}
+#project-intake-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 10px}
+#project-intake-actions button{max-width:100%;border:1px solid #b9cece;border-radius:7px;padding:9px 14px;background:#edf5f2;color:inherit;font:inherit;font-size:17px;line-height:1.4;white-space:normal;cursor:pointer}
+#project-intake-actions button:disabled{opacity:.55;cursor:default}
+#project-intake-actions #project-intake-new{background:#193747;color:#fff}
+#project-intake-status{margin:0;color:#52636c;font-size:16px;min-height:1.6em}
+.atlas-sidebar #project-intake-nav{display:block;width:100%;margin-top:20px;text-align:left;border:1px solid #58766e;border-radius:8px;color:#eef5f2;background:#314b51;font:inherit;font-size:17px;line-height:1.5;cursor:pointer}
 #project-operations-open{border:1px solid #b9cece;background:#edf5f2;color:#193747;border-radius:7px;padding:8px 12px;font:inherit;white-space:nowrap;cursor:pointer}
 #project-operations-dialog{box-sizing:border-box;position:fixed;inset:12px 12px 12px auto;margin:0;width:min(920px,82vw);height:calc(100dvh - 24px);max-width:calc(100vw - 24px);max-height:none;padding:0;border:1px solid #cbdad7;border-radius:12px;color:#193747;background:#fff;box-shadow:0 16px 60px #16333c38}
 #project-operations-dialog[open]{display:flex;flex-direction:column}
@@ -20,4 +36,4 @@
 .project-embedded main{padding:20px}
 .project-embedded .page-heading{margin-bottom:16px}
 .project-embedded h1{font-size:26px}
-@media(max-width:760px){#project-operations-dialog{inset:8px;width:calc(100vw - 16px);height:calc(100dvh - 16px);max-width:none}#project-operations-open{font-size:13px;padding:7px}.project-embedded .budget-grid,.project-embedded .field-grid{grid-template-columns:1fr}}
+@media(max-width:760px){#project-intake-card{width:calc(100% - 28px);margin-top:14px;padding:17px 15px}#project-intake-title{font-size:23px}#project-intake-fields{grid-template-columns:minmax(0,1fr);gap:13px}#project-intake-actions button{flex:1 1 150px}#project-operations-dialog{inset:8px;width:calc(100vw - 16px);height:calc(100dvh - 16px);max-width:none}#project-operations-open{font-size:13px;padding:7px}.project-embedded .budget-grid,.project-embedded .field-grid{grid-template-columns:1fr}}

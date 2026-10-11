@@ -120,6 +120,13 @@ def main():
     try:
         files, views = {}, []
         if args.ui_overlay:
+            # Authored local project records for selector checks, not research
+            # results, permits or browser-generated requests.
+            for key, topic in (
+                ("overlay-rl", "Authored RL traffic signal project"),
+                ("overlay-autonomy", "Authored autonomous driving project"),
+            ):
+                service.create(token, {"key": key, "topic": topic})
             from research_workspace_native.atlas_host import load_views
 
             if args.views_config is None:

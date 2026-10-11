@@ -1,0 +1,113 @@
+{
+  "kind": "ProjectTopicEntryEvidence.v1",
+  "parent": "236dd62bdd008602ea1f4315f4141e8784037c5e",
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/README.md": "7b9207800c0accdc8bb49e2c406514db9bc46793b559c0ee1c09e01df1fce8cb",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/project-operations.js": "66360616613632c532d752db20a040518f3bba330a77e62f2e96cb8841e7c7fe",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/project-operations.css": "549cff6da2192e76cbcb6ce3021d750b203d6c6196b6f2cedd7ebd337bccec35",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "ee181850a88685c6340d83e0da3e4e5e16834eab4399e90decf78d83310e05ef",
+    "plugins/auto-research-agent/tests/browser/project-intake-fixture.py": "74b535d1b82d858b019b06e9cba2300130fb341f1e407a3f07826d7ae9f1dd6c",
+    "plugins/auto-research-agent/tests/browser/project-operations-test.cjs": "8b0155d5d9176feb3ff40fe567d680b6f83258db605e74b6daeefe15f4080278",
+    "plugins/auto-research-agent/tests/browser/project-reading-panel-test.cjs": "1ff1d3aa21f90150d35a664ea95c6012d3d1ba0b5894b493226ad6b34c1b495b"
+  },
+  "original_renderer_unchanged": [
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-associations.js",
+      "sha256": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v1.md",
+      "sha256": "360ec66744a32f1b85baf75d0c9955642b4d9fb7510381018b0149ee1ca49cf0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v2.md",
+      "sha256": "f4342b51f8482d747ebd58b62a36bbeb6c86097d05109cc31bed23252d0787e2"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v3.md",
+      "sha256": "15abb6215c57f3dceb41ee82c7a2a653b179e54a419f6ffebd5f060e8d0bed5c"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-model.js",
+      "sha256": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js",
+      "sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js",
+      "sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+      "sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
+      "sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
+      "sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js",
+      "sha256": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-LICENSE.txt",
+      "sha256": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/THIRD_PARTY_LICENSES.txt",
+      "sha256": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/vendor-lock.json",
+      "sha256": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa"
+    }
+  ],
+  "logs": [
+    {
+      "path": "overlay-focused-r1.log",
+      "original_sha256": "cb1208e405607b028c0eff7ab713c772a4568863cc0aa168d0007739a89b570a",
+      "published_sha256": "48b16f00602c36f8add5ccd683102c2d80ba38becedc35ea72c84eca9338a451",
+      "transform": "CRLF to LF only"
+    },
+    {
+      "path": "frontend-r1.log",
+      "original_sha256": "bd32b12168aa2f1b367acf2766921aaa5f5d5ad47bf6bf01368f647987c41051",
+      "published_sha256": "1a4efe24f56728142c2d0bcf5cbb56ac2c8df1b8d379d26474fb1e397a6258db",
+      "transform": "CRLF to LF only"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "main.png",
+      "sha256": "a5acaf9aedb9a74dd48dd22d572128d1cd052cea1e54b37ff238df36242b38b4"
+    },
+    {
+      "path": "operations.png",
+      "sha256": "070b4dbc62d7a1de3bf6db410399202766e4b2a0ba8b6f7a3003459364a12324"
+    },
+    {
+      "path": "narrow.png",
+      "sha256": "ededda32218886d23a303a98b80c96df087601eceb4a3929b3608807a53826c8"
+    }
+  ],
+  "browser": {
+    "checks": 4,
+    "passed": true,
+    "post_count": 0,
+    "fixture_exit": 0,
+    "page_errors": 0,
+    "scope": "installed Chrome, temporary HTTP/real SQLite, two authored projects and synthetic saved Atlas"
+  },
+  "focused": "8 tests / 3.653s / zero skips PASS; separate eight Node authored-DOM groups PASS",
+  "native_model_search_calls": 0,
+  "full_suite_run": false,
+  "stage1_research_acceptance": false,
+  "stage2": "execution deferred",
+  "stage3_6": "planned/unconnected"
+}

@@ -234,6 +234,7 @@
     if (window.ResearchProjectCoverage) window.ResearchProjectCoverage.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked, submit: submitCoverage});
     if (window.ResearchProjectReading) window.ResearchProjectReading.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
     if (window.ResearchSavedClaims) window.ResearchSavedClaims.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
+    if (typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("research-project-selection"));
     document.querySelectorAll("button[data-reading-draft]").forEach(button => { button.disabled = blocked || !state.project || button.dataset.readingInput !== String(state.project.input_version) || button.dataset.readingBrief !== state.project.brief_sha256; });
   }
   async function openReadingDraft(ref, result) {
@@ -527,6 +528,7 @@
     for (const project of projects) {
       const button = text(list, "button", project.topic || project.original_description || project.project_ref);
       button.type = "button";
+      button.dataset.projectRef = project.project_ref;
       button.setAttribute("aria-current", String(Boolean(state.project && state.project.project_ref === project.project_ref)));
       button.onclick = () => loadProject(project.project_ref).catch((error) => notice(error.message, true));
     }
@@ -963,6 +965,32 @@
   $("history-more").onclick = guarded(() => state.historyNext !== null && history(true));
   $("output-next").onclick = guarded(() => state.output && state.output.next !== null && readOutput(state.output.ref, state.output.outputRef, state.output.next));
   $("recover-intents").onclick = guarded(async () => { await recover(); if (state.project) await loadProject(state.project.project_ref); notice(t("recovered")); });
+  function portalSelection() {
+    const project = state.project;
+    return !project || state.loading ? null : {
+      project_ref: project.project_ref, input_version: project.input_version,
+      revision: project.revision, brief_sha256: project.brief_sha256,
+      topic: project.brief ? project.brief.original_description : project.original_description || project.topic || ""
+    };
+  }
+  // Presentation navigation only. Credentials, permits and action keys remain
+  // private to this existing broker; these methods never authorize execution.
+  window.ResearchProjectPortal = Object.freeze({
+    selection: portalSelection,
+    listProjects: async () => rows(await request(route()), "projects").map(project => ({
+      project_ref: project.project_ref, topic: project.topic || project.original_description || project.project_ref,
+      input_version: project.input_version
+    })),
+    selectProject: async ref => {
+      if (state.busy || state.loading || typeof ref !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) return false;
+      await loadProject(ref); return Boolean(state.project && state.project.project_ref === ref && !state.loading);
+    },
+    beginTopic: topic => {
+      if (state.busy || state.loading || $("new-project").disabled || !bounded(topic, 4096) || !topic.trim()) return false;
+      $("new-project").click(); $("topic").value = topic;
+      window.dispatchEvent(new Event("research-project-selection")); return true;
+    }
+  });
   translate();
   recover().catch((error) => notice(error.message, true));
   if (pending.length) notice(t("responseLost"), true);

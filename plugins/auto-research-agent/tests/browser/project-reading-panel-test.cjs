@@ -281,5 +281,30 @@ async function sourceBroker() {
   assert.equal('draft_sha256' in posted[0].body,false); assert.equal(posted[0].body.source_snapshot_sha256,hash);
   console.log('PASS source broker: exact saved-source body, no invented draft identity, changed snapshot refuses');
 }
-(async () => {await panelGuards(); await noteGuards(); await saveRaces(); await registryIntent(); await preparationGuard(); await sourceNotesGuards(); await sourceBroker(); console.log('PASS: project reading panel focused UI mock only');})()
+async function projectPortalNavigation() {
+  const requests = [], loaded = [], events = [], topic = {value:''};
+  const state = {project:{...project,brief:{original_description:'Authored project topic'}},busy:false,loading:false};
+  const create = {disabled:false,click(){state.project=null;}};
+  const window = {dispatchEvent:event=>events.push(event.type)};
+  const sandbox = {state,window,Event,rows:(value,key)=>value[key],route:()=>'/api/projects',
+    request:async (...args)=>{requests.push(args);return {projects:[{...project,topic:'Authored project topic',secret:'not projected'}]};},
+    loadProject:async ref=>{loaded.push(ref);state.project={...project,project_ref:ref,brief:{original_description:'Authored selected topic'}};},
+    $:id=>id==='new-project'?create:topic,bounded:value=>typeof value==='string'&&Buffer.byteLength(value)<=4096};
+  const start=projectSource.indexOf('  function portalSelection() {');
+  const end=projectSource.indexOf('  translate();',start); assert(start>=0&&end>start);
+  vm.runInNewContext(projectSource.slice(start,end),sandbox);
+  const portal=window.ResearchProjectPortal;
+  assert.deepEqual(JSON.parse(JSON.stringify(await portal.listProjects())),[{project_ref:project.project_ref,topic:'Authored project topic',input_version:1}]);
+  assert.deepEqual(requests,[['/api/projects']]);
+  assert.equal(portal.selection().topic,'Authored project topic');
+  state.loading=true; assert.equal(portal.selection(),null); assert.equal(await portal.selectProject(project.project_ref),false); state.loading=false;
+  assert.equal(await portal.selectProject('../foreign'),false); assert.equal(loaded.length,0);
+  assert.equal(await portal.selectProject(project.project_ref),true); assert.deepEqual(loaded,[project.project_ref]);
+  assert.equal(portal.beginTopic(''),false); assert.equal(portal.beginTopic('RL traffic signals'),true);
+  assert.equal(topic.value,'RL traffic signals'); assert.equal(portal.selection(),null);
+  assert.deepEqual(events,['research-project-selection']); assert.equal(requests.length,1);
+  assert.equal(Object.keys(portal).some(key=>/permit|credential|execute/.test(key)),false);
+  console.log('PASS portal: existing broker GET selection, source-neutral topic prefill, no permit or research dispatch');
+}
+(async () => {await panelGuards(); await noteGuards(); await saveRaces(); await registryIntent(); await preparationGuard(); await sourceNotesGuards(); await sourceBroker(); await projectPortalNavigation(); console.log('PASS: project reading panel focused UI mock only');})()
   .catch(error => {console.error(error); process.exitCode = 1;});

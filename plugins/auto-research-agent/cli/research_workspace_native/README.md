@@ -468,13 +468,28 @@ does not grant Stage1 acceptance.
 ### Preserve the reviewed v6 interface
 
 Saved Stage1/Stage2 pages retain their dark sidebar, 2D/3D graph, paper detail,
-compact direction summary and folded process history. The host adds a **Codex &
-Harness** button to the top bar. It opens existing project operations in a lazy
+compact direction summary and folded process history. A compact **Project &
+research topic** section precedes Stage1. Select an existing project, or enter
+a new topic and open the existing scope form; entering a topic alone submits
+nothing. Selection reads the current server-owned project and input version.
+The same **Codex & Harness** button opens that one operation document in a
 drawer with separate styles. Closing it retains both the graph and operation
 document. Opening, closing, translation and refresh never dispatch research.
 Select the operation project explicitly; a historical saved case is not the
 current project's result or permission. Original package/renderer files stay
 unchanged and derived host assets have separate hashes.
+
+The selector and drawer share one broker and one iframe. Initialisation reads
+the project list; it creates no project, permit, session or turn. Topic prefill,
+project selection and translation do not start Harness research. Confirm the
+scope and budgets explicitly in the operation form, then use its current
+server-bound offers for each stage action, question or approval. Only opaque
+project references and nonsecret display context cross this presentation seam;
+credentials, permits and durable action keys remain in the existing broker.
+The saved Atlas shown below is labelled separately from the selected operation
+project; selecting a new project never relabels a historical package as its
+result. Stage2 uses the same project identity when admitted, with execution
+still deferred here; Stage3-6 remain planned/unconnected.
 
 When starting `run-project-workspace.py`, pass the existing private, pinned
 `--views-config <views.json> --views-sha256 <SHA256>` alongside the existing

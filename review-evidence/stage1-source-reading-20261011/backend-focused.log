@@ -1,0 +1,10 @@
+test_post_intent_unknown_survives_sqlite_reopen_and_blocks_new_key (test_project_source_reading_review.SourceReadingReviewTests.test_post_intent_unknown_survives_sqlite_reopen_and_blocks_new_key) ... ok
+test_rehashed_matching_receipts_cannot_change_selected_manual_occurrence (test_project_source_reading_review.SourceReadingReviewTests.test_rehashed_matching_receipts_cannot_change_selected_manual_occurrence) ... ok
+test_repeated_manual_span_all_claims_and_unknowns_are_registered (test_project_source_reading_review.SourceReadingReviewTests.test_repeated_manual_span_all_claims_and_unknowns_are_registered) ... ok
+test_saved_key_true_sqlite_reopen_replays_without_source_read_or_register (test_project_source_reading_review.SourceReadingReviewTests.test_saved_key_true_sqlite_reopen_replays_without_source_read_or_register) ... ok
+test_strict_source_owner_input_deadline_and_byte_drift_fail_before_intent (test_project_source_reading_review.SourceReadingReviewTests.test_strict_source_owner_input_deadline_and_byte_drift_fail_before_intent) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 74.565s
+
+OK
