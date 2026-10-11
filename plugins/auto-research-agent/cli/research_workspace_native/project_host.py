@@ -17,6 +17,13 @@ from .http import token_authenticator
 from .project_intake import ProjectIntakeService
 from .project_contract import project_view
 from .project_stage1_delivery import ProjectStage1DeliveryService
+from .project_stage1_library import ProjectStage1LibraryService
+from .project_stage1_library_http import (
+    DETAIL_ROUTE,
+    PAGE_ROUTE,
+    descriptor,
+    read_page,
+)
 from .session_api import SessionApiError
 from .transport import _decode
 from stage1_deliverable.common import canonical, sha
@@ -54,6 +61,9 @@ class ProjectHost(AtlasHost):
             stage2,
         )
         self.project_stage1 = stage1
+        self.project_stage1_library = (
+            None if stage1 is None else ProjectStage1LibraryService(stage1)
+        )
         self.project_stage1_delivery = (
             None if stage1 is None else ProjectStage1DeliveryService(stage1)
         )
@@ -64,7 +74,12 @@ class ProjectHost(AtlasHost):
         options.setdefault("timeout", 30)
         super().__init__(credential=credential, **options)
         self.RequestHandlerClass = ProjectHandler
-        for filename in ("projects.html", "projects.js", "projects.css"):
+        for filename in (
+            "projects.html",
+            "projects.js",
+            "projects.css",
+            "projects-library.js",
+        ):
             self._assets["/" + filename] = (ASSETS / filename).read_bytes()
         # Keep all saved v6 graph files unchanged. Navigation is a host overlay.
         self._assets["/"] = self._assets["/projects.html"]
@@ -106,10 +121,14 @@ class ProjectHost(AtlasHost):
     def stage1_view(self, credential, ref):
         """Read saved delivery offers together with the same project revision."""
         with self.projects._lock:
-            return dict(
+            value = dict(
                 self.project_stage1.read(credential, ref),
                 delivery=self.project_stage1_delivery.read(credential, ref),
             )
+            # A descriptor is cheap and shares this overview's revision. Full
+            # screening history uses separately hash-bound, bounded GET pages.
+            value["screening_library"] = descriptor(value)
+            return value
 
 
 class ProjectHandler(AtlasHandler):
@@ -123,6 +142,19 @@ class ProjectHandler(AtlasHandler):
                 raise SessionApiError("credential-rejected", 401)
             output = OUTPUT_ROUTE.fullmatch(self.path)
             page = HISTORY_ROUTE.fullmatch(self.path)
+            screening = PAGE_ROUTE.fullmatch(self.path)
+            detail = DETAIL_ROUTE.fullmatch(self.path)
+            if screening is not None or detail is not None:
+                if method != "GET" or length:
+                    raise SessionApiError("invalid-project-read", 400)
+                result = read_page(
+                    self.server.project_stage1_library,
+                    token,
+                    detail if detail is not None else screening,
+                    detail=detail is not None,
+                )
+                self._remaining()
+                return self._reply(200, result)
             if output is not None or page is not None:
                 if method != "GET" or length:
                     raise SessionApiError("invalid-project-read", 400)

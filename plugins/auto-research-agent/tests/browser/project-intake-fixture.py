@@ -1,4 +1,4 @@
-"""120-second test-only project host; real SQLite/core, no model/search provider.
+"""180-second test-only project host; real SQLite/core, no model/search provider.
 
 The private file queue compiles an explicitly synthetic proposal through the
 real brief compiler. It is not an HTTP endpoint or research execution permit.
@@ -90,6 +90,10 @@ def main():
     from research_workspace_native.project_host import ProjectHost
     from research_workspace_native.project_intake import ProjectIntakeService
     from research_workspace_native.project_stage1 import ProjectStage1Service
+    from research_workspace_native.project_stage1_library import (
+        ProjectStage1LibraryService,
+    )
+    from stage1_ledger.journal import canonical
     from research_workspace_native.project_stage1_delivery import (
         ProjectStage1DeliveryService,
     )
@@ -144,7 +148,12 @@ def main():
             driver,
             *(
                 plugin / "cli/research_workspace_native/web" / name
-                for name in ("projects.html", "projects.js", "projects.css")
+                for name in (
+                    "projects.html",
+                    "projects.js",
+                    "projects.css",
+                    "projects-library.js",
+                )
             ),
         ):
             source_hashes[str(path.relative_to(repo)).replace("\\", "/")] = digest(
@@ -178,16 +187,159 @@ def main():
                 "actual_search_calls": 0,
             }
 
+        def seed_screening(ref):
+            with service._lock:
+                state = service._load("local-viewer", ref)
+                _, ledger, _ = stage1._ledger(state, service.binding(ref))
+                if ledger.candidates():
+                    raise ValueError("fixture screening is single-use")
+                queries = list(ledger.coverage_state().queries)
+                records = [
+                    dict(
+                        title=f"Authored screening fixture study {i:02d}"
+                        + (" <img src=x>" if i == 0 else ""),
+                        authors=["Fixture Author"],
+                        year=2025,
+                        version="v1",
+                    )
+                    for i in range(25)
+                ]
+                for i, batch in enumerate((records, [records[0]])):
+                    query = ledger.start_planned(queries[i])
+                    backend = ledger.start(
+                        "backend",
+                        {"input": ledger.coverage_state().arguments(queries[i])},
+                        backend="openalex",
+                        parent_id=query,
+                    )
+                    output = ledger.save_bytes(canonical(batch), producer=backend)
+                    empty = ledger.save_bytes(b"", producer=backend)
+                    ledger.finish(
+                        backend,
+                        outcome="success_nonempty",
+                        http_status=200,
+                        exit_code=0,
+                        stdout=empty,
+                        stderr=empty,
+                        records=output,
+                    )
+                    ledger.complete_query(query)
+                    ledger.extract()
+                candidates = list(ledger.candidates().values())
+                for candidate, status in zip(
+                    candidates, ("include", "exclude", "pending")
+                ):
+                    ledger.decide(
+                        candidate["work_id"],
+                        status,
+                        reason="fixture-screening",
+                        rationale="Authored saved screening observation; no live research.",
+                        evidence_refs=[candidate["discoveries"][-1]["source_ref"]],
+                    )
+                historical = candidates[1]
+                version = historical["discoveries"][-1]["version_id"]
+                source = ledger.start_source(
+                    work_id=historical["work_id"],
+                    version_id=version,
+                    source_uri="https://example.org/historical-source-v1",
+                    tool="authored-browser-fixture",
+                    request={"public_only": True},
+                    actor="fixture",
+                    reason="Saved authored bytes; no source acquisition.",
+                )
+                text = ledger.save_bytes(
+                    b"Authored historical claim, not a model output.", producer=source
+                )
+                ledger.finish_source(
+                    attempt_id=source,
+                    outcome="available",
+                    observed_at=ledger.clock(),
+                    http_status=200,
+                    resolved_uri="https://example.org/historical-source-v1",
+                    raw_ref=text,
+                    text_ref=text,
+                    extraction={"method": "identity", "version": "fixture"},
+                    reason="Authored saved observation only.",
+                )
+                ledger.claim(
+                    work_id=historical["work_id"],
+                    version_id=version,
+                    claim_text="Authored historical claim, not a model output.",
+                    relation="supports",
+                    evidence_level="full_text",
+                    locator={
+                        "section": "fixture",
+                        "quote": "Authored historical claim, not a model output.",
+                    },
+                    source_ref=text,
+                    verifier={
+                        "actor": "fixture",
+                        "actor_type": "agent",
+                        "method": "saved-span",
+                    },
+                )
+                imported = candidates[2]
+                intent = ledger.start_source_import(
+                    work_id=imported["work_id"],
+                    version_id=imported["discoveries"][-1]["version_id"],
+                    source_uri="https://example.org/authored-import",
+                    actor="fixture",
+                    reason="Authored saved import observation; no protected import.",
+                )
+                imported_ref = ledger.save_bytes(
+                    b"Authored import bytes, not complete reading.", producer=intent
+                )
+                query = ledger.start_planned(queries[2])
+                backend = ledger.start(
+                    "backend",
+                    {"input": ledger.coverage_state().arguments(queries[2])},
+                    backend="openalex",
+                    parent_id=query,
+                )
+                revised = dict(records[1], version="v2")
+                output = ledger.save_bytes(canonical([revised]), producer=backend)
+                empty = ledger.save_bytes(b"", producer=backend)
+                ledger.finish(
+                    backend,
+                    outcome="success_nonempty",
+                    http_status=200,
+                    exit_code=0,
+                    stdout=empty,
+                    stderr=empty,
+                    records=output,
+                )
+                ledger.complete_query(query)
+                ledger.extract()
+                latest_version = ledger.candidates()[historical["work_id"]][
+                    "discoveries"
+                ][-1]["version_id"]
+                ledger.start_source(
+                    work_id=historical["work_id"],
+                    version_id=latest_version,
+                    source_uri="https://example.org/current-pending-source-v2",
+                    tool="authored-browser-fixture",
+                    request={"public_only": True},
+                    actor="fixture",
+                    reason="Unfinished saved source intent, not acquired bytes.",
+                )
+                return dict(
+                    project_ref=ref,
+                    total_candidates=len(candidates),
+                    mode="authored-saved-observations-only",
+                    historical_source_version=version,
+                    imported_sha256=imported_ref["sha256"],
+                )
+
         emit(
             {
                 "origin": server.expected_origin,
                 "source_sha256": source_hashes,
                 "served_sha256": server.host_binding["served_files"],
                 "mode": "offline-real-core-with-synthetic-plan-proposal",
-                "lease_seconds": 120,
+                "lease_seconds": 180,
             }
         )
-        offset, deadline, stopped, pending = 0, time.monotonic() + 120, False, b""
+        offset, deadline, stopped, pending = 0, time.monotonic() + 180, False, b""
         while time.monotonic() < deadline:
             with args.control_file.open("rb") as stream:
                 stream.seek(offset)
@@ -217,6 +369,8 @@ def main():
                                 row["need_id"] for row in view["brief"]["needs"]
                             ]
                         value = service.compile(token, ref, body)
+                    elif op == "seed-screening":
+                        value = seed_screening(command["project_ref"])
                     elif op == "reopen":
                         service.close()
                         service = ProjectIntakeService(root, authenticate=authenticate)
@@ -230,6 +384,9 @@ def main():
                             server.project_stage2,
                         ) = service, stage1, stage2
                         server.project_stage1_delivery = ProjectStage1DeliveryService(
+                            stage1
+                        )
+                        server.project_stage1_library = ProjectStage1LibraryService(
                             stage1
                         )
                         value = snapshot()
