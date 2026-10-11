@@ -55,14 +55,20 @@ class ProjectStage1RecordsService:
             core_run_id=ledger.manifest["research_run"]["run_id"],
         )
 
-    def _context(self, project_ref, expected_state):
-        context = self.delivery._context(project_ref)
+    def _context(self, project_ref, expected_state, *, require_checkpoint=False):
+        context = (
+            self.delivery._context(project_ref)
+            if require_checkpoint
+            else self.delivery._saved_context(project_ref)
+        )
         _check(
             context[5]["state_sha256"] == expected_state, "stage1-ledger-state-stale"
         )
         return context
 
-    def _mutation_check(self, project_ref, expected_state, guard_check):
+    def _mutation_check(
+        self, project_ref, expected_state, guard_check, *, require_checkpoint=False
+    ):
         _check(
             guard_check is None or callable(guard_check),
             "saved-mutation-check-required",
@@ -71,7 +77,9 @@ class ProjectStage1RecordsService:
         def check():
             if guard_check is not None:
                 guard_check()
-            return self._context(project_ref, expected_state)
+            return self._context(
+                project_ref, expected_state, require_checkpoint=require_checkpoint
+            )
 
         return check
 
@@ -529,10 +537,15 @@ class ProjectStage1RecordsService:
         self, project_ref, *, expected_ledger_state_sha256, expected_checkpoint_event_id
     ):
         with self.intake._lock:
-            context = self._context(project_ref, expected_ledger_state_sha256)
+            context = self._context(
+                project_ref, expected_ledger_state_sha256, require_checkpoint=True
+            )
             with self.guard(*context[3:6]) as guard_check:
                 check_frontier = self._mutation_check(
-                    project_ref, expected_ledger_state_sha256, guard_check
+                    project_ref,
+                    expected_ledger_state_sha256,
+                    guard_check,
+                    require_checkpoint=True,
                 )
                 context = check_frontier()
                 _check(

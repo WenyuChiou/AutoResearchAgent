@@ -416,6 +416,20 @@ class SavedStage1RecordsTests(unittest.TestCase):
             expected_ledger_state_sha256=fixture["ledger"].state_hash(),
         )
 
+    def test_saved_registration_does_not_require_a_delivery_checkpoint(self):
+        fixture = self.two_sources()
+        ledger = fixture["ledger"]
+        source = fixture["pairs"][0][0]["sources"][0]["source_id"]
+        ledger.save_bytes(b"Later saved observation", producer=source)
+        self.register_all(fixture)
+        current = self.intake._load("alice", fixture["ref"])
+        self.assertEqual(len(current["stage1_saved_registries"]), 4)
+        with self.assertRaises(SessionApiError) as failure:
+            self.produce(fixture)
+        self.assertEqual(failure.exception.code, "stage1-checkpoint-stale")
+        self.assertEqual(list(self.fixture_root.glob("stage1-records-*.json")), [])
+        self.runner.assert_not_called()
+
     def test_extra_source_deadline_is_checked_before_final_registry_commit(self):
         fixture = self.two_sources()
         records, directory = fixture["pairs"][0]
