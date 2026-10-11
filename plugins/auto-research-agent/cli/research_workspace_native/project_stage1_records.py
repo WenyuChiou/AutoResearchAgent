@@ -382,13 +382,14 @@ class ProjectStage1RecordsService:
             "stage1-saved-record-bound-exceeded",
         )
         for work, candidate in ledger.candidates().items():
+            decision = ledger.coverage_state().evidence.decisions.get(work)
+            _check(decision is not None, "saved-current-decision-required")
             matches = [
                 reading
                 for reading in readings
                 if reading["work_id"] == work
                 and reading["candidate_event_id"] == candidate["event_id"]
-                and reading["decision_event_id"]
-                == ledger.coverage_state().evidence.decisions[work]["event_id"]
+                and reading["decision_event_id"] == decision["event_id"]
             ]
             _check(bool(matches), "saved-reading-current-record-required")
             # SQLite event order selects the latest explicit saved annotation;

@@ -219,3 +219,46 @@ sidecars and cross-project source/store overlap; this is a bounded NEW session,
 not resume, multi-tenant authentication or proven process-tree containment.
 Runtime tests use actual Python fake children and HTTP/SQLite, never Codex/models.
 Run test_atlas_runtime_spec and test_atlas_runtime_factory for those offline cases.
+
+## Complete saved Stage1 screening library
+
+The universal project portal has a read-only screening library next to the real
+ledger controls. Every saved candidate remains visible, including excluded,
+pending and unscreened works, unread versions and actual source failures. Select
+a paper for its exact work/version, metadata, discovery and query/attempt counts,
+source/import/claim history, decision reasons and reversals. Only current-version
+source URLs appear in its main access area; older versions remain in history.
+Relevance stays Unknown when no assessment exists. Discovery order, query count,
+backend attempts and recorded rounds are separate observations, not a relevance
+ranking or full-text reading proof. Source availability does not prove reading.
+
+`ProjectStage1LibraryService.read` derives a `Stage1ScreeningLibraryEnvelope` from
+Core Candidate/Claim/Decision snapshots, one validated run, its current manifest,
+semantic state, complete journal and confirmed project/input/brief/plan/settings
+binding. The complete projection has an external SHA-256; it is not persisted
+by GET, is not `Stage1ResearchRecords`, and grants no stage acceptance. A current
+checkpoint's saved snapshot bytes are checked; historical checkpoint refs stay
+historical. The complete projection has a 16 MiB bound with explicit refusal,
+never a silently shortened bibliography.
+
+HTTP GET `/api/projects/<ref>/stage1/screening/<inputVersion>/<stateSHA>/<offset>`
+reads 20 summaries. Later pages require the complete projection SHA as an extra
+path component. GET `/api/projects/<ref>/stage1/screening-detail/<inputVersion>/<stateSHA>/<projectionSHA>/<index>`
+reads one complete original row. Principal/project/version/state/projection/index
+must match. The existing 1 MiB response cap remains; oversized single-row history
+is refused explicitly. No browser root, owner, runtime or permit is accepted.
+Refresh and language changes do not dispatch or implicitly restore a missing
+query owner. Project switching clears old rows and rejects delayed responses.
+
+The canonical producer still requires genuine current screening decisions,
+version-bound reading and source records for every candidate. An unscreened
+candidate now refuses as `saved-current-decision-required` before reading lookup;
+it never receives an invented pending decision or fake access failure. This
+companion makes partial search history usable while keeping that stricter gate.
+The complete neutral projection retains even failed queries with zero candidates;
+the current browser card exposes each paper's query history and global failure
+counts, but does not yet expose the full orphan-query outcome history in a
+separate panel. The existing Core journal keeps those observations intact.
+Source acquisition, model reading, coverage completion and new-topic end-to-end
+Stage1 acceptance remain separate pending interfaces; Stage2 execution is deferred
+and Stage3–6 stay planned/unconnected. Local/CI fixtures are engineering evidence.

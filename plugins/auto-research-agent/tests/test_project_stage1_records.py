@@ -271,6 +271,63 @@ class SavedStage1RecordsTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(), before)
         self.runner.assert_not_called()
 
+    def test_unscreened_candidate_requires_saved_current_decision_without_invented_sources(
+        self,
+    ):
+        fixture = self.two_sources()
+        self.register_all(fixture)
+        ledger = fixture["ledger"]
+        original_works = set(ledger.candidates())
+        coverage = ledger.coverage_state()
+        planned = list(coverage.queries)[2]
+        query = ledger.start_planned(planned)
+        backend = ledger.start(
+            "backend",
+            {"input": coverage.arguments(planned)},
+            backend="openalex",
+            parent_id=query,
+        )
+        output = ledger.save_bytes(
+            canonical(
+                [
+                    dict(
+                        title="Third authored unscreened saved study",
+                        authors=["Synthetic Author"],
+                        year=2025,
+                        version="v1",
+                    )
+                ]
+            ),
+            producer=backend,
+        )
+        empty = ledger.save_bytes(b"", producer=backend)
+        ledger.finish(
+            backend,
+            outcome="success_nonempty",
+            http_status=200,
+            exit_code=0,
+            stdout=empty,
+            stderr=empty,
+            records=output,
+        )
+        ledger.complete_query(query)
+        ledger.extract()
+        work = (set(ledger.candidates()) - original_works).pop()
+        self.assertNotIn(work, ledger.coverage_state().evidence.decisions)
+        fixture["checkpoint"] = ledger.checkpoint()
+        events = ledger.events()
+        principal = self.intake._principal("alice-token")
+        before = self.intake._load(principal, fixture["ref"])
+        with self.assertRaisesRegex(
+            SessionApiError, "^saved-current-decision-required$"
+        ):
+            self.produce(fixture)
+        self.assertEqual(self.intake._load(principal, fixture["ref"]), before)
+        self.assertEqual(ledger.events(), events)
+        self.assertNotIn(work, ledger.coverage_state().evidence.decisions)
+        self.assertEqual(list(self.fixture_root.glob("stage1-records-*")), [])
+        self.runner.assert_not_called()
+
     def test_exact_span_rejects_repeated_quote_wrong_offset_and_missing_claim(self):
         fixture = self.two_sources()
         reading = self.register_all(fixture)

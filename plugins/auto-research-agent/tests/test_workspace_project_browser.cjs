@@ -196,6 +196,45 @@ const operation = (async () => {
     assert.equal(saved.stage1.source_acquisition_calls, null);
     await shot(page, 'stage1-real-ledger');
   });
+  await check('real saved screening library pages all candidates, retains excluded/unread and reads bound details without execution', async () => {
+    const before = (await rpc('snapshot')).projects[0].history.actions.length;
+    const seeded = await rpc('seed-screening', {project_ref: musicRef}); assert.equal(seeded.total_candidates, 25);
+    await page.locator('#refresh').click();
+    await page.waitForFunction(() => document.querySelectorAll('#screening-list button').length === 20);
+    assert.match(await page.locator('#screening-summary').textContent(), /Candidates 25/);
+    assert.match(await page.locator('#screening-summary').textContent(), /Not screened 22/);
+    await page.locator('#screening-list button').first().click();
+    await page.waitForFunction(() => document.querySelector('#screening-detail h3'));
+    assert.match(await page.locator('#screening-detail').textContent(), /<img src=x>/);
+    assert.equal(await page.locator('#screening-detail img').count(), 0);
+    assert.match(await page.locator('#screening-detail').textContent(), /Unknown/);
+    assert.match(await page.locator('#screening-detail').textContent(), /No reading evidence recorded/);
+    await page.locator('#screening-more').click();
+    await page.waitForFunction(() => document.querySelectorAll('#screening-list button').length === 25);
+    assert.equal(await page.locator('#screening-more').isVisible(), false);
+    for (const locale of ['zh-Hans', 'zh-Hant', 'en']) {
+      await page.locator('#language').selectOption(locale);
+      assert.match(await page.locator('#screening-detail h3').textContent(), /Authored screening fixture study 00/);
+      const title = await page.locator('#screening-title').textContent();
+      assert.equal(title, {en: 'Complete screening library', 'zh-Hans': '完整筛选文献库', 'zh-Hant': '完整篩選文獻庫'}[locale]);
+    }
+    await page.locator('#screening-list button').nth(1).click();
+    await page.waitForFunction(() => document.querySelector('#screening-detail h3')?.textContent.includes('study 01'));
+    assert.match(await page.locator('#screening-detail').textContent(), /No reading evidence recorded/);
+    assert.deepEqual(await page.locator('#screening-detail a').evaluateAll(links => links.map(link => link.href)), ['https://example.org/current-pending-source-v2']);
+    assert.match(await page.locator('#screening-detail').textContent(), /Authored historical claim, not a model output\./);
+    assert.match(await page.locator('#screening-detail').textContent(), /historical-source-v1/);
+    assert.match(await page.locator('#screening-detail').textContent(), new RegExp(seeded.historical_source_version));
+    await page.locator('#screening-list button').nth(2).click();
+    await page.waitForFunction(() => document.querySelector('#screening-detail h3')?.textContent.includes('study 02'));
+    assert.match(await page.locator('#screening-detail').textContent(), new RegExp(seeded.imported_sha256));
+    assert.match(await page.locator('#screening-detail').textContent(), /No reading evidence recorded/);
+    assert.match(await page.locator('#screening-list button').nth(2).textContent(), /Saved import bytes/);
+    await shot(page, 'stage1-complete-screening-library');
+    await page.locator('#screening-detail button').first().click();
+    assert.equal(await page.locator('#screening-detail').isVisible(), false);
+    assert.equal((await rpc('snapshot')).projects[0].history.actions.length, before);
+  });
   await check('Stage2 and stages3-6 remain truthful when eligible evidence and native provider are absent', async () => {
     const saved = (await rpc('snapshot')).projects[0];
     assert.deepEqual(saved.stage2.offers, []); assert.equal(saved.stage2.stage2_complete, false);
@@ -219,6 +258,7 @@ const operation = (async () => {
     const snapshot = await rpc('snapshot'); assert.equal(snapshot.projects.length, 2);
     const second = snapshot.projects.find(row => row.project.brief.original_description === aircraft);
     aircraftRef = second.project.project_ref; assert.notEqual(aircraftRef, musicRef);
+    assert.equal(await page.locator('#screening-list button').count(), 0); assert.equal(await page.locator('#screening-detail').isVisible(), false);
     assert.equal(second.stage1.ledger, null); assert.equal(second.project.stage1_intake_ready, false);
     assert.equal(second.project.settings.budgets.model_calls, 0);
   });

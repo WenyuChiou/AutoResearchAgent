@@ -242,6 +242,7 @@
     } finally { state.busy = false; buttons(); }
   }
   function renderProject() {
+    document.dispatchEvent(new CustomEvent("project-screening-state", {detail: {project: state.project, stage1: state.stage1, language: state.language}}));
     const project = state.project;
     if (!project) return;
     if (!project.brief) {
@@ -317,6 +318,7 @@
   }
   async function loadProject(ref) {
     const generation = ++state.generation;
+    document.dispatchEvent(new Event("project-screening-clear"));
     state.modelHistory = []; state.historyNext = null; state.output = null;
     $("output-reader").hidden = true; $("history-more").hidden = true;
     state.loading = true; state.activeJob = false; state.modelOffers = []; state.modelStatus = null; state.stage1 = null; state.stage2 = null; buttons();
@@ -516,7 +518,7 @@
     buttons();
   }
   $("language").onchange = () => { state.language = $("language").value; translate(); };
-  $("new-project").onclick = () => { ++state.generation; state.loading = false; state.project = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); $("topic").focus(); };
+  $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.project = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); $("topic").focus(); };
   $("create-form").onsubmit = async (event) => {
     event.preventDefault();
     const generation = state.generation;
