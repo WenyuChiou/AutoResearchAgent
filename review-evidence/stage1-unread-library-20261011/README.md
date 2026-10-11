@@ -33,3 +33,17 @@ No full rerun, native/model/search/source acquisition or Stage2 execution.
 Source hashes and original commands/results are in source-and-results.json.
 Failures are retained and are not relabeled as passing. The native producer
 integration is verified and delivered separately in existing candidate C/#295.
+
+## Published text copies and original hashes
+
+The run-1/run-2/run-3 files are UTF-8 without-BOM, LF text copies for Git
+review. Their only transformation is encoding/BOM normalization and CRLF
+(or lone CR) to LF; test output, commands, paths, times and failure conclusions
+are unchanged. No tests or source files were changed for this normalization.
+
+The `logs` hashes in source-and-results.json refer to the immutable ORIGINAL
+PRIVATE files, which were verified against those hashes and left unchanged.
+They do not claim byte equality with the normalized public copies.
+`published-copy-manifest.json` maps each original path/hash/byte count to its
+published path/hash/byte count and records the exact transformation and
+content-equivalence check. Empty stdout files remain empty and keep their hash.
