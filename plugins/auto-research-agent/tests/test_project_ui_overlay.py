@@ -75,11 +75,21 @@ class ProjectUiOverlayTests(unittest.TestCase):
 
     def test_narrow_csp_and_read_only_panel_do_not_create_actions(self):
         server, token = self.server()
-        for path in ("/views/stage1/atlas.html", "/project-atlas.html"):
+        for path in ("/views/stage1/atlas.html",):
             _, headers, raw = self.get(server, path)
             self.assertIn("frame-src 'self'", headers["Content-Security-Policy"])
             self.assertIn(b"frame-src 'self'", raw)
             self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+        # A delivered graph is an exact-parent read-only child, not another
+        # project controller with a disconnected topic selector or iframe.
+        status, headers, child = self.get(server, "/project-atlas.html")
+        self.assertEqual(status, 200)
+        self.assertNotIn("/project-atlas.html", server.project_panel_parents)
+        self.assertNotIn("frame-src", headers["Content-Security-Policy"])
+        self.assertNotIn(b"frame-src", child)
+        self.assertNotIn(b"project-operations.js", child)
+        self.assertIn(b"project-atlas-child.js", child)
+        self.assertNotIn(token.encode(), child)
         for path, ancestor in (
             ("/projects-panel.html", "self"),
             ("/projects.html", "none"),

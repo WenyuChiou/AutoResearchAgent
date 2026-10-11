@@ -4,15 +4,18 @@
   const status = document.getElementById("project-atlas-status"), parent = window.opener;
   const hash = value => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
   const messages = {
-    en: {ready: "Saved delivery view · Return to the project workspace for Harness actions.", loading: "Opening the saved literature network…", failed: "Saved view unavailable. Open it again from the project workspace.", file: "This saved file could not be read. Refresh the project before reopening the view.", back: "Return to project"},
-    "zh-Hans": {ready: "已保存交付视图 · Harness 操作请返回项目工作台。", loading: "正在打开已保存文献网络…", failed: "保存视图不可用。请从项目工作台重新打开。", file: "无法读取已保存文件。请刷新项目后重新打开视图。", back: "返回项目"},
-    "zh-Hant": {ready: "已保存交付視圖 · Harness 操作請返回專案工作台。", loading: "正在開啟已保存文獻網絡…", failed: "保存視圖不可用。請從專案工作台重新開啟。", file: "無法讀取已保存檔案。請重新整理專案後再開啟視圖。", back: "返回專案"}
+    en: {ready: "Saved delivery view · Return to the project workspace for Harness actions.", loading: "Opening the saved literature network…", failed: "Saved view unavailable. Open it again from the project workspace.", file: "This saved file could not be read. Refresh the project before reopening the view.", back: "Return to project", version: "Input version"},
+    "zh-Hans": {ready: "已保存交付视图 · Harness 操作请返回项目工作台。", loading: "正在打开已保存文献网络…", failed: "保存视图不可用。请从项目工作台重新打开。", file: "无法读取已保存文件。请刷新项目后重新打开视图。", back: "返回项目", version: "输入版本"},
+    "zh-Hant": {ready: "已保存交付視圖 · Harness 操作請返回專案工作台。", loading: "正在開啟已保存文獻網絡…", failed: "保存視圖不可用。請從專案工作台重新開啟。", file: "無法讀取已保存檔案。請重新整理專案後再開啟視圖。", back: "返回專案", version: "輸入版本"}
   };
   let port = null, view = null, bound = false, language = "en", serial = 0;
   const pending = new Map();
   function notice(key) { status.textContent = (messages[language] || messages.en)[key]; }
   function ready() {
     notice("ready");
+    const identity = document.createElement("span"); identity.setAttribute("translate", "no");
+    identity.textContent = " · " + view.project_ref + " · " + messages[language].version + " " + view.input_version;
+    status.append(identity);
     const back = document.createElement("button"); back.type = "button"; back.textContent = messages[language].back; back.onclick = () => { if (port) port.postMessage({kind: "return"}); }; status.append(" ", back);
   }
   function clear() {

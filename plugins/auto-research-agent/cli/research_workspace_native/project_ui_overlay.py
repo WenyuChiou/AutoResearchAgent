@@ -8,7 +8,9 @@ PANEL_CSP = CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
 
 
 def install_project_overlay(assets, views, web_root):
-    parents = {row["url"] for row in views} | {"/project-atlas.html"}
+    # The saved-delivery child only holds a read-only memory channel. Project
+    # setup and execution stay in its owning workspace, reached by Return.
+    parents = {row["url"] for row in views}
     for path in parents:
         text = assets[path].decode("utf-8")
         if text.count("</body>") != 1 or text.count("default-src 'none'") != 1:

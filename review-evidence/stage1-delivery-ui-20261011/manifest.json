@@ -1,0 +1,95 @@
+{
+  "kind": "Stage1DeliveryUiEvidence.v1",
+  "parent": "98b77b67461c5beab14b8dece8e455fe58d4843f",
+  "scope": "actual installed browser/temporary HTTP/SQLite/Core with authored repository source case; no real research",
+  "final_browser": {
+    "groups": 8,
+    "passed": true,
+    "post_count": 6,
+    "posts": "two readings/checkpoint/prepare/deliver/input-hold; each exactly once",
+    "page_errors": 0,
+    "fixture_exit": 0,
+    "cleanup_complete": true,
+    "console_diagnostics": 23,
+    "diagnostics_scope": "offline fixture has no model or Stage2 execution service; requests to their unconnected history/native endpoints produce409; these are retained, not described as zero network errors"
+  },
+  "actual_download": {
+    "path": "references.bib",
+    "sha256": "9fb650f39de17c10ef6927f395a2d2d34d0e66e7f655e9eb3e041579b58680ab",
+    "actual_click": true
+  },
+  "binding": {
+    "manifest_sha256": "5a211ba262f748eea28666a3342ba2b4815d421426a5f06f678bb8d12558a013",
+    "index_sha256": "1c218597565a5ac84071e8da556a2006bdbf8c07482b5c9534dd8955595f103e",
+    "reading_count": 2,
+    "research_complete": false,
+    "stage2_decision": "hold",
+    "execution_authorized": false
+  },
+  "separate_tests": {
+    "overlay": "3/3.659s/zero skips PASS",
+    "map": "5/0.018s/zero skips PASS"
+  },
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_ui_overlay.py": "0ed5402d2b6b0399b5f7563f7f72807da8e1e8be21c61306a4e8eb074ba594fa",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/project-atlas-child.js": "c140dc8d526160a10356d3c9d489302766df1b80c057b22f5c180287c428924d",
+    "plugins/auto-research-agent/cli/research_workspace_native/README.md": "62d22a3b16448886756d469df91ddc873e8af6aebf109b381b396bbb2e7cf2c1",
+    "plugins/auto-research-agent/tests/test_project_ui_overlay.py": "ea3dd0153a2223a5502cc11b010c208ee9462e77b4b4eee78897ad1933196cec",
+    "plugins/auto-research-agent/tests/project_delivery_browser_fixture.py": "f5085c2a3255766241d1b7088f191a02a85acbea9e90313be6582569a112cfa0",
+    "plugins/auto-research-agent/tests/browser/project-delivery-flow-test.cjs": "12ee92c5b6d69a0e7d60050486d68da8edaf26505818ac888fa6361a6dc3b8d3",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "1d9e4bfe5cf4cf3d0670db63a2fa2342dff8c1f97380a3de2cec34a69c91e89f"
+  },
+  "owned_executed_source_inventory_sha256": "fbc355ff1e60bcfc6df02e30b34a02fa88a5f09dd050ded80306d1715efe8cd2",
+  "owned_executed_source_count": 188,
+  "original_renderer_pins_unchanged": 14,
+  "frozen_maps_unchanged": [
+    "plugins/auto-research-agent/evals/capability-metric-map.v1.json",
+    "plugins/auto-research-agent/evals/capability-metric-map.stage2-v2.json",
+    "plugins/auto-research-agent/evals/capability-metric-map.stage2-v3.json"
+  ],
+  "registry_append_only": true,
+  "private_receipt_sha256_declarations": {
+    "r1": "f7504a3d733a4137c37077b8c3f641bc0d0307dd9662f016935d98bdf9f87ea0",
+    "r2": "6898ce4b2eadfc1a6c1aa46b9d40fd74ca2093abcd44240dc3c5ebcb7f4d2799",
+    "r3": "30edfd0c9ead3730dc094bedc23d7ecd2266fd9f2728d93cc4283e23ca1131ea",
+    "r4": "4e09dd2b4e1d2cd6b885069dadd7f344b5963e6c020a379265de05b7751ab77b"
+  },
+  "logs": {
+    "r1.log": {
+      "original_sha256": "8c25a2abc33c6ce264487d1bd0239eb2c2509638a30e5be5bffdc619ececca16",
+      "published_lf_sha256": "57e7c0e220a4f80cc46fe398fbda5cc4c86351289174d5f799ba936c8df3a508"
+    },
+    "r2.log": {
+      "original_sha256": "c5cb7fe1342b4dda4531325a1ffe6632f702f9a1bd073b93cbd7c4797bbd70ac",
+      "published_lf_sha256": "22fa284c71566ff601bb16ed6c24d42a3881854b59eb4a1c0940caa31248414b"
+    },
+    "r3.log": {
+      "original_sha256": "5a9dc53d3c9fc1e9f2be0ead97fcc81054cd8324693955cc748db0b0991328d4",
+      "published_lf_sha256": "35e3875b59ff12f7b0363315db6416ec041c27de000727895db4a8966ddc0605"
+    },
+    "r4.log": {
+      "original_sha256": "5a9dc53d3c9fc1e9f2be0ead97fcc81054cd8324693955cc748db0b0991328d4",
+      "published_lf_sha256": "35e3875b59ff12f7b0363315db6416ec041c27de000727895db4a8966ddc0605"
+    },
+    "overlay-final.log": {
+      "original_sha256": "f0902f8931c72bb8625983a9df4f39bd6b1336eae6acf44316dd934b689f620f",
+      "published_lf_sha256": "ee007f3c22a68d5b7fc56c10a7f44c9c4f2c375e370b39da06283b0698451795"
+    },
+    "map-final.log": {
+      "original_sha256": "ac701cde17c359ccf473d76dd74f4b72908538cc37a8aa6d9c97a431f3255dd0",
+      "published_lf_sha256": "4d18a9acc949eda9dd80396dd90e4a4c0d4f0f00091d2357bd96aa5fc479a53e"
+    }
+  },
+  "failures_preserved": [
+    "R1 zero count before async library GET completed; no POST",
+    "R2 checkpoint asserted before project loader finished; two readings saved",
+    "R3 eight groups PASS before visual audit found child overlay duplicated project controls; not final layout evidence"
+  ],
+  "limits": [
+    "Private hashes are declarations, not Core inspection.",
+    "No new full suite, native/model/search/scoring, own-account acceptance or Stage1 scientific acceptance.",
+    "Stage2 execution deferred, Stage3-6 planned/unconnected.",
+    "Previously expired trial and package050 remain held/unreceived.",
+    "Cumulative candidate size/dependency disposition remains Core-owned."
+  ]
+}

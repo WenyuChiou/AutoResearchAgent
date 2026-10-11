@@ -260,6 +260,17 @@ authenticates an actual reader, launcher, model or research result. This seam is
 not currently an external source execution endpoint. Stage2 execution remains
 deferred and Stage3–6 planned/unconnected.
 
+The newly delivered `/project-atlas.html` child is a read-only view of the exact
+project/input version, reached through the owner workspace's bound memory
+channel. It keeps the original v6 renderer and verified note/BibTeX file reads.
+Project setup and Harness operations remain in the owning workspace; use
+**Return to project** rather than creating another project inside this viewer.
+The browser fixture `tests/browser/project-delivery-flow-test.cjs` walks two
+authored saved sources through reading registration, checkpoint, preparation,
+delivery, exact BibTeX click/download and a non-executing Stage2 input hold.
+This exercises actual HTTP/SQLite/Core services, without real model, search,
+native research, scientific evaluation or acceptance of the incomplete stage.
+
 ## Complete saved Stage1 screening library
 
 The universal project portal has a read-only screening library next to the real
