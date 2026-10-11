@@ -4,59 +4,67 @@
     {
       "path": "privacy-before.log",
       "task_log": "repair-a-privacy-before-private-temp.log",
-      "sha256": "e031c7c33acdd10fb8e7941a103fb27774f2c12f40b2b5d7cbf28ea0d26ea0f6",
-      "transform": "none"
+      "original_sha256": "e031c7c33acdd10fb8e7941a103fb27774f2c12f40b2b5d7cbf28ea0d26ea0f6",
+      "sha256": "254fc91944f5c07224e39479c4c214905ed54aa6fc4d754374734a54d2154f21",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "api-chat-after.log",
       "task_log": "repair-a-targeted-after.log",
-      "sha256": "30a7e4597e9c168ce73af8423b242bf8bda818c36a6da1e6fd28af91dcaab28a",
-      "transform": "none"
+      "original_sha256": "30a7e4597e9c168ce73af8423b242bf8bda818c36a6da1e6fd28af91dcaab28a",
+      "sha256": "4f794aa6a4e87d6931f96f9d1aea3d2e819684507b14158d81b1bf43f99090e4",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "host-tests.log",
       "task_log": "repair-a-native-host-final.log",
-      "sha256": "395d6b83312f652fa30f05d54353948f8a3736ded8945d0d57cee2f8e9b425f1",
-      "transform": "none"
+      "original_sha256": "395d6b83312f652fa30f05d54353948f8a3736ded8945d0d57cee2f8e9b425f1",
+      "sha256": "13d80e207a0dd7f3d6c9164dad73705ecec12161bebc6b8bcb2b90ae5f2f41a7",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "assets-refusal-after.log",
       "task_log": "repair-a-assets-targeted-final.log",
-      "sha256": "bee0a58618ac2593e9be9bee555dad402a11c0cb3bda1e5eccf54dbd07584943",
-      "transform": "none"
+      "original_sha256": "bee0a58618ac2593e9be9bee555dad402a11c0cb3bda1e5eccf54dbd07584943",
+      "sha256": "2ac00a764c44e7834ba2a90d6e08390109980d0e7641fb9b8201f286784365b3",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "rendered-after.log",
       "task_log": "repair-a-rendered-final-raw.log",
-      "sha256": "440d989eb08514175b253f8aa3d240c1f5a9078292dec3b634074e0f455410cc",
-      "transform": "none"
+      "original_sha256": "440d989eb08514175b253f8aa3d240c1f5a9078292dec3b634074e0f455410cc",
+      "sha256": "bbad5a7ac244373f4656db5a47e2db87a87134bcc4726c33a2b8d1fc49800395",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "rendered-selection.log",
       "task_log": "repair-rendered-final-verification.log",
-      "sha256": "22ec29fd115a2b7a360f4c5f37c0631f62b1eab467169e6e2b2d79b9b6b82722",
-      "transform": "none"
+      "original_sha256": "22ec29fd115a2b7a360f4c5f37c0631f62b1eab467169e6e2b2d79b9b6b82722",
+      "sha256": "08ad5419c0b7aebcfd1eb9571608e5af90d0782bd490611e774a270cd2a2e5f8",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "registry-after.log",
       "task_log": "repair-a-registry-final.log",
-      "sha256": "1a189ccb5cb679f1f1f831f7019b4c465c2b3bbe00f983e021f1f6a717479dc4",
-      "transform": "none"
+      "original_sha256": "1a189ccb5cb679f1f1f831f7019b4c465c2b3bbe00f983e021f1f6a717479dc4",
+      "sha256": "f645c90601476e054126b8071ccc10c0e5830b69c3e6e7644974bb12fe6e1bdc",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "quality-after.log",
       "task_log": "repair-a-quality-final-pass.log",
-      "sha256": "358d1f81963d20ad97dcc17c83c1e84b3c5e149e27e61f700638cc8336cda31e",
-      "transform": "none"
+      "original_sha256": "358d1f81963d20ad97dcc17c83c1e84b3c5e149e27e61f700638cc8336cda31e",
+      "sha256": "67e8ec735ae24f382bf9050e69d4de853f98dce57b907d3ebaa52412746b01ba",
+      "transform": "CRLF-to-LF only; original task log unchanged"
     },
     {
       "path": "README.md",
-      "sha256": "04e01837b69e3a2bce2e3c775e8f0ff4b5ea4a386308021156e50dac34a3bddb",
+      "sha256": "25b989affa42f2b86209bc9cbb80dba07c2e50d9d536c57ef791d3138dfe4c23",
       "transform": "new targeted receipt"
     },
     {
       "path": "source-bindings.json",
-      "sha256": "f393d5d7a3f5a873e353283f487808011fbfab8eb25d4320b3b4d1bc003ad80e",
+      "sha256": "ae28b006bd673290570019f3c989790ba73b574621d32a6d1dc9890ad9beeb31",
       "transform": "new targeted receipt"
     }
   ]

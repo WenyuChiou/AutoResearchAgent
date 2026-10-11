@@ -11,11 +11,15 @@ add B/C product functions. Final publication head and CI are recorded on the PR.
 | CSS literals did not prove rendered navigation | Add an explicitly selected permanent unittest using the existing synthetic export and installed-browser driver. Check both navigation surfaces, keyboard focus, phone single-row/max-scroll reachability and page containment at 1440/768/390. | [Actual browser stdout/stderr and geometry](rendered-after.log); [ordinary skip and missing prerequisite failure](rendered-selection.log). |
 | Registry described the obsolete generic identity disclosure | Update only the existing native capability's mechanism/measures/guardrails. Frozen v1 bytes and capability identities remain unchanged. | [Registry tests](registry-after.log); [source bindings](source-bindings.json). |
 
-All files in [manifest.json](manifest.json) are complete copies of the indicated
-task-local command logs, with no text redaction. They contain synthetic test
-identities and local checkout paths; no real researcher payload or credentials.
-Hashes bind the physical source and log bytes. This package is engineering
-evidence; quality improvement remains **not yet demonstrated**.
+The eight command logs in [manifest.json](manifest.json) contain the complete
+task-local stdout/stderr, with only CRLF converted to LF for Git's whitespace
+contract. The manifest records both `original_sha256` and published `sha256`,
+plus that explicit transform. Core retains the original bytes unchanged;
+neither failures nor text were removed. The other files are generated receipts.
+Logs contain synthetic test identities and local checkout paths, with no real
+researcher payload or credentials. Source and log hashes identify their exact
+bytes. This is engineering evidence; quality improvement remains
+**not yet demonstrated**.
 
 The executed module commands were `python -m unittest` with `-v` and the exact
 module names shown in each log. The API/chat execution used Python 3.13.11; host,
@@ -32,7 +36,9 @@ is separately recorded as 8/8, exit 0. Earlier failed setup attempts remain in
 the task-local history; none establishes a product or test pass.
 
 [Quality checks](quality-after.log) passed formatting for 601 Python files,
-Ruff checks, four changed JavaScript syntax checks and `git diff --check`.
+Ruff checks and four changed JavaScript syntax checks. That historical diff
+check preceded publication of these logs; it does not attest the final PR's
+whitespace gate. The publication metadata check remains required on its head.
 Only the new wrapper's whitespace changed after the rendered capture; the
 browser driver and product page/style bytes are identical to that capture.
 
