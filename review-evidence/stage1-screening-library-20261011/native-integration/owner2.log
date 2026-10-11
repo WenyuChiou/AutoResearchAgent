@@ -1,0 +1,7 @@
+test_screening_get_refuses_closing_and_replaced_outer_owner_without_restore (project_query_history_cases.ProjectQueryHistoryCases.test_screening_get_refuses_closing_and_replaced_outer_owner_without_restore) ... ok
+test_screening_get_refuses_inner_closing_and_real_sqlite_owner_loss (project_query_history_cases.ProjectQueryHistoryCases.test_screening_get_refuses_inner_closing_and_real_sqlite_owner_loss) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 15.067s
+
+OK

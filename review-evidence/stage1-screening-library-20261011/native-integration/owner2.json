@@ -1,0 +1,43 @@
+{
+  "kind": "OfflineFocusedTestReceipt",
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\planned_query_raw_runner.py",
+    "--test",
+    "project_query_history_cases.ProjectQueryHistoryCases.test_screening_get_refuses_closing_and_replaced_outer_owner_without_restore",
+    "--test",
+    "project_query_history_cases.ProjectQueryHistoryCases.test_screening_get_refuses_inner_closing_and_real_sqlite_owner_loss"
+  ],
+  "exit_code": 0,
+  "timed_out": false,
+  "elapsed_seconds": 17.421999999991385,
+  "test_summaries": [
+    [
+      "2",
+      "15.067"
+    ]
+  ],
+  "source_inventory_equal": true,
+  "scope": "Real temporary HTTP/SQLite/Core/runner; external probe/backend and model replaced by fixtures. No actual new search/source/native/model/research/scoring.",
+  "logs": {
+    "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr.log": "0f6ded847b5b23ef2da1fbcc6e9546514c3eb21c30fbfbcd1713b4a4f56c4d36"
+  },
+  "original_raw_receipt_sha256": "3d78f3c24e35c241ae0cc9125e15402236e30c98c10fa15462512a4a563c3f1c",
+  "captured_sources": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "6cbb3228e2aa54c777d4f34f5e843df925165bd393338ba4f589dfe3a7601728",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library.py": "32e11d98984e4c2eb8a5074f91199452741809592c6504e09fbc85b7e35dd88f",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library_http.py": "ee5bbba8e2ac70c36f11856e5eb58d2271a681884a3c1f7f08fa2fb8a19ed21a",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py": "dc988afc8bc60e69e195c14fec122862c366194a18a0435d73e870c3bab276b2",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "a891b14dab009d33003899a4591b14b33ed7ea36c50abb22f0149798eb0f1f56",
+    "plugins/auto-research-agent/tests/project_query_history_cases.py": "0860a447859bb77e1c72eee2720340af41ba13c5932879a40b7eee8152b57405",
+    "plugins/auto-research-agent/tests/test_project_stage1_library.py": "c35f8df6b346c7a40af4569fc869b29991bdc482ae6b94fa2d1ca01ad005f3f0",
+    "plugins/auto-research-agent/tests/test_project_stage1_library_http.py": "f7b687944940a394b837c2253b611c356651ecf421fcc04259c3099e4ea8b61e",
+    "plugins/auto-research-agent/tests/test_project_stage1_queries.py": "183e6e9b741e57d5c28ed3258d74e52481d2a6ea566cba31c93c099b6361b7c9",
+    "plugins/auto-research-agent/tests/test_workspace_project_host.py": "d04a9f2896f53751fdc44bbfebd33ef1801da0cbf16e44a472f651b527ba8b18"
+  }
+}

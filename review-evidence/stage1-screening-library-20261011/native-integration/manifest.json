@@ -1,0 +1,21 @@
+{
+  "browser17.json": "4f2126613d58d2ae25919425372dd367407bc3430dd6caf8a3b0f6342058881d",
+  "map5-fixed.json": "dda9a429866410ae91474e3fd855165de73b1c8e771c833c9e8be8de6f9ab93e",
+  "map5-fixed.log": "39a326af8cfd296fb66042671d9fe1fc4904a6895c0e578acfb603bcb2b9ef37",
+  "owner2.json": "e754e12f1f5c0a8b514035583e199470f8302046fe3db8f753a88681e535c9ff",
+  "owner2.log": "0f6ded847b5b23ef2da1fbcc6e9546514c3eb21c30fbfbcd1713b4a4f56c4d36",
+  "related40-failed.json": "74d7a9ac41bad1a63a5fbab04d73f3ab98d8a47b3e18c552e3d657e0ccac4d4d",
+  "related40-failed.log": "29e3a8a37d54c5510aea5fffd26d4c2f438c909fec8b368d08086f8e1eb535e9",
+  "final_source_pins": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "6cbb3228e2aa54c777d4f34f5e843df925165bd393338ba4f589dfe3a7601728",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library.py": "32e11d98984e4c2eb8a5074f91199452741809592c6504e09fbc85b7e35dd88f",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library_http.py": "ee5bbba8e2ac70c36f11856e5eb58d2271a681884a3c1f7f08fa2fb8a19ed21a",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py": "dc988afc8bc60e69e195c14fec122862c366194a18a0435d73e870c3bab276b2",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "33326f41cfbf67c4cf592545ec79c8e49528c9af4dfcbc74cff07ab1c9b700e7",
+    "plugins/auto-research-agent/tests/project_query_history_cases.py": "0860a447859bb77e1c72eee2720340af41ba13c5932879a40b7eee8152b57405",
+    "plugins/auto-research-agent/tests/test_project_stage1_library.py": "c35f8df6b346c7a40af4569fc869b29991bdc482ae6b94fa2d1ca01ad005f3f0",
+    "plugins/auto-research-agent/tests/test_project_stage1_library_http.py": "f7b687944940a394b837c2253b611c356651ecf421fcc04259c3099e4ea8b61e",
+    "plugins/auto-research-agent/tests/test_project_stage1_queries.py": "183e6e9b741e57d5c28ed3258d74e52481d2a6ea566cba31c93c099b6361b7c9",
+    "plugins/auto-research-agent/tests/test_workspace_project_host.py": "d04a9f2896f53751fdc44bbfebd33ef1801da0cbf16e44a472f651b527ba8b18"
+  }
+}
