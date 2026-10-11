@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
@@ -55,6 +55,104 @@ def draft(snapshot):
 
 
 class SavedReadingTests(unittest.TestCase):
+    def test_oversized_prompt_is_unavailable_and_authorization_keeps_no_permit(self):
+        original = delivery_fixture.submit_body
+
+        def funded(view):
+            body = original(view)
+            body["budgets"].update(model_calls=2, seconds=60)
+            return body
+
+        with (
+            patch.object(delivery_fixture, "submit_body", side_effect=funded),
+            saved_stage1_case() as (case, fixture),
+        ):
+            ref = fixture["ref"]
+            work = fixture["records"]["papers"][0]["work_id"]
+            snapshot = saved_reading_snapshot(case.producer, ref, work)
+            # Authored prompt-size fault at the saved-snapshot seam. Production
+            # source/registry verification is unchanged; no model is launched.
+            original_source = snapshot["sources"][0]
+            snapshot["sources"] = []
+            for number in range(3):
+                source = deepcopy(original_source)
+                source.update(
+                    source_id="authored-size-source-" + str(number),
+                    excerpt="字" * 3800,
+                    excerpt_end_byte=11400,
+                    text_bytes=11400,
+                    entire_text_in_prompt=True,
+                )
+                snapshot["sources"].append(source)
+            self.assertTrue(
+                all(
+                    len(row["excerpt"].encode("utf8")) <= 12000
+                    for row in snapshot["sources"]
+                )
+            )
+            self.assertLess(len(canonical(snapshot)), 48000)
+            with self.assertRaises(SessionApiError) as blocked:
+                reading_prompt(snapshot)
+            self.assertEqual(
+                blocked.exception.code,
+                "reading-prompt-too-large-segmentation-unavailable",
+            )
+            factory = Mock(side_effect=AssertionError("model launch"))
+            model = ProjectModelService(
+                case.intake,
+                provider_factory=factory,
+                model="synthetic-reader",
+                reading_records=case.producer,
+            )
+            self.addCleanup(model.close)
+            view = case.intake.read("alice-token", ref)
+            before = fixture["ledger"].state_hash()
+            permits_before = sorted(case.intake.root.rglob("content-permit-*.json"))
+            with patch.object(model, "_reading_snapshot", return_value=snapshot):
+                preview = model.reading_offer(
+                    "alice-token",
+                    ref,
+                    work,
+                    expected_input_version=view["input_version"],
+                    expected_ledger_state_sha256=before,
+                )
+                self.assertFalse(preview["available"])
+                self.assertEqual(preview["blocked_reason"], blocked.exception.code)
+                self.assertEqual(
+                    case.intake.read("alice-token", ref)["revision"], view["revision"]
+                )
+                body = dict(
+                    key="authored-oversized-reading",
+                    **{
+                        name: view[name]
+                        for name in ("revision", "input_version", "brief_sha256")
+                    },
+                    operation="read-paper",
+                    work_ref=work,
+                    snapshot_sha256=sha(canonical(snapshot)),
+                    confirmed=True,
+                    user_input="Authored prompt-size regression; no execution.",
+                )
+                with self.assertRaises(SessionApiError) as refused:
+                    model.authorize("alice-token", ref, body)
+                self.assertEqual(refused.exception.code, "intake-operation-failed")
+                receipt = refused.exception.receipt
+                self.assertEqual(receipt["status"], "failed")
+                self.assertIn(blocked.exception.code, receipt["error"])
+                saved = case.intake._load("alice", ref)
+                self.assertEqual(
+                    saved.get("model_operations", {}).get("offers", {}), {}
+                )
+                self.assertEqual(
+                    sorted(case.intake.root.rglob("content-permit-*.json")),
+                    permits_before,
+                )
+                replay = model.authorize("alice-token", ref, body)
+                self.assertTrue(replay["replayed"])
+                self.assertEqual(replay["request_sha256"], receipt["request_sha256"])
+            factory.assert_not_called()
+            self.assertEqual(fixture["ledger"].state_hash(), before)
+
     def test_snapshot_replays_actual_saved_source_and_preserves_unknown_without_mutation(
         self,
     ):

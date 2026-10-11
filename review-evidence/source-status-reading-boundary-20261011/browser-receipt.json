@@ -1,0 +1,10 @@
+{
+  "checks": 36,
+  "browser": "155.0.8059.39",
+  "page_errors": [],
+  "console_errors": [],
+  "source_sha256": "e73b314740cc9bd0cb91b3ac83645d443bb10f8f0206b6dc9f7e18a154fddb81",
+  "scope": "actual serializer/render functions only; authored observations and temporary HTTP page",
+  "native_model_search_acquisition_calls": 0,
+  "full_project_page": false
+}

@@ -1,0 +1,10 @@
+{
+  "plugins/auto-research-agent/cli/research_workspace_native/project_model.py": "f45195e6427338b87b4d8dfcc12d0abe15935537b2457001e8b829f58181f163",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_service.py": "293adfcd5049638d6bb49142df72ee4ad70223c035fbd358f1fc80d1a1d6f51f",
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "e73b314740cc9bd0cb91b3ac83645d443bb10f8f0206b6dc9f7e18a154fddb81",
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects.css": "d14fae884b0af296b0884f30194927e4648d7c974d0af574f96e83fce1fd9b10",
+  "plugins/auto-research-agent/tests/test_project_model_reading.py": "694b54a36ed093b223a8ac57bb6eabec19b5163d3d4c67a2e1bce3b4b7a627e0",
+  "plugins/auto-research-agent/tests/test_project_source_status_ui.py": "643e028b65877101447be6b35ff26bb6d7433681cc104d9ef3cf794445283b11",
+  "plugins/auto-research-agent/tests/browser/project-source-status-test.cjs": "023b6559cf625756270b95d4911c5bc545968afc738fcdbb981734963e7a8574",
+  "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "726d3e6463ebfc87aa6ec00aa122ca78b7e56ac727c9d4448813fe62393f3b3c"
+}

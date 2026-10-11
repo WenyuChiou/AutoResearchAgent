@@ -308,6 +308,8 @@
         "plugins/auto-research-agent/tests/test_project_source_dispatch.py",
         "plugins/auto-research-agent/tests/test_saved_source_parser_worker.py",
         "plugins/auto-research-agent/tests/test_source_saved_pipeline.py",
+        "plugins/auto-research-agent/tests/test_project_source_status_ui.py",
+        "plugins/auto-research-agent/tests/browser/project-source-status-test.cjs",
         "plugins/auto-research-agent/tests/test_project_stage1_coverage.py",
         "plugins/auto-research-agent/tests/test_project_coverage_owned.py",
         "plugins/auto-research-agent/tests/project_coverage_browser_fixture.py",

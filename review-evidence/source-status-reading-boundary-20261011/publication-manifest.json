@@ -1,0 +1,62 @@
+{
+  "initial-targeted.log": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-c818a3ced89b455282f1653165c4ece1\\raw.log",
+    "original_sha256": "57d88ecf439ae17efc12f299268618686c6a99d9517dde5c05c8e31d314b1861",
+    "published_sha256": "1fca22b3e8f86ea45c261a6b65ac93ea31ee0d5499fed9d86a2ec6ec6b0e55ff",
+    "transform": "LF and trailing ASCII whitespace normalization"
+  },
+  "initial-targeted.json": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-c818a3ced89b455282f1653165c4ece1\\receipt.json",
+    "original_sha256": "e7b24871636143a47729589d79d297578ba1b2dbb7c6a78ba85229306b3228e9",
+    "published_sha256": "e7b24871636143a47729589d79d297578ba1b2dbb7c6a78ba85229306b3228e9",
+    "transform": "none"
+  },
+  "final-repair.log": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-b3948e8550f54b4d8605377798a3e317\\raw.log",
+    "original_sha256": "fcb8379077b551c23db0abcc820bf2ca098e462d44258035b96eade18254116f",
+    "published_sha256": "269f74ed16692cbf1405a1403859d187e71ab5b96e31f16af2b7b50e306d0aae",
+    "transform": "LF and trailing ASCII whitespace normalization"
+  },
+  "final-repair.json": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-b3948e8550f54b4d8605377798a3e317\\receipt.json",
+    "original_sha256": "60c42cfc2c8a4fbc34f2e60a8fb749394750c5c8ea096f0ca69208ac2e82a54e",
+    "published_sha256": "60c42cfc2c8a4fbc34f2e60a8fb749394750c5c8ea096f0ca69208ac2e82a54e",
+    "transform": "none"
+  },
+  "map-five.log": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-14d2a596185a407ea70a06766867345a\\raw.log",
+    "original_sha256": "529f0ed3e2965f20cd8f2702c33cf2c3975e2ec2e272ea7633d9f4b47c7d499a",
+    "published_sha256": "3e8ecb89ac34d9b0d7bb24f9f4af98ed225e3e53336e8f3b308c28a22dbc607b",
+    "transform": "LF and trailing ASCII whitespace normalization"
+  },
+  "map-five.json": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\discovery-records-14d2a596185a407ea70a06766867345a\\receipt.json",
+    "original_sha256": "289851002a265dbc2841a6765b5ede5fc46fac527d145a08e8456d0ed5a0d141",
+    "published_sha256": "289851002a265dbc2841a6765b5ede5fc46fac527d145a08e8456d0ed5a0d141",
+    "transform": "none"
+  },
+  "browser-receipt.json": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\source-status-browser-28d894634799448ca10df9e8cc2879ee\\browser\\receipt.json",
+    "original_sha256": "b07ac3486625a5996927c54cf0d2396a148a1e2291a9788b5822084af076e39f",
+    "published_sha256": "b07ac3486625a5996927c54cf0d2396a148a1e2291a9788b5822084af076e39f",
+    "transform": "none"
+  },
+  "browser-source-status.png": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\source-status-browser-28d894634799448ca10df9e8cc2879ee\\browser\\source-status.png",
+    "original_sha256": "4bb1fbbe2113393a30f5eff7246e7d55bedcea7d21e80e8e0074dc894f446485",
+    "published_sha256": "4bb1fbbe2113393a30f5eff7246e7d55bedcea7d21e80e8e0074dc894f446485",
+    "transform": "none"
+  },
+  "browser.log": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\source-status-browser-28d894634799448ca10df9e8cc2879ee\\raw.log",
+    "original_sha256": "9da643bb5979a7e0f9320ebce93a54ed36c9f7ee484169ad49d54793719f16e9",
+    "published_sha256": "56a30d432df085657705322fd8c9e309aabcfa326f35299d6511445c909c4086",
+    "transform": "LF and trailing ASCII whitespace normalization"
+  },
+  "authored-api.json": {
+    "original_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\source-status-browser-28d894634799448ca10df9e8cc2879ee\\authored-api.json",
+    "original_sha256": "a14324bbb5aa0c4a7a66deb0c515369c41322c097b0decda6334f12dd8c0eb4b",
+    "published_sha256": "a14324bbb5aa0c4a7a66deb0c515369c41322c097b0decda6334f12dd8c0eb4b",
+    "transform": "none"
+  }
+}

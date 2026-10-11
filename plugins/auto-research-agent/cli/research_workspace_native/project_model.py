@@ -333,6 +333,7 @@ class ProjectModelService:
                     and snapshot["ledger_state_sha256"] == expected_ledger_state_sha256,
                     "reading-library-snapshot-stale",
                 )
+                reading_prompt(snapshot)
                 result.update(
                     available=True,
                     snapshot_sha256=sha(canonical(snapshot)),
@@ -735,11 +736,9 @@ class ProjectModelService:
                 )
             raw = canonical(permit) + b"\n"
             name = "content-permit-" + request_hash + ".json"
-            artifact = _write_new(self.intake._path(project_ref, name), raw)
-            record = _offer_record(
-                binding, permit, artifact["sha256"], project_ref, snapshot
-            )
+            record = _offer_record(binding, permit, sha(raw), project_ref, snapshot)
             _check(len(row["offers"]) < 128, "model-offer-bound-exceeded")
+            artifact = _write_new(self.intake._path(project_ref, name), raw)
             row["offers"][record["offer_ref"]] = record
             authorizations = row.setdefault("authorizations", {})
             authorizations[body["key"]] = dict(

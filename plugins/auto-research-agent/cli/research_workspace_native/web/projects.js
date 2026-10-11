@@ -402,9 +402,22 @@
     text(area, "p", {en: "Acquisition, parsing and reading are separate observations. Refresh reads saved history and never repeats execution.", "zh-Hans": "取得、解析和阅读分别记录。刷新只读取历史，不会重复执行。", "zh-Hant": "取得、解析及閱讀分別記錄。重新整理只讀取歷史，不會重複執行。"}[lang], "subtle");
     for (const job of Object.values(source.jobs || {})) {
       const card = text(area, "div", "", "history-row");
-      text(card, "p", job.work_ref + " · " + job.status);
+      text(card, "strong", job.work_ref);
+      const labels = {
+        en: ["Acquisition", "Parsing / Harness source registration", "Reading is recorded separately; this source job does not complete Stage 1."],
+        "zh-Hans": ["来源获取", "解析 / Harness 来源登记", "阅读单独记录；此来源任务不代表 Stage 1 已完成。"],
+        "zh-Hant": ["來源取得", "解析 / Harness 來源登記", "閱讀單獨記錄；此來源任務不代表 Stage 1 已完成。"]
+      }[lang] || ["Acquisition", "Parsing / Harness source registration", "Reading is recorded separately; this source job does not complete Stage 1."];
+      text(card, "p", labels[0] + " · " + (job.status || "Unknown"));
       if (job.failure) text(card, "p", job.failure.code || "Unknown", "subtle");
-      if (job.processing) text(card, "p", job.processing.status || "Unknown", "subtle");
+      const followup = job.followup;
+      text(card, "p", labels[1] + " · " + (followup && followup.status || "Unknown"));
+      if (followup && followup.failure) {
+        text(card, "p", followup.failure.code || "Unknown", "subtle");
+        if (followup.failure.error_code) text(card, "p", followup.failure.error_code, "subtle");
+        else if (followup.failure.error_type) text(card, "p", followup.failure.error_type, "subtle");
+      }
+      text(card, "p", labels[2], "subtle");
     }
     const project = state.project;
     for (const grant of Object.values(source.grants || {})) {

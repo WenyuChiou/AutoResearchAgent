@@ -1,0 +1,22 @@
+{
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "unittest",
+    "-v",
+    "test_project_model_reading.SavedReadingTests.test_oversized_prompt_is_unavailable_and_authorization_keeps_no_permit",
+    "test_project_model_reading.SavedReadingTests.test_shared_queue_reserves_once_and_publishes_only_verified_reading_draft",
+    "test_project_source_status_ui",
+    "test_source_saved_pipeline.SourceSavedPipelineDeadlineTests",
+    "test_capability_metric_map"
+  ],
+  "seconds": 20.593999999997322,
+  "exit_code": 1,
+  "source_inventory_sha256": "81fc2858e6cc971ad3f195e2b757fcd4f7600b075d38df5f7c99c01feb7fd054",
+  "source_inventory_after_unchanged": true,
+  "native_model_search_acquisition_calls": 0,
+  "full_suite": false
+}
