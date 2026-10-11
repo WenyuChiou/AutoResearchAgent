@@ -1,0 +1,8 @@
+{
+  "error": "AssertionError [ERR_ASSERTION]: host exit\n\n1 !== 0\n",
+  "checks": [],
+  "captures": [],
+  "page_errors": [],
+  "external_requests": [],
+  "host_exit": 1
+}
