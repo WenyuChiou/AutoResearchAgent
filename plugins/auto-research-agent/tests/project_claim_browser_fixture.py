@@ -85,7 +85,9 @@ def main():
             host.project_saved_claims = ProjectSavedClaimService(
                 case.stage1, case.producer, context["models"]
             )
-            host.project_reading_review = ProjectReadingReviewService(context["claims"])
+            host.project_reading_review = ProjectReadingReviewService(
+                context["claims"], saved_claims=host.project_saved_claims
+            )
             host.project_stage1_delivery = case.delivery
             host.project_stage1_records = case.producer
             host.project_records_prepare = ProjectRecordsPrepareService(case.producer)

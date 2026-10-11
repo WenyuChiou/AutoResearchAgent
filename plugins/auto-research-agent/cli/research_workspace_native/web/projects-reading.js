@@ -1,4 +1,4 @@
-/* Saved draft review only. The project broker owns GET, durable intent and POST. */
+/* Saved reading review. The project broker owns GET, durable intent and POST. */
 (function () {
   "use strict";
   const $ = id => document.getElementById(id);
@@ -17,6 +17,9 @@
   Object.assign(words["zh-Hans"], {notesTitle: "审阅并保存阅读笔记", notesHelp: "确认前请编辑草稿注释。草稿原文（包括 Unknown）保持不变。保存笔记不会授权模型调用，也不代表 Stage1 完成。", roles: "文献角色：尚未选择，不推断任何角色。", notesConfirm: "我已审阅这些注释；保存不代表 Stage1 完成。", notesSubmit: "保存这些已审阅的阅读笔记", notesUnavailable: "当前没有可保存阅读笔记的许可选项。", notesInvalid: "请明确确认审阅，并在每个字段填写完整 Unicode，每项不超过 4096 个 UTF-8 字节。", notesSaved: "已保存阅读笔记操作。请在全局历史中查看结果。"});
   Object.assign(words["zh-Hant"], {notesTitle: "審閱並保存閱讀筆記", notesHelp: "確認前請編輯草稿註釋。草稿原文（包括 Unknown）保持不變。保存筆記不會授權模型呼叫，也不代表 Stage1 完成。", roles: "文獻角色：尚未選擇，不推斷任何角色。", notesConfirm: "我已審閱這些註釋；保存不代表 Stage1 完成。", notesSubmit: "保存這些已審閱的閱讀筆記", notesUnavailable: "目前沒有可保存閱讀筆記的許可選項。", notesInvalid: "請明確確認審閱，並在每個欄位填寫完整 Unicode，每項不超過 4096 個 UTF-8 位元組。", notesSaved: "已保存閱讀筆記操作。請在全域歷史中查看結果。"});
   const noteFields = {classification: ["topic_cluster", "method", "geography", "population", "data_type", "domain"], findings: ["question", "data", "method", "main_findings", "limitations", "relevance", "transferability"]};
+  Object.assign(words.en, {sourceTitle: "Review saved-source reading notes", sourceHelp: "Review the saved sources and claims below, then edit these annotations. Unknown stays Unknown. This is your source review, not a model-generated draft or stage acceptance.", sourceEvidence: "Bound sources and recorded claims", roleHelp: "Optional literature roles need an explicit reason and same-work claim evidence.", roleReason: "Reason for this role", roleClaims: "Evidence claims for this role", classic: "Classic", "topic-core": "Topic core", "closest-work": "Closest work", comparator: "Comparator"});
+  Object.assign(words["zh-Hans"], {sourceTitle: "审阅已保存来源的阅读笔记", sourceHelp: "先审阅下方已保存来源与主张，再编辑这些注释。Unknown 保持未知。这是你的来源审阅，不是模型生成草稿，也不代表阶段通过。", sourceEvidence: "绑定的来源与已记录主张", roleHelp: "可选文献角色须明确填写理由，并选择同一论文的主张证据。", roleReason: "此角色的理由", roleClaims: "此角色的主张证据", classic: "经典文献", "topic-core": "主题核心文献", "closest-work": "最接近的工作", comparator: "比较文献"});
+  Object.assign(words["zh-Hant"], {sourceTitle: "審閱已保存來源的閱讀筆記", sourceHelp: "先審閱下方已保存來源與主張，再編輯這些註釋。Unknown 保持未知。這是你的來源審閱，不是模型生成草稿，也不代表階段通過。", sourceEvidence: "綁定的來源與已記錄主張", roleHelp: "可選文獻角色須明確填寫理由，並選擇同一論文的主張證據。", roleReason: "此角色的理由", roleClaims: "此角色的主張證據", classic: "經典文獻", "topic-core": "主題核心文獻", "closest-work": "最接近的工作", comparator: "比較文獻"});
   let state = null, basis = null, view = null, selected = null, submitting = false;
   const hash = value => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
   const t = key => (words[state && state.language] || words.en)[key] || words.en[key] || key;
@@ -51,7 +54,7 @@
     const signature = JSON.stringify([project && project.project_ref, project && project.input_version, project && project.brief_sha256, project && project.revision, ledger && ledger.state_sha256, next.language]);
     state = next;
     if (basis !== signature) { basis = signature; clear(); }
-    $("reading-title").textContent = t("title"); disable();
+    $("reading-title").textContent = t(view && view.source_mode === "saved-source-review" ? "sourceTitle" : "title"); disable();
   }
   function preview(parent, draft) {
     const details = append(parent, "details"); append(details, "summary", t("preview"));
@@ -75,22 +78,37 @@
     }
   }
   function readingNotes(parent, reply, onSaveReading, originalBasis) {
+    const sourceMode = reply.source_mode === "saved-source-review", notes = sourceMode ? reply : reply.draft;
     const details = append(parent, "details"); append(details, "summary", t("notesTitle"));
-    append(details, "p", t("notesHelp"), "subtle");
+    append(details, "p", t(sourceMode ? "sourceHelp" : "notesHelp"), "subtle");
     const form = append(details, "form"); form.id = "reading-notes-form";
     const offer = reply.reading_review_offer;
     const available = Boolean(offer && typeof offer.offer_ref === "string" && offer.offer_ref && hash(offer.offer_sha256)
-      && typeof onSaveReading === "function" && Object.entries(noteFields).every(([name, keys]) => keys.every(key => typeof reply.draft[name][key] === "string")));
+      && typeof onSaveReading === "function" && Object.entries(noteFields).every(([name, keys]) => keys.every(key => typeof notes[name][key] === "string")));
     const inputs = {classification: {}, findings: {}};
     for (const [name, keys] of Object.entries(noteFields)) {
       append(form, "h4", t(name));
       for (const key of keys) {
         const input = field(form, key, "textarea"); input.rows = 2; input.required = true; input.maxLength = 4096;
-        input.value = typeof reply.draft[name][key] === "string" ? reply.draft[name][key] : "";
+        input.value = typeof notes[name][key] === "string" ? notes[name][key] : "";
         input.dataset.readingNote = name + "." + key; inputs[name][key] = input;
       }
     }
-    append(form, "p", t("roles"), "subtle");
+    const roleInputs = [];
+    append(form, "p", t(sourceMode ? "roleHelp" : "roles"), "subtle");
+    if (sourceMode) for (const role of ["classic", "topic-core", "closest-work", "comparator"]) {
+      const prior = reply.roles.find(row => row.role === role), group = append(form, "details");
+      append(group, "summary", t(role));
+      const label = append(group, "label", undefined, "check"), selected = append(label, "input");
+      selected.type = "checkbox"; selected.checked = Boolean(prior); append(label, "span", t(role));
+      const reason = field(group, "roleReason", "textarea"); reason.rows = 2; reason.maxLength = 4096; reason.value = prior ? prior.reason : "";
+      append(group, "p", t("roleClaims")); const claims = [];
+      for (const id of reply.claim_ids) {
+        const row = append(group, "label", undefined, "check"), input = append(row, "input");
+        input.type = "checkbox"; input.checked = Boolean(prior && prior.claim_ids.includes(id)); append(row, "span", id); claims.push({id, input});
+      }
+      roleInputs.push({role, selected, reason, claims});
+    }
     const label = append(form, "label", undefined, "check"), confirm = append(label, "input");
     confirm.type = "checkbox"; confirm.checked = false; confirm.required = true; append(label, "span", t("notesConfirm"));
     const button = append(form, "button", t("notesSubmit"), "primary"); button.type = "submit";
@@ -101,13 +119,44 @@
       if (confirm.checked !== true || !form.reportValidity() || Object.values(inputs).some(group => Object.values(group).some(input => !bounded(input.value)))) { message.textContent = t("notesInvalid"); return; }
       const review = {classification: {}, findings: {}, roles: []};
       for (const [name, group] of Object.entries(inputs)) for (const [key, input] of Object.entries(group)) review[name][key] = input.value;
+      for (const row of roleInputs.filter(row => row.selected.checked)) {
+        const ids = row.claims.filter(claim => claim.input.checked).map(claim => claim.id);
+        if (!bounded(row.reason.value) || !ids.length) { message.textContent = t("notesInvalid"); return; }
+        review.roles.push({role: row.role, reason: row.reason.value, claim_ids: ids});
+      }
       submitting = true; disable();
       try {
-        const saved = await onSaveReading({project_ref: reply.project_ref, input_version: reply.input_version, brief_sha256: reply.brief_sha256, ledger_state_sha256: reply.ledger_state_sha256, output_ref: reply.output_ref, draft_sha256: reply.draft_sha256, offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, review, confirmed: true});
+        const content = sourceMode ? {revision: reply.revision, work_ref: reply.work_ref, source_snapshot_sha256: reply.source_snapshot_sha256} : {output_ref: reply.output_ref, draft_sha256: reply.draft_sha256};
+        const saved = await onSaveReading(Object.assign({project_ref: reply.project_ref, input_version: reply.input_version, brief_sha256: reply.brief_sha256, ledger_state_sha256: reply.ledger_state_sha256, offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, review, confirmed: true}, content));
         if (basis === originalBasis && view === reply && saved) { form.replaceChildren(); append(form, "p", t("notesSaved"), "subtle"); }
       } catch (error) { if (basis === originalBasis && view === reply) message.textContent = error.message; }
       finally { submitting = false; disable(); }
     };
+  }
+  function renderSource(reply, onSaveReading) {
+    const project = state && state.project, ledger = state && state.stage1 && state.stage1.ledger;
+    if (!reply || !project || !ledger || reply.source_mode !== "saved-source-review"
+        || reply.project_ref !== project.project_ref || reply.revision !== project.revision
+        || reply.input_version !== project.input_version || reply.brief_sha256 !== project.brief_sha256
+        || reply.ledger_state_sha256 !== ledger.state_sha256 || !hash(reply.source_snapshot_sha256)
+        || typeof reply.work_ref !== "string" || !reply.work_ref || typeof reply.version_id !== "string"
+        || !Array.isArray(reply.sources) || !Array.isArray(reply.claims) || !Array.isArray(reply.claim_ids) || !Array.isArray(reply.roles)
+        || reply.sources.some(row => !row || typeof row.source_id !== "string" || !hash(row.text_sha256))
+        || new Set(reply.claim_ids).size !== reply.claim_ids.length || reply.claim_ids.some(id => typeof id !== "string" || !id)
+        || reply.roles.some(row => !row || !["classic", "topic-core", "closest-work", "comparator"].includes(row.role)
+          || typeof row.reason !== "string" || !Array.isArray(row.claim_ids) || !row.claim_ids.length || row.claim_ids.some(id => !reply.claim_ids.includes(id)))
+        || reply.claims.length !== reply.claim_ids.length || new Set(reply.claims.map(row => row && row.claim_id)).size !== reply.claim_ids.length
+        || reply.claims.some(row => !row || !reply.claim_ids.includes(row.claim_id) || (row.quote !== null && typeof row.quote !== "string"))
+        || !Object.entries(noteFields).every(([name, keys]) => reply[name] && keys.every(key => typeof reply[name][key] === "string"))
+        || typeof onSaveReading !== "function" || new TextEncoder().encode(JSON.stringify(reply)).length > 262144) return false;
+    clear(); view = reply; const panel = $("reading-panel"); $("reading-card").hidden = false;
+    $("reading-title").textContent = t("sourceTitle"); append(panel, "p", t("sourceHelp"), "subtle");
+    append(panel, "p", reply.work_ref + " · " + reply.version_id);
+    const evidence = append(panel, "details"); append(evidence, "summary", t("sourceEvidence"));
+    for (const source of reply.sources) append(evidence, "p", source.source_id + " · " + source.text_sha256);
+    for (const claim of reply.claims) { append(evidence, "p", claim.claim_id); append(evidence, "blockquote", claim.quote === null ? t("unknown") : claim.quote); }
+    readingNotes(panel, reply, onSaveReading, basis); disable();
+    $("reading-card").scrollIntoView({block: "nearest"}); return true;
   }
   function render(reply, onSave, onSaveReading) {
     const project = state && state.project, ledger = state && state.stage1 && state.stage1.ledger;
@@ -168,5 +217,5 @@
     };
     disable(); $("reading-card").scrollIntoView({block: "nearest"}); return true;
   }
-  window.ResearchProjectReading = Object.freeze({update, render, text: t});
+  window.ResearchProjectReading = Object.freeze({update, render, renderSource, text: t});
 })();

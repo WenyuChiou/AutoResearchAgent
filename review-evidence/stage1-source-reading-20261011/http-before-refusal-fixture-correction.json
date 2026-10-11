@@ -1,0 +1,35 @@
+{
+  "evidence_kind": "captured exec/write_stdin tool outputs; process stdout was not redirected",
+  "command": "python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_project_source_reading_http.py -v",
+  "start": {
+    "chunk_id": "a97cec",
+    "wall_time_seconds": 10.0146956,
+    "session_id": 27446,
+    "output": "test_http_reopen_same_key_history_without_registry_or_dispatch (test_project_source_reading_http.ProjectSourceReadingHttpTests.test_http_reopen_same_key_history_without_registry_or_dispatch) ... "
+  },
+  "chunks": [
+    {
+      "chunk_id": "6669dc",
+      "wall_time_seconds": 5.009123,
+      "session_id": 27446,
+      "original_token_count": 52,
+      "output": "ok\r\ntest_http_saved_claim_notes_coverage_checkpoint_package_and_atlas (test_project_source_reading_http.ProjectSourceReadingHttpTests.test_http_saved_claim_notes_coverage_checkpoint_package_and_atlas) ... "
+    },
+    {
+      "chunk_id": "307e51",
+      "wall_time_seconds": 5.00286,
+      "session_id": 27446,
+      "original_token_count": 53,
+      "output": "ok\r\ntest_http_stale_foreign_tamper_and_origin_refuse_before_registration (test_project_source_reading_http.ProjectSourceReadingHttpTests.test_http_stale_foreign_tamper_and_origin_refuse_before_registration) ... "
+    },
+    {
+      "chunk_id": "e99504",
+      "wall_time_seconds": 0.0000069,
+      "exit_code": 1,
+      "original_token_count": 207,
+      "output": "FAIL\r\n\r\n======================================================================\r\nFAIL: test_http_stale_foreign_tamper_and_origin_refuse_before_registration (test_project_source_reading_http.ProjectSourceReadingHttpTests.test_http_stale_foreign_tamper_and_origin_refuse_before_registration)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\test_project_source_reading_http.py\", line 352, in test_http_stale_foreign_tamper_and_origin_refuse_before_registration\r\n    self.assertIn(status, (400, 409))\r\nAssertionError: 404 not found in (400, 409)\r\n\r\n----------------------------------------------------------------------\r\nRan 3 tests in 88.144s\r\n\r\nFAILED (failures=1)\r\n"
+    }
+  ],
+  "boundary": "Real local HTTP/SQLite/Core on author-created SDK source fixture. No live model/search/native research/scoring.",
+  "test_source_state": "uncommitted new HTTP fixture; before accepting legitimate foreign-work 404"
+}

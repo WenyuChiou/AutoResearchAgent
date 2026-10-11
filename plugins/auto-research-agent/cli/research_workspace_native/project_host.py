@@ -57,6 +57,9 @@ SAVED_CLAIM_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/source-claims/([A-Za-z0-9_-]{1,256})"
     r"(?:/([0-9a-f]{64})/([0-9]{1,7}))?"
 )
+SOURCE_READING_ROUTE = re.compile(
+    r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/source-reading/([A-Za-z0-9_-]{1,256})"
+)
 
 
 class ProjectHost(AtlasHost):
@@ -168,11 +171,11 @@ class ProjectHost(AtlasHost):
                     self.project_stage1_claims = ProjectStage1ClaimService(
                         stage1, models, self.project_stage1_records
                     )
-                    from .project_reading_review import ProjectReadingReviewService
+            from .project_reading_review import ProjectReadingReviewService
 
-                    self.project_reading_review = ProjectReadingReviewService(
-                        self.project_stage1_claims
-                    )
+            self.project_reading_review = ProjectReadingReviewService(
+                self.project_stage1_claims, saved_claims=self.project_saved_claims
+            )
         # Saved package build/replay is bounded filesystem work. The generic
         # 5-second socket default can expire after work but before commit; use
         # the existing hard 30-second HTTP cap, still checked before admission
@@ -349,6 +352,21 @@ class ProjectHandler(AtlasHandler):
             detail = DETAIL_ROUTE.fullmatch(self.path)
             reading = READING_ROUTE.fullmatch(self.path)
             saved_claim = SAVED_CLAIM_ROUTE.fullmatch(self.path)
+            source_reading = SOURCE_READING_ROUTE.fullmatch(self.path)
+            if source_reading is not None:
+                if method != "GET" or length:
+                    raise SessionApiError("invalid-project-read", 400)
+                extension = self.server.project_reading_review
+                if extension is None:
+                    raise SessionApiError("stage1-reading-review-unconnected", 409)
+                result = extension.view_source(
+                    token,
+                    source_reading[1],
+                    source_reading[2],
+                    check_deadline=self._remaining,
+                )
+                self._remaining()
+                return self._reply(200, result)
             if saved_claim is not None:
                 if method != "GET" or length:
                     raise SessionApiError("invalid-project-read", 400)

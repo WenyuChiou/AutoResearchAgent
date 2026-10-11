@@ -5,7 +5,7 @@ const [python, output] = process.argv.slice(2);
 if (!python || !path.isAbsolute(output)) throw Error("python and fresh absolute private output required");
 fs.mkdirSync(output); // EEXIST fails; historical receipts cannot be overwritten.
 const fixture = path.resolve(__dirname, "../project_claim_browser_fixture.py"), stop = path.join(output, "stop");
-const child = cp.spawn(python, ["-X", "utf8", "-u", fixture, "--stop-file", stop], {stdio: ["ignore", "pipe", "pipe"]});
+const child = cp.spawn(python, ["-B", "-X", "utf8", "-u", fixture, "--stop-file", stop], {stdio: ["ignore", "pipe", "pipe"]});
 let lines = "", errors = "", ready, final, browser, exitCode, failure;
 const checks = [], diagnostics = [], pageErrors = [], posts = [];
 let resolveReady, rejectReady;
@@ -102,6 +102,34 @@ function record(name) { checks.push({name, passed: true}); }
     await open("en");
     assert.equal(posts.length, 1); await page.screenshot({path: path.join(output, "after-recovery.png"), fullPage: false});
     record("GET history and reopened source view recover saved action with no resend");
+    const noteCaptions = {en:"Review and register reading notes", "zh-Hans":"审阅并登记阅读笔记", "zh-Hant":"審閱並登記閱讀筆記"};
+    for (const language of ["en", "zh-Hans", "zh-Hant"]) {
+      await open(language);
+      const offered = page.waitForResponse(response => response.url().includes("/stage1/source-reading/"));
+      await page.getByRole("button", {name:noteCaptions[language], exact:true}).click();
+      const response = await offered, sourceView = await response.json();
+      assert.equal(response.status(),200,JSON.stringify(sourceView));
+      assert.equal(sourceView.stage1_complete,false); assert.equal(sourceView.model_calls,0);
+      await page.locator("#reading-notes-form").waitFor({state:"attached"});
+      assert.equal(await page.locator("#reading-notes-form textarea[data-reading-note]").count(),13);
+      assert.equal(posts.length,1);
+      await page.locator("#reading-notes-form").evaluate(form => {form.parentElement.open=true;});
+      await page.screenshot({path:path.join(output,"source-notes-"+language+".png"),fullPage:false});
+    }
+    await page.locator("#language").selectOption("en"); await open("en");
+    await page.getByRole("button", {name:noteCaptions.en, exact:true}).click();
+    await page.locator("#reading-notes-form").waitFor({state:"attached"});
+    await page.locator("#reading-notes-form").evaluate(form => {form.parentElement.open=true;});
+    await page.locator("#reading-notes-form > label.check input").check();
+    const registered = page.waitForResponse(response => response.url().endsWith("/stage1/reading-review") && response.status()===200);
+    await page.locator('#reading-notes-form button[type="submit"]').click();
+    const registration = await (await registered).json();
+    assert.equal(registration.status,"saved"); assert.notEqual(registration.stage1_complete,true);
+    assert.equal(posts.filter(p=>p.endsWith("/stage1/reading-review")).length,1);
+    record("actual trilingual source reading offer and explicitly confirmed saved-source notes registration");
+    await page.locator("#refresh").click(); await open("en");
+    assert.notEqual(await page.locator("#stage1-state").textContent(),"complete");
+    assert.equal(posts.length,2); record("notes history refresh does not repeat registration or create model work");
     assert.deepEqual(pageErrors, []);
   } catch (e) {failure = e.stack || String(e);}
   finally {

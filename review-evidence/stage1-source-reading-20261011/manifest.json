@@ -1,0 +1,173 @@
+{
+  "parent": "2c0019af8719bbdec04dd93ff42ad042fd2043c2",
+  "preserved_baseline": "9e305bbbdaf912efce8250e76f81ddba50e50e66",
+  "original_renderer_unchanged": [
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-associations.js",
+      "sha256": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v1.md",
+      "sha256": "360ec66744a32f1b85baf75d0c9955642b4d9fb7510381018b0149ee1ca49cf0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v2.md",
+      "sha256": "f4342b51f8482d747ebd58b62a36bbeb6c86097d05109cc31bed23252d0787e2"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v3.md",
+      "sha256": "15abb6215c57f3dceb41ee82c7a2a653b179e54a419f6ffebd5f060e8d0bed5c"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-model.js",
+      "sha256": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js",
+      "sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js",
+      "sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+      "sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
+      "sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
+      "sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js",
+      "sha256": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-LICENSE.txt",
+      "sha256": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/THIRD_PARTY_LICENSES.txt",
+      "sha256": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/vendor-lock.json",
+      "sha256": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa"
+    }
+  ],
+  "tested_source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/README.md": "5c9949997238cfe72c5dcb0d556d10d94d60c455fd17fb4ae1df164d0f8435e6",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "b32b63c8168ce5eb266d0eba9c5b7736fd14e5d66698f5e0dd0481b61c06d572",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_reading_review.py": "e62efb279d49a0129fe7b5eb4b149a83dc87be8e7e4c9d2f8aec067b693c65a2",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "9d9761902eb61d6b1d91744bc3a298880486842e7497b73fb2ddba15fde0865a",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-reading.js": "45b3cb602adc2b704e8d5ccf417d65c8b5dd984d62bae2693967bd0bd50b1add",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-saved-claims.js": "da8efd541078a55889c5762758b4b7fc51f0fd12f437d1c5be33f646394d329a",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "31658aad19b5490352d9221a2db7897a13777aa646ce9b2c4ef01d8d663e743d",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "771a0582d034929450fb9a227eed5114db75ec5a4516f74d4742bab07e976e3b",
+    "plugins/auto-research-agent/tests/browser/project-reading-panel-test.cjs": "e0104d308bfdcaa232b891959fbe9c1ce2b7aee2024001a4407aafa409df6dad",
+    "plugins/auto-research-agent/tests/browser/project-saved-claim-live.cjs": "37ba14a2058b92b7d0cd19d66fd6860226e8ec6649b3445f6eafcdabb009c0f3",
+    "plugins/auto-research-agent/tests/project_claim_browser_fixture.py": "ff2f1c397696f39b1de19479347664cbd00304ba7ae503586ca621a6d56d9a3a",
+    "plugins/auto-research-agent/tests/test_project_source_reading_http.py": "6a43791a27c20a4149e5e0f9e562f3070ce2c75d8c0475137174c539870168c4",
+    "plugins/auto-research-agent/tests/test_project_source_reading_review.py": "43b3ff70766428d50404f6257b13727d3f4e3207e9713cd4fb19996f045b2496"
+  },
+  "published_evidence": [
+    {
+      "path": "backend-focused.log",
+      "private_source": "source-reading-focused-final-20261011-subagent.txt",
+      "original_sha256": "5db78ba1ed0e324b30c3e518fc2ed690256b307e338eaf11c490f6efc81982fe",
+      "published_sha256": "7197991b0ac3a26e1510323389e887c37e0d5721677758ddb5cdd7a6a66a3914",
+      "text_newlines_normalized": true
+    },
+    {
+      "path": "legacy-focused.log",
+      "private_source": "legacy-focused.log",
+      "original_sha256": "922400f2b39c496e91e695820376bf7d4b0e033a69af4d2a1d45b292831a2893",
+      "published_sha256": "e94d2fc3d68dc0db7df504c2e0197bc9082ea092f0a0fc66f616be972c53c1a2",
+      "text_newlines_normalized": true
+    },
+    {
+      "path": "frontend-focused.log",
+      "private_source": "frontend-final.log",
+      "original_sha256": "c4745cc9657b4ed232719dd1973bbda1cbf4def7cd29822f29333c45234e4d4b",
+      "published_sha256": "c4745cc9657b4ed232719dd1973bbda1cbf4def7cd29822f29333c45234e4d4b",
+      "text_newlines_normalized": false
+    },
+    {
+      "path": "http-before-refusal-fixture-correction.json",
+      "private_source": "http-e2e-v2-failure-tool-transcript.json",
+      "original_sha256": "e7b3c38b956274b1e059faa9dcfcb248c9555a91bf2a66cc93d648a45b12f67d",
+      "published_sha256": "e7b3c38b956274b1e059faa9dcfcb248c9555a91bf2a66cc93d648a45b12f67d",
+      "text_newlines_normalized": false
+    },
+    {
+      "path": "http-refusal-corrected.log",
+      "private_source": "http-e2e-refusal-v3.log",
+      "original_sha256": "b30b11b035023b0bd33ffd298805ad7f5aadc0acefd6888d314059fedf48c5ba",
+      "published_sha256": "4eed222e4783365b0bc02f8e0240dbe8b8df18451475707a6a1254152ce11c67",
+      "text_newlines_normalized": true
+    },
+    {
+      "path": "browser-receipt.json",
+      "private_source": "browser-r5/receipt.json",
+      "original_sha256": "077e8681b7d3b6d92671a19863c167d43a4319ba6c63cecbc86180f28573e18f",
+      "published_sha256": "077e8681b7d3b6d92671a19863c167d43a4319ba6c63cecbc86180f28573e18f",
+      "text_newlines_normalized": false
+    },
+    {
+      "path": "source-notes.png",
+      "private_source": "browser-r5/source-notes-zh-Hans.png",
+      "original_sha256": "8d6e734cd7b3cf4808fd9860ef4eea4a1dbb2fd6295f5b4aa12ee8323556a0f4",
+      "published_sha256": "8d6e734cd7b3cf4808fd9860ef4eea4a1dbb2fd6295f5b4aa12ee8323556a0f4",
+      "text_newlines_normalized": false
+    }
+  ],
+  "retained_history": [
+    {
+      "private_source": "source-reading-import-before-20261011-subagent.txt",
+      "sha256": "c2bb5522682c7241d1ad384923f1d5fd028b4ca0473737b868ac6e537c0fcf29"
+    },
+    {
+      "private_source": "source-reading-focused-before-fix-20261011-subagent.txt",
+      "sha256": "740d63c7e4595ebf37617f50235407bb7f106680633c7c5d3a835f2392c8e673"
+    },
+    {
+      "private_source": "source-reading-focused-after-20261011-subagent.txt",
+      "sha256": "6040f7bc2980f84cad7c4c29802b03065f6a8578c2af7ebe7c701e90621dfb1d"
+    },
+    {
+      "private_source": "http-e2e-v1-initial-fixture-failure.json",
+      "sha256": "60ea0564d344d84863ac52dc3bb2b5f7ed9a2b859117bd84da924aa3ee3d42b1"
+    },
+    {
+      "private_source": "http-e2e-v2-failure-tool-transcript.json",
+      "sha256": "e7b3c38b956274b1e059faa9dcfcb248c9555a91bf2a66cc93d648a45b12f67d"
+    },
+    {
+      "private_source": "browser-r1/receipt.json",
+      "sha256": "4eb6a8d73754ea3b97b23dd11cad8c081cfdfebb050de4aca0c82d14f70c0318"
+    },
+    {
+      "private_source": "browser-r2/receipt.json",
+      "sha256": "21d317dd80ebaa15464133a46983d50fab9185e4b1efff227ae69b86a87cda79"
+    },
+    {
+      "private_source": "browser-r3/receipt.json",
+      "sha256": "82dce9ddccd4d81c8401423e53deeb5a6f829d16df2209da7a6a70f9f39225c0"
+    },
+    {
+      "private_source": "browser-r4/receipt.json",
+      "sha256": "fc9928d5ca7cb566be905620330b08d21d38c5e00477fddc01db9970d9ee4775"
+    }
+  ],
+  "limitations": [
+    "Authored sources and synthetic provider only",
+    "No real model, search or native research call",
+    "HTTP first two cases passed in an overall failed run; corrected refusal ran separately",
+    "No new full suite; earlier full runs retain their original head and inventory",
+    "Stage1 acceptance not granted; Stage2 deferred; Stage3-6 planned/unconnected"
+  ]
+}

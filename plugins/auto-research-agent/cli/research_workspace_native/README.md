@@ -441,8 +441,12 @@ judgments, not automatic identity approval. Unknown values remain Unknown.
 The same durable `stage1-claim` history handles replay and uncertain writes;
 refresh after a lost response reads history without submitting again.
 
-After reviewing source quotations, separately review the draft classification
-and findings, check the explicit confirmation, and save the reading note. Unknown
+After reviewing source quotations, choose **Review and register reading notes**
+in the Codex/Harness operation panel. The saved-source route reviews existing
+sources and claims without inventing a model draft. Edit the classification and
+findings, optionally select literature roles with an explicit reason and
+same-work claim evidence, check the confirmation, and save the reading note.
+The model-draft review route remains available separately. Unknown
 and all Core claims remain; this single SQLite action grants no source/model
 permission and appends no Core claim. Once all current readings are registered,
 check the evidence gate, export the saved ledger, prepare the records, then build
@@ -450,6 +454,16 @@ the canonical delivery. A review-only/partial package does not complete Stage1.
 Stage2 refuses a 1.1 package until its consumer is implemented; Stage3-6 remain
 planned/unconnected. A failed or uncertain prepare is retained for reconciliation;
 refresh and same-key replay cannot repeat the file producer.
+
+Saved-source reading offers bind the current project revision, input/brief,
+work/version, source-registry snapshot, raw source bytes, Core claim set and
+owned ledger frontier. A manual quotation's original durable intent and receipt
+bind its exact UTF-8 byte range, including repeated passages; registration does
+not choose the first occurrence. A changed source, claim, revision or owner
+requires a fresh review. Unknown and uncertain writes stay recorded, and true
+SQLite reopen reads the same-key action instead of registering again. This
+offline human-review path makes no search, model or native research call and
+does not grant Stage1 acceptance.
 
 ### Preserve the reviewed v6 interface
 

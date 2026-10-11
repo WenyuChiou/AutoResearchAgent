@@ -230,5 +230,56 @@ async function preparationGuard() {
   console.log('PASS prepare: actual button disabled without current checkpoint/connection, exact saved body, late project guard');
 }
 
-(async () => {await panelGuards(); await noteGuards(); await saveRaces(); await registryIntent(); await preparationGuard(); console.log('PASS: project reading panel focused UI mock only');})()
+const sourceReply = {...project, source_mode: 'saved-source-review', work_ref: 'authored-work', version_id: 'v1',
+  ledger_state_sha256: hash, source_snapshot_sha256: hash,
+  sources: [{source_id: 'authored-source', text_sha256: hash}], claims: [{claim_id: 'authored-claim', quote}],
+  claim_ids: ['authored-claim'], classification, findings, roles: [],
+  reading_review_offer: {offer_ref: 'source-reading-synthetic', offer_sha256: hash}};
+async function sourceNotesGuards() {
+  for (const language of ['en', 'zh-Hans', 'zh-Hant']) {
+    const {roots, ui} = panel(), saves = [], event = {preventDefault(){}};
+    let finish; ui.update({...context, language});
+    assert.equal(ui.renderSource(sourceReply, async item => {saves.push(JSON.parse(JSON.stringify(item))); return new Promise(resolve => {finish = resolve;});}), true);
+    assert.equal(saves.length, 0); assert(!roots['reading-title'].textContent.includes('draft'));
+    const sourceTitle = roots['reading-title'].textContent;
+    ui.update({...context, language, busy:true}); assert.equal(roots['reading-title'].textContent,sourceTitle);
+    ui.update({...context, language});
+    const form = roots['reading-panel'].querySelectorAll('form')[0], inputs = form.querySelectorAll('textarea');
+    for (const input of inputs.slice(0, 13)) assert.equal(input.value, 'Unknown: not assessed.');
+    const checks = form.querySelectorAll('input'), confirm = checks.at(-1);
+    assert.equal(confirm.checked, false); assert.equal(checks.slice(0, -1).some(input => input.checked), false);
+    await form.onsubmit(event); assert.equal(saves.length, 0);
+    confirm.checked = true; checks[0].checked = true; inputs[13].value = 'Authored source-bound role reason';
+    await form.onsubmit(event); assert.equal(saves.length, 0, 'role without claim evidence cannot be submitted');
+    checks[1].checked = true; const pendingSave = form.onsubmit(event);
+    await form.onsubmit(event); assert.equal(saves.length, 1, 'second click during save cannot submit again');
+    assert.deepEqual(saves[0], {...project, ledger_state_sha256: hash, work_ref: 'authored-work', source_snapshot_sha256: hash,
+      offer_ref: 'source-reading-synthetic', offer_sha256: hash, confirmed: true,
+      review: {classification, findings, roles: [{role: 'classic', reason: inputs[13].value, claim_ids: ['authored-claim']}]}});
+    ui.update({...context, language, project: {...project, input_version: 2}});
+    finish({status:'saved'}); await pendingSave;
+    assert.equal(roots['reading-card'].hidden, true, 'late save cannot restore stale source annotations');
+    assert.equal(ui.renderSource(sourceReply, () => {}), false);
+  }
+  const {ui} = panel(); ui.update(context);
+  assert.equal(ui.renderSource({...sourceReply, source_snapshot_sha256:'bad'}, () => {}), false);
+  assert.equal(ui.renderSource({...sourceReply, roles:[{role:'classic',reason:'unknown',claim_ids:['foreign']}]}, () => {}), false);
+  assert.equal(ui.renderSource({...sourceReply, claims:[{claim_id:'authored-claim',quote:null}]}, () => {}), true, 'unavailable source quotations remain Unknown');
+  assert.equal(ui.renderSource({...sourceReply, sources:[null]}, () => {}), false);
+  assert.equal(ui.renderSource({...sourceReply, claims:[]}, () => {}), false);
+  console.log('PASS source notes: trilingual raw Unknown, explicit source/role claims, double-click, late version and invalid bindings');
+}
+async function sourceBroker() {
+  const posted = [], state = {project:{...project}, generation:1, stage1:context.stage1, readingReview:sourceReply};
+  const sandbox = {state,pending:[], identity:()=>({...project}), mutate:async (operation,body,ref)=>{posted.push({operation,body:JSON.parse(JSON.stringify(body)),ref});return {status:'saved'};},loadProject:async ()=>{}};
+  vm.runInNewContext(actualFunction('submitReadingReview','submitCoverage'),sandbox);
+  const item = {...project, ledger_state_sha256:hash, work_ref:'authored-work',source_snapshot_sha256:hash,
+    offer_ref:'source-reading-synthetic',offer_sha256:hash,review:notesReview,confirmed:true};
+  await sandbox.invoke({...item,source_snapshot_sha256:'b'.repeat(64)}); assert.equal(posted.length,0);
+  await sandbox.invoke(item); assert.equal(posted.length,1);
+  assert.equal(posted[0].operation,'stage1/reading-review'); assert.equal('output_ref' in posted[0].body,false);
+  assert.equal('draft_sha256' in posted[0].body,false); assert.equal(posted[0].body.source_snapshot_sha256,hash);
+  console.log('PASS source broker: exact saved-source body, no invented draft identity, changed snapshot refuses');
+}
+(async () => {await panelGuards(); await noteGuards(); await saveRaces(); await registryIntent(); await preparationGuard(); await sourceNotesGuards(); await sourceBroker(); console.log('PASS: project reading panel focused UI mock only');})()
   .catch(error => {console.error(error); process.exitCode = 1;});

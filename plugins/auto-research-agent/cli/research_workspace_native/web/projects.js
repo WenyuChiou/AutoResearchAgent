@@ -278,8 +278,23 @@
         || state.project !== project || reply.revision !== project.revision
         || reply.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)) return;
     state.savedClaimView = reply;
-    window.ResearchSavedClaims.render(reply, (source, next) => guarded(() => readSavedClaims(item, source, next))(), submitSavedClaim);
+    window.ResearchSavedClaims.render(reply, (source, next) => guarded(() => readSavedClaims(item, source, next))(), submitSavedClaim,
+      source => guarded(() => readSourceReading(source))());
     return true;
+  }
+  async function readSourceReading(item) {
+    const project = state.project, generation = state.generation, language = state.language;
+    if (!project || state.busy || state.loading || state.activeJob
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || item.revision !== project.revision
+        || item.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)) return;
+    const task = ++state.readingGeneration;
+    const reply = await request(route(project.project_ref, "stage1/source-reading/" + encodeURIComponent(item.work_ref)));
+    if (generation !== state.generation || task !== state.readingGeneration || state.project !== project
+        || language !== state.language || state.busy || state.loading || reply.work_ref !== item.work_ref) return;
+    if (!window.ResearchProjectReading.renderSource(reply, submitReadingReview)) throw new Error("source-reading-binding-differs");
+    state.readingReview = reply;
   }
   async function submitSavedClaim(item) {
     const view = state.savedClaimView, project = state.project;
@@ -300,15 +315,19 @@
   }
   async function submitReadingReview(item) {
     const project = state.project, view = state.readingReview, offer = view && view.reading_review_offer;
+    const sourceMode = view && view.source_mode === "saved-source-review";
+    const matches = sourceMode ? item.work_ref === view.work_ref && item.source_snapshot_sha256 === view.source_snapshot_sha256
+      : view && item.output_ref === view.output_ref && item.draft_sha256 === view.draft_sha256;
     if (!project || state.busy || state.loading || state.activeJob || !offer || item.confirmed !== true
         || pending.some(row => row.project_ref === project.project_ref)
         || item.project_ref !== project.project_ref || item.input_version !== project.input_version
         || item.brief_sha256 !== project.brief_sha256 || !state.stage1 || !state.stage1.ledger
         || item.ledger_state_sha256 !== state.stage1.ledger.state_sha256
-        || item.output_ref !== view.output_ref || item.draft_sha256 !== view.draft_sha256
+        || !matches || (sourceMode && item.revision !== project.revision)
         || item.offer_ref !== offer.offer_ref || item.offer_sha256 !== offer.offer_sha256) return null;
     const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
-    const result = await mutate("stage1/reading-review", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, output_ref: item.output_ref, draft_sha256: item.draft_sha256, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
+    const content = sourceMode ? {work_ref: item.work_ref, source_snapshot_sha256: item.source_snapshot_sha256} : {output_ref: item.output_ref, draft_sha256: item.draft_sha256};
+    const result = await mutate("stage1/reading-review", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}, content), ref);
     if (result && generation === state.generation && state.project && state.project.project_ref === ref
         && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
     return result;

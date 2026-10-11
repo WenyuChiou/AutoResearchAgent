@@ -31,7 +31,7 @@
     if (current !== signature) { signature = current; clear(); }
     disable();
   }
-  function render(reply, readPage, save) {
+  function render(reply, readPage, save, readNotes) {
     const p = state && state.project;
     if (!p || reply.project_ref !== p.project_ref || reply.input_version !== p.input_version
         || reply.brief_sha256 !== p.brief_sha256 || reply.revision !== p.revision) return;
@@ -41,6 +41,10 @@
     panel.replaceChildren(); $("source-claim-card").hidden = false;
     node(panel, "h2", t(0)); node(panel, "p", t(1));
     button(panel, t(15), () => { clear(); document.dispatchEvent(new Event("project-close-source-review")); });
+    if (typeof readNotes === "function") {
+      const titles = {en: "Review and register reading notes", "zh-Hans": "审阅并登记阅读笔记", "zh-Hant": "審閱並登記閱讀筆記"};
+      button(panel, titles[state.language] || titles.en, () => { if (!blocked() && view === reply && signature === basis) return readNotes(reply); });
+    }
     const choice = field(panel, t(2), "select");
     for (const source of reply.sources) { const n = node(choice, "option", source.source_id + " · " + source.scope); n.value = source.source_ref; }
     choice.value = reply.selected_source.source_ref;

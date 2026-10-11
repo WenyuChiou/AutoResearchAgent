@@ -43,6 +43,9 @@ READING_ACTION_FIELDS = {
     "review",
     "confirmed",
 }
+SOURCE_READING_ACTION_FIELDS = (
+    READING_ACTION_FIELDS - {"output_ref", "draft_sha256"}
+) | {"work_ref", "source_snapshot_sha256"}
 
 
 class ProjectStage1RecordsService:
@@ -122,7 +125,12 @@ class ProjectStage1RecordsService:
                 "saved-reading-action-body-invalid",
                 400,
             )
-            _keys(action_body, READING_ACTION_FIELDS, "human saved reading action")
+            fields = (
+                SOURCE_READING_ACTION_FIELDS
+                if "work_ref" in action_body
+                else READING_ACTION_FIELDS
+            )
+            _keys(action_body, fields, "human saved reading action")
             _keys(
                 action_body["review"],
                 ("classification", "findings", "roles"),
@@ -133,6 +141,10 @@ class ProjectStage1RecordsService:
                 and action_body["input_version"] == binding["input_version"]
                 and action_body["brief_sha256"] == binding["brief_sha256"]
                 and action_body["ledger_state_sha256"] == context[5]["state_sha256"]
+                and (
+                    "work_ref" not in action_body
+                    or action_body["work_ref"] == payload["work_id"]
+                )
                 and all(
                     action_body["review"][field] == payload[field]
                     for field in ("classification", "findings", "roles")
@@ -197,7 +209,12 @@ class ProjectStage1RecordsService:
             if "entry_sha256" not in request:
                 _keys(
                     request,
-                    READING_ACTION_FIELDS - {"revision"},
+                    (
+                        SOURCE_READING_ACTION_FIELDS
+                        if "work_ref" in request
+                        else READING_ACTION_FIELDS
+                    )
+                    - {"revision"},
                     "human saved reading action",
                 )
                 _keys(
@@ -212,6 +229,10 @@ class ProjectStage1RecordsService:
                     == entry["basis"]["binding"]["input_version"]
                     and request["brief_sha256"]
                     == entry["basis"]["binding"]["brief_sha256"]
+                    and (
+                        "work_ref" not in request
+                        or request["work_ref"] == entry["payload"]["work_id"]
+                    )
                     and all(
                         request["review"][field] == entry["payload"][field]
                         for field in ("classification", "findings", "roles")
@@ -509,6 +530,138 @@ class ProjectStage1RecordsService:
                 "saved-reading-claim-span-differs",
             )
 
+    def _saved_claim_locators(self, context, work_id, version_id):
+        """Recover exact manual spans only from matching durable Core receipts."""
+        actor, state, binding, _, ledger, *_ = context
+        manual = {
+            row["payload"]["event_id"]: row["payload"]
+            for row in ledger.events()
+            if row["payload"]["kind"] == "ClaimEvidence"
+            and (row["payload"]["work_id"], row["payload"]["version_id"])
+            == (work_id, version_id)
+            and row["payload"]["verifier"]["method"] == "explicit-saved-source-review"
+        }
+        rows = self.intake.db.execute(
+            "SELECT key,request_hash,receipt FROM intake_actions WHERE principal=? AND project=?",
+            (actor, state["project_ref"]),
+        ).fetchall()
+        claim_events = [
+            decode(row[0].encode(), "manual claim durable event")
+            for row in self.intake.db.execute(
+                "SELECT payload FROM intake_events WHERE project=? AND kind IN ('stage1-claim-intent','stage1-claim-saved')",
+                (state["project_ref"],),
+            ).fetchall()
+        ]
+        locators = {}
+        for row in rows:
+            receipt = decode(row["receipt"].encode(), "manual claim receipt")
+            if receipt["kind"] != "stage1-claim" or receipt["status"] != "saved":
+                continue
+            event_id = receipt.get("claim_event_id")
+            if event_id not in manual:
+                continue
+            event = manual[event_id]
+            signature, request = receipt.get("saved_source_claim"), receipt["request"]
+            _keys(
+                signature,
+                (
+                    "work_id",
+                    "version_id",
+                    "input_version",
+                    "brief_sha256",
+                    "source_id",
+                    "text_sha256",
+                    "start",
+                    "end",
+                    "quote",
+                    "review",
+                ),
+                "saved manual claim signature",
+            )
+            _keys(
+                signature["review"],
+                (
+                    "claim_text",
+                    "relation",
+                    "evidence_level",
+                    "section",
+                ),
+                "saved manual claim review",
+            )
+            intent = {
+                field: receipt[field]
+                for field in (
+                    "project_ref",
+                    "key",
+                    "kind",
+                    "request_sha256",
+                    "request",
+                    "recorded_at",
+                )
+            } | {"status": "intent-recorded"}
+            _check(
+                receipt["key"] == row["key"]
+                and receipt["project_ref"] == state["project_ref"]
+                and row["request_hash"]
+                == receipt["request_sha256"]
+                == sha(canonical(dict(kind="stage1-claim", body=request)))
+                and claim_events.count(receipt) == 1
+                and claim_events.count(intent) == 1
+                and event_id not in locators
+                and signature["work_id"] == request["work_ref"] == work_id
+                and signature["version_id"] == version_id
+                and signature["input_version"]
+                == request["input_version"]
+                == binding["input_version"]
+                and signature["brief_sha256"]
+                == request["brief_sha256"]
+                == binding["brief_sha256"]
+                and signature["source_id"] == event["source_ref"]["producer"]
+                and signature["review"] == request["review"]
+                and signature["quote"] == request["quote"] == event["locator"]["quote"]
+                and signature["start"] == request["start_byte"]
+                and signature["end"] == request["end_byte"]
+                and event["verifier"]
+                == dict(
+                    actor=actor,
+                    actor_type="human",
+                    method="explicit-saved-source-review",
+                )
+                and all(
+                    signature["review"][field] == event[field]
+                    for field in ("claim_text", "relation", "evidence_level")
+                )
+                and signature["review"]["section"] == event["locator"]["section"],
+                "saved-reading-manual-claim-receipt-differs",
+            )
+            raw = ledger.read_ref(event["source_ref"])
+            start, end = signature["start"], signature["end"]
+            _check(
+                type(start) is int
+                and type(end) is int
+                and 0 <= start < end <= len(raw)
+                and sha(raw) == signature["text_sha256"]
+                and raw[start:end] == signature["quote"].encode("utf8"),
+                "saved-reading-manual-claim-span-differs",
+            )
+            locator = dict(
+                claim_id=event_id,
+                source_id=signature["source_id"],
+                text_sha256=signature["text_sha256"],
+                start=len(raw[:start].decode("utf8", errors="strict")),
+                end=len(raw[:end].decode("utf8", errors="strict")),
+                quote=signature["quote"],
+            )
+            _check(
+                locator == receipt.get("reading_locator"),
+                "saved-reading-manual-claim-locator-differs",
+            )
+            locators[event_id] = locator
+        _check(
+            set(locators) == set(manual), "saved-reading-manual-claim-receipt-required"
+        )
+        return locators
+
     def derive_reading_payload(
         self,
         project_ref,
@@ -545,6 +698,7 @@ class ProjectStage1RecordsService:
                 for s in source_entries
                 if s["work_id"] == work_id and s["version_id"] == selected
             ]
+            manual_locators = self._saved_claim_locators(context, work_id, selected)
             spans = []
             for row in ledger.events():
                 event = row["payload"]
@@ -552,6 +706,9 @@ class ProjectStage1RecordsService:
                     event["work_id"],
                     event["version_id"],
                 ) != (work_id, selected):
+                    continue
+                if event["event_id"] in manual_locators:
+                    spans.append(deepcopy(manual_locators[event["event_id"]]))
                     continue
                 raw = ledger.read_ref(event["source_ref"])
                 quote = event["locator"]["quote"] if event["locator"] else None
