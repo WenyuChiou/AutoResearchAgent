@@ -428,6 +428,7 @@ class ProjectStage1DeliveryService:
         expected_records_sha256,
         expected_ledger_state_sha256,
         check_deadline=None,
+        action_body=None,
     ):
         """Trusted local producer registration, without search/import authority."""
         _check(
@@ -476,6 +477,22 @@ class ProjectStage1DeliveryService:
                 brief_sha256=binding["brief_sha256"],
                 offer_sha256=digest,
             )
+            kind = "stage1-register-delivery"
+            if action_body is not None:
+                from .project_records_recovery import FIELDS, KIND
+
+                _check(
+                    type(action_body) is dict
+                    and set(action_body) == FIELDS
+                    and action_body["confirmed"] is True
+                    and action_body["input_version"] == binding["input_version"]
+                    and action_body["brief_sha256"] == binding["brief_sha256"]
+                    and action_body["ledger_state_sha256"] == report["state_sha256"]
+                    and action_body["checkpoint_event_id"] == checkpoint["event_id"]
+                    and action_body["records_sha256"] == expected_records_sha256,
+                    "stage1-delivery-recovery-binding-differs",
+                )
+                body, kind = deepcopy(action_body), KIND
 
             def work(current, _, __):
                 saved = current.setdefault("stage1_delivery_offers", {})
@@ -486,7 +503,7 @@ class ProjectStage1DeliveryService:
             result = self.intake._perform(
                 principal,
                 project_ref,
-                "stage1-register-delivery",
+                kind,
                 body,
                 work,
                 check_deadline=check_deadline,
@@ -494,7 +511,7 @@ class ProjectStage1DeliveryService:
             _check(
                 result["status"] == "saved", "stage1-delivery-registration-unobserved"
             )
-            return deepcopy(result["offer"])
+            return deepcopy(result if action_body is not None else result["offer"])
 
     def _saved_artifact(self, principal, state, artifact, context):
         """Bind mutable display state to the durable successful action event.

@@ -1,0 +1,152 @@
+{
+  "evidence_type": "installed-browser-real-temporary-HTTP-SQLite-Core-authored-sources",
+  "original_private_log_sha256": "29969363e306e1bc49dbccc4d6b7cf76855e1a59be4d8305319c60d9f18caeb8",
+  "actions": [
+    {
+      "kind": "create",
+      "key": "one",
+      "status": "saved",
+      "request_sha256": "d3fdf03d273f6cc516766f9cbae9e0f9455cc8042fa6dcfcfee89e28b72dde63"
+    },
+    {
+      "kind": "submit",
+      "key": "confirm",
+      "status": "saved",
+      "request_sha256": "be405de50bc85b56fb557d434234aced88b291a5cb8abd675eeac00e13af9df6"
+    },
+    {
+      "kind": "compile",
+      "key": "compile",
+      "status": "saved",
+      "request_sha256": "6f2784e9b0b977f017605c7bc5eae4e821e402fa921e25b556e34202e93e0b6b"
+    },
+    {
+      "kind": "stage1-initialize",
+      "key": "initialize",
+      "status": "saved",
+      "request_sha256": "b583aeb825c33e81dfe945c2ca450f61c96d5fff6c2c905705c4f62cbdf6a843"
+    },
+    {
+      "kind": "stage1-source-registry",
+      "key": "stage1-source-registry-f764b118c1a45bafb81bfd0b4fbb81519c952f60b9f8529b0d8668ec67897b2f",
+      "status": "saved",
+      "request_sha256": "04a57d3642f11bbc964f48474f5477ab94981e2e0c20e06d2bcba0e2171ff9dd"
+    },
+    {
+      "kind": "stage1-source-registry",
+      "key": "stage1-source-registry-1ed8cece7dada3c3eced4e8be7503c6ea839e837e85cc7a15674308c04d9b235",
+      "status": "saved",
+      "request_sha256": "8f8d82cbe2b0a826a2b4d89a95cdf360b313f81ea7c3a4ada6928d93708c34d3"
+    },
+    {
+      "kind": "stage1-reading-registry",
+      "key": "stage1-reading-registry-eb661bac84c96cba6aadb069d0a4dfe378e42825fdad7df90dcd85ac2a05356d",
+      "status": "saved",
+      "request_sha256": "63b632d0c1d14a4b396e9dee62add55e20481fd7e39e7ebe4b0e5ec687d2dccc"
+    },
+    {
+      "kind": "stage1-reading-registry",
+      "key": "stage1-reading-registry-123b008506dd222b134975b6df587f7e1862e02937ecaddf496525ee195e7e76",
+      "status": "saved",
+      "request_sha256": "c403d5c0c91a7de38848e1e34a3f6fdbbc4bb1e2c3323fa247e4fe0a24fa3c47"
+    },
+    {
+      "kind": "stage1-produce-records",
+      "key": "prepare-records",
+      "status": "saved",
+      "request_sha256": "4df5859e0d85a8a5a4881f46a4185e319dc0893fdebe044af95a94e2c3ea1a5c"
+    },
+    {
+      "kind": "stage1-recover-delivery",
+      "key": "f4626702-3944-4c2a-af87-bb087e0e15f1",
+      "status": "saved",
+      "request_sha256": "2e11c971ef6f2f9061190bae3bc4d941568fd1330589e8dd9b52a2c7aa56c2b3"
+    },
+    {
+      "kind": "stage1-deliver",
+      "key": "360cfeaa-0470-49ad-93da-906f23f6ea22",
+      "status": "saved",
+      "request_sha256": "4aa302b27a5c74995586dfe4b7e4749f1e9e0cc2fd8c6594d33585e9c8c292e7"
+    }
+  ],
+  "canonical_package": {
+    "artifact_kind": "Stage1ResearchDeliverable",
+    "artifact_ref": "stage1-canonical-4aa302b27a5c74995586dfe4b7e4749f",
+    "binding": {
+      "brief_sha256": "56cd2c81e3d755f9df6c4ebb8a6326729e378f57f64089b8879d37bde6b293d1",
+      "input_version": 1,
+      "plan_manifest_sha256": "ac74ef43c502af187d2ea9d0a0598fa094dbcaebd6bb6883cf5262cfb21454cf",
+      "project_id": "project-4c279a80dd1547ca94d3923e4a3f04da",
+      "settings_sha256": "e0f6871f53e635bfc0afa511d695b992f9b5b1c2ec0089f337f0b58d9233a6a2"
+    },
+    "checkpoint_event_id": "e000045",
+    "counts": {
+      "access_state_counts": {
+        "abstract-only": 0,
+        "available": 2,
+        "identity-mismatch": 0,
+        "login-page": 0,
+        "metadata-only": 0,
+        "network-error": 0,
+        "not-found": 0,
+        "parse-error": 0,
+        "paywalled": 0,
+        "rate-limited": 0
+      },
+      "acquired_full_text": {
+        "html": 2,
+        "pdf": 0,
+        "text": 0
+      },
+      "claims": 2,
+      "coverage": 4,
+      "full_text_acquisition_fraction": {
+        "denominator": 2,
+        "numerator": 2
+      },
+      "not_exercised": [
+        "abstract-only",
+        "metadata-only",
+        "paywalled",
+        "not-found",
+        "rate-limited",
+        "network-error",
+        "parse-error",
+        "login-page",
+        "identity-mismatch"
+      ],
+      "papers": 2,
+      "screening": 4,
+      "source_attempts": 2,
+      "source_bindings": {
+        "complete": 2,
+        "total": 2
+      }
+    },
+    "eligible_for_stage2": false,
+    "handoff_sha256": "9ccdce2f86d84fcf0bcd4f59874bd2df0d469a791e6023b6ce4db30dd0693bff",
+    "ledger_state_sha256": "e7e1a74fb353c379f30347bfb7765e32ed961164ca6c3e3737c6802a6d677eae",
+    "manifest_sha256": "2c9c21b92b99f1786eb7d152a3a58c77de7343fbead6f08f6e1998ae319f1c8b",
+    "offer_ref": "stage1-delivery-51427e797d2c6b1b61ab0f820740dc80",
+    "records_sha256": "77bb0ce315bce5aa606eb12e08238c45035044eba99ac75a59acc8d9c01e1884",
+    "run_ref": "stage1-run-b583aeb825c33e81dfe945c2ca450f61",
+    "scientific_quality_scored": false,
+    "source_mode": "offline-import",
+    "stage1_complete": false,
+    "status": "saved-evidence-validated"
+  },
+  "original_records_unchanged": true,
+  "core_events_unchanged": true,
+  "native_calls": 0,
+  "model_calls": 0,
+  "search_calls": 0,
+  "source_acquisitions": 0,
+  "actual_ui_posts": 2,
+  "coverage": "review-required",
+  "eligible_for_stage2": false,
+  "diagnostics": [
+    "Nonfocusable card PageDown rejected; focus moved through an existing button without an extra POST.",
+    "Initial async package read had not settled; GET-only refresh later showed the saved package.",
+    "Screening library final browser reread is not accepted; backend two-row reread separately passed."
+  ]
+}

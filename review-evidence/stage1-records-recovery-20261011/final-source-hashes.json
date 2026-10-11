@@ -1,0 +1,10 @@
+{
+  "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "ac1e4cba581d958b7f91fc34255639476e2cdce1e3f1a9472d7751d4dc1d3c4b",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_records_prepare.py": "18f34e988ea7235839c51940db496685392596b8c2e03f90beb9c8d6f69f3881",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_records_recovery.py": "88ca5629150fc2db2b394f776f686cbc703ef0755126a88f8b75cc3ead3c9f95",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "150cf684e369960c7e437367dc6304afdfb5674d174e0bef5b1f6708bad3988a",
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "b8ffb0d546659b87f9bdffc4ccd8c5111f440abfa0fab69b4b86c93a9dd7ae4a",
+  "plugins/auto-research-agent/tests/browser/project-reading-panel-test.cjs": "2ed1a037a9cd0a1f7c816736fa356d94be184ec4ffcd618747a6c5950deaa436",
+  "plugins/auto-research-agent/tests/project_records_recovery_browser_fixture.py": "ca2c9f532f6dc1d33f02b430d1344750998f7441e7af1cc1b505020211524acd",
+  "plugins/auto-research-agent/tests/test_project_records_recovery.py": "525aa4b0a15da222005f1ac89f869d2cd86c03ca99fcdbf92186c5baee33fbc2"
+}

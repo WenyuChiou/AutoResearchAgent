@@ -1,0 +1,79 @@
+[
+  {
+    "log": "map-check.log",
+    "command": [
+      "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+      "-B",
+      "-X",
+      "utf8",
+      "-m",
+      "unittest",
+      "test_capability_metric_map"
+    ],
+    "exit_code": 0
+  },
+  {
+    "log": "node-controls.log",
+    "command": [
+      "C:\\Users\\13795\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+      "plugins/auto-research-agent/tests/browser/project-reading-panel-test.cjs"
+    ],
+    "exit_code": 0
+  },
+  {
+    "log": "ruff-check.log",
+    "command": [
+      "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\scripts\\.venv\\Scripts\\ruff.exe",
+      "check",
+      "--isolated",
+      "--no-cache",
+      "--select",
+      "E4,E7,E9,F",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_records_prepare.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_records_recovery.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py",
+      "plugins/auto-research-agent/tests/project_records_recovery_browser_fixture.py",
+      "plugins/auto-research-agent/tests/test_project_records_recovery.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "log": "ruff-format.log",
+    "command": [
+      "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\scripts\\.venv\\Scripts\\ruff.exe",
+      "format",
+      "--isolated",
+      "--check",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_records_prepare.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_records_recovery.py",
+      "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py",
+      "plugins/auto-research-agent/tests/project_records_recovery_browser_fixture.py",
+      "plugins/auto-research-agent/tests/test_project_records_recovery.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "log": "node-syntax.log",
+    "command": [
+      "C:\\Users\\13795\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+      "--check",
+      "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js"
+    ],
+    "exit_code": 0
+  },
+  {
+    "log": "post-core-integration-http.log",
+    "command": [
+      "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+      "-B",
+      "-X",
+      "utf8",
+      "-m",
+      "unittest",
+      "test_project_records_recovery.ProjectRecordsRecoveryTests.test_real_http_get_and_repeated_post_have_no_producer_or_core_dispatch"
+    ],
+    "exit_code": 0
+  }
+]

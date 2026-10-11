@@ -26,6 +26,9 @@ class ProjectRecordsPrepareService:
             "saved-records-service-required",
         )
         self.records, self.intake = records, records.intake
+        from .project_records_recovery import ProjectRecordsRecoveryService
+
+        self.recovery = ProjectRecordsRecoveryService(records)
 
     def prepare(self, credential, ref, body, *, check_deadline=None):
         actor = self.intake._principal(credential)

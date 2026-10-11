@@ -193,13 +193,13 @@ async function registryIntent() {
 async function preparationGuard() {
   const nodes = new Map(), calls = [], posts = [];
   const valid = {ledger: {state_sha256: hash}, checkpoint: {current: true, event_id: 'synthetic-checkpoint'}, saved_records_connected: true};
-  let finish;
+  let finish, expectedOperation = 'stage1/prepare-delivery';
   const sandbox = {state: {project: {...project, brief: {}}, stage1: valid, generation: 2, busy: false, loading: false, activeJob: false, modelOffers: []},
     pending: [], bootstrap: {models: false}, window: {}, document: {querySelectorAll: () => []},
     $: id => {if (!nodes.has(id)) {const node = new Element('div'); node.append(new Element('button')); nodes.set(id, node);} return nodes.get(id);},
     availableStage2: () => false, availableDelivery: () => null,
     identity: () => ({revision: 1, input_version: 1, brief_sha256: hash}),
-    mutate: async (operation, body) => {assert.equal(operation, 'stage1/prepare-delivery'); posts.push(JSON.parse(JSON.stringify(body))); return new Promise(resolve => {finish = resolve;});},
+    mutate: async (operation, body) => {assert.equal(operation, expectedOperation); posts.push(JSON.parse(JSON.stringify(body))); return new Promise(resolve => {finish = resolve;});},
     loadProject: async ref => calls.push(ref)
   };
   vm.runInNewContext(actualFunction('availableSavedPreparation', 'renderSources', false, false), sandbox);
@@ -217,6 +217,16 @@ async function preparationGuard() {
   assert.deepEqual(calls, ['synthetic-A']);
   const waiting = sandbox.invoke('prepare-delivery'); sandbox.state.generation += 1; sandbox.state.loading = true;
   finish({status: 'saved'}); await waiting; assert.deepEqual(calls, ['synthetic-A'], 'preparation must not reclaim A while B loads');
+  sandbox.state.loading = false;
+  expectedOperation = 'stage1/recover-delivery';
+  const offer = {status: 'ready-for-saved-records-registration', producer_key: 'saved-producer', producer_request_sha256: hash, records_sha256: hash, checkpoint_event_id: 'synthetic-checkpoint'};
+  sandbox.state.stage1 = {...valid, saved_records_recovery: {revision: sandbox.state.project.revision, offers: [offer]}};
+  const recovered = sandbox.invoke('prepare-delivery'); finish({status: 'saved'}); await recovered;
+  assert.deepEqual(posts[2], {...posts[0], producer_key: 'saved-producer', producer_request_sha256: hash, records_sha256: hash});
+  sandbox.state.stage1.saved_records_recovery.revision += 1;
+  expectedOperation = 'stage1/prepare-delivery';
+  const stale = sandbox.invoke('prepare-delivery'); finish({status: 'saved'}); await stale;
+  assert.deepEqual(posts[3], posts[0], 'stale recovery offer must not select another saved producer');
   console.log('PASS prepare: actual button disabled without current checkpoint/connection, exact saved body, late project guard');
 }
 

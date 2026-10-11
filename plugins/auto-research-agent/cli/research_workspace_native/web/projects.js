@@ -159,6 +159,9 @@
   Object.assign(words.en, {ledgerPrepare: "Prepare saved reading delivery", ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
   Object.assign(words["zh-Hans"], {ledgerPrepare: "准备已保存阅读交付", ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
   Object.assign(words["zh-Hant"], {ledgerPrepare: "準備已保存閱讀交付", ledgerDeliver: "用已保存閱讀紀錄產生正式交付包", deliveryMissing: "尚無此版本綁定的閱讀紀錄。紀錄匯出與研究交付包是不同產物。", deliveryReady: "閱讀紀錄已綁定目前檢查點。產生檔案不代表覆蓋或研究品質通過。", deliverySaved: "已保存正式研究交付包 · 繼續前請檢查覆蓋判斷。"});
+  Object.assign(words.en, {ledgerRecover: "Continue delivery from committed records", recoveryReady: "The records are saved, but delivery registration is unfinished. Continue from these exact records; no search, reading or model call will run."});
+  Object.assign(words["zh-Hans"], {ledgerRecover: "从已保存记录继续交付", recoveryReady: "记录已保存，但交付注册尚未完成。继续使用这些精确记录，不重新搜索、阅读或调用模型。"});
+  Object.assign(words["zh-Hant"], {ledgerRecover: "從已保存紀錄繼續交付", recoveryReady: "紀錄已保存，但交付註冊尚未完成。繼續使用這些精確紀錄，不重新搜尋、閱讀或呼叫模型。"});
   const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0, readingReview: null, readingGeneration: 0 };
   const storageKey = "harness-project-ui-intents-v1";
   let pending = [];
@@ -337,7 +340,8 @@
     const ledger = state.stage1 && state.stage1.ledger;
     $("ledger-state").textContent = ledger ? ledger.gate.outcome + " · " + ledger.next_allowed_action : state.stage1 && state.stage1.stage1_status || "unconnected";
     const delivered = state.stage1 && state.stage1.delivery && state.stage1.delivery.canonical_package;
-    $("delivery-state").textContent = t(delivered ? "deliverySaved" : availableDelivery() ? "deliveryReady" : "deliveryMissing");
+    $("ledger-prepare").textContent = t(availableRecordsRecovery() ? "ledgerRecover" : "ledgerPrepare");
+    $("delivery-state").textContent = t(delivered ? "deliverySaved" : availableDelivery() ? "deliveryReady" : availableRecordsRecovery() ? "recoveryReady" : "deliveryMissing");
     const artifactArea = $("delivery-artifact"); artifactArea.replaceChildren();
     if (delivered) {
       text(artifactArea, "p", delivered.status + " · " + delivered.counts.papers + " · " + delivered.artifact_kind);
@@ -383,6 +387,10 @@
   function availableSavedPreparation() {
     const stage1 = state.stage1;
     return Boolean(stage1 && stage1.ledger && stage1.checkpoint && stage1.checkpoint.current === true && stage1.saved_records_connected === true);
+  }
+  function availableRecordsRecovery() {
+    const saved = state.stage1 && state.stage1.saved_records_recovery;
+    return saved && saved.revision === state.project.revision && (saved.offers || []).find(row => row.status === "ready-for-saved-records-registration") || null;
   }
   function renderSources() {
     const source = state.stage1 && state.stage1.source_execution;
@@ -807,7 +815,15 @@
     if (operation === "initialize") { const offer = state.stage1.initialization_offer; if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
     else { if (!state.stage1.ledger) return; body.ledger_state_sha256 = state.stage1.ledger.state_sha256; }
     if (operation === "deliver") { const offer = availableDelivery(); if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
-    if (operation === "prepare-delivery") { if (!availableSavedPreparation()) return; body.checkpoint_event_id = state.stage1.checkpoint.event_id; }
+    if (operation === "prepare-delivery") {
+      if (!availableSavedPreparation()) return;
+      const saved = availableRecordsRecovery();
+      body.checkpoint_event_id = state.stage1.checkpoint.event_id;
+      if (saved) {
+        operation = "recover-delivery";
+        Object.assign(body, {producer_key: saved.producer_key, producer_request_sha256: saved.producer_request_sha256, records_sha256: saved.records_sha256, checkpoint_event_id: saved.checkpoint_event_id});
+      }
+    }
     const ref = state.project.project_ref, generation = state.generation, version = state.project.input_version, brief = state.project.brief_sha256;
     const result = await mutate("stage1/" + operation, body, ref);
     if (result && generation === state.generation && state.project && state.project.project_ref === ref

@@ -33,7 +33,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|prepare-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -223,6 +223,11 @@ class ProjectHost(AtlasHost):
                 self.project_stage1.read(credential, ref),
                 delivery=self.project_stage1_delivery.read(credential, ref),
                 saved_records_connected=self.project_records_prepare is not None,
+                saved_records_recovery=(
+                    None
+                    if self.project_records_prepare is None
+                    else self.project_records_prepare.recovery.read(credential, ref)
+                ),
             )
             queries = getattr(self.project_stage1, "query_service", None)
             result["query_execution"] = (
@@ -429,6 +434,7 @@ class ProjectHandler(AtlasHandler):
                         "claim",
                         "reading-review",
                         "prepare-delivery",
+                        "recover-delivery",
                         "plan-query",
                         "execute-query",
                         "checkpoint",
@@ -461,14 +467,19 @@ class ProjectHandler(AtlasHandler):
                             )
                         called = ("stage1-reading-registry", ref, body)
                         action = "review"
-                    elif action == "prepare-delivery":
+                    elif action in {"prepare-delivery", "recover-delivery"}:
                         extension = self.server.project_records_prepare
                         if extension is None:
                             raise SessionApiError(
                                 "stage1-records-prepare-unconnected", 409
                             )
-                        called = ("stage1-produce-records", ref, body)
-                        action = "prepare"
+                        if action == "recover-delivery":
+                            extension = extension.recovery
+                            called = ("stage1-recover-delivery", ref, body)
+                            action = "recover"
+                        else:
+                            called = ("stage1-produce-records", ref, body)
+                            action = "prepare"
                     elif action.startswith("query-"):
                         extension = getattr(extension, "query_service", None)
                         if extension is None:
