@@ -31,6 +31,43 @@ def _replace(value, old, new):
     return value.replace(old, new)
 
 
+def _canonical_rebuild(index):
+    """Recognize the complete explicit bare-delivery path mapping, not a CLI."""
+    provenance = index["provenance"]
+    files = provenance["files"]
+    mapped = {
+        name: row
+        for name, row in files.items()
+        if isinstance(row, dict) and "physical_relative_path" in row
+    }
+    if not mapped:
+        return None
+    if set(mapped) != set(files) or any(
+        not name.startswith("deliverable/")
+        or row["physical_relative_path"] != name.removeprefix("deliverable/")
+        for name, row in mapped.items()
+    ):
+        raise DeliverableError("bare canonical provenance path mapping differs")
+    manifest = mapped.get("deliverable/provenance_manifest.json", {})
+    records = mapped.get("deliverable/records.original.json", {})
+    if (
+        manifest.get("sha256") != provenance["deliverable_manifest_sha256"]
+        or manifest.get("sha256") != provenance["package_manifest_sha256"]
+        or records.get("sha256") != provenance["records_sha256"]
+    ):
+        raise DeliverableError("bare canonical manifest or records binding differs")
+    return {
+        "source_kind": "Stage1ResearchDeliverable",
+        "entrypoint_kind": "python-api",
+        "entrypoint": "research_workspace.canonical_delivery.project_canonical_delivery",
+        "reader_api": "research_workspace.canonical_delivery.project_canonical_delivery",
+        "renderer_api": "research_workspace.view.write_workspace",
+        "manifest_path": "provenance_manifest.json",
+        "manifest_sha256": manifest["sha256"],
+        "expected_manifest_sha256": manifest["sha256"],
+    }
+
+
 def _literature(source):
     source = (
         source[: source.index("  const freezeRecord")]
@@ -411,6 +448,12 @@ def _write_view(
             )
         },
     }
+    canonical_rebuild = _canonical_rebuild(index)
+    if canonical_rebuild is not None:
+        manifest["rebuild"].update(canonical_rebuild)
+        manifest["adapter_sources"]["canonical_delivery.py"] = sha(
+            Path(__file__).with_name("canonical_delivery.py").read_bytes()
+        )
     if atlas:
         manifest["rebuild"]["atlas"] = True
         manifest["atlas_binding_sha256"] = sha(files["atlas-binding.json"])

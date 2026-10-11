@@ -4,7 +4,6 @@ from copy import deepcopy
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, ValidationError
-
 from stage1_deliverable import sources, views
 from stage1_deliverable.common import (
     DeliverableError,
@@ -172,7 +171,7 @@ def _package(root, expected):
     return outer, manifest, records
 
 
-def _source_records(package_root, bound_read, records):
+def _source_records(package_root, bound_read, records, *, semantic_replay=True):
     attempts = _jsonl(bound_read("deliverable/paper_manifest.jsonl"))
     _require(
         len({(row["source_id"], row["attempt"]) for row in attempts}) == len(attempts),
@@ -217,6 +216,7 @@ def _source_records(package_root, bound_read, records):
         if not title_matches or receipt["expected_identity"]["doi"] != (
             paper["doi"] or ""
         ):
+            _require(semantic_replay, "source identity requires semantic replay")
             archive_root = safe_path(package_root, archive.rstrip("/"))
             observation = decode_json(bound_read(archive + "validation.json"))
             _require(
@@ -310,27 +310,18 @@ def _missing(value, pointer=""):
     return []
 
 
-def project_package(
-    package_root,
+def _project_records(
     project_id,
     expected_manifest_sha256,
-    *,
-    validation_mode="byte-inventory",
-    repair_root=None,
-    expected_repair_manifest_sha256=None,
-    expected_repair_review_sha256=None,
+    files,
+    bound_read,
+    manifest,
+    records,
+    source_rows,
+    manifest_sha,
+    readiness,
 ):
-    """Return deterministic records; byte checks are not exporter semantic replay."""
-    identifier(project_id)
-    _require(
-        validation_mode == "byte-inventory",
-        "unknown validation mode",
-    )
-    root = private_output(package_root)
-    outer, manifest, records = _package(root, expected_manifest_sha256)
-    bound_read = _bound_reader(root, outer["files"])
-    source_rows = _source_records(root, bound_read, records)
-    manifest_sha = outer["files"]["deliverable/provenance_manifest.json"]["sha256"]
+    """Shared lossless Index construction after source and byte validation."""
     record_sha = manifest["original_input_sha256"]
 
     def provenance(pointer):
@@ -380,16 +371,10 @@ def project_package(
                 "sha256": info["sha256"],
                 "text": bound_read(name).decode("utf-8"),
             }
-            for name, info in sorted(outer["files"].items())
+            for name, info in sorted(files.items())
             if name.endswith(suffix)
         ]
 
-    readiness_raw = bound_read("stage2_readiness.json")
-    _require(
-        outer["stage2_readiness_sha256"] == sha(readiness_raw),
-        "readiness binding mismatch",
-    )
-    readiness = decode_json(readiness_raw)
     result = {
         "kind": "WorkspaceIndex",
         "schema_version": records["schema_version"],
@@ -446,9 +431,9 @@ def project_package(
             "package_manifest_sha256": expected_manifest_sha256,
             "deliverable_manifest_sha256": manifest_sha,
             "records_sha256": record_sha,
-            "files": deepcopy(outer["files"]),
+            "files": deepcopy(files),
             "validation": {
-                "mode": validation_mode,
+                "mode": "byte-inventory",
                 "byte_inventory": "passed",
                 "canonical_bindings": "passed",
                 "semantic_replay": "not-performed",
@@ -466,12 +451,47 @@ def project_package(
                 "reason": "canonical-records-1.1-consumer-required",
             },
         )
+    canonical(result)  # Reject unserializable output before the caller writes it.
+    return validate_index(result)
+
+
+def project_package(
+    package_root,
+    project_id,
+    expected_manifest_sha256,
+    *,
+    validation_mode="byte-inventory",
+    repair_root=None,
+    expected_repair_manifest_sha256=None,
+    expected_repair_review_sha256=None,
+):
+    """Return deterministic records; byte checks are not exporter semantic replay."""
+    identifier(project_id)
+    _require(validation_mode == "byte-inventory", "unknown validation mode")
+    root = private_output(package_root)
+    outer, manifest, records = _package(root, expected_manifest_sha256)
+    bound_read = _bound_reader(root, outer["files"])
+    source_rows = _source_records(root, bound_read, records)
+    readiness_raw = bound_read("stage2_readiness.json")
+    _require(
+        outer["stage2_readiness_sha256"] == sha(readiness_raw),
+        "readiness binding mismatch",
+    )
+    result = _project_records(
+        project_id,
+        expected_manifest_sha256,
+        outer["files"],
+        bound_read,
+        manifest,
+        records,
+        source_rows,
+        outer["files"]["deliverable/provenance_manifest.json"]["sha256"],
+        decode_json(readiness_raw),
+    )
     _require(
         _package(root, expected_manifest_sha256) == (outer, manifest, records),
         "package changed during projection",
     )
-    canonical(result)  # Reject unserializable output before the caller writes it.
-    validate_index(result)
     supplied = (
         repair_root,
         expected_repair_manifest_sha256,
