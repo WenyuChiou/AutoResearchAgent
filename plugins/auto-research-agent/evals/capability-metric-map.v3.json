@@ -69,7 +69,9 @@
             "the opt-in independent fixed SyntheticAdapter demo uses real HTTP/SQLite/controller and a bounded isolated raw-source worker; a source-pinned saved report never grants native, research, model, scoring or Stage3 authority",
             "Actual local HTTP/SQLite/core compiler/ledger fixtures isolate unrelated topics, reject mismatched revisions and unknown fields, preserve failed/unknown intents and old input versions, and recover lost responses without creating or executing another operation; installed-browser checks cover three languages, long text, desktop/tablet/mobile layout and real offline gate/export hashes. Stage1 search/source execution and full Stage2 research remain unconnected.",
             "Own-account content unit intent and permit reservation precede composition; exact project/version/key/request hash history prevents duplicate model writes across response loss and reopen. Short runtime directories retain full immutable identity bindings; bounded UTF-8 output chunks preserve original hashes. Default portable preparation and HTTP use zero native/model processes; actual account execution remains unverified in this increment.",
-            "canonical saved-record delivery binds real source observations, all screening revisions and handoff, rejects mutable artifact/offer/source drift, preserves Unknown and failures, and recovers same-key SQLite history without rebuild; passive GET performs zero package build/source replay"
+            "canonical saved-record delivery binds real source observations, all screening revisions and handoff, rejects mutable artifact/offer/source drift, preserves Unknown and failures, and recovers same-key SQLite history without rebuild; passive GET performs zero package build/source replay",
+            "trusted saved-source and manual-reading registries bind original SDK/Core observations, current candidate/decision/review, physical hashes and exact claim offsets; all screening/source history and Core coverage are retained in atomic bounded records; guard refusal, action/event/state tampering and true SQLite reopen preserve no-rewrite outcomes without acquiring sources, invoking a model or granting acceptance",
+            "Bootstrap frame validation reuses the transaction state and rejects a version changed during source verification; original fixed-deadline fake-child failures report per-method elapsed time without changing the deadline or retrying."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         },
@@ -220,7 +222,8 @@
         "plugins/auto-research-agent/tests/test_project_stage1_queries.py",
         "plugins/auto-research-agent/tests/test_project_query_history.py",
         "plugins/auto-research-agent/tests/test_project_stage1_query_http.py",
-        "plugins/auto-research-agent/tests/test_project_query_launcher.py"
+        "plugins/auto-research-agent/tests/test_project_query_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_records.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

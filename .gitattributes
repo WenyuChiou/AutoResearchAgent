@@ -72,3 +72,12 @@ review-evidence/project-search-bridge-20261011/delivery-final24/commit-message.t
 review-evidence/stage1-source-frontier-20261011/** -text
 review-evidence/stage1-source-frontier-20261011/**/*.json whitespace=cr-at-eol
 review-evidence/stage1-source-frontier-20261011/**/*.log binary
+review-evidence/stage1-saved-records-20261011/** -text
+review-evidence/stage1-saved-records-20261011/*.json whitespace=cr-at-eol
+review-evidence/stage1-saved-records-20261011/*stdout.log binary
+review-evidence/stage1-saved-records-20261011/*stderr.log binary
+review-evidence/stage1-saved-records-20261011/README.md text eol=lf
+review-evidence/stage1-saved-records-20261011/manifest.json text eol=lf
+review-evidence/stage1-main329-integration-20261011/** -text
+review-evidence/stage1-main329-integration-20261011/*.json whitespace=cr-at-eol
+review-evidence/stage1-main329-integration-20261011/*.log binary
