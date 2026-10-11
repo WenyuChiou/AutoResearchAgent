@@ -88,8 +88,11 @@ def _indexed(rows, field):
 
 def validate_records(records):
     from .core_records import VERSION, extended, validate_extension
+    from .screening_records import VERSION as SCREENING_VERSION
+    from .screening_records import extended as screened
 
     core = extended(records)
+    library = screened(records)
     _keys(
         records,
         (
@@ -103,12 +106,18 @@ def validate_records(records):
             "screening",
             "coverage",
             *(("core_claim_history", "core_artifacts") if core else ()),
+            *(
+                ("screening_library", "screening_artifacts", "screening_journal")
+                if library
+                else ()
+            ),
         ),
         "records",
     )
     if records["kind"] != "Stage1ResearchRecords" or records["schema_version"] not in {
         "1.0.0",
         VERSION,
+        SCREENING_VERSION,
     }:
         raise DeliverableError("unsupported canonical record version")
     _text(records["topic"])
@@ -118,7 +127,7 @@ def validate_records(records):
     claims = _indexed(records["claims"], "claim_id")
     decisions = _indexed(records["screening"], "decision_id")
     needs = _indexed(records["coverage"], "need_id")
-    if not papers or not needs or not decisions:
+    if not papers or not needs or (not decisions and not library):
         raise DeliverableError("papers, coverage and screening cannot be empty")
 
     def version(row):
@@ -146,13 +155,17 @@ def validate_records(records):
                 "roles",
                 "findings",
                 "claim_ids",
+                *(("reading_status",) if library else ()),
             ),
             "paper",
         )
         identifier(paper["version_id"])
         for name in ("title", "venue"):
             _text(paper[name])
-        if not isinstance(paper["authors"], list) or not paper["authors"]:
+        if not isinstance(paper["authors"], list) or (
+            not paper["authors"]
+            and not (library and paper["reading_status"] == "discovery-only")
+        ):
             raise DeliverableError(
                 "authors required; use explicit unknown when unverified"
             )
@@ -166,7 +179,12 @@ def validate_records(records):
             not isinstance(paper["doi"], str) or not paper["doi"].startswith("10.")
         ):
             raise DeliverableError("DOI must be normalized or null")
-        public_uri(paper["url"])
+        if (
+            paper["url"] is not None
+            or not library
+            or paper["reading_status"] != "discovery-only"
+        ):
+            public_uri(paper["url"])
         if paper["evidence_level"] not in LEVELS:
             raise DeliverableError("invalid evidence level")
         _keys(paper["classification"], CLASSIFICATION, "classification")
@@ -183,7 +201,9 @@ def validate_records(records):
                 for x in paper[key]
             ):
                 raise DeliverableError("paper reference belongs to another work")
-        if not paper["source_ids"]:
+        if not paper["source_ids"] and not (
+            library and paper["reading_status"] == "discovery-only"
+        ):
             raise DeliverableError("every paper needs a source attempt")
         if not isinstance(paper["roles"], list):
             raise DeliverableError("roles must be separate evidence-bound records")
@@ -256,7 +276,8 @@ def validate_records(records):
             raise DeliverableError("claim source work/version differs")
         if claim["claim_id"] not in papers[claim["work_id"]]["claim_ids"]:
             raise DeliverableError("orphan claim")
-        from .core_records import RELATIONS, LEVELS as CORE_LEVELS
+        from .core_records import LEVELS as CORE_LEVELS
+        from .core_records import RELATIONS
 
         if claim["relation"] not in (
             RELATIONS if core else {"supports", "partial", "contradicts", "unverified"}
@@ -297,7 +318,7 @@ def validate_records(records):
         for name in ("reason", "query", "discovery_path"):
             _text(decision[name])
         timestamp(decision["observed_at"])
-    if set(x["work_id"] for x in decisions.values()) != set(papers):
+    if not library and {x["work_id"] for x in decisions.values()} != set(papers):
         raise DeliverableError("every paper needs preserved screening history")
     for need in needs.values():
         _keys(
@@ -330,4 +351,8 @@ def validate_records(records):
             raise DeliverableError("stop decision must remain explicit")
     if core:
         validate_extension(records)
+    if library:
+        from .screening_records import validate_extension as validate_screening
+
+        validate_screening(records)
     return records

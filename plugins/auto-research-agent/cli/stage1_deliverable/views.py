@@ -11,10 +11,12 @@ from urllib.parse import quote
 from docx import Document
 from docx.shared import RGBColor
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from .common import DeliverableError, canonical
+from .core_records import extended
+from .screening_records import extended as screened
 
 
 def cell(value):
@@ -68,7 +70,7 @@ def tables(records, sources):
         findings.append({**key, **row["findings"], "claim_ids": row["claim_ids"]})
     claims = []
     for row in records["claims"]:
-        if records["schema_version"] == "1.1.0":
+        if extended(records):
             matches = [
                 x
                 for x in sources
@@ -105,8 +107,28 @@ def tables(records, sources):
         "Screening": records["screening"],
         "Coverage": records["coverage"],
     }
-    if records["schema_version"] == "1.1.0":
+    if extended(records):
         result["Core claim history"] = records["core_claim_history"]
+    if screened(records):
+        papers_by_id = {p["work_id"]: p for p in records["papers"]}
+        result["Screening library"] = [
+            {
+                "work_id": row["work_id"],
+                "version_id": row["selected_version_id"],
+                "title": row["metadata"]["title"],
+                "reading_status": papers_by_id[row["work_id"]]["reading_status"],
+                "screening_status": row["screening_status"],
+                "first_discovery_order": row["first_candidate_discovery_order_in_run"],
+                "discoveries": row["counts"]["discoveries"],
+                "queries": row["counts"]["distinct_queries"],
+                "decisions": row["counts"]["decisions"],
+                "reversals": row["counts"]["reversals"],
+                "reason": row["current_decision"]["rationale"]
+                if row["current_decision"]
+                else "Unknown: not screened",
+            }
+            for row in records["screening_library"]["rows"]
+        ]
     return result
 
 
@@ -232,7 +254,7 @@ def review_lines(records):
         )
     lines.extend(["## Evidence and limitations", ""])
     for claim in records["claims"]:
-        if records["schema_version"] == "1.1.0":
+        if extended(records):
             event = claim["core_event"]["payload"]
             location = (
                 "Unknown: no locator recorded"
@@ -252,14 +274,16 @@ def review_lines(records):
             [
                 f"{claim['claim_id']} [{claim['work_id']} / {claim['version_id']}]: {claim['text']}",
                 f"{claim['relation']}; {claim['evidence_level']}; {claim['locator']}; {claim['source_id']} characters {claim['start']}:{claim['end']}",
-                "Exact source excerpt retained unchanged: workbook Claims sheet "
-                f"and canonical records, claim_id {claim['claim_id']}. "
-                "CSV cells use formula-safe escaping. Original extraction "
-                "spacing and character offsets are preserved for audit.",
+                (
+                    "Exact source excerpt retained unchanged: workbook Claims sheet "
+                    f"and canonical records, claim_id {claim['claim_id']}. "
+                    "CSV cells use formula-safe escaping. Original extraction "
+                    "spacing and character offsets are preserved for audit."
+                ),
                 "",
             ]
         )
-    if records["schema_version"] == "1.1.0":
+    if extended(records):
         lines.extend(
             [
                 "## Preserved Core claim history",
@@ -374,7 +398,7 @@ def render(records, sources):
                 "",
             ]
         )
-    return {
+    result = {
         "literature_catalog.xlsx": workbook_bytes(all_tables),
         "literature_review.md": markdown.encode("utf-8"),
         "literature_review.docx": docx_bytes(lines),
@@ -384,3 +408,11 @@ def render(records, sources):
         "coverage_and_stop.md": ("\n".join(coverage) + "\n").encode("utf-8"),
         "README.md": b"# Stage 1 researcher deliverable\n\nExperimental; quality improvement not yet demonstrated.\n\npapers.jsonl and provenance_manifest.json contain canonical records. Excel, Markdown, DOCX, BibTeX and CSV are editable derived views. Editing a view does not update canonical research records; regeneration and validation are required. Source archives preserve all attempts, including unavailable evidence. Papers contain only selected public full sources. Do not commit this private package to Git.\n\nWord and Markdown show authored findings, claim statements and source locators. Find each exact excerpt by claim_id in the workbook Claims sheet and canonical records. claims_and_evidence.csv protects formula-like values with a leading apostrophe, so its displayed quote may differ. Original quotes, extraction spacing and character offsets remain bound to the source; presentation does not establish claim support.\n\nValidate with: python -m stage1_deliverable validate PACKAGE --expected-sha256 MANIFEST_SHA256\nThe trusted manifest hash must come from the separately retained export receipt. Validation proves bindings and reproducible views, not scientific correctness. DOCX is supported by the declared runtime.\n",
     }
+    if screened(records):
+        result["screening_library.json"] = (
+            canonical(records["screening_library"]) + b"\n"
+        )
+        result["screening_library.csv"] = csv_bytes(
+            "Screening library", all_tables["Screening library"]
+        )
+    return result

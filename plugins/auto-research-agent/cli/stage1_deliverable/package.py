@@ -1,5 +1,6 @@
 """Build immutable private packages and replay all generated views."""
 
+from copy import deepcopy
 from pathlib import Path
 
 from . import sources, views
@@ -14,13 +15,70 @@ from .common import (
     sha,
     write_json,
 )
+from .core_records import extended
 from .records import _keys, validate_records
+from .screening_records import extended as screened
 
 DOCX = {"status": "available", "reason": "python-docx present in declared runtime"}
 
 
 def _jsonl(rows):
     return b"".join(canonical(row) + b"\n" for row in rows)
+
+
+def _scan_input(records, original):
+    """Only typed Core null fields are masked in a disposable scanner copy."""
+    if not screened(records):
+        sources.reject_secrets(original)
+        return
+    scanning = deepcopy(records)
+    library = scanning["screening_library"]
+    decisions = library["snapshots"][2]["rows"].copy()
+    for row in library["rows"]:
+        decisions.extend(row["decision_history"])
+        if row["current_decision"] is not None:
+            decisions.append(row["current_decision"])
+    for event in decisions:
+        if event["authorization"] is None:
+            event["authorization"] = ""
+    sources.reject_secrets(canonical(scanning))
+
+
+def _scan_screening_artifact(records, artifact, raw):
+    """Preserve original archives; only a validated exact DecisionSnapshot is typed.
+
+    No arbitrary source, string authorization or literal string null is masked.
+    """
+    snapshot = records["screening_library"]["snapshots"][2]
+    if artifact["source_ref"] not in snapshot["persisted_refs"]:
+        sources.reject_secrets(raw)
+        return
+    original = {
+        k: v
+        for k, v in snapshot.items()
+        if k not in {"sha256", "persisted_refs", "origin"}
+    }
+    from stage1_ledger.contracts import check
+
+    check(original, "DecisionSnapshot")
+    if raw != canonical(original):
+        raise DeliverableError("screening snapshot bytes differ during scan")
+    scanning = deepcopy(original)
+    for event in scanning["rows"]:
+        if event["authorization"] is None:
+            event["authorization"] = ""
+    sources.reject_secrets(canonical(scanning))
+
+
+def _scan_journal(records, raw):
+    from .screening_records import journal_rows
+
+    scanning = deepcopy(journal_rows(records, raw))
+    for row in scanning:
+        event = row["payload"]
+        if event["kind"] == "DecisionEvent" and event["authorization"] is None:
+            event["authorization"] = ""
+    sources.reject_secrets(canonical(scanning))
 
 
 def derive(records, root, runtime):
@@ -55,7 +113,11 @@ def derive(records, root, runtime):
         maximum = max([levels[s["evidence_level"]] for s in available], default=0)
         if levels[paper["evidence_level"]] > maximum:
             raise DeliverableError("abstract or metadata cannot become full text")
-    if records["schema_version"] == "1.1.0":
+    if screened(records):
+        from .screening_records import read_artifacts as read_screening
+
+        read_screening(records, root)
+    if extended(records):
         from .core_records import read_artifacts
 
         read_artifacts(records, root)
@@ -112,7 +174,7 @@ def build(records_path, output, expected_records_sha256):
     if sha(original) != expected_records_sha256:
         raise DeliverableError("canonical input SHA-256 differs from supplied binding")
     records = validate_records(read_json(records_path))
-    sources.reject_secrets(original)
+    _scan_input(records, original)
     runtime = sources.runtime_binding()
     output = private_output(output)
     output.mkdir(parents=True, exist_ok=False)
@@ -125,20 +187,35 @@ def build(records_path, output, expected_records_sha256):
             records_path.parent,
             safe_path(output, "sources/" + source["source_id"]),
         )
-    if records["schema_version"] == "1.1.0":
+    if extended(records):
         from .core_records import read_artifacts
 
         read_artifacts(records, records_path.parent)
-        for artifact in records["core_artifacts"]:
+        if screened(records):
+            from .screening_records import read_artifacts as read_screening
+
+            read_screening(records, records_path.parent)
+        for artifact in [
+            *records["core_artifacts"],
+            *(records["screening_artifacts"] if screened(records) else []),
+        ]:
             target = safe_path(output, artifact["artifact_path"])
             target.parent.mkdir(exist_ok=True)
             raw = safe_path(records_path.parent, artifact["artifact_path"]).read_bytes()
+            if artifact in records.get("screening_artifacts", []):
+                _scan_screening_artifact(records, artifact, raw)
             if target.exists():
                 if target.read_bytes() != raw:
                     raise DeliverableError("Core source archive collision")
             else:
                 with target.open("xb") as stream:
                     stream.write(raw)
+        if screened(records):
+            journal = records["screening_journal"]
+            raw = safe_path(records_path.parent, journal["path"]).read_bytes()
+            _scan_journal(records, raw)
+            with safe_path(output, journal["path"]).open("xb") as stream:
+                stream.write(raw)
     manifests, paper_files = derive(records, output, runtime)
     generated = views.render(records, manifests)
     generated.update(paper_files)
@@ -196,7 +273,7 @@ def validate(root, expected_sha256):
     )
     if (
         manifest.get("kind") != "Stage1ResearchDeliverable"
-        or manifest.get("schema_version") not in {"1.0.0", "1.1.0"}
+        or manifest.get("schema_version") not in {"1.0.0", "1.1.0", "1.2.0"}
         or manifest["experimental"] is not True
         or manifest["improvement"] != "not yet demonstrated"
         or manifest["docx"] != DOCX
@@ -225,8 +302,11 @@ def validate(root, expected_sha256):
         if safe_path(root, name).read_bytes() != data:
             raise DeliverableError("canonical-to-view semantic replay differs: " + name)
     allowed = {*generated, "records.original.json"}
-    if records["schema_version"] == "1.1.0":
+    if extended(records):
         allowed.update(row["artifact_path"] for row in records["core_artifacts"])
+    if screened(records):
+        allowed.update(row["artifact_path"] for row in records["screening_artifacts"])
+        allowed.add(records["screening_journal"]["path"])
     for source in records["sources"]:
         archive = safe_path(root, "sources/" + source["source_id"])
         original = read_json(archive / "original.json")

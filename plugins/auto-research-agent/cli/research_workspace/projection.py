@@ -15,7 +15,9 @@ from stage1_deliverable.common import (
     safe_path,
     sha,
 )
+from stage1_deliverable.core_records import extended
 from stage1_deliverable.records import validate_records
+from stage1_deliverable.screening_records import extended as screened
 
 from .json_bytes import decode_json
 from .stages import stage_registry
@@ -28,7 +30,7 @@ def _require(condition, message):
 
 def validate_index(index):
     """Validate the presentation contract, never scientific correctness."""
-    if index.get("schema_version") == "1.1.0":
+    if extended(index):
         from stage1_deliverable.core_records import validate_extension
 
         fields = {
@@ -37,21 +39,37 @@ def validate_index(index):
             "core_artifacts",
             "stage2_canonical_consumer",
         }
+        if screened(index):
+            fields.update(
+                {"screening_library", "screening_artifacts", "screening_journal"}
+            )
+        version = index["schema_version"]
         _require(
             fields <= set(index)
-            and index["canonical_records_version"] == "1.1.0"
+            and index["canonical_records_version"] == version
             and index["stage2_canonical_consumer"]
             == {
                 "status": "unconnected",
-                "reason": "canonical-records-1.1-consumer-required",
+                "reason": "canonical-records-"
+                + version.removesuffix(".0")
+                + "-consumer-required",
             },
             "workspace Core records extension differs",
         )
         validate_extension(index)
+        if screened(index):
+            from stage1_deliverable.screening_records import (
+                validate_extension as validate_screening,
+            )
+
+            validate_screening(index)
         legacy = deepcopy(index)
         for field in fields:
             legacy.pop(field)
         legacy["schema_version"] = "1.0.0"
+        if screened(index):
+            for paper in legacy["papers"]:
+                paper.pop("reading_status")
         validate_index(legacy)
         return index
     if index.get("schema_version") == "3.0.0":
@@ -149,7 +167,7 @@ def _package(root, expected):
     manifest = decode_json(bound_read("deliverable/provenance_manifest.json"))
     _require(
         manifest.get("kind") == "Stage1ResearchDeliverable"
-        and manifest.get("schema_version") in {"1.0.0", "1.1.0"},
+        and manifest.get("schema_version") in {"1.0.0", "1.1.0", "1.2.0"},
         "unsupported canonical package",
     )
     _require(inventory(delivery) == manifest["files"], "deliverable inventory mismatch")
@@ -271,7 +289,13 @@ def _source_records(package_root, bound_read, records, *, semantic_replay=True):
             levels[paper["evidence_level"]] <= maximum,
             "paper evidence level exceeds source",
         )
-    if records["schema_version"] == "1.1.0":
+    if screened(records):
+        from stage1_deliverable.screening_records import (
+            validate_artifacts as validate_screening,
+        )
+
+        validate_screening(records, lambda path: bound_read("deliverable/" + path))
+    if extended(records):
         from stage1_deliverable.core_records import validate_artifacts
 
         validate_artifacts(records, lambda path: bound_read("deliverable/" + path))
@@ -441,15 +465,23 @@ def _project_records(
             },
         },
     }
-    if records["schema_version"] == "1.1.0":
+    if extended(records):
         result.update(
-            canonical_records_version="1.1.0",
+            canonical_records_version=records["schema_version"],
             core_claim_history=deepcopy(records["core_claim_history"]),
             core_artifacts=deepcopy(records["core_artifacts"]),
             stage2_canonical_consumer={
                 "status": "unconnected",
-                "reason": "canonical-records-1.1-consumer-required",
+                "reason": "canonical-records-"
+                + records["schema_version"].removesuffix(".0")
+                + "-consumer-required",
             },
+        )
+    if screened(records):
+        result.update(
+            screening_library=deepcopy(records["screening_library"]),
+            screening_artifacts=deepcopy(records["screening_artifacts"]),
+            screening_journal=deepcopy(records["screening_journal"]),
         )
     canonical(result)  # Reject unserializable output before the caller writes it.
     return validate_index(result)
