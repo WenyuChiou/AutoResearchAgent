@@ -5,7 +5,7 @@ separate pilot lane, not Engine/native-namespace or scientific acceptance.
 """
 
 from copy import deepcopy
-from contextlib import closing
+from contextlib import closing, nullcontext
 import json
 import math
 import os
@@ -152,7 +152,16 @@ class StageModel:
         self._check_source()
 
     def _check_source(self):
-        source, checked = self.checked["source"], self.checked
+        source = self.checked["source"]
+        verification_pass = getattr(source, "verification_pass", None)
+        scope = (
+            verification_pass() if callable(verification_pass) else nullcontext(source)
+        )
+        with scope as checked_source:
+            return self._check_source_bytes(checked_source)
+
+    def _check_source_bytes(self, source):
+        checked = self.checked
         for name, expected in self.pins.items():
             source.pinned(
                 checked[name],
@@ -246,7 +255,10 @@ class StageModel:
     def _verify_source(self, deadline):
         if time.monotonic() >= deadline:
             raise SessionLeaseExpired("unit deadline expired")
-        return self._check_source()
+        result = self._check_source()
+        if time.monotonic() >= deadline:
+            raise SessionLeaseExpired("unit deadline expired")
+        return result
 
     def _spec(self, folder, deadline):
         remaining = math.floor(min(600, deadline - time.monotonic()))

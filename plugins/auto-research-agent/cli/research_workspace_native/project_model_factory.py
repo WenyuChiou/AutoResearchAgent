@@ -8,6 +8,7 @@ preloaded and mixed owned imports are refused. This freezes a project input
 snapshot, not a canonical WorkspaceIndex or research-stage completion.
 """
 
+from contextlib import contextmanager
 from copy import deepcopy
 import os
 from pathlib import Path
@@ -40,6 +41,15 @@ class _CheckedSource:
 
     def __init__(self, verify):
         self.verify = verify
+
+    @contextmanager
+    def verification_pass(self):
+        """One bounded source check; no verification result survives this pass."""
+        self.verify()
+        try:
+            yield source
+        finally:
+            self.verify()
 
     def __getattr__(self, name):
         callback = getattr(source, name)

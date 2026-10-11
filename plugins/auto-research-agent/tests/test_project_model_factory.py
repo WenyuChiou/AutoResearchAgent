@@ -227,6 +227,37 @@ class ProjectModelFactoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "owned package paths differ"):
                 provider.status()
 
+    def test_source_pass_rechecks_origins_at_both_boundaries_without_cache(self):
+        self.provider()
+        checked = self.created[0].checked["source"]
+        original, calls = checked.verify, []
+
+        def verify():
+            calls.append(1)
+            original()
+
+        checked.verify = verify
+        with checked.verification_pass() as raw:
+            raw.read(self.config)
+            raw.unlinked(self.config)
+            self.assertEqual(len(calls), 1)
+        self.assertEqual(len(calls), 2)
+        module = sys.modules["research_workspace_native.stage_model"]
+        with patch.object(module, "__file__", str(self.root / "foreign.py")):
+            with self.assertRaisesRegex(ValueError, "owned module origin differs"):
+                with checked.verification_pass():
+                    self.fail("changed origin must be refused before entry")
+        mutation = patch.object(module, "__file__", str(self.root / "foreign.py"))
+        try:
+            with self.assertRaisesRegex(ValueError, "owned module origin differs"):
+                with checked.verification_pass():
+                    mutation.start()
+        finally:
+            mutation.stop()
+        with checked.verification_pass() as raw:
+            raw.read(self.config)
+        self.assertEqual(len(calls), 7)
+
     def test_context_raw_hash_or_deny_only_change_rejected_before_snapshot(self):
         for replacement in ({"brief_sha256": "1" * 64}, {"deny_only": False}):
             altered = deepcopy(self.context)
