@@ -220,6 +220,46 @@ not resume, multi-tenant authentication or proven process-tree containment.
 Runtime tests use actual Python fake children and HTTP/SQLite, never Codex/models.
 Run test_atlas_runtime_spec and test_atlas_runtime_factory for those offline cases.
 
+## Public-source proposal and owned local observation seam
+
+`project_source_permit.proposal` prepares a source-specific offer from the
+authenticated project's current brief, settings, plan, run, manifest, semantic
+state, candidate, screening decision and selected saved version. Core metadata
+currently has no saved URL field: the offer explicitly proposes the resolver for
+that exact DOI; missing DOI or disabled resolver policy remains unavailable.
+Credential-bearing, structurally private or nonstandard URLs refuse without
+DNS. Counts remain integral; finite fractional reserved seconds stay exact.
+The raw search/source reservation state has its own SHA, so an old offer becomes
+stale even when both remaining amounts saturate the same displayed server cap.
+Search and source seconds share the configured total. A future orchestration
+service must also reconcile all other lane reservations before admission.
+
+This proposal is read-only, not a saved approval or executable permit. Its URL
+and limits do not attest DNS, redirects, an actual connection or enforcement by
+the SDK. The retained SDK only exposes per-request timeout; a separate bounded
+transport, durable approval/job/reservations and project API/UI are still needed.
+Never reuse a query-only permit to acquire a source or invoke a model.
+
+`OwnedSourceObservations` is a trusted local adapter over an already registered
+`PlannedQueryService`. It stores intent before local Core changes, recognizes
+only its exact recorded `SourceReadStarted`, and preserves the original owner,
+principal, request hash, frontier and append-only observations. The ordinary
+search offer and generic saved writer continue to refuse pending sources.
+GET does not restore ownership or dispatch I/O. Same-key history, including an
+unknown outcome, never calls the producer again; changed payload refuses.
+Only explicit existing service registration may read history after real SQLite
+reopen. It is not source-job adoption, permission recovery or an automatic retry.
+
+The separate store checker runs before mutation and after SQL immediately before
+commit. Losing the real owner after intent SQL prevents any Core write; losing
+it after Core effects or final SQL rolls back successful publication and retains
+unknown. Core journal effects cannot be rolled back, so this seam does not
+pretend multi-store atomicity. The trusted completion producer must check the
+current project/decision/version and saved original receipt; neither adapter
+authenticates an actual reader, launcher, model or research result. This seam is
+not currently an external source execution endpoint. Stage2 execution remains
+deferred and Stage3–6 planned/unconnected.
+
 ## Complete saved Stage1 screening library
 
 The universal project portal has a read-only screening library next to the real
