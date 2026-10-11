@@ -1917,7 +1917,12 @@ def _verify_saved_resolution(
         task,
         "reconciliation_task",
     )
-    prompt = review_models._resolution_prompt(task, raw)
+    # Older sealed results predate the explicit prompt-version field.
+    prompt = review_models._resolution_prompt(
+        task,
+        raw,
+        field_contract_version=value.get("resolution_field_contract_version", "1.0.0"),
+    )
     event_id = (
         "resolution-"
         + canonical_hash([candidate_id, snapshot_sha256, value["native_receipt"]])[:24]
