@@ -1,0 +1,43 @@
+{
+  "final_source_parent": "ec4e8ec70969a14c078e6fc6d38bec301756422b",
+  "final_source_paths": 477,
+  "entries": [
+    {
+      "path": "receipt.json",
+      "original_sha256": "26c19d285846030d4fd1c1e3e9e4e9cc2cc03f7dbc7860b5deab683e8d637178",
+      "published_sha256": "26c19d285846030d4fd1c1e3e9e4e9cc2cc03f7dbc7860b5deab683e8d637178",
+      "transformation": "none"
+    },
+    {
+      "path": "en.png",
+      "original_sha256": "240befddd1b85d82e26b4b83a12f0699ae9cb5492db397685e90bd7194cafe6f",
+      "published_sha256": "240befddd1b85d82e26b4b83a12f0699ae9cb5492db397685e90bd7194cafe6f",
+      "transformation": "none"
+    },
+    {
+      "path": "zh-Hans.png",
+      "original_sha256": "eb03ca3824bcafdfe78decab264b2144d16f24f75b9b133e148c385a2eaa1bcd",
+      "published_sha256": "eb03ca3824bcafdfe78decab264b2144d16f24f75b9b133e148c385a2eaa1bcd",
+      "transformation": "none"
+    },
+    {
+      "path": "zh-Hant.png",
+      "original_sha256": "ced90efd07848d1f56504179262e51f8852acf555cde21fc0bdd05e71911c726",
+      "published_sha256": "ced90efd07848d1f56504179262e51f8852acf555cde21fc0bdd05e71911c726",
+      "transformation": "none"
+    },
+    {
+      "path": "after-two-directions.png",
+      "original_sha256": "72210cc78a0967bdfef3606f303955c5f63e466aba53e4356543a06e79c96f5b",
+      "published_sha256": "72210cc78a0967bdfef3606f303955c5f63e466aba53e4356543a06e79c96f5b",
+      "transformation": "none"
+    },
+    {
+      "path": "final-browser.log",
+      "original_sha256": "18234027ac9441b074e5fb8f8c74de69732ccda31bae7b8683e35a8edc65decf",
+      "published_sha256": "18234027ac9441b074e5fb8f8c74de69732ccda31bae7b8683e35a8edc65decf",
+      "transformation": "CRLF-to-LF only"
+    }
+  ],
+  "historical_publication": "Selected fields from original immutable private receipts; originals retained, private hashes are declarations only."
+}

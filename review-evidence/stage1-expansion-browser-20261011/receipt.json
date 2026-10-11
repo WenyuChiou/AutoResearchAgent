@@ -1,0 +1,1270 @@
+{
+  "status": "passed",
+  "browser": "155.0.8059.39",
+  "repo": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt",
+  "sources": {
+    "plugins/auto-research-agent/cli/research_workspace/atlas.py": "47931ae5f82bb96b99ec12fcb7cbf5fea8d480dd2cf15a19da8041eb2fe27a51",
+    "plugins/auto-research-agent/cli/research_workspace/atlas_model.py": "40491ca12bf9d103dd3900f3851130b1162c29e0f5571694a07d256c197da131",
+    "plugins/auto-research-agent/cli/research_workspace/body_completeness.py": "e182b18373e7b1c743e8f4938789ed4a178003143bfde69b47964eb87740a9a7",
+    "plugins/auto-research-agent/cli/research_workspace/body_review.py": "4b225afafcc9eeb8f1811ae6527f60949c9e2b655ec42a8bb1e8a668ae250f16",
+    "plugins/auto-research-agent/cli/research_workspace/body_review_attachment.py": "fb9bf45428e5267c9b4c5f904caa82710b7c65444590f178da9144c44df6a80d",
+    "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py": "e55e1ca98203c7c3f863eeb17b89724f27ed055c69a2c72999b9b5a5775e8e01",
+    "plugins/auto-research-agent/cli/research_workspace/closeout.py": "d533aff940ae170d8a29c5b65357a91870a21f1c3dffeadf89122c7ecdcf3c81",
+    "plugins/auto-research-agent/cli/research_workspace/final_delivery.py": "57ceda493691dcea54797eed904ba0cb9e0bf06bea248ac25004940340a1bc6c",
+    "plugins/auto-research-agent/cli/research_workspace/formal_readiness.py": "cd0393e9596b5d7cd1fdbd4079a184b8f9dd7286ca17752256f748e1ec7c9fb7",
+    "plugins/auto-research-agent/cli/research_workspace/interface_config.py": "03c7f9dd8e153c8201166b9c73eb8e6faec75b33d93bf3e776e307582e25d18d",
+    "plugins/auto-research-agent/cli/research_workspace/json_bytes.py": "67570526c61982cd0174319485fb7705029436ec31feb154ca6a0a10c3c14ded",
+    "plugins/auto-research-agent/cli/research_workspace/literature_selection.py": "8de33befa8dca0458d3c7e51bdb67f1fecc11c80e5f2c5cda726c8718eed2108",
+    "plugins/auto-research-agent/cli/research_workspace/projection.py": "4a6678bac05450617e35eae039aa8826dff369aac78b7a0f6bf6c0527b680646",
+    "plugins/auto-research-agent/cli/research_workspace/README.md": "f8abcf72570e0b88a5ce38309301cb268b074dbc98512c1f3746212a4f4a9df1",
+    "plugins/auto-research-agent/cli/research_workspace/repair.py": "8906eda07bf02086a91d2cb55a621823948652b217ab3e6eb02ba0ad5da1ae36",
+    "plugins/auto-research-agent/cli/research_workspace/run_timing.py": "b19ae85153dca72745846f70854b1ffef86e17065149806d1480f17e367de1cc",
+    "plugins/auto-research-agent/cli/research_workspace/source_availability.py": "128b0a5efe5d16f47ef4a1d6f1687ff075c7a634b4b170a4ec9f1c42648be14d",
+    "plugins/auto-research-agent/cli/research_workspace/source_rerun.py": "b6a0a5eeadd70ccbbc69a0e53a1872d154447586c6ea8a67ea90ab8a847ddf7c",
+    "plugins/auto-research-agent/cli/research_workspace/stage2_comparison.py": "df13ca449e4c0ff31cfa381d2469020a275256d72d3bb6d152f00ccae5665444",
+    "plugins/auto-research-agent/cli/research_workspace/stage2_comparison_html.py": "85349aed138eab3e9732eb70e55388bbbaff8d84bc52722dc7c5ba1da7fb2e76",
+    "plugins/auto-research-agent/cli/research_workspace/stage2_import.py": "936d4b2f5d798203a971971e3d29b6301950e30d0ae691028135c7d8f40854e1",
+    "plugins/auto-research-agent/cli/research_workspace/stage2_presentation.py": "1bb83d8a99650564b219a91dbd0560ab8439da3405d1aa3a25f39959ad67946a",
+    "plugins/auto-research-agent/cli/research_workspace/stages.py": "74e689a590131c74e6dcc396dd0c3e472e3e45a733a7bec85b76c231150329b8",
+    "plugins/auto-research-agent/cli/research_workspace/view.py": "1d72948296ea5e90c6b26bc0523601c5d8f570c55b6dbba3057052d638f55d9d",
+    "plugins/auto-research-agent/cli/research_workspace/WHOLE_SOURCE_REVIEW.md": "acadc82e606e5c7d00e6bd50a08b84295657312038ce1955934f632b0ea2c1e6",
+    "plugins/auto-research-agent/cli/research_workspace/whole_source_review.py": "a9dab8e3b233dd01f7909203bdb180bfe4aa0768d6e4e5ad90951d5e0f4fde57",
+    "plugins/auto-research-agent/cli/research_workspace/wiki.py": "9ee6588584f1e559fb8b068649c0d2b8ddbe9de0f88556eee9e94754075dbe7e",
+    "plugins/auto-research-agent/cli/research_workspace/WorkspaceIndex.v1.schema.json": "55a95f406600a16887333b84f180d4b5a262172102af2fae868d1257691c6342",
+    "plugins/auto-research-agent/cli/research_workspace/WorkspaceIndex.v2.schema.json": "48882a9fed31fea6c8243d0fd41fb9ebcfbe0774ec8a78822eeac4320aaed1dd",
+    "plugins/auto-research-agent/cli/research_workspace/WorkspaceUiConfig.v1.schema.json": "4334447c19bf1e9a0a1622f5a37cc906c404735783e4e32139a8db5d65f7930c",
+    "plugins/auto-research-agent/cli/research_workspace/__init__.py": "2ac0caea51d93df39e45b86f2f749a65a136173f4635e2da54bda28011b5dd07",
+    "plugins/auto-research-agent/cli/research_workspace/__main__.py": "70fdee91d91dcf1ede9c6dc7d7721b5661a7062b46cb9f1f935fa758429b9390",
+    "plugins/auto-research-agent/cli/research_workspace_native/acquired_source_parser.py": "be0af3f5f2e2fd09db7d6ced73a098161363dd0702f5d4d3d82f217ec2e75104",
+    "plugins/auto-research-agent/cli/research_workspace_native/ATLAS_DEMO.md": "fd0aa6f9a369e4621a275bda45adf1bb1181af07ebeaaf5e9c465f512909f825",
+    "plugins/auto-research-agent/cli/research_workspace_native/atlas_host.py": "ec2867437ce74282a1873dbc0ec2ee0b329ecbe21a3160467b200f342d1dae06",
+    "plugins/auto-research-agent/cli/research_workspace_native/atlas_local_launcher.py": "6ad6920b934f9cab8c69cf61c5d4e905471d0373c83cfe141502ebbff6fc314d",
+    "plugins/auto-research-agent/cli/research_workspace_native/atlas_local_permit.py": "b4d47cbcb77e0327ee5973657a57776d9b69fa2c38f6322cca61dc8aec8ac33e",
+    "plugins/auto-research-agent/cli/research_workspace_native/atlas_local_prepare.py": "229ed7363767ca5b6260b211c55e98d902d2630820fe058d968edfca7a92ba46",
+    "plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py": "7e09e7f3be5ee894863959d8774c2b0e39de11f4e164088933fb738aadaefef4",
+    "plugins/auto-research-agent/cli/research_workspace_native/atlas_query_launcher.py": "761c575e1b980248b87d6b50a267e07be4e7a5e4117fc3a18d88ee889e1907a6",
+    "plugins/auto-research-agent/cli/research_workspace_native/binding.py": "346b0b41b1218e784f50a15a83ff3e56de9d8dffc35fb66e5799f825c1f731d1",
+    "plugins/auto-research-agent/cli/research_workspace_native/bootstrap.py": "f5774d74a038a6a6f4e32dd497486843a855b7fbe4bd3fa122b160057d9a2b37",
+    "plugins/auto-research-agent/cli/research_workspace_native/bootstrap_context.py": "592c95288cdf26ac6c544555fb5b70e48b7e8065096ca04b77d5a0b02474f291",
+    "plugins/auto-research-agent/cli/research_workspace_native/bounded_public_source.py": "23adca3ef99a387ff240d37ccd5e30ee34b30af016c15438bae7f7a6bb3c556f",
+    "plugins/auto-research-agent/cli/research_workspace_native/bounded_source_resolver.py": "5fae4039bb6ad1d3bdbf3b1b2e411462da02957429992c632ed717c51826f3bc",
+    "plugins/auto-research-agent/cli/research_workspace_native/codex_probe.py": "f2d560349cc4dda0dd8c2196caff3b341d8a5a849a833625081515bfe3724f6c",
+    "plugins/auto-research-agent/cli/research_workspace_native/construction.py": "dd71214b84c77fbe40b1d95773386e353c2cda2d6a902ce4e7d7461691858ea6",
+    "plugins/auto-research-agent/cli/research_workspace_native/controller.py": "43cd82e02b71f935ab02abb146e201b60645c8f2e1bb462f26220b47a1dbbf73",
+    "plugins/auto-research-agent/cli/research_workspace_native/frame_journal.py": "2bd95cd9688ce24a35dab85c3a90f47fe2becb877ad99a52b7405b6413d7d4bf",
+    "plugins/auto-research-agent/cli/research_workspace_native/harness_host.py": "5a673003ab4ab12c05d7c0d9d740420b26a5d53d720e9a6e0f5e6e877e233418",
+    "plugins/auto-research-agent/cli/research_workspace_native/harness_ops.py": "fcbd3b63a8bc9889e44109b49bfe411fa66784b5233ea4b7dfd987c773cd780f",
+    "plugins/auto-research-agent/cli/research_workspace_native/history.py": "00a99c54eb0c1233e863a77959ba5055c359acd33d6a7bb80fb3437c1b8d6f2a",
+    "plugins/auto-research-agent/cli/research_workspace_native/host_config.py": "74d778a0dfbff378036463ad849af4e6f6ecd4899531754f036d548e50487b44",
+    "plugins/auto-research-agent/cli/research_workspace_native/http.py": "20c908a7096e66ba3ef8ad8add7a2dcf5349dbc621e124ecd27f37b7a230d817",
+    "plugins/auto-research-agent/cli/research_workspace_native/journal.py": "4cccced1cb86c5efb3a2dfff5d110acdd37a39f6f6be3b7413dc7d0b61000fd6",
+    "plugins/auto-research-agent/cli/research_workspace_native/maintenance_inbox.py": "11d1dea8850e9085030c4bca78ece5607b432f5745fd5cd15fe3bf5cbeafd2fe",
+    "plugins/auto-research-agent/cli/research_workspace_native/owned_source_observations.py": "1ea5e419dae965ba0ccf4b6cba3cddd09d8f6f9d23d1e6d964f7cc4fceaf9cb0",
+    "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py": "1944471dcf0cd76aab6b7bf6aecb6c8b02c761d64c5594cf886d280c60c04669",
+    "plugins/auto-research-agent/cli/research_workspace_native/planned_query_contract.py": "366f9a93136e023d2332619f44019413dda58ab1ac8991f5ce7e078cd458408c",
+    "plugins/auto-research-agent/cli/research_workspace_native/portable_source_worker_profile.py": "b7375a03132119f7515117ae13d83452c87714b6fd58fede98ecf2ec6db0dd2e",
+    "plugins/auto-research-agent/cli/research_workspace_native/process_channel.py": "52341ff439f1c90298ff288db593bfa7e2542fbb4212e8deb06dd60fbf2f408b",
+    "plugins/auto-research-agent/cli/research_workspace_native/process_deadline.py": "5302fc30f63b8d35bdc9f18173c043c6fff2bf863d90457511644a26c0867ee2",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_atlas_shell.py": "ad8f62c96f88043610c5970db914bfe6202abe0ea861630234ec1a56b25dadb8",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_contract.py": "d50633f9d5d27002a4410a54f43c5433735ed6f87cf9caa5f99d00852a69dbc0",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_expansions.py": "0c631df549d8d3cb4c6497986de72106dc297c792a826a2f6915e36d0000e8ac",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "27594a6d08edc731b5c72cb7a73f77f950376d9408bcfa5589369c4c881f519d",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_intake.py": "80d2e72c8fdec06853e3ca6118e1ccb0468da46a0b77b2967759f032f39b5d4f",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py": "8044fc92c50ee432dfce546d9275557628ea5f5c80818bbf138a35ecb16cbd98",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_model.py": "f45195e6427338b87b4d8dfcc12d0abe15935537b2457001e8b829f58181f163",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_model_factory.py": "2ad9a7655bef635af33c582d58ded9592bc1e4057932b79e70e7b98137ed61c3",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_model_reading.py": "6569bd318df14bf47339b09f3c977e1a05c004e151bc701c7fd09cb050bdecf7",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_model_recovery.py": "1ca256481da5a59cbb96bddfd5883d7e8021895482c5147c910751cc57b7fdec",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py": "68d5038593670512e571de45e5112abd00c20849325825775215782e059702a7",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_query_permit.py": "23704cb43b82121d797a7de99b2f107128fdf0dc7a29f57a2756d290d9dcefc0",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_reading_review.py": "2041980ecbe6b999005e7fa49600210951666aa2f1ec124bb607207a2d615136",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_records_prepare.py": "18f34e988ea7235839c51940db496685392596b8c2e03f90beb9c8d6f69f3881",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_records_recovery.py": "f90ac4fa01d3ae9e83c2f5d89b5a0dc1e151723df1f5e317c575d12e5e228929",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_resource_budget.py": "18af82e3d19ec286c6eb21dca597af12f4ebb9edada3e1b93fd4f559c142e099",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_source_dispatcher.py": "429e8f21857b4ebc029fb07e794ff78df6c4ef3b5fc348e94d917e86360b9722",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_source_permit.py": "f6fcbce840b24092d2d2df7ba4ba31e92ec9d3af862ea2198cc4c049d9a10983",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_source_saved_pipeline.py": "84b27bf2981b83bfcff180a2d63f95bea37bee825cfaf8ddd292ae529a2019c4",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1.py": "803eeca30b47a6a17c612f4045b61478aba4c8c82d4c68a6c2e7dba7c0d97d36",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_atlas.py": "1bbf26a46c70cc10a1c8d7c11d3739fee6f4460a076707790e49cdba6c694c98",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_claims.py": "6f5fec0d42f77205bdcd5897c47435e57c1730fb6d2cd09015a31c7c7db01ee2",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_coverage.py": "3e951c179e4a2c4934182ba51848c942c0114688441c80733d067ad4fc5ee565",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "8f09693ee643f40ba0c324364dbf5447232be5c262e968dd30c93c6e7894feb9",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library.py": "32e11d98984e4c2eb8a5074f91199452741809592c6504e09fbc85b7e35dd88f",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library_http.py": "ee5bbba8e2ac70c36f11856e5eb58d2271a681884a3c1f7f08fa2fb8a19ed21a",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py": "2951f4101ac6673f303a2a0832026d8c78f715a0e648973dfab3404badb4cc94",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "bab83e94867ed523c830bcdfd23667969d9eebd6c9b88f8ebdc36432a2485704",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_saved_import.py": "914c3955073c0d58c81f4151106f79c9ea7baaf8f4b2ba95dae2089abb5d9aaf",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_sources.py": "16e29779c467533074bbd6c06307c9442e9937ac56857360d4b3f75ae6531d9a",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_http.py": "bf45a21afb4d3f14afbea37d23f07f6448138d591e3865cc55676095d565cd16",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_observation.py": "bb531a315f5aa1fada16e7c89add44e613b331487554db4625addd6e43272df6",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_service.py": "293adfcd5049638d6bb49142df72ee4ad70223c035fbd358f1fc80d1a1d6f51f",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage2.py": "5cfc19f409f600a6f6570cc0201668811b0a7968bba28edaa8fe6d9fa7143ee5",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage2_context.py": "9279925eea047201535dd8774232fa76315d4d2155028ae353fbbb28d22fa952",
+    "plugins/auto-research-agent/cli/research_workspace_native/query_execution_source.py": "1aa297e3bda6f0682011a2946ffbd3e6793fc4532190b6d38e1cc9264ea58716",
+    "plugins/auto-research-agent/cli/research_workspace_native/query_http.py": "1311573c4a88fb280aa3a8005a5f88d04d428513a7c79702c7ec295d1dfb17c0",
+    "plugins/auto-research-agent/cli/research_workspace_native/query_storage.py": "af873d8e1206013a667bdb7f2c30508c5c5db27cb41abbe562f1b2c7fad538b1",
+    "plugins/auto-research-agent/cli/research_workspace_native/README.md": "a7bf2b188e86ae96273aec77e7a1fa3cc79656296bb7ff688e6219d925a8477a",
+    "plugins/auto-research-agent/cli/research_workspace_native/recording.py": "1c26be483fdf3f8a9301b39e5efa83ddccc6bf27e20b573420f197c8e599b6cc",
+    "plugins/auto-research-agent/cli/research_workspace_native/runtime_factory.py": "6b8f1cf93dd57b384a0e61bfdfcb32c48c68e8ca5250dbd485464d9670f8d67d",
+    "plugins/auto-research-agent/cli/research_workspace_native/runtime_spec.py": "0e927959223ef12acef5775d6d3ed23403de2bbb5847209639636ad71d56b581",
+    "plugins/auto-research-agent/cli/research_workspace_native/saved_source_parser_factory.py": "080734d6a86cce105a9b99685d059547ceea2ffafec6cac1c597baeacff0c3e7",
+    "plugins/auto-research-agent/cli/research_workspace_native/saved_source_parser_runtime.py": "7f2b765e164860cc085a6b0d1476ff5fd5c3a58905f3f052a424385c700b5cdb",
+    "plugins/auto-research-agent/cli/research_workspace_native/saved_source_parser_worker.py": "b0dbcc4b3c59e7fd00142c19215d48a28a6a6b9a5c4d71e4645a563d4db787ee",
+    "plugins/auto-research-agent/cli/research_workspace_native/scope_api.py": "8a4035fd040b0ad1c3b9364eef34e52fe80779762e3481aa0acf8b80064cab0d",
+    "plugins/auto-research-agent/cli/research_workspace_native/scope_http.py": "eb8a63b9b4e187deb5e238721c6db700fc3bf533a21f8d06d1842e3ce539013d",
+    "plugins/auto-research-agent/cli/research_workspace_native/server_owner.py": "2418121ae9cf43a2010bb7570209ea1b4e702bc87cf59c80179580aa404dca64",
+    "plugins/auto-research-agent/cli/research_workspace_native/session_api.py": "008ae180fccfc168557ed451eb4a5ce2092671a9108f2d28986c74ef26f4d72d",
+    "plugins/auto-research-agent/cli/research_workspace_native/source_worker_bootstrap.py": "6b873cb90ec79172f35c655b23cbc95547d4347ee48d2aee97d51dabd25ed082",
+    "plugins/auto-research-agent/cli/research_workspace_native/source_worker_process.py": "0a60748f9c1fa87ee60cd68bc553d9816c2543d31fdeb17102bab543ed656ff8",
+    "plugins/auto-research-agent/cli/research_workspace_native/source_worker_runner.py": "d304e6422561b8e398e63bd209bfde90d6c077484d027afdbe7709885aa914d1",
+    "plugins/auto-research-agent/cli/research_workspace_native/source_worker_transport.py": "5e71af886ac441f4b5fd8921ec03d307cbfd053014cd65c53d9421007aaaa689",
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_actions.py": "34bda8d576fc5e5aab321c7fe81a0ff3e300be77728545dcc79aa3651f904143",
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_http.py": "b305a40e9f31c1bba3c38e0bdd999e72191847d03874ecb1de5f1584e308da44",
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_inputs.py": "cb672c154b0f42522f81c38ccb06b77c0930b51b36eed95b01e3a98d4ea10521",
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_model.py": "660e7dfd32fe9ac1a6d6a8fdb537fd4c6c38bcf125698119ba58a7d47a5a6242",
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_pipeline.py": "fd69134fcea569dad2e36ba2c495873e1a3f016909540897d0139c3d66f39e27",
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_run_http.py": "757376c6c463ca58c53abd40c3033f237c2124eede160fb1878c82a25602378f",
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_run_service.py": "c63ea5221f2f47d39c0a6081d762cb600117d734781dad93a35b93b4d4670b98",
+    "plugins/auto-research-agent/cli/research_workspace_native/store.py": "9abae1c2d8b91d2c7d96a4923b9ae90e17e6a1817e9fac730c530b41190035e5",
+    "plugins/auto-research-agent/cli/research_workspace_native/transcript.py": "1c5846a1996079138bb7e2321faa49d61af52395a14c00d6e6346cfbc3e900eb",
+    "plugins/auto-research-agent/cli/research_workspace_native/transport.py": "363d0b1a55ad11cb7497a8c3af70498064c003da3910a2e00d1f436611255cf1",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/atlas-host.css": "43542db649bc71b30542cc46828989ceb2c36e622adecaeca06daa95710a8938",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/atlas-host.js": "a74f38de27ef559cf42f718b4c3ad181b52bce3f389f8ab94fc164c5815a02c7",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/harness-panel.css": "d909cd19fd844ce7a841db620216471d530ebd62c2c547da215c6b443cac5982",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/harness-panel.js": "678162a33b8fac186faff914bd4e76169b9e5fd52c8dd5bc789c119776713de6",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/native-atlas-chat.js": "b7b3dcceedade8347659a67a1f0813cdb005ddf703742451f05ffc61adeed1e9",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/project-atlas-child.js": "1478255f8a38e5f4d54b5f990c6f02c7765568c90729f32fd3163b0464767d82",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/project-atlas-screening.js": "bd6c704f236d6837c08bab9ea83961a2c8c96ce38975deb9aef6f0e6f40b5839",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-atlas.js": "d2a77830d0e4dc82e803235626d13ae637c746fb69a552f01ed737a35cc5a05f",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-coverage.js": "d33dba6cd88791bf5ce0ada69ce58338f20f5e173add8c312eb6149955987a8a",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-expansions.js": "95b2bcccf517570da943a5e6b52dbd2d4b5f0905483389b09d9f8e8fcca4ae37",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-library.js": "a02ff489f5c0bcc99e3911211f205ddba4e196e18ee41842608549abbc5c9a2f",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-reading.js": "15bb47a9a3df588830b543a3a251414d3cafb2802baf3f03c8e44041a0c8a8de",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.css": "d14fae884b0af296b0884f30194927e4648d7c974d0af574f96e83fce1fd9b10",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.html": "8f4ae707aac48714f04b163f9ee643ec046d602dac9bfde6f8daac19b9d20648",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "d98b57aff550da679e27a21605ba4f24400176d443683b3ce6d2ccf91a065ede",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/session-panel.css": "1343e3e2a13142155d86b2818de9ccec2c524971c47cb60cb493b3a4e37372cf",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/session-panel.js": "dbc1b2508901988374dc5d7885dd2cf39fa8233d564b8c1fea606723c135211b",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/session-scope.css": "fb5251f7a6c8a9a11b6bfdf8a6ea1591edd0c60d29e6bdb10a5fafb3b0eb5e5a",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/session-scope.js": "2b41fc159516305675e44cf37ce1ff77250b92d96e72caa4db85a3bd3cb2e844",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/stage-panel.css": "0ef73ac1d4163cd53b0a09d1b79493bc108f44fce60672bc5e59ee76e63967d8",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/stage-panel.js": "e4cd62b66097db601d366587748bb33017b181cb0630183642aa9be2b19cff05",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/stage-query-panel.js": "90dd1e1051370727be978ca444351e0121a48e001a90bd425b4ed14418fd39a7",
+    "plugins/auto-research-agent/cli/research_workspace_native/wiki_http.py": "600f06e9fd011c31a097ac9ee51e8864b57b4964d9ef69b2e15374f73a6b0b43",
+    "plugins/auto-research-agent/cli/research_workspace_native/write_observation.py": "422a47e5c03fa600dfb997c189c500a099a9b571b4060229565c326206cc79a0",
+    "plugins/auto-research-agent/cli/research_workspace_native/__init__.py": "0a2a4a395391a3c7fd16d97cd3ff9c9d0435a67168edc18f1628ab1e05386ccf",
+    "plugins/auto-research-agent/cli/stage1_ab/admission.py": "717cb9ebc5a6991cfa30b3b3132767249a4547ffaf6da0d1c4be02a820952c84",
+    "plugins/auto-research-agent/cli/stage1_ab/capture_history.py": "a2fccabaf0b12b2ab0becaf0278881c3ef6c67b9737d2973c96e3848f5a6d340",
+    "plugins/auto-research-agent/cli/stage1_ab/capture_v31.py": "be6c4f609454bd9545649efb6355321a4e5efb514ee39ff3810145f4662afb7e",
+    "plugins/auto-research-agent/cli/stage1_ab/comparison.py": "f8ff96c69c7f176919350fa494bd408e067412fe093f6ab21cb4991d11509f0d",
+    "plugins/auto-research-agent/cli/stage1_ab/facts.py": "1e8c53f662fb1bb042d59c11de02b943e893b22120f6dcc16750deeee7ec686b",
+    "plugins/auto-research-agent/cli/stage1_ab/general.py": "5d9d3c2792f955370efafdeb6881bc3e45be112af521bff50c8eb5c131718bc8",
+    "plugins/auto-research-agent/cli/stage1_ab/general_v31.py": "4ff96ba1d6850b432c50764488dca4ba111a8758720167c1771041cf79d052aa",
+    "plugins/auto-research-agent/cli/stage1_ab/judging.py": "1b7bbe8fac5915ab99b708842c4a744a854726b7d3fe6615ded881cb1def9ef5",
+    "plugins/auto-research-agent/cli/stage1_ab/native_search.py": "a5b8d2cbec186df48046b5864d2d1bd6018bd6e8dd5e3f64a7ea41bd2dd58175",
+    "plugins/auto-research-agent/cli/stage1_ab/observer.py": "ed0df66426c9ae090cf5c1a0c5bf82ad5cb9ec1d96da075c7bae23195b643ef9",
+    "plugins/auto-research-agent/cli/stage1_ab/packet.py": "5a0a696d3e3006891e93168ca2f977a9d8dc726752cfff6142bdfd325ec752cb",
+    "plugins/auto-research-agent/cli/stage1_ab/pilot.py": "059e872d524e4d665b9edc38cdd59a176cb2950689ce9873b1168da590260263",
+    "plugins/auto-research-agent/cli/stage1_ab/README.md": "f821c405775b434e15ae0d251bc96501b62025c835f50e644a3dbd68948c308a",
+    "plugins/auto-research-agent/cli/stage1_ab/runner.py": "9a21055ab0ab51bfdaa95c9cf3422758597bf0a5200a4801ac94b1ec8ca800ff",
+    "plugins/auto-research-agent/cli/stage1_ab/sequence.py": "857142bf1cfba5275957e9c76fdbe491ef49538f05bc4516aa12264f99a4d6e6",
+    "plugins/auto-research-agent/cli/stage1_ab/vm_common.py": "20f81477ecc09845055013228472d9c7f426a70904d04b6ea4e6e5f003bd42de",
+    "plugins/auto-research-agent/cli/stage1_ab/vm_controller.py": "ba81f4b0ba83f95a10c301f1d4a1ee786a84070989801852b487b15a3e48531f",
+    "plugins/auto-research-agent/cli/stage1_ab/vm_guest.py": "a55759170b4b2dc7f2b31a925e69b6e742da85394bf3e0fa8088d1125676c5a8",
+    "plugins/auto-research-agent/cli/stage1_ab/vm_lifecycle.py": "bfda34c91c51d855ce5c79aebb2ea978369898ac058d0f4e19707879696454e4",
+    "plugins/auto-research-agent/cli/stage1_ab/vm_runtime.py": "a6e43d7b69bd7e219e56ed213b81e6ccb2a9e95c6cceebb2fdebf0c625022604",
+    "plugins/auto-research-agent/cli/stage1_ab/vm_subject.py": "9c20aba27505f278102d52684302418781a2c729fa75755dd75d36de1232828d",
+    "plugins/auto-research-agent/cli/stage1_ab/vm_transport.py": "083a63ed092af314579c168cff429a3d3afeece65e57aad98fbf697f4714d644",
+    "plugins/auto-research-agent/cli/stage1_ab/VM_TRANSPORT.zh-TW.md": "99e93e6dc856ee14dc59dd74094d1ddef89003238854d7e81528217abe4e4869",
+    "plugins/auto-research-agent/cli/stage1_ab/__init__.py": "8d6bbf2de8b4f11a9e782469d846d1c24581a0ac8d6ff25275c5d832147e3e6c",
+    "plugins/auto-research-agent/cli/stage1_ab/__main__.py": "598d6a759f291fd41edf2b831ccb50f8ab6626be27f68b8471169d8ab3832864",
+    "plugins/auto-research-agent/cli/stage1_brief/brief.py": "c10c39db766811519c30024b67fe0341ad11edcc17a6d075d44e6d6c3aad12ae",
+    "plugins/auto-research-agent/cli/stage1_brief/formal_target.py": "b404319b3291eef6fe6f20c03f637d8d8cb7f9323d8f3ae466eb10640206b137",
+    "plugins/auto-research-agent/cli/stage1_brief/__init__.py": "9b2d9ce43164abeb466a1917edc472e4b685bfd0e47da65a1e58fa2d380ebca7",
+    "plugins/auto-research-agent/cli/stage1_brief/__main__.py": "cb39f4a3e4d1b0008fed3bd2ea23cf81e5100e3a060ea99e39d7d7f0108cc9eb",
+    "plugins/auto-research-agent/cli/stage1_core/assessment.py": "4c0215be9a6d642d4f58a5e035d082345f7175f112a0e12e53c3d6c15d4e30f2",
+    "plugins/auto-research-agent/cli/stage1_core/__init__.py": "3167e76c062908eb9212c601fe6be75ad61a66a0a467bc2c72c1b209ee3af45f",
+    "plugins/auto-research-agent/cli/stage1_core/__main__.py": "877444993f45ee654c2dd2a560b1839e7ebd2d53d356da6714f8bb3783fc922c",
+    "plugins/auto-research-agent/cli/stage1_coverage/evidence.py": "4239ecf4be4f768e843c718a2a861a0abd4f55ccc7bc367cd6decfed95280cb5",
+    "plugins/auto-research-agent/cli/stage1_coverage/plan.py": "34237e282acc5222adce4345eb30e95f81eecae322ce1e6b4822124efff2ff48",
+    "plugins/auto-research-agent/cli/stage1_coverage/policy.py": "10548f928a362b624419917302a93f83389c8aa4a1e1def9589c3fe733fb847f",
+    "plugins/auto-research-agent/cli/stage1_coverage/rounds.py": "b81202a2c71799fba5e1f4b5fd4c1232c1ba58d1c773b2d4fd38f6ecf50bf68b",
+    "plugins/auto-research-agent/cli/stage1_coverage/run.py": "a353800122f562e2e63df9ec5afa37b1efe0a1e09aafc7f2dce6dfaf17781cea",
+    "plugins/auto-research-agent/cli/stage1_coverage/__init__.py": "f65a124973b51fad921c0140d2ba63189d9014c780d63cae64c979ce23ea17c6",
+    "plugins/auto-research-agent/cli/stage1_coverage/__main__.py": "785f5190086629c64edf3628ee858ba42dffad7dd0b3bdba24f3aacbd3c2712d",
+    "plugins/auto-research-agent/cli/stage1_deliverable/common.py": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106",
+    "plugins/auto-research-agent/cli/stage1_deliverable/core_records.py": "3f143aa8f196a51e684a5dfaeef55c0f70804ba5109f7306da7c342b07d5d4a3",
+    "plugins/auto-research-agent/cli/stage1_deliverable/package.py": "b74909f20ae65e9763c4172a4ada4e6d215b7b868d8c8b665241fa0282b6d5a6",
+    "plugins/auto-research-agent/cli/stage1_deliverable/README.md": "66c5e4cfc99ee8f34ac4cca22d12d97ad6779da4a61a7fd38a02776effd2d55f",
+    "plugins/auto-research-agent/cli/stage1_deliverable/records.py": "7fac34d8455d8d5f02b06f43defea20f8cce13ed3734777d579f2713b64d66b6",
+    "plugins/auto-research-agent/cli/stage1_deliverable/screening_records.py": "056ab24a18e3a9e2eb6ece7245613eaf55f3b0e4649ba12ca2f9e6960a0c5fb7",
+    "plugins/auto-research-agent/cli/stage1_deliverable/sources.py": "c6acdfa67ee96ef70f75c55895c5a546447218eb860ceb5e9339a235452eb754",
+    "plugins/auto-research-agent/cli/stage1_deliverable/views.py": "efb99f81c0a50f2a46b1dbba5d5b4a8894b5cf3aec50e61ff657b4599218002b",
+    "plugins/auto-research-agent/cli/stage1_deliverable/__init__.py": "0c48dc4eef341d65ed77136dee64853f148a5172f59fd4861b72042d6c38edae",
+    "plugins/auto-research-agent/cli/stage1_deliverable/__main__.py": "7258562fad7d7a1d92b88936061d020c2ba88e29fcffce5f73e05e6ad1605e73",
+    "plugins/auto-research-agent/cli/stage1_eval/adapter.py": "3b0ead09d2022235c2bfc0c9a6e65a7042a0bbc6656af1073ce81bb35d280e9f",
+    "plugins/auto-research-agent/cli/stage1_eval/audit_source_evidence.py": "94b7fd81de2c15eca88219e96473a45238858a9342d5f70bdfdad1331a4fa5d1",
+    "plugins/auto-research-agent/cli/stage1_eval/collector.py": "c7f0c1e94d80597a93976b805b768eb23e37c3376229316113c355d2f6e7c2e7",
+    "plugins/auto-research-agent/cli/stage1_eval/common.py": "1fbeb680a80fa7e96499fd16fedc52ad1f85b4b7fdc08343fbafe7a7ce0ca1a8",
+    "plugins/auto-research-agent/cli/stage1_eval/complete_judging.py": "592b565e2ec951d296ab103af26cb715ff7d7645bce0b65dc71e9367456547f1",
+    "plugins/auto-research-agent/cli/stage1_eval/coverage_plan.py": "dcbcc67e268c9151bce4c09637979abfdd110798c1b71e5f9fdab485870eb6ba",
+    "plugins/auto-research-agent/cli/stage1_eval/criterion_execution.py": "abd10b9ca480bcf15af98d81010530ae9fcafa2573908c96c0a4e67bd5595f2e",
+    "plugins/auto-research-agent/cli/stage1_eval/extraction_v31.py": "edbd127b94111a0433f36bd3b2d5b5894390fd8375a4ce5b8d9194643e9b565d",
+    "plugins/auto-research-agent/cli/stage1_eval/formal.py": "10fbac85ab0726780c17f91c48e011143895ebe8712c9fe1abddba5617588c29",
+    "plugins/auto-research-agent/cli/stage1_eval/judge_views_v31.py": "be7b50efdb01125ec1803e0ccd21002e5d3f643072a154d645117dd5c264e30a",
+    "plugins/auto-research-agent/cli/stage1_eval/judging.py": "df7f3e8a5dfe3240dc559c84307f3d0072cecc73526bc517535cbf8546899386",
+    "plugins/auto-research-agent/cli/stage1_eval/judging_v31.py": "b912e14abd0c3ef8cacd7e2175bd7dca7b117880b6503a7d4c3dc905b0503c54",
+    "plugins/auto-research-agent/cli/stage1_eval/model.py": "eb49a1e4aba592a3b86278952048cc8cd78d73205aa3d1670341a304a19b659d",
+    "plugins/auto-research-agent/cli/stage1_eval/model_calls.py": "9f0d3cc1b2d3bef382957e95e1443556e4f422a2ea1973f1740fb1eee1ec916f",
+    "plugins/auto-research-agent/cli/stage1_eval/original_fields.py": "a9b5fe5bda8c54393fd9ae1ae4025f6f7da66ce275ada43dddd1249e776e5f0b",
+    "plugins/auto-research-agent/cli/stage1_eval/pipeline_v31.py": "d70ac9b7626a6651e89eac70742c57ea272f9ae86a08ff95d903d3f0eecb3cb7",
+    "plugins/auto-research-agent/cli/stage1_eval/prompt_transport.py": "fe029435ef9b0ccce601449295acfa08cb5d65550e0ff9dcd9488ba7a0a71296",
+    "plugins/auto-research-agent/cli/stage1_eval/reason_recovery.py": "0fbbc74f4d16f49f44fe24a675676f32f2cf3f9f68f27c6de9d0c5c995fcf419",
+    "plugins/auto-research-agent/cli/stage1_eval/requirements.py": "27325fd0b575bb938572b34ec7e32488cbd0dd18e6e03693a3af964b51b6574c",
+    "plugins/auto-research-agent/cli/stage1_eval/runtime.py": "df9102a49a96e3f4817be940fbc09b3b9ed57eb3fccfc9872884de8f60a53423",
+    "plugins/auto-research-agent/cli/stage1_eval/score.py": "c4fc90c318d292e499eabb57f9da8f3f35c38a2acd7cff1c2d730ec3244b0ee0",
+    "plugins/auto-research-agent/cli/stage1_eval/sources_v31.py": "e596c77ac2322c2b9d4629f84c9ed6fcbb5a85d436a7b5d5758817e7bcf04a96",
+    "plugins/auto-research-agent/cli/stage1_eval/source_audit_units.py": "d728a56599f14dfad39296eba345da0536c65ffd398d959b70a8210a5a3ab511",
+    "plugins/auto-research-agent/cli/stage1_eval/source_audit_views.py": "0c3a894578f0dc92a043fe9e722ebd95e6bc2fa27e6197c4c47472b5009fac88",
+    "plugins/auto-research-agent/cli/stage1_eval/source_replay.py": "f58baea4cecc4333332bff770dc5bfdf0f4fa84f5daf9a320f0c356f94b1ed8b",
+    "plugins/auto-research-agent/cli/stage1_eval/source_runtime.py": "01e0750cdb64dd4c899f0495068c0408ca00d3020c22c626cf40cbbc6ccf1053",
+    "plugins/auto-research-agent/cli/stage1_eval/spans.py": "03cc3a106ce2267a439615784f9c26a3bcb2d8c5c6f152597f953c56606bc4bb",
+    "plugins/auto-research-agent/cli/stage1_eval/units.py": "bdca1010f9997cafc9759636d65cfed7cde43ad2a678b5724c1ee1c80fd133ee",
+    "plugins/auto-research-agent/cli/stage1_eval/__init__.py": "4d681984bdebedbb343df8f87e0acc4aeb4c241390545b976ef1a283581d68b0",
+    "plugins/auto-research-agent/cli/stage1_eval/__main__.py": "c280fb584939223f6d23c9243d67ab4005c75ead450300ad318ef3c2dfc5c51d",
+    "plugins/auto-research-agent/cli/stage1_export/bundle.py": "9c798be23a7181ca40844425af71444a42f83397a3ef9bcb9d85411077fea694",
+    "plugins/auto-research-agent/cli/stage1_export/contracts.py": "28c9e0ca7cb6efa5a24ea38d32904fbca7cc17d8c938f6ef3ef20fd68402a9f1",
+    "plugins/auto-research-agent/cli/stage1_export/derive.py": "cfa8e2f215872fe807860af38c6ccf2a70ef510a5517728b176445c5ff3fc1ec",
+    "plugins/auto-research-agent/cli/stage1_export/native.py": "63ac93d33080122defcc9bee1414b7d9569b4bcdc03999f856dd192e7c50bc56",
+    "plugins/auto-research-agent/cli/stage1_export/__init__.py": "4686dd3cf1e3528d45c2ca8a4fc0f735a93abb4c3d5fffb68b699077baf140dc",
+    "plugins/auto-research-agent/cli/stage1_export/__main__.py": "ec532b38ae1b2caf857681cb6f31fd802f72c0ab9a6ec7381cf1579f57c6f6c4",
+    "plugins/auto-research-agent/cli/stage1_ledger/bindings.py": "192eb932d8268a5589da03c188afbf8c197d8460bf983743139d8a53831b9519",
+    "plugins/auto-research-agent/cli/stage1_ledger/contracts.py": "cfb1b9016e0a710b942ca32766809511f44ce51e6867604d7299bda9581dbe28",
+    "plugins/auto-research-agent/cli/stage1_ledger/coverage_view.py": "e48cd0d5978f2d46a78c35ab373668d99cf7f0ba5b028bfe012cd07e0aa3c78d",
+    "plugins/auto-research-agent/cli/stage1_ledger/handoff.py": "ffda595e080bf35f83f4dc25cbe2164a5f19338fdd5183722bbb2055805ddad6",
+    "plugins/auto-research-agent/cli/stage1_ledger/identity.py": "d08247cc528d6c98e5d79f1470301bdd0664ab31df2fb62fb37be3d3e00e7dbc",
+    "plugins/auto-research-agent/cli/stage1_ledger/journal.py": "3ac9d127d84a20baaf6919414e8c5f81927b05c3d9068d1636d8470f61c69cde",
+    "plugins/auto-research-agent/cli/stage1_ledger/readiness.py": "e2c7ecc9abb149215b9ce8eee512df1867d129b134cfa144a9b87c06372037d6",
+    "plugins/auto-research-agent/cli/stage1_ledger/README.md": "277e79b69daeb31852172a2eaffd77e291aa372375ebe846e0a45dbd15cbc873",
+    "plugins/auto-research-agent/cli/stage1_ledger/semantics.py": "775da7cc365bf1f1dc0d6417458108db07f0cdde7656a2e4746190d314f04b21",
+    "plugins/auto-research-agent/cli/stage1_ledger/sources.py": "635346ceaa91523b7eda8bf251e7a6e36cbcba90508ae9e892190b3eb72bcd1e",
+    "plugins/auto-research-agent/cli/stage1_ledger/source_arguments.py": "448f0a6492e5ec5f58d9e0a946ff4105ef860cf0df897a0a9fa3e4ea3587be09",
+    "plugins/auto-research-agent/cli/stage1_ledger/store.py": "823d00b9b398ff519f58ef1a3632edc7b65c502207b60316bb377bc94f450244",
+    "plugins/auto-research-agent/cli/stage1_ledger/validation.py": "e912b1fa950be129c79ddeec5468468b3caf4c04100db7f36f803f425ce74919",
+    "plugins/auto-research-agent/cli/stage1_ledger/verification.py": "c6b52da197f471572dcf25487b031dbf7265d71d250c1f29dbf085e42f106202",
+    "plugins/auto-research-agent/cli/stage1_ledger/__init__.py": "a4ab2b4d0973867d2c554105d97df55d26e815aab903ffdb39bbd28783b4555f",
+    "plugins/auto-research-agent/cli/stage1_ledger/__main__.py": "e8a7cedd226e7dd51a4888dd9b0a3f23b4fc67960421473a48b7a1b51b300ef8",
+    "plugins/auto-research-agent/cli/stage1_operator/offline_replay.py": "91896bcb46d3e9d62a391ffe882a968e9b1dedb74e3166c75fab2693a6b97a8e",
+    "plugins/auto-research-agent/cli/stage1_operator/README.md": "0cabf216db31ad3e96043e1455d0bade8b145afbd531a0b78643a21faf9af23d",
+    "plugins/auto-research-agent/cli/stage1_operator/scheduler.py": "505bb82211c14c83ef4104ae18eedaa1dfd45056d7f1a3396c3b8891e924d466",
+    "plugins/auto-research-agent/cli/stage1_operator/__init__.py": "f4e1ad10880e3d25158140694f9734899ec7c184a2e0bcdf4d7e1ab1bd2f711d",
+    "plugins/auto-research-agent/cli/stage1_operator/__main__.py": "650a90743f7d83d5e185d53c98de40aaede9f921b74661e61ab81496be76caec",
+    "plugins/auto-research-agent/cli/stage1_retrieval/audit.py": "8bbe1f1680cecc64472bddb50aa482abff013fc3d693198cae590c204c85b195",
+    "plugins/auto-research-agent/cli/stage1_retrieval/projection.py": "295b68dda624c7668645a9bd8be40e0d38f81ca2f2c4347d6ac2719bcd429867",
+    "plugins/auto-research-agent/cli/stage1_retrieval/receipt.py": "8a0123d1e2c4298e9044c653b329a4fde676a58df56c2f6f4003cd89d7304d90",
+    "plugins/auto-research-agent/cli/stage1_retrieval/runner.py": "4112a403d2c181210d98128fb5a11555ff225aa784cdd4f012dbab3e05251b70",
+    "plugins/auto-research-agent/cli/stage1_retrieval/runtime_identity.py": "da4ee52b8922539039494c1b9683ed8e0516ae9ff9c405d64c3cddd164f1415f",
+    "plugins/auto-research-agent/cli/stage1_retrieval/__init__.py": "da00352e857ea3c00be43d72a68e7ff56791cf93af270ba393dc21e40a055cf2",
+    "plugins/auto-research-agent/cli/stage1_retrieval/__main__.py": "d05e9c0ac674480879df4cc8cda2e61b656a3e0c54a23c76c50caf96e1338435",
+    "plugins/auto-research-agent/cli/stage2_check/bibliography.py": "c677841090399d0c9d7ee45f78a7795ac72c05cc0cc816241576c71d8f3ccfb7",
+    "plugins/auto-research-agent/cli/stage2_check/contracts.py": "a5aefce22c1a995b0c7c3c02849766b59f075feecf2dbe27938cd93c94685416",
+    "plugins/auto-research-agent/cli/stage2_check/report.py": "168d6723c501c3a21fc93943257fd37798ff1e3e86d273f409c024fcafe4f720",
+    "plugins/auto-research-agent/cli/stage2_check/report_evaluation.py": "5c00944e5bd098139ff6253f6814a30f667ca28d23a5e87687d07b1cdad74586",
+    "plugins/auto-research-agent/cli/stage2_check/report_html.py": "7b00d12bd36181773cd253661d364e785368d7318d3af8a9007d3e46eac80fed",
+    "plugins/auto-research-agent/cli/stage2_check/run.py": "2b1f6cca7987cda238962a5468b3f3bab15bc5b608cd0e4f596fca958eb07d04",
+    "plugins/auto-research-agent/cli/stage2_check/__init__.py": "c32d5a563efcc246267014a29f45e86b403bb66d1c8430eca2798a0be559aa33",
+    "plugins/auto-research-agent/cli/stage2_check/__main__.py": "4e12a679036fd5522aff73398cfde0d3b97d0b232cecbec6fb447ba2c46a713f",
+    "plugins/auto-research-agent/cli/stage2_common/contract.py": "f75ce89e4ea6fc2147e01893b86432a1ddd3ca87763a69fff5c0d9be00bfd064",
+    "plugins/auto-research-agent/cli/stage2_common/prior_work.py": "525981a598ec895db5fe55c0280011408e1215e59c6d2262265e67ca1bdb6d64",
+    "plugins/auto-research-agent/cli/stage2_common/__init__.py": "6c261a9235fde1d951c529990ef0a2bd8d7d6428c9bc84de4b2bfa95a8dc5718",
+    "plugins/auto-research-agent/cli/stage2_eval/diagnostics.py": "14480ed525bcf46f14f1973c94636dcb00841dd050fdb5dce9f3a944ba1f03c3",
+    "plugins/auto-research-agent/cli/stage2_eval/evaluation.py": "f89289a15c24da9ea32ada266ca3de8b7e94180b023a80739c36bcfc52015755",
+    "plugins/auto-research-agent/cli/stage2_eval/evaluation_v3.py": "3d5f417db772a6960197aca4c2db5ce0f4c97df747f408b0d870d0bfdbab37c4",
+    "plugins/auto-research-agent/cli/stage2_eval/formal.py": "9e0b27aa5d3393209171acb207edcc530accfb8e03824399710daa7bfd5b750b",
+    "plugins/auto-research-agent/cli/stage2_eval/formal_admission_v3.py": "f51082d21d966296e41304f04bd53bd3ebd57c4312dbfd56624e7e4bcc3338b7",
+    "plugins/auto-research-agent/cli/stage2_eval/formal_v3.py": "28e4c28fc2132a36582955dfbad175797b9cf06829f5f618c899f8dc7edc3dc0",
+    "plugins/auto-research-agent/cli/stage2_eval/rubric_admission.py": "3412628cf5209af665da9d59cdcf43f7e912208c25d3254bd4a155d198932ee2",
+    "plugins/auto-research-agent/cli/stage2_eval/rubric_quality.py": "33d869c1e054d37a70e0e86aec7b00afc0d7bdfd9863be6eacfaef0feaeea6e9",
+    "plugins/auto-research-agent/cli/stage2_eval/rubric_quality_v3.py": "7ee36119ea815efc5ff2faab5244610114fa2a92597e7856f3b0dd2841a117b7",
+    "plugins/auto-research-agent/cli/stage2_eval/source_context.py": "c7a2561cef8de67199b9b3b25e012de6f1353972d0fa03b43a37d7ed096bf92b",
+    "plugins/auto-research-agent/cli/stage2_eval/source_context_quality.py": "3866c729b3c1519becbaa54f8798042d07a83b20827135c4fb44696f0b42fa23",
+    "plugins/auto-research-agent/cli/stage2_eval/__init__.py": "809ab9c804c52a2f7223af2a4bf7989849ea713cbdb267f68131a8afa44dadb4",
+    "plugins/auto-research-agent/cli/stage2_eval/__main__.py": "7afef4e052b0afa9200641858e588a0e1aaddedd72014fadc75ebfcd3c57e4f3",
+    "plugins/auto-research-agent/cli/stage2_ideation/extraction.py": "dea44c0ea8b011bdfaa74d00eee1845d469990d26e00eca00171adaf93562e9c",
+    "plugins/auto-research-agent/cli/stage2_ideation/integration.py": "cd04286984de9c7741a3e9217ccef08c6bf3ab9d62af4db01b5a1ad16123c854",
+    "plugins/auto-research-agent/cli/stage2_ideation/prompts.py": "2460ec6464b51226167ea8858c32ae1b17a27dc1e92605ade7bf2b195b6ab222",
+    "plugins/auto-research-agent/cli/stage2_ideation/report.py": "20958875901a09e91d21a9eaf962c82295225142d3f79e7f530bfee0aa58729d",
+    "plugins/auto-research-agent/cli/stage2_ideation/schema.py": "0ca2ded00e80c2ee21244a0b1dff39bdf28be6019b0d062d0c0269e444c741dc",
+    "plugins/auto-research-agent/cli/stage2_ideation/tables_report.py": "c4c9deaff83210ffd47cf033b5fbc6fe2d42a96c61cb78e65c1b46989ece5812",
+    "plugins/auto-research-agent/cli/stage2_ideation/topic_tables.py": "cf755f0b2c4e03dd5b656703f59906cadda56dbde6b499f71301e34a7a6e2fb4",
+    "plugins/auto-research-agent/cli/stage2_ideation/__init__.py": "e866418b0cfb634c41c07a6108a67055c0d0c09c89c7bca67c27bc83821b8d0c",
+    "plugins/auto-research-agent/cli/stage2_ideation/__main__.py": "09f0e2bf27432dec96cde160c2670ec3b9f3fc2b0228b8f7e58b2e737b866892",
+    "plugins/auto-research-agent/cli/stage2_live/action_extraction.py": "7ccba28f4837d139d8d5199c2c2ef3b9112c4b919773aa4a14fad7fdcec7dc6c",
+    "plugins/auto-research-agent/cli/stage2_live/assessment_target_policy.py": "e3ef3fa27d64d7743ad9df1dbb576cda32400178d311e1f09be67e4c504561fe",
+    "plugins/auto-research-agent/cli/stage2_live/calibration.py": "817edb148abb22889c06e4e5116edf5f242147acd4dca5223e6109c5e7e1e05c",
+    "plugins/auto-research-agent/cli/stage2_live/codemode.py": "4adc2979cbf857ae460294856321089d0938ef2b7637e51edd0055318e80f5fa",
+    "plugins/auto-research-agent/cli/stage2_live/content_revision.py": "638430bf746daa48c481a40708ffdfac2c497b334501039aea8931477c6e9df1",
+    "plugins/auto-research-agent/cli/stage2_live/context_quality_replay.py": "03f359b2d213c78191caa939256b6f4e222b7f5b0ff3d46be88a9a0ef71723db",
+    "plugins/auto-research-agent/cli/stage2_live/context_quality_v3.py": "af3811e1831208301c43061c66d09df572d7ea9a6872460c32f0de5eb563c625",
+    "plugins/auto-research-agent/cli/stage2_live/controller.py": "da8e732107f8fc0b4a8640d13135146d485d36f8562c5bbc8c7ee69fff4948d3",
+    "plugins/auto-research-agent/cli/stage2_live/controller_no_tool.py": "947f7c691be9bb62cf6cc2c39d15f563368626fa2b65788f618d0a4f708a8717",
+    "plugins/auto-research-agent/cli/stage2_live/daily_replay_v3.py": "f680095a25ea18a9a35e269628269e55465c18bb0045acb2872c4a017b2f1d4f",
+    "plugins/auto-research-agent/cli/stage2_live/daily_v3.py": "da7bdb321890e530b1ebdff477bff14c2283bd38029aacdfad594c980dfeeba3",
+    "plugins/auto-research-agent/cli/stage2_live/environment.py": "3c040bb581d190cae773084f1bce97877a9f34d1c6dfa64d7fe977c00b9522a5",
+    "plugins/auto-research-agent/cli/stage2_live/execution_inventory.py": "fb1a92361b86ebc97c1339e9df93e0f3f678ae46b84b206a9b8bd77027185f51",
+    "plugins/auto-research-agent/cli/stage2_live/extraction.py": "1fe13d52152309ea4d9159b0418c4ffdddd795a005f74ceed8960588de87616f",
+    "plugins/auto-research-agent/cli/stage2_live/historical_verifier.py": "64b4afe11dbfc06f5776295cef347a759cb374a88784880ca5f7168e2d80d488",
+    "plugins/auto-research-agent/cli/stage2_live/judges.py": "42670670b6686d95684b38c7cab559709fd15548d44e241774d96c48b3298efe",
+    "plugins/auto-research-agent/cli/stage2_live/judge_replay.py": "1092d8ed03304372ffabb6120e269b235b0bfaefd3cec5ce2b8dc8847a4c6eaa",
+    "plugins/auto-research-agent/cli/stage2_live/judge_schemas.py": "18f7d3fbfdea92fdce1d4b0f8f4ee8a358701ea6be04e31f666c7d317d508e85",
+    "plugins/auto-research-agent/cli/stage2_live/judge_trace_replay.py": "32799fa67512533f44388c7990d2da3483ca4f8c6be6ec4535c7846bdde01605",
+    "plugins/auto-research-agent/cli/stage2_live/judge_worker.py": "b646102c412e90896591f5eb07eb888dd1131de60009b8cf2b506ae4049c01f4",
+    "plugins/auto-research-agent/cli/stage2_live/native.py": "2e49d1e310b0c0f0093a313fd097c810dc3b9c59050b6779d31e2fdaf408a704",
+    "plugins/auto-research-agent/cli/stage2_live/native_namespace.py": "911838d027fdd4eb7617a288780075356f20c3ff4d2028359bb638ca8f34244c",
+    "plugins/auto-research-agent/cli/stage2_live/native_policy.py": "9b93bf14217242f4b05d8cb0cd1dbb67e24652a910f85943ad78069f60db51ef",
+    "plugins/auto-research-agent/cli/stage2_live/native_process.py": "7612f2a643b702b94919d8f8cc85f1939842656c663e9b1ce55eacbdc76b50d9",
+    "plugins/auto-research-agent/cli/stage2_live/native_proposal.py": "86a4847414b95cd5c99e6721eec436c0b8a50ce588f41408ad502b294bc5117d",
+    "plugins/auto-research-agent/cli/stage2_live/no_execution_trace_evidence.py": "6fa2ae1194320ffadb4fa984b4a3a1b9a333ae54574c8bea4f727e9403916de2",
+    "plugins/auto-research-agent/cli/stage2_live/no_tool_call.py": "9d430f63b7184d6f0dba85e093c9b0c2b91b08f1639c802bde143f408ea01efe",
+    "plugins/auto-research-agent/cli/stage2_live/no_tool_trace_capture.py": "84202f3a37ab9ec4528de8327839733c85304cc3a2bbe6c9e1dab3e7830166a3",
+    "plugins/auto-research-agent/cli/stage2_live/no_tool_trace_evidence.py": "144ffe67f3c5a86c335ac847224a07a95678fb93965ce30d7aa91240d51b3bc4",
+    "plugins/auto-research-agent/cli/stage2_live/observation.py": "b4c497b700d8090db24f4f10d84e34109fbe84227e1d89fb0fc191783170f445",
+    "plugins/auto-research-agent/cli/stage2_live/observed_action.py": "537fc8f0e3c51fce9c0298a712de884829c6c42cc191c4ea95d71a1b716bfe61",
+    "plugins/auto-research-agent/cli/stage2_live/preflight.py": "6cda850c9b800ee2b78f02a98badd41ab29aa67221920959c61b97c29eab3704",
+    "plugins/auto-research-agent/cli/stage2_live/preflight_native_witnesses.py": "8c800df0d05bb524e91d0d5e8c2e136be0ca678448121b74b6f58de271c433df",
+    "plugins/auto-research-agent/cli/stage2_live/preflight_observed.py": "0d41fdaf33c28f087622baaeeebde7ad8c009d4db1720192d17153015277db36",
+    "plugins/auto-research-agent/cli/stage2_live/preflight_trace_witnesses.py": "68acd2592f487459f01757dd67899f62b20d80da49063da501a886027e6f6ac0",
+    "plugins/auto-research-agent/cli/stage2_live/producer_replay.py": "db3cca0979e066fe4a81dc856033e66a78584558f9cae45a61aa60141211fbff",
+    "plugins/auto-research-agent/cli/stage2_live/profile.py": "09a15f6c249382b995fe20a440f5124798471d6cf3b864ebe244a71aa874d010",
+    "plugins/auto-research-agent/cli/stage2_live/replay.py": "680fd67eb107bca0a09689f344b09638fe1def2400d8f828d81db9b7fb97b362",
+    "plugins/auto-research-agent/cli/stage2_live/research_followups.py": "75a7028706e991a614f1aa57bbcf7941626adb117f0be92280f7584808d8fb6f",
+    "plugins/auto-research-agent/cli/stage2_live/review_models.py": "966c051623414d486310531f4a5db3d3ccc8855b7aeba24488731e070be465b9",
+    "plugins/auto-research-agent/cli/stage2_live/review_pre_dispatch.py": "ea455ad5cd9b6fbb0c0307a4241b295385685a4e737b2b8131deaae4e5a0ebdf",
+    "plugins/auto-research-agent/cli/stage2_live/review_recovery.py": "5a6992939d68ad58031c281ff502cc63374d8a29958e88eba9c1e3577fe2824c",
+    "plugins/auto-research-agent/cli/stage2_live/rubric_adjudication.py": "8e93cc0f4fdc1c7e2b8d4388ed743394c3bbc0537b83d4ce0b7e5737d51ae6cf",
+    "plugins/auto-research-agent/cli/stage2_live/rubric_quality.py": "930c1422389737b2c17b48ae1c149ffb0e9aa3c3e167713413ba47a192ee728a",
+    "plugins/auto-research-agent/cli/stage2_live/rubric_quality_v3.py": "95403e1cd12d310f80a15f12e41769d925efbed92cfa2709756c8483f187dece",
+    "plugins/auto-research-agent/cli/stage2_live/session_selection.py": "8620fe75ff2229a8f532032d94bbaa1156dab9dfc1b7dd1eaedcdf9a368e40a4",
+    "plugins/auto-research-agent/cli/stage2_live/source_updates.py": "dfc6aecbef0e6e6ba2c6f9fc6b2b42d052a55d8a30b97da612c786455b7d9663",
+    "plugins/auto-research-agent/cli/stage2_live/trace_capture.py": "e3ecf9eb21ba2c1defe68655994625ff02fafe6ab2bd0497faf36c374f8f9710",
+    "plugins/auto-research-agent/cli/stage2_live/trace_compaction.py": "f541917deed2bc361ff5b39bdca52106c470d7c4ea3e248ec55f286f54f5026f",
+    "plugins/auto-research-agent/cli/stage2_live/trace_files.py": "9ec4c2861779aae2875bd31ef1956d8b3b7b1e8477c1a9445efc12d691ef1a1c",
+    "plugins/auto-research-agent/cli/stage2_live/trace_handles.py": "ddb29b93dea2fbf36146903eb78b8c65985c8505b8392fe0711300fcef8bff46",
+    "plugins/auto-research-agent/cli/stage2_live/trace_observation.py": "fec21af13133463dd006582d97ff8d90b2df391b8eebda45610b284d70d2ef9b",
+    "plugins/auto-research-agent/cli/stage2_live/trace_parsing.py": "e8ff441c46fd79ba85cc96cf6dafd22c07b02b4be42c503ea8309deb0206893e",
+    "plugins/auto-research-agent/cli/stage2_live/trace_producer.py": "bf4885e37c24e442386dd3220e8b9bf74cc2f43da88681b9a35e2b62806f61e1",
+    "plugins/auto-research-agent/cli/stage2_live/trace_seal_io.py": "d9c2562063ef3904ed4d97bf37d59b29b1e92641e662b3dff699aa541187f4cd",
+    "plugins/auto-research-agent/cli/stage2_live/v3_replay.py": "0880c51b473fa68392b26e8a71b5f5e642897d0f76ec5f7e4e6f93015046d046",
+    "plugins/auto-research-agent/cli/stage2_live/workspace_admission.py": "209431157ce2c2f9ec4f1fd31c38719ab4e84356ec3f7681415ab98b342f864b",
+    "plugins/auto-research-agent/cli/stage2_live/__init__.py": "35a7ef4faa1f3e0b0b0750add535f284411fd5062410797140f00c812f80f995",
+    "plugins/auto-research-agent/cli/stage2_live/__main__.py": "c61f93bd57cfb4b5bb1010bd926ef6d008c8d1f4954e7fa015b8536d145e4220",
+    "plugins/auto-research-agent/cli/stage2_workflow/completion.py": "c923b85b7b82b659515f8703b7e12f77ddf415d66e0155a29a4923f7da40ec86",
+    "plugins/auto-research-agent/cli/stage2_workflow/content_gate.py": "4de8b107e6e6e99697c34302f1bd0c81c0abf7ac2d1ca6f0f02c596d242faf69",
+    "plugins/auto-research-agent/cli/stage2_workflow/delivery.py": "860388e10a7fd2e95fb1e61a29ea91a5e41d474f5d890012ee8800eb8ab125b1",
+    "plugins/auto-research-agent/cli/stage2_workflow/evaluation_delivery.py": "37002f3dd4e95dd75ad71ca84db78f98378f1fc49b8065cadbe076df87d7aabf",
+    "plugins/auto-research-agent/cli/stage2_workflow/exploratory.py": "39783ba89b45e01b5822f673562fa70d3567dad1418645185be68b590bf4ab57",
+    "plugins/auto-research-agent/cli/stage2_workflow/imported_history.py": "4067a9571a656a54ea51275962f2536cf788b2851148f6eb916a43be779006d0",
+    "plugins/auto-research-agent/cli/stage2_workflow/import_stage1.py": "9e0184050edad80aa12d171726230ee420f16c3532fd530a94517de6167f7319",
+    "plugins/auto-research-agent/cli/stage2_workflow/interaction.py": "3f613dd07f9297de8eda97d855e576cf1106efbe5f3e238dbf3522a7f723098a",
+    "plugins/auto-research-agent/cli/stage2_workflow/orchestration.py": "cc6f60f216d03f7e3faf6c7a63a4a2a6ea710fcf275b327de8050ee4b7dfc6a7",
+    "plugins/auto-research-agent/cli/stage2_workflow/planning_handoff.py": "2723628ae5fe594896181c3562fad85d9f522edc4bb507d8b64a3ea2a81a5d4a",
+    "plugins/auto-research-agent/cli/stage2_workflow/prerequisites.py": "24981e06de72afc4ecce72b4b618b57368ce877a8fd649b740ce59038adacd32",
+    "plugins/auto-research-agent/cli/stage2_workflow/quality_guards.py": "634b904465e9b4ffa4dbaa2d2061f9aaf20809ab4c261fdd91e2f61745af7a12",
+    "plugins/auto-research-agent/cli/stage2_workflow/registered_history.py": "94182c10dd4b3cbcab9aa69f8b1cdf9e47aef4f0c8ca64cc85f54a298a7b84d6",
+    "plugins/auto-research-agent/cli/stage2_workflow/reviews.py": "8ca2a07fba4f968138ae47754ee5a0c5f29f90ff832a65c0c4503842e163040a",
+    "plugins/auto-research-agent/cli/stage2_workflow/revision_provenance.py": "18fd1f2b0e6daadfc4ec13a729744a0f0226af26b381e6d88c6bcccfba8141f9",
+    "plugins/auto-research-agent/cli/stage2_workflow/store.py": "467fd4d4691fdba8e6d89938e5d8f0ee37565ea4bfb3368d36c9d60e8ffbc291",
+    "plugins/auto-research-agent/cli/stage2_workflow/__init__.py": "e8002a42d7ee6f89aab1c047935a69dc15b1649e18a5d937a6497294029e3391",
+    "plugins/auto-research-agent/cli/stage2_workflow/__main__.py": "d8263951bf69edb83be89d222ff120606cac3ceea460a849f463e86afd4313b6",
+    "plugins/auto-research-agent/schemas/core-assessment.v1.schema.json": "03704e86d8b84a067840c6e317e2c6920c00f0e0c90556d1a4be9f20092f178d",
+    "plugins/auto-research-agent/schemas/research-hub-audit.v1.schema.json": "0ae5f3a26f8e9fea99d875fb805d2e51993f7c4e866cef842daaf44cb7f1f6e4",
+    "plugins/auto-research-agent/schemas/stage-contracts.v1.schema.json": "01c220d1f235e4362249e0d692ebe8c50dab5757eb5509929ef771a4d44d8a4c",
+    "plugins/auto-research-agent/schemas/stage1-coverage-plan.v1.schema.json": "2989a4cb5ffa3bfc75bad996aa6e6abc1798367b0d2c187184174589e0cdd737",
+    "plugins/auto-research-agent/schemas/stage1-coverage-run.v1.schema.json": "bcd1dc7f8df458397e165a9044938b68676f4f59afb941b06a5a06d4706dc991",
+    "plugins/auto-research-agent/schemas/stage1-execution.v1.schema.json": "954a36d1497dde0fcc618f8e72163d3d8f7c3f5130a6c7c01aafc9236643891b",
+    "plugins/auto-research-agent/schemas/stage1-export.v1.schema.json": "fb514779e7210480f39b23eefecf53c28575b87d9e1549e0dd478fbdc02607a6",
+    "plugins/auto-research-agent/schemas/stage1-handoff.v1.schema.json": "6aec25c61b79f4f88f41eb8f69dd8cf746421c237369a3627cef631cd2f3fab1",
+    "plugins/auto-research-agent/schemas/stage1-ledger.v1.schema.json": "5e5d948fdb0848450b62332bb38a2e7068f5f1f954825bba481e3e39171e5c46",
+    "plugins/auto-research-agent/schemas/stage1-source-evidence.v1.schema.json": "f8fcb051aed23518e5a9bf80d5a5fddd09655beaa85d4e3e36dc60fdc03453c9",
+    "plugins/auto-research-agent/schemas/stage2-check.v1.schema.json": "180d0e6d5d5aaf94b18fe7a76dfd029354caa81866d95b879c22d96744047310",
+    "plugins/auto-research-agent/schemas/stage2-packet.v1.schema.json": "e7b51ce723c161c10e3c9e48025b8954ef513f705640e599c62ecba24dc15fb1",
+    "plugins/auto-research-agent/schemas/stage2-packet.v2.schema.json": "4fae6a71f1f17e8605b46eba780971d25540cd445679c7a1b8e98468b57fb60a",
+    "plugins/auto-research-agent/schemas/stage2-packet.v2_1.schema.json": "01caab04b5da1faad979bb6bbdd72458341839442266d23cdb11904db571887d",
+    "plugins/auto-research-agent/schemas/stage2-packet.v2_2.schema.json": "1f546c79ae0ba782eada1fa6583ce04a5e4c5bd9837987d52c57f4be359daf9f",
+    "plugins/auto-research-agent/schemas/stage2-packet.v2_3.schema.json": "8a87b9e5f0bc87e8a2ef4769b554b42a7a94292a28091daeba061be33d8ec9ac",
+    "plugins/auto-research-agent/schemas/stage2-packet.v2_4.schema.json": "75b160e19c4123f52595a4a6d8482d6f9f3184fff386bda0bd9637afe715aa57",
+    "plugins/auto-research-agent/references/core-literature-standard.v1.md": "d3ae64bdf2fc6b1ca3063a8f305f9ea96a46de60a128543960db386f769e0005",
+    "plugins/auto-research-agent/references/native-role-namespace.md": "b8d36df228c62d289382890402ea4a9fec5bb919f7e9a2a8b49bd4d2f757c2e2",
+    "plugins/auto-research-agent/references/research-brief.v1.md": "96e11c980e96387471cc4e61d044bb03aa3f60e9c6c3965113fa2b21c95173fb",
+    "plugins/auto-research-agent/references/research-hub-schema-LICENSE.txt": "bce40e201b955b863486c2a2035c87bc8735050f6e5777679cef4f865323da29",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-associations.js": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v1.md": "360ec66744a32f1b85baf75d0c9955642b4d9fb7510381018b0149ee1ca49cf0",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v2.md": "f4342b51f8482d747ebd58b62a36bbeb6c86097d05109cc31bed23252d0787e2",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v3.md": "15abb6215c57f3dceb41ee82c7a2a653b179e54a419f6ffebd5f060e8d0bed5c",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-model.js": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350",
+    "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3",
+    "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9",
+    "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-LICENSE.txt": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded",
+    "plugins/auto-research-agent/references/research-workspace/atlas/vendor/THIRD_PARTY_LICENSES.txt": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280",
+    "plugins/auto-research-agent/references/research-workspace/atlas/vendor/vendor-lock.json": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa",
+    "plugins/auto-research-agent/references/research-workspace/atlas-launch-guide.md": "9ebd523613d3dda60a96e5919ae7e43216592c18ecbca1de05b8707a751ead65",
+    "plugins/auto-research-agent/references/research-workspace/codex-host.md": "87569e5aae167715971407753b795572fa02d7846a684428d4d2134922bdadbf",
+    "plugins/auto-research-agent/references/research-workspace/examples/build-planned-query-fixture.py": "cc6ff9863f0e31fd15cf950aa6ea68fa6c27acc52d603613832c96f87b29ca5c",
+    "plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py": "948acd26443f5d6dc793f2473f1142327535e202543a44bb70863cd7675897cf",
+    "plugins/auto-research-agent/references/research-workspace/examples/build-stage-run-case.py": "e62cd897f93340183b859ebcf27c15ae6fb623b694d10439dbc5918e42986529",
+    "plugins/auto-research-agent/references/research-workspace/examples/planned-query-fixture-notice.js": "e43277cbcce97197961291bf99a7c2a0b24fca16ca68c8462f6d445025a6fccb",
+    "plugins/auto-research-agent/references/research-workspace/examples/run-project-workspace.py": "8f7dc4096baa9ba290a04cd45789adc75c87fc93baf740c953aa1e40738728b7",
+    "plugins/auto-research-agent/references/research-workspace/examples/run-stage-pilot.py": "d69782927f70c19f9b5d5ae065c71041c5b0899459dac304bb5f82de2c0251fc",
+    "plugins/auto-research-agent/references/research-workspace/examples/STAGE-PILOT.md": "65849e4d913f3295fe2d107c6b1648ee2f5204381ce94066c2c8bf90a1e77a7c",
+    "plugins/auto-research-agent/references/research-workspace/examples/stage2-demo-panel.js": "d2a3dac3c26963ad75fffe8cf4cef116bc111eff0f37b4d45a520534be56b426",
+    "plugins/auto-research-agent/references/research-workspace/examples/stage2-demo.py": "f93a2e2b1966ed596bf80dda994151ec49133855eb277f4e911fc73d2e1920ce",
+    "plugins/auto-research-agent/references/research-workspace/examples/UNIVERSAL_PROJECTS.md": "a200a4a10fc0fbafef9408b6df56bf364eaa9e9e2b67a4b01c1b2eab4a92d3ce",
+    "plugins/auto-research-agent/references/research-workspace/harness-operations.md": "34e6537989e8c3e478b4e3f365984d9a7de19748d3181121e589d3a6b3c04f51",
+    "plugins/auto-research-agent/references/research-workspace/literature-reference.js": "6a6cad0f744988da523cf548f9e0013269ac3c96d0366d208d63815128305b55",
+    "plugins/auto-research-agent/references/research-workspace/LOCAL_CODEX_ATLAS.md": "00b211b4ea229b8a6546f3dfd638c5793f4e1c4522244de6441214ef20c2dc5b",
+    "plugins/auto-research-agent/references/research-workspace/NATIVE_QUERY_REGISTRATION.md": "f4bc09ace57f2d3ad8f63a96b2eb163a161d1b97c033277d63288763ba8a4612",
+    "plugins/auto-research-agent/references/research-workspace/PLAN.zh-TW.md": "2ba47bb90dacd85a17a15a1c56dcee1444534e776de11855e5331b246039bc8b",
+    "plugins/auto-research-agent/references/research-workspace/PLANNED_QUERY_BOUNDARIES.md": "45fb9852f88481957ba0f6a41480e2baabb2215d67ca9f4dc09d85a0ea292456",
+    "plugins/auto-research-agent/references/research-workspace/PLANNED_QUERY_EXAMPLE.md": "931e88c328475e1226cac0f38f47efce1d235fea92db8e7fc3da6b02643cb0c0",
+    "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md": "5fb862b740fa1ffe2242400624780e5a532af8c0d7e4ceab81357a71c02e124f",
+    "plugins/auto-research-agent/references/research-workspace/PROJECT_STAGE_CONTRACT.md": "f1897777c332f01e92618f8a06195e751f23edfdd026483d129c2e9191b92c81",
+    "plugins/auto-research-agent/references/research-workspace/prototype.html": "dfd49e7d0baf5cbf1645a08c34dafb48bba7b3db9d867adf313e91b1a810298e",
+    "plugins/auto-research-agent/references/research-workspace/QUERY_STORAGE_SAFETY.md": "3fbc19ee58ef7233f0bf2b01bec3cc43896e4ee6783dbe88b1da9e3fb947bff9",
+    "plugins/auto-research-agent/references/research-workspace/STAGE2_COMPARISON_WORKBENCH.zh-TW.md": "375fd6a335e1cdfaddb3f434ee9b58f7a857f0212071c8d2c8218b73d3ec61c0",
+    "plugins/auto-research-agent/references/research-workspace/STAGE2_REPOSITORY_DEMO.md": "121cdc852b351dbd4de19d2b563229ea9e2d054fe14490f123742f6a97c41e6d",
+    "plugins/auto-research-agent/references/research-workspace/STAGE_CONSOLIDATION.md": "e7ec0e11cd072464543b2793f2f63cf0ccee7d371f254bff9141b99f0cc482c2",
+    "plugins/auto-research-agent/references/research-workspace/tests/localization.html": "d09f73167927ba1a6818000780b08f4b2f7a4723b0894a078e30b03b7b5674b4",
+    "plugins/auto-research-agent/references/research-workspace/UI-REVIEW.zh-CN.md": "4d1ae98169c7097659b2a8104bca153bd7ee4524db3e986f7ed842605da489e4",
+    "plugins/auto-research-agent/references/research-workspace/web/stage-run-panel.css": "f1dbb32714a362690d0396da64255f7df038a3844972bafd58ece991033fafd6",
+    "plugins/auto-research-agent/references/research-workspace/web/stage-run-panel.js": "327e4318248db7e84703ecfa6783a4ac02674494b87861e54b1e5da4c54de97f",
+    "plugins/auto-research-agent/references/research-workspace/workspace-closeout.css": "8e0115265e46b334fce81ffedea39442261054153b830a221fcc998f4665cea3",
+    "plugins/auto-research-agent/references/research-workspace/workspace-i18n.js": "d24fadd875728abfdd9d6a1734f430d82abf80ecf4538cf959d91245ce1bc24d",
+    "plugins/auto-research-agent/references/research-workspace/workspace-interface.v1.json": "7fae3555362168a8496232bb0bc0865427faf738fb512c4df0380195a051ac81",
+    "plugins/auto-research-agent/references/research-workspace/workspace-interface.v1.md": "2fde9e80e84a18761ddc904198fc46e9d646abf9b854dab77c7ab9f4beb099c3",
+    "plugins/auto-research-agent/references/research-workspace/workspace-literature-selection.js": "727891bafeec98de7e938149d1b9bc832065dbc8f19af416dab9452fdb62a88f",
+    "plugins/auto-research-agent/references/research-workspace/workspace-records.js": "a59d80208ce85ff3d888efc8703fe61b03cfac480f76077f78509cc73a2beddd",
+    "plugins/auto-research-agent/references/research-workspace/workspace-repairs.js": "826208021a909f9b5365f3ebdbc37249abf3949ce315e882025defe22761ff85",
+    "plugins/auto-research-agent/references/research-workspace/workspace-selection.css": "dc5b400163a50c2be495fc0d4d4aebf8f685b488026c1a957218bae70b3849a9",
+    "plugins/auto-research-agent/references/research-workspace/workspace-source-rerun.css": "a1fc8b98228abefe227f27ce6ceb9db1b995863e82913bf9c85c5ad20b51ca76",
+    "plugins/auto-research-agent/references/research-workspace/workspace-source-rerun.js": "475217314752500905c058c5123cd6c257b0e6fdbf9c0a3f9dcf310251cda86f",
+    "plugins/auto-research-agent/references/research-workspace/workspace-stage2.css": "fab8c8ef4667dc03701772e4e2a7b064be0d6916217923803df3f3befc0a77ac",
+    "plugins/auto-research-agent/references/research-workspace/workspace-stage2.js": "0cc000c67fe79d35c7f42bc012a41ccb1f478dda6f31597d38375b462160d395",
+    "plugins/auto-research-agent/references/research-workspace/workspace.css": "7d61618949a42c9afdbbdedcad2556bf71a0d647c5d33b950063100cc932f4e4",
+    "plugins/auto-research-agent/references/stage-contracts.md": "4aa8f6eda3a2447124fe8d376e995b5b9e902b5cc53f2e598ef735ef53df91dc",
+    "plugins/auto-research-agent/references/stage1-coverage.md": "71fe58e5fda70f503fa7026d618c1ca249d0f5292a6472dd2264ccc4e5ea9fe2",
+    "plugins/auto-research-agent/references/stage1-export.md": "da12d26531d6766097f75c908309be269d66604fa07b90928c872a8e078555d6",
+    "plugins/auto-research-agent/references/stage1-ledger.md": "15333c6239710c372b1d4597aed52e8070d86997da0931edffe19138b1cff268",
+    "plugins/auto-research-agent/references/stage1-research-deliverable.md": "5cb5054dc29268f57cbe8e184baf7edfae27a3174d26e9aef8cce4696079cf78",
+    "plugins/auto-research-agent/references/stage1-retrieval.md": "01cfb27e071b57c2ddff52b3f8c26e884f3b5e1c46d519f11d6d7f6ea61f5b00",
+    "plugins/auto-research-agent/references/stage1-source-capability-resolution.csv": "c9137ad72ec539405c5b497e76f5d096aa2364ee80fa8fd323b7f86490317bca",
+    "plugins/auto-research-agent/references/stage1-source-evidence.md": "0e7bc71865ffe995f7986b1880271c1d2049f6936e2d889eb9d398e121399fa8",
+    "plugins/auto-research-agent/references/stage2-content-first-delivery.zh-TW.md": "bbcdc7ceb9773b785bda621b1649fbbceab63dc0adafc489280e2f328e685b45",
+    "plugins/auto-research-agent/references/stage2-delivery.md": "fe3b238e3006c7bc098b74ac823d559eb370cb924b88d0d108dfabf0a31f2202",
+    "plugins/auto-research-agent/references/stage2-directions.md": "6ccf1528cc3fd265fdcb71fa4d02c5f4dfa30fcfb7e98541779b91280cd396b7",
+    "plugins/auto-research-agent/references/stage2-evaluation.md": "9c35261403dcdf3eec4a4721733f76a06a9afe0cf4e00a1aff22edbb0221e45b",
+    "plugins/auto-research-agent/references/stage2-exploratory-intake.md": "2e04a84a38267d8604f2f7b276b029e21227088e3c68816e89b3c5fccf105fcc",
+    "plugins/auto-research-agent/references/stage2-historical-verifier.v1.json": "261932175a7d3c5d3a1f2fe7549fcb4aa3864f35df30d039df652074bed04761",
+    "plugins/auto-research-agent/references/stage2-ideation.md": "874e6fabab1d65c2bb10517448bbc67048b11bb47d2ed7cd27eed8a4fab82e49",
+    "plugins/auto-research-agent/references/stage2-literature-versions.zh-TW.md": "cdf2c86eba64118f8e8ff60ebe4ec5a51e27b13962470ac1b9436e6584c7fae7",
+    "plugins/auto-research-agent/references/stage2-live.md": "e72e8a105f6805a1a2b2a8af864b46afec7fbf448cb9388303d86767f28b4b4e",
+    "plugins/auto-research-agent/references/stage2-prior-work.zh-TW.md": "56b99ed562635c7995e9c93a52b7581a3e9740a1a24d74562d7bf5b9800cfda9",
+    "plugins/auto-research-agent/references/stage2-runtime-observation.md": "242d32f0c9c727d662d12d1ab77b97eb716c0f83db1785df8400d2a88a6f2842",
+    "plugins/auto-research-agent/references/stage2-runtime-preflight.md": "7466fb15ec0eb1472eebe5e736ad985cda220b0d1fbebc2036e89fb9aabec057",
+    "plugins/auto-research-agent/references/stage2-topic-comparison.zh-TW.md": "0d29474627366a48fc23e617c8e26f248af0bcefaeb6a6cdec4694b492a6d168",
+    "plugins/auto-research-agent/references/stage2-workflow.md": "5e8aa379cd4b65e5a03b7c1bd2e54dfa7ec7597b4db5825c8159c234909b7e02",
+    "plugins/auto-research-agent/tests/test_project_expansion_browser.cjs": "3a5b873634fa8d325489b7066eb3a772c8067e4971294cc6aca468ea690b9063",
+    "plugins/auto-research-agent/tests/project_expansion_browser_fixture.py": "97538b51bc89702aad5ae39c1bd8274d77e48045308f18b554d7db8e2260d5f4",
+    "plugins/auto-research-agent/tests/test_project_expansions.py": "1e6595f396bdf6e0101e5e785fe64a6163c8bd878310f4c451b4a03b0d28a733",
+    "plugins/auto-research-agent/tests/project_stage1_query_http_cases.py": "5423c548335f89ef5ccf9c440a2d19c10a26c0ac19502ffe193584e2d8b09197"
+  },
+  "source_inventory_unchanged": true,
+  "results": [
+    {
+      "name": "GET and three language changes render actual server offers without I/O",
+      "status": "passed"
+    },
+    {
+      "name": "Unchecked consent cannot submit; explicit authorization saves no backend call",
+      "status": "passed"
+    },
+    {
+      "name": "Lost execute response persists one real Core action; double click cannot resend",
+      "status": "passed"
+    },
+    {
+      "name": "Reload and second tab read saved history with zero additional dispatch",
+      "status": "passed"
+    },
+    {
+      "name": "Second direction uses its own explicit grant and one shared budget attempt",
+      "status": "passed"
+    },
+    {
+      "name": "Refresh never adds execution and Stage1 is not automatically accepted",
+      "status": "passed"
+    }
+  ],
+  "screenshots": [
+    {
+      "label": "en",
+      "file": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\expansion-browser-974b727c5855416bba250c73465be1e6\\en.png",
+      "sha256": "240befddd1b85d82e26b4b83a12f0699ae9cb5492db397685e90bd7194cafe6f"
+    },
+    {
+      "label": "zh-Hans",
+      "file": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\expansion-browser-974b727c5855416bba250c73465be1e6\\zh-Hans.png",
+      "sha256": "eb03ca3824bcafdfe78decab264b2144d16f24f75b9b133e148c385a2eaa1bcd"
+    },
+    {
+      "label": "zh-Hant",
+      "file": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\expansion-browser-974b727c5855416bba250c73465be1e6\\zh-Hant.png",
+      "sha256": "ced90efd07848d1f56504179262e51f8852acf555cde21fc0bdd05e71911c726"
+    },
+    {
+      "label": "after-two-directions",
+      "file": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\expansion-browser-974b727c5855416bba250c73465be1e6\\after-two-directions.png",
+      "sha256": "72210cc78a0967bdfef3606f303955c5f63e466aba53e4356543a06e79c96f5b"
+    }
+  ],
+  "page_errors": [],
+  "diagnostics": [
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/screening/1/60f584c533bb0df14356d25addde71eab74ed300600417b16460ddd87a8503d4/0",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-authorize",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/screening/1/60f584c533bb0df14356d25addde71eab74ed300600417b16460ddd87a8503d4/0",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "lost_response_status": 200
+    },
+    {
+      "request_failed": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-execute",
+      "method": "POST",
+      "error": "net::ERR_FAILED"
+    },
+    {
+      "console": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/screening/1/b645b978deb0696c45b333e7035a612cc298e6fad3f2aef9dd708eebca74d6ed/0",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/screening/1/b645b978deb0696c45b333e7035a612cc298e6fad3f2aef9dd708eebca74d6ed/0",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-authorize",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/screening/1/b645b978deb0696c45b333e7035a612cc298e6fad3f2aef9dd708eebca74d6ed/0",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-execute",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/screening/1/63a841025699bc73de8d091e2801ab3ca46c416eb9e29554459a324fdba84535/0",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/overview",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/screening/1/63a841025699bc73de8d091e2801ab3ca46c416eb9e29554459a324fdba84535/0",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/history",
+      "status": 200
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/actions/0",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage2/actions",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    },
+    {
+      "response_path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/models/native",
+      "status": 409
+    },
+    {
+      "console": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-authorize"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-execute"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-authorize"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-03462537d1d1439eb1e43bff37dbc999/stage1/expansion-execute"
+    }
+  ],
+  "observations": [
+    {
+      "children": 1,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 1,
+        "probes": 1,
+        "seconds": 62
+      },
+      "grants": [],
+      "intents": []
+    },
+    {
+      "children": 1,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 1,
+        "probes": 1,
+        "seconds": 62
+      },
+      "grants": [],
+      "intents": []
+    },
+    {
+      "children": 1,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 1,
+        "probes": 1,
+        "seconds": 62
+      },
+      "grants": [
+        {
+          "operation": "references",
+          "status": "permission-saved"
+        }
+      ],
+      "intents": []
+    },
+    {
+      "children": 2,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 2,
+        "probes": 1,
+        "seconds": 94
+      },
+      "grants": [
+        {
+          "operation": "references",
+          "status": "consumed"
+        }
+      ],
+      "intents": [
+        {
+          "operation": "references",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        }
+      ]
+    },
+    {
+      "children": 2,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 2,
+        "probes": 1,
+        "seconds": 94
+      },
+      "grants": [
+        {
+          "operation": "references",
+          "status": "consumed"
+        }
+      ],
+      "intents": [
+        {
+          "operation": "references",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        }
+      ]
+    },
+    {
+      "children": 2,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 2,
+        "probes": 1,
+        "seconds": 94
+      },
+      "grants": [
+        {
+          "operation": "references",
+          "status": "consumed"
+        }
+      ],
+      "intents": [
+        {
+          "operation": "references",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        }
+      ]
+    },
+    {
+      "children": 3,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 3,
+        "probes": 1,
+        "seconds": 126
+      },
+      "grants": [
+        {
+          "operation": "cited-by",
+          "status": "consumed"
+        },
+        {
+          "operation": "references",
+          "status": "consumed"
+        }
+      ],
+      "intents": [
+        {
+          "operation": "cited-by",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        },
+        {
+          "operation": "references",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        }
+      ]
+    },
+    {
+      "children": 3,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 3,
+        "probes": 1,
+        "seconds": 126
+      },
+      "grants": [
+        {
+          "operation": "cited-by",
+          "status": "consumed"
+        },
+        {
+          "operation": "references",
+          "status": "consumed"
+        }
+      ],
+      "intents": [
+        {
+          "operation": "cited-by",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        },
+        {
+          "operation": "references",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        }
+      ]
+    },
+    {
+      "children": 3,
+      "query_worker": {
+        "present": true,
+        "same_owner": true,
+        "alive": false
+      },
+      "budget": {
+        "attempts": 3,
+        "probes": 1,
+        "seconds": 126
+      },
+      "grants": [
+        {
+          "operation": "cited-by",
+          "status": "consumed"
+        },
+        {
+          "operation": "references",
+          "status": "consumed"
+        }
+      ],
+      "intents": [
+        {
+          "operation": "cited-by",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        },
+        {
+          "operation": "references",
+          "status": "completed",
+          "outcome": "success_nonempty",
+          "outer_status": "saved"
+        }
+      ]
+    }
+  ],
+  "stderr": "",
+  "cleanup": [],
+  "child": {
+    "code": 0,
+    "signal": null
+  },
+  "diagnostic_only": false,
+  "real_research_execution": "disabled by authored fixture, not a platform usage measurement",
+  "actual_backend": "authored fake subprocess",
+  "actual_http_sqlite_core": true,
+  "full_stage1_acceptance": false
+}

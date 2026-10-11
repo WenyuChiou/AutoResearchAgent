@@ -323,7 +323,9 @@
         "plugins/auto-research-agent/tests/test_project_stage2_context.py",
         "plugins/auto-research-agent/tests/browser/project-stage2-input-test.cjs",
         "plugins/auto-research-agent/tests/test_project_expansions.py",
-        "plugins/auto-research-agent/tests/browser/project-expansions-test.cjs"
+        "plugins/auto-research-agent/tests/browser/project-expansions-test.cjs",
+        "plugins/auto-research-agent/tests/project_expansion_browser_fixture.py",
+        "plugins/auto-research-agent/tests/test_project_expansion_browser.cjs"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
