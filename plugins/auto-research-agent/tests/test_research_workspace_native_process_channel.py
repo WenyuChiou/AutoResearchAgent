@@ -78,11 +78,24 @@ class OwnedProcessTests(OwnedProcessCase):
 
     def test_lifetime_expires_even_with_no_ui_calls(self):
         self.child.write_text("import time\ntime.sleep(30)\n", encoding="utf8")
-        channel = self.channel(lifetime=0.3)
-        time.sleep(0.5)
+        # Admission consumes lifetime too; leave room to reach the watchdog.
+        channel = self.channel(lifetime=5)
+        time.sleep(5.2)
         self.assertTrue(channel.closed)
         self.assertTrue(channel.reap()["leader_reaped"])
         self.assertIn("TimeoutError", channel.failure)
+
+    def test_lifetime_cleanup_survives_slow_admission(self):
+        from research_workspace_native.process_channel import OwnedProcessChannel
+
+        admit = OwnedProcessChannel._admit
+
+        def slow_admit(channel):
+            time.sleep(0.35)
+            return admit(channel)
+
+        with patch.object(OwnedProcessChannel, "_admit", slow_admit):
+            self.test_lifetime_expires_even_with_no_ui_calls()
 
     def test_stream_overflow_closes_and_reports_failure(self):
         self.child.write_text(

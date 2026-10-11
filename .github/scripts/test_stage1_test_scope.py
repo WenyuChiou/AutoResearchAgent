@@ -99,6 +99,35 @@ class Stage1TestScopeTests(unittest.TestCase):
             ],
         )
 
+    def test_incoming_presentation_scope_keeps_interface_checks(self):
+        assets = "plugins/auto-research-agent/references/research-workspace/atlas/"
+        self.write(TESTS + "test_workspace_widget.py", PASSING)
+        self.write(TESTS + "test_native_message_widget.py", PASSING)
+        self.write(
+            TESTS + "test_stage2_unrelated.py",
+            PASSING.replace("pass", "self.fail('unrelated test must not run')"),
+        )
+        result = scope.plan([assets + "atlas.css", "review-evidence/x.md"], self.repo)
+        self.assertEqual(result["mode"], "selected")
+        self.assertEqual(
+            result["modules"],
+            [
+                "test_native_message_widget",
+                "test_plugin_loading",
+                "test_stage_contracts",
+                "test_workspace_widget",
+            ],
+        )
+        executed = self.fixture(result)
+        self.assertEqual(executed.returncode, 0, executed.stdout + executed.stderr)
+        self.assertEqual(json.loads(executed.stdout.splitlines()[-1])["tests_run"], 4)
+        self.assertEqual(
+            scope.plan([assets + "atlas.css", assets + "atlas-ui.js"], self.repo)[
+                "mode"
+            ],
+            "full",
+        )
+
     def test_uncertain_inputs_keep_full_suite(self):
         for path in (
             "plugins/auto-research-agent/tools/shared.py",

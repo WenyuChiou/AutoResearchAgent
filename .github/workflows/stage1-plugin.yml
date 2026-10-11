@@ -2,7 +2,7 @@ name: Stage 1 plugin
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
   workflow_call:
@@ -12,49 +12,59 @@ permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  pr-contract:
-    if: github.event_name == 'pull_request'
+  scope:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
+    outputs:
+      plugin_test_scope: ${{ steps.select.outputs.plugin_test_scope }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
-        with:
-          version: "0.11.3"
-      - name: Validate research PR explanation
-        run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/validate_research_pr.py
-      - name: Validate stacked and external dependencies
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python .github/scripts/check_research_pr_dependencies.py
-      - name: Reject whitespace and line-ending errors
-        run: git diff --check ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+      - name: Test scope selection and failure propagation
+        run: python3 -m unittest discover -s .github/scripts -p test_ci_scope.py -v
+      - id: select
+        run: python3 .github/scripts/ci_scope.py
 
   contracts:
+    needs: scope
+    # A failed selector must fail these required jobs instead of skipping them.
+    if: ${{ always() }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # Full process-replay suites exceeded 20 minutes on Windows and macOS.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 35 || matrix.os == 'macos-latest' && 30 || 20 }}
+    # Windows run 38018673675 was cancelled after 35 minutes.
+    # Retain full checks for runtime/policy changes with a bounded allowance.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 50 || matrix.os == 'macos-latest' && 30 || 20 }}
     steps:
+      - name: Require a successful, recognized scope selection
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          PLUGIN_TEST_SCOPE: ${{ needs.scope.outputs.plugin_test_scope }}
+        run: python -c "import os; raise SystemExit(not (os.environ['SCOPE_RESULT'] == 'success' and os.environ['PLUGIN_TEST_SCOPE'] in ('docs', 'ui', 'full')))"
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        if: needs.scope.outputs.plugin_test_scope != 'docs'
         with:
           node-version: 22
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
           version: "0.11.3"
       - run: npm install --global @openai/codex@0.153.0
+        if: needs.scope.outputs.plugin_test_scope != 'docs'
       - run: codex --version
+        if: needs.scope.outputs.plugin_test_scope != 'docs'
       - name: Check plugin and CI Python formatting
         run: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Check plugin and CI Python quality

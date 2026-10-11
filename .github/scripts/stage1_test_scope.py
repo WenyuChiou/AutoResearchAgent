@@ -1,6 +1,7 @@
 """Run affected plugin tests; uncertain inputs retain the full contract suite."""
 
 import argparse
+from fnmatch import fnmatchcase
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import re
 import sys
 import unittest
 
-from ci_scope import changed_paths
+from ci_scope import UI_TEST_PATTERNS, changed_paths, plugin_test_scope
 
 
 REPO = Path(__file__).resolve().parents[2]
@@ -22,6 +23,7 @@ DOCS = {
 }
 CI_FILES = {
     ".github/workflows/stage1-plugin.yml",
+    ".github/workflows/research-pr-metadata.yml",
     ".github/workflows/blocking-ci.yml",
     ".github/scripts/ci_scope.py",
     ".github/scripts/test_ci_scope.py",
@@ -46,6 +48,23 @@ def plan(paths, repo=REPO):
     modules = set(BASE_MODULES)
     for path in paths:
         if path in DOCS | CI_FILES:
+            continue
+        presentation_scope = plugin_test_scope([path])
+        if presentation_scope in {"docs", "ui"}:
+            if presentation_scope == "ui":
+                interface_modules = {
+                    test.stem
+                    for test in (repo / TEST_DIR).glob("test_*.py")
+                    if any(
+                        fnmatchcase(test.name, pattern) for pattern in UI_TEST_PATTERNS
+                    )
+                }
+                if not interface_modules:
+                    return {
+                        **full,
+                        "reason": "No interface tests for presentation input",
+                    }
+                modules.update(interface_modules)
             continue
         relative = Path(path)
         if (
