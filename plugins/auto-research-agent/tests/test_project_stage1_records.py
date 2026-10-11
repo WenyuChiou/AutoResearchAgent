@@ -416,6 +416,55 @@ class SavedStage1RecordsTests(unittest.TestCase):
             expected_ledger_state_sha256=fixture["ledger"].state_hash(),
         )
 
+    def test_extra_source_deadline_is_checked_before_final_registry_commit(self):
+        fixture = self.two_sources()
+        records, directory = fixture["pairs"][0]
+        source = records["sources"][0]
+        path = directory / "source/source-fetch-result.json"
+        active = [True]
+
+        def deadline():
+            if not active[0]:
+                raise TimeoutError("original source deadline expired")
+
+        save = self.intake._save
+
+        def expire_after_saved_sql(state, kind, payload):
+            result = save(state, kind, payload)
+            if kind == "stage1-source-registry-saved":
+                active[0] = False
+            return result
+
+        with patch.object(self.intake, "_save", side_effect=expire_after_saved_sql):
+            with self.assertRaises(SessionApiError) as failure:
+                self.producer.register_source(
+                    fixture["ref"],
+                    source_id=source["source_id"],
+                    result_path=path,
+                    expected_result_sha256=sha(path.read_bytes()),
+                    access_note=source["access_note"],
+                    expected_ledger_state_sha256=fixture["ledger"].state_hash(),
+                    check_current=deadline,
+                )
+        self.assertIsInstance(failure.exception.__cause__, TimeoutError)
+        current = self.intake._load("alice", fixture["ref"])
+        self.assertEqual(current.get("stage1_saved_registries", {}), {})
+        self.assertEqual(
+            self.intake.db.execute(
+                "SELECT COUNT(*) FROM intake_events WHERE project=? AND kind=?",
+                (fixture["ref"], "stage1-source-registry-saved"),
+            ).fetchone()[0],
+            0,
+        )
+        receipt = json.loads(
+            self.intake.db.execute(
+                "SELECT receipt FROM intake_actions WHERE project=? ORDER BY rowid DESC LIMIT 1",
+                (fixture["ref"],),
+            ).fetchone()["receipt"]
+        )
+        self.assertEqual(receipt["status"], "execution-unknown")
+        self.runner.assert_not_called()
+
     def test_yielded_guard_check_refuses_before_admission(self):
         fixture = self.two_sources()
         principal = self.intake._principal("alice-token")
