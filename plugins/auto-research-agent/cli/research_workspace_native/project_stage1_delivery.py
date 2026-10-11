@@ -104,6 +104,10 @@ def _records_match(
             "stage1-screening-library-binding-differs",
         )
     _check(
+        records["schema_version"] in {"1.0.0", "1.1.0"},
+        "stage1-records-format-consumer-unconnected",
+    )
+    _check(
         records["topic"] == ledger.manifest["research_run"]["objective"],
         "stage1-records-topic-differs",
     )

@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cli"))
@@ -200,3 +201,19 @@ class StagePipelineFixture(unittest.TestCase):
         self.pipeline.begin_task(task["task_sha256"])
         self.pipeline.accept(task["task_sha256"], self.receipt(task, text))
         return task
+
+
+class SemanticStagePipelineFixture(StagePipelineFixture):
+    """Retain historical nine-phase semantics under a test-only 16 KiB ceiling.
+
+    This fixture does not attest production context readiness. Actual 10,000-byte
+    policy checks use StagePipelineFixture directly without this override.
+    """
+
+    def setUp(self):
+        override = patch(
+            "research_workspace_native.stage_pipeline.MAX_PROMPT_BYTES", 16384
+        )
+        override.start()
+        self.addCleanup(override.stop)
+        super().setUp()

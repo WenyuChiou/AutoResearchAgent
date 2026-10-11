@@ -202,7 +202,9 @@ def build(records_path, output, expected_records_sha256):
             target = safe_path(output, artifact["artifact_path"])
             target.parent.mkdir(exist_ok=True)
             raw = safe_path(records_path.parent, artifact["artifact_path"]).read_bytes()
-            if artifact in records.get("screening_artifacts", []):
+            if artifact in records["core_artifacts"]:
+                sources.reject_secrets(raw)
+            elif artifact in records.get("screening_artifacts", []):
                 _scan_screening_artifact(records, artifact, raw)
             if target.exists():
                 if target.read_bytes() != raw:

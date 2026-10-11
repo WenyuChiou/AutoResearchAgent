@@ -6,6 +6,7 @@ from stage1_ledger.contracts import check_payload
 from stage1_ledger.journal import canonical, digest
 
 from .common import DeliverableError, safe_path, sha
+from . import sources
 
 VERSION = "1.1.0"
 RELATIONS = {
@@ -120,6 +121,7 @@ def validate_artifacts(records, read):
         raw = read(artifact["artifact_path"])
         if sha(raw) != artifact["source_ref"]["sha256"]:
             raise DeliverableError("Core claim source archive bytes differ")
+        sources.reject_secrets(raw)
         raw_by_ref[canonical(artifact["source_ref"])] = raw
     # Historical rows retain their original locator even when no active paper
     # selects that version. Do not create character offsets or infer acceptance.

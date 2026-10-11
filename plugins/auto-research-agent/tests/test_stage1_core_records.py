@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
 from test_project_stage1_records import saved_stage1_case
 from research_workspace.projection import project_package
+from research_workspace.canonical_delivery import project_canonical_atlas
 from research_workspace.view import write_workspace
 from research_workspace.wiki import wiki_files
 from research_workspace_native.project_stage1_delivery import _io_root, _records_match
@@ -27,9 +28,11 @@ from stage1_deliverable.common import (
     write_json,
     private_output,
 )
-from stage1_deliverable.core_records import read_artifacts
+from stage1_deliverable.core_records import artifact_path, read_artifacts
+from stage1_deliverable.package import build
 from stage1_deliverable.package import validate as validate_package
 from stage1_deliverable.records import validate_records
+from stage1_ledger.journal import canonical as journal_canonical, digest
 
 
 @contextmanager
@@ -120,6 +123,75 @@ def saved_request(case, fixture, key):
 
 
 class CoreRecordsTests(unittest.TestCase):
+    def test_raw_core_credentials_outside_quote_are_refused_on_all_admission_paths(
+        self,
+    ):
+        with core_case() as (case, fixture, _, _):
+            _, records_path, original = produced(case, fixture)
+            records = deepcopy(original)
+            claim = next(row for row in records["claims"] if row["quote"] is not None)
+            original_ref = deepcopy(claim["core_event"]["payload"]["source_ref"])
+            artifact = next(
+                item
+                for item in records["core_artifacts"]
+                if item["source_ref"] == original_ref
+            )
+            raw = (records_path.parent / artifact["artifact_path"]).read_bytes()
+            raw += b"\nAuthorization: Bearer synthetic-credential-outside-quote\n"
+            reference = dict(original_ref, sha256=sha(raw), producer="core-raw-fixture")
+            artifact.update(
+                source_ref=reference, artifact_path=artifact_path(reference)
+            )
+            (records_path.parent / artifact["artifact_path"]).write_bytes(raw)
+            for row in records["core_claim_history"]:
+                if row["payload"]["source_ref"] == original_ref:
+                    row["payload"]["source_ref"] = deepcopy(reference)
+                    row["event_sha256"] = digest(
+                        journal_canonical(
+                            {
+                                key: value
+                                for key, value in row.items()
+                                if key != "event_sha256"
+                            }
+                        )
+                    )
+            history = {
+                row["payload"]["event_id"]: row for row in records["core_claim_history"]
+            }
+            for row in records["claims"]:
+                if row["core_event"]["payload"]["source_ref"] == original_ref:
+                    row["source_id"] = None
+                    row["core_event"] = deepcopy(history[row["claim_id"]])
+            validate_records(records)
+            self.assertEqual(
+                raw.decode()[claim["start"] : claim["end"]], claim["quote"]
+            )
+            poisoned_path = records_path.parent / "raw-core-credential-records.json"
+            write_json(poisoned_path, records)
+            with self.subTest(admission="raw-reader"):
+                with self.assertRaisesRegex(DeliverableError, "credential-like"):
+                    read_artifacts(records, records_path.parent)
+            with self.subTest(admission="build"):
+                with self.assertRaisesRegex(DeliverableError, "credential-like"):
+                    build(
+                        poisoned_path,
+                        case.fixture_root / "credential-build",
+                        sha(poisoned_path.read_bytes()),
+                    )
+            # Construct a deliberately unsafe archive to exercise later admission.
+            # Only this synthetic setup disables scanning; readers run unpatched.
+            unsafe = case.fixture_root / "credential-validation"
+            with patch("stage1_deliverable.sources.reject_secrets"):
+                receipt = build(poisoned_path, unsafe, sha(poisoned_path.read_bytes()))
+            with self.subTest(admission="validator"):
+                with self.assertRaisesRegex(DeliverableError, "credential-like"):
+                    validate_package(unsafe, receipt["manifest_sha256"])
+            with self.subTest(admission="passive-canonical-reader"):
+                with self.assertRaisesRegex(DeliverableError, "credential-like"):
+                    project_canonical_atlas(
+                        unsafe, "unsafe-core-fixture", receipt["manifest_sha256"]
+                    )
+
     def test_complete_core_history_package_projection_and_wiki_without_promotion(self):
         with core_case() as (case, fixture, old_history, _):
             offer, path, records = produced(case, fixture)

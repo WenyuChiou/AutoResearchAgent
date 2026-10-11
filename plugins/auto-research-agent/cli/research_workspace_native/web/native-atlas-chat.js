@@ -24,7 +24,7 @@
     user: ["You", "你", "你"], assistant: ["Codex", "Codex", "Codex"],
     tool: ["Tool status", "工具状态", "工具狀態"], system: ["Execution status", "执行状态", "執行狀態"],
   };
-  window.NativePanel.extend(({root, available, read, write, refresh: reread}) => {
+  window.NativePanel.extend(({root, sourceBinding, available, read, write, refresh: reread}) => {
     const node = (tag, parent, text) => {
       const value = document.createElement(tag);
       if (text !== undefined) value.textContent = text;
@@ -50,7 +50,7 @@
       !Array.isArray(value) && Object.keys(value).sort().join() === [...fields].sort().join();
     const sameReceiptBinding = (first, second) => Boolean(first && second) &&
       ["project_ref", "index_sha256", "input_version"].every(name => first[name] === second[name]);
-    const sameBinding = (first, second) => sameReceiptBinding(first, second) && first.project_id === second.project_id;
+    const sameBinding = sameReceiptBinding;
     const validText = value => {
       if (typeof value !== "string") return false;
       for (let n = 0; n < value.length; n++) {
@@ -116,8 +116,8 @@
           hash(draft.index_sha256) && typeof draft.stage === "string" && /^stage[1-6]$/.test(draft.stage) &&
           typeof draft.request_ref === "string" && /^review-[1-9][0-9]*$/.test(draft.request_ref) &&
           validText(draft.text) && draft.text.trim()) {
-        if (!view || !view.project_id || !readable() || !available()) reason = "unavailable";
-        else if (draft.project_id !== view.project_id || draft.index_sha256 !== view.index_sha256) reason = "binding-mismatch";
+        if (!view || !sourceBinding || !sameBinding(sourceBinding, view) || !readable() || !available()) reason = "unavailable";
+        else if (draft.project_id !== sourceBinding.source_project_id || draft.index_sha256 !== view.index_sha256) reason = "binding-mismatch";
         else {
           try {reason = busy || unsettled() ? "held" : "prepared";} catch {reason = "held";}
         }

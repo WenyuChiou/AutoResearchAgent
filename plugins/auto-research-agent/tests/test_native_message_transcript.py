@@ -55,12 +55,16 @@ class TranscriptTests(unittest.TestCase):
         self.assertEqual(self.p.store.events(self.p.pid), before)
         self.assertEqual(self.p.channel.calls, calls)
         self.assertEqual(view["transcript"]["schema_version"], "1.0.0")
-        self.assertEqual(view["project_id"], self.p.pid)
+        self.assertNotIn("project_id", view)
+        self.assertNotIn(self.p.pid, json.dumps(view))
+        self.assertEqual(
+            (view["project_ref"], view["index_sha256"], view["input_version"]),
+            (self.p.ref, self.p.hash, self.p.version),
+        )
         self.assertEqual(
             set(view),
             {
                 "project_ref",
-                "project_id",
                 "index_sha256",
                 "input_version",
                 "revision",

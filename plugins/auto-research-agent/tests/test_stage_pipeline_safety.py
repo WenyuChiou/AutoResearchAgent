@@ -7,7 +7,9 @@ import unittest
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cli"))
 sys.path.insert(0, str(HERE))
-from stage_pipeline_fixture_helpers import StagePipelineFixture
+from stage_pipeline_fixture_helpers import (
+    SemanticStagePipelineFixture as StagePipelineFixture,
+)
 from stage2_common import Stage2Error
 import json
 

@@ -49,7 +49,7 @@ def _raw(path, expected, *, maximum=MAX_INPUT):
     return raw
 
 
-def _verified_inputs(binding, inputs):
+def _consumer_manifest(inputs):
     manifest = decode(
         _raw(
             Path(inputs["deliverable_dir"]) / "provenance_manifest.json",
@@ -57,11 +57,18 @@ def _verified_inputs(binding, inputs):
         ),
         "stage1 manifest",
     )
-    records_version = manifest.get("canonical_records", {}).get("schema_version")
+    version = manifest.get("canonical_records", {}).get("schema_version")
     _check(
-        records_version not in {"1.1.0", "1.2.0"},
-        f"stage2-canonical-records-{str(records_version).removesuffix('.0')}-consumer-unconnected",
+        version == "1.0.0",
+        "stage2-canonical-records-"
+        + str(version).removesuffix(".0")
+        + "-consumer-unconnected",
     )
+    return manifest
+
+
+def _verified_inputs(binding, inputs):
+    manifest = _consumer_manifest(inputs)
     handoff = decode(
         _raw(inputs["handoff_path"], inputs["handoff_sha256"]), "stage1 handoff"
     )
@@ -295,6 +302,11 @@ class ProjectStage2Service:
         )
         principal = self.intake._principal(credential)
 
+        def reserve(state, _, __):
+            offer = state.get("stage2_offers", {}).get(body["offer_ref"])
+            if offer is not None and offer["offer_sha256"] == body["offer_sha256"]:
+                _consumer_manifest(offer["inputs"])
+
         def work(state, request_hash, actor):
             binding = self.intake.binding(project_ref)
             offer = state.get("stage2_offers", {}).get(body["offer_ref"])
@@ -373,6 +385,7 @@ class ProjectStage2Service:
             deepcopy(body),
             work,
             check_deadline=check_deadline,
+            reserve=reserve,
         )
 
     def _journal(self, project_ref, kind):

@@ -1,10 +1,14 @@
 """Output-only candidate archives: real saved Core, authored HTTP, no live calls."""
 
+import csv
+import io
 import sys
 import unittest
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
+
+from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
@@ -12,6 +16,8 @@ from research_workspace.canonical_delivery import project_canonical_atlas
 from research_workspace.view import write_workspace
 from research_workspace_native.project_stage1_delivery import _io_root
 from research_workspace_native.project_stage1_library import _project
+from research_workspace_native.project_stage2 import ProjectStage2Service
+from research_workspace_native.session_api import SessionApiError
 from stage1_deliverable.common import (
     DeliverableError,
     canonical,
@@ -30,7 +36,11 @@ from stage1_deliverable.package import validate as validate_package
 from stage1_deliverable.records import CLASSIFICATION, FINDINGS, validate_records
 from stage1_deliverable.screening_records import artifacts, read_artifacts
 from stage1_ledger.validation import validate_run
+from stage1_coverage.run import CoverageLedger
+from stage2_common import Stage2Error
+from stage2_workflow import build_stage2_seed
 from test_stage1_core_records import core_case, produced
+from test_workspace_project_intake import bound_body, compile_body, submit_body
 
 
 class ScreeningRecordsTests(unittest.TestCase):
@@ -173,6 +183,218 @@ class ScreeningRecordsTests(unittest.TestCase):
                     raise AssertionError("archive collision")
             else:
                 target.write_bytes(raw)
+
+    def test_all_unscreened_library_builds_empty_screening_views_without_promotion(
+        self,
+    ):
+        case = self.case
+        created = case.intake.create(
+            "alice-token", {"key": "unscreened", "topic": "Authored unread studies"}
+        )
+        ref = created["project_ref"]
+        case.intake.submit(
+            "alice-token", ref, submit_body(case.intake.read("alice-token", ref))
+        )
+        case.intake.compile(
+            "alice-token", ref, compile_body(case.intake.read("alice-token", ref))
+        )
+        offer = case.stage1.read("alice-token", ref)["initialization_offer"]
+        case.stage1.initialize(
+            "alice-token",
+            ref,
+            dict(
+                bound_body(
+                    case.intake.read("alice-token", ref), "initialize-unscreened"
+                ),
+                offer_ref=offer["offer_ref"],
+                offer_sha256=offer["offer_sha256"],
+                confirmed=True,
+            ),
+        )
+        state = case.intake._load(case.intake._principal("alice-token"), ref)
+        run = state["stage1_runs"][state["stage1_active"]]
+        ledger = CoverageLedger(case.intake._path(ref, run["path"]))
+        coverage = ledger.coverage_state()
+        planned = next(iter(coverage.queries))
+        query = ledger.start_planned(planned)
+        backend = ledger.start(
+            "backend",
+            {"input": coverage.arguments(planned)},
+            backend="openalex",
+            parent_id=query,
+        )
+        metadata = [
+            dict(
+                title="Authored unread " + name,
+                authors=["Unknown"],
+                year=None,
+                version="v1",
+                doi="10.5555/authored-unread-" + name,
+            )
+            for name in ("first", "second")
+        ]
+        raw = ledger.save_bytes(canonical(metadata), producer=backend)
+        empty = ledger.save_bytes(b"", producer=backend)
+        ledger.finish(
+            backend,
+            outcome="success_nonempty",
+            http_status=200,
+            exit_code=0,
+            stdout=empty,
+            stderr=empty,
+            records=raw,
+        )
+        ledger.complete_query(query)
+        self.assertEqual(ledger.extract()["works"], 2)
+        ledger.checkpoint()
+        report = validate_run(ledger.root)
+        self.assertTrue(report["valid"], report)
+        library = _project(ref, case.intake.binding(ref), run, ledger, report)
+        records = deepcopy(self.records)
+        records.update(
+            topic="Authored unread studies",
+            papers=[],
+            sources=[],
+            claims=[],
+            screening=[],
+            core_claim_history=[],
+            core_artifacts=[],
+            screening_library=library,
+            screening_artifacts=artifacts(library),
+            screening_journal=dict(
+                path="screening_events.jsonl",
+                sha256=library["binding"]["journal_sha256"],
+            ),
+        )
+        for need in records["coverage"]:
+            need.update(
+                work_ids=[],
+                stop_decision="continue",
+                reason="Unknown: unread authored fixture.",
+            )
+        for row in library["rows"]:
+            paper_metadata = row["metadata"]
+            records["papers"].append(
+                dict(
+                    work_id=row["work_id"],
+                    version_id=row["selected_version_id"],
+                    title=paper_metadata["title"],
+                    authors=paper_metadata["authors"],
+                    year=None,
+                    doi=paper_metadata["doi"],
+                    venue="Unknown",
+                    url=None,
+                    evidence_level="metadata",
+                    source_ids=[],
+                    claim_ids=[],
+                    roles=[],
+                    reading_status="discovery-only",
+                    classification=dict.fromkeys(CLASSIFICATION, "Unknown"),
+                    findings=dict.fromkeys(FINDINGS, "Unknown"),
+                )
+            )
+        root = self.records_path.parent / "all-unscreened-input"
+        root.mkdir()
+        path = root / "records.json"
+        write_json(path, records)
+        original = path.read_bytes()
+        (root / "screening_events.jsonl").write_bytes(
+            (ledger.root / "stage_events.jsonl").read_bytes()
+        )
+        for item in records["screening_artifacts"]:
+            target = root / item["artifact_path"]
+            target.parent.mkdir(exist_ok=True)
+            target.write_bytes(ledger.read_ref(item["source_ref"]))
+        output = _io_root(private_output(case.fixture_root / "all-unscreened-package"))
+        receipt = build(path, output, sha(original))
+        self.assertEqual(
+            validate_package(output, receipt["manifest_sha256"])["status"], "passed"
+        )
+        self.assertEqual((output / "records.original.json").read_bytes(), original)
+        expected_headers = list(self.records["screening"][0])
+        rows = list(
+            csv.reader(
+                io.StringIO(
+                    (output / "search_and_screening.csv").read_text("utf-8-sig")
+                )
+            )
+        )
+        self.assertEqual(rows, [expected_headers])
+        workbook = load_workbook(output / "literature_catalog.xlsx", read_only=True)
+        try:
+            self.assertEqual(
+                list(workbook["Screening"].values), [tuple(expected_headers)]
+            )
+            self.assertEqual(workbook["Screening library"].max_row, 3)
+        finally:
+            workbook.close()
+        index, _ = project_canonical_atlas(
+            output, "all-unscreened", receipt["manifest_sha256"]
+        )
+        self.assertEqual(index["screening_library"], library)
+        self.assertFalse(library["stage1_complete"])
+        self.assertFalse(library["execution_authorized"])
+        self.assertEqual(library["counts"]["not_screened"], 2)
+        self.assertEqual(library["counts"]["core"]["decisions"], 0)
+        self.assertTrue(
+            all(
+                p["reading_status"] == "discovery-only"
+                and p["findings"]["main_findings"] == "Unknown"
+                and not p["source_ids"]
+                and not p["claim_ids"]
+                for p in index["papers"]
+            )
+        )
+        for item in records["screening_artifacts"]:
+            self.assertEqual(
+                (output / item["artifact_path"]).read_bytes(),
+                ledger.read_ref(item["source_ref"]),
+            )
+        case.runner.assert_not_called()
+
+    def test_stage2_refuses_valid_screening_package_before_offer_or_output(self):
+        output = _io_root(
+            private_output(self.case.fixture_root / "screening-refusal-package")
+        )
+        receipt = build(self.records_path, output, sha(self.records_path.read_bytes()))
+        self.assertEqual(
+            validate_package(output, receipt["manifest_sha256"])["status"], "passed"
+        )
+        service = ProjectStage2Service(self.case.intake)
+        history = self.case.intake.history("alice-token", self.fixture["ref"])
+        state = self.case.intake.read("alice-token", self.fixture["ref"])
+        with self.assertRaisesRegex(SessionApiError, "consumer-unconnected"):
+            service.register(
+                self.fixture["ref"],
+                deliverable_dir=output,
+                expected_manifest_sha256=receipt["manifest_sha256"],
+                handoff_path=self.original_path,
+                expected_handoff_sha256=sha(self.original_path.read_bytes()),
+                resources_path=self.records_path,
+                expected_resources_sha256=sha(self.records_path.read_bytes()),
+                policy_ref=dict(
+                    route="stage2-general-v3/daily_v3", execution_authorized=False
+                ),
+            )
+        self.assertEqual(
+            self.case.intake.history("alice-token", self.fixture["ref"]), history
+        )
+        self.assertEqual(
+            self.case.intake.read("alice-token", self.fixture["ref"]), state
+        )
+        seed = self.case.fixture_root / "screening-refused-stage2-seed"
+        with self.assertRaisesRegex(Stage2Error, "consumer-unconnected"):
+            build_stage2_seed(
+                output,
+                receipt["manifest_sha256"],
+                self.original_path,
+                sha(self.original_path.read_bytes()),
+                self.original_path,
+                self.records_path,
+                seed,
+            )
+        self.assertFalse(seed.exists())
+        self.case.runner.assert_not_called()
 
     def test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution(
         self,

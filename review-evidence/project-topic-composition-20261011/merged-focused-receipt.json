@@ -1,0 +1,21 @@
+{
+  "exit_code": 0,
+  "elapsed_seconds": 114.84399999999732,
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "unittest",
+    "-v",
+    "test_project_source_reading_http",
+    "test_project_stage2",
+    "test_capability_metric_map"
+  ],
+  "log_sha256": "aef2d2cef32ef82360dd7e9b44bf543d9402c63a50d60948a0c0e354458c0506",
+  "head": "fe2e7deb6f77fd04b818637d1d92e817b6b6c9f3",
+  "index_tree": "526a76e9df3aec6e1ccae85c0295e557e8fe3435",
+  "merge_head": "47807a1d393b5fe3e57cc9bbd74dc9c5fd391b23",
+  "native_model_search_not_run": true
+}

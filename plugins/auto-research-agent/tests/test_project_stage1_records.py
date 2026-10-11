@@ -14,8 +14,16 @@ import test_stage1_deliverable as package_fixture
 import test_project_stage1_delivery as delivery_fixture
 from research_workspace_native.project_stage1_records import ProjectStage1RecordsService
 from research_workspace_native.session_api import SessionApiError
-from stage1_deliverable.common import read_json, sha
+from stage1_deliverable.common import read_json, sha, write_json
+from stage1_deliverable.core_records import artifact_path, read_artifacts
+from stage1_deliverable.records import validate_records
+from stage1_deliverable.screening_records import artifacts as screening_artifacts
+from stage1_deliverable.screening_records import (
+    read_artifacts as read_screening_artifacts,
+)
 from stage1_ledger.journal import canonical
+from stage1_ledger.validation import validate_run
+from research_workspace_native.project_stage1_library import _project
 
 
 class SavedStage1RecordsTests(unittest.TestCase):
@@ -234,6 +242,79 @@ class SavedStage1RecordsTests(unittest.TestCase):
             expected_ledger_state_sha256=fixture["ledger"].state_hash(),
             expected_checkpoint_event_id=fixture["checkpoint"]["event_id"],
         )
+
+    def test_unconnected_screening_records_refused_before_delivery_offer(self):
+        fixture = self.two_sources()
+        self.register_all(fixture)
+        offer = self.produce(fixture)
+        context = self.delivery._context(fixture["ref"])
+        saved = context[1]["stage1_delivery_offers"][offer["offer_ref"]]
+        path = Path(saved["records_path"]).with_name("screening-native-refusal.json")
+        records = read_json(saved["records_path"])
+        ledger = fixture["ledger"]
+        journal = deepcopy(ledger.events())
+        # All papers have saved readings and source-linked nonnull claims.
+        # The native consumer must refuse a valid unsupported format before
+        # creating an offer through its legacy comparison branch.
+        history = [row for row in journal if row["payload"]["kind"] == "ClaimEvidence"]
+        by_id = {row["payload"]["event_id"]: row for row in history}
+        refs = {
+            canonical(row["payload"]["source_ref"]): row["payload"]["source_ref"]
+            for row in history
+        }
+        run = context[3]
+        library = _project(
+            fixture["ref"],
+            self.intake.binding(fixture["ref"]),
+            run,
+            ledger,
+            validate_run(ledger.root),
+        )
+        journal_raw = b"".join(canonical(row) + b"\n" for row in journal)
+        self.assertEqual(library["binding"]["journal_sha256"], sha(journal_raw))
+        records.update(
+            schema_version="1.2.0",
+            core_claim_history=history,
+            core_artifacts=[
+                {"source_ref": ref, "artifact_path": artifact_path(ref)}
+                for ref in refs.values()
+            ],
+            screening_library=library,
+            screening_artifacts=screening_artifacts(library),
+            screening_journal={
+                "path": "screening_events.jsonl",
+                "sha256": library["binding"]["journal_sha256"],
+            },
+        )
+        for claim in records["claims"]:
+            claim["core_event"] = deepcopy(by_id[claim["claim_id"]])
+        for paper in records["papers"]:
+            paper["reading_status"] = "human-reviewed"
+        for item in [*records["core_artifacts"], *records["screening_artifacts"]]:
+            target = path.parent / item["artifact_path"]
+            target.parent.mkdir(exist_ok=True)
+            raw = ledger.read_ref(item["source_ref"])
+            if target.exists():
+                self.assertEqual(target.read_bytes(), raw)
+            else:
+                target.write_bytes(raw)
+        (path.parent / "screening_events.jsonl").write_bytes(journal_raw)
+        validate_records(records)
+        read_artifacts(records, path.parent)
+        read_screening_artifacts(records, path.parent)
+        write_json(path, records)
+        before = self.intake.history("alice-token", fixture["ref"])
+        state = self.intake.read("alice-token", fixture["ref"])
+        with self.assertRaisesRegex(SessionApiError, "consumer-unconnected"):
+            self.delivery.register_records(
+                fixture["ref"],
+                records_path=path,
+                expected_records_sha256=sha(path.read_bytes()),
+                expected_ledger_state_sha256=ledger.state_hash(),
+            )
+        self.assertEqual(self.intake.history("alice-token", fixture["ref"]), before)
+        self.assertEqual(self.intake.read("alice-token", fixture["ref"]), state)
+        self.runner.assert_not_called()
 
     def test_two_sources_reading_records_delivery_and_true_sqlite_reopen(self):
         fixture = self.two_sources()
