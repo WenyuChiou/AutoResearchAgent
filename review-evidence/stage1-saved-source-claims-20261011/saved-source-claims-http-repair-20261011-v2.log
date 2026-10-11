@@ -1,0 +1,17 @@
+test_real_http_routes_auth_and_durable_refusal (__main__.SavedClaimTests.test_real_http_routes_auth_and_durable_refusal) ... FAIL
+
+======================================================================
+FAIL: test_real_http_routes_auth_and_durable_refusal (__main__.SavedClaimTests.test_real_http_routes_auth_and_durable_refusal)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_saved_claims.py", line 348, in test_real_http_routes_auth_and_durable_refusal
+    self.assertEqual(result["receipt"]["status"], "refused-before-intent")
+AssertionError: 'known-unsent' != 'refused-before-intent'
+- known-unsent
++ refused-before-intent
+
+
+----------------------------------------------------------------------
+Ran 1 test in 6.854s
+
+FAILED (failures=1)

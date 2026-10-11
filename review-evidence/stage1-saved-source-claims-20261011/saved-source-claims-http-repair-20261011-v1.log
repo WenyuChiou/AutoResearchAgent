@@ -1,0 +1,14 @@
+test_real_http_routes_auth_and_durable_refusal (__main__.SavedClaimTests.test_real_http_routes_auth_and_durable_refusal) ... FAIL
+
+======================================================================
+FAIL: test_real_http_routes_auth_and_durable_refusal (__main__.SavedClaimTests.test_real_http_routes_auth_and_durable_refusal)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_saved_claims.py", line 341, in test_real_http_routes_auth_and_durable_refusal
+    self.assertEqual(
+AssertionError: 401 != 403
+
+----------------------------------------------------------------------
+Ran 1 test in 5.550s
+
+FAILED (failures=1)

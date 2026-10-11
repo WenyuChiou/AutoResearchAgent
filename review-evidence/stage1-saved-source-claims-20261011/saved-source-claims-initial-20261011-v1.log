@@ -1,0 +1,24 @@
+test_invalid_stale_foreign_and_tampered_source_before_intent (__main__.SavedClaimTests.test_invalid_stale_foreign_and_tampered_source_before_intent) ... ok
+test_manual_receipt_does_not_block_model_draft_claims (__main__.SavedClaimTests.test_manual_receipt_does_not_block_model_draft_claims) ... ok
+test_pagination_past_model_excerpt_and_multibyte_quote (__main__.SavedClaimTests.test_pagination_past_model_excerpt_and_multibyte_quote) ... ok
+test_post_append_unknown_survives_true_sqlite_reopen (__main__.SavedClaimTests.test_post_append_unknown_survives_true_sqlite_reopen) ... ok
+test_real_http_routes_auth_and_durable_refusal (__main__.SavedClaimTests.test_real_http_routes_auth_and_durable_refusal) ... ERROR
+test_replay_and_duplicate_payload_refusal (__main__.SavedClaimTests.test_replay_and_duplicate_payload_refusal) ... ok
+test_six_manual_claims_reach_existing_coverage_without_model (__main__.SavedClaimTests.test_six_manual_claims_reach_existing_coverage_without_model) ... ok
+
+======================================================================
+ERROR: test_real_http_routes_auth_and_durable_refusal (__main__.SavedClaimTests.test_real_http_routes_auth_and_durable_refusal)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_saved_claims.py", line 341, in test_real_http_routes_auth_and_durable_refusal
+    self.assertEqual(http("source-claims/" + work)[0], 200)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_saved_claims.py", line 320, in http
+    client = http.client.HTTPConnection(
+             ^^^^^^^^^^^
+AttributeError: 'function' object has no attribute 'client'
+
+----------------------------------------------------------------------
+Ran 7 tests in 70.330s
+
+FAILED (errors=1)

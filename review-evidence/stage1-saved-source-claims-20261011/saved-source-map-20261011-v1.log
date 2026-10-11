@@ -1,0 +1,10 @@
+test_all_standardized_capability_entry_points_are_registered (test_capability_metric_map.CapabilityMetricMapTests.test_all_standardized_capability_entry_points_are_registered) ... ok
+test_capability_ids_and_owner_paths_are_unique (test_capability_metric_map.CapabilityMetricMapTests.test_capability_ids_and_owner_paths_are_unique) ... ok
+test_capability_ids_are_canonical_and_match_kind (test_capability_metric_map.CapabilityMetricMapTests.test_capability_ids_are_canonical_and_match_kind) ... ok
+test_each_capability_has_valid_metrics_measures_and_tests (test_capability_metric_map.CapabilityMetricMapTests.test_each_capability_has_valid_metrics_measures_and_tests) ... ok
+test_foundation_does_not_claim_measured_improvement (test_capability_metric_map.CapabilityMetricMapTests.test_foundation_does_not_claim_measured_improvement) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.018s
+
+OK
