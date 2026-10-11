@@ -169,8 +169,12 @@ def _write_view(
     stage2_attachment, stage2_files = None, {}
     supplied = (stage2_delivery, stage2_bridge, expected_stage2_bridge_sha256)
     if any(value is not None for value in supplied):
-        if index["schema_version"] == "1.1.0":
-            raise DeliverableError("canonical-records-1.1 Stage2 consumer unconnected")
+        if index["schema_version"] in {"1.1.0", "1.2.0"}:
+            raise DeliverableError(
+                "canonical-records-"
+                + index["schema_version"].removesuffix(".0")
+                + " Stage2 consumer unconnected"
+            )
         if not all(value is not None for value in supplied):
             raise DeliverableError(
                 "Stage 2 delivery, bridge and receipt hash are required"
@@ -189,6 +193,7 @@ def _write_view(
     if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") not in {
         "1.0.0",
         "1.1.0",
+        "1.2.0",
         "2.0.0",
         "3.0.0",
     }:
@@ -453,6 +458,17 @@ def _write_view(
         manifest["rebuild"].update(canonical_rebuild)
         manifest["adapter_sources"]["canonical_delivery.py"] = sha(
             Path(__file__).with_name("canonical_delivery.py").read_bytes()
+        )
+    if index["schema_version"] == "1.2.0":
+        manifest["adapter_sources"].update(
+            {
+                "stage1_deliverable/" + name: sha(
+                    (
+                        Path(__file__).parent.parent / "stage1_deliverable" / name
+                    ).read_bytes()
+                )
+                for name in ("screening_records.py", "core_records.py", "records.py")
+            }
         )
     if atlas:
         manifest["rebuild"]["atlas"] = True

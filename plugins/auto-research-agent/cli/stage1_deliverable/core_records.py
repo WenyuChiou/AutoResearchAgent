@@ -28,7 +28,7 @@ LEVELS = {
 
 
 def extended(records):
-    return records.get("schema_version") == VERSION
+    return records.get("schema_version") in {VERSION, "1.2.0"}
 
 
 def artifact_path(ref):

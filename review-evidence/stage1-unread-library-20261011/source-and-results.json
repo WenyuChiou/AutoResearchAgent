@@ -1,0 +1,48 @@
+{
+  "base_head": "87fa407e1f190d73d08eb6a7d399f05a3b3fcab7",
+  "conclusions": [
+    "initial four FAILED:3 pass + mixed-package credential-null scanner error",
+    "repair two FAILED: typed-null/journal/drop/DOI/venue regression pass + mixed-package Windows-long-path fixture error",
+    "final mixed selector PASS1/22.472s; production unchanged after repair2, only test output handle changed",
+    "not a single combined final suite; no full/native/model/search/Stage2 run",
+    "Ruff DTZ001 baseline-only ignore; original two deterministic old naive dates unchanged"
+  ],
+  "git_actions": "no commit or push by subagent",
+  "kind": "Stage1CanonicalScreeningImplementationReceipt",
+  "logs": [
+    {
+      "command.txt": "d6fa02bddb29a92c030f0d4357afc13e6882706234ff68c0bf6f0bd615fa71e5",
+      "directory": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\stage1-screening-b-3534455acdfb476899f3f162cf3cceee",
+      "receipt.json": "28bc4e506c763347cb081e02a60422f0d0cd14b2c4ed0c39587156d731c0f78e",
+      "stderr.log": "3dc17a1c330929386887592836ff2335669cf11381f3cf56535884228e0c854b",
+      "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command.txt": "889798861c6fa90ecc77a556ed0b23a6e826d219c7231b61ffc36edee6db0dc8",
+      "directory": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\stage1-screening-repair-b-209159b90c9f40e8afd786083d56f2bf",
+      "receipt.json": "46744563683b141a7d2750a96b7d632c2f9621db649fb2b08d12cdb9b2d8dc13",
+      "stderr.log": "509a1ae6732842f50f39ee79d818acd7abae245b30f78abb1d9b1f1af6c300a7",
+      "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command.txt": "e31e221f80624e334a2a03d9d972fb6b2dd18dbc447cc4cc5a85d8cf25038400",
+      "directory": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\stage1-screening-path-repair-b-010bcbdb74f04ef4a90c25cd5bda9912",
+      "receipt.json": "c63c1a3cf51174305bd650fbac27b03c10c078899ee4e8874d76dbc89d26dcc4",
+      "stderr.log": "10ca9cf16edbbd877aa8674a02f7590ef75c04e4e07ed67147cc9d260abb41ed",
+      "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py": "15d464e513466dd52d7f767d18085becec3961d56176975b7949ef7f5976c67a",
+    "plugins/auto-research-agent/cli/research_workspace/projection.py": "4a6678bac05450617e35eae039aa8826dff369aac78b7a0f6bf6c0527b680646",
+    "plugins/auto-research-agent/cli/research_workspace/view.py": "1d72948296ea5e90c6b26bc0523601c5d8f570c55b6dbba3057052d638f55d9d",
+    "plugins/auto-research-agent/cli/research_workspace/wiki.py": "9ee6588584f1e559fb8b068649c0d2b8ddbe9de0f88556eee9e94754075dbe7e",
+    "plugins/auto-research-agent/cli/stage1_deliverable/core_records.py": "3f143aa8f196a51e684a5dfaeef55c0f70804ba5109f7306da7c342b07d5d4a3",
+    "plugins/auto-research-agent/cli/stage1_deliverable/package.py": "b74909f20ae65e9763c4172a4ada4e6d215b7b868d8c8b665241fa0282b6d5a6",
+    "plugins/auto-research-agent/cli/stage1_deliverable/records.py": "7fac34d8455d8d5f02b06f43defea20f8cce13ed3734777d579f2713b64d66b6",
+    "plugins/auto-research-agent/cli/stage1_deliverable/screening_records.py": "056ab24a18e3a9e2eb6ece7245613eaf55f3b0e4649ba12ca2f9e6960a0c5fb7",
+    "plugins/auto-research-agent/cli/stage1_deliverable/views.py": "efb99f81c0a50f2a46b1dbba5d5b4a8894b5cf3aec50e61ff657b4599218002b",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "9d7badfa6a10807661dee4cef284738d79d06a44b6b560fa9e5806145a1f5975",
+    "plugins/auto-research-agent/tests/test_stage1_screening_records.py": "544e2d7b8667b468608ea347c0121c4049d492b8828ae01a8e72388d809327a1"
+  }
+}

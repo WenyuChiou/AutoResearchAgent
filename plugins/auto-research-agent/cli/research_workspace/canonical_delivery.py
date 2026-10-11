@@ -51,7 +51,7 @@ def _delivery(root, expected):
     _require(
         isinstance(manifest, dict)
         and manifest.get("kind") == "Stage1ResearchDeliverable"
-        and manifest.get("schema_version") in {"1.0.0", "1.1.0"},
+        and manifest.get("schema_version") in {"1.0.0", "1.1.0", "1.2.0"},
         "unsupported saved canonical delivery",
     )
     declared = manifest.get("files")
