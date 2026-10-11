@@ -32,6 +32,21 @@
       "sha256": "f5d491dad98806eb64178bde0727fa9c284e67a53c1a9323faa3a23be9b4b525",
       "bytes": 1341,
       "raw_byte_copy": true
+    },
+    "bootstrap-receipt.json": {
+      "sha256": "7d56ae179bd73ed3cf8b8a0f1432942371e4cf631b37bfdfb317d30073a7c3cc",
+      "bytes": 206629,
+      "raw_byte_copy": true
+    },
+    "bootstrap-stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "raw_byte_copy": true
+    },
+    "bootstrap-stderr.log": {
+      "sha256": "9c203cbc3d909fe16c5435260a21686af340b1dd3973388bf906585566e3b6b5",
+      "bytes": 515,
+      "raw_byte_copy": true
     }
   },
   "final_tests": {
@@ -54,5 +69,11 @@
     "map": "trailing comma caused JSONDecodeError before any tests; corrected with no source/guard changes",
     "missing_commit_message": "first stage merge refused before mutation because the private message path was wrong",
     "registry_probe": "First private verifier wrongly required a whole candidate-extended mechanism description to equal main; it was corrected to inspect unchanged Core paths and retained declarations separately."
+  },
+  "bootstrap_separate_run": {
+    "count": 2,
+    "seconds": 0.117,
+    "exit": 0,
+    "scope": "Accepted transaction-state/version-race regressions; synthetic channel and real SQLite. Not combined with7 tests."
   }
 }

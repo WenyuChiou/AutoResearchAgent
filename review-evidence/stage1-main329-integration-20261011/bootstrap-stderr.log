@@ -1,0 +1,7 @@
+test_frame_validation_uses_transaction_state_without_snapshot (test_research_workspace_native_bootstrap_context.BootstrapContextTests.test_frame_validation_uses_transaction_state_without_snapshot) ... ok
+test_frame_rejects_version_changed_during_binding_verification (test_research_workspace_native_bootstrap_context.BootstrapContextTests.test_frame_rejects_version_changed_during_binding_verification) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.117s
+
+OK
