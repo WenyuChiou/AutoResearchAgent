@@ -262,6 +262,8 @@ class ProjectIntakeService:
                     "UPDATE intake_actions SET receipt=? WHERE principal=? AND project=? AND key=?",
                     (canonical(receipt).decode(), principal, project_ref, body["key"]),
                 )
+                if check_deadline is not None:
+                    check_deadline()
                 self.db.commit()
             except BaseException as error:
                 self.db.rollback()

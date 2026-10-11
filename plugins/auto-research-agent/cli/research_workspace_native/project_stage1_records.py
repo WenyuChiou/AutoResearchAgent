@@ -62,7 +62,20 @@ class ProjectStage1RecordsService:
         )
         return context
 
-    def _register(self, project_ref, context, kind, payload):
+    def _mutation_check(self, project_ref, expected_state, guard_check):
+        _check(
+            guard_check is None or callable(guard_check),
+            "saved-mutation-check-required",
+        )
+
+        def check():
+            if guard_check is not None:
+                guard_check()
+            return self._context(project_ref, expected_state)
+
+        return check
+
+    def _register(self, project_ref, context, kind, payload, check_current):
         principal, state, binding, *_ = context
         entry = dict(basis=self._basis(context), payload=payload)
         _check(
@@ -84,7 +97,9 @@ class ProjectStage1RecordsService:
             entries[entry["ref"]] = entry
             return {"registry_entry": entry}
 
-        result = self.intake._perform(principal, project_ref, kind, body, save)
+        result = self.intake._perform(
+            principal, project_ref, kind, body, save, check_deadline=check_current
+        )
         _check(result["status"] == "saved", "stage1-saved-registration-unobserved")
         return deepcopy(result["registry_entry"])
 
@@ -155,8 +170,11 @@ class ProjectStage1RecordsService:
         _text(access_note)
         with self.intake._lock:
             context = self._context(project_ref, expected_ledger_state_sha256)
-            with self.guard(*context[3:6]):
-                context = self._context(project_ref, expected_ledger_state_sha256)
+            with self.guard(*context[3:6]) as guard_check:
+                check_current = self._mutation_check(
+                    project_ref, expected_ledger_state_sha256, guard_check
+                )
+                context = check_current()
                 payload = describe_source(
                     context[4],
                     self.root,
@@ -176,7 +194,11 @@ class ProjectStage1RecordsService:
                     "saved-source-registration-differs",
                 )
                 return self._register(
-                    project_ref, context, "stage1-source-registry", payload
+                    project_ref,
+                    context,
+                    "stage1-source-registry",
+                    payload,
+                    check_current,
                 )
 
     def _reading(self, context, value, source_entries):
@@ -320,8 +342,11 @@ class ProjectStage1RecordsService:
         reading = deepcopy(reading)
         with self.intake._lock:
             context = self._context(project_ref, expected_ledger_state_sha256)
-            with self.guard(*context[3:6]):
-                context = self._context(project_ref, expected_ledger_state_sha256)
+            with self.guard(*context[3:6]) as guard_check:
+                check_current = self._mutation_check(
+                    project_ref, expected_ledger_state_sha256, guard_check
+                )
+                context = check_current()
                 sources = [
                     entry["payload"]
                     for entry in self._entries(context)
@@ -331,7 +356,11 @@ class ProjectStage1RecordsService:
                     source_record(context[4], self.root, entry)
                 self._reading(context, reading, sources)
                 return self._register(
-                    project_ref, context, "stage1-reading-registry", reading
+                    project_ref,
+                    context,
+                    "stage1-reading-registry",
+                    reading,
+                    check_current,
                 )
 
     def _records(self, context, entries):
@@ -483,8 +512,11 @@ class ProjectStage1RecordsService:
     ):
         with self.intake._lock:
             context = self._context(project_ref, expected_ledger_state_sha256)
-            with self.guard(*context[3:6]):
-                context = self._context(project_ref, expected_ledger_state_sha256)
+            with self.guard(*context[3:6]) as guard_check:
+                check_frontier = self._mutation_check(
+                    project_ref, expected_ledger_state_sha256, guard_check
+                )
+                context = check_frontier()
                 _check(
                     context[6]["event_id"] == expected_checkpoint_event_id,
                     "stage1-checkpoint-event-differs",
@@ -520,7 +552,7 @@ class ProjectStage1RecordsService:
                 def check_current():
                     if write_error:
                         raise OSError(write_error[0])
-                    current = self._context(project_ref, expected_ledger_state_sha256)
+                    current = check_frontier()
                     _check(
                         current[6]["event_id"] == expected_checkpoint_event_id,
                         "stage1-checkpoint-event-differs",
@@ -571,4 +603,5 @@ class ProjectStage1RecordsService:
                     records_path=path,
                     expected_records_sha256=digest,
                     expected_ledger_state_sha256=expected_ledger_state_sha256,
+                    check_deadline=check_current,
                 )

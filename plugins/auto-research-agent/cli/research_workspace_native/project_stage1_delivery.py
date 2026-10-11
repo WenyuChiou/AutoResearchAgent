@@ -366,8 +366,13 @@ class ProjectStage1DeliveryService:
         records_path,
         expected_records_sha256,
         expected_ledger_state_sha256,
+        check_deadline=None,
     ):
         """Trusted local producer registration, without search/import authority."""
+        _check(
+            check_deadline is None or callable(check_deadline),
+            "stage1-delivery-registration-check-required",
+        )
         with self.intake._lock:
             context = self._context(project_ref)
             principal, state, binding, run, ledger, report, checkpoint, ref, handoff = (
@@ -418,7 +423,12 @@ class ProjectStage1DeliveryService:
                 return {"offer": _public(offer)}
 
             result = self.intake._perform(
-                principal, project_ref, "stage1-register-delivery", body, work
+                principal,
+                project_ref,
+                "stage1-register-delivery",
+                body,
+                work,
+                check_deadline=check_deadline,
             )
             _check(
                 result["status"] == "saved", "stage1-delivery-registration-unobserved"

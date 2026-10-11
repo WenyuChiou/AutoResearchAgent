@@ -346,6 +346,183 @@ class SavedStage1RecordsTests(unittest.TestCase):
         )
         self.assertEqual(list(self.fixture_root.glob("stage1-records-*")), [])
 
+    def first_source(self, fixture):
+        records, directory = fixture["pairs"][0]
+        source = records["sources"][0]
+        path = directory / "source/source-fetch-result.json"
+        return self.producer.register_source(
+            fixture["ref"],
+            source_id=source["source_id"],
+            result_path=path,
+            expected_result_sha256=sha(path.read_bytes()),
+            access_note=source["access_note"],
+            expected_ledger_state_sha256=fixture["ledger"].state_hash(),
+        )
+
+    def test_yielded_guard_check_refuses_before_admission(self):
+        fixture = self.two_sources()
+        principal = self.intake._principal("alice-token")
+        before = self.intake._load(principal, fixture["ref"])
+        action_count = self.intake.db.execute(
+            "SELECT COUNT(*) FROM intake_actions WHERE project=?", (fixture["ref"],)
+        ).fetchone()[0]
+
+        def check():
+            raise OSError("authored owner already closing")
+
+        for value in (check, object()):
+            with self.subTest(check=value):
+                self.producer.guard = lambda *args: nullcontext(value)
+                with self.assertRaises((OSError, SessionApiError)):
+                    self.first_source(fixture)
+                self.assertEqual(before, self.intake._load(principal, fixture["ref"]))
+                self.assertEqual(
+                    self.intake.db.execute(
+                        "SELECT COUNT(*) FROM intake_actions WHERE project=?",
+                        (fixture["ref"],),
+                    ).fetchone()[0],
+                    action_count,
+                )
+
+    def refuse_precommit(self, fixture, kind, operation, *, after_sql=False):
+        principal = self.intake._principal("alice-token")
+        before = self.intake._load(principal, fixture["ref"])
+        saved_before = self.intake.db.execute(
+            "SELECT COUNT(*) FROM intake_events WHERE project=? AND kind=?",
+            (fixture["ref"], kind + "-saved"),
+        ).fetchone()[0]
+        active = [True]
+        calls = []
+
+        def check():
+            calls.append(active[0])
+            if not active[0]:
+                raise OSError("authored owner lost after local work")
+
+        @contextmanager
+        def guard(run, ledger, report):
+            self.assertEqual(run["run_ref"], before["stage1_active"])
+            self.assertEqual(ledger.root, fixture["ledger"].root)
+            self.assertEqual(report["state_sha256"], fixture["ledger"].state_hash())
+            yield check
+            # Exit-only checks reproduce the original unsafe saved transaction.
+            check()
+
+        perform = self.intake._perform
+
+        def inject(principal, project, operation_kind, body, work, **kwargs):
+            def after_work(*args):
+                result = work(*args)
+                if operation_kind == kind and not after_sql:
+                    active[0] = False
+                return result
+
+            return perform(
+                principal, project, operation_kind, body, after_work, **kwargs
+            )
+
+        save = self.intake._save
+
+        def invalidate_after_sql(state, event_kind, payload):
+            result = save(state, event_kind, payload)
+            if after_sql and event_kind == kind + "-saved":
+                active[0] = False
+            return result
+
+        self.producer.guard = guard
+        with (
+            patch.object(self.intake, "_perform", side_effect=inject),
+            patch.object(self.intake, "_save", side_effect=invalidate_after_sql),
+        ):
+            with self.assertRaises((OSError, SessionApiError)):
+                operation()
+        row = self.intake.db.execute(
+            "SELECT receipt FROM intake_actions WHERE project=? ORDER BY rowid DESC LIMIT 1",
+            (fixture["ref"],),
+        ).fetchone()
+        receipt = json.loads(row["receipt"])
+        self.assertEqual(receipt["kind"], kind)
+        self.assertEqual(receipt["status"], "execution-unknown")
+        self.assertEqual(receipt["failure_phase"], "post-work-before-commit")
+        current = self.intake._load(principal, fixture["ref"])
+        for field in ("stage1_saved_registries", "stage1_delivery_offers"):
+            self.assertEqual(current.get(field), before.get(field))
+        self.assertEqual(
+            self.intake.db.execute(
+                "SELECT COUNT(*) FROM intake_events WHERE project=? AND kind=?",
+                (fixture["ref"], kind + "-saved"),
+            ).fetchone()[0],
+            saved_before,
+        )
+        self.assertIn(False, calls)
+        self.runner.assert_not_called()
+        return receipt
+
+    def test_source_owner_loss_before_commit_rolls_back_registry(self):
+        fixture = self.two_sources()
+        self.refuse_precommit(
+            fixture, "stage1-source-registry", lambda: self.first_source(fixture)
+        )
+        self.assertEqual(list(self.fixture_root.glob("stage1-records-*")), [])
+
+    def test_reading_owner_loss_before_commit_rolls_back_registry(self):
+        fixture = self.two_sources()
+        reading = deepcopy(self.register_all(fixture))
+        reading["findings"]["main_findings"] = "Authored annotation revision"
+        self.refuse_precommit(
+            fixture,
+            "stage1-reading-registry",
+            lambda: self.producer.register_reading(
+                fixture["ref"],
+                reading=reading,
+                expected_ledger_state_sha256=fixture["ledger"].state_hash(),
+            ),
+        )
+
+    def test_source_owner_loss_after_saved_sql_rolls_back_registry(self):
+        fixture = self.two_sources()
+        self.refuse_precommit(
+            fixture,
+            "stage1-source-registry",
+            lambda: self.first_source(fixture),
+            after_sql=True,
+        )
+
+    def test_records_owner_loss_after_publication_preserves_unknown(self):
+        fixture = self.two_sources()
+        self.register_all(fixture)
+        receipt = self.refuse_precommit(
+            fixture, "stage1-produce-records", lambda: self.produce(fixture)
+        )
+        path = Path(receipt["output_observation"]["records_path"])
+        raw = path.read_bytes()
+        self.reopen()
+        with patch("research_workspace_native.project_stage1_records.os.link") as write:
+            with self.assertRaises(SessionApiError):
+                self.produce(fixture)
+            write.assert_not_called()
+        self.assertEqual(path.read_bytes(), raw)
+
+    def test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts(
+        self,
+    ):
+        fixture = self.two_sources()
+        self.register_all(fixture)
+        self.refuse_precommit(
+            fixture,
+            "stage1-register-delivery",
+            lambda: self.produce(fixture),
+            after_sql=True,
+        )
+        path = next(self.fixture_root.glob("stage1-records-*.json"))
+        raw = path.read_bytes()
+        self.reopen()
+        with patch("research_workspace_native.project_stage1_records.os.link") as write:
+            with self.assertRaises(SessionApiError):
+                self.produce(fixture)
+            write.assert_not_called()
+        self.assertEqual(path.read_bytes(), raw)
+
     def test_post_publish_binding_failure_records_output_as_unknown(self):
         fixture = self.two_sources()
         self.register_all(fixture)

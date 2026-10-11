@@ -172,9 +172,19 @@ reported separately.
 explicit operations register an original saved source receipt, register typed
 manual reading annotations, and produce current canonical records. It has no
 public path-taking route, downloader, model reader or automatic stage start.
-The trusted host must supply a context manager owning the current run's saved
-mutation frontier; an absent or refused guard cannot write a registry or file.
-The production query-owner wiring remains separate work.
+The trusted host must supply a three-argument context manager owning the current
+run's saved mutation frontier. It yields a zero-argument owner/frontier check
+callback which raises on refusal; `None` retains the existing offline fixture
+seam. Any other yielded type is rejected before admission. Source and reading
+registration compose this check with current Core state checks; records also
+check the current coverage checkpoint and propagate the same callback into the
+separate delivery-offer registration. The intake transaction checks before
+admission and work, after work, and again after saved SQL writes immediately
+before commit. Owner/deadline failure during saved SQL rolls back registry/offer
+publication, retains the durable intent as unknown and never adopts the orphan
+file or automatically retries. Context-exit checks alone are insufficient.
+An absent or refused guard cannot write a registry or file. Production query-
+owner wiring remains a trusted-host responsibility, not authority from this seam.
 
 Sources require existing real Core `SourceReadStarted`/`SourceReadFinished`
 pairs. The SDK receipt stays in its original declared `output_dir`, beneath
