@@ -16,6 +16,7 @@ from .session_api import _check
 KINDS = {
     "stage1-query-bootstrap": "query",
     "stage1-query-execute": "query",
+    "stage1-expansion-execute": "query",
     "model-operation": "model",
     "stage1-source-execute": "source",
 }
@@ -267,6 +268,25 @@ def _query(intake, state, principal, intents):
             "project-resource-query-authorization-differs",
         )
         identity = permit["binding"]
+        if intent["kind"] == "stage1-expansion-execute":
+            from .project_expansions import saved_grant
+
+            dispatch = state.get("stage1_expansion_dispatches", {}).get(digest, {})
+            grant_sha = dispatch.get("document", {}).get("expansion_grant_sha256")
+            grant = saved_grant(intake, state, principal, grant_sha)
+            _check(
+                state.get("stage1_expansion_uses", {}).get(grant_sha) == digest
+                and dispatch.get("offer_ref") == intent["request"]["offer_ref"]
+                and dispatch.get("offer_sha256")
+                == intent["request"]["offer_sha256"]
+                == sha(canonical(dispatch["document"]))
+                and grant["document"]["original_permit_sha256"] == sha(raw)
+                and grant["document"]["input_version"]
+                == intent["request"]["input_version"]
+                and grant["document"]["brief_sha256"]
+                == intent["request"]["brief_sha256"],
+                "project-resource-expansion-authorization-differs",
+            )
         _check(
             permit.get("project_ref") == state["project_ref"]
             and permit.get("principals") == [principal]

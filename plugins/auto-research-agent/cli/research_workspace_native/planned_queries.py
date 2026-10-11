@@ -11,7 +11,7 @@ import time
 from stage1_deliverable.common import canonical, sha
 from stage1_coverage.run import CoverageLedger
 from stage1_ledger.validation import validate_run
-from stage1_retrieval.runner import execute as execute_backend
+from stage1_retrieval.runner import execute as execute_backend, identifier_for
 from stage1_retrieval.receipt import command
 from research_workspace_native.planned_query_contract import (
     KEY,
@@ -54,6 +54,7 @@ class PlannedQueryService:
         verify_source,
         executor=execute_backend,
         check_resources=None,
+        check_expansion=None,
     ):
         require(
             callable(authenticate)
@@ -72,6 +73,11 @@ class PlannedQueryService:
         self._auth, self._admit, self._execute = authenticate, admit, executor
         self._verify_source = verify_source
         self._check_resources = check_resources
+        require(
+            check_expansion is None or callable(check_expansion),
+            "query-expansion-gate-required",
+        )
+        self._check_expansion = check_expansion
         self._lock, self._closed, self._workers, self._projects = (
             threading.RLock(),
             False,
@@ -220,9 +226,12 @@ class PlannedQueryService:
             [p["pid"] for p in self._projects.values()],
         )
 
-    def _inspect(self, ref, p, saved):
+    def _inspect(self, ref, p, saved, *, expansion=False):
         self._check_storage()
-        item, permit, state, pin = inspect_registration(ref, p["item"])
+        self._saved_owner(p, saved)
+        item, permit, state, pin = inspect_registration(
+            ref, p["item"], require_ready=not expansion
+        )
         require(
             tree_sha(item["ledger_root"]) == saved["query_ledger_sha256"],
             "query-ledger-changed",
@@ -507,12 +516,24 @@ class PlannedQueryService:
                     raise
             return deepcopy(row)
 
-    def offer(self, token, ref):
+    def offer(self, token, ref, *, expansion=None):
         with self._lock:
             p, principal = self._access(token, ref)
             saved = self.store.snapshot(p["pid"])
-            item, permit, state, pin = self._inspect(ref, p, saved)
-            target = next_target(state, permit)
+            require(
+                expansion is None or callable(self._check_expansion),
+                "query-expansion-unconnected",
+            )
+            item, permit, state, pin = self._inspect(
+                ref, p, saved, expansion=expansion is not None
+            )
+            target = (
+                next_target(state, permit) if expansion is None else deepcopy(expansion)
+            )
+            if expansion is not None:
+                target["remaining_attempts"] = (
+                    permit["max_attempts"] - saved["query_budget"]["attempts"]
+                )
             document = dict(
                 project_ref=ref,
                 principal=principal,
@@ -535,7 +556,9 @@ class PlannedQueryService:
                 reserved_seconds=pin["timeout_seconds"] + PROBE_TIMEOUT_SECONDS,
                 max_results=permit["max_results"],
                 budget=deepcopy(saved["query_budget"]),
-                execution_authority="separate-research-permit",
+                execution_authority="separate-research-permit"
+                if expansion is None
+                else "exact-expansion-grant",
             )
             digest = sha(canonical(document))
             return dict(
@@ -545,7 +568,7 @@ class PlannedQueryService:
                 document=document,
             )
 
-    def execute(self, token, ref, request, *, deadline):
+    def execute(self, token, ref, request, *, deadline, expansion=None):
         with self._lock:
             require(not self._closing, "query-service-closing", 503)
             p, principal = self._access(token, ref)
@@ -588,10 +611,17 @@ class PlannedQueryService:
             old = saved["intents"].get(key)
             if old is not None:
                 require(
-                    old["request_sha256"] == digest, "query-idempotency-payload-differs"
+                    old["request_sha256"] == digest
+                    and old["method"]
+                    == (
+                        "stage1/planned-query"
+                        if expansion is None
+                        else "stage1/expansion"
+                    ),
+                    "query-idempotency-payload-differs",
                 )
                 return deepcopy(old)
-            offer = self.offer(token, ref)
+            offer = self.offer(token, ref, expansion=expansion)
             require(
                 request["offer_ref"] == offer["offer_ref"]
                 and request["offer_sha256"] == offer["offer_sha256"],
@@ -608,7 +638,9 @@ class PlannedQueryService:
             row = dict(
                 client_key=request["key"],
                 principal=principal,
-                method="stage1/planned-query",
+                method="stage1/planned-query"
+                if expansion is None
+                else "stage1/expansion",
                 status="dispatch-unobserved",
                 request=deepcopy(request),
                 request_sha256=digest,
@@ -657,13 +689,38 @@ class PlannedQueryService:
                 ) as state:
                     state["intents"][key]["status"] = "dispatching"
             target = row["offer"]
+            expansion = row["method"] == "stage1/expansion"
+
+            def authority(event):
+                if expansion:
+                    require(
+                        callable(self._check_expansion)
+                        and self._check_expansion(
+                            dict(
+                                project_ref=ref,
+                                principal=row["principal"],
+                                client_key=row["client_key"],
+                                offer=deepcopy(target),
+                                phase=deepcopy(event),
+                            )
+                        )
+                        is True,
+                        "query-expansion-admission-refused",
+                        403,
+                    )
+                return inspect_registration(ref, p["item"], require_ready=not expansion)
 
             def gate(event):
                 require(
                     time.monotonic() < deadline, "query-admission-deadline-expired", 408
                 )
                 self._check_storage()
-                item, permit, _, pin = inspect_registration(ref, p["item"])
+                item, permit, _, pin = authority(event)
+                expires = (
+                    target["expansion_expires_at_unix"]
+                    if expansion
+                    else permit["expires_at_unix"]
+                )
                 check_execution_source(
                     self._verify_source, ref, item, event, self._execute
                 )
@@ -687,10 +744,14 @@ class PlannedQueryService:
                         and event["argv"]
                         == command(
                             pin,
-                            "search",
+                            target["arguments"].get("operation", "search"),
                             target["arguments"],
                             target["backend"],
                             event["argv"][event["argv"].index("--audit-output") + 1],
+                            identifier_for(
+                                CoverageLedger(item["ledger_root"]),
+                                dict(arguments=target["arguments"]),
+                            ),
                         ),
                         "query-spawn-binding-differs",
                     )
@@ -716,7 +777,7 @@ class PlannedQueryService:
                 )
                 # A provider return cannot cache runtime/config or source guards.
                 self._check_storage()
-                item, permit, _, pin = inspect_registration(ref, p["item"])
+                item, permit, _, pin = authority(event)
                 check_execution_source(
                     self._verify_source, ref, item, event, self._execute
                 )
@@ -734,7 +795,7 @@ class PlannedQueryService:
                     time.monotonic() < deadline, "query-admission-deadline-expired", 408
                 )
                 require(
-                    time.time() + pin["timeout_seconds"] < permit["expires_at_unix"],
+                    time.time() + pin["timeout_seconds"] < expires,
                     "query-permit-expired-during-admission",
                 )
                 # No service lock is held here: project resources use the
@@ -770,7 +831,7 @@ class PlannedQueryService:
                     time.monotonic() < deadline, "query-admission-deadline-expired", 408
                 )
                 require(
-                    time.time() + pin["timeout_seconds"] < permit["expires_at_unix"],
+                    time.time() + pin["timeout_seconds"] < expires,
                     "query-permit-expired-during-admission",
                 )
                 return True
@@ -779,7 +840,13 @@ class PlannedQueryService:
             ledger = CoverageLedger(p["item"]["ledger_root"])
             # Any uncertain ledger mutation preserves an unknown attempt.
             entered = True
-            query = target["query_id"] or ledger.start_planned(target["planned_id"])
+            query = (
+                ledger.start_expansion(
+                    target["operation"], target["work_id"], target["version_id"]
+                )
+                if expansion
+                else target["query_id"] or ledger.start_planned(target["planned_id"])
+            )
             require(
                 ledger.event(query, "ActionStarted")["arguments"]
                 == target["arguments"],
@@ -797,7 +864,7 @@ class PlannedQueryService:
             )
             state = ledger.coverage_state()
             children = [s for s in state.starts.values() if s.get("parent_id") == query]
-            completed = set(state.binding["backends"]) == {
+            completed = set(state.backends_for(target["arguments"])) == {
                 s["backend"] for s in children
             } and not any(s["event_id"] in ledger.pending() for s in children)
             query_result = ledger.complete_query(query) if completed else None

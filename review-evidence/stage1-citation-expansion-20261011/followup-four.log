@@ -1,0 +1,85 @@
+test_unknown_worker_start_survives_true_reopen_without_resend (test_project_expansions.ExpansionCases.test_unknown_worker_start_survives_true_reopen_without_resend) ... FAIL
+test_completed_directions_across_rounds_need_no_new_grant (test_project_expansions.ExpansionCases.test_completed_directions_across_rounds_need_no_new_grant) ... ok
+test_unsupported_seed_keeps_other_current_supported_offers (test_project_expansions.ExpansionCases.test_unsupported_seed_keeps_other_current_supported_offers) ... ok
+test_real_http_expansion_routes_keep_local_viewer_auth_and_replay (test_project_expansions.ExpansionCases.test_real_http_expansion_routes_keep_local_viewer_auth_and_replay) ... ERROR
+
+======================================================================
+ERROR: test_real_http_expansion_routes_keep_local_viewer_auth_and_replay (test_project_expansions.ExpansionCases.test_real_http_expansion_routes_keep_local_viewer_auth_and_replay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-n8wwi673\plugins\auto-research-agent\cli\research_workspace\atlas.py", line 28, in atlas_asset_files
+    files = {
+            ^
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-n8wwi673\plugins\auto-research-agent\cli\research_workspace\atlas.py", line 29, in <dictcomp>
+    name: safe_path(ATLAS_ROOT, name).read_bytes() for name in ATLAS_ASSETS
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1050, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'D:\\Codex_Learning\\harness_building\\_temp\\r11\\pq-raw-n8wwi673\\plugins\\auto-research-agent\\references\\research-workspace\\atlas\\atlas.html'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_expansions.py", line 665, in test_real_http_expansion_routes_keep_local_viewer_auth_and_replay
+    http.setUp()
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_http_cases.py", line 51, in setUp
+    self.open()
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\project_stage1_query_http_cases.py", line 96, in open
+    self.host = ProjectHost(
+                ^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-n8wwi673\plugins\auto-research-agent\cli\research_workspace_native\project_host.py", line 119, in __init__
+    else ProjectStage1AtlasService(self.project_stage1_delivery)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-n8wwi673\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_atlas.py", line 136, in __init__
+    for name, raw in atlas_asset_files().items()
+                     ^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\_temp\r11\pq-raw-n8wwi673\plugins\auto-research-agent\cli\research_workspace\atlas.py", line 32, in atlas_asset_files
+    raise ValueError("atlas asset missing or unreadable") from error
+ValueError: atlas asset missing or unreadable
+
+======================================================================
+FAIL: test_unknown_worker_start_survives_true_reopen_without_resend (test_project_expansions.ExpansionCases.test_unknown_worker_start_survives_true_reopen_without_resend)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_expansions.py", line 593, in test_unknown_worker_start_survives_true_reopen_without_resend
+    self.assertEqual(inner["status"], "execution-unknown")
+AssertionError: 'completed' != 'execution-unknown'
+- completed
++ execution-unknown
+
+
+----------------------------------------------------------------------
+Ran 4 tests in 71.759s
+
+FAILED (failures=1, errors=1)
+Traceback (most recent call last):
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 632, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: 'D:\\Codex_Learning\\harness_building\\_temp\\r11\\q-http-yunw_l8o\\projects\\project-intake.sqlite'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\weakref.py", line 666, in _exitfunc
+    f()
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\weakref.py", line 590, in __call__
+    return info.func(*info.args, **(info.kwargs or {}))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 933, in _cleanup
+    cls._rmtree(name, ignore_errors=ignore_errors)
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 929, in _rmtree
+    _shutil.rmtree(name, onerror=onerror)
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 787, in rmtree
+    return _rmtree_unsafe(path, onerror)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 629, in _rmtree_unsafe
+    _rmtree_unsafe(fullname, onerror)
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 634, in _rmtree_unsafe
+    onerror(os.unlink, fullname, sys.exc_info())
+  File "C:\Users\13795\AppData\Local\Programs\Python\Python311\Lib\tempfile.py", line 893, in onerror
+    _os.unlink(path)
+PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: 'D:\\Codex_Learning\\harness_building\\_temp\\r11\\q-http-yunw_l8o\\projects\\project-intake.sqlite'

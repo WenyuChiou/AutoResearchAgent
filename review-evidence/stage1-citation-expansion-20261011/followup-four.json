@@ -1,0 +1,24 @@
+{
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\planned_query_raw_runner.py",
+    "--test",
+    "test_project_expansions.ExpansionCases.test_unknown_worker_start_survives_true_reopen_without_resend",
+    "--test",
+    "test_project_expansions.ExpansionCases.test_completed_directions_across_rounds_need_no_new_grant",
+    "--test",
+    "test_project_expansions.ExpansionCases.test_unsupported_seed_keeps_other_current_supported_offers",
+    "--test",
+    "test_project_expansions.ExpansionCases.test_real_http_expansion_routes_keep_local_viewer_auth_and_replay"
+  ],
+  "seconds": 73.81200000000536,
+  "exit_code": 1,
+  "source_inventory_sha256": "4daa70ae410a99bcac2fdf5da78192c831e80c29cab312bb191ece4802704ff2",
+  "source_inventory_after_unchanged": true,
+  "native_model_search_acquisition_calls": 0,
+  "full_suite": false
+}

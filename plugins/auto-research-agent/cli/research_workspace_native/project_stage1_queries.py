@@ -259,11 +259,17 @@ class ProjectStage1QueryService:
             check_deadline=check_deadline,
         )
 
-    def _reserve(self, state, principal, key, request_hash, *, probe=False):
+    def _reserve(
+        self, state, principal, key, request_hash, *, probe=False, expansion=False
+    ):
         authorization = state.get("stage1_query_authorization")
         require(authorization is not None, "project-query-permission-required")
         _, permit = inspect_seal(
-            self.intake, state["project_ref"], authorization, self.config
+            self.intake,
+            state["project_ref"],
+            authorization,
+            self.config,
+            ready=not expansion,
         )
         budget, limits = state["stage1_query_budget"], permit["limits"]
         reserved_intents(
@@ -289,7 +295,11 @@ class ProjectStage1QueryService:
             state,
             principal,
             lane="query",
-            kind="stage1-query-bootstrap" if probe else "stage1-query-execute",
+            kind="stage1-query-bootstrap"
+            if probe
+            else "stage1-expansion-execute"
+            if expansion
+            else "stage1-query-execute",
             key=key,
             request_sha256=request_hash,
             seconds=seconds,
@@ -404,7 +414,7 @@ class ProjectStage1QueryService:
                 self.intake.db.rollback()
                 raise
 
-    def _guard(self, credential, ref, authorization, phase):
+    def _guard(self, credential, ref, authorization, phase, *, expansion=None):
         with self.intake._lock:
             principal, state = self._state(credential, ref)
             require(
@@ -412,7 +422,9 @@ class ProjectStage1QueryService:
                 and state.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed",
             )
-            _, permit = inspect_seal(self.intake, ref, authorization, self.config)
+            _, permit = inspect_seal(
+                self.intake, ref, authorization, self.config, ready=expansion is None
+            )
             reserved_intents(
                 self.intake,
                 state,
@@ -439,7 +451,9 @@ class ProjectStage1QueryService:
                 current.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed-after-source-check",
             )
-            inspect_seal(self.intake, ref, authorization, self.config)
+            inspect_seal(
+                self.intake, ref, authorization, self.config, ready=expansion is None
+            )
             reserved_intents(
                 self.intake,
                 current,
@@ -455,6 +469,7 @@ class ProjectStage1QueryService:
                     principal=principal,
                     phase=deepcopy(phase),
                     permit_sha256=authorization["sha256"],
+                    expansion=deepcopy(expansion),
                 )
             )
             is True,
@@ -469,7 +484,9 @@ class ProjectStage1QueryService:
                 and current.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed-during-admission",
             )
-            inspect_seal(self.intake, ref, authorization, self.config)
+            inspect_seal(
+                self.intake, ref, authorization, self.config, ready=expansion is None
+            )
         check_execution_source(
             self.verify_source, ref, source_item, phase, execute_backend
         )
@@ -481,7 +498,9 @@ class ProjectStage1QueryService:
                 and current.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed-after-final-source-check",
             )
-            inspect_seal(self.intake, ref, authorization, self.config)
+            inspect_seal(
+                self.intake, ref, authorization, self.config, ready=expansion is None
+            )
             reserved_intents(
                 self.intake,
                 current,
@@ -492,6 +511,23 @@ class ProjectStage1QueryService:
             resource_view(self.intake, current, principal)
 
     def _service(self, credential, ref, authorization, registration):
+        def expansion_authority(event):
+            from .project_expansions import validate_expansion
+
+            with self.intake._lock:
+                require(
+                    event["project_ref"] == ref, "project-expansion-project-differs"
+                )
+                validate_expansion(
+                    self,
+                    ref,
+                    event["principal"],
+                    event["offer"],
+                    event["phase"],
+                    client_key=event["client_key"],
+                )
+            return True
+
         def final_resources(event):
             with self.intake._lock:
                 principal, state = self._state(credential, ref)
@@ -502,7 +538,12 @@ class ProjectStage1QueryService:
                     and event["principal"] == principal,
                     "project-query-authority-changed-after-final-source-check",
                 )
-                _, permit = inspect_seal(self.intake, ref, authorization, self.config)
+                is_expansion = "expansion_grant_sha256" in event["offer"]
+                if is_expansion:
+                    expansion_authority(event)
+                _, permit = inspect_seal(
+                    self.intake, ref, authorization, self.config, ready=not is_expansion
+                )
                 intents = reserved_intents(
                     self.intake,
                     state,
@@ -515,7 +556,14 @@ class ProjectStage1QueryService:
             return True
 
         def admission(event):
-            self._guard(credential, ref, authorization, event["phase"])
+            expansion = event if "expansion_grant_sha256" in event["offer"] else None
+            if expansion is not None:
+                expansion_authority(event)
+            self._guard(
+                credential, ref, authorization, event["phase"], expansion=expansion
+            )
+            if expansion is not None:
+                expansion_authority(event)
             with self.intake._lock:
                 _, state = self._state(credential, ref)
                 permit = authorization["permit"]
@@ -537,6 +585,7 @@ class ProjectStage1QueryService:
             admit=admission,
             verify_source=self.verify_source,
             check_resources=final_resources,
+            check_expansion=expansion_authority,
         )
 
     def _bootstrap_worker(self, credential, ref, request_hash):
@@ -588,6 +637,7 @@ class ProjectStage1QueryService:
                 binding["plan_root"],
                 backends=self.config["backends"],
                 limit=self.config["caps"]["max_results"],
+                citation_backends=["semantic-scholar"],
             )
             seed.open_round()
             report = validate_run(parent)

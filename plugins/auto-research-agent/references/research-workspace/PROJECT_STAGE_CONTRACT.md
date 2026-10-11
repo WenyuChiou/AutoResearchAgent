@@ -171,6 +171,26 @@ The bootstrap deadline and unchanged authority are checked inside the final
 SQLite transaction, including immediately before commit. A late callback or
 database write rolls back completion/activation and retains execution-unknown.
 
+### Closest-work citation tracing
+
+The Stage1 project panel reads Core's current included, verified closest-work
+reviews. References and cited-by have distinct explicit single-attempt grants,
+bound to the exact work/version, round, saved frontier, registration and raw
+source/runtime pins. `expansion-authorize` saves that immutable permission;
+`expansion-execute` charges the existing query and project allowances before
+using the same owner, worker and retrieval runner. Search permission alone does
+not authorize these operations. Refresh, same-key replay and restored history
+never dispatch; uncertain attempts remain held and reservations are not refunded.
+
+New query bootstrap declares the supported Semantic Scholar citation backend in
+the Core plan without authorizing a query. Existing immutable plans are retained;
+unsupported legacy citation bindings and seeds without a discovered DOI/arXiv ID
+remain unavailable. A failed seed does not hide other supported offers. Completed
+seed/version/operation evidence is reused across rounds according to Core policy.
+An observed backend return still needs its coverage receipt/truncation review,
+source reading and researcher review; it cannot establish Stage1 completion.
+No new model, source-read, research or scoring permission is granted by this panel.
+
 `query-execute` reserves the next offered backend attempt and timeout+30 seconds
 before dispatch. Cumulative reservations are checked against immutable intake
 intent history, including failed and unknown actions. Admission binds the precise

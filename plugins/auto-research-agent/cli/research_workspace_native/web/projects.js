@@ -230,6 +230,7 @@
     $("ledger-deliver").disabled = projectBlocked || !availableDelivery();
     const queries = state.stage1 && state.stage1.query_execution;
     for (const [id, field] of [["query-authorize", "authorization_offer"], ["query-bootstrap", "bootstrap_offer"], ["query-execute", "query_offer"], ["query-restore-owner", "owner_offer"]]) $(id).disabled = projectBlocked || !queries || !queries[field];
+    if (window.ProjectExpansions) window.ProjectExpansions.render($("expansion-panel"), {value: state.stage1 && state.stage1.expansion_execution, language: state.language, blocked: projectBlocked, onAction: submitExpansion});
     if (window.ResearchProjectCoverage) window.ResearchProjectCoverage.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked, submit: submitCoverage});
     if (window.ResearchProjectReading) window.ResearchProjectReading.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
     document.querySelectorAll("button[data-reading-draft]").forEach(button => { button.disabled = blocked || !state.project || button.dataset.readingInput !== String(state.project.input_version) || button.dataset.readingBrief !== state.project.brief_sha256; });
@@ -884,6 +885,18 @@
   $("query-bootstrap").onclick = guarded(() => queryAction("bootstrap", "bootstrap_offer"));
   $("query-execute").onclick = guarded(() => queryAction("execute", "query_offer"));
   $("query-restore-owner").onclick = guarded(() => queryAction("restore-owner", "owner_offer"));
+  async function submitExpansion(action, offer) {
+    const project = state.project, value = state.stage1 && state.stage1.expansion_execution;
+    if (!project || state.loading || !value || !["expansion-authorize", "expansion-execute"].includes(action)) return;
+    const field = action === "expansion-authorize" ? "authorization_offers" : "execution_offers";
+    if (!(value[field] || []).some(row => row.offer_ref === offer.offer_ref && row.offer_sha256 === offer.offer_sha256)) return;
+    const body = Object.assign(identity(), {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true});
+    if (action === "expansion-authorize") body.user_input = $("query-consent").value.trim() || {en: "I authorize this one exact citation attempt using the existing budget.", "zh-Hans": "我明确授权这一次精确绑定的引文追踪，使用已有预算。", "zh-Hant": "我明確授權這一次精確綁定的引文追蹤，使用既有預算。"}[state.language];
+    if (body.user_input && !bounded(body.user_input, 4096)) { notice(t("missingChoice"), true); return; }
+    const generation = state.generation, ref = project.project_ref, version = project.input_version, brief = project.brief_sha256;
+    const result = await mutate("stage1/" + action, body, ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+  }
   $("activate-stage2").onclick = guarded(async () => {
     const offer = availableStage2(); if (!offer) return;
     const ref = state.project.project_ref;

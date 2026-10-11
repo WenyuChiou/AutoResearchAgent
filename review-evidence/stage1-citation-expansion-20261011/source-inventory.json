@@ -1,0 +1,16 @@
+{
+  "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py": "1944471dcf0cd76aab6b7bf6aecb6c8b02c761d64c5594cf886d280c60c04669",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_expansions.py": "0c631df549d8d3cb4c6497986de72106dc297c792a826a2f6915e36d0000e8ac",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "27594a6d08edc731b5c72cb7a73f77f950376d9408bcfa5589369c4c881f519d",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py": "8044fc92c50ee432dfce546d9275557628ea5f5c80818bbf138a35ecb16cbd98",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py": "68d5038593670512e571de45e5112abd00c20849325825775215782e059702a7",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_resource_budget.py": "18af82e3d19ec286c6eb21dca597af12f4ebb9edada3e1b93fd4f559c142e099",
+  "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py": "2951f4101ac6673f303a2a0832026d8c78f715a0e648973dfab3404badb4cc94",
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects-expansions.js": "95b2bcccf517570da943a5e6b52dbd2d4b5f0905483389b09d9f8e8fcca4ae37",
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects.html": "8f4ae707aac48714f04b163f9ee643ec046d602dac9bfde6f8daac19b9d20648",
+  "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "d98b57aff550da679e27a21605ba4f24400176d443683b3ce6d2ccf91a065ede",
+  "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "aa8c393b49ebf557ca6fb4d9edc57c6d1ea4c866a9ea31c54eda17c803c3007b",
+  "plugins/auto-research-agent/references/research-workspace/PROJECT_STAGE_CONTRACT.md": "f1897777c332f01e92618f8a06195e751f23edfdd026483d129c2e9191b92c81",
+  "plugins/auto-research-agent/tests/browser/project-expansions-test.cjs": "e954db741974928152c6640d47dad8161ff08b55118cc806ff24add6da10d369",
+  "plugins/auto-research-agent/tests/test_project_expansions.py": "1e6595f396bdf6e0101e5e785fe64a6163c8bd878310f4c451b4a03b0d28a733"
+}

@@ -18,6 +18,7 @@ def reserved_intents(intake, state, principal, limits, timeout):
     for kind, field, seconds in (
         ("stage1-query-bootstrap", "probes", 30),
         ("stage1-query-execute", "attempts", timeout + 30),
+        ("stage1-expansion-execute", "attempts", timeout + 30),
     ):
         events = intake.db.execute(
             "SELECT payload FROM intake_events WHERE project=? AND kind=?",
@@ -50,10 +51,41 @@ def reserved_intents(intake, state, principal, limits, timeout):
                 ),
                 "project-query-reservation-action-differs",
             )
+            if kind == "stage1-expansion-execute":
+                from .project_expansions import saved_grant
+
+                dispatch = state.get("stage1_expansion_dispatches", {}).get(digest, {})
+                grant_sha = dispatch.get("document", {}).get("expansion_grant_sha256")
+                grant = saved_grant(intake, state, principal, grant_sha)
+                require(
+                    state.get("stage1_expansion_uses", {}).get(grant_sha) == digest
+                    and dispatch.get("offer_ref") == saved["request"]["offer_ref"]
+                    and dispatch.get("offer_sha256")
+                    == saved["request"]["offer_sha256"]
+                    == sha(canonical(dispatch["document"]))
+                    and grant["document"]["input_version"]
+                    == saved["request"]["input_version"]
+                    and grant["document"]["brief_sha256"]
+                    == saved["request"]["brief_sha256"],
+                    "project-expansion-reservation-differs",
+                )
             intents[digest] = saved
             expected[field] += 1
             expected["seconds"] += seconds
     budget = state["stage1_query_budget"]
+    expansions = {
+        digest
+        for digest, row in intents.items()
+        if row["kind"] == "stage1-expansion-execute"
+    }
+    uses = state.get("stage1_expansion_uses", {})
+    require(
+        type(uses) is dict
+        and len(uses) == len(set(uses.values()))
+        and set(uses.values()) == expansions
+        and set(state.get("stage1_expansion_dispatches", {})) == expansions,
+        "project-expansion-consumption-history-differs",
+    )
     require(
         set(budget) == set(expected)
         and all(
@@ -82,11 +114,26 @@ def admitted_query(intents, event, ref, principal):
     action = intents.get(client[8:])
     require(
         action is not None
-        and action["kind"] == "stage1-query-execute"
+        and action["kind"] in {"stage1-query-execute", "stage1-expansion-execute"}
         and action["status"] in {"saved", "intent-recorded", "execution-unknown"}
         and event["principal"] == principal
         and event["project_ref"] == ref,
         "project-query-admission-intent-missing",
+    )
+    expansion = action["kind"] == "stage1-expansion-execute"
+    offer = event["offer"]
+    require(
+        sha(canonical(offer)) == action["request"]["offer_sha256"]
+        and ("expansion_grant_sha256" in offer) == expansion
+        and (
+            not expansion
+            or offer.get("operation") in {"references", "cited-by"}
+            and offer["arguments"].get("operation") == offer["operation"]
+            and offer["arguments"]["coverage"].get("seed_work_id") == offer["work_id"]
+            and offer["arguments"]["coverage"].get("seed_version_id")
+            == offer["version_id"]
+        ),
+        "project-query-admission-offer-differs",
     )
     # A committed response must identify this inner action. A lost commit retains
     # the same observation independently; neither grants a second dispatch.

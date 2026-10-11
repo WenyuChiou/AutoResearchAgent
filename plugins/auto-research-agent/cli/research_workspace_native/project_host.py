@@ -36,7 +36,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -99,6 +99,12 @@ class ProjectHost(AtlasHost):
             stage2,
         )
         self.project_stage1 = stage1
+        self.project_expansions = None
+        queries = getattr(stage1, "query_service", None)
+        if queries is not None:
+            from .project_expansions import ProjectStage1ExpansionService
+
+            self.project_expansions = ProjectStage1ExpansionService(queries)
         self.project_stage1_sources = stage1_sources
         self.project_stage1_source_dispatcher = stage1_source_dispatcher
         self.project_stage1_library = (
@@ -179,6 +185,7 @@ class ProjectHost(AtlasHost):
             "projects.css",
             "projects-library.js",
             "projects-coverage.js",
+            "projects-expansions.js",
             "projects-reading.js",
             "projects-atlas.js",
         ):
@@ -261,6 +268,11 @@ class ProjectHost(AtlasHost):
             queries = getattr(self.project_stage1, "query_service", None)
             result["query_execution"] = (
                 None if queries is None else queries.read(credential, ref)
+            )
+            result["expansion_execution"] = (
+                None
+                if self.project_expansions is None
+                else self.project_expansions.read(credential, ref)
             )
             # One shared overview revision, with full history in bound GET pages.
             result["screening_library"] = descriptor(result)
@@ -493,6 +505,8 @@ class ProjectHandler(AtlasHandler):
                         "query-bootstrap",
                         "query-execute",
                         "query-restore-owner",
+                        "expansion-authorize",
+                        "expansion-execute",
                     }
                     and resolution is None
                 ):
@@ -532,6 +546,11 @@ class ProjectHandler(AtlasHandler):
                         else:
                             called = ("stage1-produce-records", ref, body)
                             action = "prepare"
+                    elif action.startswith("expansion-"):
+                        extension = self.server.project_expansions
+                        if extension is None:
+                            raise SessionApiError("stage1-expansion-unconnected", 409)
+                        action = action.removeprefix("expansion-")
                     elif action.startswith("query-"):
                         extension = getattr(extension, "query_service", None)
                         if extension is None:

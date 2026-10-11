@@ -1,0 +1,118 @@
+{
+  "checks": [
+    {
+      "label": "format-test",
+      "command": [
+        "D:\\Codex_Learning\\harness_building\\AutoResearchAgent\\scripts\\.venv\\Scripts\\ruff.exe",
+        "format",
+        "D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\test_project_expansions.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "413a709001976657cb743636fd34e48fc41d8d302d665460d3f874b3313da127"
+    },
+    {
+      "label": "ruff",
+      "command": [
+        "D:\\Codex_Learning\\harness_building\\AutoResearchAgent\\scripts\\.venv\\Scripts\\ruff.exe",
+        "check",
+        "--select",
+        "E4,E7,E9,F",
+        "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_resource_budget.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_expansions.py",
+        "plugins/auto-research-agent/tests/test_project_expansions.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "label": "format",
+      "command": [
+        "D:\\Codex_Learning\\harness_building\\AutoResearchAgent\\scripts\\.venv\\Scripts\\ruff.exe",
+        "format",
+        "--check",
+        "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_resource_budget.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_queries.py",
+        "plugins/auto-research-agent/cli/research_workspace_native/project_expansions.py",
+        "plugins/auto-research-agent/tests/test_project_expansions.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "8e93d18ae56550d4eef2feac77e6630617c7e169246e56e39c75d58b46167985"
+    },
+    {
+      "label": "component",
+      "command": [
+        "node",
+        "plugins/auto-research-agent/tests/browser/project-expansions-test.cjs"
+      ],
+      "exit_code": 0,
+      "log_sha256": "fd051093c98d2eca95747f9ca0dbd8efd3e5dc20e699d0ed1e3665b151f6a30d"
+    },
+    {
+      "label": "syntax-projects.js",
+      "command": [
+        "node",
+        "--check",
+        "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "syntax-projects-expansions.js",
+      "command": [
+        "node",
+        "--check",
+        "plugins/auto-research-agent/cli/research_workspace_native/web/projects-expansions.js"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "map",
+      "command": [
+        "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+        "-B",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "plugins/auto-research-agent/tests",
+        "-p",
+        "test_capability_metric_map.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "cbb664dffeed1e18518a7178d08d97833e4a8541935bab935b164b3c9398dd60"
+    },
+    {
+      "label": "diff",
+      "command": [
+        "git",
+        "-c",
+        "core.longpaths=true",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "test_format": {
+    "before_sha256": "e2e312d7b16d4c1af02ac30fbc27fab448aa1eba9fe88a5095ac4f7629de2803",
+    "after_sha256": "1e6595f396bdf6e0101e5e785fe64a6163c8bd878310f4c451b4a03b0d28a733",
+    "AST_unchanged": true,
+    "production_changed": false
+  },
+  "full_suite": false,
+  "live_calls": 0
+}

@@ -73,7 +73,8 @@
             "trusted saved-source and manual-reading registries bind original SDK/Core observations, current candidate/decision/review, physical hashes and exact claim offsets; all screening/source history and Core coverage are retained in atomic bounded records; yielded owner/frontier checks compose with current state/checkpoint before admission, work and commit including the separate delivery offer; loss after saved SQL rolls back publication and preserves unknown/no-adoption on true SQLite reopen without acquiring sources, invoking a model or granting acceptance",
             "Bootstrap frame validation reuses the transaction state and rejects a version changed during source verification; original fixed-deadline fake-child failures report per-method elapsed time without changing the deadline or retrying.",
             "Authored transport observations and the real public SDK saved-input parser preserve dual original receipts, exclusive intent, bytes/hash/count/peer/time bindings and explicit parse failures. Partial, rehashed, linked, expired, changed-owner or reused outputs refuse without replay or Core mutation; no external DNS, HTTP, native or model execution occurs.",
-            "Offline controlled-socket/process/SQLite cases reject redirect-to-private peers, attempt/byte/deadline overflow, late cleanup/receipt publication, physical raw drift, and mutable reservation/permit/offer history edits. Unknown/reserved work and true reopen never refund or resend; these implementation observations are not authenticated source acquisition, complete UI Stage1, actual usage/cost or scientific improvement."
+            "Offline controlled-socket/process/SQLite cases reject redirect-to-private peers, attempt/byte/deadline overflow, late cleanup/receipt publication, physical raw drift, and mutable reservation/permit/offer history edits. Unknown/reserved work and true reopen never refund or resend; these implementation observations are not authenticated source acquisition, complete UI Stage1, actual usage/cost or scientific improvement.",
+            "Closest-work references and cited-by attempts use independent immutable single-attempt grants bound to the existing query owner, exact reviewed work/version, active round, source/runtime/registration pins and saved frontier. Search permission alone does not grant citation execution. The same durable query/project counters reserve the attempt and probe time before dispatch; expired, stale, consumed, unknown and unsupported citation states remain explicit. New runtime initialization declares the existing Core citation backend without granting execution; legacy saved plans are not rewritten. Offline Core/SQLite and fake-backend tests do not establish real citation discovery or Stage 1 completion."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         },
@@ -320,7 +321,9 @@
         "plugins/auto-research-agent/tests/browser/project-atlas-screening-test.cjs",
         "plugins/auto-research-agent/tests/browser/project-atlas-channel-test.cjs",
         "plugins/auto-research-agent/tests/test_project_stage2_context.py",
-        "plugins/auto-research-agent/tests/browser/project-stage2-input-test.cjs"
+        "plugins/auto-research-agent/tests/browser/project-stage2-input-test.cjs",
+        "plugins/auto-research-agent/tests/test_project_expansions.py",
+        "plugins/auto-research-agent/tests/browser/project-expansions-test.cjs"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
