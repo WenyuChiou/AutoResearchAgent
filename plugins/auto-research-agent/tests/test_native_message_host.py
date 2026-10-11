@@ -377,11 +377,15 @@ class MessageHostTests(unittest.TestCase):
                 current_case="case",
                 enabled=True,
                 project_ref=self.p.ref,
+                source_project_id=self.p.pid,
                 index_sha256=self.p.hash,
                 input_version=self.p.version,
             ),
         )
         self.assertFalse(bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["enabled"])
+        self.assertIsNone(
+            bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["source_project_id"]
+        )
         self.assertIsNone(
             bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["input_version"]
         )

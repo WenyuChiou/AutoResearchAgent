@@ -84,6 +84,10 @@ def _records_match(records, ledger, root, *, check_core_archives=True):
     """Enrichment must refer to saved observations, never invent their history."""
     validate_records(records)
     _check(
+        records["schema_version"] in {"1.0.0", "1.1.0"},
+        "stage1-records-format-consumer-unconnected",
+    )
+    _check(
         records["topic"] == ledger.manifest["research_run"]["objective"],
         "stage1-records-topic-differs",
     )

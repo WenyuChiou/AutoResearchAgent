@@ -7,6 +7,7 @@ run normally, retaining unverified claims and source/version/hash provenance.
 
 from copy import deepcopy
 import json
+import shutil
 from pathlib import Path
 import sys
 import tempfile
@@ -145,6 +146,31 @@ class ProjectStage2Tests(unittest.TestCase):
             offer_sha256=self.offer["offer_sha256"],
             confirmed=True,
         )
+
+    def test_unconnected_screening_version_refused_before_activation_intent(self):
+        folder = self.root / "screening-upgrade"
+        shutil.copytree(self.deliverable, folder)
+        path = folder / "provenance_manifest.json"
+        manifest = json.loads(path.read_bytes())
+        manifest["schema_version"] = "1.2.0"
+        manifest["canonical_records"]["schema_version"] = "1.2.0"
+        path.write_bytes(canonical(manifest))
+        # A previously registered legacy offer must recheck the current version
+        # before it creates an activation intent or private output.
+        principal = self.intake._principal("own")
+        state = self.intake._load(principal, self.ref)
+        saved = state["stage2_offers"][self.offer["offer_ref"]]
+        saved["inputs"]["deliverable_dir"] = str(folder)
+        saved["inputs"]["manifest_sha256"] = sha(path.read_bytes())
+        self.intake._save(state, "fixture-source-version-change", {})
+        self.intake.db.commit()
+        history = self.intake.history("own", self.ref)
+        before = self.intake.read("own", self.ref)
+        with self.assertRaisesRegex(SessionApiError, "consumer-unconnected"):
+            self.service.activate("own", self.ref, self.body())
+        self.assertEqual(self.intake.history("own", self.ref), history)
+        self.assertEqual(self.intake.read("own", self.ref), before)
+        self.assertFalse(list(self.store_root.rglob("packet.json")))
 
     def test_real_import_workflow_preserves_full_formal_brief_and_unknowns(self):
         result = self.service.activate("own", self.ref, self.body())

@@ -12,6 +12,8 @@ from research_workspace.canonical_delivery import project_canonical_atlas
 from research_workspace.view import write_workspace
 from research_workspace_native.project_stage1_delivery import _io_root
 from research_workspace_native.project_stage1_library import _project
+from research_workspace_native.project_stage2 import ProjectStage2Service
+from research_workspace_native.session_api import SessionApiError
 from stage1_deliverable.common import (
     DeliverableError,
     canonical,
@@ -30,6 +32,8 @@ from stage1_deliverable.package import validate as validate_package
 from stage1_deliverable.records import CLASSIFICATION, FINDINGS, validate_records
 from stage1_deliverable.screening_records import artifacts, read_artifacts
 from stage1_ledger.validation import validate_run
+from stage2_common import Stage2Error
+from stage2_workflow import build_stage2_seed
 from test_stage1_core_records import core_case, produced
 
 
@@ -173,6 +177,50 @@ class ScreeningRecordsTests(unittest.TestCase):
                     raise AssertionError("archive collision")
             else:
                 target.write_bytes(raw)
+
+    def test_stage2_refuses_valid_screening_package_before_offer_or_output(self):
+        output = _io_root(
+            private_output(self.case.fixture_root / "screening-refusal-package")
+        )
+        receipt = build(self.records_path, output, sha(self.records_path.read_bytes()))
+        self.assertEqual(
+            validate_package(output, receipt["manifest_sha256"])["status"], "passed"
+        )
+        service = ProjectStage2Service(self.case.intake)
+        history = self.case.intake.history("alice-token", self.fixture["ref"])
+        state = self.case.intake.read("alice-token", self.fixture["ref"])
+        with self.assertRaisesRegex(SessionApiError, "consumer-unconnected"):
+            service.register(
+                self.fixture["ref"],
+                deliverable_dir=output,
+                expected_manifest_sha256=receipt["manifest_sha256"],
+                handoff_path=self.original_path,
+                expected_handoff_sha256=sha(self.original_path.read_bytes()),
+                resources_path=self.records_path,
+                expected_resources_sha256=sha(self.records_path.read_bytes()),
+                policy_ref=dict(
+                    route="stage2-general-v3/daily_v3", execution_authorized=False
+                ),
+            )
+        self.assertEqual(
+            self.case.intake.history("alice-token", self.fixture["ref"]), history
+        )
+        self.assertEqual(
+            self.case.intake.read("alice-token", self.fixture["ref"]), state
+        )
+        seed = self.case.fixture_root / "screening-refused-stage2-seed"
+        with self.assertRaisesRegex(Stage2Error, "consumer-unconnected"):
+            build_stage2_seed(
+                output,
+                receipt["manifest_sha256"],
+                self.original_path,
+                sha(self.original_path.read_bytes()),
+                self.original_path,
+                self.records_path,
+                seed,
+            )
+        self.assertFalse(seed.exists())
+        self.case.runner.assert_not_called()
 
     def test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution(
         self,

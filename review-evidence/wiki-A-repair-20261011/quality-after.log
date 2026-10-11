@@ -1,0 +1,15 @@
+Command: uv run --frozen --project scripts ruff format plugins/auto-research-agent/tests/test_workspace_atlas_rendered.py
+1 file reformatted
+Wrapper format exit: 0
+Command: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts
+601 files already formatted
+Ruff format exit: 0
+Command: uv run --frozen --project scripts ruff check plugins/auto-research-agent .github/scripts
+All checks passed!
+Ruff check exit: 0
+Node syntax exit 0 : plugins/auto-research-agent/cli/research_workspace_native/web/session-panel.js
+Node syntax exit 0 : plugins/auto-research-agent/cli/research_workspace_native/web/native-atlas-chat.js
+Node syntax exit 0 : plugins/auto-research-agent/tests/test-native-atlas-chat.cjs
+Node syntax exit 0 : plugins/auto-research-agent/tests/test_workspace_atlas_browser.js
+Diff check exit: 0
+Final command bundle: PASS
