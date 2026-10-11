@@ -47,6 +47,8 @@ def plan(paths, repo=REPO):
         return {**full, "reason": "No bounded change set (manual or initial push)"}
     modules = set(BASE_MODULES)
     for path in paths:
+        if not (repo / path).is_file():
+            return {**full, "reason": f"Deleted or unavailable input: {path}"}
         if path in DOCS | CI_FILES:
             continue
         presentation_scope = plugin_test_scope([path])

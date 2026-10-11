@@ -24,6 +24,8 @@ class Stage1TestScopeTests(unittest.TestCase):
         self.repo = Path(temporary.name)
         self.write(TESTS + "test_plugin_loading.py", PASSING)
         self.write(TESTS + "test_stage_contracts.py", PASSING)
+        for path in scope.DOCS | scope.CI_FILES:
+            self.write(path, "# existing scope fixture\n")
         for name in ("stage1_test_scope.py", "ci_scope.py"):
             target = self.repo / ".github/scripts" / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -99,8 +101,40 @@ class Stage1TestScopeTests(unittest.TestCase):
             ],
         )
 
+    def test_deleted_contracts_run_full_suite_and_expose_governance_failure(self):
+        assets = "plugins/auto-research-agent/references/research-workspace/atlas/"
+        for path in sorted(scope.DOCS | {assets + "atlas.css", "review-evidence/x.md"}):
+            with self.subTest(path=path):
+                self.write(path, "scope fixture\n").unlink()
+                self.write(
+                    TESTS + "test_governance_entrypoint.py",
+                    PASSING.replace("pass", "self.fail('deleted contract')"),
+                )
+                selection = scope.plan([path], self.repo)
+                self.assertEqual(
+                    (selection["mode"], selection["modules"]), ("full", [])
+                )
+                executed = self.fixture(selection)
+                self.assertNotEqual(
+                    executed.returncode, 0, executed.stdout + executed.stderr
+                )
+                summary = json.loads(executed.stdout.splitlines()[-1])
+                self.assertEqual((summary["tests_run"], summary["failures"]), (3, 1))
+                self.assertFalse(summary["passed"])
+
+    def test_deleted_ci_inputs_keep_full_suite(self):
+        for path in sorted(scope.CI_FILES):
+            with self.subTest(path=path):
+                (self.repo / path).unlink()
+                selection = scope.plan([path], self.repo)
+                self.assertEqual(
+                    (selection["mode"], selection["modules"]), ("full", [])
+                )
+
     def test_incoming_presentation_scope_keeps_interface_checks(self):
         assets = "plugins/auto-research-agent/references/research-workspace/atlas/"
+        self.write(assets + "atlas.css", "/* scope fixture */\n")
+        self.write("review-evidence/x.md", "scope fixture\n")
         self.write(TESTS + "test_workspace_widget.py", PASSING)
         self.write(TESTS + "test_native_message_widget.py", PASSING)
         self.write(
@@ -121,6 +155,7 @@ class Stage1TestScopeTests(unittest.TestCase):
         executed = self.fixture(result)
         self.assertEqual(executed.returncode, 0, executed.stdout + executed.stderr)
         self.assertEqual(json.loads(executed.stdout.splitlines()[-1])["tests_run"], 4)
+        self.write(assets + "atlas-ui.js", "// existing unclassified input\n")
         self.assertEqual(
             scope.plan([assets + "atlas.css", assets + "atlas-ui.js"], self.repo)[
                 "mode"
@@ -139,10 +174,16 @@ class Stage1TestScopeTests(unittest.TestCase):
             "plugins/auto-research-agent/skills/stage1-literature/SKILL.md",
         ):
             with self.subTest(path=path):
+                if path != TESTS + "test_deleted.py":
+                    self.write(path, "existing shared input\n")
                 result = scope.plan(
                     [".github/pull_request_template.md", path], self.repo
                 )
                 self.assertEqual((result["mode"], result["modules"]), ("full", []))
+                self.assertEqual(
+                    result["reason"].startswith("Deleted or unavailable"),
+                    path == TESTS + "test_deleted.py",
+                )
         self.assertEqual(scope.plan([], repo=self.repo)["mode"], "full")
 
     def test_pr_uses_merge_base_and_push_uses_previous_tip(self):
