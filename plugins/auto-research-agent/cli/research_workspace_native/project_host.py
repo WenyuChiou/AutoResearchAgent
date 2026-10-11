@@ -18,6 +18,7 @@ from .project_intake import ProjectIntakeService
 from .project_contract import project_view
 from .project_stage1_delivery import ProjectStage1DeliveryService
 from .project_stage1_atlas import ProjectStage1AtlasService
+from .project_stage2_context import ProjectStage2InputReviewService
 from .project_atlas_shell import shell_assets
 from .project_stage1_library import ProjectStage1LibraryService
 from .project_stage1_source_service import ProjectStage1SourceService
@@ -35,7 +36,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -110,6 +111,11 @@ class ProjectHost(AtlasHost):
             None
             if stage1 is None
             else ProjectStage1AtlasService(self.project_stage1_delivery)
+        )
+        self.project_stage2_input = (
+            None
+            if stage1 is None
+            else ProjectStage2InputReviewService(self.project_stage1_atlas)
         )
         self.project_stage1_records = None
         self.project_stage1_claims = None
@@ -475,6 +481,7 @@ class ProjectHandler(AtlasHandler):
                         "coverage",
                         "claim",
                         "reading-review",
+                        "review-stage2-input",
                         "prepare-delivery",
                         "recover-delivery",
                         "plan-query",
@@ -495,6 +502,9 @@ class ProjectHandler(AtlasHandler):
                     called = ("stage1-" + action, ref, body)
                     if action == "deliver":
                         extension = self.server.project_stage1_delivery
+                    elif action == "review-stage2-input":
+                        extension = self.server.project_stage2_input
+                        action = "review"
                     elif action == "claim":
                         extension = self.server.project_stage1_claims
                         if extension is None:

@@ -12,6 +12,63 @@
   const digest = value => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
   let current = null, session = null, language = "en", generation = 0;
   const t = key => (words[language] || words.en)[key];
+  const inputWords = {
+    en: ["Review Stage 1 → Stage 2 input", "This records your decision against the saved package. It does not start Stage 2, score papers, or grant model permission.", "Request Stage 2", "Continue Stage 1", "Hold", "Reason / remaining questions", "Save input decision", "Saved decision", "Not yet decided", "Earlier package — review again", "Read sources", "Limitations", "Stage 1 handoff is not eligible", "The current Stage 2 consumer cannot yet read this canonical version", "Missing source", "Reading not registered", "Claim source or location unavailable", "Claim level needs a versioned consumer"],
+    "zh-Hans": ["审阅 Stage 1 → Stage 2 输入", "此操作把你的决定绑定到保存的交付包，不会启动 Stage 2、评分或授予模型权限。", "请求进入 Stage 2", "继续 Stage 1", "暂缓", "理由／尚待解决的问题", "保存输入决定", "已保存的决定", "尚未决定", "来自旧交付包，请重新审阅", "读取来源", "待补项", "Stage 1 交接尚未满足进入条件", "当前 Stage 2 接口尚不能读取这个 canonical 版本", "缺少来源", "尚未登记阅读", "缺少主张来源或定位", "此证据级别需要新版接口"],
+    "zh-Hant": ["審閱 Stage 1 → Stage 2 輸入", "此操作將你的決定綁定至保存的交付包，不會啟動 Stage 2、評分或授予模型權限。", "請求進入 Stage 2", "繼續 Stage 1", "暫緩", "理由／尚待解決的問題", "保存輸入決定", "已保存的決定", "尚未決定", "來自舊交付包，請重新審閱", "讀取來源", "待補項", "Stage 1 交接尚未滿足進入條件", "目前 Stage 2 介面尚不能讀取這個 canonical 版本", "缺少來源", "尚未登記閱讀", "缺少主張來源或定位", "此證據層級需要新版介面"]
+  };
+  function reviewInput(binding, view, parent) {
+    const value = view.stage2_input, w = inputWords[language] || inputWords.en;
+    if (!equal(view, binding) || !value || value.schema !== "ProjectStage2InputContext/1"
+        || value.project_ref !== binding.project_ref || value.input_version !== binding.input_version
+        || value.artifact_ref !== binding.artifact_ref || value.manifest_sha256 !== binding.manifest_sha256
+        || value.index_sha256 !== view.index_sha256 || !digest(value.context_sha256)
+        || !Array.isArray(value.works) || value.execution_authorized !== false) throw new Error("input-context-binding-differs");
+    parent.replaceChildren();
+    const node = (tag, text, original = false) => {
+      const element = document.createElement(tag); element.textContent = text;
+      if (original) element.setAttribute("translate", "no"); return element;
+    };
+    const codes = ["stage1-handoff-not-eligible", "stage2-canonical-consumer-unconnected", "source-unavailable", "reading-not-registered", "claim-source-or-location-unavailable", "claim-level-needs-versioned-consumer"];
+    const reason = code => codes.includes(code) ? w[12 + codes.indexOf(code)] : code;
+    parent.append(node("p", w[1]));
+    for (const code of value.limitations) parent.append(node("p", reason(code)));
+    const list = node("div", ""); list.className = "history";
+    for (const work of value.works) {
+      const row = node("div", ""); row.className = "history-row";
+      row.append(node("strong", work.title, true), node("p", work.work_id + " · " + work.version_id, true));
+      row.append(node("p", work.screening_status + " · " + (work.reading_status || "Unknown"), true));
+      row.append(node("p", w[10] + ": " + (work.source_ids.join(" · ") || "Unknown")));
+      for (const code of work.limitations) row.append(node("p", reason(code)));
+      list.append(row);
+    }
+    const saved = value.review;
+    const choices = ["request-stage2", "keep-stage1", "hold"];
+    parent.append(list, node("p", saved ? w[7] + ": " + (saved.stale ? w[9] : w[2 + choices.indexOf(saved.decision)]) : w[8]));
+    if (saved) parent.append(node("p", saved.user_input, true));
+    const form = document.createElement("form"), choice = document.createElement("select");
+    choice.setAttribute("aria-label", w[0]);
+    for (const [i, option] of ["request-stage2", "keep-stage1", "hold"].entries()) {
+      const item = node("option", w[2 + i]); item.value = option; choice.append(item);
+    }
+    choice.value = "hold";
+    const label = node("label", w[5]), input = document.createElement("textarea");
+    input.rows = 3; input.required = true; input.maxLength = 4096; label.append(input);
+    const button = node("button", w[6]); button.type = "submit";
+    form.append(choice, label, button);
+    form.onsubmit = event => {
+      event.preventDefault();
+      if (!current || !equal(current, binding) || !input.value.trim()
+          || new TextEncoder().encode(input.value).length > 4096
+          || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(input.value)) return;
+      document.dispatchEvent(new CustomEvent("project-review-stage2-input", {detail: {
+        ...binding, brief_sha256: value.brief_sha256, context_sha256: value.context_sha256,
+        decision: choice.value, user_input: input.value
+      }}));
+    };
+    parent.append(form);
+    const details = node("details", ""); details.append(node("summary", "SHA-256"), node("p", value.context_sha256)); parent.append(details);
+  }
   function close() {
     ++generation;
     if (session) {
@@ -104,6 +161,17 @@
     if (!current) return;
     const button = document.createElement("button"); button.id = "project-atlas-open"; button.type = "button"; button.textContent = t("open"); button.onclick = open;
     const help = document.createElement("p"); help.id = "project-atlas-notice"; help.className = "subtle"; help.setAttribute("role", "status"); help.textContent = t("help"); area.append(button, help);
+    const w = inputWords[language] || inputWords.en, details = document.createElement("details"), summary = document.createElement("summary");
+    summary.textContent = w[0]; details.append(summary);
+    const content = document.createElement("div"), read = document.createElement("button"); read.type = "button"; read.textContent = w[0]; content.append(read); details.append(content); area.append(details);
+    const binding = {...current};
+    read.onclick = async () => {
+      read.disabled = true;
+      try {
+        const view = await get(route(binding));
+        if (current && equal(current, binding) && content.isConnected) reviewInput(binding, view, content);
+      } catch (_) { if (content.isConnected) { show("failed"); read.disabled = false; } }
+    };
   });
   document.addEventListener("project-screening-clear", () => { current = null; close(); if (area) area.replaceChildren(); });
   window.addEventListener("pagehide", close);

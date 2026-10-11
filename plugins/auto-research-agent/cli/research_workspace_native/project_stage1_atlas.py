@@ -21,6 +21,7 @@ from stage1_deliverable.common import canonical, safe_path, sha
 from .http import MAX_RESPONSE
 from .project_atlas_shell import renderer_assets
 from .project_stage1 import _basis
+from .project_stage2_context import input_context, verify_review_history
 from .project_stage1_delivery import ProjectStage1DeliveryService
 from .session_api import SessionApiError, _check, _hash, _text
 
@@ -306,7 +307,12 @@ class ProjectStage1AtlasService:
                     _check(selected is not None, "stage1-atlas-file-unavailable", 404)
                     result["file"] = selected
                 else:
-                    result.update(payload=payload, files=catalog)
+                    verify_review_history(self.intake, principal, state)
+                    result.update(
+                        payload=payload,
+                        files=catalog,
+                        stage2_input=input_context(source, state, index_hash),
+                    )
                 if check_deadline is not None:
                     check_deadline()
                 current, current_root = self._current(*args)

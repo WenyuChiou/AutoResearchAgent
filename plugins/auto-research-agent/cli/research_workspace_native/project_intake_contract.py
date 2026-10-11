@@ -129,6 +129,18 @@ def refusal_shape(kind, body, key, project_ref):
             BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"},
             set(),
         ),
+        "stage1-review-stage2-input": (
+            BOUND_FIELDS
+            | {
+                "artifact_ref",
+                "manifest_sha256",
+                "context_sha256",
+                "decision",
+                "user_input",
+                "confirmed",
+            },
+            set(),
+        ),
     }
     for operation in ("bootstrap", "execute", "restore-owner", "authorize"):
         shapes["stage1-query-" + operation] = (

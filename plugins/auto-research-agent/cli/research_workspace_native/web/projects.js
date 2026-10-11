@@ -755,6 +755,24 @@
   }
   $("authorize-topic").onclick = guarded(() => authorize("suggest-topic"));
   $("authorize-plan").onclick = guarded(() => authorize("plan-search"));
+  document.addEventListener("project-review-stage2-input", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || state.busy || state.activeJob || !item
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.revision !== project.revision || item.brief_sha256 !== project.brief_sha256
+        || !["request-stage2", "keep-stage1", "hold"].includes(item.decision)
+        || !bounded(item.user_input, 4096) || !item.user_input.trim()) return;
+    const artifact = state.stage1 && state.stage1.delivery && state.stage1.delivery.canonical_package;
+    if (!artifact || artifact.status !== "saved-evidence-validated"
+        || artifact.artifact_ref !== item.artifact_ref || artifact.manifest_sha256 !== item.manifest_sha256) return;
+    const ref = project.project_ref;
+    const result = await mutate("stage1/review-stage2-input", Object.assign(identity(), {
+      artifact_ref: item.artifact_ref, manifest_sha256: item.manifest_sha256,
+      context_sha256: item.context_sha256, decision: item.decision,
+      user_input: item.user_input, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }));
   document.addEventListener("project-screen-paper", guarded(async event => {
     const item = event.detail, project = state.project;
     if (!project || state.loading || state.busy || !item || item.project_ref !== project.project_ref

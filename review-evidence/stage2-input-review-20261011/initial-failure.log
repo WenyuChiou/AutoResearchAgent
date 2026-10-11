@@ -1,0 +1,33 @@
+test_client_path_cross_origin_and_stale_revision_reject_without_build (test_project_stage1_delivery_http.ProjectStage1DeliveryHttpTests.test_client_path_cross_origin_and_stale_revision_reject_without_build) ... ok
+test_real_delivery_http_recovery_and_readonly_contract_have_same_hash (test_project_stage1_delivery_http.ProjectStage1DeliveryHttpTests.test_real_delivery_http_recovery_and_readonly_contract_have_same_hash) ... ok
+test_existing_contract_http_review_requires_origin_and_recovers_without_stage2 (test_project_stage2_context.ProjectStage2ContextTests.test_existing_contract_http_review_requires_origin_and_recovers_without_stage2) ... ERROR
+test_mixed_core_library_review_reopen_and_stale_or_tampered_refusal (test_project_stage2_context.ProjectStage2ContextTests.test_mixed_core_library_review_reopen_and_stale_or_tampered_refusal) ... ERROR
+
+======================================================================
+ERROR: test_existing_contract_http_review_requires_origin_and_recovers_without_stage2 (test_project_stage2_context.ProjectStage2ContextTests.test_existing_contract_http_review_requires_origin_and_recovers_without_stage2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_stage2_context.py", line 150, in test_existing_contract_http_review_requires_origin_and_recovers_without_stage2
+    self.assertEqual(history["action"]["request_sha256"], saved["request_sha256"])
+                     ~~~~~~~^^^^^^^^^^
+KeyError: 'action'
+
+======================================================================
+ERROR: test_mixed_core_library_review_reopen_and_stale_or_tampered_refusal (test_project_stage2_context.ProjectStage2ContextTests.test_mixed_core_library_review_reopen_and_stale_or_tampered_refusal)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_stage2_context.py", line 49, in test_mixed_core_library_review_reopen_and_stale_or_tampered_refusal
+    )
+
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_atlas.py", line 312, in read
+    files=catalog,
+                 ^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage2_context.py", line 54, in input_context
+    "title": paper["title"],
+                        ^^^^^
+IndexError: list index out of range
+
+----------------------------------------------------------------------
+Ran 4 tests in 44.749s
+
+FAILED (errors=2)
