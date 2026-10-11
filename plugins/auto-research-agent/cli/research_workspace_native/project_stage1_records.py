@@ -23,6 +23,7 @@ from .project_stage1_delivery import (
     ProjectStage1DeliveryService,
     _raw,
     _records_match,
+    _screening_library,
 )
 from .project_stage1_sources import describe_source, source_record
 from .session_api import _check
@@ -649,22 +650,62 @@ class ProjectStage1RecordsService:
         events = {row["payload"]["event_id"]: row["payload"] for row in ledger.events()}
         journal = {row["payload"]["event_id"]: row for row in ledger.events()}
         core = any(row.get("schema_version") == "1.1.0" for row in readings)
+        candidates = ledger.candidates()
+        decisions = ledger.coverage_state().evidence.decisions
+        matches_by_work = {
+            work: [
+                reading
+                for reading in readings
+                if reading["work_id"] == work
+                and reading["candidate_event_id"] == candidate["event_id"]
+                and decisions.get(work) is not None
+                and reading["decision_event_id"] == decisions[work]["event_id"]
+            ]
+            for work, candidate in candidates.items()
+        }
+        discovery_records = any(not rows for rows in matches_by_work.values())
+        core = core or discovery_records
         papers, claims, source_rows = [], [], []
         _check(
             len(ledger.candidates()) <= MAX_RECORDS and len(sources) <= MAX_RECORDS,
             "stage1-saved-record-bound-exceeded",
         )
-        for work, candidate in ledger.candidates().items():
-            decision = ledger.coverage_state().evidence.decisions.get(work)
-            _check(decision is not None, "saved-current-decision-required")
-            matches = [
-                reading
-                for reading in readings
-                if reading["work_id"] == work
-                and reading["candidate_event_id"] == candidate["event_id"]
-                and reading["decision_event_id"] == decision["event_id"]
-            ]
-            _check(bool(matches), "saved-reading-current-record-required")
+        reviews = ledger.coverage_state().evidence.current()
+        for work, candidate in candidates.items():
+            matches = matches_by_work[work]
+            if not matches:
+                version = candidate["discoveries"][-1]["version_id"]
+                _check(
+                    work not in reviews
+                    and not any(
+                        row["kind"] in {"SourceReadStarted", "ClaimEvidence"}
+                        and row["work_id"] == work
+                        and row["version_id"] == version
+                        for row in events.values()
+                    ),
+                    "saved-reading-current-record-required",
+                )
+                metadata = candidate["discoveries"][-1]["record"]
+                papers.append(
+                    dict(
+                        work_id=work,
+                        version_id=version,
+                        title=metadata["title"],
+                        authors=metadata["authors"],
+                        year=metadata["year"],
+                        venue=metadata.get("venue") or "Unknown",
+                        doi=metadata.get("doi"),
+                        url=metadata.get("url"),
+                        evidence_level="metadata",
+                        source_ids=[],
+                        claim_ids=[],
+                        roles=[],
+                        reading_status="discovery-only",
+                        classification={key: "Unknown" for key in CLASSIFICATION},
+                        findings={key: "Unknown" for key in FINDINGS},
+                    )
+                )
+                continue
             # SQLite event order selects the latest explicit saved annotation;
             # canonical state-key order never acts as reading revision order.
             reading = matches[-1]
@@ -728,6 +769,11 @@ class ProjectStage1RecordsService:
                     findings=reading["findings"],
                     roles=reading["roles"],
                     claim_ids=[span["claim_id"] for span in reading["claims"]],
+                    **(
+                        {"reading_status": "human-reviewed"}
+                        if discovery_records
+                        else {}
+                    ),
                 )
             )
         versions = {paper["work_id"]: paper["version_id"] for paper in papers}
@@ -775,7 +821,11 @@ class ProjectStage1RecordsService:
         ]
         records = dict(
             kind="Stage1ResearchRecords",
-            schema_version="1.1.0" if core else "1.0.0",
+            schema_version="1.2.0"
+            if discovery_records
+            else "1.1.0"
+            if core
+            else "1.0.0",
             topic=ledger.manifest["research_run"]["objective"],
             as_of=context[6]["created_at"],
             papers=papers,
@@ -784,6 +834,18 @@ class ProjectStage1RecordsService:
             screening=screening,
             coverage=needs,
         )
+        library = _screening_library(context) if discovery_records else None
+        if discovery_records:
+            from stage1_deliverable.screening_records import artifacts
+
+            records.update(
+                screening_library=library,
+                screening_artifacts=artifacts(library),
+                screening_journal={
+                    "path": "screening_events.jsonl",
+                    "sha256": library["binding"]["journal_sha256"],
+                },
+            )
         if core:
             from stage1_deliverable.core_records import artifact_path
 
@@ -804,7 +866,13 @@ class ProjectStage1RecordsService:
                 ],
             )
         validate_records(records)
-        _records_match(records, ledger, self.root, check_core_archives=False)
+        _records_match(
+            records,
+            ledger,
+            self.root,
+            check_core_archives=False,
+            screening_library=library,
+        )
         return records
 
     def produce_records(
@@ -910,8 +978,11 @@ class ProjectStage1RecordsService:
                     temporary = path.with_suffix(".partial")
                     try:
                         check_current()
-                        if records["schema_version"] == "1.1.0":
-                            for artifact in records["core_artifacts"]:
+                        if records["schema_version"] in {"1.1.0", "1.2.0"}:
+                            artifacts = records["core_artifacts"] + records.get(
+                                "screening_artifacts", []
+                            )
+                            for artifact in artifacts:
                                 target = safe_path(self.root, artifact["artifact_path"])
                                 target.parent.mkdir(exist_ok=True)
                                 observed = ledger.read_ref(artifact["source_ref"])
@@ -925,7 +996,29 @@ class ProjectStage1RecordsService:
                                         stream.flush()
                                         os.fsync(stream.fileno())
                                 _raw(target, artifact["source_ref"]["sha256"])
-                            _records_match(records, ledger, self.root)
+                            if records["schema_version"] == "1.2.0":
+                                journal = records["screening_journal"]
+                                observed = _raw(
+                                    ledger.root / "stage_events.jsonl",
+                                    journal["sha256"],
+                                )
+                                target = safe_path(self.root, journal["path"])
+                                check_current()
+                                if not target.exists():
+                                    with target.open("xb") as stream:
+                                        _check(
+                                            stream.write(observed) == len(observed),
+                                            "stage1-records-partial-write",
+                                        )
+                                        stream.flush()
+                                        os.fsync(stream.fileno())
+                                _raw(target, journal["sha256"])
+                            _records_match(
+                                records,
+                                ledger,
+                                self.root,
+                                screening_library=_screening_library(context, records),
+                            )
                         with temporary.open("xb") as stream:
                             _check(
                                 stream.write(raw) == len(raw),

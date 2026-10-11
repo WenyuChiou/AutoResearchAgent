@@ -319,3 +319,31 @@ The bare package has no new readiness evidence or Stage2 execution authority.
 Source identities requiring unavailable semantic replay fail closed. Stage3–6
 remain planned/unconnected. Graph access does not demonstrate native/model
 execution or full Stage1/Stage2 acceptance.
+
+### Preserve unread candidates in a saved delivery
+
+Canonical records `1.2.0` add the already implemented read-only
+`Stage1ScreeningLibrary` and its original raw artifacts to the delivery. Every
+Core candidate remains in the paper catalog. Query/backend history, first
+discovery order, result position, versions, actual decisions/reversals and
+source attempts remain distinct; result position is not a relevance score.
+An unscreened candidate has no invented `DecisionEvent`.
+
+`discovery-only` papers preserve saved discovery metadata, an actual URL or
+null, metadata evidence level and Unknown reading/classification fields.
+They have no fabricated source receipt or claim. If a selected version already
+has a source attempt, claim or current review, missing registered reading still
+refuses delivery. Human-reviewed rows retain the original complete source and
+claim guards. The server compares the full library to its current Core
+projection during production, registration, delivery and explicit recovery.
+Raw artifacts retain original refs and hashes, including historical versions.
+The exact complete Core journal is also archived and hash/chain checked;
+query, source and decision history cannot be shortened by rewriting counts.
+Legacy fully annotated `1.0/1.1` contracts remain unchanged.
+
+The graph, complete library, notes and bibliography consume the same saved
+Index. The existing project screening-library panel exposes the real discovery
+counts; the unchanged v6 graph's discovery-count presenter remains a separate
+UI follow-up. None of these records establish complete reading, sufficient
+coverage, stage acceptance or a relevance ranking. Stage2 explicitly refuses
+the unconnected `1.2` consumer; Stage3–6 remain planned/unconnected.

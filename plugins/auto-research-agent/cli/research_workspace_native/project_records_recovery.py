@@ -116,7 +116,14 @@ class ProjectRecordsRecoveryService:
         # This is the already committed file. Registration revalidates Core/source
         # semantics; it does not call the producer or rewrite any source bytes.
         records = decode(_raw(path, row["records_sha256"]), "committed records")
-        _records_match(records, context[4], path.parent)
+        from .project_stage1_delivery import _screening_library
+
+        _records_match(
+            records,
+            context[4],
+            path.parent,
+            screening_library=_screening_library(context, records),
+        )
         return row, path
 
     def read(self, credential, ref):

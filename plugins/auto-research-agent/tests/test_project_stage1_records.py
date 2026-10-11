@@ -271,7 +271,7 @@ class SavedStage1RecordsTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(), before)
         self.runner.assert_not_called()
 
-    def test_unscreened_candidate_requires_saved_current_decision_without_invented_sources(
+    def test_unscreened_candidate_is_archived_without_invented_decision_or_sources(
         self,
     ):
         fixture = self.two_sources()
@@ -316,16 +316,20 @@ class SavedStage1RecordsTests(unittest.TestCase):
         self.assertNotIn(work, ledger.coverage_state().evidence.decisions)
         fixture["checkpoint"] = ledger.checkpoint()
         events = ledger.events()
-        principal = self.intake._principal("alice-token")
-        before = self.intake._load(principal, fixture["ref"])
-        with self.assertRaisesRegex(
-            SessionApiError, "^saved-current-decision-required$"
-        ):
-            self.produce(fixture)
-        self.assertEqual(self.intake._load(principal, fixture["ref"]), before)
+        offer = self.produce(fixture)
+        saved = self.delivery._context(fixture["ref"])[1]["stage1_delivery_offers"][
+            offer["offer_ref"]
+        ]
+        records = read_json(saved["records_path"])
+        paper = next(p for p in records["papers"] if p["work_id"] == work)
+        self.assertEqual(records["schema_version"], "1.2.0")
+        self.assertEqual(paper["reading_status"], "discovery-only")
+        self.assertEqual(paper["source_ids"], [])
+        self.assertEqual(paper["claim_ids"], [])
+        self.assertIsNone(paper["url"])
+        self.assertFalse(any(d["work_id"] == work for d in records["screening"]))
         self.assertEqual(ledger.events(), events)
         self.assertNotIn(work, ledger.coverage_state().evidence.decisions)
-        self.assertEqual(list(self.fixture_root.glob("stage1-records-*")), [])
         self.runner.assert_not_called()
 
     def test_exact_span_rejects_repeated_quote_wrong_offset_and_missing_claim(self):

@@ -287,6 +287,7 @@
         "plugins/auto-research-agent/tests/test_project_stage1_query_http.py",
         "plugins/auto-research-agent/tests/test_project_query_launcher.py",
         "plugins/auto-research-agent/tests/test_project_stage1_records.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_discovery_records.py",
         "plugins/auto-research-agent/tests/test_project_saved_record_owner.py",
         "plugins/auto-research-agent/tests/test_project_stage1_library.py",
         "plugins/auto-research-agent/tests/test_project_stage1_library_http.py",
