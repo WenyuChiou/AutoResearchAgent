@@ -11,6 +11,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ci_scope import changed_records as git_changed_records
+from ci_scope import changed_paths_from_records
+from ci_scope import governance_only as is_governance_only
+
 REQUIRED_SECTIONS = (
     "Why",
     "What",
@@ -20,7 +24,6 @@ REQUIRED_SECTIONS = (
     "Research Deliverable",
     "Validation",
 )
-NONE_DECLARATION = re.compile(r"^none(?:\s|$|[—–\-,:;()])", re.IGNORECASE)
 HEADING = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 METRIC = re.compile(r"\bP[1-9]\b")
@@ -267,8 +270,21 @@ def text_is_concrete(value):
     return bool(candidate and not PLACEHOLDER_VALUE.fullmatch(candidate))
 
 
-def is_none_declaration(value):
-    return bool(NONE_DECLARATION.match(value.strip()))
+CONTEXTUAL_NONE = re.compile(
+    r"^none\s*(?:[—–-]|[:;]|\()\s*(.+?)\s*\)?[.!]?$", re.IGNORECASE
+)
+
+
+def is_contextual_none(value):
+    match = CONTEXTUAL_NONE.fullmatch(value.strip())
+    if not match:
+        return False
+    reason = match.group(1).strip().rstrip(").").strip()
+    return len(reason.split()) >= 3 and text_is_concrete(reason)
+
+
+def governance_field_is_na(value):
+    return value.strip().casefold() == "not-applicable" or is_contextual_none(value)
 
 
 def load_capability_metrics(path=DEFAULT_REGISTRY):
@@ -316,14 +332,10 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
 
 
 def capability_ids(value):
-    if is_none_declaration(value):
-        return []
     return [item.strip() for item in re.split(r"[,;]", value) if item.strip()]
 
 
 def semicolon_entries(value):
-    if is_none_declaration(value):
-        return []
     return [item.strip() for item in value.split(";") if item.strip()]
 
 
@@ -1165,21 +1177,112 @@ def capabilities_for_changed_paths(changed_paths, known_capabilities):
     return required, unowned
 
 
+def changed_records(base_sha, head_sha, cwd=None):
+    """Return complete, NUL-delimited Git diff metadata for the PR."""
+    return git_changed_records(base_sha, head_sha, cwd)
+
+
 def changed_files(base_sha, head_sha, cwd=None):
-    result = subprocess.run(
-        [
-            "git",
-            "diff",
-            "--name-only",
-            "--diff-filter=ACMRT",
-            f"{base_sha}...{head_sha}",
-        ],
-        check=True,
-        capture_output=True,
-        cwd=cwd,
-        text=True,
+    """Return all changed paths, including both sides of renames."""
+    return changed_paths_from_records(changed_records(base_sha, head_sha, cwd))
+
+
+def validate_governance_body(parsed, errors):
+    """Check governance PR body format, not independent-review authenticity."""
+    exact_na = {
+        "Why": ("Target primary metric(s)",),
+        "What": ("Affected capability ID(s)",),
+        "Evaluation": (
+            "Rubric version",
+            "Rubric criterion ID(s)",
+            "Operational-definition mapping",
+            "Required invariant IDs",
+            "Invariant test evidence",
+            "Evaluation mode",
+            "Hard measures",
+            "AI-judge evidence",
+            "Major-error guardrail",
+            "Per-PR metric evidence",
+            "Live smoke evidence",
+            "Paired evaluation evidence",
+            "Runtime integrity evidence",
+            "Live paired A/B",
+        ),
+    }
+    for section, labels in exact_na.items():
+        for label in labels:
+            if not governance_field_is_na(
+                label_value(parsed.get(section, ""), label)
+            ):
+                errors.append(
+                    f"governance-only PRs require not-applicable or contextual "
+                    f"None — reason for '{label}'"
+                )
+
+    evaluation = parsed.get("Evaluation", "")
+    if (
+        label_value(evaluation, "Evaluation readiness").casefold()
+        != "implementation-only"
+    ):
+        errors.append("governance-only PRs require implementation-only readiness")
+    improvement = label_value(evaluation, "Improvement statement").casefold()
+    if (
+        not improvement.startswith("not yet demonstrated")
+        or "no research-quality improvement is claimed" not in improvement
+    ):
+        errors.append(
+            "governance-only PRs must state that no research-quality "
+            "improvement is claimed"
+        )
+
+    validation = parsed.get("Validation", "")
+    review = label_value(validation, "Governance review evidence").casefold()
+    review_status_claim = re.compile(
+        r"\b(?:code review|harness[- ]drift review)\s*"
+        r"(?:status\s*)?:\s*(?:pass(?:ed)?|approved|accepted)\b",
+        re.IGNORECASE,
     )
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    all_body_text = "\n".join(parsed.values())
+    if re.search(r"\b(?:pass|passed|approved|accepted)\b", review) or re.search(
+        review_status_claim, all_body_text
+    ):
+        errors.append(
+            "governance body format cannot establish independent-review PASS; "
+            "verify acceptance from external review records"
+        )
+    source_patterns = (
+        r"\bcode review source:\s*(https://[^\s;,]+)",
+        r"\bharness-drift review source:\s*(https://[^\s;,]+)",
+    )
+    if any(not re.search(pattern, review) for pattern in source_patterns):
+        errors.append(
+            "governance review evidence requires traceable code and harness-drift "
+            "review sources"
+        )
+    if not re.search(r"\breviewed revision:\s*[0-9a-f]{40}\b", review):
+        errors.append(
+            "governance review evidence requires the exact reviewed 40-character revision"
+        )
+    if not re.search(r"\bpatch sha256:\s*[0-9a-f]{64}\b", review):
+        errors.append(
+            "governance review evidence requires the reviewed patch SHA-256"
+        )
+    if "external acceptance: not verified by this validator" not in review:
+        errors.append(
+            "governance review evidence must state that external acceptance is not "
+            "verified by the body validator"
+        )
+    checks = label_value(validation, "Governance validation evidence")
+    if (
+        not text_is_concrete(checks)
+        or len(checks.split()) < 12
+        or not re.search(r"\b(?:python|uv|pytest)\b", checks, re.IGNORECASE)
+        or not re.search(r"\btests?\s+(?:passed|failed)\b", checks, re.IGNORECASE)
+        or "limitation" not in checks.casefold()
+    ):
+        errors.append(
+            "governance-only PRs require actual test commands, results, and limitations"
+        )
 
 
 def validate_pr_body(
@@ -1194,6 +1297,7 @@ def validate_pr_body(
     current_repository=None,
     allow_contract_fixtures=False,
     execute_invariant_tests=True,
+    change_records=None,
 ):
     repo_root = (
         Path(repo_root)
@@ -1204,6 +1308,7 @@ def validate_pr_body(
         current_repository or os.environ.get("GITHUB_REPOSITORY") or DEFAULT_REPOSITORY
     )
     current_owner, current_name = current_repository.split("/", 1)
+    governance_change = is_governance_only(change_records, repo_root)
     parsed = sections(body or "")
     errors = []
     for name in REQUIRED_SECTIONS:
@@ -1215,12 +1320,13 @@ def validate_pr_body(
         for label in labels:
             if not label_has_value(parsed.get(section, ""), label):
                 errors.append(f"{section} requires a non-empty '{label}:' value")
-    declared_capabilities = capability_ids(
-        label_value(parsed.get("What", ""), "Affected capability ID(s)")
-    )
-    governance_only_change = not declared_capabilities
     target_metrics = label_value(parsed.get("Why", ""), "Target primary metric(s)")
-    if not METRIC.search(target_metrics) and not governance_only_change:
+    if governance_change and not governance_field_is_na(target_metrics):
+        errors.append(
+            "governance-only PRs require not-applicable or contextual None — reason "
+            "target metrics"
+        )
+    elif not governance_change and not METRIC.search(target_metrics):
         errors.append("Target primary metric(s) must name at least one metric P1-P9")
     decision = label_value(parsed.get("What", ""), "Capability decision").lower()
     if decision not in CAPABILITY_DECISIONS:
@@ -1413,8 +1519,9 @@ def validate_pr_body(
             "problem, change, and benefit"
         )
     external_prs = label_value(parsed.get("What", ""), "Related external PR(s)")
-    external_none = is_none_declaration(external_prs)
-    if external_prs and not external_none:
+    if external_prs and external_prs.casefold() != "none" and not is_contextual_none(
+        external_prs
+    ):
         external_entries = [entry.strip() for entry in external_prs.split(";")]
         invalid_external = []
         for entry in external_entries:
@@ -1430,7 +1537,9 @@ def validate_pr_body(
                 "list of external GitHub pull-request URLs"
             )
     internal_prs = label_value(parsed.get("What", ""), "Internal prerequisite PR(s)")
-    if internal_prs and not is_none_declaration(internal_prs):
+    if internal_prs and internal_prs.casefold() != "none" and not is_contextual_none(
+        internal_prs
+    ):
         invalid_internal = []
         for entry in semicolon_entries(internal_prs):
             match = EXTERNAL_PR.fullmatch(entry)
@@ -1446,8 +1555,9 @@ def validate_pr_body(
             )
     dependency_pins = label_value(parsed.get("What", ""), "External dependency pin(s)")
     dependency_entries = []
-    dependency_none = is_none_declaration(dependency_pins)
-    if dependency_pins and not dependency_none:
+    if dependency_pins and dependency_pins.casefold() != "none" and not is_contextual_none(
+        dependency_pins
+    ):
         dependency_entries = semicolon_entries(dependency_pins)
         if any(not DEPENDENCY_PIN.fullmatch(entry) for entry in dependency_entries):
             errors.append(
@@ -1464,11 +1574,9 @@ def validate_pr_body(
         for entry in dependency_entries
         if (match := DEPENDENCY_PIN.fullmatch(entry))
     }
-    if related_urls != pinned_urls and not (
-        governance_only_change and related_urls and dependency_none
-    ):
+    if not pinned_urls.issubset(related_urls):
         errors.append(
-            "Related external PR(s) and External dependency pin(s) must name the same PR URLs"
+            "Every external dependency pin must also appear in Related external PR(s)"
         )
     improvement = label_value(parsed.get("Evaluation", ""), "Improvement statement")
     improvement_match = IMPROVEMENT_STATEMENT.fullmatch(improvement)
@@ -1530,6 +1638,15 @@ def validate_pr_body(
         errors.append(
             "Partial or blocked execution must describe the remaining work or blocker"
         )
+    if governance_change:
+        validate_governance_body(parsed, errors)
+        example = visible_text(parsed.get("Example", ""))
+        for label in ("Before", "After"):
+            if not re.search(
+                rf"^{label}:[ \t]*[^\s\r\n].*$", example, re.MULTILINE
+            ):
+                errors.append(f"Example requires a non-empty '{label}:' value")
+        return errors
     declared_metrics = set(METRIC.findall(target_metrics))
     rubrics = known_rubrics if known_rubrics is not None else load_rubrics()
     rubric_version = label_value(parsed.get("Evaluation", ""), "Rubric version")
@@ -1588,6 +1705,9 @@ def validate_pr_body(
         known_criterion_submetrics
         if known_criterion_submetrics is not None
         else load_criterion_submetrics()
+    )
+    declared_capabilities = capability_ids(
+        label_value(parsed.get("What", ""), "Affected capability ID(s)")
     )
     if (
         RESEARCH_DELIVERABLE_CAPABILITY in declared_capabilities
@@ -1968,6 +2088,7 @@ def main():
     if args.body_file:
         body = args.body_file.read_text(encoding="utf-8")
         paths = None
+        records = None
     else:
         event_path = os.environ.get("GITHUB_EVENT_PATH")
         if not event_path:
@@ -1978,8 +2099,15 @@ def main():
             print("No pull-request event; PR contract check skipped.")
             return 0
         body = context["body"]
-        paths = changed_files(context["base_sha"], context["head_sha"])
-    errors = validate_pr_body(body, load_capability_metrics(), paths, load_rubrics())
+        records = changed_records(context["base_sha"], context["head_sha"])
+        paths = changed_paths_from_records(records)
+    errors = validate_pr_body(
+        body,
+        load_capability_metrics(),
+        paths,
+        load_rubrics(),
+        change_records=records,
+    )
     if errors:
         print("Research PR contract failed:")
         for error in errors:

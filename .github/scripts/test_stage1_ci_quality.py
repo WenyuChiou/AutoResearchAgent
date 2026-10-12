@@ -26,6 +26,7 @@ class Stage1CiQualityTests(unittest.TestCase):
         self.assertEqual(
             source["on"]["pull_request"]["types"], ["opened", "synchronize", "reopened"]
         )
+        self.assertNotIn("pull_request_target", source["on"])
         self.assertEqual(
             metadata["on"]["pull_request"]["types"],
             ["opened", "synchronize", "reopened", "edited", "ready_for_review"],
@@ -40,6 +41,8 @@ class Stage1CiQualityTests(unittest.TestCase):
         self.assertEqual(job["needs"], "scope")
         self.assertEqual(job["if"], "${{ always() }}")
         self.assertEqual(source["permissions"], metadata["permissions"])
+        scope_checkout = source["jobs"]["scope"]["steps"][0]
+        self.assertEqual(scope_checkout["with"]["persist-credentials"], "false")
         self.assertEqual(
             source["concurrency"]["cancel-in-progress"],
             "${{ github.event_name == 'pull_request' }}",
@@ -54,6 +57,7 @@ class Stage1CiQualityTests(unittest.TestCase):
             ("success", "docs", 0),
             ("success", "ui", 0),
             ("success", "full", 0),
+            ("success", "governance", 0),
             ("failure", "docs", 1),
             ("cancelled", "full", 1),
             ("skipped", "ui", 1),
@@ -73,6 +77,32 @@ class Stage1CiQualityTests(unittest.TestCase):
                     timeout=10,
                 )
                 self.assertEqual(process.returncode, expected, process.stderr)
+
+    def test_governance_plan_keeps_required_jobs_and_runs_bounded_contracts(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        job = workflow["jobs"]["contracts"]
+        steps = {step.get("name", step.get("run", "")): step for step in job["steps"]}
+        self.assertEqual(job["if"], "${{ always() }}")
+        self.assertEqual(
+            job["strategy"]["matrix"]["os"],
+            ["ubuntu-latest", "windows-latest", "macos-latest"],
+        )
+        governance = steps["Governance scope and validator contracts"]
+        self.assertEqual(
+            governance["if"], "needs.scope.outputs.plugin_test_scope == 'governance'"
+        )
+        self.assertIn("--governance", governance["run"])
+        self.assertEqual(
+            steps["Plugin loading and stage contracts"]["if"],
+            "needs.scope.outputs.plugin_test_scope != 'governance'",
+        )
+        self.assertEqual(
+            steps["Research PR contract tests"]["if"],
+            "needs.scope.outputs.plugin_test_scope != 'governance'",
+        )
 
     def test_ruff_check_rejects_unused_import(self):
         with tempfile.TemporaryDirectory() as directory:

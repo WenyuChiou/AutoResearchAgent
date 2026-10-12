@@ -136,6 +136,26 @@ Downloaded papers and copyrighted full text remain private and never enter Git.
   send this harness to OpenAI upstream.
 - Governance changes require independent code review and harness-drift review.
 
+The governance-only CI fast path is classified from the complete base/head Git
+diff, never from PR text. It applies only when every change is a regular-file
+modification of root `AGENTS.md` or this plugin's `AGENTS.md`; additions,
+deletions, renames, copies, mode/type changes, empty or unavailable diffs, and
+any runtime, evaluation, test, or CI file keep the full path. Both base and head
+blobs must exist and contain non-empty UTF-8 text without binary markers;
+unreadable, invalidly encoded, or binary blobs keep the full path. Changes to
+the selector or workflow themselves always select full tests. Because `pull_request`
+executes candidate-controlled workflow code, this optimization is not a security
+boundary against malicious forks; do not use `pull_request_target` to promote
+untrusted code. Eligible PRs use exact `not-applicable` values or a concrete
+contextual `None — reason` for research metrics, capabilities, rubric and
+invariant fields; name no research-quality improvement; report actual checks
+and limitations; and include traceable source references for independent code
+and harness-drift reviews, the exact reviewed revision, and patch SHA-256. The PR
+body validator checks formatting only; it does not authenticate review sources
+or accept review results. Do not self-assert PASS in the body. The core team must
+verify both external review records against the exact revision and patch before
+acceptance. Editing the PR body cannot opt into this path.
+
 ### Review-only path checks
 
 These checks apply only while conducting code review for this plugin. They do

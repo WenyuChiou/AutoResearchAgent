@@ -69,8 +69,6 @@ class Stage1TestScopeTests(unittest.TestCase):
     def test_docs_and_ci_use_loading_and_stage_contract_guards(self):
         for path in (
             "plugins/auto-research-agent/README.md",
-            ".github/workflows/stage1-plugin.yml",
-            ".github/scripts/ci_scope.py",
             ".github/scripts/test_stage1_test_scope.py",
         ):
             with self.subTest(path=path):
@@ -80,6 +78,73 @@ class Stage1TestScopeTests(unittest.TestCase):
                     ["test_plugin_loading", "test_stage_contracts"],
                 )
                 self.assertEqual(scope.plan(paths, self.repo)["mode"], "selected")
+
+    def test_governance_fast_path_requires_verified_allowlisted_changes(self):
+        self.git("init")
+        self.git("config", "user.name", "Stage 1 scope test")
+        self.git("config", "user.email", "scope@example.invalid")
+        self.write("AGENTS.md", "initial governance\n")
+        self.write(
+            "plugins/auto-research-agent/AGENTS.md", "initial plugin governance\n"
+        )
+        self.git("add", "AGENTS.md", "plugins/auto-research-agent/AGENTS.md")
+        self.git("commit", "-m", "base")
+        base = self.git("rev-parse", "HEAD")
+        self.write("AGENTS.md", "updated governance\n")
+        self.git("add", "AGENTS.md")
+        self.git("commit", "-m", "governance edit")
+        head = self.git("rev-parse", "HEAD")
+        records = scope.changed_records(base, head, self.repo)
+        allowed = scope.plan(
+            ["AGENTS.md"], self.repo, records, event_name="pull_request"
+        )
+        self.assertEqual(allowed["mode"], "governance")
+        self.assertEqual(allowed["modules"], list(scope.GOVERNANCE_MODULES))
+        self.assertEqual(
+            scope.plan(["AGENTS.md"], self.repo)["mode"], "full"
+        )
+        self.assertNotEqual(
+            scope.plan(["AGENTS.md"], self.repo, records, event_name="push")["mode"],
+            "governance",
+        )
+        mixed = [
+            records[0],
+            {
+                "status": "M",
+                "old_mode": "100644",
+                "new_mode": "100644",
+                "old_path": "src/runtime.py",
+                "new_path": "src/runtime.py",
+            },
+        ]
+        selection = scope.plan(
+            ["AGENTS.md", "src/runtime.py"],
+            self.repo,
+            mixed,
+            event_name="pull_request",
+        )
+        self.assertEqual(selection["mode"], "full")
+
+    def test_selector_or_workflow_changes_never_select_governance(self):
+        for path in (
+            ".github/scripts/ci_scope.py",
+            ".github/scripts/stage1_test_scope.py",
+            ".github/workflows/stage1-plugin.yml",
+        ):
+            record = {
+                "status": "M",
+                "old_mode": "100644",
+                "new_mode": "100644",
+                "old_path": path,
+                "new_path": path,
+            }
+            with self.subTest(path=path):
+                self.assertEqual(
+                    scope.plan(
+                        [path], self.repo, [record], event_name="pull_request"
+                    )["mode"],
+                    "full",
+                )
 
     def test_test_references_expand_transitively(self):
         for name, source in {
@@ -279,8 +344,9 @@ class Stage1TestScopeTests(unittest.TestCase):
         self.assertEqual(
             workflow.count("fetch-depth: 0"), workflow.count("uses: actions/checkout@")
         )
-        self.assertEqual(workflow.count(entry), 2)
+        self.assertEqual(workflow.count(entry), 3)
         self.assertIn(entry + " --contracts", workflow)
+        self.assertIn(entry + " --governance", workflow)
 
 
 if __name__ == "__main__":

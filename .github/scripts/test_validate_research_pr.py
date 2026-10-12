@@ -15,6 +15,7 @@ from validate_research_pr import (
     EVALUATOR_INVARIANTS,
     RUNTIME_INVARIANTS,
     changed_files,
+    changed_records,
     load_bound_readiness_manifest,
     load_capability_metrics,
     load_criterion_submetrics,
@@ -106,6 +107,313 @@ PILOT_MANIFEST = (
 
 
 class ResearchPullRequestContractTests(unittest.TestCase):
+    def governance_body(self, revision="a" * 40, patch_hash="b" * 64):
+        values = {
+            "Target primary metric(s)": "not-applicable",
+            "Affected capability ID(s)": "not-applicable",
+            "Rubric version": "not-applicable",
+            "Rubric criterion ID(s)": "not-applicable",
+            "Operational-definition mapping": "not-applicable",
+            "Required invariant IDs": "not-applicable",
+            "Invariant test evidence": "not-applicable",
+            "Evaluation mode": "not-applicable",
+            "Hard measures": "not-applicable",
+            "AI-judge evidence": "not-applicable",
+            "Major-error guardrail": "not-applicable",
+            "Per-PR metric evidence": "not-applicable",
+            "Improvement statement": (
+                "not yet demonstrated: no research-quality improvement is claimed; "
+                "evidence: python -m unittest discover -s .github/scripts "
+                "tests passed; limitation: no runtime or research-quality "
+                "behavior was exercised"
+            ),
+            "Live smoke evidence": "not-applicable",
+            "Paired evaluation evidence": "not-applicable",
+            "Runtime integrity evidence": "not-applicable",
+            "Live paired A/B": "not-applicable",
+        }
+        lines = []
+        for line in VALID.splitlines():
+            if line.startswith("- "):
+                label = line[2:].split(":", 1)[0]
+                if label in values:
+                    line = f"- {label}: {values[label]}"
+            lines.append(line)
+        body = "\n".join(lines).replace(
+            "- Review and merge owner: core team",
+            "- Review and merge owner: core team\n"
+            "- [x] External review source links and revision/hash references are "
+            "included; core-team acceptance is separate.",
+        )
+        return body.replace(
+            "- [x] External review source links and revision/hash references are "
+            "included; core-team acceptance is separate.",
+            "- [x] External review source links and revision/hash references are "
+            "included; core-team acceptance is separate.\n"
+            "- Governance validation evidence: command: python -m unittest "
+            "discover -s .github/scripts; result: 24 tests passed; limitation: "
+            "this checks governance contracts only and does not exercise runtime "
+            "behavior.\n"
+            "- Governance review evidence: code review source: "
+            "https://example.invalid/code-review; harness-drift review source: "
+            "https://example.invalid/harness-drift; reviewed revision: "
+            f"{revision}; patch sha256: {patch_hash}; external acceptance: "
+            "not verified by this validator.",
+        )
+
+    def contextual_none_governance_body(self, body):
+        reasons = {
+            "Target primary metric(s)": "no research-quality metric is measured here",
+            "Affected capability ID(s)": "no production capability is changed here",
+            "Rubric version": "no scientific rubric is scored for this change",
+            "Rubric criterion ID(s)": "no criteria are scored for this change",
+            "Operational-definition mapping": "no production metric is changed here",
+            "Required invariant IDs": "no production invariant is changed here",
+            "Invariant test evidence": "no production invariant test was run here",
+            "Evaluation mode": "no scientific evaluation mode applies here",
+            "Hard measures": "no runtime or research measure was collected",
+            "AI-judge evidence": "no AI judge or live evaluation was run",
+            "Major-error guardrail": "no research-quality result is claimed",
+            "Per-PR metric evidence": "no research metric was generated here",
+            "Live smoke evidence": "no live runtime path was changed here",
+            "Paired evaluation evidence": "no scientific paired evaluation was run",
+            "Runtime integrity evidence": "no runtime artifact or dependency changed",
+            "Live paired A/B": "no scientific A/B run applies to this change",
+        }
+        for label, reason in reasons.items():
+            body = body.replace(
+                f"- {label}: not-applicable", f"- {label}: None — {reason}"
+            )
+        for label, reason in {
+            "Related external PR(s)": "these PRs are related context only",
+            "Internal prerequisite PR(s)": "no internal prerequisite PR applies here",
+            "External dependency pin(s)": "related PRs are not runtime dependencies",
+        }.items():
+            body = body.replace(f"- {label}: None", f"- {label}: None — {reason}")
+        return body
+
+    def test_governance_body_format_does_not_accept_review_status_claims(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+
+            def git(*args):
+                return subprocess.check_output(
+                    ["git", *args], cwd=repo, text=True, timeout=20
+                ).strip()
+
+            git("init")
+            git("config", "user.name", "Governance contract test")
+            git("config", "user.email", "governance@example.invalid")
+            root = repo / "AGENTS.md"
+            plugin = repo / "plugins/auto-research-agent/AGENTS.md"
+            plugin.parent.mkdir(parents=True, exist_ok=True)
+            root.write_text("root rules\n", encoding="utf-8")
+            plugin.write_text("plugin rules\n", encoding="utf-8")
+            git("add", "AGENTS.md", "plugins/auto-research-agent/AGENTS.md")
+            git("commit", "-m", "base")
+            base = git("rev-parse", "HEAD")
+            root.write_text("updated root rules\n", encoding="utf-8")
+            plugin.write_text("updated plugin rules\n", encoding="utf-8")
+            git("add", "AGENTS.md", "plugins/auto-research-agent/AGENTS.md")
+            git("commit", "-m", "governance updates")
+            head = git("rev-parse", "HEAD")
+            records = changed_records(base, head, repo)
+            body = self.governance_body(revision=head)
+            changed_paths = [record["new_path"] for record in records]
+            self.assertEqual(
+                validate_pr_body(
+                    body,
+                    CAPABILITIES,
+                    changed_paths,
+                    repo_root=repo,
+                    change_records=records,
+                ),
+                [],
+            )
+            unchecked = body.replace(
+                "- [x] External review source links and revision/hash references are "
+                "included; core-team acceptance is separate.",
+                "- [ ] External review source links and revision/hash references are "
+                "included; core-team acceptance is separate.",
+            )
+            self.assertEqual(
+                validate_pr_body(
+                    unchecked,
+                    CAPABILITIES,
+                    changed_paths,
+                    repo_root=repo,
+                    change_records=records,
+                ),
+                [],
+            )
+            self.assertTrue(validate_pr_body(body, CAPABILITIES))
+
+        invalid_bodies = (
+            body.replace(
+                "code review source: https://example.invalid/code-review",
+                "code review: PASS; source: https://example.invalid/code-review",
+            ),
+            body.replace(
+                "result: 24 tests passed; limitation:",
+                "result: 24 tests passed; code review: PASS; limitation:",
+            ),
+            body.replace(
+                "harness-drift review source: https://example.invalid/harness-drift",
+                "harness-drift review source: pending",
+            ),
+            body.replace("reviewed revision: " + head, "reviewed revision: pending"),
+            body.replace("patch sha256: " + "b" * 64, "patch sha256: pending"),
+            body.replace(
+                "external acceptance: not verified by this validator",
+                "external acceptance: PASS",
+            ),
+            body.replace(
+                "Review and merge owner: core team",
+                "Review and merge owner: contributor",
+            ),
+            body.replace(
+                "Target primary metric(s): not-applicable",
+                "Target primary metric(s): None",
+            ),
+            body.replace(
+                "no research-quality improvement is claimed",
+                "the research quality improved",
+            ),
+        )
+        for invalid_body in invalid_bodies:
+            with self.subTest(body=invalid_body[-120:]):
+                self.assertTrue(
+                    validate_pr_body(
+                        invalid_body,
+                        CAPABILITIES,
+                        changed_paths,
+                        repo_root=repo,
+                        change_records=records,
+                    )
+                )
+
+    def test_governance_text_cannot_self_select_and_runtime_or_unsafe_git_changes_fail(
+        self,
+    ):
+        body = self.governance_body()
+        governance = {
+            "status": "M",
+            "old_mode": "100644",
+            "new_mode": "100644",
+            "old_path": "AGENTS.md",
+            "new_path": "AGENTS.md",
+        }
+        self.assertTrue(validate_pr_body(body, CAPABILITIES))
+        for unsafe in (
+            {**governance, "status": "D"},
+            {**governance, "status": "R", "old_path": "src/runtime.py"},
+            {**governance, "old_mode": "100755"},
+            {**governance, "new_mode": "120000"},
+            {**governance, "new_path": ".github/scripts/validate_research_pr.py"},
+        ):
+            with self.subTest(unsafe=unsafe):
+                self.assertTrue(
+                    validate_pr_body(
+                        body,
+                        CAPABILITIES,
+                        [unsafe["old_path"], unsafe["new_path"]],
+                        change_records=[unsafe],
+                    )
+                )
+
+    def test_contextual_none_is_limited_to_git_verified_governance_diff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+
+            def git(*args):
+                return subprocess.check_output(
+                    ["git", *args], cwd=repo, text=True, timeout=20
+                ).strip()
+
+            git("init")
+            git("config", "user.name", "Governance contract test")
+            git("config", "user.email", "governance@example.invalid")
+            root = repo / "AGENTS.md"
+            plugin = repo / "plugins/auto-research-agent/AGENTS.md"
+            plugin.parent.mkdir(parents=True, exist_ok=True)
+            root.write_text("root rules\n", encoding="utf-8")
+            plugin.write_text("plugin rules\n", encoding="utf-8")
+            git("add", "AGENTS.md", "plugins/auto-research-agent/AGENTS.md")
+            git("commit", "-m", "base")
+            base = git("rev-parse", "HEAD")
+
+            root.write_text("updated root rules\n", encoding="utf-8")
+            plugin.write_text("updated plugin rules\n", encoding="utf-8")
+            git("add", "AGENTS.md", "plugins/auto-research-agent/AGENTS.md")
+            git("commit", "-m", "governance updates")
+            governance_head = git("rev-parse", "HEAD")
+            governance_records = changed_records(base, governance_head, repo)
+            governance_paths = [
+                record["new_path"] for record in governance_records
+            ]
+            body = self.contextual_none_governance_body(
+                self.governance_body(revision=governance_head)
+            )
+            self.assertEqual(
+                validate_pr_body(
+                    body,
+                    CAPABILITIES,
+                    governance_paths,
+                    repo_root=repo,
+                    change_records=governance_records,
+                ),
+                [],
+            )
+            unreasoned = body.replace(
+                "Target primary metric(s): None — no research-quality metric is measured here",
+                "Target primary metric(s): None",
+            )
+            unreasoned_errors = validate_pr_body(
+                unreasoned,
+                CAPABILITIES,
+                governance_paths,
+                repo_root=repo,
+                change_records=governance_records,
+            )
+            self.assertTrue(
+                any("target metrics" in error for error in unreasoned_errors),
+                repr(unreasoned_errors),
+            )
+
+            git("reset", "--hard", base)
+            root.write_text("updated root rules\n", encoding="utf-8")
+            plugin.write_text("updated plugin rules\n", encoding="utf-8")
+            validator = repo / ".github/scripts/validate_research_pr.py"
+            validator.parent.mkdir(parents=True, exist_ok=True)
+            validator.write_text("validator change\n", encoding="utf-8")
+            git(
+                "add",
+                "AGENTS.md",
+                "plugins/auto-research-agent/AGENTS.md",
+                ".github/scripts/validate_research_pr.py",
+            )
+            git("commit", "-m", "mixed validator and governance updates")
+            mixed_head = git("rev-parse", "HEAD")
+            mixed_records = changed_records(base, mixed_head, repo)
+            mixed_paths = [record["new_path"] for record in mixed_records]
+            errors = validate_pr_body(
+                body,
+                load_capability_metrics(),
+                mixed_paths,
+                repo_root=repo,
+                change_records=mixed_records,
+            )
+            self.assertIn(
+                "Target primary metric(s) must name at least one metric P1-P9",
+                errors,
+            )
+            self.assertTrue(
+                any(
+                    "validator:research-pr-contract" in error
+                    for error in errors
+                )
+            )
+
     def test_live_deliverable_unobserved_states_are_explicit_not_fabricated(self):
         manifest = json.loads(PILOT_MANIFEST.read_text(encoding="utf-8"))
         reports = {
@@ -1046,6 +1354,32 @@ class ResearchPullRequestContractTests(unittest.TestCase):
         )
         self.assertEqual(validate_pr_body(linked, CAPABILITIES), [])
 
+        related_without_runtime_dependency = linked.replace(
+            next(
+                line
+                for line in linked.splitlines()
+                if line.startswith("- External dependency pin(s):")
+            ),
+            "- External dependency pin(s): None",
+        )
+        self.assertEqual(
+            validate_pr_body(related_without_runtime_dependency, CAPABILITIES), []
+        )
+        unlisted_pin = linked.replace(
+            "https://github.com/WenyuChiou/ai-research-skills/pull/456 @ "
+            + "b" * 40
+            + " @ open",
+            "https://github.com/WenyuChiou/other-repo/pull/999 @ "
+            + "c" * 40
+            + " @ open",
+        )
+        self.assertTrue(
+            any(
+                "Every external dependency pin must also appear" in error
+                for error in validate_pr_body(unlisted_pin, CAPABILITIES)
+            )
+        )
+
         mixed_with_unlinked = VALID.replace(
             "- Related external PR(s): None",
             "- Related external PR(s): https://github.com/WenyuChiou/research-hub/pull/123; "
@@ -1068,56 +1402,6 @@ class ResearchPullRequestContractTests(unittest.TestCase):
                 error.startswith("Related external PR(s) must")
                 for error in validate_pr_body(current_repo, CAPABILITIES)
             )
-        )
-        missing_pins = VALID.replace(
-            "- Related external PR(s): None",
-            "- Related external PR(s): https://github.com/WenyuChiou/research-hub/pull/123",
-        )
-        self.assertIn(
-            "Related external PR(s) and External dependency pin(s) must name the same PR URLs",
-            validate_pr_body(missing_pins, CAPABILITIES),
-        )
-
-    def test_governance_only_none_with_context_is_accepted(self):
-        body = VALID.replace(
-            "- Target primary metric(s): P2",
-            "- Target primary metric(s): None — this governance-only change does not change or claim a research-quality metric.",
-        )
-        body = body.replace(
-            "- Affected capability ID(s): skill:stage1-literature",
-            "- Affected capability ID(s): None (governance-only; no production capability changed).",
-        )
-        body = body.replace(
-            "- Rubric criterion ID(s): P2.CLUSTERS",
-            "- Rubric criterion ID(s): None; no criteria are scored for this governance-only change.",
-        )
-        body = body.replace(
-            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
-            "- Operational-definition mapping: None; no production metric is changed.",
-        )
-        body = body.replace(
-            "- Required invariant IDs: pr-readiness-enforced",
-            "- Required invariant IDs: None; no production capability is changed.",
-        )
-        body = body.replace(
-            "- Invariant test evidence: pr-readiness-enforced -> .github/scripts/test_validate_research_pr.py::ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence -> passed",
-            "- Invariant test evidence: None; no production invariant test was run for this documentation-only change.",
-        )
-        body = body.replace(
-            "- Related external PR(s): None",
-            "- Related external PR(s): https://github.com/WenyuChiou/codex-portable-harness/pull/7; https://github.com/WenyuChiou/ai-research-skills/pull/73; https://github.com/WenyuChiou/research-hub/pull/165",
-        )
-        body = body.replace(
-            "- External dependency pin(s): None",
-            "- External dependency pin(s): None — these are related governance changes, not runtime dependencies.",
-        )
-        self.assertEqual(
-            validate_pr_body(
-                body,
-                CAPABILITIES,
-                changed_paths=["AGENTS.md", "plugins/auto-research-agent/AGENTS.md"],
-            ),
-            [],
         )
 
     def test_improvement_statement_requires_status_and_concrete_evidence(self):

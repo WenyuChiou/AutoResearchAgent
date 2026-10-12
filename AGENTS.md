@@ -104,8 +104,10 @@ Likewise, when reviewing code, do not hesitate to push back on PRs that would un
 
 ## Code Review Rules
 
-These rules apply only while conducting code review. They do not replace
-implementation or publication instructions or valid authorization for other tasks.
+The code-review guidance below applies while reviewing changes. Its `Test authoring guidance`
+subsection remains an implementation requirement: features that change agent
+logic MUST add an integration test. Nothing here replaces other implementation
+or publication instructions or valid authorization.
 
 ### Crate API surface
 
