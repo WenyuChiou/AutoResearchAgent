@@ -35,6 +35,13 @@ from stage2_eval.evaluation_v3 import (
     prepare_content_view_v3,
 )
 from stage2_workflow.evaluation_delivery import build_evaluated_delivery
+from stage2_workflow import initialize_workflow, inspect_workflow
+from stage2_workflow.delivery import (
+    build_delivery,
+    inspect_delivery,
+    _verify_source_map,
+)
+from stage2_workflow.orchestration import prepare_review_batch
 from test_stage2_checker import assessment
 from test_stage2_evaluation_v3 import content_assessment, judge
 import test_stage2_topic_tables_integration as topic_fixture
@@ -170,6 +177,118 @@ class Stage2PriorWorkDeliveryTests(unittest.TestCase):
             stored_packet_sha256=self.state["manifest"]["stored_packet_sha256"],
             receipt_prefix="prior_work_receipts",
         ).decode("utf-8")
+
+    def _ordinary_delivery_inputs(self):
+        workflow = self.root / "ordinary-workflow"
+        packet = json.loads((self.root / "packet-2.4.json").read_bytes())
+        initialize_workflow(
+            self.root / "packet-2.4.json",
+            self.sources,
+            workflow,
+            {},
+            {"path": "policy.json", "sha256": "a" * 64},
+            expected_packet_sha256=canonical_hash(packet),
+        )
+        state = inspect_workflow(workflow)
+        snapshot = state["latest_snapshot"]["event"]["payload"]["snapshot_sha256"]
+        latest = {}
+        for candidate in packet["candidates"]:
+            previous = latest.get(candidate["candidate_id"])
+            if previous is None or candidate["version"] > previous["version"]:
+                latest[candidate["candidate_id"]] = candidate
+        screening = [
+            {
+                "candidate_id": candidate["candidate_id"],
+                "candidate_version": candidate["version"],
+                "included": True,
+                "distance": 0,
+                "reason": "Retain this synthetic candidate for independent review.",
+            }
+            for candidate in latest.values()
+        ]
+        batch = prepare_review_batch(packet, snapshot, screening, "saved-seed")
+        return workflow, state, packet, batch
+
+    def _ordinary_delivery(self, workflow, state, batch):
+        return build_delivery(
+            workflow,
+            batch,
+            [],
+            {"candidate_resolutions": [], "next_step": "Complete independent reviews."},
+            self.root / "ordinary-delivery",
+            state["head_sha256"],
+        )
+
+    def test_ordinary_delivery_replays_separately_stored_prior_work_receipts(self):
+        workflow, state, packet, batch = self._ordinary_delivery_inputs()
+        original_files = {
+            path.relative_to(workflow): path.read_bytes()
+            for path in workflow.rglob("*")
+            if path.is_file()
+        }
+        manifest = self._ordinary_delivery(workflow, state, batch)
+        inspected = inspect_delivery(
+            self.root / "ordinary-delivery", manifest["manifest_sha256"]
+        )
+        self.assertEqual(inspected["input_packet"], packet)
+        self.assertEqual(
+            inspected["checker"]["manifest"]["packet_sha256"], canonical_hash(packet)
+        )
+        self.assertEqual(manifest["delivery_status"], "draft-not-ready")
+        self.assertFalse(manifest["stage3_execution_authorized"])
+        self.assertEqual(
+            (
+                inspected["checker"]["root"] / "prior_work_receipts" / self.receipt_path
+            ).read_bytes(),
+            (self.sources / self.receipt_path).read_bytes(),
+        )
+        self.assertEqual(
+            original_files,
+            {
+                path.relative_to(workflow): path.read_bytes()
+                for path in workflow.rglob("*")
+                if path.is_file()
+            },
+        )
+
+    def test_ordinary_delivery_rejects_missing_prior_work_receipt(self):
+        workflow, state, _, batch = self._ordinary_delivery_inputs()
+        checker = state["latest_snapshot"]["checker"]
+        receipt = checker["manifest"]["prior_work_receipts"][0]
+        (checker["root"] / receipt["stored_path"]).unlink()
+        with self.assertRaises(Stage2Error):
+            self._ordinary_delivery(workflow, state, batch)
+        self.assertFalse((self.root / "ordinary-delivery").exists())
+
+    def test_ordinary_delivery_rejects_tampered_prior_work_receipt_even_if_rehashed(
+        self,
+    ):
+        workflow, state, _, batch = self._ordinary_delivery_inputs()
+        manifest = self._ordinary_delivery(workflow, state, batch)
+        output = self.root / "ordinary-delivery"
+        receipt = output / "checker" / "prior_work_receipts" / self.receipt_path
+        receipt.write_bytes(receipt.read_bytes() + b" ")
+        for row in manifest["files"]:
+            if row["path"] == receipt.relative_to(output).as_posix():
+                row["sha256"] = hashlib.sha256(receipt.read_bytes()).hexdigest()
+                row["size"] = receipt.stat().st_size
+        manifest["manifest_sha256"] = canonical_hash(
+            {key: value for key, value in manifest.items() if key != "manifest_sha256"}
+        )
+        (output / "delivery_manifest.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        with self.assertRaises(Stage2Error):
+            inspect_delivery(output, manifest["manifest_sha256"])
+
+    def test_ordinary_delivery_source_map_rejects_foreign_original_packet(self):
+        _, state, packet, _ = self._ordinary_delivery_inputs()
+        foreign = copy.deepcopy(packet)
+        foreign["candidates"][-1]["question"] += " changed"
+        with self.assertRaisesRegex(
+            Stage2Error, "delivery-checker-input-packet-mismatch"
+        ):
+            _verify_source_map(state["latest_snapshot"], foreign)
 
     def _attachment(self, selection=None):
         return {

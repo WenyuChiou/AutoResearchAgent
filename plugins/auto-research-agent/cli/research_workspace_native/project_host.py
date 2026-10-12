@@ -103,6 +103,26 @@ class ProjectHost(AtlasHost):
         ):
             if service is not None and getattr(service, "intake", None) is not projects:
                 raise ValueError("same project intake binding required")
+        # Load the complete project asset snapshot before allocating a listener
+        # or attaching service owners, including the expanded Stage1 assets.
+        project_assets = {
+            "/" + filename: (ASSETS / filename).read_bytes()
+            for filename in (
+                "projects.html",
+                "projects.js",
+                "projects.css",
+                "projects-library.js",
+                "projects-coverage.js",
+                "projects-expansions.js",
+                "projects-reading.js",
+                "projects-saved-claims.js",
+                "projects-atlas.js",
+                "projects-progress.js",
+                "project-operations.js",
+                "project-operations.css",
+            )
+        }
+        atlas_shell = shell_assets(ASSETS)
         self.projects, self.project_models, self.project_stage2 = (
             projects,
             models,
@@ -183,7 +203,6 @@ class ProjectHost(AtlasHost):
         # the existing hard 30-second HTTP cap, still checked before admission
         # and before commit. This grants no native/model execution time.
         options.setdefault("timeout", 30)
-        atlas_shell = shell_assets(ASSETS)
         renderer = {
             path.removeprefix("/project-atlas-static/"): sha(raw)
             for path, raw in atlas_shell.items()
@@ -195,19 +214,7 @@ class ProjectHost(AtlasHost):
             raise ValueError("project atlas renderer snapshot differs")
         super().__init__(credential=credential, **options)
         self.RequestHandlerClass = ProjectHandler
-        for filename in (
-            "projects.html",
-            "projects.js",
-            "projects.css",
-            "projects-library.js",
-            "projects-coverage.js",
-            "projects-expansions.js",
-            "projects-reading.js",
-            "projects-saved-claims.js",
-            "projects-atlas.js",
-            "projects-progress.js",
-        ):
-            self._assets["/" + filename] = (ASSETS / filename).read_bytes()
+        self._assets.update(project_assets)
         self._assets.update(atlas_shell)
         self.project_panel_parents = install_project_overlay(
             self._assets, self.views, ASSETS

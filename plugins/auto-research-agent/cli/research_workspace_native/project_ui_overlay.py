@@ -39,5 +39,6 @@ def install_project_overlay(assets, views, web_root):
     )
     assets[PANEL] = panel.encode("utf-8")
     for name in ("project-operations.js", "project-operations.css"):
-        assets["/" + name] = (web_root / name).read_bytes()
+        if "/" + name not in assets:
+            assets["/" + name] = (web_root / name).read_bytes()
     return frozenset(parents)

@@ -12,6 +12,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 from research_workspace_native.http import token_authenticator
+from research_workspace_native.atlas_host import AtlasHost
+from research_workspace_native import project_host
 from research_workspace_native.project_contract import measurement
 from research_workspace_native.project_host import ProjectHost
 from research_workspace_native.project_intake import ProjectIntakeService
@@ -20,6 +22,66 @@ from research_workspace_native.project_stage1_queries import ProjectStage1QueryS
 from research_workspace_native.project_stage1_records import ProjectStage1RecordsService
 from stage1_deliverable.common import sha
 from test_workspace_project_intake import compile_body, submit_body
+
+
+class ProjectHostConstructionTests(unittest.TestCase):
+    def test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership(self):
+        token = "local-project-test-token-with-at-least-32-characters"
+        real_init, real_read = AtlasHost.__init__, Path.read_bytes
+        with tempfile.TemporaryDirectory(prefix="project-construction-") as root:
+            projects = ProjectIntakeService(
+                Path(root).resolve(),
+                authenticate=token_authenticator({token: "local-viewer"}),
+            )
+            try:
+                for filename in (
+                    "projects.html",
+                    "projects.js",
+                    "projects.css",
+                    "projects-library.js",
+                    "projects-coverage.js",
+                    "projects-expansions.js",
+                    "projects-reading.js",
+                    "projects-saved-claims.js",
+                    "projects-atlas.js",
+                    "projects-progress.js",
+                    "project-operations.js",
+                    "project-operations.css",
+                ):
+                    for error in (FileNotFoundError, PermissionError):
+                        with self.subTest(filename=filename, error=error.__name__):
+                            allocated = []
+
+                            def capture_init(host, *args, **options):
+                                real_init(host, *args, **options)
+                                allocated.append(host)
+
+                            def fail_asset(path):
+                                if path == project_host.ASSETS / filename:
+                                    raise error("injected project asset read failure")
+                                return real_read(path)
+
+                            try:
+                                with (
+                                    patch.object(AtlasHost, "__init__", capture_init),
+                                    patch.object(Path, "read_bytes", fail_asset),
+                                    self.assertRaises(error),
+                                ):
+                                    ProjectHost(
+                                        projects=projects,
+                                        credential=token,
+                                        files={},
+                                        views=[],
+                                        port=0,
+                                    )
+                            finally:
+                                # The old constructor leaks these allocated hosts.
+                                for host in allocated:
+                                    host.server_close()
+                            self.assertEqual(allocated, [])
+                            self.assertEqual(projects.list(token), [])
+            finally:
+                projects.close()
 
 
 class ProjectHostTests(unittest.TestCase):

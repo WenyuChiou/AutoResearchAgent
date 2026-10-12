@@ -1,0 +1,135 @@
+WARN `--no-project` was provided, but no project was found
+test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) ... 
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.html', error='FileNotFoundError') ... FAIL
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.html', error='PermissionError') ... FAIL
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.js', error='FileNotFoundError') ... FAIL
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.js', error='PermissionError') ... FAIL
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.css', error='FileNotFoundError') ... FAIL
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.css', error='PermissionError') ... FAIL
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects-library.js', error='FileNotFoundError') ... FAIL
+  test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects-library.js', error='PermissionError') ... FAIL
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.html', error='FileNotFoundError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]F50>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DA9B6F50>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DA9B6F50>]
++ []
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.html', error='PermissionError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]ED0>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA06ED0>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA06ED0>]
++ []
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.js', error='FileNotFoundError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]CD0>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA06CD0>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA06CD0>]
++ []
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.js', error='PermissionError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]190>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA07190>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA07190>]
++ []
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.css', error='FileNotFoundError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]310>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA07310>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA07310>]
++ []
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects.css', error='PermissionError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]210>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA07210>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA07210>]
++ []
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects-library.js', error='FileNotFoundError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]ED0>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA06ED0>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA06ED0>]
++ []
+
+======================================================================
+FAIL: test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership (test_workspace_project_host.ProjectHostConstructionTests.test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership) (filename='projects-library.js', error='PermissionError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\temp\lm-wiki-repair-b-20261011\plugins\auto-research-agent\tests\test_workspace_project_host.py", line 64, in test_missing_or_unreadable_asset_does_not_allocate_or_take_ownership
+    self.assertEqual(allocated, [])
+AssertionError: Lists differ: [<research_workspace_native.project_host.P[36 chars]7D0>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA077D0>
+
+- [<research_workspace_native.project_host.ProjectHost object at 0x00000238DAA077D0>]
++ []
+
+----------------------------------------------------------------------
+Ran 1 test in 0.091s
+
+FAILED (failures=8)
