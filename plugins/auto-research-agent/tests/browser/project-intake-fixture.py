@@ -212,6 +212,8 @@ def main():
                     "projects.css",
                     "projects-library.js",
                     "projects-progress.js",
+                    "projects-stages.js",
+                    "projects-stages.css",
                     "project-operations.js",
                     "project-operations.css",
                 )

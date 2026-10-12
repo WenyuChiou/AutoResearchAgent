@@ -551,3 +551,16 @@ pages allow that frame but still forbid being embedded themselves. External
 framing, unsafe Host/Origin and API admission checks remain rejected; an iframe
 separates styles, not same-origin script privileges. Stage2 execution remains
 deferred and Stage3–6 planned/unconnected.
+
+### Independent stage areas in the same workspace
+
+The v6 sidebar and project stage selector switch six separate areas. Each has
+its own saved status, operations and results, bound to the current project,
+input version, revision and brief. Topic and resource settings remain shared.
+Navigation does not submit an operation or grant execution permission.
+
+Stage1 retains its saved v6 graph and progress links. Stage2 has its own saved
+Stage1 input review and existing import controls; it has no connected producer
+for a current-project comparison/direction result in this interface. Missing
+results stay ungenerated and refused reads show their own Stage2 notice.
+Stage3–6 remain planned/unconnected with disabled execution placeholders.

@@ -45,6 +45,8 @@ class ProjectHostConstructionTests(unittest.TestCase):
                     "projects-saved-claims.js",
                     "projects-atlas.js",
                     "projects-progress.js",
+                    "projects-stages.js",
+                    "projects-stages.css",
                     "project-operations.js",
                     "project-operations.css",
                 ):

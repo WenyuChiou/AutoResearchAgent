@@ -43,7 +43,10 @@
   const historical = node("details", "project-historical-view");
   const historicalLabel = node("summary", null, historical);
   workspace.after(historical); historical.append(content); content.hidden = true;
-  historical.addEventListener("toggle", () => { content.hidden = !historical.open; });
+  historical.addEventListener("toggle", () => {
+    content.hidden = !historical.open;
+    if (!historical.open) translate();
+  });
   document.body.classList.add("project-unified");
   const step = node("p", "project-intake-step", card), heading = node("h2", "project-intake-title", card), help = node("p", "project-intake-help", card);
   const summary = node("p", "project-intake-summary", card); summary.setAttribute("aria-live", "polite");
@@ -62,18 +65,31 @@
     const target = control?.dataset.atlasFocus;
     if (!/^stage:[1-6]$/.test(target || "")) return;
     event.preventDefault(); event.stopImmediatePropagation();
-    if (target === "stage:1") openWorkspace();
-    else if (target === "stage:2") openWorkspace("project-stage2-controls");
-    else { statusKey = "planned"; showSummary(); card.scrollIntoView({block: "start"}); }
+    showStage(Number(target.slice(6)));
   }, true);
   document.querySelector(".atlas-workspace-nav")?.addEventListener("click", event => {
     if (historical.open) return;
     const link = event.target.closest?.("a[id]");
     const target = {"atlas-view-workbench": "stage1-progress", "atlas-view-files": "project-atlas-inline", "atlas-view-history": "history", "atlas-view-settings": "intake-card"}[link?.id];
     if (!target) return;
-    event.preventDefault(); event.stopImmediatePropagation(); openWorkspace(target);
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (target === "stage1-progress" || target === "project-atlas-inline" || target === "history") {
+      showStage(1).then(() => openWorkspace(target));
+    } else openWorkspace(target);
   }, true);
-  let frame = null, frameLoaded = false, portal = null, readyPromise = null, projects = [], selection = null, busy = false, listBusy = false, listGeneration = 0, topicRef = null, statusKey = "loading", resizeObserver = null, resizeQueued = false, displayedBinding = null;
+  let frame = null, frameLoaded = false, portal = null, readyPromise = null, projects = [], selection = null, busy = false, listBusy = false, listGeneration = 0, topicRef = null, statusKey = "loading", resizeObserver = null, resizeQueued = false, displayedBinding = null, activeStage = 1;
+  function stageNavigation() {
+    for (const control of stages?.querySelectorAll("[data-atlas-focus]") || []) control.setAttribute("aria-pressed", String(control.dataset.atlasFocus === "stage:" + activeStage));
+  }
+  async function showStage(stage) {
+    if (!Number.isInteger(stage) || stage < 1 || stage > 6) return;
+    try {
+      const api = await ensurePortal();
+      if (api.showStage(stage) !== true) return;
+      activeStage = stage; historical.open = false; content.hidden = true;
+      stageNavigation(); openWorkspace("project-stage-" + stage);
+    } catch (_) { statusKey = "unavailable"; showSummary(); }
+  }
   const ref = value => typeof value === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(value);
   function validTopic(value) {
     if (!value.trim() || new TextEncoder().encode(value).length > 4096) return false;
@@ -154,7 +170,7 @@
     [step.textContent, heading.textContent, help.textContent, choiceText.textContent, topicText.textContent] = [copy.step, copy.title, copy.help, copy.choice, copy.topic];
     for (const [element, key] of [[select, "select"], [create, "create"], [confirm, "confirm"], [next, "next"], [refresh, "refresh"]]) element.textContent = copy[key];
     if (nav) nav.textContent = copy.title;
-    renderChoices(); showSummary(); if (frame) frame.title = copy.drawer;
+    renderChoices(); showSummary(); stageNavigation(); if (frame) frame.title = copy.drawer;
     // Only the existing same-origin selector is changed. No credential, source
     // binding, action key or message is copied across this presentation seam.
     const frameLanguage = frame?.contentDocument?.getElementById("language");
@@ -185,18 +201,22 @@
       let attempts = 0;
       function ready() {
         const api = frameLoaded ? frame.contentWindow?.ResearchProjectPortal : null;
-        if (api && ["listProjects", "selection", "selectProject", "beginTopic"].every(name => typeof api[name] === "function")) resolve(api);
+        if (api && ["listProjects", "selection", "selectProject", "beginTopic", "showStage", "activeStage"].every(name => typeof api[name] === "function")) resolve(api);
         else if (++attempts >= 200) reject(Error("project-portal-unavailable"));
         else setTimeout(ready, 50);
       }
       ready();
     }).then(async api => {
       portal = api; frame.contentWindow.addEventListener("research-project-selection", syncSelection);
+      frame.contentWindow.addEventListener("research-project-stage", () => {
+        const stage = api.activeStage();
+        if (Number.isInteger(stage) && stage >= 1 && stage <= 6) { activeStage = stage; stageNavigation(); fitPortal(); }
+      });
       translate(); await refreshProjects(); return api;
     }).catch(error => { portal = null; readyPromise = null; statusKey = "unavailable"; showSummary(); throw error; });
     return readyPromise;
   }
-  function openWorkspace(target = "stage1-progress") {
+  function openWorkspace(target = "project-stage-" + activeStage) {
     translate();
     const section = frame?.contentDocument?.getElementById(target);
     for (let parent = section; parent; parent = parent.parentElement) if (parent.tagName === "DETAILS") parent.open = true;

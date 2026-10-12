@@ -34,7 +34,7 @@ const finished = new Promise(resolve => processFixture.once('exit', code => {
   exited = true; exitCode = code; rejectReady(Error('local fixture exited before readiness')); resolve();
 }));
 processFixture.once('error', rejectReady);
-const checks = [], errors = [], posts = [], external = [], screenshots = [], cleanup = [], downloads = [], renderedGraphs = [];
+const checks = [], errors = [], posts = [], external = [], screenshots = [], cleanup = [], downloads = [], renderedGraphs = [], contracts = [], contractReads = [];
 let browser, page, secret = '', failure = null, startupTimer;
 async function check(name, action) {await action(); checks.push(name);}
 async function shot(name) {
@@ -84,6 +84,7 @@ async function selectProject(project, expectResult = true) {
   await page.locator('#project-intake-select').click();
   const operation = await operationFrame();
   await operation.waitForFunction(ref => window.ResearchProjectPortal.selection()?.project_ref === ref && document.querySelector('#stage1-progress')?.dataset.projectRef === ref, project.project_ref);
+  await operation.locator('#project-stage-nav-1').click();
   assert.equal(await operation.locator('#project-heading').textContent(), project.topic);
   assert.equal(await operation.locator('#stage1-progress').getAttribute('data-input-version'), String(project.input_version));
   assert.equal(await operation.locator('#stage1-progress .progress-phases li').count(), 7);
@@ -113,6 +114,14 @@ async function selectProject(project, expectResult = true) {
     });
     context.on('page', item => item.on('pageerror', error => errors.push(error.message)));
     context.on('request', request => {if (request.method() === 'POST') posts.push(new URL(request.url()).pathname);});
+    context.on('response', response => {
+      const route = new URL(response.url()).pathname;
+      if (!/^\/api\/projects\/[A-Za-z0-9_-]+\/contract$/.test(route)) return;
+      contractReads.push(response.json().then(value => {
+        contracts.push({path: route, method: response.request().method(), status: response.status(), identity: value.identity,
+          stages: Object.fromEntries(Object.entries(value.stages || {}).map(([number, stage]) => [number, {input: stage.input, status: stage.status, connected: stage.connected, accepted: stage.accepted, execution_authorized: stage.execution_authorized}]))});
+      }).catch(error => {errors.push('saved stage contract read failed: ' + error.message);}));
+    });
     page = await context.newPage();
     await check('unselected shell hides unrelated historic result and opens no popup', async () => {
       const response = await page.goto(fixture.url); assert.equal(response.status(), 200);
@@ -181,6 +190,93 @@ async function selectProject(project, expectResult = true) {
         await shot('unified-language-' + language);
       }
     });
+    await check('six sidebar and portal stage transitions retain current contract and Stage1 graph in three languages', async () => {
+      const {operation, child} = await selectProject(alpha);
+      await operation.evaluate(() => {window.__retainedAtlasFrame = document.querySelector('#project-atlas-frame'); window.__retainedAtlasWindow = window.__retainedAtlasFrame.contentWindow;});
+      const names = {
+        en: ['Literature & evidence', 'Comparison & research directions', 'Research design & feasibility', 'Experiment execution', 'Analysis & figures', 'Writing & submission'],
+        'zh-Hans': ['文献与证据', '比较与研究方向', '研究设计与可行性', '实验执行', '分析与图表', '写作与投稿'],
+        'zh-Hant': ['文獻與證據', '比較與研究方向', '研究設計與可行性', '實驗執行', '分析與圖表', '寫作與投稿']
+      };
+      async function active(number, language) {
+        await operation.waitForFunction(number => window.ResearchProjectPortal.activeStage() === number && document.querySelectorAll('[data-project-stage]:not([hidden])').length === 1 && !document.getElementById('project-stage-' + number).hidden, number);
+        assert.equal(await operation.locator('#project-stage-' + number + '-title').textContent(), names[language][number - 1]);
+        assert.equal(await operation.locator('#project-stage-nav-' + number).getAttribute('aria-current'), 'step');
+        assert.equal(await page.locator('#atlas-stages [data-atlas-focus="stage:' + number + '"]').getAttribute('aria-pressed'), 'true');
+        assert.equal(await operation.locator('#project-stage-' + number + '-status').getAttribute('data-project-ref'), alpha.project_ref);
+        assert.equal(await operation.locator('#project-stage-' + number + '-status').getAttribute('data-input-version'), String(alpha.input_version));
+        const saved = JSON.parse(await operation.locator('#project-stage-' + number + '-status pre').textContent());
+        for (const key of ['project_ref', 'input_version', 'revision']) assert.equal(saved.input[key], alpha[key]);
+        assert.match(saved.input.brief_sha256, /^[a-f0-9]{64}$/);
+        assert.equal(await operation.evaluate(() => document.querySelector('#project-atlas-frame') === window.__retainedAtlasFrame && document.querySelector('#project-atlas-frame').contentWindow === window.__retainedAtlasWindow), true);
+        if (number === 2) {
+          await operation.locator('#project-stage-2 #stage2-input-entry form').waitFor({state: 'visible'});
+          assert.equal(await operation.locator('#project-stage-1 #stage2-input-entry').count(), 0);
+          assert((await operation.locator('#stage2-input-entry').textContent()).includes(alpha.title));
+          assert.equal(await operation.locator('#project-stage-2 #activate-stage2').isDisabled(), true);
+          assert.match(await operation.locator('#project-stage-2-result-state').textContent(), /Not generated|尚未生成|尚未產生/);
+          assert.equal(await operation.locator('#stage1-progress').isVisible(), false);
+        }
+        if (number >= 3) {
+          assert.match(await operation.locator('#project-stage-' + number + '-status').textContent(), /Planned|已规划|已規劃/);
+          assert.match(await operation.locator('#project-stage-' + number + '-status').textContent(), /Unconnected|未接通/);
+          assert.match(await operation.locator('#project-stage-' + number + '-result-state').textContent(), /Not generated|尚未生成|尚未產生/);
+          assert.equal(await operation.locator('#project-stage-' + number + '-unconnected').isDisabled(), true);
+          assert.deepEqual(saved.artifacts, []);
+          assert.deepEqual(saved.attempts, []);
+          assert.equal(await operation.locator('#project-stage-' + number + '-operations #stage2-input-entry').count(), 0);
+        }
+      }
+      for (const language of ['en', 'zh-Hans', 'zh-Hant']) {
+        await page.locator('#atlas-language').selectOption(language);
+        await operation.waitForFunction(language => document.getElementById('language').value === language, language);
+        for (let number = 1; number <= 6; number++) {
+          await page.locator('#atlas-stages [data-atlas-focus="stage:' + number + '"]').click();
+          await active(number, language);
+          await operation.locator('#project-stage-nav-' + (7 - number)).click();
+          await active(7 - number, language);
+        }
+        await operation.locator('#project-stage-nav-2').click(); await active(2, language);
+        await shot('unified-stage2-' + language);
+        await operation.locator('#project-stage-nav-6').click(); await active(6, language);
+        await shot('unified-stage6-' + language);
+      }
+      await page.locator('#project-historical-view > summary').click();
+      await page.waitForFunction(() => document.getElementById('project-historical-view').open);
+      await page.locator('#atlas-stages [data-atlas-focus="stage:2"]').click();
+      assert.equal(await operation.evaluate(() => window.ResearchProjectPortal.activeStage()), 6);
+      await page.locator('#project-historical-view > summary').click();
+      await page.waitForFunction(() => !document.getElementById('project-historical-view').open && document.querySelector('#atlas-stages [data-atlas-focus="stage:6"]')?.getAttribute('aria-pressed') === 'true');
+      await active(6, 'zh-Hant');
+      assert.equal(await page.locator('#atlas-project').textContent(), alpha.topic);
+      assert.equal(await operation.evaluate(() => window.ResearchProjectPortal.showStage(2)), true);
+      await active(2, 'zh-Hant');
+      const note = operation.locator('#stage2-input-entry form textarea');
+      await note.fill('Unsaved input-review note must survive stage navigation.');
+      await page.locator('#atlas-stages [data-atlas-focus="stage:1"]').click(); await active(1, 'zh-Hant');
+      await operation.locator('#project-stage-nav-2').click(); await active(2, 'zh-Hant');
+      assert.equal(await note.inputValue(), 'Unsaved input-review note must survive stage navigation.');
+      await operation.locator('#project-stage-nav-1').click(); await active(1, 'zh-Hant');
+      assert.equal(await child.locator('#atlas-project').textContent(), alpha.topic);
+      assert.equal(posts.length, 0);
+    });
+    await check('Stage2 saved input switches project identity without adopting an earlier review', async () => {
+      const {operation} = await selectProject(alpha);
+      await operation.locator('#project-stage-nav-2').click();
+      await operation.locator('#stage2-input-entry form').waitFor({state: 'visible'});
+      await page.locator('#project-intake-choice').selectOption(beta.project_ref);
+      await page.locator('#project-intake-select').click();
+      await operation.waitForFunction(ref => window.ResearchProjectPortal.selection()?.project_ref === ref, beta.project_ref);
+      assert.equal(await operation.evaluate(() => window.ResearchProjectPortal.activeStage()), 2);
+      await operation.waitForFunction(title => document.querySelector('#stage2-input-entry form') && document.querySelector('#stage2-input-entry').textContent.includes(title), beta.title);
+      assert.equal((await operation.locator('#stage2-input-entry').textContent()).includes(alpha.title), false);
+      assert.equal(await operation.locator('#project-stage-2-status').getAttribute('data-project-ref'), beta.project_ref);
+      assert.equal(await operation.locator('#stage2-input-entry form textarea').inputValue(), '');
+      await operation.locator('#project-stage-nav-1').click();
+      const child = await atlasFrame(operation);
+      await child.waitForFunction(topic => document.getElementById('atlas-project').textContent === topic, beta.topic);
+      assert.equal(posts.length, 0);
+    });
     await check('saved source links, review draft and file read stay bound and GET only', async () => {
       const catalogRead = page.waitForResponse(response => response.url().includes('/api/projects/' + alpha.project_ref + '/stage1/atlas/') && !response.url().includes('/files/') && response.status() === 200);
       const {operation, child} = await selectProject(alpha);
@@ -236,6 +332,15 @@ async function selectProject(project, expectResult = true) {
         assert(await operation.locator('#project-atlas-frame').evaluate(element => element.getBoundingClientRect().height >= 700));
         assert.equal(await page.locator('#project-operations-dialog[open]').count(), 0);
         await shot('unified-width-' + width);
+        for (const number of [2, 6]) {
+          await operation.locator('#project-stage-nav-' + number).click();
+          for (const selector of ['#project-stage-navigation', '#project-stage-' + number, '#project-stage-' + number + '-status', '#project-stage-' + number + '-operations']) {
+            const bounds = await operation.locator(selector).evaluate(element => ({scroll: element.scrollWidth, client: element.clientWidth, right: element.getBoundingClientRect().right, width: innerWidth}));
+            assert(bounds.scroll <= bounds.client + 2 && bounds.right <= bounds.width + 2, JSON.stringify({selector, width, bounds}));
+          }
+          await shot('unified-width-' + width + '-stage' + number);
+        }
+        await operation.locator('#project-stage-nav-1').click();
       }
     });
     await check('default 3D canvas and 2D paper selection render the current saved work', async () => {
@@ -262,6 +367,13 @@ async function selectProject(project, expectResult = true) {
       }
       assert.equal(posts.length, 0); assert.deepEqual(external, []); assert.deepEqual(errors, []);
       assert.equal(context.pages().length, 1);
+      await Promise.all(contractReads);
+      assert(contracts.length > 0, 'actual project contract GETs observed');
+      for (const contract of contracts) {
+        assert.equal(contract.method, 'GET'); assert.equal(contract.status, 200);
+        assert.deepEqual(Object.keys(contract.stages), ['1', '2', '3', '4', '5', '6']);
+        for (const stage of Object.values(contract.stages)) assert.deepEqual(stage.input, contract.identity);
+      }
     });
   } catch (error) {
     failure = error.stack;
@@ -279,7 +391,7 @@ async function selectProject(project, expectResult = true) {
       checks, failure, cleanup, exitCode, stderr, pageErrors: errors,
       post_count: posts.length, post_paths: posts, external_requests: external,
       source_inventory: fixture?.source_inventory, fixture_final: finalFixture,
-      screenshots, downloads, renderedGraphs, scope: 'authored-saved-result-engineering-only',
+      screenshots, downloads, renderedGraphs, contracts, scope: 'authored-saved-result-engineering-only',
     };
     const raw = JSON.stringify(receipt, null, 2) + '\n';
     assert(!secret || !raw.includes(secret), 'receipt credential leak');

@@ -165,7 +165,7 @@
   Object.assign(words.en, {deliveryHeld: "Saved package is stale or failed source verification. Inspect its status and history before proceeding.", readingRegistrationMissing: "Review and register the reading notes for the saved claims before preparing delivery.", claimReadingNext: "Claim saved. Review and register the paper's reading notes separately before delivery."});
   Object.assign(words["zh-Hans"], {deliveryHeld: "保存的资料包已过时或未通过来源核查。继续前请检查状态与历史。", readingRegistrationMissing: "准备交付前，请审阅并登记这些已保存主张对应的阅读笔记。", claimReadingNext: "主张已保存。交付前仍需另行审阅并登记这篇论文的阅读笔记。"});
   Object.assign(words["zh-Hant"], {deliveryHeld: "保存的資料包已過時或未通過來源核查。繼續前請檢查狀態及歷史。", readingRegistrationMissing: "準備交付前，請審閱並登記這些已保存主張對應的閱讀筆記。", claimReadingNext: "主張已保存。交付前仍須另行審閱並登記這篇論文的閱讀筆記。"});
-  const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0, readingReview: null, readingGeneration: 0 };
+  const state = { language: "en", project: null, stageContract: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0, readingReview: null, readingGeneration: 0 };
   Object.assign(words.en, {stage1Actions: "Stage1 operations · scope, search, reading and review"});
   Object.assign(words["zh-Hans"], {stage1Actions: "Stage1 操作 · 范围、检索、阅读与审阅"});
   Object.assign(words["zh-Hant"], {stage1Actions: "Stage1 操作 · 範圍、檢索、閱讀與審閱"});
@@ -429,6 +429,10 @@
     $("intake-card").open = !Boolean(project.intake_report && project.intake_report.necessary_clarification_complete);
     buttons();
     document.dispatchEvent(new CustomEvent("project-atlas-state", {detail: {project, artifact: delivered, language: state.language}}));
+    renderStages();
+  }
+  function renderStages() {
+    if (window.ResearchProjectStages) window.ResearchProjectStages.render({project: state.project, contract: state.stageContract, language: state.language, loading: state.loading});
   }
   Object.assign(words.en, {queryCurrentBudget: "Reserved in this input version", queryLifetimeBudget: "Reserved across all input versions", queryArchived: "Saved earlier search versions (history only)", queryVersion: "Input version"});
   Object.assign(words["zh-Hans"], {queryCurrentBudget: "此输入版本已预留", queryLifetimeBudget: "所有输入版本累计预留", queryArchived: "已保存的旧搜索版本（仅历史）", queryVersion: "输入版本"});
@@ -567,7 +571,7 @@
   async function loadProject(ref) {
     const generation = ++state.generation;
     document.dispatchEvent(new Event("project-screening-clear"));
-    state.project = null;
+    state.project = null; state.stageContract = null;
     $("project-content").hidden = true; $("create-card").hidden = true;
     state.readingReview = null; ++state.readingGeneration;
     state.modelHistory = []; state.historyNext = null; state.output = null;
@@ -576,6 +580,7 @@
     try {
       const snapshot = await request(route(ref, "overview")), project = snapshot.project;
       if (generation !== state.generation) return;
+      if (!project || project.project_ref !== ref) throw new Error("project-overview-binding-differs");
       state.project = project;
       $("confirm-form").reset(); $("revised-topic").value = project.brief ? project.brief.original_description : "";
       const settings = project.settings;
@@ -584,11 +589,18 @@
         for (const [name, id] of Object.entries(budgetIds)) $(id).value = settings.budgets[name];
         $("search-consent").checked = settings.consent.external_search; $("read-consent").checked = settings.consent.public_source_read;
       }
-      renderProject();
       state.modelOffers = rows(snapshot.model_offers, "offers"); state.stage2 = snapshot.stage2;
       state.modelStatus = snapshot.models; state.stage1 = snapshot.stage1;
-      renderProject(); await refreshList(); await history(); await native();
-    } finally { if (generation === state.generation) { state.loading = false; buttons(); } }
+      renderProject();
+      try {
+        const contract = await request(route(ref, "contract"));
+        if (generation !== state.generation || state.project !== project) return;
+        const same = value => value && ["project_ref", "input_version", "revision", "brief_sha256"].every(key => value[key] === project[key]);
+        state.stageContract = same(contract.identity) && contract.stages && [1, 2, 3, 4, 5, 6].every(number => same(contract.stages[String(number)]?.input)) ? contract : null;
+      } catch (_) { if (generation === state.generation && state.project === project) state.stageContract = null; }
+      if (generation !== state.generation || state.project !== project) return;
+      renderStages(); await refreshList(); await history(); await native();
+    } finally { if (generation === state.generation) { state.loading = false; buttons(); renderStages(); } }
   }
   function identity() {
     const project = state.project;
@@ -781,6 +793,7 @@
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-text]").forEach((node) => { node.textContent = t(node.dataset.text); });
     renderProject();
+    if (!state.project) renderStages();
     const list = $("view-list"); list.replaceChildren();
     if (!bootstrap.views.length) text(list, "p", t("none"), "subtle");
     for (const view of bootstrap.views) {
@@ -791,7 +804,7 @@
     buttons();
   }
   $("language").onchange = guarded(async () => { state.language = $("language").value; translate(); if (state.project) await Promise.all([history(), native()]); });
-  $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.project = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); $("topic").focus(); };
+  $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.project = null; state.stageContract = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); renderStages(); $("topic").focus(); };
   $("create-form").onsubmit = async (event) => {
     event.preventDefault();
     const generation = state.generation;
@@ -1010,6 +1023,8 @@
   // private to this existing broker; these methods never authorize execution.
   window.ResearchProjectPortal = Object.freeze({
     selection: portalSelection,
+    showStage: number => Boolean(window.ResearchProjectStages && window.ResearchProjectStages.showStage(number)),
+    activeStage: () => window.ResearchProjectStages ? window.ResearchProjectStages.activeStage() : 1,
     listProjects: async () => rows(await request(route()), "projects").map(project => ({
       project_ref: project.project_ref, topic: project.topic || project.original_description || project.project_ref,
       input_version: project.input_version
