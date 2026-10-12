@@ -72,15 +72,19 @@ class ProjectHost(AtlasHost):
         # the existing hard 30-second HTTP cap, still checked before admission
         # and before commit. This grants no native/model execution time.
         options.setdefault("timeout", 30)
+        # Asset failures must precede listener creation and service ownership.
+        project_assets = {
+            "/" + filename: (ASSETS / filename).read_bytes()
+            for filename in (
+                "projects.html",
+                "projects.js",
+                "projects.css",
+                "projects-library.js",
+            )
+        }
         super().__init__(credential=credential, **options)
         self.RequestHandlerClass = ProjectHandler
-        for filename in (
-            "projects.html",
-            "projects.js",
-            "projects.css",
-            "projects-library.js",
-        ):
-            self._assets["/" + filename] = (ASSETS / filename).read_bytes()
+        self._assets.update(project_assets)
         # Keep all saved v6 graph files unchanged. Navigation is a host overlay.
         self._assets["/"] = self._assets["/projects.html"]
         self.host_binding.update(
