@@ -187,7 +187,7 @@
             "unselected 2D/3D and planar graphs show zero relations; selection reveals only incident recorded or separately labelled computed edges, hover cannot dispatch or expand relations, and clearing preserves the complete graph inventory",
             "textual relationship basis hides without a valid typed node selection, shows only its recorded memberships and incident labelled associations, and clears together with graph focus without changing canonical records",
             "bare canonical projection checks the supplied manifest and consumed artifact hashes, preserves Core history/nulls and explicit physical paths, and emits Python-API rebuild provenance while the legacy CLI receipt stays unchanged",
-            "SDK saved-public-source receipts replay offline without fabricated HTTP success; malformed provenance, absent successful archives and changed receipt/raw bindings reject direct validation, attachment, view and export"
+            "SDK saved-public-source receipts replay offline without fabricated HTTP success; malformed provenance, absent successful archives and changed receipt/raw bindings reject direct validation, attachment, view and export; persisted source URL, canonical request DOI and exact expected DOI/title aliases must match validated provenance even after complete hash rebinding"
           ],
           "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
         }

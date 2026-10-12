@@ -178,7 +178,11 @@ def _validate_saved_import_provenance(row, source, members):
         "original_acquired_at": diagnostics.get("original_acquired_at"),
     }
     require(
-        all(manifest[key] == value for key, value in expected.items()),
+        all(manifest[key] == value for key, value in expected.items())
+        and receipt.get("source_url") == manifest["url"]
+        and receipt["request"].get("doi") == manifest["doi"]
+        and receipt.get("expected_identity")
+        == {"doi": manifest["doi"], "title": manifest["title"]},
         "rerun saved import provenance/receipt binding differs",
     )
     require(

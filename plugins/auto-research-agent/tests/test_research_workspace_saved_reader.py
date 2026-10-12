@@ -414,30 +414,30 @@ def _rebind_saved_import(reader, *, provenance_bytes=None, mutate_receipt=None):
     source["result_sha256"] = sha(original)
 
 
-def _counterfeit_saved_import(index):
-    """Rehash every outer binding around malformed author-written provenance."""
-    result = deepcopy(index)
-    extension = result["source_rerun"]
-    source = result["sources"][0]
+def _rebind_attached_saved_import(index, *, provenance_bytes=None):
+    """Rehash all outer bindings after editing one attached SDK receipt."""
+    extension = index["source_rerun"]
+    source = index["sources"][0]
     receipt = source["receipt"]
     row = extension["data"]["rows"][0]
-    malformed = b"{"
-    receipt["attempts"][0]["response_bytes"] = len(malformed)
-    receipt["attempts"][0]["raw_sha256"] = sha(malformed)
-    receipt["diagnostics"]["saved_import"]["manifest_sha256"] = sha(malformed)
+    binding = row["saved_import_archive"]
+    if provenance_bytes is None:
+        provenance_bytes = binding["provenance_utf8"].encode("utf-8")
+    receipt["attempts"][0]["response_bytes"] = len(provenance_bytes)
+    receipt["attempts"][0]["raw_sha256"] = sha(provenance_bytes)
+    receipt["diagnostics"]["saved_import"]["manifest_sha256"] = sha(provenance_bytes)
     receipt["receipt_sha256"] = receipt_digest(receipt)
     original = canonical(receipt)
     source["result_sha256"] = sha(original)
     row["original_result_sha256"] = source["result_sha256"]
     row["original_attempts"] = deepcopy(receipt["attempts"])
-    binding = row["saved_import_archive"]
     provenance = artifact_map(receipt)[receipt["attempts"][0]["raw_path"]]
     provenance_name = binding["root"] + "/" + provenance
     original_name = binding["root"] + "/original.json"
-    binding["provenance_utf8"] = malformed.decode("utf-8")
+    binding["provenance_utf8"] = provenance_bytes.decode("utf-8")
     binding["members"][provenance] = {
-        "sha256": sha(malformed),
-        "bytes": len(malformed),
+        "sha256": sha(provenance_bytes),
+        "bytes": len(provenance_bytes),
     }
     binding["members"]["original.json"] = {
         "sha256": sha(original),
@@ -445,23 +445,24 @@ def _counterfeit_saved_import(index):
     }
     extension["artifact_hashes"][provenance_name] = binding["members"][provenance]
     extension["artifact_hashes"][original_name] = binding["members"]["original.json"]
-    base = deepcopy(result)
+    base = deepcopy(index)
     base.pop("source_rerun")
     base["schema_version"] = (
         "2.0.0" if base["supplement"]["status"] != "not-provided" else "1.0.0"
     )
     extension["data"]["base_index_sha256"] = sha(canonical(base))
-    row["attempt_id"] = sha(
-        canonical(
-            {
-                "base": extension["data"]["base_index_sha256"],
-                "parser": extension["data"]["parser_runtime"]["parser_sha256"],
-                "work": row["work_id"],
-                "version": row["version_id"],
-                "raw": row["raw_sha256"],
-            }
+    for rerun_row in extension["data"]["rows"]:
+        rerun_row["attempt_id"] = sha(
+            canonical(
+                {
+                    "base": extension["data"]["base_index_sha256"],
+                    "parser": extension["data"]["parser_runtime"]["parser_sha256"],
+                    "work": rerun_row["work_id"],
+                    "version": rerun_row["version_id"],
+                    "raw": rerun_row.get("raw_sha256"),
+                }
+            )
         )
-    )
     extension["manifest_sha256"] = sha(
         canonical(
             {
@@ -470,7 +471,12 @@ def _counterfeit_saved_import(index):
             }
         )
     )
-    return result
+    return index
+
+
+def _counterfeit_saved_import(index):
+    """Rehash every outer binding around malformed author-written provenance."""
+    return _rebind_attached_saved_import(deepcopy(index), provenance_bytes=b"{")
 
 
 class OfflineHistoryTests(unittest.TestCase):
@@ -612,6 +618,53 @@ class OfflineHistoryTests(unittest.TestCase):
 
 
 class SavedPublicImportTests(unittest.TestCase):
+    def test_persisted_saved_import_rejects_rehashed_identity_aliases(self):
+        reader = _saved_import_reader(self)
+        output, digest, _ = reader.build("identity-aliases")
+        attached = attach_rerun(reader.index, output, digest)
+        index_path = reader.root / "attached-index.json"
+        index_path.write_bytes(canonical(attached))
+        original = json.loads(index_path.read_bytes())
+        self.assertEqual(validate_rerun_index(original), original)
+        self.assertEqual(view_fixture.validate_index(original), original)
+
+        for mutation in (
+            "source-url",
+            "expected-doi",
+            "expected-title",
+            "missing-source-url",
+            "missing-expected-identity",
+            "noncanonical-request-doi",
+        ):
+            mutated = deepcopy(original)
+            receipt = mutated["sources"][0]["receipt"]
+            if mutation == "source-url":
+                receipt["source_url"] = "https://example.test/different-source"
+            elif mutation == "expected-doi":
+                receipt["expected_identity"]["doi"] = "10.1000/different"
+            elif mutation == "expected-title":
+                receipt["expected_identity"]["title"] = "Different evidence"
+            elif mutation == "missing-source-url":
+                receipt.pop("source_url")
+            elif mutation == "missing-expected-identity":
+                receipt.pop("expected_identity")
+            else:
+                receipt["request"]["doi"] = "https://doi.org/10.1000/synthetic"
+            _rebind_attached_saved_import(mutated)
+            mutated_path = reader.root / f"{mutation}-index.json"
+            mutated_path.write_bytes(canonical(mutated))
+            persisted = json.loads(mutated_path.read_bytes())
+            for name, gate in (
+                ("rerun-index", validate_rerun_index),
+                ("workspace-view", view_fixture.validate_index),
+            ):
+                with self.subTest(mutation=mutation, gate=name):
+                    with self.assertRaisesRegex(
+                        DeliverableError,
+                        "saved import provenance/receipt binding differs",
+                    ):
+                        gate(persisted)
+
     def test_saved_import_without_claims_exports_without_fabricated_rows(self):
         reader = _saved_import_reader(self)
         self.assertEqual(reader.index["claims"], [])
