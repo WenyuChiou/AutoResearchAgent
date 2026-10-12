@@ -415,6 +415,12 @@
     },
     {
       "capability_id": "cli:stage2-workflow",
+      "prior_work_delivery_input_mechanism": "Ordinary delivery validates the authenticated checker storage projection against its root and requires exact restored original packet binding. A temporary, hash-checked original-path namespace combines retained source and prior-work receipt snapshots for the separate delivery checker, without rewriting the workflow, sources or captures. Portable inspection retains receipt identity and hash checks; unknowns, missing independent reviews, human selection and Stage3 execution gates remain unchanged. Mechanical delivery repair does not establish research acceptance or scientific improvement.",
+      "prior_work_delivery_input_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py",
+        "plugins/auto-research-agent/tests/test_stage2_delivery.py",
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
+      ],
       "metric_effects": [
         {
           "metric_id": "P4",
