@@ -1,0 +1,6 @@
+test_reading_registration_get_requires_existing_owner_without_adoption (project_saved_record_owner_cases.SavedRecordOwnerCases.test_reading_registration_get_requires_existing_owner_without_adoption) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 8.124s
+
+OK

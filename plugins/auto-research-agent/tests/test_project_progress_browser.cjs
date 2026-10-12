@@ -10,7 +10,7 @@ class Node {
   focus() {this.focused = true;}
 }
 const source = path.join(__dirname, "../cli/research_workspace_native/web/projects-progress.js"), nodes = new Map();
-for (const [id, tag] of [["stage1-progress", "section"], ["history", "div"], ["coverage-controls", "details"]]) nodes.set(id, new Node(tag));
+for (const [id, tag] of [["stage1-progress", "section"], ["history", "div"], ["coverage-controls", "details"], ["stage1-library", "details"]]) nodes.set(id, new Node(tag));
 const context = {window: {}, document: {createElement: tag => new Node(tag), getElementById: id => nodes.get(id)}, fetch: () => {throw Error("navigation performed I/O");}};
 vm.runInNewContext(fs.readFileSync(source, "utf8"), context, {filename: source});
 const render = context.window.ResearchStage1Progress.render, area = nodes.get("stage1-progress");
@@ -29,7 +29,12 @@ show({project: {}, view: {...view, binding: {}}}); assert(!walk(area).some(node 
 show({view: {...view, phases: phaseIds.map(() => null)}}); assert(!walk(area).some(node => node.tagName === "BUTTON"));
 show({view: {...view, phases: phaseIds.map(phase_id => ({phase_id, status: "complete"}))}}); assert(!walk(area).some(node => node.tagName === "BUTTON"));
 show({view: {...view, next_action: {phase_id: "delivery", target: "delivery", reason: "package-saved-review-required"}}}); assert(text().includes("before accepting the stage")); assert(!text().includes("Research complete"));
+for (const [language, instruction] of [["en", "reading notes are saved separately"], ["zh-Hans", "主张与阅读笔记分别保存"], ["zh-Hant", "主張及閱讀筆記分別保存"]]) {
+  show({language, view: {...view, next_action: {phase_id: "reading", target: "reading", reason: "reading-registration-required"}}});
+  assert(text().includes(instruction)); walk(area).find(node => node.tagName === "BUTTON").onclick();
+  assert.equal(nodes.get("stage1-library").open, true); assert.equal(nodes.get("stage1-library").focused, true);
+}
 show({busy: true}); assert(walk(area).find(node => node.tagName === "BUTTON").disabled);
 show({view: {...view, next_action: {target: "__proto__"}}}); assert(!walk(area).some(node => node.tagName === "BUTTON"));
 show({project: null}); assert.equal(area.hidden, true);
-console.log("8 authored DOM groups passed; no HTTP/model/search/native calls.");
+console.log("9 authored DOM groups passed; no HTTP/model/search/native calls.");

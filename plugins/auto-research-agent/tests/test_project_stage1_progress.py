@@ -33,6 +33,21 @@ def snapshot():
         input_version=1,
         ledger=ledger,
         coverage_actions=dict(held=False, blockers=["unverified"], offers=[]),
+        reading_registration=dict(
+            kind="ProjectStage1ReadingRegistration",
+            schema_version="1.0.0",
+            **{
+                key: project[key]
+                for key in ("project_ref", "revision", "input_version", "brief_sha256")
+            },
+            ledger_state_sha256="c" * 64,
+            status="ready",
+            reason="reading-registration-ready",
+            missing_works=[],
+            required_work_count=1,
+            registered_work_count=1,
+            grants_execution=False,
+        ),
     )
     return dict(project=project, models=None, model_offers=None, stage1=stage)
 
@@ -149,7 +164,7 @@ class ProgressTests(unittest.TestCase):
         stage["delivery"] = dict(canonical_package=saved)
         result = project_progress(value)
         self.assertFalse(result["research_complete"])
-        self.assertEqual(result["phases"][4]["status"], "partial")
+        self.assertEqual(result["phases"][4]["status"], "recorded")
         self.assertEqual(result["phases"][6]["status"], "partial")
         del saved["manifest_sha256"]
         self.assertEqual(project_progress(value)["next_action"]["target"], "history")
@@ -165,8 +180,94 @@ class ProgressTests(unittest.TestCase):
         value = snapshot()
         value["stage1"]["ledger"]["counts"]["claims"] = 0
         value["stage1"]["saved_records_connected"] = "true"
+        value["stage1"]["reading_registration"].update(
+            status="unconnected", required_work_count=None, registered_work_count=None
+        )
         value["models"] = models(value) | dict(saved_reading_available=1)
         self.assertEqual(project_progress(value)["phases"][4]["status"], "unconnected")
+
+    def test_unconnected_reading_does_not_skip_query_screening_or_saved_package_review(
+        self,
+    ):
+        value = snapshot()
+        stage = value["stage1"]
+        stage["reading_registration"].update(
+            status="unconnected", required_work_count=None, registered_work_count=None
+        )
+        stage["ledger"]["counts"].update(works=0, decisions=0, claims=0)
+        self.assertEqual(project_progress(value)["next_action"]["target"], "query")
+        stage["ledger"]["counts"]["works"] = 1
+        self.assertEqual(project_progress(value)["next_action"]["target"], "screening")
+        stage["delivery"] = dict(
+            canonical_package=dict(
+                status="saved-evidence-validated",
+                artifact_kind="Stage1ResearchDeliverable",
+                artifact_ref="artifact",
+                manifest_sha256="d" * 64,
+                records_sha256="e" * 64,
+                handoff_sha256="f" * 64,
+                ledger_state_sha256="c" * 64,
+                binding=dict(
+                    project_id="project-p", input_version=1, brief_sha256="a" * 64
+                ),
+            )
+        )
+        self.assertEqual(
+            project_progress(value)["next_action"]["reason"],
+            "package-saved-review-required",
+        )
+
+    def test_missing_registration_precedes_coverage_and_invalid_binding_is_held(self):
+        value = snapshot()
+        registration = value["stage1"]["reading_registration"]
+        registration.update(
+            status="missing",
+            registered_work_count=0,
+            missing_works=[
+                dict(
+                    work_ref="work",
+                    version_id="version",
+                    candidate_event_id="e000001",
+                    decision_event_id="e000002",
+                    reason="saved-reading-current-record-required",
+                )
+            ],
+        )
+        self.assertEqual(
+            project_progress(value)["next_action"]["reason"],
+            "reading-registration-required",
+        )
+        for update in (
+            {"revision": 999},
+            {"ledger_state_sha256": "0" * 64},
+            {"grants_execution": True},
+            {"registered_work_count": True},
+        ):
+            changed = deepcopy(value)
+            changed["stage1"]["reading_registration"].update(update)
+            self.assertEqual(
+                project_progress(changed)["next_action"]["target"], "history"
+            )
+
+    def test_core_work_and_version_ids_are_not_limited_by_broker_offer_ref(self):
+        value = snapshot()
+        value["stage1"]["reading_registration"].update(
+            status="missing",
+            registered_work_count=0,
+            missing_works=[
+                dict(
+                    work_ref="work-" + "x" * 200,
+                    version_id="version-" + "y" * 200,
+                    candidate_event_id="e000001",
+                    decision_event_id="e000002",
+                    reason="saved-reading-current-record-required",
+                )
+            ],
+        )
+        self.assertEqual(
+            project_progress(value)["next_action"]["reason"],
+            "reading-registration-required",
+        )
 
 
 if __name__ == "__main__":

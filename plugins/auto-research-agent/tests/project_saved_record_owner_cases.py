@@ -24,6 +24,36 @@ class SavedRecordOwnerCases(ProjectQueryCases):
         state = self.intake._load("alice", self.ref)
         return self.stage1._ledger(state, self.intake.binding(self.ref))
 
+    def test_reading_registration_get_requires_existing_owner_without_adoption(self):
+        _, _, report = self.ready()
+        materials = self.root / "reading-materials"
+        materials.mkdir()
+        records = self.queries.create_records_service(
+            ProjectStage1DeliveryService(self.stage1), materials_root=materials
+        )
+        before = self.intake.history("alice-token", self.ref)
+        with self.no_probe():
+            view = records.reading_readiness(
+                "alice-token",
+                self.ref,
+                expected_ledger_state_sha256=report["state_sha256"],
+            )
+            self.assertEqual(
+                (view["status"], view["required_work_count"]), ("ready", 0)
+            )
+            service = self.queries.services.pop(self.ref)
+            try:
+                view = records.reading_readiness(
+                    "alice-token",
+                    self.ref,
+                    expected_ledger_state_sha256=report["state_sha256"],
+                )
+                self.assertEqual(view["status"], "held")
+                self.assertEqual(self.queries.services, {})
+            finally:
+                self.queries.services[self.ref] = service
+        self.assertEqual(self.intake.history("alice-token", self.ref), before)
+
     def test_guard_and_factory_use_saved_owner_after_expiry_without_any_dispatch(self):
         run, ledger, report = self.ready()
         before = self.queries.saved_frontier(self.ref)

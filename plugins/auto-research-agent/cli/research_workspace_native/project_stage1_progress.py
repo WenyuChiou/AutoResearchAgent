@@ -29,6 +29,15 @@ def _ref(value):
     )
 
 
+def _core_text(value):
+    # Core work/version IDs use stage-contracts.v1 Text, not broker offer IDs.
+    return type(value) is str and bool(value)
+
+
+def _core_event(value):
+    return type(value) is str and re.fullmatch(r"e[0-9]{6,}", value) is not None
+
+
 def _rows(value):
     if value is None:
         return []
@@ -254,6 +263,45 @@ def project_progress(overview):
         else "unconnected",
         "screening-recorded" if decisions else "screening-required",
     )
+    registration = _dict(stage.get("reading_registration"))
+    missing_readings = registration.get("missing_works")
+    registration_bound = (
+        registration.get("kind") == "ProjectStage1ReadingRegistration"
+        and registration.get("schema_version") == "1.0.0"
+        and registration.get("grants_execution") is False
+        and _bound(registration, binding, tuple(binding))
+        and _hash(registration.get("ledger_state_sha256"))
+        and registration.get("ledger_state_sha256") == ledger.get("state_sha256")
+        and registration.get("status") in {"ready", "missing", "held", "unconnected"}
+        and type(missing_readings) is list
+    )
+    required_readings = _count(registration.get("required_work_count"))
+    registered_readings = _count(registration.get("registered_work_count"))
+    registration_checked = (
+        registration_bound
+        and required_readings is not None
+        and registered_readings is not None
+        and registered_readings <= required_readings
+        and required_readings - registered_readings == len(missing_readings)
+        and all(
+            type(row) is dict
+            and _core_text(row.get("work_ref"))
+            and _core_text(row.get("version_id"))
+            and _core_event(row.get("candidate_event_id"))
+            and (
+                row.get("decision_event_id") is None
+                or _core_event(row.get("decision_event_id"))
+            )
+            and row.get("reason") == "saved-reading-current-record-required"
+            for row in missing_readings
+        )
+        and len({row["work_ref"] for row in missing_readings}) == len(missing_readings)
+    )
+    registration_ready = (
+        registration_checked
+        and registration["status"] == "ready"
+        and not missing_readings
+    )
     reading_available = (
         models.get("saved_reading_available") is True
         or stage.get("saved_records_connected") is True
@@ -261,14 +309,24 @@ def project_progress(overview):
     )
     phase(
         "reading",
-        "unknown"
-        if ledger and claims is None
+        "recorded"
+        if registration_ready and required_readings
         else "partial"
-        if claims
+        if registration_ready
+        else "required"
+        if registration_checked
+        and registration["status"] == "missing"
+        and missing_readings
+        else "unconnected"
+        if registration_bound and registration["status"] == "unconnected"
+        else "held"
+        if ledger
         else "available"
         if reading_available
         else "unconnected",
-        "reading-partial" if claims else "reading-required",
+        "reading-registration-ready"
+        if registration_ready
+        else "reading-registration-required",
     )
     gate = _dict(ledger.get("gate"))
     coverage_recorded = (
@@ -339,6 +397,8 @@ def project_progress(overview):
         return next_action("scope", "scope", "scope-required")
     if not planned:
         return next_action("planning", "planning", "plan-required")
+    if ledger and (not registration_bound or registration["status"] == "held"):
+        return hold("reading", "unknown-state")
     if saved:
         return next_action(
             "delivery",
@@ -351,18 +411,26 @@ def project_progress(overview):
             "query",
             query_reason if query_available else "query-unconnected",
         )
-    if delivery_available or coverage_recorded:
-        return next_action(
-            "delivery",
-            "delivery",
-            "delivery-offered" if delivery_available else "delivery-required",
-        )
     if None in (works, decisions, claims):
         return next_action("query", "history", "unknown-state")
     if not works:
         return next_action("query", "query", query_reason)
     if not decisions:
         return next_action("screening", "screening", "screening-required")
-    if not claims:
-        return next_action("reading", "reading", "reading-required")
+    if not registration_ready:
+        if (
+            registration_checked
+            and registration["status"] == "missing"
+            and missing_readings
+        ):
+            return next_action("reading", "reading", "reading-registration-required")
+        if registration_bound and registration["status"] == "unconnected":
+            return next_action("reading", "reading", "reading-registration-unconnected")
+        return hold("reading", "unknown-state")
+    if delivery_available or coverage_recorded:
+        return next_action(
+            "delivery",
+            "delivery",
+            "delivery-offered" if delivery_available else "delivery-required",
+        )
     return next_action("coverage", "coverage", "coverage-required")

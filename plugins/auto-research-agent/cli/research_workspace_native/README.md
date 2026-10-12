@@ -499,6 +499,19 @@ labelled separately from accepted research. Missing evidence remains Unknown;
 old input versions cannot supply the current guide. English and both Chinese
 variants use the same source-bound states, with no changes to the original graph.
 
+Saving a claim does not register the paper's reading annotation. The overview
+reports `reading_registration` with the current project revision, input/brief
+and ledger-state hash. The guide keeps the next step on reading when a current
+annotation required by the saved-record producer is missing, and preparation
+stays disabled until that bound registry check is ready. Pure discovery-only
+records remain supported; a source observation may require an annotation whose
+unassessed fields stay Unknown. This does not accept reading quality or research.
+GET checks retained entries and source/action bindings without registering,
+restoring an owner, dispatching work or retrying a producer. A stale or unverifiable
+package is shown as held with its original status/hash, rather than as a validated
+delivery. Source acquisition and model-reading availability are separate: a
+temporarily unavailable model does not make a saved current source missing.
+
 Saved Stage1/Stage2 pages retain their dark sidebar, 2D/3D graph, paper detail,
 compact direction summary and folded process history. A compact **Project &
 research topic** section precedes Stage1. Select an existing project, or enter

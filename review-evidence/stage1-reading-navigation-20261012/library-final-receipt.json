@@ -1,0 +1,2207 @@
+{
+  "kind": "ProjectLibrarySourceCondition.v1",
+  "passed": true,
+  "checks": [
+    {
+      "scenario": "actual-available",
+      "passed": true,
+      "authored_status_overlay": false
+    },
+    {
+      "scenario": "model-blocked",
+      "passed": true,
+      "authored_status_overlay": true
+    },
+    {
+      "scenario": "old-version-only",
+      "passed": true,
+      "authored_status_overlay": true
+    },
+    {
+      "scenario": "failed",
+      "passed": true,
+      "authored_status_overlay": true
+    },
+    {
+      "scenario": "missing",
+      "passed": true,
+      "authored_status_overlay": true
+    },
+    {
+      "scenario": "pending",
+      "passed": true,
+      "authored_status_overlay": true
+    },
+    {
+      "scenario": "unknown",
+      "passed": true,
+      "authored_status_overlay": true
+    }
+  ],
+  "posts": [],
+  "pageErrors": [],
+  "diagnostics": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "library_sha256": "59da6560174127d7da08a99248059e5ed22d9f894a96bbe82c118b188b5a5826",
+  "actual_saved_details": [
+    {
+      "kind": "Stage1ScreeningDetail",
+      "schema_version": "1.0.0",
+      "project_ref": "project-e9ae6353b5b14c8e9b680bbe081af13b",
+      "input_version": 1,
+      "projection_sha256": "0c1638e67abeab863ae8fc43af2046a430d38d40c3d4de98d491e07c4684552f",
+      "binding": {
+        "project_id": "project-e9ae6353b5b14c8e9b680bbe081af13b",
+        "input_version": 1,
+        "brief_sha256": "5dff296df8c0ac8bedcd6a07adc62293dfbfede6c946ce17e67478ebf2b4af60",
+        "plan_manifest_sha256": "5dd122c977fb5f52b0931aa7ef682933596ad3e37672cd7ab44557c4602681c6",
+        "settings_sha256": "c6e14a5f36e7aab5c5f08f1f89f82e1456fa7b7904c2e4fb50de387c8549513c",
+        "project_ref": "project-e9ae6353b5b14c8e9b680bbe081af13b",
+        "run_ref": "stage1-run-8ff0d2a9e423090609311704657de8ae",
+        "run_id": "stage1-8ff0d2a9e423090609311704657de8ae",
+        "manifest_sha256": "2bf609d947c807f44abd5898fe984c822463df702944c2e01fdf70eac51e11a5",
+        "ledger_state_sha256": "b6ca7d183d06df749ac940c0be4e255278345cfb82da200324652f05c0dd639a",
+        "journal_sha256": "d3260b44e3f10f74a3a7003b010c5804739ae7c23a571070fdd063f04e559f79"
+      },
+      "total": 2,
+      "stage1_complete": false,
+      "canonical_package": null,
+      "execution_authorized": false,
+      "status": "partial-saved-screening",
+      "index": 0,
+      "row": {
+        "work_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa",
+        "candidate_event_id": "e000010",
+        "candidate_revision": 1,
+        "canonical_key": "metadata:0c017594a27659b20ab44ee8ef9e6c834e241f5d166cbf2c5dae24781e4a324e",
+        "identity_status": "unverified",
+        "metadata_evidence_level": "metadata",
+        "selected_version_id": "version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf",
+        "metadata": {
+          "authors": [
+            "Synthetic Author"
+          ],
+          "title": "Synthetic household research",
+          "version": "v1",
+          "year": 2024
+        },
+        "versions": [
+          {
+            "version_id": "version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf",
+            "discovery_ids": [
+              "e000008:0"
+            ]
+          }
+        ],
+        "discoveries": [
+          {
+            "attempt_id": "e000005",
+            "completion_id": "e000008",
+            "discovery_id": "e000008:0",
+            "query_id": "e000004",
+            "record": {
+              "authors": [
+                "Synthetic Author"
+              ],
+              "title": "Synthetic household research",
+              "version": "v1",
+              "year": 2024
+            },
+            "record_index": 0,
+            "source_ref": {
+              "artifact_id": "artifact-88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380-e000005",
+              "artifact_type": "raw-output",
+              "created_at": "2026-10-12T01:01:20.684349Z",
+              "kind": "ArtifactRef",
+              "path": "raw/88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380.bin",
+              "producer": "e000005",
+              "schema_version": "1.0.0",
+              "sha256": "88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380"
+            },
+            "version_id": "version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf",
+            "candidate_discovery_order_in_run": 1,
+            "result_position": 1,
+            "completion_created_at": "2026-10-12T01:01:20.729217Z",
+            "round_number": 1
+          }
+        ],
+        "query_history": [
+          {
+            "started": {
+              "arguments": {
+                "coverage": {
+                  "plan_event_id": "e000002",
+                  "planned_query_id": "planned-f5fce1b75f8ecf864f0b8ad672bd4e10f92249e8877c87c3e5ced31a87f52bf9",
+                  "round_number": 1
+                },
+                "limit": 40,
+                "query": "(\"Aircraft diagnosis with sensor drift\") AND (\"methods\" OR \"validation\")",
+                "rank_by": null,
+                "year": null
+              },
+              "backend": null,
+              "created_at": "2026-10-12T01:01:20.648679Z",
+              "event_id": "e000004",
+              "kind": "ActionStarted",
+              "operation": "search",
+              "parent_id": null,
+              "schema_version": "1.0.0"
+            },
+            "result": {
+              "arguments": {
+                "coverage": {
+                  "plan_event_id": "e000002",
+                  "planned_query_id": "planned-f5fce1b75f8ecf864f0b8ad672bd4e10f92249e8877c87c3e5ced31a87f52bf9",
+                  "round_number": 1
+                },
+                "limit": 40,
+                "query": "(\"Aircraft diagnosis with sensor drift\") AND (\"methods\" OR \"validation\")",
+                "rank_by": null,
+                "year": null
+              },
+              "attempted_backends": [
+                "openalex"
+              ],
+              "completion_ids": [
+                "e000008"
+              ],
+              "created_at": "2026-10-12T01:01:20.751088Z",
+              "event_id": "e000009",
+              "kind": "QueryEvent",
+              "outcome": "success_nonempty",
+              "query_id": "e000004",
+              "result_count": 1,
+              "schema_version": "1.0.0",
+              "started_at": "2026-10-12T01:01:20.648679Z"
+            },
+            "backend_attempts": [
+              {
+                "started": {
+                  "arguments": {
+                    "input": {
+                      "coverage": {
+                        "plan_event_id": "e000002",
+                        "planned_query_id": "planned-f5fce1b75f8ecf864f0b8ad672bd4e10f92249e8877c87c3e5ced31a87f52bf9",
+                        "round_number": 1
+                      },
+                      "limit": 40,
+                      "query": "(\"Aircraft diagnosis with sensor drift\") AND (\"methods\" OR \"validation\")",
+                      "rank_by": null,
+                      "year": null
+                    }
+                  },
+                  "backend": "openalex",
+                  "created_at": "2026-10-12T01:01:20.670371Z",
+                  "event_id": "e000005",
+                  "kind": "ActionStarted",
+                  "operation": "backend",
+                  "parent_id": "e000004",
+                  "schema_version": "1.0.0"
+                },
+                "finished": {
+                  "attempt_id": "e000005",
+                  "created_at": "2026-10-12T01:01:20.729217Z",
+                  "event_id": "e000008",
+                  "exit_code": 0,
+                  "http_status": 200,
+                  "kind": "ActionFinished",
+                  "outcome": "success_nonempty",
+                  "records": {
+                    "artifact_id": "artifact-88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380-e000005",
+                    "artifact_type": "raw-output",
+                    "created_at": "2026-10-12T01:01:20.684349Z",
+                    "kind": "ArtifactRef",
+                    "path": "raw/88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380.bin",
+                    "producer": "e000005",
+                    "schema_version": "1.0.0",
+                    "sha256": "88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380"
+                  },
+                  "result_count": 1,
+                  "schema_version": "1.0.0",
+                  "stderr": {
+                    "artifact_id": "artifact-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855-e000005",
+                    "artifact_type": "raw-output",
+                    "created_at": "2026-10-12T01:01:20.699805Z",
+                    "kind": "ArtifactRef",
+                    "path": "raw/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.bin",
+                    "producer": "e000005",
+                    "schema_version": "1.0.0",
+                    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                  },
+                  "stdout": {
+                    "artifact_id": "artifact-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855-e000005",
+                    "artifact_type": "raw-output",
+                    "created_at": "2026-10-12T01:01:20.699805Z",
+                    "kind": "ArtifactRef",
+                    "path": "raw/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.bin",
+                    "producer": "e000005",
+                    "schema_version": "1.0.0",
+                    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "current_decision": {
+          "actor": "agent",
+          "actor_type": "agent",
+          "authorization": null,
+          "created_at": "2026-10-12T01:01:21.928821Z",
+          "event_id": "e000036",
+          "evidence_refs": [
+            {
+              "artifact_id": "artifact-8eed0f163662a326a910da571a1ada03d3f7cfd70bd491f18c7f9371f1441f13-e000024",
+              "artifact_type": "raw-output",
+              "created_at": "2026-10-12T01:01:21.309344Z",
+              "kind": "ArtifactRef",
+              "path": "raw/8eed0f163662a326a910da571a1ada03d3f7cfd70bd491f18c7f9371f1441f13.bin",
+              "producer": "e000024",
+              "schema_version": "1.0.0",
+              "sha256": "8eed0f163662a326a910da571a1ada03d3f7cfd70bd491f18c7f9371f1441f13"
+            }
+          ],
+          "kind": "DecisionEvent",
+          "new_decision": "include",
+          "prior_decision": "pending",
+          "rationale": "Fixture candidate retained; no scientific acceptance.",
+          "reason_code": "fixture-include",
+          "reverses_event_id": "e000011",
+          "run_id": "stage1-8ff0d2a9e423090609311704657de8ae",
+          "schema_version": "1.0.0",
+          "sequence": 36,
+          "stage_run_id": "stage1",
+          "subject_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa"
+        },
+        "screening_status": "include",
+        "decision_history": [
+          {
+            "actor": "agent",
+            "actor_type": "agent",
+            "authorization": null,
+            "created_at": "2026-10-12T01:01:20.805265Z",
+            "event_id": "e000011",
+            "evidence_refs": [
+              {
+                "artifact_id": "artifact-88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380-e000005",
+                "artifact_type": "raw-output",
+                "created_at": "2026-10-12T01:01:20.684349Z",
+                "kind": "ArtifactRef",
+                "path": "raw/88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380.bin",
+                "producer": "e000005",
+                "schema_version": "1.0.0",
+                "sha256": "88cbb727e59946c4da60bffbda7e28ce3959dd8d4a24a4d7735f45bc0a9f2380"
+              }
+            ],
+            "kind": "DecisionEvent",
+            "new_decision": "pending",
+            "prior_decision": null,
+            "rationale": "Authored fixture remains pending; scientific findings are unknown.",
+            "reason_code": "fixture-unassessed",
+            "reverses_event_id": null,
+            "run_id": "stage1-8ff0d2a9e423090609311704657de8ae",
+            "schema_version": "1.0.0",
+            "sequence": 11,
+            "stage_run_id": "stage1",
+            "subject_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa"
+          },
+          {
+            "actor": "agent",
+            "actor_type": "agent",
+            "authorization": null,
+            "created_at": "2026-10-12T01:01:21.928821Z",
+            "event_id": "e000036",
+            "evidence_refs": [
+              {
+                "artifact_id": "artifact-8eed0f163662a326a910da571a1ada03d3f7cfd70bd491f18c7f9371f1441f13-e000024",
+                "artifact_type": "raw-output",
+                "created_at": "2026-10-12T01:01:21.309344Z",
+                "kind": "ArtifactRef",
+                "path": "raw/8eed0f163662a326a910da571a1ada03d3f7cfd70bd491f18c7f9371f1441f13.bin",
+                "producer": "e000024",
+                "schema_version": "1.0.0",
+                "sha256": "8eed0f163662a326a910da571a1ada03d3f7cfd70bd491f18c7f9371f1441f13"
+              }
+            ],
+            "kind": "DecisionEvent",
+            "new_decision": "include",
+            "prior_decision": "pending",
+            "rationale": "Fixture candidate retained; no scientific acceptance.",
+            "reason_code": "fixture-include",
+            "reverses_event_id": "e000011",
+            "run_id": "stage1-8ff0d2a9e423090609311704657de8ae",
+            "schema_version": "1.0.0",
+            "sequence": 36,
+            "stage_run_id": "stage1",
+            "subject_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa"
+          }
+        ],
+        "source_attempts": [
+          {
+            "started": {
+              "actor": "fixture",
+              "created_at": "2026-10-12T01:01:20.827043Z",
+              "event_id": "e000012",
+              "kind": "SourceReadStarted",
+              "previous_attempt_id": null,
+              "reason": "Authored HTTP response; no external acquisition.",
+              "request": {
+                "public_only": true
+              },
+              "schema_version": "1.0.0",
+              "scope": "caller-attested-source-acquisition",
+              "source_uri": "https://example.org/study",
+              "tool": "research_hub.source_fetch",
+              "version_id": "version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf",
+              "work_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa"
+            },
+            "finished": {
+              "attempt_id": "e000012",
+              "created_at": "2026-10-12T01:01:20.915732Z",
+              "event_id": "e000015",
+              "extraction": {
+                "method": "research_hub",
+                "version": "fixture"
+              },
+              "http_status": 200,
+              "kind": "SourceReadFinished",
+              "observed_at": "2026-10-12T01:01:20.832204Z",
+              "outcome": "available",
+              "raw_ref": {
+                "artifact_id": "artifact-0f147d57b71da320536535699b992cb9a6584ef65fe38f2d5ec6705e9d432049-e000012",
+                "artifact_type": "raw-output",
+                "created_at": "2026-10-12T01:01:20.858780Z",
+                "kind": "ArtifactRef",
+                "path": "raw/0f147d57b71da320536535699b992cb9a6584ef65fe38f2d5ec6705e9d432049.bin",
+                "producer": "e000012",
+                "schema_version": "1.0.0",
+                "sha256": "0f147d57b71da320536535699b992cb9a6584ef65fe38f2d5ec6705e9d432049"
+              },
+              "reason": "Real parser output from an authored HTTP fixture.",
+              "resolved_uri": "https://example.org/study",
+              "schema_version": "1.0.0",
+              "scope": "caller-attested-source-acquisition",
+              "text_ref": {
+                "artifact_id": "artifact-0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205-e000012",
+                "artifact_type": "raw-output",
+                "created_at": "2026-10-12T01:01:20.880871Z",
+                "kind": "ArtifactRef",
+                "path": "raw/0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205.bin",
+                "producer": "e000012",
+                "schema_version": "1.0.0",
+                "sha256": "0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205"
+              }
+            }
+          }
+        ],
+        "source_imports": [],
+        "source_status": "available",
+        "claims": [
+          {
+            "claim_text": "Synthetic household ",
+            "created_at": "2026-10-12T01:01:20.959932Z",
+            "event_id": "e000016",
+            "evidence_level": "full-text",
+            "kind": "ClaimEvidence",
+            "locator": {
+              "quote": "Synthetic household ",
+              "section": "characters 0:20"
+            },
+            "relation": "supports",
+            "schema_version": "1.0.0",
+            "source_ref": {
+              "artifact_id": "artifact-0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205-e000012",
+              "artifact_type": "raw-output",
+              "created_at": "2026-10-12T01:01:20.880871Z",
+              "kind": "ArtifactRef",
+              "path": "raw/0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205.bin",
+              "producer": "e000012",
+              "schema_version": "1.0.0",
+              "sha256": "0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205"
+            },
+            "verifier": {
+              "actor": "fixture",
+              "actor_type": "agent",
+              "method": "exact-span"
+            },
+            "version_id": "version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf",
+            "work_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa"
+          }
+        ],
+        "current_review": {
+          "assessor": "fixture",
+          "candidate_event_id": "e000010",
+          "closest": false,
+          "cluster_claims": {
+            "cluster-1": "e000016"
+          },
+          "created_at": "2026-10-12T01:01:21.997889Z",
+          "decision_event_id": "e000036",
+          "event_id": "e000037",
+          "identity_claims": {
+            "authors": null,
+            "identifier": null,
+            "title": null,
+            "version": null,
+            "year": null
+          },
+          "identity_status": "unverifiable",
+          "kind": "CoverageWorkReview",
+          "rationale": "Authored partial operational review.",
+          "replaces_event_id": null,
+          "schema_version": "1.0.0",
+          "scope": "reviewer-attestation",
+          "version_id": "version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf",
+          "work_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa"
+        },
+        "relevance": {
+          "score": null,
+          "status": "Unknown",
+          "basis": "no-relevance-assessment-in-core-snapshot"
+        },
+        "reading": {
+          "status": "claim-evidence-recorded",
+          "selected_version_claim_count": 1,
+          "model_execution": "Unknown",
+          "complete_body_reading": "Unknown"
+        },
+        "counts": {
+          "discoveries": 1,
+          "distinct_queries": 1,
+          "discovery_producing_backend_attempts": 1,
+          "query_backend_attempts": 1,
+          "recorded_rounds": 1,
+          "round_ids_known": true,
+          "decisions": 2,
+          "reversals": 1,
+          "source_attempts": 1,
+          "claims": 1
+        },
+        "first_candidate_discovery_order_in_run": 1
+      },
+      "reading_offer": {
+        "available": false,
+        "snapshot_sha256": null,
+        "blocked_reason": "reading-model-or-records-unconnected",
+        "execution_authorized": false
+      }
+    }
+  ],
+  "fixture": {
+    "kind": "Stage1DeliveryBrowserFixture",
+    "url": "http://127.0.0.1:56702/projects.html",
+    "project_ref": "project-e9ae6353b5b14c8e9b680bbe081af13b",
+    "works": [
+      {
+        "work_id": "work-d1393085e8047d7b26c350f9447b1db58db08b8b15aa186ec5847851beae28aa",
+        "title": "Synthetic household research",
+        "version_id": "version-d8b0f654fec4380c255cbd0c4328df9049c346b146b4a9bf33dcdb9785ceceaf",
+        "source_ids": [
+          "e000012"
+        ]
+      },
+      {
+        "work_id": "work-02eaa8c817662fbffb9a3f1377d4654ff243f2d1b2a5a38bd3316379805b0039",
+        "title": "Second authored saved study",
+        "version_id": "version-7dac48935827bf6398bd66aa88ed47850ee5715a2fccb05d773f07eef419e8dd",
+        "source_ids": [
+          "e000031"
+        ]
+      }
+    ],
+    "baseline_readings": 0,
+    "baseline_events": 45,
+    "lease_seconds": 180,
+    "native_calls": 0,
+    "model_calls": 0,
+    "search_calls": 0,
+    "source_inventory": [
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/__init__.py",
+        "sha256": "2ac0caea51d93df39e45b86f2f749a65a136173f4635e2da54bda28011b5dd07"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/atlas.py",
+        "sha256": "47931ae5f82bb96b99ec12fcb7cbf5fea8d480dd2cf15a19da8041eb2fe27a51"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/atlas_model.py",
+        "sha256": "40491ca12bf9d103dd3900f3851130b1162c29e0f5571694a07d256c197da131"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/body_completeness.py",
+        "sha256": "e182b18373e7b1c743e8f4938789ed4a178003143bfde69b47964eb87740a9a7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py",
+        "sha256": "e55e1ca98203c7c3f863eeb17b89724f27ed055c69a2c72999b9b5a5775e8e01"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/json_bytes.py",
+        "sha256": "67570526c61982cd0174319485fb7705029436ec31feb154ca6a0a10c3c14ded"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/literature_selection.py",
+        "sha256": "8de33befa8dca0458d3c7e51bdb67f1fecc11c80e5f2c5cda726c8718eed2108"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/projection.py",
+        "sha256": "4a6678bac05450617e35eae039aa8826dff369aac78b7a0f6bf6c0527b680646"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/stages.py",
+        "sha256": "74e689a590131c74e6dcc396dd0c3e472e3e45a733a7bec85b76c231150329b8"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/whole_source_review.py",
+        "sha256": "a9dab8e3b233dd01f7909203bdb180bfe4aa0768d6e4e5ad90951d5e0f4fde57"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/__init__.py",
+        "sha256": "0a2a4a395391a3c7fd16d97cd3ff9c9d0435a67168edc18f1628ab1e05386ccf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/acquired_source_parser.py",
+        "sha256": "be0af3f5f2e2fd09db7d6ced73a098161363dd0702f5d4d3d82f217ec2e75104"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/atlas_host.py",
+        "sha256": "b050c7e1147f734b7d8dd2e13dd8c48242109f38c0d5bd9c0d90645efe91ac75"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py",
+        "sha256": "7e09e7f3be5ee894863959d8774c2b0e39de11f4e164088933fb738aadaefef4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/bootstrap.py",
+        "sha256": "f5774d74a038a6a6f4e32dd497486843a855b7fbe4bd3fa122b160057d9a2b37"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/bootstrap_context.py",
+        "sha256": "592c95288cdf26ac6c544555fb5b70e48b7e8065096ca04b77d5a0b02474f291"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/bounded_public_source.py",
+        "sha256": "23adca3ef99a387ff240d37ccd5e30ee34b30af016c15438bae7f7a6bb3c556f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/codex_probe.py",
+        "sha256": "f2d560349cc4dda0dd8c2196caff3b341d8a5a849a833625081515bfe3724f6c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/construction.py",
+        "sha256": "dd71214b84c77fbe40b1d95773386e353c2cda2d6a902ce4e7d7461691858ea6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/controller.py",
+        "sha256": "43cd82e02b71f935ab02abb146e201b60645c8f2e1bb462f26220b47a1dbbf73"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/frame_journal.py",
+        "sha256": "2bd95cd9688ce24a35dab85c3a90f47fe2becb877ad99a52b7405b6413d7d4bf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/harness_host.py",
+        "sha256": "5a673003ab4ab12c05d7c0d9d740420b26a5d53d720e9a6e0f5e6e877e233418"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/harness_ops.py",
+        "sha256": "fcbd3b63a8bc9889e44109b49bfe411fa66784b5233ea4b7dfd987c773cd780f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/http.py",
+        "sha256": "20c908a7096e66ba3ef8ad8add7a2dcf5349dbc621e124ecd27f37b7a230d817"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/journal.py",
+        "sha256": "4cccced1cb86c5efb3a2dfff5d110acdd37a39f6f6be3b7413dc7d0b61000fd6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py",
+        "sha256": "1944471dcf0cd76aab6b7bf6aecb6c8b02c761d64c5594cf886d280c60c04669"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/planned_query_contract.py",
+        "sha256": "366f9a93136e023d2332619f44019413dda58ab1ac8991f5ce7e078cd458408c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/process_channel.py",
+        "sha256": "52341ff439f1c90298ff288db593bfa7e2542fbb4212e8deb06dd60fbf2f408b"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/process_deadline.py",
+        "sha256": "5302fc30f63b8d35bdc9f18173c043c6fff2bf863d90457511644a26c0867ee2"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_atlas_shell.py",
+        "sha256": "ad8f62c96f88043610c5970db914bfe6202abe0ea861630234ec1a56b25dadb8"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_contract.py",
+        "sha256": "d50633f9d5d27002a4410a54f43c5433735ed6f87cf9caa5f99d00852a69dbc0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+        "sha256": "d0c3a92e55d378a97519f054cbafcf8bb23d0bcde101820c57f99b8aeb331782"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_intake.py",
+        "sha256": "5ab55a6c7f0fb8659cf94660dedfc0132767d348edc9cc84a2767ef2c40d3100"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py",
+        "sha256": "1ee298df48c412690fefab8e52a6fdf65728f3e017a1b3ccf809e920e7e9d84e"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model.py",
+        "sha256": "f45195e6427338b87b4d8dfcc12d0abe15935537b2457001e8b829f58181f163"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model_factory.py",
+        "sha256": "2ad9a7655bef635af33c582d58ded9592bc1e4057932b79e70e7b98137ed61c3"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model_reading.py",
+        "sha256": "f1d1a64f82521f3c3ebbbe5be1ba5a765dbfbfae94c43b794ed8332d4a5910b7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model_recovery.py",
+        "sha256": "1ca256481da5a59cbb96bddfd5883d7e8021895482c5147c910751cc57b7fdec"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py",
+        "sha256": "3bb0df17148240044d89ba935a21c44badf18613a3a948323174918b94d76cd4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_reading_review.py",
+        "sha256": "e62efb279d49a0129fe7b5eb4b149a83dc87be8e7e4c9d2f8aec067b693c65a2"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_records_prepare.py",
+        "sha256": "18f34e988ea7235839c51940db496685392596b8c2e03f90beb9c8d6f69f3881"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_records_recovery.py",
+        "sha256": "f90ac4fa01d3ae9e83c2f5d89b5a0dc1e151723df1f5e317c575d12e5e228929"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_resource_budget.py",
+        "sha256": "9ae8329fb4d5c17a432eda39e299d1a35ca499818f274dc2f70cd06353b93142"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_saved_claims.py",
+        "sha256": "6e1bffbc5e7dae0a756011df241d2f0603e3af7e1619a72ffd9e0d71c9b2bc7f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_source_dispatcher.py",
+        "sha256": "429e8f21857b4ebc029fb07e794ff78df6c4ef3b5fc348e94d917e86360b9722"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_source_permit.py",
+        "sha256": "f6fcbce840b24092d2d2df7ba4ba31e92ec9d3af862ea2198cc4c049d9a10983"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1.py",
+        "sha256": "803eeca30b47a6a17c612f4045b61478aba4c8c82d4c68a6c2e7dba7c0d97d36"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_atlas.py",
+        "sha256": "1bbf26a46c70cc10a1c8d7c11d3739fee6f4460a076707790e49cdba6c694c98"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_claims.py",
+        "sha256": "09208b0a076f5df3e42d14c3e044fab5397a2f3aaf37811183ffad04dbb2061a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py",
+        "sha256": "226299ef0cb414407876198a31f721925dda118e43c3748b8469b41586837ffa"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library.py",
+        "sha256": "32e11d98984e4c2eb8a5074f91199452741809592c6504e09fbc85b7e35dd88f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library_http.py",
+        "sha256": "ee5bbba8e2ac70c36f11856e5eb58d2271a681884a3c1f7f08fa2fb8a19ed21a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_progress.py",
+        "sha256": "4d8d93a0f597476fbaa0c5b225c844ea5ebd8d8a4e9e4c9086c3adb50349d01e"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py",
+        "sha256": "058a5366b027d94ac41ab8c68466331161ef0420062090d7eaaf728dd0613e38"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_saved_import.py",
+        "sha256": "914c3955073c0d58c81f4151106f79c9ea7baaf8f4b2ba95dae2089abb5d9aaf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_http.py",
+        "sha256": "bf45a21afb4d3f14afbea37d23f07f6448138d591e3865cc55676095d565cd16"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_service.py",
+        "sha256": "293adfcd5049638d6bb49142df72ee4ad70223c035fbd358f1fc80d1a1d6f51f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_sources.py",
+        "sha256": "16e29779c467533074bbd6c06307c9442e9937ac56857360d4b3f75ae6531d9a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage2_context.py",
+        "sha256": "9279925eea047201535dd8774232fa76315d4d2155028ae353fbbb28d22fa952"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_ui_overlay.py",
+        "sha256": "0ed5402d2b6b0399b5f7563f7f72807da8e1e8be21c61306a4e8eb074ba594fa"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/query_execution_source.py",
+        "sha256": "1aa297e3bda6f0682011a2946ffbd3e6793fc4532190b6d38e1cc9264ea58716"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/query_http.py",
+        "sha256": "1311573c4a88fb280aa3a8005a5f88d04d428513a7c79702c7ec295d1dfb17c0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/query_storage.py",
+        "sha256": "af873d8e1206013a667bdb7f2c30508c5c5db27cb41abbe562f1b2c7fad538b1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/recording.py",
+        "sha256": "1c26be483fdf3f8a9301b39e5efa83ddccc6bf27e20b573420f197c8e599b6cc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/runtime_factory.py",
+        "sha256": "6b8f1cf93dd57b384a0e61bfdfcb32c48c68e8ca5250dbd485464d9670f8d67d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/runtime_spec.py",
+        "sha256": "0e927959223ef12acef5775d6d3ed23403de2bbb5847209639636ad71d56b581"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/scope_api.py",
+        "sha256": "8a4035fd040b0ad1c3b9364eef34e52fe80779762e3481aa0acf8b80064cab0d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/scope_http.py",
+        "sha256": "eb8a63b9b4e187deb5e238721c6db700fc3bf533a21f8d06d1842e3ce539013d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/server_owner.py",
+        "sha256": "2418121ae9cf43a2010bb7570209ea1b4e702bc87cf59c80179580aa404dca64"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/session_api.py",
+        "sha256": "9b21cefe0b01c511b5d0310d390e993e3935bfb4f97514674908f6575e0e8599"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_actions.py",
+        "sha256": "34bda8d576fc5e5aab321c7fe81a0ff3e300be77728545dcc79aa3651f904143"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_http.py",
+        "sha256": "b305a40e9f31c1bba3c38e0bdd999e72191847d03874ecb1de5f1584e308da44"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_inputs.py",
+        "sha256": "cb672c154b0f42522f81c38ccb06b77c0930b51b36eed95b01e3a98d4ea10521"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_model.py",
+        "sha256": "660e7dfd32fe9ac1a6d6a8fdb537fd4c6c38bcf125698119ba58a7d47a5a6242"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_run_service.py",
+        "sha256": "c63ea5221f2f47d39c0a6081d762cb600117d734781dad93a35b93b4d4670b98"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/store.py",
+        "sha256": "9abae1c2d8b91d2c7d96a4923b9ae90e17e6a1817e9fac730c530b41190035e5"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/transcript.py",
+        "sha256": "1c5846a1996079138bb7e2321faa49d61af52395a14c00d6e6346cfbc3e900eb"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/transport.py",
+        "sha256": "363d0b1a55ad11cb7497a8c3af70498064c003da3910a2e00d1f436611255cf1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/wiki_http.py",
+        "sha256": "600f06e9fd011c31a097ac9ee51e8864b57b4964d9ef69b2e15374f73a6b0b43"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/write_observation.py",
+        "sha256": "422a47e5c03fa600dfb997c189c500a099a9b571b4060229565c326206cc79a0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_brief/__init__.py",
+        "sha256": "9b2d9ce43164abeb466a1917edc472e4b685bfd0e47da65a1e58fa2d380ebca7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_brief/brief.py",
+        "sha256": "c10c39db766811519c30024b67fe0341ad11edcc17a6d075d44e6d6c3aad12ae"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_brief/formal_target.py",
+        "sha256": "b404319b3291eef6fe6f20c03f637d8d8cb7f9323d8f3ae466eb10640206b137"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/__init__.py",
+        "sha256": "f65a124973b51fad921c0140d2ba63189d9014c780d63cae64c979ce23ea17c6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/evidence.py",
+        "sha256": "4239ecf4be4f768e843c718a2a861a0abd4f55ccc7bc367cd6decfed95280cb5"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/plan.py",
+        "sha256": "34237e282acc5222adce4345eb30e95f81eecae322ce1e6b4822124efff2ff48"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/policy.py",
+        "sha256": "10548f928a362b624419917302a93f83389c8aa4a1e1def9589c3fe733fb847f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/rounds.py",
+        "sha256": "b81202a2c71799fba5e1f4b5fd4c1232c1ba58d1c773b2d4fd38f6ecf50bf68b"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/run.py",
+        "sha256": "a353800122f562e2e63df9ec5afa37b1efe0a1e09aafc7f2dce6dfaf17781cea"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/__init__.py",
+        "sha256": "0c48dc4eef341d65ed77136dee64853f148a5172f59fd4861b72042d6c38edae"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/common.py",
+        "sha256": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/core_records.py",
+        "sha256": "0b665fa722d71940398775956c0309b74ad68ed90a0c2ee02581a46bcdfdd94b"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/package.py",
+        "sha256": "f44d278ba54ab63c7fba4be351d4610c2e685b629920a30052e5fb4767d88f17"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/records.py",
+        "sha256": "7fac34d8455d8d5f02b06f43defea20f8cce13ed3734777d579f2713b64d66b6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/screening_records.py",
+        "sha256": "056ab24a18e3a9e2eb6ece7245613eaf55f3b0e4649ba12ca2f9e6960a0c5fb7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/sources.py",
+        "sha256": "c6acdfa67ee96ef70f75c55895c5a546447218eb860ceb5e9339a235452eb754"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/views.py",
+        "sha256": "7a39923144f115a7b3b384623e129b313371be7f2e9e21009f43b4e1d1700588"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/__init__.py",
+        "sha256": "4d681984bdebedbb343df8f87e0acc4aeb4c241390545b976ef1a283581d68b0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/common.py",
+        "sha256": "1fbeb680a80fa7e96499fd16fedc52ad1f85b4b7fdc08343fbafe7a7ce0ca1a8"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/model.py",
+        "sha256": "eb49a1e4aba592a3b86278952048cc8cd78d73205aa3d1670341a304a19b659d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/model_calls.py",
+        "sha256": "9f0d3cc1b2d3bef382957e95e1443556e4f422a2ea1973f1740fb1eee1ec916f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/runtime.py",
+        "sha256": "df9102a49a96e3f4817be940fbc09b3b9ed57eb3fccfc9872884de8f60a53423"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/__init__.py",
+        "sha256": "4686dd3cf1e3528d45c2ca8a4fc0f735a93abb4c3d5fffb68b699077baf140dc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/bundle.py",
+        "sha256": "9c798be23a7181ca40844425af71444a42f83397a3ef9bcb9d85411077fea694"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/contracts.py",
+        "sha256": "28c9e0ca7cb6efa5a24ea38d32904fbca7cc17d8c938f6ef3ef20fd68402a9f1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/derive.py",
+        "sha256": "cfa8e2f215872fe807860af38c6ccf2a70ef510a5517728b176445c5ff3fc1ec"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/native.py",
+        "sha256": "63ac93d33080122defcc9bee1414b7d9569b4bcdc03999f856dd192e7c50bc56"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/__init__.py",
+        "sha256": "a4ab2b4d0973867d2c554105d97df55d26e815aab903ffdb39bbd28783b4555f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/bindings.py",
+        "sha256": "192eb932d8268a5589da03c188afbf8c197d8460bf983743139d8a53831b9519"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/contracts.py",
+        "sha256": "cfb1b9016e0a710b942ca32766809511f44ce51e6867604d7299bda9581dbe28"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/coverage_view.py",
+        "sha256": "e48cd0d5978f2d46a78c35ab373668d99cf7f0ba5b028bfe012cd07e0aa3c78d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/handoff.py",
+        "sha256": "ffda595e080bf35f83f4dc25cbe2164a5f19338fdd5183722bbb2055805ddad6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/identity.py",
+        "sha256": "d08247cc528d6c98e5d79f1470301bdd0664ab31df2fb62fb37be3d3e00e7dbc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/journal.py",
+        "sha256": "3ac9d127d84a20baaf6919414e8c5f81927b05c3d9068d1636d8470f61c69cde"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/readiness.py",
+        "sha256": "e2c7ecc9abb149215b9ce8eee512df1867d129b134cfa144a9b87c06372037d6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/semantics.py",
+        "sha256": "775da7cc365bf1f1dc0d6417458108db07f0cdde7656a2e4746190d314f04b21"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/source_arguments.py",
+        "sha256": "448f0a6492e5ec5f58d9e0a946ff4105ef860cf0df897a0a9fa3e4ea3587be09"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/sources.py",
+        "sha256": "635346ceaa91523b7eda8bf251e7a6e36cbcba90508ae9e892190b3eb72bcd1e"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/store.py",
+        "sha256": "823d00b9b398ff519f58ef1a3632edc7b65c502207b60316bb377bc94f450244"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/validation.py",
+        "sha256": "e912b1fa950be129c79ddeec5468468b3caf4c04100db7f36f803f425ce74919"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/verification.py",
+        "sha256": "c6b52da197f471572dcf25487b031dbf7265d71d250c1f29dbf085e42f106202"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/__init__.py",
+        "sha256": "da00352e857ea3c00be43d72a68e7ff56791cf93af270ba393dc21e40a055cf2"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/audit.py",
+        "sha256": "8bbe1f1680cecc64472bddb50aa482abff013fc3d693198cae590c204c85b195"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/projection.py",
+        "sha256": "295b68dda624c7668645a9bd8be40e0d38f81ca2f2c4347d6ac2719bcd429867"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/receipt.py",
+        "sha256": "8a0123d1e2c4298e9044c653b329a4fde676a58df56c2f6f4003cd89d7304d90"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/runner.py",
+        "sha256": "4112a403d2c181210d98128fb5a11555ff225aa784cdd4f012dbab3e05251b70"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/runtime_identity.py",
+        "sha256": "da4ee52b8922539039494c1b9683ed8e0516ae9ff9c405d64c3cddd164f1415f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/__init__.py",
+        "sha256": "c32d5a563efcc246267014a29f45e86b403bb66d1c8430eca2798a0be559aa33"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/bibliography.py",
+        "sha256": "c677841090399d0c9d7ee45f78a7795ac72c05cc0cc816241576c71d8f3ccfb7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/contracts.py",
+        "sha256": "a5aefce22c1a995b0c7c3c02849766b59f075feecf2dbe27938cd93c94685416"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/report.py",
+        "sha256": "168d6723c501c3a21fc93943257fd37798ff1e3e86d273f409c024fcafe4f720"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/report_evaluation.py",
+        "sha256": "5c00944e5bd098139ff6253f6814a30f667ca28d23a5e87687d07b1cdad74586"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/report_html.py",
+        "sha256": "7b00d12bd36181773cd253661d364e785368d7318d3af8a9007d3e46eac80fed"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/run.py",
+        "sha256": "2b1f6cca7987cda238962a5468b3f3bab15bc5b608cd0e4f596fca958eb07d04"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_common/__init__.py",
+        "sha256": "6c261a9235fde1d951c529990ef0a2bd8d7d6428c9bc84de4b2bfa95a8dc5718"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_common/contract.py",
+        "sha256": "f75ce89e4ea6fc2147e01893b86432a1ddd3ca87763a69fff5c0d9be00bfd064"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_common/prior_work.py",
+        "sha256": "525981a598ec895db5fe55c0280011408e1215e59c6d2262265e67ca1bdb6d64"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/__init__.py",
+        "sha256": "809ab9c804c52a2f7223af2a4bf7989849ea713cbdb267f68131a8afa44dadb4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/diagnostics.py",
+        "sha256": "14480ed525bcf46f14f1973c94636dcb00841dd050fdb5dce9f3a944ba1f03c3"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/evaluation.py",
+        "sha256": "f89289a15c24da9ea32ada266ca3de8b7e94180b023a80739c36bcfc52015755"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/evaluation_v3.py",
+        "sha256": "3d5f417db772a6960197aca4c2db5ce0f4c97df747f408b0d870d0bfdbab37c4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/__init__.py",
+        "sha256": "e866418b0cfb634c41c07a6108a67055c0d0c09c89c7bca67c27bc83821b8d0c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/extraction.py",
+        "sha256": "dea44c0ea8b011bdfaa74d00eee1845d469990d26e00eca00171adaf93562e9c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/integration.py",
+        "sha256": "cd04286984de9c7741a3e9217ccef08c6bf3ab9d62af4db01b5a1ad16123c854"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/prompts.py",
+        "sha256": "2460ec6464b51226167ea8858c32ae1b17a27dc1e92605ade7bf2b195b6ab222"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/report.py",
+        "sha256": "20958875901a09e91d21a9eaf962c82295225142d3f79e7f530bfee0aa58729d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/schema.py",
+        "sha256": "0ca2ded00e80c2ee21244a0b1dff39bdf28be6019b0d062d0c0269e444c741dc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/tables_report.py",
+        "sha256": "c4c9deaff83210ffd47cf033b5fbc6fe2d42a96c61cb78e65c1b46989ece5812"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/topic_tables.py",
+        "sha256": "cf755f0b2c4e03dd5b656703f59906cadda56dbde6b499f71301e34a7a6e2fb4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/__init__.py",
+        "sha256": "35a7ef4faa1f3e0b0b0750add535f284411fd5062410797140f00c812f80f995"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/calibration.py",
+        "sha256": "817edb148abb22889c06e4e5116edf5f242147acd4dca5223e6109c5e7e1e05c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/content_revision.py",
+        "sha256": "638430bf746daa48c481a40708ffdfac2c497b334501039aea8931477c6e9df1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/extraction.py",
+        "sha256": "1fe13d52152309ea4d9159b0418c4ffdddd795a005f74ceed8960588de87616f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/judge_schemas.py",
+        "sha256": "18f7d3fbfdea92fdce1d4b0f8f4ee8a358701ea6be04e31f666c7d317d508e85"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/judges.py",
+        "sha256": "42670670b6686d95684b38c7cab559709fd15548d44e241774d96c48b3298efe"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native.py",
+        "sha256": "2e49d1e310b0c0f0093a313fd097c810dc3b9c59050b6779d31e2fdaf408a704"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native_namespace.py",
+        "sha256": "911838d027fdd4eb7617a288780075356f20c3ff4d2028359bb638ca8f34244c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native_policy.py",
+        "sha256": "9b93bf14217242f4b05d8cb0cd1dbb67e24652a910f85943ad78069f60db51ef"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native_process.py",
+        "sha256": "7612f2a643b702b94919d8f8cc85f1939842656c663e9b1ce55eacbdc76b50d9"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/replay.py",
+        "sha256": "680fd67eb107bca0a09689f344b09638fe1def2400d8f828d81db9b7fb97b362"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/trace_files.py",
+        "sha256": "9ec4c2861779aae2875bd31ef1956d8b3b7b1e8477c1a9445efc12d691ef1a1c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/trace_handles.py",
+        "sha256": "ddb29b93dea2fbf36146903eb78b8c65985c8505b8392fe0711300fcef8bff46"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/trace_seal_io.py",
+        "sha256": "d9c2562063ef3904ed4d97bf37d59b29b1e92641e662b3dff699aa541187f4cd"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/__init__.py",
+        "sha256": "e8002a42d7ee6f89aab1c047935a69dc15b1649e18a5d937a6497294029e3391"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/completion.py",
+        "sha256": "c923b85b7b82b659515f8703b7e12f77ddf415d66e0155a29a4923f7da40ec86"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/content_gate.py",
+        "sha256": "4de8b107e6e6e99697c34302f1bd0c81c0abf7ac2d1ca6f0f02c596d242faf69"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/delivery.py",
+        "sha256": "860388e10a7fd2e95fb1e61a29ea91a5e41d474f5d890012ee8800eb8ab125b1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/evaluation_delivery.py",
+        "sha256": "37002f3dd4e95dd75ad71ca84db78f98378f1fc49b8065cadbe076df87d7aabf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/exploratory.py",
+        "sha256": "39783ba89b45e01b5822f673562fa70d3567dad1418645185be68b590bf4ab57"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/import_stage1.py",
+        "sha256": "c00b5ada6237ca8f1c4f4f621939a29baa3ea9534adb43facb6359c850a35c1f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/orchestration.py",
+        "sha256": "cc6f60f216d03f7e3faf6c7a63a4a2a6ea710fcf275b327de8050ee4b7dfc6a7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/reviews.py",
+        "sha256": "8ca2a07fba4f968138ae47754ee5a0c5f29f90ff832a65c0c4503842e163040a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/revision_provenance.py",
+        "sha256": "18fd1f2b0e6daadfc4ec13a729744a0f0226af26b381e6d88c6bcccfba8141f9"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/store.py",
+        "sha256": "467fd4d4691fdba8e6d89938e5d8f0ee37565ea4bfb3368d36c9d60e8ffbc291"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/browser/project-intake-fixture.py",
+        "sha256": "039326936d63a9bad3c6452ed41bf4c6eeb50de8e1bc3e17032165008b9c2d0a"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/project_delivery_browser_fixture.py",
+        "sha256": "f5085c2a3255766241d1b7088f191a02a85acbea9e90313be6582569a112cfa0"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_model_reading.py",
+        "sha256": "694b54a36ed093b223a8ac57bb6eabec19b5163d3d4c67a2e1bce3b4b7a627e0"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_saved_claims.py",
+        "sha256": "6b34cc63751492eed848ecc56bc965fc17c94ea8e57e20ff7024e290dea884f5"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_source_reading_http.py",
+        "sha256": "6a43791a27c20a4149e5e0f9e562f3070ce2c75d8c0475137174c539870168c4"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_stage1_claims.py",
+        "sha256": "460ac415e62992cc1228c676c7987f531ece2070e27865ada648601e226f7443"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_stage1_delivery.py",
+        "sha256": "1ec879af8768dba05ea3b1d0de187864da3e9c080201e837f087b8b7a056c5d8"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_stage1_records.py",
+        "sha256": "c4d4ac9eca3829111a3396794f9de681f90429c664490287365e43cc11a677b5"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_stage1_coverage.py",
+        "sha256": "38754341c4647b25b9beca6a72ab54b337444416ab3b48302a474bdc345d2dff"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_stage1_deliverable.py",
+        "sha256": "08627088cc5cbc594326714893d514b2db290a589218c327633136dd24db01a7"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_workspace_project_intake.py",
+        "sha256": "14b9ee9faed8bc52879891ff3a66f1b637748ed8ef1cb08f61a634f1e8fb37e1"
+      }
+    ],
+    "scope": "authored-saved-source-engineering-only"
+  },
+  "completion": {
+    "kind": "Stage1DeliveryBrowserFixtureStopped",
+    "project_ref": "project-e9ae6353b5b14c8e9b680bbe081af13b",
+    "input_version": 1,
+    "revision": 12,
+    "brief_sha256": "5dff296df8c0ac8bedcd6a07adc62293dfbfede6c946ce17e67478ebf2b4af60",
+    "readings": 0,
+    "baseline_events": 45,
+    "events": 45,
+    "appended_event_types": [],
+    "original_events_retained": true,
+    "checkpoint": {
+      "event_id": "e000045",
+      "state_sha256": "b6ca7d183d06df749ac940c0be4e255278345cfb82da200324652f05c0dd639a",
+      "stage_result": {
+        "gate": {
+          "blocking_items": [
+            "cluster-incomplete:cluster-2",
+            "cluster-incomplete:cluster-3",
+            "cluster-incomplete:cluster-4",
+            "recent-sweep-incomplete",
+            "closest-work-unverified",
+            "round-still-open",
+            "latest-round-incomplete",
+            "marginal-yield-not-saturated",
+            "coverage-changed-since-round-close"
+          ],
+          "evidence_refs": [
+            {
+              "artifact_id": "artifact-30fd35e52f83bf4a823b25de3346185ecbb7c11e811571fa173568226a4462a7-stage1-plan",
+              "artifact_type": "coverage-input",
+              "created_at": "2026-10-12T01:01:20.570052Z",
+              "kind": "ArtifactRef",
+              "path": "raw/30fd35e52f83bf4a823b25de3346185ecbb7c11e811571fa173568226a4462a7.bin",
+              "producer": "stage1-plan",
+              "schema_version": "1.0.0",
+              "sha256": "30fd35e52f83bf4a823b25de3346185ecbb7c11e811571fa173568226a4462a7"
+            },
+            {
+              "artifact_id": "artifact-0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205-e000012",
+              "artifact_type": "raw-output",
+              "created_at": "2026-10-12T01:01:20.880871Z",
+              "kind": "ArtifactRef",
+              "path": "raw/0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205.bin",
+              "producer": "e000012",
+              "schema_version": "1.0.0",
+              "sha256": "0bafbb47305c1d3500833ef26d17f777cf783eb4c740cba7a7184b9ded3e8205"
+            },
+            {
+              "artifact_id": "artifact-458b57f740f71d60b89a38b136108616999c2842a1ce6f30eea38131d9315f3e-e000031",
+              "artifact_type": "raw-output",
+              "created_at": "2026-10-12T01:01:21.693191Z",
+              "kind": "ArtifactRef",
+              "path": "raw/458b57f740f71d60b89a38b136108616999c2842a1ce6f30eea38131d9315f3e.bin",
+              "producer": "e000031",
+              "schema_version": "1.0.0",
+              "sha256": "458b57f740f71d60b89a38b136108616999c2842a1ce6f30eea38131d9315f3e"
+            }
+          ],
+          "gate_name": "stage1-coverage-readiness",
+          "kind": "GateResult",
+          "outcome": "review-required",
+          "reasons": [
+            "cluster-incomplete:cluster-2",
+            "cluster-incomplete:cluster-3",
+            "cluster-incomplete:cluster-4",
+            "recent-sweep-incomplete",
+            "closest-work-unverified",
+            "round-still-open",
+            "latest-round-incomplete",
+            "marginal-yield-not-saturated",
+            "coverage-changed-since-round-close"
+          ],
+          "schema_version": "1.0.0"
+        },
+        "kind": "StageResult",
+        "metrics": {
+          "backend_attempts": 2,
+          "backend_failures": 0,
+          "candidate_revisions": 2,
+          "claims": 2,
+          "decisions": 4,
+          "discoveries": 2,
+          "queries": 2,
+          "success_empty": 0,
+          "works": 2
+        },
+        "next_allowed_action": "continue",
+        "outputs": [
+          {
+            "artifact_id": "artifact-dda65257b2b57b3a4bc7df5f07eb358dedae2a30588b7ff9d120b0aae58bffd1-stage1-checkpoint",
+            "artifact_type": "checkpoint-output",
+            "created_at": "2026-10-12T01:01:22.241302Z",
+            "kind": "ArtifactRef",
+            "path": "raw/dda65257b2b57b3a4bc7df5f07eb358dedae2a30588b7ff9d120b0aae58bffd1.bin",
+            "producer": "stage1-checkpoint",
+            "schema_version": "1.0.0",
+            "sha256": "dda65257b2b57b3a4bc7df5f07eb358dedae2a30588b7ff9d120b0aae58bffd1"
+          },
+          {
+            "artifact_id": "artifact-f208f902d4c9c3495006c8bda266091fa91c29395386fb4f9ed722e8e1d5ab57-stage1-checkpoint",
+            "artifact_type": "checkpoint-output",
+            "created_at": "2026-10-12T01:01:22.267296Z",
+            "kind": "ArtifactRef",
+            "path": "raw/f208f902d4c9c3495006c8bda266091fa91c29395386fb4f9ed722e8e1d5ab57.bin",
+            "producer": "stage1-checkpoint",
+            "schema_version": "1.0.0",
+            "sha256": "f208f902d4c9c3495006c8bda266091fa91c29395386fb4f9ed722e8e1d5ab57"
+          },
+          {
+            "artifact_id": "artifact-688158355a12cf5e504181934eb08d8fc2ac3dd892f924636ed3a44dada4fab4-stage1-checkpoint",
+            "artifact_type": "checkpoint-output",
+            "created_at": "2026-10-12T01:01:22.292339Z",
+            "kind": "ArtifactRef",
+            "path": "raw/688158355a12cf5e504181934eb08d8fc2ac3dd892f924636ed3a44dada4fab4.bin",
+            "producer": "stage1-checkpoint",
+            "schema_version": "1.0.0",
+            "sha256": "688158355a12cf5e504181934eb08d8fc2ac3dd892f924636ed3a44dada4fab4"
+          },
+          {
+            "artifact_id": "artifact-f26b1569df27b44035e47708cd84367171fcd3d6a312dc2587ef1b4d6d8ad1b6-stage1-checkpoint",
+            "artifact_type": "checkpoint-output",
+            "created_at": "2026-10-12T01:01:22.318909Z",
+            "kind": "ArtifactRef",
+            "path": "raw/f26b1569df27b44035e47708cd84367171fcd3d6a312dc2587ef1b4d6d8ad1b6.bin",
+            "producer": "stage1-checkpoint",
+            "schema_version": "1.0.0",
+            "sha256": "f26b1569df27b44035e47708cd84367171fcd3d6a312dc2587ef1b4d6d8ad1b6"
+          }
+        ],
+        "schema_version": "1.0.0",
+        "stage_run_id": "stage1",
+        "status": "running",
+        "validator_report": {
+          "artifact_id": "artifact-67b64617338aeec55d5f7f7899e3b3c06a405900dba81da7abfbcf8fe453f4bd-stage1-validator",
+          "artifact_type": "validator-report",
+          "created_at": "2026-10-12T01:01:22.207662Z",
+          "kind": "ArtifactRef",
+          "path": "raw/67b64617338aeec55d5f7f7899e3b3c06a405900dba81da7abfbcf8fe453f4bd.bin",
+          "producer": "stage1-validator",
+          "schema_version": "1.0.0",
+          "sha256": "67b64617338aeec55d5f7f7899e3b3c06a405900dba81da7abfbcf8fe453f4bd"
+        }
+      },
+      "current": true
+    },
+    "canonical_package": null,
+    "atlas": null,
+    "stage1_complete": false,
+    "scientific_quality_scored": false,
+    "native_calls": 0,
+    "model_calls": 0,
+    "search_calls": 0,
+    "lease_expired": false,
+    "source_inventory": [
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/__init__.py",
+        "sha256": "2ac0caea51d93df39e45b86f2f749a65a136173f4635e2da54bda28011b5dd07"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/atlas.py",
+        "sha256": "47931ae5f82bb96b99ec12fcb7cbf5fea8d480dd2cf15a19da8041eb2fe27a51"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/atlas_model.py",
+        "sha256": "40491ca12bf9d103dd3900f3851130b1162c29e0f5571694a07d256c197da131"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/body_completeness.py",
+        "sha256": "e182b18373e7b1c743e8f4938789ed4a178003143bfde69b47964eb87740a9a7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py",
+        "sha256": "e55e1ca98203c7c3f863eeb17b89724f27ed055c69a2c72999b9b5a5775e8e01"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/json_bytes.py",
+        "sha256": "67570526c61982cd0174319485fb7705029436ec31feb154ca6a0a10c3c14ded"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/literature_selection.py",
+        "sha256": "8de33befa8dca0458d3c7e51bdb67f1fecc11c80e5f2c5cda726c8718eed2108"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/projection.py",
+        "sha256": "4a6678bac05450617e35eae039aa8826dff369aac78b7a0f6bf6c0527b680646"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/stages.py",
+        "sha256": "74e689a590131c74e6dcc396dd0c3e472e3e45a733a7bec85b76c231150329b8"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace/whole_source_review.py",
+        "sha256": "a9dab8e3b233dd01f7909203bdb180bfe4aa0768d6e4e5ad90951d5e0f4fde57"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/__init__.py",
+        "sha256": "0a2a4a395391a3c7fd16d97cd3ff9c9d0435a67168edc18f1628ab1e05386ccf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/acquired_source_parser.py",
+        "sha256": "be0af3f5f2e2fd09db7d6ced73a098161363dd0702f5d4d3d82f217ec2e75104"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/atlas_host.py",
+        "sha256": "b050c7e1147f734b7d8dd2e13dd8c48242109f38c0d5bd9c0d90645efe91ac75"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py",
+        "sha256": "7e09e7f3be5ee894863959d8774c2b0e39de11f4e164088933fb738aadaefef4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/bootstrap.py",
+        "sha256": "f5774d74a038a6a6f4e32dd497486843a855b7fbe4bd3fa122b160057d9a2b37"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/bootstrap_context.py",
+        "sha256": "592c95288cdf26ac6c544555fb5b70e48b7e8065096ca04b77d5a0b02474f291"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/bounded_public_source.py",
+        "sha256": "23adca3ef99a387ff240d37ccd5e30ee34b30af016c15438bae7f7a6bb3c556f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/codex_probe.py",
+        "sha256": "f2d560349cc4dda0dd8c2196caff3b341d8a5a849a833625081515bfe3724f6c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/construction.py",
+        "sha256": "dd71214b84c77fbe40b1d95773386e353c2cda2d6a902ce4e7d7461691858ea6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/controller.py",
+        "sha256": "43cd82e02b71f935ab02abb146e201b60645c8f2e1bb462f26220b47a1dbbf73"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/frame_journal.py",
+        "sha256": "2bd95cd9688ce24a35dab85c3a90f47fe2becb877ad99a52b7405b6413d7d4bf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/harness_host.py",
+        "sha256": "5a673003ab4ab12c05d7c0d9d740420b26a5d53d720e9a6e0f5e6e877e233418"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/harness_ops.py",
+        "sha256": "fcbd3b63a8bc9889e44109b49bfe411fa66784b5233ea4b7dfd987c773cd780f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/http.py",
+        "sha256": "20c908a7096e66ba3ef8ad8add7a2dcf5349dbc621e124ecd27f37b7a230d817"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/journal.py",
+        "sha256": "4cccced1cb86c5efb3a2dfff5d110acdd37a39f6f6be3b7413dc7d0b61000fd6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/planned_queries.py",
+        "sha256": "1944471dcf0cd76aab6b7bf6aecb6c8b02c761d64c5594cf886d280c60c04669"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/planned_query_contract.py",
+        "sha256": "366f9a93136e023d2332619f44019413dda58ab1ac8991f5ce7e078cd458408c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/process_channel.py",
+        "sha256": "52341ff439f1c90298ff288db593bfa7e2542fbb4212e8deb06dd60fbf2f408b"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/process_deadline.py",
+        "sha256": "5302fc30f63b8d35bdc9f18173c043c6fff2bf863d90457511644a26c0867ee2"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_atlas_shell.py",
+        "sha256": "ad8f62c96f88043610c5970db914bfe6202abe0ea861630234ec1a56b25dadb8"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_contract.py",
+        "sha256": "d50633f9d5d27002a4410a54f43c5433735ed6f87cf9caa5f99d00852a69dbc0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+        "sha256": "d0c3a92e55d378a97519f054cbafcf8bb23d0bcde101820c57f99b8aeb331782"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_intake.py",
+        "sha256": "5ab55a6c7f0fb8659cf94660dedfc0132767d348edc9cc84a2767ef2c40d3100"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py",
+        "sha256": "1ee298df48c412690fefab8e52a6fdf65728f3e017a1b3ccf809e920e7e9d84e"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model.py",
+        "sha256": "f45195e6427338b87b4d8dfcc12d0abe15935537b2457001e8b829f58181f163"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model_factory.py",
+        "sha256": "2ad9a7655bef635af33c582d58ded9592bc1e4057932b79e70e7b98137ed61c3"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model_reading.py",
+        "sha256": "f1d1a64f82521f3c3ebbbe5be1ba5a765dbfbfae94c43b794ed8332d4a5910b7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_model_recovery.py",
+        "sha256": "1ca256481da5a59cbb96bddfd5883d7e8021895482c5147c910751cc57b7fdec"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_query_history.py",
+        "sha256": "3bb0df17148240044d89ba935a21c44badf18613a3a948323174918b94d76cd4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_reading_review.py",
+        "sha256": "e62efb279d49a0129fe7b5eb4b149a83dc87be8e7e4c9d2f8aec067b693c65a2"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_records_prepare.py",
+        "sha256": "18f34e988ea7235839c51940db496685392596b8c2e03f90beb9c8d6f69f3881"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_records_recovery.py",
+        "sha256": "f90ac4fa01d3ae9e83c2f5d89b5a0dc1e151723df1f5e317c575d12e5e228929"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_resource_budget.py",
+        "sha256": "9ae8329fb4d5c17a432eda39e299d1a35ca499818f274dc2f70cd06353b93142"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_saved_claims.py",
+        "sha256": "6e1bffbc5e7dae0a756011df241d2f0603e3af7e1619a72ffd9e0d71c9b2bc7f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_source_dispatcher.py",
+        "sha256": "429e8f21857b4ebc029fb07e794ff78df6c4ef3b5fc348e94d917e86360b9722"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_source_permit.py",
+        "sha256": "f6fcbce840b24092d2d2df7ba4ba31e92ec9d3af862ea2198cc4c049d9a10983"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1.py",
+        "sha256": "803eeca30b47a6a17c612f4045b61478aba4c8c82d4c68a6c2e7dba7c0d97d36"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_atlas.py",
+        "sha256": "1bbf26a46c70cc10a1c8d7c11d3739fee6f4460a076707790e49cdba6c694c98"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_claims.py",
+        "sha256": "09208b0a076f5df3e42d14c3e044fab5397a2f3aaf37811183ffad04dbb2061a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_coverage.py",
+        "sha256": "3e951c179e4a2c4934182ba51848c942c0114688441c80733d067ad4fc5ee565"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py",
+        "sha256": "226299ef0cb414407876198a31f721925dda118e43c3748b8469b41586837ffa"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library.py",
+        "sha256": "32e11d98984e4c2eb8a5074f91199452741809592c6504e09fbc85b7e35dd88f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library_http.py",
+        "sha256": "ee5bbba8e2ac70c36f11856e5eb58d2271a681884a3c1f7f08fa2fb8a19ed21a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_progress.py",
+        "sha256": "4d8d93a0f597476fbaa0c5b225c844ea5ebd8d8a4e9e4c9086c3adb50349d01e"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py",
+        "sha256": "058a5366b027d94ac41ab8c68466331161ef0420062090d7eaaf728dd0613e38"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_saved_import.py",
+        "sha256": "914c3955073c0d58c81f4151106f79c9ea7baaf8f4b2ba95dae2089abb5d9aaf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_http.py",
+        "sha256": "bf45a21afb4d3f14afbea37d23f07f6448138d591e3865cc55676095d565cd16"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_service.py",
+        "sha256": "293adfcd5049638d6bb49142df72ee4ad70223c035fbd358f1fc80d1a1d6f51f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_sources.py",
+        "sha256": "16e29779c467533074bbd6c06307c9442e9937ac56857360d4b3f75ae6531d9a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage2_context.py",
+        "sha256": "9279925eea047201535dd8774232fa76315d4d2155028ae353fbbb28d22fa952"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/project_ui_overlay.py",
+        "sha256": "0ed5402d2b6b0399b5f7563f7f72807da8e1e8be21c61306a4e8eb074ba594fa"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/query_execution_source.py",
+        "sha256": "1aa297e3bda6f0682011a2946ffbd3e6793fc4532190b6d38e1cc9264ea58716"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/query_http.py",
+        "sha256": "1311573c4a88fb280aa3a8005a5f88d04d428513a7c79702c7ec295d1dfb17c0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/query_storage.py",
+        "sha256": "af873d8e1206013a667bdb7f2c30508c5c5db27cb41abbe562f1b2c7fad538b1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/recording.py",
+        "sha256": "1c26be483fdf3f8a9301b39e5efa83ddccc6bf27e20b573420f197c8e599b6cc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/runtime_factory.py",
+        "sha256": "6b8f1cf93dd57b384a0e61bfdfcb32c48c68e8ca5250dbd485464d9670f8d67d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/runtime_spec.py",
+        "sha256": "0e927959223ef12acef5775d6d3ed23403de2bbb5847209639636ad71d56b581"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/scope_api.py",
+        "sha256": "8a4035fd040b0ad1c3b9364eef34e52fe80779762e3481aa0acf8b80064cab0d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/scope_http.py",
+        "sha256": "eb8a63b9b4e187deb5e238721c6db700fc3bf533a21f8d06d1842e3ce539013d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/server_owner.py",
+        "sha256": "2418121ae9cf43a2010bb7570209ea1b4e702bc87cf59c80179580aa404dca64"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/session_api.py",
+        "sha256": "9b21cefe0b01c511b5d0310d390e993e3935bfb4f97514674908f6575e0e8599"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_actions.py",
+        "sha256": "34bda8d576fc5e5aab321c7fe81a0ff3e300be77728545dcc79aa3651f904143"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_http.py",
+        "sha256": "b305a40e9f31c1bba3c38e0bdd999e72191847d03874ecb1de5f1584e308da44"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_inputs.py",
+        "sha256": "cb672c154b0f42522f81c38ccb06b77c0930b51b36eed95b01e3a98d4ea10521"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_model.py",
+        "sha256": "660e7dfd32fe9ac1a6d6a8fdb537fd4c6c38bcf125698119ba58a7d47a5a6242"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/stage_run_service.py",
+        "sha256": "c63ea5221f2f47d39c0a6081d762cb600117d734781dad93a35b93b4d4670b98"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/store.py",
+        "sha256": "9abae1c2d8b91d2c7d96a4923b9ae90e17e6a1817e9fac730c530b41190035e5"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/transcript.py",
+        "sha256": "1c5846a1996079138bb7e2321faa49d61af52395a14c00d6e6346cfbc3e900eb"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/transport.py",
+        "sha256": "363d0b1a55ad11cb7497a8c3af70498064c003da3910a2e00d1f436611255cf1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/wiki_http.py",
+        "sha256": "600f06e9fd011c31a097ac9ee51e8864b57b4964d9ef69b2e15374f73a6b0b43"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/research_workspace_native/write_observation.py",
+        "sha256": "422a47e5c03fa600dfb997c189c500a099a9b571b4060229565c326206cc79a0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_brief/__init__.py",
+        "sha256": "9b2d9ce43164abeb466a1917edc472e4b685bfd0e47da65a1e58fa2d380ebca7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_brief/brief.py",
+        "sha256": "c10c39db766811519c30024b67fe0341ad11edcc17a6d075d44e6d6c3aad12ae"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_brief/formal_target.py",
+        "sha256": "b404319b3291eef6fe6f20c03f637d8d8cb7f9323d8f3ae466eb10640206b137"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/__init__.py",
+        "sha256": "f65a124973b51fad921c0140d2ba63189d9014c780d63cae64c979ce23ea17c6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/evidence.py",
+        "sha256": "4239ecf4be4f768e843c718a2a861a0abd4f55ccc7bc367cd6decfed95280cb5"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/plan.py",
+        "sha256": "34237e282acc5222adce4345eb30e95f81eecae322ce1e6b4822124efff2ff48"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/policy.py",
+        "sha256": "10548f928a362b624419917302a93f83389c8aa4a1e1def9589c3fe733fb847f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/rounds.py",
+        "sha256": "b81202a2c71799fba5e1f4b5fd4c1232c1ba58d1c773b2d4fd38f6ecf50bf68b"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_coverage/run.py",
+        "sha256": "a353800122f562e2e63df9ec5afa37b1efe0a1e09aafc7f2dce6dfaf17781cea"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/__init__.py",
+        "sha256": "0c48dc4eef341d65ed77136dee64853f148a5172f59fd4861b72042d6c38edae"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/common.py",
+        "sha256": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/core_records.py",
+        "sha256": "0b665fa722d71940398775956c0309b74ad68ed90a0c2ee02581a46bcdfdd94b"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/package.py",
+        "sha256": "f44d278ba54ab63c7fba4be351d4610c2e685b629920a30052e5fb4767d88f17"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/records.py",
+        "sha256": "7fac34d8455d8d5f02b06f43defea20f8cce13ed3734777d579f2713b64d66b6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/screening_records.py",
+        "sha256": "056ab24a18e3a9e2eb6ece7245613eaf55f3b0e4649ba12ca2f9e6960a0c5fb7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/sources.py",
+        "sha256": "c6acdfa67ee96ef70f75c55895c5a546447218eb860ceb5e9339a235452eb754"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_deliverable/views.py",
+        "sha256": "7a39923144f115a7b3b384623e129b313371be7f2e9e21009f43b4e1d1700588"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/__init__.py",
+        "sha256": "4d681984bdebedbb343df8f87e0acc4aeb4c241390545b976ef1a283581d68b0"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/common.py",
+        "sha256": "1fbeb680a80fa7e96499fd16fedc52ad1f85b4b7fdc08343fbafe7a7ce0ca1a8"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/model.py",
+        "sha256": "eb49a1e4aba592a3b86278952048cc8cd78d73205aa3d1670341a304a19b659d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/model_calls.py",
+        "sha256": "9f0d3cc1b2d3bef382957e95e1443556e4f422a2ea1973f1740fb1eee1ec916f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_eval/runtime.py",
+        "sha256": "df9102a49a96e3f4817be940fbc09b3b9ed57eb3fccfc9872884de8f60a53423"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/__init__.py",
+        "sha256": "4686dd3cf1e3528d45c2ca8a4fc0f735a93abb4c3d5fffb68b699077baf140dc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/bundle.py",
+        "sha256": "9c798be23a7181ca40844425af71444a42f83397a3ef9bcb9d85411077fea694"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/contracts.py",
+        "sha256": "28c9e0ca7cb6efa5a24ea38d32904fbca7cc17d8c938f6ef3ef20fd68402a9f1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/derive.py",
+        "sha256": "cfa8e2f215872fe807860af38c6ccf2a70ef510a5517728b176445c5ff3fc1ec"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_export/native.py",
+        "sha256": "63ac93d33080122defcc9bee1414b7d9569b4bcdc03999f856dd192e7c50bc56"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/__init__.py",
+        "sha256": "a4ab2b4d0973867d2c554105d97df55d26e815aab903ffdb39bbd28783b4555f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/bindings.py",
+        "sha256": "192eb932d8268a5589da03c188afbf8c197d8460bf983743139d8a53831b9519"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/contracts.py",
+        "sha256": "cfb1b9016e0a710b942ca32766809511f44ce51e6867604d7299bda9581dbe28"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/coverage_view.py",
+        "sha256": "e48cd0d5978f2d46a78c35ab373668d99cf7f0ba5b028bfe012cd07e0aa3c78d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/handoff.py",
+        "sha256": "ffda595e080bf35f83f4dc25cbe2164a5f19338fdd5183722bbb2055805ddad6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/identity.py",
+        "sha256": "d08247cc528d6c98e5d79f1470301bdd0664ab31df2fb62fb37be3d3e00e7dbc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/journal.py",
+        "sha256": "3ac9d127d84a20baaf6919414e8c5f81927b05c3d9068d1636d8470f61c69cde"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/readiness.py",
+        "sha256": "e2c7ecc9abb149215b9ce8eee512df1867d129b134cfa144a9b87c06372037d6"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/semantics.py",
+        "sha256": "775da7cc365bf1f1dc0d6417458108db07f0cdde7656a2e4746190d314f04b21"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/source_arguments.py",
+        "sha256": "448f0a6492e5ec5f58d9e0a946ff4105ef860cf0df897a0a9fa3e4ea3587be09"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/sources.py",
+        "sha256": "635346ceaa91523b7eda8bf251e7a6e36cbcba90508ae9e892190b3eb72bcd1e"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/store.py",
+        "sha256": "823d00b9b398ff519f58ef1a3632edc7b65c502207b60316bb377bc94f450244"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/validation.py",
+        "sha256": "e912b1fa950be129c79ddeec5468468b3caf4c04100db7f36f803f425ce74919"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_ledger/verification.py",
+        "sha256": "c6b52da197f471572dcf25487b031dbf7265d71d250c1f29dbf085e42f106202"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/__init__.py",
+        "sha256": "da00352e857ea3c00be43d72a68e7ff56791cf93af270ba393dc21e40a055cf2"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/audit.py",
+        "sha256": "8bbe1f1680cecc64472bddb50aa482abff013fc3d693198cae590c204c85b195"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/projection.py",
+        "sha256": "295b68dda624c7668645a9bd8be40e0d38f81ca2f2c4347d6ac2719bcd429867"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/receipt.py",
+        "sha256": "8a0123d1e2c4298e9044c653b329a4fde676a58df56c2f6f4003cd89d7304d90"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/runner.py",
+        "sha256": "4112a403d2c181210d98128fb5a11555ff225aa784cdd4f012dbab3e05251b70"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage1_retrieval/runtime_identity.py",
+        "sha256": "da4ee52b8922539039494c1b9683ed8e0516ae9ff9c405d64c3cddd164f1415f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/__init__.py",
+        "sha256": "c32d5a563efcc246267014a29f45e86b403bb66d1c8430eca2798a0be559aa33"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/bibliography.py",
+        "sha256": "c677841090399d0c9d7ee45f78a7795ac72c05cc0cc816241576c71d8f3ccfb7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/contracts.py",
+        "sha256": "a5aefce22c1a995b0c7c3c02849766b59f075feecf2dbe27938cd93c94685416"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/report.py",
+        "sha256": "168d6723c501c3a21fc93943257fd37798ff1e3e86d273f409c024fcafe4f720"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/report_evaluation.py",
+        "sha256": "5c00944e5bd098139ff6253f6814a30f667ca28d23a5e87687d07b1cdad74586"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/report_html.py",
+        "sha256": "7b00d12bd36181773cd253661d364e785368d7318d3af8a9007d3e46eac80fed"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_check/run.py",
+        "sha256": "2b1f6cca7987cda238962a5468b3f3bab15bc5b608cd0e4f596fca958eb07d04"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_common/__init__.py",
+        "sha256": "6c261a9235fde1d951c529990ef0a2bd8d7d6428c9bc84de4b2bfa95a8dc5718"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_common/contract.py",
+        "sha256": "f75ce89e4ea6fc2147e01893b86432a1ddd3ca87763a69fff5c0d9be00bfd064"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_common/prior_work.py",
+        "sha256": "525981a598ec895db5fe55c0280011408e1215e59c6d2262265e67ca1bdb6d64"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/__init__.py",
+        "sha256": "809ab9c804c52a2f7223af2a4bf7989849ea713cbdb267f68131a8afa44dadb4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/diagnostics.py",
+        "sha256": "14480ed525bcf46f14f1973c94636dcb00841dd050fdb5dce9f3a944ba1f03c3"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/evaluation.py",
+        "sha256": "f89289a15c24da9ea32ada266ca3de8b7e94180b023a80739c36bcfc52015755"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_eval/evaluation_v3.py",
+        "sha256": "3d5f417db772a6960197aca4c2db5ce0f4c97df747f408b0d870d0bfdbab37c4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/__init__.py",
+        "sha256": "e866418b0cfb634c41c07a6108a67055c0d0c09c89c7bca67c27bc83821b8d0c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/extraction.py",
+        "sha256": "dea44c0ea8b011bdfaa74d00eee1845d469990d26e00eca00171adaf93562e9c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/integration.py",
+        "sha256": "cd04286984de9c7741a3e9217ccef08c6bf3ab9d62af4db01b5a1ad16123c854"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/prompts.py",
+        "sha256": "2460ec6464b51226167ea8858c32ae1b17a27dc1e92605ade7bf2b195b6ab222"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/report.py",
+        "sha256": "20958875901a09e91d21a9eaf962c82295225142d3f79e7f530bfee0aa58729d"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/schema.py",
+        "sha256": "0ca2ded00e80c2ee21244a0b1dff39bdf28be6019b0d062d0c0269e444c741dc"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/tables_report.py",
+        "sha256": "c4c9deaff83210ffd47cf033b5fbc6fe2d42a96c61cb78e65c1b46989ece5812"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_ideation/topic_tables.py",
+        "sha256": "cf755f0b2c4e03dd5b656703f59906cadda56dbde6b499f71301e34a7a6e2fb4"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/__init__.py",
+        "sha256": "35a7ef4faa1f3e0b0b0750add535f284411fd5062410797140f00c812f80f995"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/calibration.py",
+        "sha256": "817edb148abb22889c06e4e5116edf5f242147acd4dca5223e6109c5e7e1e05c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/content_revision.py",
+        "sha256": "638430bf746daa48c481a40708ffdfac2c497b334501039aea8931477c6e9df1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/extraction.py",
+        "sha256": "1fe13d52152309ea4d9159b0418c4ffdddd795a005f74ceed8960588de87616f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/judge_schemas.py",
+        "sha256": "18f7d3fbfdea92fdce1d4b0f8f4ee8a358701ea6be04e31f666c7d317d508e85"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/judges.py",
+        "sha256": "42670670b6686d95684b38c7cab559709fd15548d44e241774d96c48b3298efe"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native.py",
+        "sha256": "2e49d1e310b0c0f0093a313fd097c810dc3b9c59050b6779d31e2fdaf408a704"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native_namespace.py",
+        "sha256": "911838d027fdd4eb7617a288780075356f20c3ff4d2028359bb638ca8f34244c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native_policy.py",
+        "sha256": "9b93bf14217242f4b05d8cb0cd1dbb67e24652a910f85943ad78069f60db51ef"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/native_process.py",
+        "sha256": "7612f2a643b702b94919d8f8cc85f1939842656c663e9b1ce55eacbdc76b50d9"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/replay.py",
+        "sha256": "680fd67eb107bca0a09689f344b09638fe1def2400d8f828d81db9b7fb97b362"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/trace_files.py",
+        "sha256": "9ec4c2861779aae2875bd31ef1956d8b3b7b1e8477c1a9445efc12d691ef1a1c"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/trace_handles.py",
+        "sha256": "ddb29b93dea2fbf36146903eb78b8c65985c8505b8392fe0711300fcef8bff46"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_live/trace_seal_io.py",
+        "sha256": "d9c2562063ef3904ed4d97bf37d59b29b1e92641e662b3dff699aa541187f4cd"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/__init__.py",
+        "sha256": "e8002a42d7ee6f89aab1c047935a69dc15b1649e18a5d937a6497294029e3391"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/completion.py",
+        "sha256": "c923b85b7b82b659515f8703b7e12f77ddf415d66e0155a29a4923f7da40ec86"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/content_gate.py",
+        "sha256": "4de8b107e6e6e99697c34302f1bd0c81c0abf7ac2d1ca6f0f02c596d242faf69"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/delivery.py",
+        "sha256": "860388e10a7fd2e95fb1e61a29ea91a5e41d474f5d890012ee8800eb8ab125b1"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/evaluation_delivery.py",
+        "sha256": "37002f3dd4e95dd75ad71ca84db78f98378f1fc49b8065cadbe076df87d7aabf"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/exploratory.py",
+        "sha256": "39783ba89b45e01b5822f673562fa70d3567dad1418645185be68b590bf4ab57"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/import_stage1.py",
+        "sha256": "c00b5ada6237ca8f1c4f4f621939a29baa3ea9534adb43facb6359c850a35c1f"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/orchestration.py",
+        "sha256": "cc6f60f216d03f7e3faf6c7a63a4a2a6ea710fcf275b327de8050ee4b7dfc6a7"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/reviews.py",
+        "sha256": "8ca2a07fba4f968138ae47754ee5a0c5f29f90ff832a65c0c4503842e163040a"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/revision_provenance.py",
+        "sha256": "18fd1f2b0e6daadfc4ec13a729744a0f0226af26b381e6d88c6bcccfba8141f9"
+      },
+      {
+        "path": "plugins/auto-research-agent/cli/stage2_workflow/store.py",
+        "sha256": "467fd4d4691fdba8e6d89938e5d8f0ee37565ea4bfb3368d36c9d60e8ffbc291"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/browser/project-intake-fixture.py",
+        "sha256": "039326936d63a9bad3c6452ed41bf4c6eeb50de8e1bc3e17032165008b9c2d0a"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/project_delivery_browser_fixture.py",
+        "sha256": "f5085c2a3255766241d1b7088f191a02a85acbea9e90313be6582569a112cfa0"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_model_reading.py",
+        "sha256": "694b54a36ed093b223a8ac57bb6eabec19b5163d3d4c67a2e1bce3b4b7a627e0"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_saved_claims.py",
+        "sha256": "6b34cc63751492eed848ecc56bc965fc17c94ea8e57e20ff7024e290dea884f5"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_source_reading_http.py",
+        "sha256": "6a43791a27c20a4149e5e0f9e562f3070ce2c75d8c0475137174c539870168c4"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_stage1_claims.py",
+        "sha256": "460ac415e62992cc1228c676c7987f531ece2070e27865ada648601e226f7443"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_stage1_delivery.py",
+        "sha256": "1ec879af8768dba05ea3b1d0de187864da3e9c080201e837f087b8b7a056c5d8"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_project_stage1_records.py",
+        "sha256": "c4d4ac9eca3829111a3396794f9de681f90429c664490287365e43cc11a677b5"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_stage1_coverage.py",
+        "sha256": "38754341c4647b25b9beca6a72ab54b337444416ab3b48302a474bdc345d2dff"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_stage1_deliverable.py",
+        "sha256": "08627088cc5cbc594326714893d514b2db290a589218c327633136dd24db01a7"
+      },
+      {
+        "path": "plugins/auto-research-agent/tests/test_workspace_project_intake.py",
+        "sha256": "14b9ee9faed8bc52879891ff3a66f1b637748ed8ef1cb08f61a634f1e8fb37e1"
+      }
+    ],
+    "cleanup_complete": true,
+    "failure": null
+  },
+  "fixture_exit": 0,
+  "stderr": "",
+  "scope": "library-rendering-only; source runner descriptor and six status scenarios are authored UI overlays; no backend reacquisition proof",
+  "driver_sha256": "03418a361275b3d98e4a884e1aa87e2bdb3611203607e53fca6bdea6d6912673"
+}

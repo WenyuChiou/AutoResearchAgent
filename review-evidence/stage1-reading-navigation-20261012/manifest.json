@@ -1,0 +1,224 @@
+{
+  "kind": "Stage1ReadingNavigationEvidence.v1",
+  "parent": "2374983c346d82ee3afb698f6022d2f22bc9309e",
+  "base": "3bc2214c4bc96b363cf9758fb1c084883b77db0d",
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/README.md": "c0d093099891cfb7621e1cb218fdf13964e5399658446689cf1e57c59975b2e7",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "fb922c5734ebc96e135f5adaa83686fe2464b4e5fb174149b982a8b4b4270d4b",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "3dd1525af22ece6e43646b02d4b9e57e91ff1fa2e2b14815b098a0e9375fdd2d",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_progress.py": "599c885ec042409246c9421f5687aab0af20b98beb8963aecf8517d2958889ea",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "2a8f77aa71cff88eef2662a643bfbb13b986ecad18523dda94d2b6da3e1d5e05",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-library.js": "10e3dc4cbb17e14485321b36d122b6fbd114137433130c2741fea1cab70d78aa",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects-progress.js": "a00dd2855f0b05eb7084d04713d89208bdad8a1ec9e732e39583a58d7b44b4d1",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "9c262b588f5c67272f2af9c8560b24fe254098c88d3a5eae2081ffc0f9778416",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "44253c66bfa2a78b5e3c17ccb822b17514528e148290b3b5fa7d834edfa44830",
+    "plugins/auto-research-agent/tests/browser/project-delivery-flow-test.cjs": "984513a90f84488591e74ed4f5c4d434466fea3694e8af54eb8d65a6774c46dd",
+    "plugins/auto-research-agent/tests/project_saved_record_owner_cases.py": "442d6b0e54ad4d8b4ae7844330bf6a47e47135e9fb4c85162e6f2b45fe64dada",
+    "plugins/auto-research-agent/tests/test_project_progress_browser.cjs": "5f15c0401ad71eac2ce842f673504ff680170dda8e57faf86c3f8577c37ed1c8",
+    "plugins/auto-research-agent/tests/test_project_query_panel_browser.cjs": "08305d663980dc2202ee5f408f7fc6bffd321cdbe9f6440aa51fecd21afb0d86",
+    "plugins/auto-research-agent/tests/test_project_stage1_progress.py": "f5ce26e6539434a7429326d4b656959d7e4f00bbf4df29b78c1195cfe3b5a0fd",
+    "plugins/auto-research-agent/tests/browser/project-library-source-test.cjs": "2639cd1accfe07b086c01b91d7c3029200c7aada53c28c4ac988e16a0ef886fe",
+    "plugins/auto-research-agent/tests/test_project_reading_registration.py": "51a143efaab79914d06aad67a5067bcf12f73a3a589999c37133c3545727a470"
+  },
+  "original_renderer_unchanged": [
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-associations.js",
+      "sha256": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v1.md",
+      "sha256": "360ec66744a32f1b85baf75d0c9955642b4d9fb7510381018b0149ee1ca49cf0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v2.md",
+      "sha256": "f4342b51f8482d747ebd58b62a36bbeb6c86097d05109cc31bed23252d0787e2"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v3.md",
+      "sha256": "15abb6215c57f3dceb41ee82c7a2a653b179e54a419f6ffebd5f060e8d0bed5c"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-model.js",
+      "sha256": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js",
+      "sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js",
+      "sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+      "sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
+      "sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
+      "sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js",
+      "sha256": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-LICENSE.txt",
+      "sha256": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/THIRD_PARTY_LICENSES.txt",
+      "sha256": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/vendor-lock.json",
+      "sha256": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa"
+    }
+  ],
+  "frozen_sha256": {
+    "plugins/auto-research-agent/evals/capability-metric-map.v1.json": "b75122de16fe93317958c5d81ab29310a9185103c03eaf2ea22202b7cfa00598",
+    "plugins/auto-research-agent/evals/capability-metric-map.stage2-v2.json": "9c8220270498454bb4b4b4d3dde32ee61151783edf2126189ec9959e313b12e7",
+    "plugins/auto-research-agent/evals/capability-metric-map.stage2-v3.json": "09971b6456a79b07edeb68d07a4b910666c6402b99973584a525282b9de3ba98"
+  },
+  "core334_unchanged": [
+    "plugins/auto-research-agent/cli/stage2_live/controller.py",
+    "plugins/auto-research-agent/cli/stage2_live/review_models.py",
+    "plugins/auto-research-agent/evals/capability-metric-map.stage2-v3.json",
+    "plugins/auto-research-agent/tests/test_stage2_live_review_models.py"
+  ],
+  "logs": {
+    "reading-registration-focused-first.txt": {
+      "original_sha256": "e4bbfa1569f100177da4536bbf0aaa257fe146cae15136ed67f0721253020e6b",
+      "published_sha256": "e4bbfa1569f100177da4536bbf0aaa257fe146cae15136ed67f0721253020e6b",
+      "transform": "CRLF-to-LF only"
+    },
+    "reading-registration-focused-final.txt": {
+      "original_sha256": "c77b2d6c9a87dfc19a99545c99294f545ab94187cd1f6aaa8af6c83bb8cc66aa",
+      "published_sha256": "c77b2d6c9a87dfc19a99545c99294f545ab94187cd1f6aaa8af6c83bb8cc66aa",
+      "transform": "CRLF-to-LF only"
+    },
+    "reading-registration-owner-final.txt": {
+      "original_sha256": "4f5e9de934a162ff448fc5ec10b6b95b0a4c20f1df51e793e7c7887f5a130f6f",
+      "published_sha256": "4f5e9de934a162ff448fc5ec10b6b95b0a4c20f1df51e793e7c7887f5a130f6f",
+      "transform": "CRLF-to-LF only"
+    },
+    "format-consumer-final-v1.txt": {
+      "original_sha256": "62b615b77171d1e85ac1ff8d600ea13ca611f624df2ac88afd264ace6dc80ece",
+      "published_sha256": "62b615b77171d1e85ac1ff8d600ea13ca611f624df2ac88afd264ace6dc80ece",
+      "transform": "CRLF-to-LF only"
+    },
+    "panel-before.json": {
+      "original_relative_path": "panel-before.json",
+      "original_sha256": "d160b647d38de08c2d523d6d52f8bcff4f3cf4338078377bf100da28221b2314",
+      "published_sha256": "d160b647d38de08c2d523d6d52f8bcff4f3cf4338078377bf100da28221b2314",
+      "transform": "CRLF-to-LF only"
+    },
+    "panel-final-v1.json": {
+      "original_relative_path": "panel-final-v1.json",
+      "original_sha256": "961d3f14db9abe26ccbbcec11038a286b617bcfe3fc1c00473cbe09fb23fdad8",
+      "published_sha256": "961d3f14db9abe26ccbbcec11038a286b617bcfe3fc1c00473cbe09fb23fdad8",
+      "transform": "CRLF-to-LF only"
+    },
+    "library-before-receipt.json": {
+      "original_relative_path": "library-before/receipt.json",
+      "original_sha256": "6a166537ffa1c1c7c39c548be59054faa01513c1e50d3951895014f15460d2ee",
+      "published_sha256": "6a166537ffa1c1c7c39c548be59054faa01513c1e50d3951895014f15460d2ee",
+      "transform": "CRLF-to-LF only"
+    },
+    "library-before-r2-receipt.json": {
+      "original_relative_path": "library-before-r2/receipt.json",
+      "original_sha256": "88546fe3298debb598cd1d6e0eff31bd2e03badc03079da227f65a8afe1d922d",
+      "published_sha256": "88546fe3298debb598cd1d6e0eff31bd2e03badc03079da227f65a8afe1d922d",
+      "transform": "CRLF-to-LF only"
+    },
+    "library-before-r3-receipt.json": {
+      "original_relative_path": "library-before-r3/receipt.json",
+      "original_sha256": "cb778d9510964ded560ce632bcebd31efeaa630cabde5699b4b10a92cf36ea53",
+      "published_sha256": "cb778d9510964ded560ce632bcebd31efeaa630cabde5699b4b10a92cf36ea53",
+      "transform": "CRLF-to-LF only"
+    },
+    "library-final-receipt.json": {
+      "original_relative_path": "library-final/receipt.json",
+      "original_sha256": "d1a92a26c3d55894cde0490426554c788c3874db975d2b3bb6757c2787b2dc93",
+      "published_sha256": "d1a92a26c3d55894cde0490426554c788c3874db975d2b3bb6757c2787b2dc93",
+      "transform": "CRLF-to-LF only"
+    },
+    "library-final-v2-receipt.json": {
+      "original_relative_path": "library-final-v2/receipt.json",
+      "original_sha256": "fcf3e17baf70aca31219a812c00dd4fe7b388733128f4aeb3e86963e7b1aa6b9",
+      "published_sha256": "fcf3e17baf70aca31219a812c00dd4fe7b388733128f4aeb3e86963e7b1aa6b9",
+      "transform": "CRLF-to-LF only"
+    },
+    "delivery-integrated-final-v1-receipt.json": {
+      "original_relative_path": "delivery-integrated-final-v1/receipt.json",
+      "original_sha256": "c53042ae41567a4dc70c76781f42804836fc192a3a7079841fc8ee0039257ffc",
+      "published_sha256": "c53042ae41567a4dc70c76781f42804836fc192a3a7079841fc8ee0039257ffc",
+      "transform": "CRLF-to-LF only"
+    }
+  },
+  "corrections": [
+    "Separate saved source presence from unavailable model reading.",
+    "Require current producer-bound reading registration before preparation and guide to notes.",
+    "Hold stale/unverifiable delivery labels.",
+    "Admit supported canonical1.2 through all existing complete checks."
+  ],
+  "tests": {
+    "registration": "17/158.130s/0skip PASS; actual Core/SQLite Host.overview, no listener",
+    "owner": "Separate raw saved-owner selector1/8.124sPASS; mocked bootstrap/no actual probe",
+    "format": "Separate original unscreened selector plus3discovery cases4/71.968sPASS",
+    "panel": "InstalledChrome10groupsPASS; authored API responses",
+    "library": "InstalledChrome8groupsPASS; first real HTTP source detail with explicit runner descriptor overlay;7 other authored UI state overlays",
+    "delivery": "InstalledChrome+actual tempHTTP/Core/SQLite8checksPASS; two repository-authored saved sources;6 explicit POSTs; real exact BibTeX click/download",
+    "dom": "9authoredDOMgroupsPASS",
+    "map": "5/0.026sPASS",
+    "full_suite": false
+  },
+  "before": {
+    "panel": "8PASS1FAIL: stale package mislabeled success.",
+    "library_r1": "FAILED driver refresh timing",
+    "library_r2": "FAILED authored null model case",
+    "library_r3": "FAILED actual saved available source/model-unconnected still hadAcquire",
+    "first": "FAILED34/252.505s: new fixture decision without required evidence + legacy canonical1.2 guard.24 original imported tests inadvertently collected; module import corrected without deleting original suite.",
+    "library_previous_final": "7PASS bound to its own old source hash; final-v2 has8PASS, not relabeling."
+  },
+  "integrated": {
+    "status": "partial",
+    "stage1_complete": false,
+    "eligible_for_stage2": false,
+    "real_research_execution": false,
+    "page_errors": 0,
+    "console_http409_logs": 23,
+    "expected_null_services": [
+      "models",
+      "stage2"
+    ],
+    "diagnostic_url_mapping": "Original integrated driver retained generic409messages; no zero-diagnostics claim.",
+    "model_calls": 0,
+    "native_calls": 0,
+    "search_calls": 0,
+    "post_count": 6,
+    "downloads": [
+      {
+        "path": "references.bib",
+        "sha256": "9fb650f39de17c10ef6927f395a2d2d34d0e66e7f655e9eb3e041579b58680ab",
+        "actual_click": true
+      }
+    ]
+  },
+  "review": "Independent narrow final static review no blocking; not Core approval.",
+  "no_new_pr": true,
+  "new_live_calls": 0,
+  "stage2": "execution deferred; explicit non-executing bound input hold tested",
+  "stage3_6": "planned/unconnected",
+  "limits": [
+    "No whole real Stage1/new topic/search/model/scientific acceptance.",
+    "Two works are authored repository fixtures, not published-paper research results.",
+    "1.2 Stage1 support does not admit Stage2 consumer/execution.",
+    "Mock overlays/viewport emulation do not attest real Codex accounts or mobile/tablet hardware.",
+    "Private hashes are declarations, not Core-inspection receipts.",
+    "Old failed records, budgets, attempts and14v6assets preserved; no actual import/resume/newmodel authority."
+  ]
+}

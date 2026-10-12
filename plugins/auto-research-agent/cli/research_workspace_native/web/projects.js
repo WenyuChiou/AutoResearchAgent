@@ -162,6 +162,9 @@
   Object.assign(words.en, {ledgerRecover: "Continue delivery from committed records", recoveryReady: "The records are saved, but delivery registration is unfinished. Continue from these exact records; no search, reading or model call will run."});
   Object.assign(words["zh-Hans"], {ledgerRecover: "从已保存记录继续交付", recoveryReady: "记录已保存，但交付注册尚未完成。继续使用这些精确记录，不重新搜索、阅读或调用模型。"});
   Object.assign(words["zh-Hant"], {ledgerRecover: "從已保存紀錄繼續交付", recoveryReady: "紀錄已保存，但交付註冊尚未完成。繼續使用這些精確紀錄，不重新搜尋、閱讀或呼叫模型。"});
+  Object.assign(words.en, {deliveryHeld: "Saved package is stale or failed source verification. Inspect its status and history before proceeding.", readingRegistrationMissing: "Review and register the reading notes for the saved claims before preparing delivery.", claimReadingNext: "Claim saved. Review and register the paper's reading notes separately before delivery."});
+  Object.assign(words["zh-Hans"], {deliveryHeld: "保存的资料包已过时或未通过来源核查。继续前请检查状态与历史。", readingRegistrationMissing: "准备交付前，请审阅并登记这些已保存主张对应的阅读笔记。", claimReadingNext: "主张已保存。交付前仍需另行审阅并登记这篇论文的阅读笔记。"});
+  Object.assign(words["zh-Hant"], {deliveryHeld: "保存的資料包已過時或未通過來源核查。繼續前請檢查狀態及歷史。", readingRegistrationMissing: "準備交付前，請審閱並登記這些已保存主張對應的閱讀筆記。", claimReadingNext: "主張已保存。交付前仍須另行審閱並登記這篇論文的閱讀筆記。"});
   const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0, readingReview: null, readingGeneration: 0 };
   const storageKey = "harness-project-ui-intents-v1";
   let pending = [];
@@ -264,7 +267,11 @@
     const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
     const result = await mutate("stage1/claim", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, output_ref: item.output_ref, draft_sha256: item.draft_sha256, evidence_index: item.evidence_index, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
     if (result && generation === state.generation && state.project && state.project.project_ref === ref
-        && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+        && state.project.input_version === version && state.project.brief_sha256 === brief) {
+      await loadProject(ref);
+      if (result.status === "saved" && state.project && state.project.project_ref === ref
+          && state.project.input_version === version && state.project.brief_sha256 === brief) notice(t("claimReadingNext"));
+    }
     return result;
   }
   async function readSavedClaims(item, sourceRef, offset = 0) {
@@ -306,13 +313,18 @@
         || item.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)
         || item.work_ref !== view.work_ref || item.source_ref !== view.selected_source.source_ref
         || item.offer_sha256 !== view.selected_source.offer_sha256) return null;
-    const ref = project.project_ref;
+    const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
     const result = await mutate("stage1/source-claim", Object.assign(identity(), {
       ledger_state_sha256: item.ledger_state_sha256, work_ref: item.work_ref, source_ref: item.source_ref,
       offer_sha256: item.offer_sha256, start_byte: item.start_byte, end_byte: item.end_byte,
       quote: item.quote, review: item.review, confirmed: true
     }), ref);
-    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) {
+      await loadProject(ref);
+      if (result.status === "saved" && state.project && state.project.project_ref === ref
+          && state.project.input_version === version && state.project.brief_sha256 === brief) notice(t("claimReadingNext"));
+    }
     return result;
   }
   async function submitReadingReview(item) {
@@ -397,11 +409,12 @@
     $("ledger-state").textContent = ledger ? ledger.gate.outcome + " · " + ledger.next_allowed_action : state.stage1 && state.stage1.stage1_status || "unconnected";
     const delivered = state.stage1 && state.stage1.delivery && state.stage1.delivery.canonical_package;
     $("ledger-prepare").textContent = t(availableRecordsRecovery() ? "ledgerRecover" : "ledgerPrepare");
-    $("delivery-state").textContent = t(delivered ? "deliverySaved" : availableDelivery() ? "deliveryReady" : availableRecordsRecovery() ? "recoveryReady" : "deliveryMissing");
+    $("delivery-state").textContent = t(delivered ? delivered.status === "saved-evidence-validated" ? "deliverySaved" : "deliveryHeld" : availableDelivery() ? "deliveryReady" : availableRecordsRecovery() ? "recoveryReady" : state.stage1 && state.stage1.reading_registration && state.stage1.reading_registration.status === "missing" ? "readingRegistrationMissing" : "deliveryMissing");
     const artifactArea = $("delivery-artifact"); artifactArea.replaceChildren();
     if (delivered) {
-      text(artifactArea, "p", delivered.status + " · " + delivered.counts.papers + " · " + delivered.artifact_kind);
-      text(artifactArea, "p", "SHA-256: " + delivered.manifest_sha256, "subtle");
+      const count = delivered.counts && delivered.counts.papers;
+      text(artifactArea, "p", (delivered.status || "Unknown") + " · " + (Number.isSafeInteger(count) && count >= 0 ? count : "Unknown") + " · " + (delivered.artifact_kind || "Unknown"));
+      text(artifactArea, "p", "SHA-256: " + (delivered.manifest_sha256 || "Unknown"), "subtle");
     }
     const atlasEntry = document.createElement("div"); atlasEntry.id = "project-atlas-entry"; artifactArea.append(atlasEntry);
     const queries = $("ledger-queries"); queries.replaceChildren();
@@ -452,8 +465,13 @@
     return (delivery.offers || []).find((row) => row.status === "ready-for-saved-evidence-delivery") || null;
   }
   function availableSavedPreparation() {
-    const stage1 = state.stage1;
-    return Boolean(stage1 && stage1.ledger && stage1.checkpoint && stage1.checkpoint.current === true && stage1.saved_records_connected === true);
+    const stage1 = state.stage1, project = state.project, registration = stage1 && stage1.reading_registration;
+    return Boolean(stage1 && project && stage1.ledger && stage1.checkpoint && stage1.checkpoint.current === true && stage1.saved_records_connected === true
+      && registration && registration.kind === "ProjectStage1ReadingRegistration" && registration.schema_version === "1.0.0"
+      && registration.status === "ready" && registration.grants_execution === false
+      && Array.isArray(registration.missing_works) && registration.missing_works.length === 0
+      && ["project_ref", "revision", "input_version", "brief_sha256"].every(key => registration[key] === project[key])
+      && registration.ledger_state_sha256 === stage1.ledger.state_sha256);
   }
   function availableRecordsRecovery() {
     const saved = state.stage1 && state.stage1.saved_records_recovery;

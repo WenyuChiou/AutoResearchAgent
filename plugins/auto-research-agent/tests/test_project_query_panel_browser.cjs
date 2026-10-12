@@ -65,7 +65,7 @@ async function screenshot(label, panel = true) {
   await target.screenshot({path: file, ...(panel ? {} : {fullPage: true})});
   screenshots.push({label, path: file, sha256: sha(fs.readFileSync(file))});
 }
-async function open(selected, viewport = {width: 1440, height: 960}) {
+async function open(selected, viewport = {width: 1440, height: 960}, stageOverride = {}) {
   if (context) await context.close();
   view = selected === null ? null : queryView(selected); actions = []; posts = []; loseResponse = false;
   context = await browser.newContext({viewport});
@@ -102,7 +102,7 @@ async function open(selected, viewport = {width: 1440, height: 960}) {
       }
       if (url.pathname === '/api/projects') return route.fulfill({status: 200, json: {projects: [project]}});
       if (url.pathname.endsWith('/overview')) return route.fulfill({status: 200, json: {project, models: null, model_offers: [], stage2: null,
-        stage1: {stage1_status: 'saved-fixture-not-research-complete', ledger: null, queries: [], query_execution: view, delivery: {offers: []}}}});
+        stage1: {stage1_status: 'saved-fixture-not-research-complete', ledger: null, queries: [], query_execution: view, delivery: {offers: []}, ...stageOverride}}});
       if (url.pathname.endsWith('/models/native')) return route.fulfill({status: 200, json: {native_view: null, native_actions: []}});
       if (url.pathname.endsWith('/history')) return route.fulfill({status: 200, json: {actions}});
       if (url.pathname.startsWith('/api/')) return route.fulfill({status: 200, json: {actions: [], next_offset: null}});
@@ -203,6 +203,38 @@ const intents = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('har
     await page.locator('#language').selectOption('zh-Hans');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await screenshot('mobile-zh-Hans', false);
+  });
+  await check('saved delivery integrity failure is not displayed as a validated package', async () => {
+    for (const status of ['stale-input', 'source-binding-failed']) {
+      await open(null, undefined, {delivery: {offers: [], canonical_package: {
+        status, counts: {papers: 2}, artifact_kind: 'Stage1ResearchDeliverable', manifest_sha256: 'f'.repeat(64)
+      }}});
+      assert(!/Canonical research package saved/.test(await page.locator('#delivery-state').innerText()));
+      for (const language of ['en', 'zh-Hans', 'zh-Hant']) {
+        await page.locator('#language').selectOption(language);
+        assert.equal(await page.locator('#ledger-deliver').isDisabled(), true);
+        assert.match(await page.locator('#delivery-artifact').innerText(), new RegExp(status));
+      }
+      assert.equal(posts.length, 0);
+    }
+  });
+  await check('saved claims do not enable preparation before current reading registration', async () => {
+    const ledger = {valid: true, state_sha256: 'c'.repeat(64), gate: {outcome: 'blocked'}, next_allowed_action: 'review'};
+    const registration = {kind: 'ProjectStage1ReadingRegistration', schema_version: '1.0.0',
+      project_ref: project.project_ref, revision: project.revision, input_version: project.input_version,
+      brief_sha256: project.brief_sha256, ledger_state_sha256: ledger.state_sha256,
+      status: 'ready', missing_works: [], required_work_count: 1, registered_work_count: 1, grants_execution: false};
+    const stage = {ledger, checkpoint: {current: true}, saved_records_connected: true};
+    for (const value of [null, {...registration, status: 'missing', missing_works: [{work_ref: 'work-1'}]},
+      {...registration, status: 'held'}, {...registration, input_version: 1}, {...registration, ledger_state_sha256: 'd'.repeat(64)}]) {
+      await open(null, undefined, {...stage, reading_registration: value});
+      assert.equal(await page.locator('#ledger-prepare').isDisabled(), true);
+      assert.equal(posts.length, 0);
+    }
+    await open(null, undefined, {...stage, reading_registration: registration});
+    assert.equal(await page.locator('#ledger-prepare').isDisabled(), false);
+    assert.equal(posts.length, 0);
+    await screenshot('reading-registration-ready', false);
   });
   assert.deepEqual(routeErrors, []); assert.deepEqual(pageErrors, []); assert.deepEqual(outbound, []);
 })().catch(error => {failure = error.stack;}).finally(async () => {

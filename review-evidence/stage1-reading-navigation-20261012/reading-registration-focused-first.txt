@@ -1,0 +1,74 @@
+test_absent_records_or_owner_returns_unconnected_or_held_without_adoption (test_project_reading_registration.ReadingRegistrationTests.test_absent_records_or_owner_returns_unconnected_or_held_without_adoption) ... ok
+test_decision_change_requires_new_current_registration_and_stale_hash_is_held (test_project_reading_registration.ReadingRegistrationTests.test_decision_change_requires_new_current_registration_and_stale_hash_is_held) ... ERROR
+test_host_missing_producer_refusal_then_manual_registration_ready_without_get_writes (test_project_reading_registration.ReadingRegistrationTests.test_host_missing_producer_refusal_then_manual_registration_ready_without_get_writes) ... ok
+test_registry_action_and_source_tampering_return_held_without_writes (test_project_reading_registration.ReadingRegistrationTests.test_registry_action_and_source_tampering_return_held_without_writes) ... ok
+test_atomic_post_file_commit_failure_preserves_unknown_and_never_rewrites (test_project_stage1_records.SavedStage1RecordsTests.test_atomic_post_file_commit_failure_preserves_unknown_and_never_rewrites) ... ok
+test_consistently_rehashed_state_and_appended_event_need_actual_action (test_project_stage1_records.SavedStage1RecordsTests.test_consistently_rehashed_state_and_appended_event_need_actual_action) ... ok
+test_exact_span_rejects_repeated_quote_wrong_offset_and_missing_claim (test_project_stage1_records.SavedStage1RecordsTests.test_exact_span_rejects_repeated_quote_wrong_offset_and_missing_claim) ... ok
+test_extra_source_deadline_is_checked_before_final_registry_commit (test_project_stage1_records.SavedStage1RecordsTests.test_extra_source_deadline_is_checked_before_final_registry_commit) ... ok
+test_failed_source_and_revised_screening_keep_original_attempts_and_reviews (test_project_stage1_records.SavedStage1RecordsTests.test_failed_source_and_revised_screening_keep_original_attempts_and_reviews) ... ok
+test_guard_refusal_precedes_registry_or_file_mutation (test_project_stage1_records.SavedStage1RecordsTests.test_guard_refusal_precedes_registry_or_file_mutation) ... ok
+test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts (test_project_stage1_records.SavedStage1RecordsTests.test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts) ... ok
+test_post_publish_binding_failure_records_output_as_unknown (test_project_stage1_records.SavedStage1RecordsTests.test_post_publish_binding_failure_records_output_as_unknown) ... ok
+test_reading_owner_loss_before_commit_rolls_back_registry (test_project_stage1_records.SavedStage1RecordsTests.test_reading_owner_loss_before_commit_rolls_back_registry) ... ok
+test_records_owner_loss_after_publication_preserves_unknown (test_project_stage1_records.SavedStage1RecordsTests.test_records_owner_loss_after_publication_preserves_unknown) ... ok
+test_rehashed_mutable_registry_cannot_replace_original_saved_annotation (test_project_stage1_records.SavedStage1RecordsTests.test_rehashed_mutable_registry_cannot_replace_original_saved_annotation) ... ok
+test_same_ref_extra_event_cannot_bypass_original_action (test_project_stage1_records.SavedStage1RecordsTests.test_same_ref_extra_event_cannot_bypass_original_action) ... ok
+test_saved_registration_does_not_require_a_delivery_checkpoint (test_project_stage1_records.SavedStage1RecordsTests.test_saved_registration_does_not_require_a_delivery_checkpoint) ... ok
+test_source_owner_loss_after_saved_sql_rolls_back_registry (test_project_stage1_records.SavedStage1RecordsTests.test_source_owner_loss_after_saved_sql_rolls_back_registry) ... ok
+test_source_owner_loss_before_commit_rolls_back_registry (test_project_stage1_records.SavedStage1RecordsTests.test_source_owner_loss_before_commit_rolls_back_registry) ... ok
+test_tampered_source_and_old_checkpoint_refuse_without_records (test_project_stage1_records.SavedStage1RecordsTests.test_tampered_source_and_old_checkpoint_refuse_without_records) ... ok
+test_two_sources_reading_records_delivery_and_true_sqlite_reopen (test_project_stage1_records.SavedStage1RecordsTests.test_two_sources_reading_records_delivery_and_true_sqlite_reopen) ... ok
+test_unconnected_screening_records_refused_before_delivery_offer (test_project_stage1_records.SavedStage1RecordsTests.test_unconnected_screening_records_refused_before_delivery_offer) ... ok
+test_unscreened_candidate_is_archived_without_invented_decision_or_sources (test_project_stage1_records.SavedStage1RecordsTests.test_unscreened_candidate_is_archived_without_invented_decision_or_sources) ... ERROR
+test_yielded_guard_check_refuses_before_admission (test_project_stage1_records.SavedStage1RecordsTests.test_yielded_guard_check_refuses_before_admission) ... ok
+test_absent_runtime_and_known_owner_reopen_have_distinct_reasons (test_project_stage1_progress.ProgressTests.test_absent_runtime_and_known_owner_reopen_have_distinct_reasons) ... ok
+test_active_or_uncertain_work_only_navigates_to_passive_recovery (test_project_stage1_progress.ProgressTests.test_active_or_uncertain_work_only_navigates_to_passive_recovery) ... ok
+test_actual_model_offer_envelope_enables_planning_only_when_bound (test_project_stage1_progress.ProgressTests.test_actual_model_offer_envelope_enables_planning_only_when_bound) ... ok
+test_bound_package_checkpoint_and_counts_never_accept_research (test_project_stage1_progress.ProgressTests.test_bound_package_checkpoint_and_counts_never_accept_research) ... ok
+test_first_query_navigation_uses_actual_existing_offer (test_project_stage1_progress.ProgressTests.test_first_query_navigation_uses_actual_existing_offer) ... ok
+test_malformed_boolean_counts_and_capability_flags_do_not_become_zero_or_true (test_project_stage1_progress.ProgressTests.test_malformed_boolean_counts_and_capability_flags_do_not_become_zero_or_true) ... ok
+test_missing_registration_precedes_coverage_and_invalid_binding_is_held (test_project_stage1_progress.ProgressTests.test_missing_registration_precedes_coverage_and_invalid_binding_is_held) ... ok
+test_retired_unknown_does_not_hide_a_current_coverage_write_hold (test_project_stage1_progress.ProgressTests.test_retired_unknown_does_not_hide_a_current_coverage_write_hold) ... ok
+test_scope_required_and_projection_leaves_snapshot_unchanged (test_project_stage1_progress.ProgressTests.test_scope_required_and_projection_leaves_snapshot_unchanged) ... ok
+test_unconnected_reading_does_not_skip_query_screening_or_saved_package_review (test_project_stage1_progress.ProgressTests.test_unconnected_reading_does_not_skip_query_screening_or_saved_package_review) ... ok
+
+======================================================================
+ERROR: test_decision_change_requires_new_current_registration_and_stale_hash_is_held (test_project_reading_registration.ReadingRegistrationTests.test_decision_change_requires_new_current_registration_and_stale_hash_is_held)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_reading_registration.py", line 103, in test_decision_change_requires_new_current_registration_and_stale_hash_is_held
+    event = ledger.decide(work, "pending", reason="authored-revision", rationale="Unknown: review again.", evidence_refs=[])
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\stage1_ledger\journal.py", line 108, in locked
+    return method(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\stage1_ledger\store.py", line 377, in decide
+    raise LedgerError("decision-evidence-required")
+stage1_ledger.journal.LedgerError: decision-evidence-required
+
+======================================================================
+ERROR: test_unscreened_candidate_is_archived_without_invented_decision_or_sources (test_project_stage1_records.SavedStage1RecordsTests.test_unscreened_candidate_is_archived_without_invented_decision_or_sources)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_stage1_records.py", line 400, in test_unscreened_candidate_is_archived_without_invented_decision_or_sources
+    offer = self.produce(fixture)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_project_stage1_records.py", line 240, in produce
+    return self.producer.produce_records(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 1171, in produce_records
+    records = self._records(context, entries)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 1129, in _records
+    _records_match(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 106, in _records_match
+    _check(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\session_api.py", line 37, in _check
+    raise SessionApiError(code, status)
+research_workspace_native.session_api.SessionApiError: stage1-records-format-consumer-unconnected
+
+----------------------------------------------------------------------
+Ran 34 tests in 252.505s
+
+FAILED (errors=2)

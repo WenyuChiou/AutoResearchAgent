@@ -18,6 +18,7 @@ from .project_intake import ProjectIntakeService
 from .project_contract import project_view
 from .project_stage1_delivery import ProjectStage1DeliveryService
 from .project_stage1_progress import project_progress
+from .project_stage1_records import reading_registration_view
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
 from .project_atlas_shell import shell_assets
@@ -309,6 +310,17 @@ class ProjectHost(AtlasHost):
                 None
                 if self.project_stage1_sources is None
                 else self.project_stage1_sources.read(credential, ref)
+            )
+            ledger = result["ledger"]
+            state_hash = None if ledger is None else ledger["state_sha256"]
+            result["reading_registration"] = (
+                reading_registration_view(
+                    self.projects.read(credential, ref), state_hash
+                )
+                if self.project_stage1_records is None
+                else self.project_stage1_records.reading_readiness(
+                    credential, ref, expected_ledger_state_sha256=state_hash
+                )
             )
             return result
 

@@ -76,6 +76,15 @@
     const ul = document.createElement("ul"); box.append(ul);
     for (const row of list) append(ul, "li", describe(row));
   }
+  function acquisitionNeeded(row) {
+    if (typeof row.selected_version_id !== "string" || !row.selected_version_id || !Array.isArray(row.source_attempts)) return false;
+    const sources = row.source_attempts.filter(item => item && item.started && item.started.version_id === row.selected_version_id);
+    if (!sources.length) return ["not-acquired", "saved-import-intent-recorded", "saved-import-bytes-recorded"].includes(row.source_status);
+    // Reading-model eligibility is separate from a saved source observation.
+    // Preserve pending/unknown outcomes; another version's source is not this one.
+    if (sources.some(item => !item.finished || item.finished.outcome === "available")) return false;
+    return sources.every(item => ["unavailable", "not_found", "rate_limited", "http_error", "network_error", "parse_error", "interrupted"].includes(item.finished.outcome));
+  }
   function renderDetail() {
     const area = $("screening-detail"); area.replaceChildren(); area.hidden = !selected;
     if (!selected) return;
@@ -121,7 +130,7 @@
     claimButton.onclick = () => document.dispatchEvent(new CustomEvent("project-review-source", {detail: {
       project_ref: basis.ref, input_version: basis.version, brief_sha256: basis.brief, work_ref: row.work_id
     }}));
-    if (sourceReady && !(reading && reading.available === true)) {
+    if (sourceReady && acquisitionNeeded(row) && !(reading && reading.available === true)) {
       const caption = {en: "Acquire this public source", "zh-Hans": "取得这篇公开来源", "zh-Hant": "取得這篇公開來源"}[language];
       const action = append(area, "button", caption); action.type = "button";
       action.onclick = () => document.dispatchEvent(new CustomEvent("project-acquire-paper", {detail: {

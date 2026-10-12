@@ -26,7 +26,7 @@ from .project_stage1_delivery import (
     _screening_library,
 )
 from .project_stage1_sources import describe_source, source_record
-from .session_api import _check
+from .session_api import SessionApiError, _check
 
 MAX_ENTRIES = 1024
 MAX_RECORDS = 256
@@ -46,6 +46,30 @@ READING_ACTION_FIELDS = {
 SOURCE_READING_ACTION_FIELDS = (
     READING_ACTION_FIELDS - {"output_ref", "draft_sha256"}
 ) | {"work_ref", "source_snapshot_sha256"}
+
+
+def reading_registration_view(
+    project,
+    ledger_state=None,
+    *,
+    status="unconnected",
+    reason="saved-records-unconnected",
+):
+    return dict(
+        kind="ProjectStage1ReadingRegistration",
+        schema_version="1.0.0",
+        **{
+            key: project[key]
+            for key in ("project_ref", "revision", "input_version", "brief_sha256")
+        },
+        ledger_state_sha256=ledger_state,
+        status=status,
+        reason=reason,
+        missing_works=[],
+        required_work_count=None,
+        registered_work_count=None,
+        grants_execution=False,
+    )
 
 
 class ProjectStage1RecordsService:
@@ -268,6 +292,177 @@ class ProjectStage1RecordsService:
             "stage1-saved-registry-history-incomplete",
         )
         return [entry for entry in observed if entry["basis"] == self._basis(context)]
+
+    @staticmethod
+    def _matching_readings(ledger, readings):
+        decisions = ledger.coverage_state().evidence.decisions
+        return {
+            work: [
+                reading
+                for reading in readings
+                if reading["work_id"] == work
+                and reading["candidate_event_id"] == candidate["event_id"]
+                and decisions.get(work) is not None
+                and reading["decision_event_id"] == decisions[work]["event_id"]
+            ]
+            for work, candidate in ledger.candidates().items()
+        }
+
+    @staticmethod
+    def _reading_required(work, candidate, events, reviews):
+        version = candidate["discoveries"][-1]["version_id"]
+        return work in reviews or any(
+            row["kind"] in {"SourceReadStarted", "ClaimEvidence"}
+            and row["work_id"] == work
+            and row["version_id"] == version
+            for row in events.values()
+        )
+
+    def reading_readiness(
+        self, credential, project_ref, *, expected_ledger_state_sha256=None
+    ):
+        """Inspect actual producer prerequisites under its existing saved owner."""
+        actor = self.intake._principal(credential)
+        with self.intake._lock:
+            project = self.intake.read(credential, project_ref)
+            result = reading_registration_view(
+                project,
+                expected_ledger_state_sha256,
+                status="held",
+                reason="reading-ledger-unavailable",
+            )
+            if expected_ledger_state_sha256 is None:
+                return result
+            try:
+                context = self._context(project_ref, expected_ledger_state_sha256)
+                with self.guard(*context[3:6]) as guard_check:
+                    check = self._mutation_check(
+                        project_ref, expected_ledger_state_sha256, guard_check
+                    )
+                    context = check()
+                    _check(context[0] == actor, "reading-registration-owner-differs")
+                    _check(
+                        context[1]["input_version"] == project["input_version"]
+                        and context[2]["brief_sha256"] == project["brief_sha256"],
+                        "reading-registration-input-differs",
+                    )
+                    actions = self.intake.db.execute(
+                        "SELECT receipt FROM intake_actions WHERE principal=? AND project=?",
+                        (actor, project_ref),
+                    ).fetchall()
+                    _check(
+                        not any(
+                            row["kind"]
+                            in {
+                                "stage1-reading-registry",
+                                "stage1-source-registry",
+                                "stage1-produce-records",
+                            }
+                            and row["status"]
+                            in {"intent-recorded", "execution-unknown"}
+                            for row in (
+                                decode(raw[0].encode(), "reading registration action")
+                                for raw in actions
+                            )
+                        ),
+                        "reading-registration-unresolved",
+                    )
+                    entries = self._entries(context)
+                    sources = [
+                        row["payload"]
+                        for row in entries
+                        if row["ref"].startswith("stage1-source-registry-")
+                    ]
+                    for source in sources:
+                        source_record(context[4], self.root, source)
+                    readings = [
+                        row["payload"]
+                        for row in entries
+                        if row["ref"].startswith("stage1-reading-registry-")
+                    ]
+                    ledger = context[4]
+                    events = {
+                        row["payload"]["event_id"]: row["payload"]
+                        for row in ledger.events()
+                    }
+                    reviews = ledger.coverage_state().evidence.current()
+                    decisions = ledger.coverage_state().evidence.decisions
+                    matches = self._matching_readings(ledger, readings)
+                    missing, required, registered = [], 0, 0
+                    for work, candidate in ledger.candidates().items():
+                        rows = matches[work]
+                        needed = bool(rows) or self._reading_required(
+                            work, candidate, events, reviews
+                        )
+                        if not needed:
+                            continue
+                        required += 1
+                        review = reviews.get(work)
+                        version = (
+                            review["version_id"]
+                            if review
+                            else candidate["discoveries"][-1]["version_id"]
+                        )
+                        self._saved_claim_locators(context, work, version)
+                        current = False
+                        if rows:
+                            try:
+                                self._reading(context, rows[-1], sources)
+                                current = True
+                            except SessionApiError as error:
+                                if error.code not in {
+                                    "saved-reading-current-review-differs",
+                                    "saved-reading-source-set-differs",
+                                    "saved-reading-claim-history-incomplete",
+                                }:
+                                    raise
+                        if current:
+                            registered += 1
+                        else:
+                            decision = decisions.get(work)
+                            missing.append(
+                                dict(
+                                    work_ref=work,
+                                    version_id=version,
+                                    candidate_event_id=candidate["event_id"],
+                                    decision_event_id=None
+                                    if decision is None
+                                    else decision["event_id"],
+                                    reason="saved-reading-current-record-required",
+                                )
+                            )
+                    check()
+                    _check(
+                        self._entries(context) == entries,
+                        "reading-registration-history-differs",
+                    )
+                    for source in sources:
+                        source_record(ledger, self.root, source)
+                    result.update(
+                        status="missing" if missing else "ready",
+                        reason="reading-registration-required"
+                        if missing
+                        else "reading-registration-ready",
+                        missing_works=missing,
+                        required_work_count=required,
+                        registered_work_count=registered,
+                    )
+            except (
+                SessionApiError,
+                ValueError,
+                OSError,
+                KeyError,
+                TypeError,
+                UnicodeError,
+            ) as error:
+                result.update(
+                    status="held",
+                    reason=getattr(error, "code", "saved-reading-validation-failed"),
+                    missing_works=[],
+                    required_work_count=None,
+                    registered_work_count=None,
+                )
+            return result
 
     def register_source(
         self,
@@ -808,18 +1003,7 @@ class ProjectStage1RecordsService:
         journal = {row["payload"]["event_id"]: row for row in ledger.events()}
         core = any(row.get("schema_version") == "1.1.0" for row in readings)
         candidates = ledger.candidates()
-        decisions = ledger.coverage_state().evidence.decisions
-        matches_by_work = {
-            work: [
-                reading
-                for reading in readings
-                if reading["work_id"] == work
-                and reading["candidate_event_id"] == candidate["event_id"]
-                and decisions.get(work) is not None
-                and reading["decision_event_id"] == decisions[work]["event_id"]
-            ]
-            for work, candidate in candidates.items()
-        }
+        matches_by_work = self._matching_readings(ledger, readings)
         discovery_records = any(not rows for rows in matches_by_work.values())
         core = core or discovery_records
         papers, claims, source_rows = [], [], []
@@ -833,13 +1017,7 @@ class ProjectStage1RecordsService:
             if not matches:
                 version = candidate["discoveries"][-1]["version_id"]
                 _check(
-                    work not in reviews
-                    and not any(
-                        row["kind"] in {"SourceReadStarted", "ClaimEvidence"}
-                        and row["work_id"] == work
-                        and row["version_id"] == version
-                        for row in events.values()
-                    ),
+                    not self._reading_required(work, candidate, events, reviews),
                     "saved-reading-current-record-required",
                 )
                 metadata = candidate["discoveries"][-1]["record"]

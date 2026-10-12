@@ -19,6 +19,7 @@
     "owner-reopen-required": ["Inspect the saved ledger and its explicit owner-rebinding offer before continuing.", "继续前检查保存记录及明确提供的重新绑定操作。", "繼續前檢查保存紀錄及明確提供的重新綁定操作。"],
     "screening-required": ["Inspect retained papers and save keep/reject reasons.", "检查留底文献，保存保留或排除理由。", "檢查留底文獻，保存保留或排除理由。"],
     "reading-required": ["Review bound sources, claims and reading records.", "审阅绑定来源、主张与阅读记录。", "審閱綁定來源、主張及閱讀紀錄。"],
+    "reading-registration-required": ["Claims and reading notes are saved separately. Review and register the current paper's notes before preparing delivery.", "主张与阅读笔记分别保存。准备交付前，请审阅并登记当前论文的阅读笔记。", "主張及閱讀筆記分別保存。準備交付前，請審閱並登記目前論文的閱讀筆記。"],
     "coverage-required": ["Review the actual coverage gate and unresolved needs.", "审阅实际覆盖门槛与未满足的研究需要。", "審閱實際覆蓋門檻及未滿足的研究需要。"],
     "delivery-offered": ["Review the offered saved-evidence delivery.", "检查可交付的保存证据资料包。", "檢查可交付的保存證據資料包。"],
     "delivery-required": ["Inspect the current checkpoint, preparation and delivery conditions.", "检查当前 checkpoint、资料准备及交付条件。", "檢查目前 checkpoint、資料準備及交付條件。"],
