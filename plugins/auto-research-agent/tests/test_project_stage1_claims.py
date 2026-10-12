@@ -91,6 +91,7 @@ def reading_case(*, pending=False):
                 model="synthetic-reader",
                 local_cap_seconds=5,
                 clock=lambda: 1_900_000_000,
+                monotonic=lambda: 0,
                 reading_records=case.producer,
             )
 
@@ -129,7 +130,9 @@ def reading_case(*, pending=False):
                     },
                 ),
             )
-            models._workers[(ref, "reading-job")].join(5)
+            # The fake provider uses a fixed clock; bound host-side fixture I/O
+            # separately without changing its permit or production deadline.
+            models._workers[(ref, "reading-job")].join(60)
             case.assertFalse(models._workers[(ref, "reading-job")].is_alive())
             job = models._job(
                 models.intake._principal("alice-token"), ref, "reading-job"

@@ -32,11 +32,31 @@ class CompositionTests(CompositionCase):
         self.pin = self.save()
         runtime = self.compose()
         runtime.start()
-        body, result = self.message("文" * 10922 + "xx")
+        offer = runtime.api.offer(self.token, "repo-case")
+        self.assertEqual(offer["max_text_bytes"], 10000)
+        store = runtime._entries[0]["store"]
+        before = store.snapshot(self.spec["project_id"])
+        count = self.count()
+        for text in ("文" * 3333 + "xx", "文" * 10922 + "xx"):
+            with self.subTest(bytes=len(text.encode("utf-8"))):
+                with self.assertRaisesRegex(SessionApiError, "invalid-message-text"):
+                    runtime.api.message(
+                        self.token,
+                        "repo-case",
+                        dict(
+                            key="oversize-message",
+                            revision=offer["revision"],
+                            offer_ref=offer["offer_ref"],
+                            offer_sha256=offer["offer_sha256"],
+                            text=text,
+                        ),
+                    )
+                self.assertEqual(store.snapshot(self.spec["project_id"]), before)
+                self.assertEqual(self.count(), count)
+        body, result = self.message("文" * 3333 + "x")
         self.assertIn(result["status"], {"write-observed", "dispatched"})
         self.wait(lambda: bool(self.view()["operations"]))
         self.wait(lambda: self.view()["operations"][0]["status"] == "completed")
-        store = runtime._entries[0]["store"]
         self.assertIs(
             store.snapshot(self.spec["project_id"])["session_api_binding"][
                 "trusted_stage_unit"

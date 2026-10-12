@@ -7,10 +7,26 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from planned_query_raw_runner import run_cases
 
+CORE_CASES = (
+    "test_arxiv_seed_is_supported_without_doi",
+    "test_both_directions_use_original_owner_real_core_and_shared_attempt_budget",
+    "test_get_and_grant_are_passive_and_only_current_verified_closest_is_offered",
+    "test_review_or_version_change_revokes_saved_grant_before_reservation",
+    "test_round_change_revokes_grant_before_reservation",
+    "test_search_and_both_expansions_cannot_reset_total_cap",
+    "test_seed_without_supported_identifier_has_no_offer",
+    "test_unknown_worker_start_survives_true_reopen_without_resend",
+    "test_wrong_offer_and_grant_payload_are_rejected_before_reservation",
+)
+
 
 class ProjectExpansionTests(unittest.TestCase):
     def test_owned_offline_expansion_contracts(self):
-        run_cases("test_project_expansions.expansion_core_suite", self)
+        # Keep the source-bound 240-second child limit for each scenario rather
+        # than sharing it across nine independent fixtures and their file I/O.
+        for name in CORE_CASES:
+            with self.subTest(scenario=name):
+                run_cases(f"test_project_expansions.ExpansionCases.{name}", self)
 
     def test_additional_expansion_routes_and_saved_coverage(self):
         run_cases(
@@ -747,6 +763,11 @@ if getattr(sys.modules.get("planned_query_fixture"), "RAW_SOURCE_PROOF", None):
         "test_unsupported_seed_keeps_other_current_supported_offers",
         "test_real_http_expansion_routes_keep_local_viewer_auth_and_replay",
     }
+
+    assert len(CORE_CASES) == len(set(CORE_CASES))
+    assert set(CORE_CASES) == (
+        set(unittest.defaultTestLoader.getTestCaseNames(ExpansionCases)) - EXTRA_CASES
+    ), "All expansion scenarios must remain covered by the source-bound wrappers"
 
     def expansion_core_suite():
         names = unittest.defaultTestLoader.getTestCaseNames(ExpansionCases)
