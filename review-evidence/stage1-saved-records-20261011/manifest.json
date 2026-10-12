@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "scope": "offline saved-source/manual-reading Stage1 records producer engineering evidence",
+  "source_head_before_uncommitted_increment": "4659a18eb86ade515962db440adb74c53b793226",
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_sources.py": "5c632b63807b9ba712c0921d66bf21b123fbaad140889d5a7d2b315f831b0bee",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "76fe15a158c784495a5b7454e5be86ef5230cf8bf3476e01a2a3b764e3b6d566",
+    "plugins/auto-research-agent/tests/test_project_stage1_records.py": "aa7f459eee6903b74f38764bda6f976b3e9e3ae1dee1a353e093f3727c66a4d7",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "3e382ebaa3fad9d1bf72d72d2a2ff198720d362e0b814993b7cacbc01cc6f18e",
+    "plugins/auto-research-agent/references/research-workspace/PROJECT_STAGE_CONTRACT.md": "09f7c061e927024802e04240652d84db1c69bc45b0dd90e3938929b1000b5eb4"
+  },
+  "actual_external_search": false,
+  "actual_source_acquisition": false,
+  "actual_native_or_model_calls": false,
+  "full_plugin_suite_or_ci_claim": false,
+  "scientific_acceptance_claim": false,
+  "runs": [
+    {
+      "name": "historical-initial",
+      "test_count": 26,
+      "test_seconds": 127.441,
+      "errors": 4,
+      "exit_code": 1,
+      "driver_elapsed_seconds": 129.89100000000326,
+      "source_inventory_equal": false,
+      "interpretation": "Initial authored second-source title mismatch produced no claims; four new tests errored. An imported TestCase exposed 22 existing delivery tests. Source inventory changed during execution; this is historical mixed-source evidence and is not attributable to the final candidate.",
+      "files": {
+        "historical-initial-receipt.json": {
+          "sha256": "8aee495823d1ef2dac4b681e3af0e503c4e04da47cf5af7c785ff3b14267f3a8",
+          "bytes": 173127,
+          "raw_byte_copy": true
+        },
+        "historical-initial-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "raw_byte_copy": true
+        },
+        "historical-initial-stderr.log": {
+          "sha256": "ec0d00865bd1b234ddded5c9f579f5046df9cf97f87f3753e6fefcc695b3982d",
+          "bytes": 9038,
+          "raw_byte_copy": true
+        }
+      }
+    },
+    {
+      "name": "historical-review",
+      "test_count": 9,
+      "test_seconds": 65.066,
+      "errors": 1,
+      "exit_code": 1,
+      "driver_elapsed_seconds": 67.65699999999197,
+      "source_inventory_equal": true,
+      "interpretation": "Eight passed; the adversarial fixture tried deleting an immutable intake event and correctly hit SQLite IntegrityError. The final test uses separate append-only cases; no shared Core immutability rule changed.",
+      "files": {
+        "historical-review-receipt.json": {
+          "sha256": "f2d189dec79e71e81a5f50fb3c52edf160f70ab9083a116d314e43591a6ef0ab",
+          "bytes": 173183,
+          "raw_byte_copy": true
+        },
+        "historical-review-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "raw_byte_copy": true
+        },
+        "historical-review-stderr.log": {
+          "sha256": "5199c2394b99395bcb523b37228849f1cc382f01ceb25345733ed544e005678b",
+          "bytes": 2621,
+          "raw_byte_copy": true
+        }
+      }
+    },
+    {
+      "name": "final",
+      "test_count": 15,
+      "test_seconds": 67.825,
+      "errors": 0,
+      "exit_code": 0,
+      "driver_elapsed_seconds": 69.98500000000058,
+      "source_inventory_equal": true,
+      "interpretation": "Ten producer regressions plus five capability-map tests passed; source inventory was unchanged throughout this run. Authored HTTP/DNS mocks with actual Core SQLite, SDK parser and canonical package validation only.",
+      "files": {
+        "final-receipt.json": {
+          "sha256": "e8e1f413fdeef980a9c87d35b41d3eef998b26a1b0c55ed93c22c54e30d2896f",
+          "bytes": 173216,
+          "raw_byte_copy": true
+        },
+        "final-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "raw_byte_copy": true
+        },
+        "final-stderr.log": {
+          "sha256": "449fb043a1b4f4ee4b7e8362560118ff0e5442c395c1d1e1adba6fd31ca42e0e",
+          "bytes": 2891,
+          "raw_byte_copy": true
+        }
+      }
+    }
+  ],
+  "readme_sha256": "187a5b411ada5ea8567ee3d2406788eb05741fc2c07202bf59d9633399dc52ca"
+}

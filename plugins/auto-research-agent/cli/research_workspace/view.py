@@ -31,6 +31,43 @@ def _replace(value, old, new):
     return value.replace(old, new)
 
 
+def _canonical_rebuild(index):
+    """Recognize the complete explicit bare-delivery path mapping, not a CLI."""
+    provenance = index["provenance"]
+    files = provenance["files"]
+    mapped = {
+        name: row
+        for name, row in files.items()
+        if isinstance(row, dict) and "physical_relative_path" in row
+    }
+    if not mapped:
+        return None
+    if set(mapped) != set(files) or any(
+        not name.startswith("deliverable/")
+        or row["physical_relative_path"] != name.removeprefix("deliverable/")
+        for name, row in mapped.items()
+    ):
+        raise DeliverableError("bare canonical provenance path mapping differs")
+    manifest = mapped.get("deliverable/provenance_manifest.json", {})
+    records = mapped.get("deliverable/records.original.json", {})
+    if (
+        manifest.get("sha256") != provenance["deliverable_manifest_sha256"]
+        or manifest.get("sha256") != provenance["package_manifest_sha256"]
+        or records.get("sha256") != provenance["records_sha256"]
+    ):
+        raise DeliverableError("bare canonical manifest or records binding differs")
+    return {
+        "source_kind": "Stage1ResearchDeliverable",
+        "entrypoint_kind": "python-api",
+        "entrypoint": "research_workspace.canonical_delivery.project_canonical_delivery",
+        "reader_api": "research_workspace.canonical_delivery.project_canonical_delivery",
+        "renderer_api": "research_workspace.view.write_workspace",
+        "manifest_path": "provenance_manifest.json",
+        "manifest_sha256": manifest["sha256"],
+        "expected_manifest_sha256": manifest["sha256"],
+    }
+
+
 def _literature(source):
     source = (
         source[: source.index("  const freezeRecord")]
@@ -72,7 +109,9 @@ def _literature(source):
     )
 
 
-def render_view(index_path, output, reference_root, expected_index_sha256):
+def render_view(
+    index_path, output, reference_root, expected_index_sha256, *, atlas=False
+):
     """Bind an externally approved index and pinned presentation assets to a new view."""
     index_path = private_output(index_path)
     raw = Path(index_path).read_bytes()
@@ -82,6 +121,8 @@ def render_view(index_path, output, reference_root, expected_index_sha256):
     options = {}
     if index.get("schema_version") == "3.0.0":
         options["source_rerun_root"] = Path(index_path).parent / "source-rerun"
+    if atlas:
+        options["atlas"] = True
     return _write_view(index, raw, reference_root, output, **options)
 
 
@@ -94,6 +135,7 @@ def write_workspace(
     stage2_bridge=None,
     expected_stage2_bridge_sha256=None,
     source_rerun_root=None,
+    atlas=False,
 ):
     """Write a freshly projected index with its canonical-byte receipt."""
     return _write_view(
@@ -105,6 +147,7 @@ def write_workspace(
         stage2_bridge=stage2_bridge,
         expected_stage2_bridge_sha256=expected_stage2_bridge_sha256,
         source_rerun_root=source_rerun_root,
+        atlas=atlas,
     )
 
 
@@ -118,6 +161,7 @@ def _write_view(
     stage2_bridge=None,
     expected_stage2_bridge_sha256=None,
     source_rerun_root=None,
+    atlas=False,
 ):
     validate_index(index)
     if index["schema_version"] in {"2.0.0", "3.0.0"}:
@@ -125,6 +169,12 @@ def _write_view(
     stage2_attachment, stage2_files = None, {}
     supplied = (stage2_delivery, stage2_bridge, expected_stage2_bridge_sha256)
     if any(value is not None for value in supplied):
+        if index["schema_version"] in {"1.1.0", "1.2.0"}:
+            raise DeliverableError(
+                "canonical-records-"
+                + index["schema_version"].removesuffix(".0")
+                + " Stage2 consumer unconnected"
+            )
         if not all(value is not None for value in supplied):
             raise DeliverableError(
                 "Stage 2 delivery, bridge and receipt hash are required"
@@ -142,6 +192,8 @@ def _write_view(
     expected_index_sha256 = sha(raw)
     if index.get("kind") != "WorkspaceIndex" or index.get("schema_version") not in {
         "1.0.0",
+        "1.1.0",
+        "1.2.0",
         "2.0.0",
         "3.0.0",
     }:
@@ -313,6 +365,15 @@ def _write_view(
         **stage2_files,
     }
     files.update(selection_files(index))
+    if atlas:
+        from .atlas import ATLAS_ASSETS, atlas_files
+
+        files.update(atlas_files(payload))
+        files["index.html"] = files["index.html"].replace(
+            b"</header>",
+            b'<p><a href="atlas.html">Open literature map and comparison atlas</a></p></header>',
+            1,
+        )
     if repaired:
         from .closeout import closeout_files
 
@@ -392,6 +453,33 @@ def _write_view(
             )
         },
     }
+    canonical_rebuild = _canonical_rebuild(index)
+    if canonical_rebuild is not None:
+        manifest["rebuild"].update(canonical_rebuild)
+        manifest["adapter_sources"]["canonical_delivery.py"] = sha(
+            Path(__file__).with_name("canonical_delivery.py").read_bytes()
+        )
+    if index["schema_version"] == "1.2.0":
+        manifest["adapter_sources"].update(
+            {
+                "stage1_deliverable/" + name: sha(
+                    (
+                        Path(__file__).parent.parent / "stage1_deliverable" / name
+                    ).read_bytes()
+                )
+                for name in ("screening_records.py", "core_records.py", "records.py")
+            }
+        )
+    if atlas:
+        manifest["rebuild"]["atlas"] = True
+        manifest["atlas_binding_sha256"] = sha(files["atlas-binding.json"])
+        for name in ("atlas.py", "atlas_model.py"):
+            manifest["adapter_sources"][name] = sha(
+                Path(__file__).with_name(name).read_bytes()
+            )
+        manifest["ui_sources"].update(
+            {name: sha(files[name]) for name in (*ATLAS_ASSETS, "atlas-model.js")}
+        )
     if repaired:
         from .closeout import runtime_binding
 
@@ -487,11 +575,18 @@ def main():
     parser.add_argument(
         "--output", required=True, help="New directory outside every Git checkout"
     )
+    parser.add_argument(
+        "--atlas", action="store_true", help="Include the read-only evidence atlas"
+    )
     args = parser.parse_args()
     print(
         json.dumps(
             render_view(
-                args.index, args.output, args.reference_root, args.expected_index_sha256
+                args.index,
+                args.output,
+                args.reference_root,
+                args.expected_index_sha256,
+                atlas=args.atlas,
             )
         )
     )

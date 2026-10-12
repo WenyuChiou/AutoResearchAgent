@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 PLUGIN = Path(__file__).resolve().parents[1]
@@ -62,6 +63,23 @@ class Stage2WorkflowCliTests(unittest.TestCase):
         )
         self.assertEqual((code, error), (0, ""))
         return json.loads(output)
+
+    def test_stage3_inspection_rejects_git_output_before_reading(self):
+        (self.root / ".git").mkdir()
+        output = self.root / "private-handoff.json"
+        command = "inspect-stage3-input --package not-read --delivery not-read"
+        with patch("stage2_workflow.planning_handoff.inspect_planning_handoff") as read:
+            code, text, error = self.invoke(
+                *command.split(),
+                "--expected-manifest-sha256",
+                "a" * 64,
+                "--output",
+                str(output),
+            )
+        self.assertEqual((code, text), (2, ""))
+        self.assertIn("planning-output-must-be-private", error)
+        read.assert_not_called()
+        self.assertFalse(output.exists())
 
     def test_init_and_inspect_report_hash_snapshot_and_pending_candidates(self):
         self.init_workflow()

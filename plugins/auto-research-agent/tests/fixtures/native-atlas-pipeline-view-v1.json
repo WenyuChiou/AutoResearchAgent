@@ -1,0 +1,99 @@
+{
+  "project_ref": "project-a",
+  "index_sha256": "974ce0a1fac5f2f388db662e8eec72c2f0f845a395b542649548e09f39d2de50",
+  "input_version": "410ea61566cc3693b1be7afd1a77f2597a9164c4a7b3bca5c5522cec9fcdaa04",
+  "revision": 32,
+  "failure": null,
+  "requests": [],
+  "actions": [
+    {
+      "action_ref": "efd07eec67cbfded17f522107caa7695e981fc179f9fa64c079569935df11b97",
+      "action_sha256": "995687b82d76577de983f6c5f939616988106a0a1911efe69eb1fc6d93235bc3",
+      "kind": "message",
+      "client_key": "message-key",
+      "target_ref": "573ca3f78c946ff0b7978b49fa7dc66f48745bdf2d7ebc9da873d2eaf8d3ca94",
+      "status": "completed",
+      "replayed": false,
+      "failure": null
+    }
+  ],
+  "operations": [
+    {
+      "action_ref": "e1fc1efe7e13eb994570a0ddca7fc717bc955f1df24512bee4ea44b4b4112f90",
+      "action_sha256": "83addff58aa73407236208f6b4df9dfbcd3503d7e9bfc5830be5d02118411074",
+      "status": "completed",
+      "can_interrupt": false
+    }
+  ],
+  "transcript": {
+    "schema_version": "1.0.0",
+    "entries": [
+      {
+        "entry_ref": "2232480063de5c86cbf6e87bf8a93445aed30b1e254107d4a26c1f385a23a2c3",
+        "action_ref": "efd07eec67cbfded17f522107caa7695e981fc179f9fa64c079569935df11b97",
+        "role": "user",
+        "kind": "message-intent",
+        "status": "completed",
+        "text": "Read these recorded sources.",
+        "failure": null,
+        "frame_refs": []
+      },
+      {
+        "entry_ref": "66aa41ed0381c023ac9224cfba0263e282f5780fa2401603906255594a2efdce",
+        "action_ref": "efd07eec67cbfded17f522107caa7695e981fc179f9fa64c079569935df11b97",
+        "role": "assistant",
+        "kind": "assistant-final",
+        "status": "completed",
+        "text": "Literal <img> 简體 saved model-text fixture.",
+        "failure": null,
+        "frame_refs": [
+          {
+            "frame_sequence": 3,
+            "raw_sha256": "e856af95cbc6b89b9b86ae7ac38becbb2d9107975038858c91c9432838937215"
+          },
+          {
+            "frame_sequence": 4,
+            "raw_sha256": "3dfbd8fa25adc5df89018edece086b0207e5720acaf899a09df0256eb531cb73"
+          }
+        ]
+      },
+      {
+        "entry_ref": "5820756ca3284a3bd5c7136a9e8f5fbb96fea8b6de13d8b08285c7f5b5c54fb8",
+        "action_ref": "efd07eec67cbfded17f522107caa7695e981fc179f9fa64c079569935df11b97",
+        "role": "tool",
+        "kind": "tool-status",
+        "status": "failed",
+        "text": null,
+        "failure": "native-tool-failed",
+        "frame_refs": [
+          {
+            "frame_sequence": 5,
+            "raw_sha256": "4e39f3c8f23775a4d4ae78d2aed3bf1f440ab03c84c84ecd3d6050cbaff2a91b"
+          }
+        ]
+      },
+      {
+        "entry_ref": "c7b5ee9ef27324b5a97691b3a3c7d24f7cd9be0a2d39c4ddc5e4699bc580ffd3",
+        "action_ref": "efd07eec67cbfded17f522107caa7695e981fc179f9fa64c079569935df11b97",
+        "role": "system",
+        "kind": "turn-terminal",
+        "status": "failed",
+        "text": null,
+        "failure": null,
+        "frame_refs": [
+          {
+            "frame_sequence": 6,
+            "raw_sha256": "13e647e75a04123a32fcb2ea882a4d91c518a0e9231b222414f614bad01db825"
+          }
+        ]
+      }
+    ],
+    "window": {
+      "event_limit": 128,
+      "entry_limit": 128,
+      "text_byte_limit": 65536,
+      "truncated": false,
+      "omitted_frames": 0
+    }
+  }
+}

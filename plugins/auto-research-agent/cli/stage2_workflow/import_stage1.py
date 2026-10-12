@@ -248,6 +248,11 @@ def build_stage2_seed(
             "stage1-deliverable-manifest",
         )
         records = manifest["canonical_records"]
+        if records["schema_version"] != "1.0.0":
+            raise Stage2Error(
+                "stage2-canonical-records-consumer-unconnected: "
+                + records["schema_version"]
+            )
         handoff = _read_bound_json(handoff_path, handoff_sha256, "stage1-handoff")
         check_stage1_contract(handoff, "Stage1Handoff")
         if not handoff["eligible_for_stage2"]:

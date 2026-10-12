@@ -1,0 +1,24 @@
+{
+  "final_portable_source_association_guard": "added after v4; root final focused suite required",
+  "kind": "Stage1CoreFormatFreeze",
+  "logs": {
+    "v1": "0244032afa315835ac74c00dc8c46eeed3322738d223ef33bacd059791d16a54",
+    "v2": "7d38fb6c432d5e5632dc44ccfc90e45491f0024ef419424a09b9b67a43e05a69",
+    "v3": "e5287308723b72564ffebabd4ff4af52daff3ff51f01b121b2a53a7e0197f687",
+    "v4": "55e84f1f0174e2d3c4747b293f742a9ba94500c5107cdab1d989d61b819cb461"
+  },
+  "paths": {
+    "plugins/auto-research-agent/cli/research_workspace/projection.py": "22faaf0c69a8a96a07778aeedb5d570e862dd2528c8109e504bde95eec4757ab",
+    "plugins/auto-research-agent/cli/research_workspace/view.py": "0813f9b7342fe27a31e8e9d7e9e74def97e7bb67c2806e5b79929b503e82163f",
+    "plugins/auto-research-agent/cli/research_workspace/wiki.py": "02341cd2ab2a137c4b4b8c8b0e8ff6d79ba5972a99cde1b4e3a0898914c910f9",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "a1594a1c6619d69702aa935c1f2ca2e50e200a9c98e5093e0b3773923a6da0ce",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "1d5625573e0d75e99142c6d14fe93cd8b113963d9c9545083379a965f0d9259b",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage2.py": "f4dfcbb7feb5a753f41b8d8c61a77e3ac33823a9ae3a09efd7a4e5340920431a",
+    "plugins/auto-research-agent/cli/stage1_deliverable/core_records.py": "0df50560bab84fe5e39ebc322c4cc73773f8a32ed6f0c630b9b496b17bb08c0d",
+    "plugins/auto-research-agent/cli/stage1_deliverable/package.py": "b20436a5c27920aee292e7f3c8540814a5f737c41c84a0e8d750e2adefee04ed",
+    "plugins/auto-research-agent/cli/stage1_deliverable/records.py": "28c269f82a3d2b26456d8a3dd8c44ce0a2ca47bcbad175b1ee2a0bcd2a3b23d0",
+    "plugins/auto-research-agent/cli/stage1_deliverable/views.py": "572f98563afa86fc77afa5fc18d08bd5e40985195bd63b0b6d9a5682a4fcf423",
+    "plugins/auto-research-agent/tests/test_stage1_core_records.py": "3a4dd9503e531e7636772492fe741b9451d28f7b29d9399e825cbb9c7a93340d"
+  },
+  "scope": "1.1.0 lossless saved Core records; no science/model/native gate changes"
+}

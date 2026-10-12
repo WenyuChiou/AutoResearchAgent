@@ -191,6 +191,22 @@ def main(argv=None):
     )
     for name in ("delivery", "expected-manifest-sha256", "output"):
         evaluated_check.add_argument("--" + name, required=True)
+    planning = commands.add_parser(
+        "prepare-stage3-input", help="retain selected research context for Stage 3"
+    )
+    for name in (
+        "delivery",
+        "interaction",
+        "expected-delivery-manifest-sha256",
+        "expected-interaction-file-sha256",
+        "output",
+    ):
+        planning.add_argument("--" + name, required=True)
+    planning_check = commands.add_parser(
+        "inspect-stage3-input", help="revalidate a planning package and its delivery"
+    )
+    for name in ("package", "delivery", "expected-manifest-sha256", "output"):
+        planning_check.add_argument("--" + name, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command in {"reconcile", "deliver"} and bool(
@@ -279,6 +295,26 @@ def main(argv=None):
                 args.output,
                 args.expected_head,
             )
+        elif args.command == "prepare-stage3-input":
+            from .planning_handoff import prepare_planning_handoff
+
+            result = prepare_planning_handoff(
+                args.delivery,
+                args.interaction,
+                expected_delivery_manifest_sha256=args.expected_delivery_manifest_sha256,
+                expected_interaction_file_sha256=args.expected_interaction_file_sha256,
+                output_dir=args.output,
+            )
+        elif args.command == "inspect-stage3-input":
+            from .planning_handoff import _private_output, inspect_planning_handoff
+
+            output = _private_output(args.output)
+            result = inspect_planning_handoff(
+                args.package,
+                args.delivery,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+            )
+            _save(output, result)
         elif args.command == "evaluated-deliver-v3":
             from .evaluation_delivery import (
                 build_evaluated_delivery,

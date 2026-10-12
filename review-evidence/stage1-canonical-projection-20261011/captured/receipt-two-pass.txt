@@ -1,0 +1,13 @@
+Capture scope: actual tool stdout; normalized text, not an original process-stream file.
+Working directory: plugins/auto-research-agent/tests
+Command: python -B -X utf8 -m unittest test_workspace_canonical_delivery.CanonicalDeliveryTests.test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping test_research_workspace_view.WorkspaceViewTests.test_graph_assets_are_hash_bound_and_exported -v
+Observed exit code: 0
+Revision boundary: after the view rebuild-receipt correction; only evidence and the capability-map text changed afterward.
+
+test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping) ... ok
+test_graph_assets_are_hash_bound_and_exported (test_research_workspace_view.WorkspaceViewTests.test_graph_assets_are_hash_bound_and_exported) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.921s
+
+OK

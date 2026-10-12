@@ -21,7 +21,7 @@
     ["No records match these filters.", "没有匹配记录。", "沒有符合紀錄。"],
     ["Browse a small Obsidian-like graph and complete bibliographic list. Edges show recorded assignments only; this view does not assert similarity, citation, evidence support, coverage, or quality.", "浏览全部文献及完整书目。连线只表示原包记录的分类和角色，不代表相似度、引用或科学质量。", "瀏覽全部文獻及完整書目。連線僅表示原套件記錄的分類和角色，不代表相似度、引用或科學品質。"],
     ["Lines mean an explicit keyword or role assignment. No paper-to-paper citation edges are recorded.", "连线仅表示原记录的分类或角色，不是文献间的引用关系。", "連線僅表示原紀錄的分類或角色，並非文獻間的引用關係。"],
-    ["Formal literature set", "正式文献集", "正式文獻集"], ["Included", "已纳入", "已納入"], ["Pending identity review", "身份待核", "身分待核"], ["All screened", "全部筛选记录", "全部篩選紀錄"],
+    ["Source selection", "来源筛选", "來源篩選"], ["Technically eligible", "技术资格通过", "技術資格通過"], ["Formal works", "正式文献", "正式文獻"], ["Not certified", "尚未核定", "尚未核定"], ["Pending identity review", "身份待核", "身分待核"], ["All screened", "全部筛选记录", "全部篩選紀錄"],
     ["Selection details", "筛选详情", "篩選詳情"], ["Citation files", "引文文件", "引文檔案"], ["Included .bib", "纳入文献 .bib", "納入文獻 .bib"], ["Screening .bib", "完整筛选 .bib", "完整篩選 .bib"], ["Original bibliography", "原始参考文献", "原始參考文獻"], ["Download included .bib", "下载纳入文献 .bib", "下載納入文獻 .bib"],
     ["Inputs", "输入", "輸入"], ["Expected outputs", "预期输出", "預期輸出"], ["Blocked · execution disconnected", "阻塞 · 未连接执行器", "阻塞 · 未連線執行器"],
     ["A reviewed handoff from the preceding stage is required.", "需要上一阶段已审阅的交接包。", "需要前一階段已審閱的交接套件。"],
@@ -96,12 +96,18 @@
   function selectionPanel(root) {
     if (!selection.available) return;
     const panel = make("section", undefined, "selection-toolbar");
-    const field = make("div"), label = make("label", "Formal literature set");
-    const chooser = make("select"); chooser.setAttribute("aria-label", "Formal literature set");
-    for (const [value, text] of [["included","Included"],["pending","Pending identity review"],["all","All screened"]]) { const option = make("option", text); option.value = value; chooser.append(option); }
+    const field = make("div"), label = make("label", "Source selection");
+    const chooser = make("select"); chooser.setAttribute("aria-label", "Source selection");
+    for (const [value, text] of [["included","Technically eligible"],["pending","Pending identity review"],["all","All screened"]]) { const option = make("option", text); option.value = value; chooser.append(option); }
     chooser.value = state.selectionScope;
     chooser.onchange = () => { state.selectionScope = chooser.value; const visible = selectedRecords(); if (!visible.some(record => record.workId === state.selected)) state.selected = visible[0]?.workId || null; render(); };
     field.append(label, chooser);
+    const formal = index.readiness?.formal_progress;
+    const progress = make("p", undefined, "formal-progress");
+    progress.append(make("span", "Formal works"));
+    if (formal?.kind === "Stage1FormalReadiness" && Number.isInteger(formal.formally_usable_distinct_works)) progress.append(source("span", ` · ${formal.formally_usable_distinct_works} / ${formal.target ?? "unknown"}`));
+    else progress.append(make("span", "Not certified"));
+    field.append(progress);
     const citations = make("div", undefined, "selection-citations"); citations.append(make("span", "Citation files"));
     const links = make("div", undefined, "selection-citation-links");
     for (const [scope, text] of [["included","Included .bib"],["screening","Screening .bib"],["original","Original bibliography"]]) { const target = selection.citationTarget(scope), link = make("a", text); link.href = target.href; link.download = target.filename; links.append(link); }

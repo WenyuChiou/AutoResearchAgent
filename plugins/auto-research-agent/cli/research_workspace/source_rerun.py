@@ -67,6 +67,42 @@ def _saved_response_selection(attempts):
     return selected, acquisition
 
 
+def _saved_public_import(receipt, selected):
+    """Recognize the immutable SDK's strictly owned saved-source receipt."""
+    attempts = receipt.get("attempts", [])
+    diagnostics = receipt.get("diagnostics", {})
+    if not isinstance(diagnostics, dict):
+        return False
+    diagnostics = diagnostics.get("saved_import", {})
+    if not isinstance(diagnostics, dict):
+        return False
+    return bool(
+        receipt.get("request", {}).get("operation") == "source import-saved"
+        and len(attempts) == 2
+        and selected == attempts[1]
+        and attempts[0].get("sequence") == 1
+        and attempts[0].get("purpose") == "saved-input-provenance"
+        and attempts[0].get("http_status") is None
+        and attempts[0].get("outcome") == "imported"
+        and attempts[0].get("content_type") == "application/json"
+        and attempts[0].get("response_truncated") is False
+        and attempts[0].get("raw_path")
+        and attempts[1].get("sequence") == 2
+        and attempts[1].get("purpose") == "saved-public-source"
+        and attempts[1].get("http_status") is None
+        and attempts[1].get("outcome") == "parsed"
+        and attempts[1].get("response_truncated") is False
+        and attempts[1].get("raw_path")
+        and type(attempts[1].get("response_bytes")) is int
+        and receipt.get("raw_path") == attempts[1]["raw_path"]
+        and receipt.get("raw_sha256") == attempts[1].get("raw_sha256")
+        and receipt.get("source_version") == "sha256:" + attempts[1]["raw_sha256"]
+        and diagnostics.get("manifest_schema_version") == "saved-public-source-input/v1"
+        and diagnostics.get("manifest_sha256") == attempts[0].get("raw_sha256")
+        and diagnostics.get("original_http_acquisition_verified") is False
+    )
+
+
 def _parser(path, expected):
     path = Path(path).resolve(strict=True)
     require(sha(path.read_bytes()) == expected, "rerun parser hash differs")
@@ -322,7 +358,11 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
     return sha(canonical(manifest))
 
 
-def _bibliography(index, rows):
+def _bibliography(index, rows, *, citation_key_policy=None):
+    require(
+        citation_key_policy in (None, "work-version-sha256"),
+        "unknown rerun citation key policy",
+    )
     current = deepcopy(index["papers"])
     original_ids = {
         (s["work_id"], s["version_id"], s["source_id"]) for s in index["sources"]
@@ -339,6 +379,15 @@ def _bibliography(index, rows):
     for paper in current:
         row = by_id[(paper["work_id"], paper["version_id"])]
         base = bibtex({"papers": [paper]}).decode("utf-8")
+        if citation_key_policy == "work-version-sha256":
+            key = "work_" + sha(canonical((paper["work_id"], paper["version_id"])))
+            base, count = re.subn(
+                r"(@[A-Za-z]+\{)[^,\r\n]+,",
+                lambda match: match[1] + key + ",",
+                base,
+                count=1,
+            )
+            require(count == 1, "rerun bibliography entry heading missing")
         # Preserve legacy producer values and add separately labelled metadata.
         values = row["metadata"]
         additions = []
@@ -394,6 +443,7 @@ def attach_rerun(
     expected_manifest_sha256,
     *,
     expected_body_review_acceptance_hashes=None,
+    expected_whole_source_review_acceptance_hashes=None,
 ):
     """Accept an externally bound rerun without altering frozen claims or scores."""
     from .projection import validate_index
@@ -430,7 +480,11 @@ def attach_rerun(
         "manifest_sha256": expected_manifest_sha256,
         "data": manifest["data"],
         "artifact_hashes": files,
-        "bibliography": _bibliography(index, manifest["data"]["rows"]),
+        "bibliography": _bibliography(
+            index,
+            manifest["data"]["rows"],
+            citation_key_policy=manifest["data"].get("citation_key_policy"),
+        ),
     }
     from .body_review_attachment import attach_body_reviews
 
@@ -442,6 +496,16 @@ def attach_rerun(
     )
     if reviews:
         result["source_rerun"]["body_reviews"] = reviews
+    from .whole_source_review import attach_whole_source_reviews
+
+    source_reviews = attach_whole_source_reviews(
+        manifest["data"]["rows"],
+        evidence,
+        files,
+        expected_whole_source_review_acceptance_hashes,
+    )
+    if source_reviews:
+        result["source_rerun"]["whole_source_reviews"] = source_reviews
     validate_rerun_index(result)
     for row in result["source_rerun"]["data"]["rows"]:
         if row.get("raw_path"):
@@ -545,6 +609,56 @@ def validate_rerun_index(index):
             "rerun historical failure/attempts differ",
         )
         selected, acquisition = _saved_response_selection(source["receipt"]["attempts"])
+        saved_import_receipt = (
+            source["receipt"].get("request", {}).get("operation")
+            == "source import-saved"
+        )
+        if saved_import_receipt:
+            require(
+                _saved_public_import(source["receipt"], selected),
+                "rerun saved import receipt is not replay-admissible",
+            )
+            require(
+                "saved_import_archive" not in row,
+                "rerun unbound saved import must retain legacy inaccessible reading",
+            )
+            # The earlier writer rejected the SDK's null HTTP status before
+            # extraction. Preserve that historical failure without admitting text.
+            require(
+                bool(row.get("raw_path"))
+                and "extracted_path" not in row
+                and "acquisition_sequence" not in row
+                and row.get("source_metadata") == {}
+                and row["reading"]
+                == {
+                    "status": "inaccessible",
+                    "evidence_level": "metadata",
+                    "identity_status": "unverified",
+                    "characters": 0,
+                    "text_sha256": None,
+                    "locators": [],
+                    "diagnostics": {},
+                    "error": {
+                        "type": "PermissionError",
+                        "message": "saved HTTP response was not successful; no new access attempted",
+                    },
+                },
+                "rerun unbound saved import must retain legacy inaccessible reading",
+            )
+            raw_artifact = extension["artifact_hashes"].get(row["raw_path"], {})
+            require(
+                bool(row.get("raw_sha256"))
+                and row["raw_sha256"]
+                == selected["raw_sha256"]
+                == raw_artifact.get("sha256")
+                and raw_artifact.get("bytes") == selected["response_bytes"],
+                "rerun legacy saved import raw binding differs",
+            )
+        else:
+            require(
+                "saved_import_archive" not in row,
+                "rerun non-import source has saved import archive",
+            )
         acquisition_bound = (
             acquisition is not None
             and row.get("acquisition_sequence") == acquisition["sequence"]
@@ -691,12 +805,18 @@ def validate_rerun_index(index):
                 "rerun text/artifact binding differs",
             )
     require(
-        extension["bibliography"] == _bibliography(base, rows),
+        extension["bibliography"]
+        == _bibliography(
+            base, rows, citation_key_policy=data.get("citation_key_policy")
+        ),
         "rerun bibliography differs",
     )
     from .body_review_attachment import validate_body_reviews
 
     validate_body_reviews(extension)
+    from .whole_source_review import validate_whole_source_reviews
+
+    validate_whole_source_reviews(extension)
     return index
 
 

@@ -175,3 +175,147 @@ Cleanup failures, surviving workers or receipt persistence failures cannot repor
 This synthetic host remains separate from the true Stage1 package and actual native acceptance.
 
 Opt-in browser driver requires explicit --repo/--python/--playwright/--browser/--reference/--temp/--scope/--output; ordinary Python discovery does not launch it.
+
+HTML integration adds explicit bootstrap/context, owned process deadlines and passive session ownership.
+OwnedProcessChannel requires a trusted unsent spawn intent and separate source/admission gates; viewing never creates it.
+The shared host_config entry resolves already registered runtimes and requires their explicit credential.
+Missing references remain unavailable. Successful AtlasHost construction transfers runtime shutdown ownership; failed construction does not.
+Feedback inbox references remain borrowed, and closing a host preserves their embedding ownership.
+
+Message offers publish max_text_bytes and advance the saved revision when first recorded.
+Prepare rereads the same source binding and enables Send only after the offer and view revisions agree.
+NativeKnownUnsent.v1 receipts are issued only for verified message offers/identities/sources, never-admitted keys and explicit pre-admission validation refusals.
+The receipt binds project_ref, index_sha256, input_version, client_key, offer_ref and offer_sha256.
+The UI removes only the matching local intent; timeout, missing response and uncertain outcomes retain the original key and recover by GET.
+Transcript projections retain literal text, partial windows, failures and unknown state; dispatch is not completion.
+Synthetic fake-child and injected-channel tests do not establish native authentication or research quality.
+
+AtlasHost optionally takes the same runtime's ScopeApi, reusing the existing source-bound
+scope history, append and review HTTP handlers and three-language panel. Approval Accept
+is disabled by default. Trusted SessionApi registration may supply an approval_policy
+for one exact saved request; literal True is required again before dispatch and the
+controller's independent admission still applies. The browser cannot supply this policy,
+paths or permits. Saving scope or requesting the next stage is not execution authority.
+
+python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_atlas_scope_approval.py -v
+
+AtlasHost(stage_actions=...) exposes trusted saved-input StageActions over the same
+loopback host. The stage panel checks Stage1 checkpoint / Stage2 completion and
+records review, hold or request-next decisions without starting research. Every
+action binds project/index/input/source hashes, with intent-before-execution and
+GET-only recovery. Missing stage input stays missing; a WorkspaceStageReviewRecord
+is neither native-user attestation nor permission to execute the next stage.
+Run test_workspace_stage_http, test_workspace_stage_storage and test_workspace_stage_panel
+for repository-case HTTP/SQLite and synthetic DOM checks.
+
+## Complete saved Stage1 screening library
+
+The universal project portal has a read-only screening library next to the real
+ledger controls. Every saved candidate remains visible, including excluded,
+pending and unscreened works, unread versions and actual source failures. Select
+a paper for its exact work/version, metadata, discovery and query/attempt counts,
+source/import/claim history, decision reasons and reversals. Only current-version
+source URLs appear in its main access area; older versions remain in history.
+Relevance stays Unknown when no assessment exists. Discovery order, query count,
+backend attempts and recorded rounds are separate observations, not a relevance
+ranking or full-text reading proof. Source availability does not prove reading.
+
+`ProjectStage1LibraryService.read` derives a `Stage1ScreeningLibraryEnvelope` from
+Core Candidate/Claim/Decision snapshots, one validated run, its current manifest,
+semantic state, complete journal and confirmed project/input/brief/plan/settings
+binding. The complete projection has an external SHA-256; it is not persisted
+by GET, is not `Stage1ResearchRecords`, and grants no stage acceptance. A current
+checkpoint's saved snapshot bytes are checked; historical checkpoint refs stay
+historical. The complete projection has a 16 MiB bound with explicit refusal,
+never a silently shortened bibliography.
+
+HTTP GET `/api/projects/<ref>/stage1/screening/<inputVersion>/<stateSHA>/<offset>`
+reads 20 summaries. Later pages require the complete projection SHA as an extra
+path component. GET `/api/projects/<ref>/stage1/screening-detail/<inputVersion>/<stateSHA>/<projectionSHA>/<index>`
+reads one complete original row. Principal/project/version/state/projection/index
+must match. The existing 1 MiB response cap remains; oversized single-row history
+is refused explicitly. No browser root, owner, runtime or permit is accepted.
+Refresh and language changes do not dispatch or implicitly restore a missing
+query owner. Project switching clears old rows and rejects delayed responses.
+
+The canonical producer still requires genuine current screening decisions,
+version-bound reading and source records for every candidate. An unscreened
+candidate now refuses as `saved-current-decision-required` before reading lookup;
+it never receives an invented pending decision or fake access failure. This
+companion makes partial search history usable while keeping that stricter gate.
+The complete neutral projection retains even failed queries with zero candidates;
+the current browser card exposes each paper's query history and global failure
+counts, but does not yet expose the full orphan-query outcome history in a
+separate panel. The existing Core journal keeps those observations intact.
+Source acquisition, model reading, coverage completion and new-topic end-to-end
+Stage1 acceptance remain separate pending interfaces; Stage2 execution is deferred
+and Stage3–6 stay planned/unconnected. Local/CI fixtures are engineering evidence.
+
+## Saved SDK source observation completion
+
+`complete_saved_source` in `project_stage1_source_observation` is a local bridge
+from an original SDK receipt to one already saved `SourceReadStarted` event.
+It does not download, start a model, authorize acquisition or retry a reader.
+The owner supplies the exact captured start payload, fixed private materials
+root, original receipt path/hash and externally verified runtime hash. The
+start request must contain the SDK's six normalized fields: `operation`, `doi`,
+`url`, `title`, `output_dir` and `public_only`. Any timeout or execution budget
+stays in the owner's separate intent. The original SDK directory cannot be
+relocated or rewritten to fit this interface.
+
+Before any Core artifact save, the helper checks the entire receipt and SDK
+digest, all declared raw/text artifacts, and start/attempt/observation time
+ordering. It uses the existing explicit SDK-to-Core outcome mapping and keeps
+the full SDK attempt history in the original receipt. Only an `available`
+outcome supplies nonempty UTF-8 text; HTTP, network, parse and other unavailable
+outcomes remain failures. A network failure without response bytes binds the
+actual SDK receipt as its failure artifact. The declared runtime hash is marked
+`saved-sdk-observation; not execution attestation`: it does not authenticate a
+process, verify reading fidelity, identify a paper or support a scientific claim.
+
+One exclusive Core writer lock covers the local completion. The optional
+`check_current` callback runs before each mutation and after completion. The
+owning wrapper remains responsible for current project, candidate, decision,
+version, permit, budget and frontier checks, durable intent before external
+I/O, and the final action commit. Core journal effects cannot roll back:
+partial artifact saves remain pending, and a completed local event followed by
+owner failure must retain an unknown action rather than a usable success.
+The wrapper must refuse automatic replay or adoption after reopen. Repeating a
+completed source intent refuses. After a valid completion, a fresh checkpoint
+and the existing `ProjectStage1RecordsService.register_source` bind the source
+description into the saved registry; they do not create a reading record or
+change coverage, stop or Stage 2 eligibility.
+
+`test_project_stage1_source_observation.SourceObservationTests` exercises real
+Core/SQLite and the SDK parser against authored HTTP mocks. Its eight checks
+cover available completion/registration/reopen, HTTP 503, timeout, changed
+start/request/version, receipt/time/artifact tampering, partial receipts,
+owner refusal before or after a raw save, and the fixed materials root. The
+captured run passed 8 tests in 13.960s with unchanged source inventories. This
+is an offline helper result; the production owner wrapper, source worker, real
+acquisition, model reading and full Stage 1 acceptance need separate evidence.
+
+## Distinct controlled acquisition and saved-public parsing
+
+`acquired_source_parser.parse_acquired_source` verifies an externally saved
+`PublicSourceAcquisitionReceipt`, its exact server request/job/runtime binding,
+every bounded raw response, selected successful hop and original hashes. It
+requires literal parse admission and an explicitly supplied trusted runner;
+the default refuses before parsing. Original acquisition bytes are retained.
+An exclusive intent and saved-public manifest precede the runner, and repeated
+or ambiguous work cannot adopt an old output or automatically retry.
+
+The SDK's public `import_saved_public_source` parser writes a separate receipt.
+Its `source import-saved` operation, two saved-input attempts and
+`original_http_acquisition_verified=False` remain unchanged. The returned
+bundle binds both original receipts and all declared artifacts. It cannot be
+passed off as `source fetch` or silently completed through the legacy Core
+source-observation helper. A successful body is not an identity, reading,
+claim or stage-acceptance verdict; parser failures keep their real status.
+
+An injected synchronous parser is an offline test seam. Before/after deadline
+checks cannot interrupt a hung parser; production needs a separately owned,
+bounded parser process and current job/permission/budget checks. This helper
+does not dispatch from GET, mutate Core, register a paper, grant protected
+import authority or connect the full Stage 1 UI execution path. Stage 2 keeps
+its existing source-bound interfaces; Stage 3–6 remain planned/unconnected.

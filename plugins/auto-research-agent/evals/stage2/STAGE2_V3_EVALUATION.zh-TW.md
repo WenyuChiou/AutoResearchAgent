@@ -95,6 +95,13 @@ Controller 先確認原生呼叫完成，才進入成功紀錄查核及擷取；
 
 ## 日常執行預檢與失敗恢復
 
+日常執行的 environment replay 先以外部 receipt 核對全部封存 bytes，再用
+完整 session 身分資料選出本次紀錄。其他已確認身分的舊紀錄若只有工具或
+訊息內容截斷，保留該失敗，不阻擋本次完整紀錄的查核。本次日誌仍須嚴格
+解析；來源身分不明、metadata 損壞、重複本次 session、權限或 runtime 不符
+仍拒絕。正式 A/B 的日誌解析不變；缺少 inventory 仍是 unknown。
+這是唯讀查核修復，不重跑原生呼叫，也不代表完整預演或研究改善。
+
 每個實際使用的 profile／workspace 都須有相符的原生呼叫證據。
 日常 production probe v1.1 可保留相對的 `source_path` 作為封包索引，
 同時使用絕對的 `command_path` 讀取檔案。兩者必須指向已固定 workspace 的同一檔案；
@@ -312,3 +319,27 @@ runtime、來源和外部 receipt；不呼叫模型，也不能授權重新執�
 若清單驗證失敗，仍保留可恢復的原始紀錄；unknown 成本不變成零。
 歷史重建不會重新執行模型，也不代表取得新的執行權限。
 此接口是一般 B 流程的基礎，不能證明兩個預演完成、正式隔離或科學品質改善。
+
+### 舊版執行與新版驗證器的明確綁定
+
+控制器重播會以既有 request-config builder 還原完整 namespace、dispatcher
+與實際工作目錄，並核對原始 executable/runtime hash。缺少或不同的設定拒絕，
+不重跑模型。沒有 namespace 的舊設定仍保留原形狀。
+
+一般 `verify_controller` 與 `verify_extraction` 仍要求目前程式版本相符。
+唯讀歷史查核可明示 `historical_binding`1.0：由呼叫端分別提供原始 producer
+Python tree 的路徑與外部 hash，以及目前 host verifier build/runtime 的外部 hash。
+另明示原始 request 的 `producer_path_convention`（posix/windows），核對已登錄
+的路徑雜湊慣例，不用目前主機推測舊執行平台。Host runtime 查核完整依賴來源、
+實際載入路徑與 schema 等資源 bytes；混用套件或資源變動會拒絕。
+`inspect_verifier_build` 提供事前保存的 host pins；不能從 subject manifest
+自填這些信任依據。相容版本清單另經程式 review，未列入的舊版本拒絕。
+
+查核只將舊程式當作 bytes，不匯入或執行它。原生呼叫、來源、設定、權限、
+評分及完成條件仍使用原有檢查；不重寫舊 manifest 或 receipt。
+`verify_historical_environment_capture` 額外保存目前驗證器、原始 capture、
+preflight 與 inventory receipt 的共同查核 hash。缺 inventory 仍是未知，
+不會因此變成正式 A/B 證據、已完成預演或科學核准。
+
+這個綁定只允許查歷史，execution/resume 不接受它。下一次新的 subject run
+仍須綁定自己的程式、環境與 production proofs。

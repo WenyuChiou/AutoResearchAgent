@@ -16,6 +16,7 @@ sys.path.insert(0, str(PLUGIN / "cli"))
 sys.path.insert(0, str(PLUGIN / "tests"))
 
 from stage2_live.extraction import (  # noqa: E402
+    _prompt,
     build_span_index,
     expand_span_ids,
     generation_schema,
@@ -93,6 +94,19 @@ class StubGeneration:
 
 
 class Stage2LiveExtractionTests(unittest.TestCase):
+    def test_table_extraction_distinguishes_partial_from_metadata_uncertainty(self):
+        with tempfile.TemporaryDirectory() as directory:
+            packet = write_stage2_fixture(Path(directory), candidate_count=0)
+        packet["schema_version"] = "2.2.0"
+        packet["research_tables"] = None
+        raw = "A title suggests a mechanism but does not establish its design."
+        spans = build_span_index(raw)
+        task = build_extraction_task(raw, packet, SNAPSHOT)
+        prompt = _prompt(task, packet, spans, generation_schema(spans, packet))
+        self.assertIn("Partial means positively evidenced partial coverage", prompt)
+        self.assertIn("use unknown with null value", prompt)
+        self.assertIn("Never upgrade source evidence levels", prompt)
+
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)

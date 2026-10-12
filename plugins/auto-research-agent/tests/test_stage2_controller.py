@@ -4,11 +4,13 @@
 import copy
 import hashlib
 import inspect
+import io
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
@@ -21,9 +23,9 @@ from stage1_eval.model import _api_schema
 from stage1_eval.model_calls import (
     MODEL_CALL_ARCHIVE_VERSION,
     _attempt_files,
-    _command,
     _normalize_policy,
     _request_record,
+    _namespace_command,
     replay_native_model_call_archive,
 )
 from stage2_common import Stage2Error, canonical_hash
@@ -50,6 +52,7 @@ from stage2_live.extraction import (
 from stage2_live.judges import _execution_policy
 from stage2_live.replay import verify_extraction
 from stage2_workflow import initialize_workflow, inspect_workflow
+from stage2_workflow.delivery import build_delivery
 from test_stage2_checker import assessment
 from test_stage2_ideation import valid_extraction
 from test_stage2_readonly_replay import POLICY, SNAPSHOT, digest, write_json
@@ -68,6 +71,10 @@ def _write_faithful_model_archive(root, label, prompt, schema, value, config, po
     (archive / "prompt.txt").write_bytes(prompt.encode("utf-8"))
     (archive / "schema.json").write_bytes(schema_raw)
     (archive / "generation-schema.json").write_bytes(generation_raw)
+    if "native_namespace" in config:
+        (archive / "native-namespace.json").write_bytes(
+            Path(config["native_namespace"]["path"]).read_bytes()
+        )
     files = _attempt_files(archive, 1)
     stdout = b"\n".join(
         [
@@ -90,8 +97,8 @@ def _write_faithful_model_archive(root, label, prompt, schema, value, config, po
         "archive_version": MODEL_CALL_ARCHIVE_VERSION,
         "attempt": 1,
         "request_fingerprint_sha256": request["request_fingerprint_sha256"],
-        "command": _command(
-            config["codex"],
+        "command": _namespace_command(
+            config,
             config["model"],
             config["reasoning"],
             archive / "generation-schema.json",
@@ -617,7 +624,9 @@ class Stage2ControllerTests(unittest.TestCase):
             ("pending", False),
         )
         self.assertFalse(first["formal_ready"])
-        self.assertTrue(first["selection_ready"])
+        # This legacy fixture has no topic matrix or external assessment.
+        self.assertFalse(first["selection_ready"])
+        self.assertFalse(first["stage2_complete"])
         self.assertFalse(first["pilot_executable"])
         self.assertEqual(first["delivery_manifest"]["human_selection"], "pending")
         verified = verify_controller(
@@ -1006,6 +1015,175 @@ class Stage2ControllerTests(unittest.TestCase):
         with self.assertRaisesRegex(Stage2Error, "action-binding-changed"):
             self.run_controller(adapter, spec=changed)
         self.assertEqual(adapter.calls.count("research"), 1)
+
+    def test_rehash_tamper_rejected_for_omitted_required_actions(self):
+        adapter = SyntheticAdapter()
+        result = self.run_controller(adapter)
+        original = json.loads(
+            (
+                self.controller
+                / "controller_manifests"
+                / (result["controller_manifest_sha256"] + ".json")
+            ).read_text(encoding="utf-8")
+        )
+        for prefix in ("ideation-", "extraction-", "review-", "resolution-"):
+            with self.subTest(prefix=prefix):
+                changed = copy.deepcopy(original)
+                omitted = next(
+                    row
+                    for row in changed["action_summaries"]
+                    if row["action_id"].startswith(prefix)
+                )
+                changed["action_summaries"].remove(omitted)
+                changed["manifest_sha256"] = canonical_hash(
+                    {
+                        key: value
+                        for key, value in changed.items()
+                        if key != "manifest_sha256"
+                    }
+                )
+                (
+                    self.controller
+                    / "controller_manifests"
+                    / (changed["manifest_sha256"] + ".json")
+                ).write_text(json.dumps(changed), encoding="utf-8")
+                with self.assertRaisesRegex(
+                    Stage2Error, "controller-required-action-set-incomplete"
+                ):
+                    verify_controller(self.controller, changed["manifest_sha256"])
+
+    def test_rehashed_completion_flag_cannot_turn_draft_into_complete(self):
+        result = self.run_controller(SyntheticAdapter())
+        changed = json.loads(
+            (
+                self.controller
+                / "controller_manifests"
+                / (result["controller_manifest_sha256"] + ".json")
+            ).read_text(encoding="utf-8")
+        )
+        changed["completion"]["stage2_complete"] = True
+        changed["manifest_sha256"] = canonical_hash(
+            {key: value for key, value in changed.items() if key != "manifest_sha256"}
+        )
+        (
+            self.controller
+            / "controller_manifests"
+            / (changed["manifest_sha256"] + ".json")
+        ).write_text(json.dumps(changed), encoding="utf-8")
+        with self.assertRaisesRegex(
+            Stage2Error, "controller-completion-reconstruction-mismatch"
+        ):
+            verify_controller(self.controller, changed["manifest_sha256"])
+
+    def test_duplicate_action_summary_is_rejected_after_rehash(self):
+        self.run_controller(
+            SyntheticAdapter(), expected_head=self.initial["head_sha256"]
+        )
+        changed = json.loads((self.controller / "controller_manifest.json").read_text())
+        changed["action_summaries"].append(
+            copy.deepcopy(changed["action_summaries"][0])
+        )
+        changed["manifest_sha256"] = canonical_hash(
+            {key: value for key, value in changed.items() if key != "manifest_sha256"}
+        )
+        (
+            self.controller
+            / "controller_manifests"
+            / f"{changed['manifest_sha256']}.json"
+        ).write_text(json.dumps(changed), encoding="utf-8")
+        with self.assertRaisesRegex(Stage2Error, "action-summary-duplicate"):
+            verify_controller(self.controller, changed["manifest_sha256"])
+
+    def test_cli_reports_unassessed_delivery_as_incomplete(self):
+        from stage2_live.__main__ import main
+
+        result = self.run_controller(SyntheticAdapter())
+        output = self.root / "completion-cli.json"
+        stdout = io.StringIO()
+        with (
+            redirect_stdout(stdout),
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "stage2_live",
+                    "verify-controller",
+                    "--controller-root",
+                    str(self.controller),
+                    "--receipt",
+                    result["controller_manifest_sha256"],
+                    "--output",
+                    str(output),
+                ],
+            ),
+        ):
+            self.assertEqual(main(), 0)
+        saved = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(json.loads(stdout.getvalue()), saved)
+        self.assertFalse(saved["stage2_complete"])
+        self.assertEqual(saved["completion"]["assessment_status"], "missing")
+        self.assertFalse(saved["formal_ready"])
+
+    def test_separately_valid_delivery_cannot_replace_executed_reviews_or_resolution(
+        self,
+    ):
+        result = self.run_controller(
+            SyntheticAdapter(), expected_head=self.initial["head_sha256"]
+        )
+        original = json.loads(
+            (self.controller / "controller_manifest.json").read_text()
+        )
+        files = result["delivery_manifest"]["review_input_files"]
+        batch = json.loads((self.delivery / files["batch"]).read_text())
+        for kind in ("review", "resolution"):
+            with self.subTest(kind=kind):
+                reviews = json.loads((self.delivery / files["reviews"]).read_text())
+                resolutions = json.loads(
+                    (self.delivery / files["resolutions"]).read_text()
+                )
+                resolution = resolutions["candidate_resolutions"][0]["resolution"]
+                if kind == "review":
+                    reviews[0]["review"]["strongest_alternative"] = (
+                        "A separately recorded alternative."
+                    )
+                    resolution["review_sha256s"] = [
+                        canonical_hash(row["review"]) for row in reviews
+                    ]
+                else:
+                    resolution["reason"] = (
+                        "A separately recorded reconciliation reason."
+                    )
+                other_root = self.root / f"other-{kind}-delivery"
+                other = build_delivery(
+                    self.run,
+                    batch,
+                    reviews,
+                    resolutions,
+                    other_root,
+                    result["workflow_head_sha256"],
+                )
+                changed = copy.deepcopy(original)
+                changed.pop("completion")
+                changed.update(
+                    delivery_root=str(other_root),
+                    delivery_manifest_sha256=other["manifest_sha256"],
+                )
+                changed["manifest_sha256"] = canonical_hash(
+                    {
+                        key: value
+                        for key, value in changed.items()
+                        if key != "manifest_sha256"
+                    }
+                )
+                (
+                    self.controller
+                    / "controller_manifests"
+                    / f"{changed['manifest_sha256']}.json"
+                ).write_text(json.dumps(changed), encoding="utf-8")
+                with self.assertRaisesRegex(
+                    Stage2Error, f"delivery-{kind}-binding-mismatch"
+                ):
+                    verify_controller(self.controller, changed["manifest_sha256"])
 
     def test_missing_reviewer_is_blocked_and_retained_without_duplicate_launch(self):
         adapter = SyntheticAdapter(fail_role="feasibility")

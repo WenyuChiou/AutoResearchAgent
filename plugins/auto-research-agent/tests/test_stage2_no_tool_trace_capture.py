@@ -359,6 +359,28 @@ class NoToolTraceCaptureTests(unittest.TestCase):
             raw = Path(receipt["seal_path"]).read_bytes()
             self.assertEqual(hashlib.sha256(raw).hexdigest(), receipt["seal_sha256"])
 
+    def test_first_verification_failure_retains_later_correction_seal(self):
+        token = begin_no_tool_trace_capture(self.output, self.telemetry)
+        provenances = {
+            "first": self.archive("first", ("one",)),
+            "second": self.archive("second", ("two",)),
+        }
+        self.trace("trace-a", "one")
+        self.trace("trace-b", "two")
+
+        def fail_first(*args, **kwargs):
+            raise Stage2Error("first unit verification failed")
+
+        with self.assertRaises(NoToolTraceCaptureFailure) as raised:
+            self.finish(token, provenances, verifier=fail_first)
+        self.assertEqual(
+            set(raised.exception.retained_seal_receipts), {"first", "second"}
+        )
+        self.assertEqual(raised.exception.completed_units, {})
+        for receipt in raised.exception.retained_seal_receipts.values():
+            raw = Path(receipt["seal_path"]).read_bytes()
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), receipt["seal_sha256"])
+
 
 if __name__ == "__main__":
     unittest.main()

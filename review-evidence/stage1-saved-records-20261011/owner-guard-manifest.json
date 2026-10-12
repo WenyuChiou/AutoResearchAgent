@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "scope": "offline owner/frontier check composition and true precommit rollback",
+  "source_head_before_uncommitted_increment": "057c0ed9f4cb4b7f527203b23bc39d4a391495de",
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_intake.py": "16ece00bdb85582a57560bb40674e8b5aab958c2c6f428f8d50be4e4c3776cf6",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "9d66e74854524c078d2df333f4f83b0ee213ffe407d6e33867e76681acfb7ebf",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "9e9adf556c564ef50a25c999e6a9683eb11263aa3b70a3cc137103dec023e2e8",
+    "plugins/auto-research-agent/tests/test_project_stage1_records.py": "b1f5511347b1f45605203c53665db6b4084b219d347c9fafd8df933b811aec0a",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "e123ee4c0005883326eea34c78033da3f8024f413d427fa73329218cf1fb1da5",
+    "plugins/auto-research-agent/references/research-workspace/PROJECT_STAGE_CONTRACT.md": "1cf0d1fc04c54db4032d084b50738d721252307e8b95fe0dea7f6321e35a5d19"
+  },
+  "actual_external_search": false,
+  "actual_source_acquisition": false,
+  "actual_native_or_model_calls": false,
+  "scientific_acceptance_claim": false,
+  "full_plugin_suite_or_ci_claim": false,
+  "runs": [
+    {
+      "name": "owner-before",
+      "count": 2,
+      "test_seconds": 8.954,
+      "failures": 2,
+      "exit_code": 1,
+      "driver_elapsed_seconds": 11.375,
+      "source_inventory_equal": true,
+      "interpretation": "Two real SQLite regressions reproduced saved rather than unknown after owner loss. This is the pre-fix source/offer boundary proof, not a final-candidate failure.",
+      "files": {
+        "owner-before-receipt.json": {
+          "sha256": "119600b487c15644da10c46c7c5b71f14e804a80b3e74e7c4599ee9e4d988eeb",
+          "bytes": 173371,
+          "raw_byte_copy": true
+        },
+        "owner-before-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "raw_byte_copy": true
+        },
+        "owner-before-stderr.log": {
+          "sha256": "fd6df03c726b99b3fc13911f74189799411243ab420cd20b763e2bfa920fcff0",
+          "bytes": 2350,
+          "raw_byte_copy": true
+        }
+      }
+    },
+    {
+      "name": "owner-after",
+      "count": 21,
+      "test_seconds": 127.672,
+      "failures": 0,
+      "exit_code": 0,
+      "driver_elapsed_seconds": 129.8909999999887,
+      "source_inventory_equal": true,
+      "interpretation": "Sixteen producer tests and five capability-map tests passed with unchanged source inventory; authored HTTP sources, actual Core/SQLite/SDK parsing and canonical package replay only.",
+      "files": {
+        "owner-after-receipt.json": {
+          "sha256": "3c6d8aa97dd085b6c5c39a93e15d339cdbb3e20beb69d5f10bfaac91e4669cca",
+          "bytes": 173222,
+          "raw_byte_copy": true
+        },
+        "owner-after-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "raw_byte_copy": true
+        },
+        "owner-after-stderr.log": {
+          "sha256": "46f31a5a21380f9d0dd0e1aad619a6251dadd4835a4b4a585d94de556887eaa2",
+          "bytes": 3986,
+          "raw_byte_copy": true
+        }
+      }
+    },
+    {
+      "name": "owner-shared",
+      "count": 31,
+      "test_seconds": 19.389,
+      "failures": 0,
+      "exit_code": 0,
+      "driver_elapsed_seconds": 22.203000000008615,
+      "source_inventory_equal": true,
+      "interpretation": "Twenty-one shared intake tests, nine real local HTTP project-host tests and one default-callback delivery/reopen test passed with unchanged source inventory. Separate run, not a combined 52-test suite.",
+      "files": {
+        "owner-shared-receipt.json": {
+          "sha256": "2719f0db61eea14843b7e1864a009b8ebcbd4d2e7a95688c616f7ef77e2abd6d",
+          "bytes": 173328,
+          "raw_byte_copy": true
+        },
+        "owner-shared-stdout.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "raw_byte_copy": true
+        },
+        "owner-shared-stderr.log": {
+          "sha256": "58ef7788933299189c8bdd717d5ab4744b8e42e113c2ebe505caea97cc1cefbc",
+          "bytes": 5753,
+          "raw_byte_copy": true
+        }
+      }
+    }
+  ],
+  "readme_sha256": "1b5c29b6351078150c0432e6cba9eaccce241e7136dd4184412a62fbae3d909d"
+}

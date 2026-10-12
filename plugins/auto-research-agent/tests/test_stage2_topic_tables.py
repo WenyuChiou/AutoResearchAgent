@@ -355,6 +355,41 @@ class Stage2TopicTableTests(unittest.TestCase):
             lambda tables, packet: tables["cells"][3].update(reason=None)
         )
 
+    def test_metadata_partial_reports_exact_cell_without_upgrading_evidence(self):
+        source_packet, tables = self.materialized()
+        source_packet["sources"][0]["evidence_level"] = "metadata"
+        cell = tables["cells"][0]
+        cell.update(status="partial", value=None)
+        before = copy.deepcopy((source_packet, tables))
+        with self.assertRaises(TopicTableError) as caught:
+            validate_research_tables(tables, source_packet)
+        for expected in (
+            "known cell status requires non-metadata evidence",
+            f"dimension={cell['dimension_id']}",
+            "work=work-1",
+            "version=v1",
+            "evidence=ev-1",
+            "source=src-1",
+            "status=partial",
+            "use unknown with null value",
+        ):
+            self.assertIn(expected, str(caught.exception))
+        self.assertEqual((source_packet, tables), before)
+
+    def test_metadata_unknown_is_valid_without_claiming_partial_coverage(self):
+        source_packet, tables = self.materialized()
+        source_packet["candidates"].append(candidate())
+        source_packet["sources"][1]["evidence_level"] = "metadata"
+        cell = tables["cells"][1]
+        cell.update(
+            status="unknown",
+            value=None,
+            negative_basis=None,
+            inspection_scope=None,
+            reason="Title alone does not establish the mechanism; inspect the method.",
+        )
+        self.assertEqual(validate_research_tables(tables, source_packet), tables)
+
     def test_known_cells_require_reason_scope_and_described_value(self):
         self.assert_rejected(
             lambda tables, packet: tables["cells"][0].update(reason=None)

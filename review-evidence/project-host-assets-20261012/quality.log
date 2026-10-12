@@ -1,0 +1,36 @@
+uv 0.11.20 (9252ba6b5 2026-06-10 x86_64-pc-windows-msvc)
+WARN `--no-project` was provided, but no project was found
+Python 3.11.9
+ruff 0.15.13
+All checks passed!
+2 files already formatted
+ .../cli/research_workspace_native/project_host.py  | 18 +++++---
+ .../tests/test_workspace_project_host.py           | 54 ++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 7 deletions(-)
+Hook absent: pre-commit
+Hook absent: commit-msg
+Hook absent: pre-push
+REQUEST_CHANGES
+
+Scope: required independent final composition review of PR #271, exact head 3bc2214c4bc96b363cf9758fb1c084883b77db0d, tree 16c02c358289a8e6d77999a571f94c940a69aaaa, base 605782a9f89fb02ab411549b3666d766086aa855. Raw fingerprint 36f9c044db996c31c36df490b21445a10efa2bb9f1f7d1ab4f893eae858de3eb. Candidate patch SHA256 independently confirmed 5f2ac31c575d891760a8d1a7a7e6899a2c893ae81189ba3d1619e3bf908d53ca. No candidate edits, tests, network calls, native/model execution, commits or GitHub mutations.
+
+Critical issues (must fix)
+[P2] ProjectHost asset failure bypasses listener/service cleanup.
+plugins/auto-research-agent/cli/research_workspace_native/project_host.py:75-83 calls AtlasHost.__init__ before reading projects.html, projects.js, projects.css and projects-library.js. The superclass opens/binds the listener through http.py:70, then transfers native_runtime/harness_ops/stage_actions ownership at atlas_host.py:390-393. A missing or unreadable project asset raises afterwards, leaving construction incomplete and skipping the only owned-service cleanup in atlas_host.py:426-453. ProjectHost.main leaves host=None when construction raises, so project_host.py:459-460 also cannot call server_close. The caller has received no host handle and cannot perform that cleanup. This can retain an owned runtime or service/journal owner after a failed construction; eventual garbage collection is not the documented cleanup protocol.
+Fix: preload all four project asset byte strings before calling super().__init__, then install those already-read bytes. Add a focused constructor regression that makes each project asset read fail and verifies the superclass is not invoked, so no listener opens and caller-supplied services remain borrowed. No constructor-failure case exists among the current nine ProjectHostTests methods; their teardown only closes successful construction.
+
+Warnings (should fix): none additional.
+Suggestions (consider improving): none additional.
+
+Cross-implementation parity
+Commands actually run against the fixed head:
+git -C C:\temp\lm-wiki-repair-b-20261011 grep -nF '1.0.0' 3bc2214c4bc96b363cf9758fb1c084883b77db0d -- ':!*.bak.*' ':!*.lock' ':!CHANGELOG*'
+git -C C:\temp\lm-wiki-repair-b-20261011 grep -nF "windows-latest' && 50" 3bc2214c4bc96b363cf9758fb1c084883b77db0d -- ':!*.bak.*' ':!*.lock' ':!CHANGELOG*'
+Both grep exits were 0. Retained 1.0.0 copies are intentional legacy/schema compatibility or separately versioned envelopes, not stale default substitutions. Package/projection/canonical_delivery validators accept 1.0.0/1.1.0/1.2.0; the unconnected Stage2 consumer explicitly refuses new canonical-record versions at import_stage1.py:251 instead of silently reinterpreting them. Historical schema/test/evidence versions remain fixed. The 50/30/20 minute expression survives intentionally inside stage1-plugin.yml:46 for reduced scopes; the new 90 minute allowance applies to full scope only. No unjustified parity violation found.
+
+Review evidence and limits
+Read immutable Git objects; physical worktree b358f7c23 was not the reviewed candidate. The graph search returned project-not-indexed, permitting direct immutable-source discovery. Root AGENTS.md, nested AGENTS.md, CONTRIBUTING.md, evals/README.md, Stage1 skill/deliverable contract and PROJECT_STAGE_CONTRACT were consulted. Inspected host/session ownership and approval policy, HarnessOps/StageActions durable intent/recovery, authenticated HTTP routes, project intake/Stage1 composition, library projection/frontier checks, saved-source binding, acquired parser admission/receipt boundary, and stage runner failed-or-unknown recovery. Existing repair/preflight and exact-head CI evidence supplied by parent remains contextual evidence, not a newly executed result or whole-product/scientific acceptance. All 14 accepted Atlas assets were outside this re-review. Remaining full native/private/research/device acceptance and Stage3-6 connection remain deferred.
+
+Read commands used PowerShell 7.6.5 and Git 2.47.1.windows.1. No tests launched (current test count: 0). Full command stdout/stderr is in pr271-composition-review-01.log through -19.log. Large inventory/contract/diff captures in -01 through -08 were excerpted/truncated in tool display; the full files remain saved. Source reads declare fixed blob, total lines and covered ranges; omitted ranges were not claimed reviewed. Root AGENTS initial omitted tail and nested header were subsequently read. Finding support is untruncated in logs -12, -13, -17 and -18. Last hashes: -12 3B6E61A4393FB07EE95FC92F5B62E103F671F466A1E3E6E5D645E46D82F6AD26; -13 8104D7B13F7639F18B7B6C694EF75220F4B1082480AC691E62F1DF5E558A1975; -17 1DC9DAA3FFD310FA4418B4B2901627119653A50E7E72E7F22E200E5092043E63; -18 D9785C7A2C2DA2F3439CD838A1FEA05AAC99CF9C0A0E041A602DFAD588C72465.
+
+Targeted recheck only after fixing this constructor finding; no second whole-candidate general review is required for unchanged production scope.

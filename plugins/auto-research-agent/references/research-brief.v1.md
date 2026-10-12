@@ -56,7 +56,37 @@ plan directory; validation against the new brief rejects the old plan. No file
 is overwritten. Decision records are operator attestations, not cryptographic
 proof that a named person approved them.
 
-## Initial organization target
+## New final-formal target (schema 1.1.0)
+
+New Stage 1 intakes ask for the final number of formally usable distinct works,
+with **30 as the proposed minimum**. An explicit researcher count overrides it.
+Use `stage1_brief intake REQUEST OUTPUT --project-id P --input-version V
+--request-id R`, present `formal-question BRIEF` through native questions, and
+record the actual answer with `submit-formal-target BRIEF ANSWER OUTPUT`.
+These commands prepare and bind records; they do not themselves send a native
+question, authenticate the researcher, execute research or authorize more calls.
+
+Schema 1.1.0 binds the project, input version, request and append-only submitted
+answer history. A positive integer is required; pending, stale, wrong-project
+or wrong-request answers cannot compile a plan. Compilation binds the formal
+count record separately from scope filters. Reuse valid confirmed answers on
+resume. Never infer submission from defaults, silence or timeout.
+
+Count distinct formally included work IDs, preserving their separate versions.
+Readable complete body text, checked identity/version and source provenance are
+required for admission. Abstract-only, metadata-only, inaccessible and failed
+readings remain in the broader screening bibliography. Unknown individual
+claims do not automatically exclude a readable, identified work.
+
+Report the requested count, actual formal works, shortfall, pending/excluded
+readings and remaining need coverage separately. If resource limits are reached
+before the target, deliver the actual shortfall and continue status. Reaching
+30 is not scientific sufficiency, a coverage stop or official Stage 2 import
+eligibility. The progress helper is caller-supplied accounting, not a native
+controller or ledger-stop bridge. Query/read/round limits and an optional hard
+maximum remain separate; no quantity target increases execution authority.
+
+## Historical initial organization target (schema 1.0.0)
 
 For new briefs, propose **30 distinct priority works** in a native researcher
 question before searching. Keep the target pending until an applicable answer

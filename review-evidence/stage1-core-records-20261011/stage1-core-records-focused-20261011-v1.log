@@ -1,0 +1,104 @@
+test_complete_core_history_package_projection_and_wiki_without_promotion (test_stage1_core_records.CoreRecordsTests.test_complete_core_history_package_projection_and_wiki_without_promotion) ... ERROR
+test_human_preparation_preserves_request_hash_deadline_and_no_rewrite (test_stage1_core_records.CoreRecordsTests.test_human_preparation_preserves_request_hash_deadline_and_no_rewrite) ... ERROR
+test_human_registry_uses_original_request_hash_and_preserves_history (test_stage1_core_records.CoreRecordsTests.test_human_registry_uses_original_request_hash_and_preserves_history) ... ERROR
+test_legacy_records_and_rendered_formats_remain_legacy (test_stage1_core_records.CoreRecordsTests.test_legacy_records_and_rendered_formats_remain_legacy) ... ok
+test_rewritten_event_nullable_span_and_incomplete_history_refused (test_stage1_core_records.CoreRecordsTests.test_rewritten_event_nullable_span_and_incomplete_history_refused) ... ERROR
+test_stage2_explicitly_refuses_new_format_before_import (test_stage1_core_records.CoreRecordsTests.test_stage2_explicitly_refuses_new_format_before_import) ... ERROR
+
+======================================================================
+ERROR: test_complete_core_history_package_projection_and_wiki_without_promotion (test_stage1_core_records.CoreRecordsTests.test_complete_core_history_package_projection_and_wiki_without_promotion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 76, in test_complete_core_history_package_projection_and_wiki_without_promotion
+    offer, path, records = produced(case, fixture)
+                           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 64, in produced
+    result = case.producer.produce_records(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 788, in produce_records
+    result = self.intake._perform(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 254, in _perform
+    result = work(current, request_hash, principal)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 754, in write
+    observed = ledger.read_ref(artifact["source_ref"])
+               ^^^^^^
+NameError: name 'ledger' is not defined
+
+======================================================================
+ERROR: test_human_preparation_preserves_request_hash_deadline_and_no_rewrite (test_stage1_core_records.CoreRecordsTests.test_human_preparation_preserves_request_hash_deadline_and_no_rewrite)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 193, in test_human_preparation_preserves_request_hash_deadline_and_no_rewrite
+    result, path, _ = produced(case, fixture, action_body=action)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 64, in produced
+    result = case.producer.produce_records(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 788, in produce_records
+    result = self.intake._perform(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 254, in _perform
+    result = work(current, request_hash, principal)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 754, in write
+    observed = ledger.read_ref(artifact["source_ref"])
+               ^^^^^^
+NameError: name 'ledger' is not defined
+
+======================================================================
+ERROR: test_human_registry_uses_original_request_hash_and_preserves_history (test_stage1_core_records.CoreRecordsTests.test_human_registry_uses_original_request_hash_and_preserves_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 175, in test_human_registry_uses_original_request_hash_and_preserves_history
+    self.assertNotIn("entry_sha256", receipt["request"])
+                                     ~~~~~~~^^^^^^^^^^^
+KeyError: 'request'
+
+======================================================================
+ERROR: test_rewritten_event_nullable_span_and_incomplete_history_refused (test_stage1_core_records.CoreRecordsTests.test_rewritten_event_nullable_span_and_incomplete_history_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 137, in test_rewritten_event_nullable_span_and_incomplete_history_refused
+    _, path, records = produced(case, fixture)
+                       ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 64, in produced
+    result = case.producer.produce_records(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 788, in produce_records
+    result = self.intake._perform(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 254, in _perform
+    result = work(current, request_hash, principal)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 754, in write
+    observed = ledger.read_ref(artifact["source_ref"])
+               ^^^^^^
+NameError: name 'ledger' is not defined
+
+======================================================================
+ERROR: test_stage2_explicitly_refuses_new_format_before_import (test_stage1_core_records.CoreRecordsTests.test_stage2_explicitly_refuses_new_format_before_import)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 213, in test_stage2_explicitly_refuses_new_format_before_import
+    _, _, records = produced(case, fixture)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 64, in produced
+    result = case.producer.produce_records(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 788, in produce_records
+    result = self.intake._perform(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 254, in _perform
+    result = work(current, request_hash, principal)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_records.py", line 754, in write
+    observed = ledger.read_ref(artifact["source_ref"])
+               ^^^^^^
+NameError: name 'ledger' is not defined
+
+----------------------------------------------------------------------
+Ran 6 tests in 52.599s
+
+FAILED (errors=5)

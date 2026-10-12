@@ -1,0 +1,27 @@
+test_all_unscreened_library_builds_empty_screening_views_without_promotion (test_stage1_screening_records.ScreeningRecordsTests.test_all_unscreened_library_builds_empty_screening_views_without_promotion) ... ERROR
+
+======================================================================
+ERROR: test_all_unscreened_library_builds_empty_screening_views_without_promotion (test_stage1_screening_records.ScreeningRecordsTests.test_all_unscreened_library_builds_empty_screening_views_without_promotion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage1_screening_records.py", line 309, in test_all_unscreened_library_builds_empty_screening_views_without_promotion
+    receipt = build(path, output, sha(original))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\package.py", line 222, in build
+    generated = views.render(records, manifests)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\views.py", line 402, in render
+    "literature_catalog.xlsx": workbook_bytes(all_tables),
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\views.py", line 187, in workbook_bytes
+    for row in grid(name, rows):
+               ^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\views.py", line 162, in grid
+    headers = list(rows[0]) if rows else EMPTY_HEADERS[name]
+                                         ~~~~~~~~~~~~~^^^^^^
+KeyError: 'Screening'
+
+----------------------------------------------------------------------
+Ran 1 test in 18.284s
+
+FAILED (errors=1)

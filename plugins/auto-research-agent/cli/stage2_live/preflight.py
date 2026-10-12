@@ -332,7 +332,8 @@ def require_matching_preflight_contract(report, probe_spec):
 def _load_jsonl(path):
     events = []
     try:
-        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        # JSONL uses LF; Unicode separators inside JSON strings are payload data.
+        for number, line in enumerate(path.read_bytes().decode("utf-8").split("\n"), 1):
             if not line.strip():
                 continue
             value = json.loads(line)

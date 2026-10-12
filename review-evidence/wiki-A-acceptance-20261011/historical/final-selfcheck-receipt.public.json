@@ -1,0 +1,218 @@
+{
+  "kind": "WikiConsolidatedCandidateSelfcheck",
+  "created_at": "2026-10-10T19:06:11.792759+00:00",
+  "candidate_head": "d5550b08be6313ce175162c393a8a4770974f0f5",
+  "candidate_tree": "c163b54b8d9989c26e932eba06c1fd58d49e442d",
+  "status": "",
+  "fixed_problem": {
+    "selector": ".atlas-card .atlas-graph",
+    "before_document_widths": {
+      "1440": 1595,
+      "768": 1143,
+      "390": 482
+    },
+    "after": "document width equals viewport at all three sizes; candidate graph width stays within its own card"
+  },
+  "focused": {
+    "receipt_sha256": "9479c2296b3956ab16c156b45e9173c284979fe685f0c4736314521d71ac0039",
+    "log_sha256": "d7d9aa7c451b9f4bed3eb94c658b75f77448f303aa20ebb71fb8f9900efc678b",
+    "tests": 121,
+    "failures": 0,
+    "errors": 0,
+    "skips": 1,
+    "elapsed_seconds": 18.766
+  },
+  "browser": {
+    "receipt_sha256": "a89cf4cc3aff0124ff004a80f763f56b117ca94e2f7065d4212ed775cfbefe0f",
+    "chrome": "155.0.8059.39",
+    "checks": 55,
+    "pass": 55,
+    "fail": 0,
+    "viewports": [
+      1440,
+      768,
+      390
+    ],
+    "page_errors": [],
+    "http_error_responses": [],
+    "external_requests": [],
+    "captures": [
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-1440-selected-3d-v3.png",
+        "sha256": "16f341d88f0a1e8a754eb01fb74d80c66948febacaaab841390c0a371183a970"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-directions-v3.png",
+        "sha256": "5f3d6932ce33ba0ac7d73c17eb54c1720b43fba6667143a39433e895d7fa8fa4"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-comparison-v3.png",
+        "sha256": "1e94385db1412ffe832e42e88d819a26c5b5f20c28cc8bc761947fb70692c9e2"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-1440-candidates-v3.png",
+        "sha256": "91a98329854a704a9cee53e1086dca7a5033c5f9675e1be69f5793b72ace59e9"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-768-selected-3d-v3.png",
+        "sha256": "17c339501a0bda59ef250d8b1a963c85a9a715c9f4a8e411f65b6669c8ec0520"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-directions-v3.png",
+        "sha256": "b42c19f94c0a06069d716260194424009cca7ee58df098e4d2dc52c4160ea3ce"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-comparison-v3.png",
+        "sha256": "f5196bc4abf4c52351752edff0360c4458b0c7187c020381c1fefdd66fcb15bf"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-768-candidates-v3.png",
+        "sha256": "0d366f751c2d9c25cab1f468473481f5d332fd5639ab37fc6ead4afe7e11b171"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage1-390-selected-3d-v3.png",
+        "sha256": "9637a51cffddd39a95ec3e11da8bd39677c2937287709f90b7c6ce082f39d1ea"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-directions-v3.png",
+        "sha256": "d6e940504d75ed644eb7b7f0b9777c19d7ad8fb92229691f50db24f5608bbc44"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-comparison-v3.png",
+        "sha256": "2283ae45d7d92887769e6bcf7daeb2bdca4ec2387a8fd78c684f6f7931698bf3"
+      },
+      {
+        "path": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\consolidation-20261010-v2\\wiki-selfcheck-v1\\stage2-390-candidates-v3.png",
+        "sha256": "139b8300beac672909a50cb7d04e496fce997d5dc5aef2b9f8abcdc344bf08da"
+      }
+    ]
+  },
+  "binding_verification": [
+    {
+      "case": "stage1-real-retained-r3",
+      "view_manifest_sha256": "35928d9ca417b317523f010cbe91512a03173024d7787e64c4da3e70e79487f9",
+      "atlas_binding_sha256": "f9afcad4da3bc5e9fdf7b3d95e6112932dd180da7fad44dbd1ca1a8a7777983d",
+      "index_sha256": "f42ca0f6669884d436c8b12db56eb8021ac0c8b6a92ea2a18e3a4c745c19cdb8",
+      "file_hashes_checked": 37,
+      "candidate_raw_git_and_physical_assets": [
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-associations.js",
+          "sha256": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-model.js",
+          "sha256": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js",
+          "sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js",
+          "sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+          "sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
+          "sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
+          "sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js",
+          "sha256": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-LICENSE.txt",
+          "sha256": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/THIRD_PARTY_LICENSES.txt",
+          "sha256": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/vendor-lock.json",
+          "sha256": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa"
+        }
+      ],
+      "historical_source": "<LOCAL_WORKSPACE>\\_private\\stage1-wiki-view-20261004-r3",
+      "scope": "real retained Stage1 read-only data"
+    },
+    {
+      "case": "stage2-fifteen-labelled-simulation",
+      "view_manifest_sha256": "6894a40a69cdf2556d063994f1f2ed0c90d029f83478be53b14c79ac7e933852",
+      "atlas_binding_sha256": "33cf9415464b05104592814bbd4463172d290ffda1be2df711bb483cf36b9e64",
+      "index_sha256": "f42ca0f6669884d436c8b12db56eb8021ac0c8b6a92ea2a18e3a4c745c19cdb8",
+      "file_hashes_checked": 48,
+      "candidate_raw_git_and_physical_assets": [
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-associations.js",
+          "sha256": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-model.js",
+          "sha256": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js",
+          "sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js",
+          "sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+          "sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
+          "sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
+          "sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js",
+          "sha256": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-LICENSE.txt",
+          "sha256": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/THIRD_PARTY_LICENSES.txt",
+          "sha256": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280"
+        },
+        {
+          "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/vendor-lock.json",
+          "sha256": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa"
+        }
+      ],
+      "historical_source": "<LOCAL_WORKSPACE>\\_private\\workspace-return\\atlas-review-delivery-20261009-v1\\cases-r27\\stage2-fifteen-simulated\\view",
+      "scope": "existing labelled simulated Stage2 display fixture; not scientific acceptance"
+    }
+  ],
+  "native_model_research_search_or_scoring_calls": 0,
+  "limitations": [
+    "Stage2 display fixture is explicitly simulated; no actual Stage2 research execution is demonstrated by these checks.",
+    "Phone/tablet checks are actual Chrome viewport emulation, not physical-device or Safari tests.",
+    "Windows symlink privilege is unavailable for one existing test; it remains skipped.",
+    "The static Wiki candidate owns presentation and review drafts; API admission, native connection and actual stage execution are owned by the other integration candidates.",
+    "Selected graph labels can be omitted by collision-aware level-of-detail; full selected source content remains in the right detail pane and hover exposes names.",
+    "No full plugin suite, native call or new CI run was started by this subagent."
+  ],
+  "retained_failures": [
+    "browser-selfcheck-receipt-v1.json: actual Stage2 candidate overflow plus private-driver invalid focus/title assumptions",
+    "browser-selfcheck-receipt-v2.json: actual candidate overflow plus private-driver title and selector assumptions",
+    "official-browser-layout-v1.log: obsolete H1 focus expectation",
+    "official-browser-layout-v2.log: asynchronous focus restoration read before completion",
+    "static-cases-receipt.json: historical manifest copied with refreshed assets; private v2/v3 output explicitly rebinds new copied manifests, historical source packages unchanged"
+  ]
+}

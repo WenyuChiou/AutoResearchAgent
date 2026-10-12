@@ -1,0 +1,22 @@
+test_history_counts_and_candidate_dropping_are_refused (test_stage1_screening_records.ScreeningRecordsTests.test_history_counts_and_candidate_dropping_are_refused) ... ok
+test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution (test_stage1_screening_records.ScreeningRecordsTests.test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution) ... ERROR
+test_old_guards_remain_and_discovery_cannot_be_promoted_or_hide_source (test_stage1_screening_records.ScreeningRecordsTests.test_old_guards_remain_and_discovery_cannot_be_promoted_or_hide_source) ... ok
+test_raw_discovery_archive_tamper_is_refused (test_stage1_screening_records.ScreeningRecordsTests.test_raw_discovery_archive_tamper_is_refused) ... ok
+
+======================================================================
+ERROR: test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution (test_stage1_screening_records.ScreeningRecordsTests.test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage1_screening_records.py", line 169, in test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution
+    receipt = build(self.records_path, output, sha(self.records_path.read_bytes()))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\package.py", line 121, in build
+    sources.reject_secrets(original)
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\sources.py", line 136, in reject_secrets
+    raise DeliverableError("credential-like content cannot enter a source archive")
+stage1_deliverable.common.DeliverableError: credential-like content cannot enter a source archive
+
+----------------------------------------------------------------------
+Ran 4 tests in 15.198s
+
+FAILED (errors=1)

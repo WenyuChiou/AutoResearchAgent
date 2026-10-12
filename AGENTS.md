@@ -104,6 +104,11 @@ Likewise, when reviewing code, do not hesitate to push back on PRs that would un
 
 ## Code Review Rules
 
+The code-review guidance below applies while reviewing changes. Its `Test authoring guidance`
+subsection remains an implementation requirement: features that change agent
+logic MUST add an integration test. Nothing here replaces other implementation
+or publication instructions or valid authorization.
+
 ### Crate API surface
 
 Keep crate API surfaces as small as possible. Avoid proliferating test-only helpers.
@@ -150,6 +155,24 @@ For complex logic changes the size should be under 500 lines.
 If the change is larger, explore whether it can be split into reviewable stages and identify the smallest coherent stage to land first.
 Base the staging suggestion on the actual diff, dependencies, and affected call sites.
 
+### Review scope and evidence
+
+- Review the actual diff at the stated base and head, then inspect the relevant
+  callers, consumers, versioned contracts, test selectors, and CI decisions.
+  Bind every conclusion to concrete paths and evidence; distinguish confirmed
+  defects from hypotheses and verification gaps. Do not report style-only
+  preferences. Mocks and unrun experiments are not evidence of live behavior or
+  quality; mark them as verification gaps unless they were exercised against
+  the reviewed revision.
+- For research-plugin paths, use the path-specific review contract in
+  `plugins/auto-research-agent/AGENTS.md`. Keep this routing separate from the
+  existing Rust/API/TUI and sandbox rules, which remain in force for their
+  applicable paths.
+- Follow the platform's required finding format and location conventions.
+  A review task itself does not modify code, install dependencies, start paid
+  models, or merge. Any merge still requires the existing core-team process
+  and separate explicit user consent after the review summary and actual test
+  status are shown.
 ## TUI style conventions
 
 See `codex-rs/tui/styles.md`.

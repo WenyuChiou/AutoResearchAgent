@@ -239,8 +239,13 @@ class SessionHttpTests(unittest.TestCase):
         status, view, headers = self.call("GET", f"/api/native/projects/{a.ref}")
         self.assertEqual(status, 200)
         self.assertEqual(a.channel.calls, before)
+        self.assertNotIn("project_id", view)
+        self.assertEqual(
+            (view["project_ref"], view["index_sha256"], view["input_version"]),
+            (a.ref, a.hash, a.version),
+        )
         encoded = json.dumps(view)
-        for private in (a.thread, a.epoch, a.owner, str(a.root), a.pid):
+        for private in (a.pid, a.thread, a.epoch, a.owner, str(a.root)):
             self.assertNotIn(private, encoded)
         self.assertEqual(headers["Cache-Control"], "no-store")
         baseline = len(b.source_checks)

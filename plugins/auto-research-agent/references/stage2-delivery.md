@@ -100,3 +100,26 @@ The native host continues under the user's actual scope and existing policy.
 Synthetic tests cover file/version mismatches, rehashed projection edits, safe
 links, stale choices, wrong message roles, changed scope and duplicate actions.
 They establish record behavior, not human authentication or P4-P6 improvement.
+
+## Retain the full planning context for Stage 3
+
+After a real selection, opt-in `Stage2ToStage3PlanningPackage` 1.0.0 preserves
+the complete scientific packet, matrix, bibliography, selected resources and
+prior-work comparisons, plus the original choice, rationale, limits and unknowns.
+The legacy interaction/handoff remains unchanged. The original delivery is a
+required companion, including its sources, Markdown, HTML and review audit.
+The receiver reopens that delivery and reconstructs the original interaction and
+projected input. Changed versions or omitted rows fail even after internal
+rehashing. Retain delivery, interaction-file and package hashes externally.
+
+```text
+python -m stage2_workflow prepare-stage3-input --delivery DELIVERY --interaction INTERACTION --expected-delivery-manifest-sha256 DELIVERY_HASH --expected-interaction-file-sha256 INTERACTION_FILE_HASH --output NEW_PRIVATE_DIRECTORY
+python -m stage2_workflow inspect-stage3-input --package PLANNING_PACKAGE --delivery DELIVERY --expected-manifest-sha256 PACKAGE_MANIFEST_HASH --output NEW_VERIFICATION_JSON
+```
+
+These operations make no model calls or new choices; outputs stay outside Git.
+Identity, scientific feasibility, Stage 3 execution and A/B remain unproven;
+`execution_authorized` stays false. Stage 3 deepens the selected question into
+methods, data handling, comparisons, validation, analysis, scale and schedule.
+Hypotheses are optional for exploratory/theoretical work. Material direction or
+resource changes return to the user with evidence; do not silently change topic.

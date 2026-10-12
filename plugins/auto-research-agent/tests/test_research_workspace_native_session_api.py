@@ -108,6 +108,17 @@ class SessionApiTests(unittest.TestCase):
         p.channel.queue(message)
         p.controller.pump()
 
+    def test_view_keeps_controller_identity_private_without_io(self):
+        p = self.project()
+        before = p.store.snapshot(p.pid)
+        view = self.api.view("token-a", p.ref)
+        self.assertNotIn("project_id", view)
+        self.assertNotIn(p.pid, json.dumps(view))
+        self.assertEqual(view["project_ref"], p.ref)
+        self.assertEqual(view["index_sha256"], p.hash)
+        self.assertEqual(p.store.snapshot(p.pid), before)
+        self.assertEqual(p.channel.messages(), [])
+
     def request(self, p, native_id=83, method="item/tool/requestUserInput"):
         self.push(
             p,
@@ -170,6 +181,7 @@ class SessionApiTests(unittest.TestCase):
             result,
             self.api.action("token-a", p.ref, result["action_ref"]),
         ]
+        self.assertTrue(all("project_id" not in row for row in public))
         text = json.dumps(public)
         for secret in (
             p.owner,

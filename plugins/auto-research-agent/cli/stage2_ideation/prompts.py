@@ -154,6 +154,11 @@ Write the research result as natural prose that can be saved as the raw proposal
 no-tool extraction. Do not make the researcher fill a deep extraction schema or provide private
 chain-of-thought; provide concise scientific reasons and source links.
 
+Save the complete proposal, including all prose, comparison tables, and references, to the
+relative path stage2_proposal.md in the assigned workspace. Do not substitute a link or summary,
+and do not reuse or overwrite another seed file as the proposal. If you cannot write that file,
+put the complete proposal in your final answer so the existing authenticated fallback can retain it.
+
 """
         prompt = prompt.replace(
             "The following frozen JSON", guidance + "The following frozen JSON", 1

@@ -525,7 +525,7 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
             contract,
             {
                 "contract_id": "stage2-reconciliation-extraction-fields",
-                "schema_version": "1.0.0",
+                "schema_version": "1.1.0",
                 "pending_categorical_ids": ["opportunity", "disposition"],
                 "rules": contract["rules"],
             },
@@ -617,6 +617,106 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
         self.assertIn("stage2-reconciliation-extraction-fields", correction_prompt)
         self.assertIn('"pending_categorical_ids": []', correction_prompt)
 
+    def test_unknown_resolution_axes_keep_source_bound_followups(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        followups = {
+            "opportunity": "Compare the proposed increment with the closest source.",
+            "answerability": "Check whether the source measures the required outcome.",
+            "materials": "Check the source's stated access and reuse conditions.",
+            "execution": "Estimate the minimum workflow from the stated resources.",
+        }
+        capture, receipt, _ = self.capture(
+            "unknown-followups",
+            "reconciliation_task",
+            task,
+            json.dumps({"unverified_axes": followups}),
+            "session-unknown-followups",
+        )
+        payload = resolution_payload(self.packet)
+        payload["changed_judgment_reason"] = (
+            "The earlier checks did not establish the four axis-specific prerequisites."
+        )
+        payload["assessment"].update(
+            disposition="park",
+            next_step="Complete the saved source checks before recommending.",
+        )
+        for axis, next_check in followups.items():
+            payload["assessment"]["checks"][axis].update(
+                status="unknown",
+                score=None,
+                rationale=f"The saved reconciliation has not verified {axis}.",
+                evidence_ids=[],
+                blocking=True,
+                next_check=next_check,
+            )
+        adapter = StubModel({"resolution-extraction": payload})
+
+        result = extract_resolution(
+            **self.resolution_args(
+                reviews, capture, receipt, "unknown-followups-out", adapter
+            )
+        )
+
+        self.assertEqual(
+            result["resolution"]["assessment"]["checks"],
+            payload["assessment"]["checks"],
+        )
+        self.assertEqual(len(adapter.calls), 1)
+        prompt = json.loads(adapter.calls[0]["prompt"].split("\n", 1)[1])
+        rule = prompt["field_contract"]["rules"]["unknown_next_check"]
+        for axis in ("opportunity", "value", "answerability", "materials", "execution"):
+            self.assertIn(axis, rule)
+        self.assertIn("next_check", rule)
+        self.assertIn("saved reconciliation", rule)
+
+    def test_unknown_resolution_correction_does_not_fill_other_missing_followups(self):
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        capture, receipt, _ = self.capture(
+            "unknown-incomplete-correction",
+            "reconciliation_task",
+            task,
+            "The source checks for opportunity and answerability remain pending.",
+            "session-unknown-incomplete-correction",
+        )
+        initial = resolution_payload(self.packet)
+        initial["assessment"].update(
+            disposition="park", next_step="Complete the pending source checks."
+        )
+        for axis in ("opportunity", "answerability"):
+            initial["assessment"]["checks"][axis].update(
+                status="unknown",
+                score=None,
+                evidence_ids=[],
+                blocking=True,
+                next_check=None,
+            )
+        correction = copy.deepcopy(initial)
+        correction["assessment"]["checks"]["opportunity"]["next_check"] = (
+            "Compare the proposed increment with the closest source."
+        )
+        adapter = StubModel(
+            {
+                "resolution-extraction": initial,
+                "resolution-extraction-correction": correction,
+            }
+        )
+        output = self.root / "unknown-incomplete-correction-out"
+
+        with self.assertRaisesRegex(
+            Stage2Error, "unknown-next-check-required: answerability"
+        ):
+            extract_resolution(
+                **self.resolution_args(reviews, capture, receipt, output, adapter)
+            )
+
+        self.assertEqual(len(adapter.calls), 2)
+        for call in adapter.calls:
+            self.assertIn('"unknown_next_check"', call["prompt"])
+        self.assertFalse((output / "resolution.json").exists())
+        self.assertFalse((output / "resolution-extraction.unit.json").exists())
+
     def test_model_output_and_public_resolution_envelope_use_distinct_paths(self):
         reviews = self.independent_reviews()
         task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
@@ -686,6 +786,125 @@ class Stage2LiveReviewModelTests(unittest.TestCase):
 
         self.assertEqual(adapter.calls, [])
         self.assertEqual((output / "resolution.json").read_bytes(), collided_raw)
+
+    def _resolution_controller_archive(self, *, legacy):
+        from stage2_live import controller
+        from test_stage2_controller import _write_faithful_model_archive
+
+        reviews = self.independent_reviews()
+        task = reconciliation_task(self.packet, "candidate-1", SNAPSHOT, reviews)
+        raw = "The saved source-bound reconciliation retains the reviewed checks."
+        capture, receipt, record = self.capture(
+            "controller-resolution",
+            "reconciliation_task",
+            task,
+            raw,
+            "session-controller-resolution",
+        )
+        payload = resolution_payload(self.packet)
+        adapter = StubModel({"resolution-extraction": payload})
+        output = (self.root / "controller-resolution-out").resolve()
+        result = extract_resolution(
+            **self.resolution_args(reviews, capture, receipt, output.name, adapter)
+        )
+        prompt = adapter.calls[0]["prompt"]
+        if legacy:
+            # Reproduce the frozen 1.0 request; never import old producer code.
+            prefix, body = prompt.split("\n", 1)
+            saved = json.loads(body)
+            saved["field_contract"]["schema_version"] = "1.0.0"
+            saved["field_contract"]["rules"].pop("unknown_next_check")
+            prompt = prefix + "\n" + json.dumps(saved, ensure_ascii=False)
+            result.pop("resolution_field_contract_version", None)
+        label = result["extraction_unit_label"]
+        config = {
+            "codex": str(self.codex.resolve()),
+            "codex_executable_sha256": hashlib.sha256(
+                self.codex.read_bytes()
+            ).hexdigest(),
+            "evaluator_home": str(self.extractor_home.resolve()),
+            "model": "test-model",
+            "reasoning": "high",
+        }
+        provenance = {
+            "initial": _write_faithful_model_archive(
+                output,
+                label,
+                prompt,
+                controller._resolution_replay_schema(self.packet),
+                payload,
+                config,
+                POLICY,
+            ),
+            "correction": None,
+        }
+        result["extraction_provenance"] = provenance
+        unit = {"label": label, "value": payload, "provenance": provenance}
+        unit_bytes = canonical(unit) + b"\n"
+        (output / f"{label}.unit.json").write_bytes(unit_bytes)
+        result["replay_receipt"]["unit_receipts"][label] = hashlib.sha256(
+            unit_bytes
+        ).hexdigest()
+        return output, result, reviews, label, config, record, raw
+
+    def _verify_controller_resolution_archive(self, archive):
+        from unittest.mock import patch
+        from stage2_live import controller
+
+        output, result, reviews, label, config, record, raw = archive
+        with (
+            patch(
+                "stage2_live.review_models._captured_input", return_value=(record, raw)
+            ),
+            patch(
+                "stage1_eval.model_calls.call_model_v31",
+                side_effect=AssertionError("synthetic replay must not dispatch"),
+            ) as dispatch,
+        ):
+            controller._verify_saved_resolution(
+                output, result, self.packet, SNAPSHOT, reviews, label, config, POLICY
+            )
+        dispatch.assert_not_called()
+
+    def test_historical_resolution_replays_frozen_v1_prompt_without_mutation(self):
+        archive = self._resolution_controller_archive(legacy=True)
+        output = archive[0]
+        before = {
+            p.relative_to(output).as_posix(): p.read_bytes()
+            for p in output.rglob("*")
+            if p.is_file()
+        }
+        self._verify_controller_resolution_archive(archive)
+        after = {
+            p.relative_to(output).as_posix(): p.read_bytes()
+            for p in output.rglob("*")
+            if p.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_new_resolution_binds_v1_1_prompt_and_rejects_version_tampering(self):
+        archive = self._resolution_controller_archive(legacy=False)
+        result = archive[1]
+        self.assertEqual(result["resolution_field_contract_version"], "1.1.0")
+        self._verify_controller_resolution_archive(archive)
+        result["resolution_field_contract_version"] = "1.0.0"
+        with self.assertRaisesRegex(
+            EvaluationError, "request fingerprint|archived model prompt changed"
+        ):
+            self._verify_controller_resolution_archive(archive)
+        result["resolution_field_contract_version"] = "99.0.0"
+        with self.assertRaisesRegex(
+            Stage2Error, "unsupported-resolution-field-contract"
+        ):
+            self._verify_controller_resolution_archive(archive)
+
+    def test_historical_resolution_cannot_be_relabelled_as_new_contract(self):
+        archive = self._resolution_controller_archive(legacy=True)
+        archive[1]["resolution_field_contract_version"] = "1.1.0"
+        with self.assertRaisesRegex(
+            EvaluationError, "request fingerprint|archived model prompt changed"
+        ):
+            self._verify_controller_resolution_archive(archive)
 
 
 if __name__ == "__main__":

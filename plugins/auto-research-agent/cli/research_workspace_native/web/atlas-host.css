@@ -1,0 +1,53 @@
+.host-open {
+  position: fixed; z-index: 30; right: 24px; bottom: 22px;
+  border: 1px solid #3d596e; border-radius: 28px; padding: 11px 18px;
+  background: #203246; color: #fff; box-shadow: 0 5px 20px #20324624;
+  font: 17px/1.4 system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+.host-open:hover { background: #2c455b; border-color: #53758b; }
+.host-drawer {
+  position: fixed; z-index: 31; right: 24px; bottom: 82px;
+  width: min(410px, calc(100vw - 36px)); max-height: calc(100vh - 115px);
+  overflow-y: auto; padding: 22px; border: 1px solid #dce4e6;
+  border-radius: 14px; background: #fff; color: #243649;
+  box-shadow: 0 12px 45px #20324626;
+  font: 17px/1.55 system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+.host-drawer[hidden] { display: none; }
+.host-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.host-header h2 { font-size: 21px; font-weight: 550; margin: 0; }
+.host-close { padding: 5px 10px; font-size: 15px; min-height: 36px; }
+.host-status { color: #62717e; margin-top: 17px; font-weight: 550; }
+.host-status[data-status="check-passed"] { color: #397d7c; }
+.host-status[data-status="check-failed"] { color: #9b4e45; }
+.host-status[data-status="needs-login"] { color: #91652c; }
+.host-boundary, .host-maintenance { font-size: 15px; color: #62717e; margin-top: 8px; }
+.host-metadata { display: grid; grid-template-columns: 115px minmax(0, 1fr); gap: 5px 10px; margin: 15px 0; }
+.host-metadata dt, .host-metadata dd { font-size: 15px; margin: 0; }
+.host-metadata dt { color: #62717e; }
+.host-metadata dd { overflow-wrap: anywhere; }
+.host-refresh { margin-top: 6px; width: 100%; }
+.host-cases-title { margin: 22px 0 9px; font-size: 17px; font-weight: 550; }
+.host-cases { display: grid; gap: 11px; }
+.host-case { padding: 12px; background: #f4f6f4; border: 1px solid #e2e8e8; border-radius: 9px; }
+.host-case a { display: block; color: #397d7c; font-size: 16px; text-decoration-thickness: 1px; }
+.host-case-marker { display: inline-block; color: #397d7c; font-size: 13px; margin-top: 4px; }
+.host-case-kind { color: #62717e; font-size: 13px; margin: 5px 0; }
+.host-case-sha { display: block; color: #62717e; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.host-maintenance { border-top: 1px solid #dce4e6; padding-top: 14px; margin-top: 18px; }
+.host-feedback { border-top: 1px solid #dce4e6; padding-top: 14px; margin-top: 18px; }
+.host-feedback[hidden] { display: none; }
+.host-feedback h3 { font-size: 19px; margin: 0 0 12px; }
+.host-feedback label { font-size: 15px; color: #62717e; }
+.host-feedback textarea { box-sizing: border-box; width: 100%; resize: vertical; margin-top: 8px; border: 1px solid #cad8d7; border-radius: 7px; padding: 10px; font: inherit; color: #243649; background: #f8faf8; }
+.host-feedback-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.host-feedback-buttons button { padding: 8px 12px; font: inherit; font-size: 15px; border: 1px solid #cad8d7; border-radius: 7px; background: #fff; color: #243649; }
+.host-feedback-buttons button:disabled { opacity: .55; cursor: wait; }
+.host-feedback-history { display: grid; gap: 8px; margin-top: 12px; }
+html[data-atlas-density="compact"] .atlas-panel { padding: 12px; }
+html[data-atlas-density="compact"] .atlas-main { line-height: 1.35; }
+.host-feedback-history article p { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .host-open { right: 18px; bottom: 16px; }
+  .host-drawer { right: 18px; bottom: 76px; }
+}

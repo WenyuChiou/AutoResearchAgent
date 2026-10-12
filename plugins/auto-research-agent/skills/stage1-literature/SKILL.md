@@ -14,22 +14,27 @@ with literature, data and validation evidence, then record the user's choice.
 Never turn a suggested country into an accepted study boundary. Preserve an
 already specified country without asking again. Unrestricted scope is a valid
 continuing choice; research with no geographic dependency need not choose a country.
-Before a new search, use a native researcher question to confirm the initial
-priority reading and organization target, proposing **30 distinct works** for
-new briefs. A displayed default is not a submitted answer. Record the applicable
+Before a new search, use a native researcher question to confirm the final
+formally usable literature target, proposing **at least 30 distinct works** for
+new briefs. Formal works require readable complete body text and checked source
+identity/version; abstract-only, metadata-only, inaccessible or failed readings
+stay in the separate screening list. Individual unknown claims remain visible
+within an otherwise eligible work. A displayed default is not a submitted answer. Record the applicable
 project, input version, original answer and target in ResearchBrief decision
 history; reuse a valid confirmed answer on resume, and reject stale or
 wrong-project answers. Explicit researcher targets override the default.
 Keep any optional hard maximum and actual query, read, round and resource limits
-separate. Thirty is not a hard maximum, required full-text count, sufficiency
-rule, query filter or increased execution budget. Preserve the broader search
+separate. Thirty is the proposed final formal-work minimum, not a hard maximum,
+sufficiency rule, query filter, guaranteed yield or increased execution budget. Preserve the broader search
 and screening bibliography; report requested and actual distinct works, source
 availability, extraction and claim states, and remaining need coverage.
 No filler or duplicate/version inflation: reaching the target with unresolved
 needs remains partial/continue. Preserve frozen packages and their historical
 targets without retroactively assigning this default. See the intake contract
-for how to record this organization decision without narrowing search scope.
-Use `stage1_brief record` to preserve decision history and `stage1_brief compile`
+for versioned intake without narrowing search scope. Use `stage1_brief intake`
+for a new brief and present its `formal-question` through native researcher
+questions. Record the actual submitted answer with `submit-formal-target`, then
+use `stage1_brief compile`
 to bind query families to a confirmed brief and research needs. Validate that
 binding before executing a new plan. The older `stage1_coverage compile` remains
 for historical replay; it does not satisfy the new intake contract by itself.
@@ -64,6 +69,30 @@ quoted contribution, decision role, omission consequence and alternatives with
 `python -m stage1_core ASSESSMENT.json SOURCE_ROOT` with the plugin's `cli/` on
 `PYTHONPATH`. A valid binding is not a
 scientific endorsement; the independent evaluator makes its own verdict.
+
+## Final delivery and timing
+
+A candidate checkpoint is an intermediate Stage 1 artifact. Final Stage 1
+delivery includes the confirmed formal-work target, readable complete sources
+with checked identities/versions, source-bound claims and coverage decisions,
+filing and editable cross-format reports, an accepted Stage 1-to-2 handoff, and
+actual HTML operation acceptance. A search, parser run, count or valid saved
+HTML inventory alone cannot finish this chain. Keep unresolved claims, excluded
+works and remaining needs visible; do not infer scientific sufficiency from count.
+
+Use `research_workspace.final_delivery` to inspect the saved selection and
+projection prerequisites. It recomputes source admission and distinct works,
+checks the confirmed intake and exports, and lists the remaining semantic,
+lineage, coverage, handoff and browser checks. It never creates final acceptance
+or grants import/execution authority. See the workspace CLI instructions.
+
+Measure intake, search, acquisition, reading/screening, identity/version checking,
+filing/export, handoff and actual HTML acceptance separately. Record engineering
+repair and CI waiting separately from research. Preserve timestamped evidence
+references; union parallel intervals instead of summing them as elapsed time.
+An unfinished or unmeasured phase remains pending or unknown, never zero.
+Report the end-to-end duration only after this complete chain is accepted;
+candidate inspection and submission to CI are intermediate timings.
 
 ## Native capability and completion
 

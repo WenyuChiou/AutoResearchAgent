@@ -80,7 +80,54 @@ def _observed_package(test_case):
     return case
 
 
+def _stale_title_package(test_case):
+    workspace_fixtures.WorkspaceTests.setUpClass()
+    case = workspace_fixtures.WorkspaceTests()
+    test_case.addCleanup(case.doCleanups)
+    make_records = source_fixtures.ResearchDeliverableTests.make_records
+    lookup_title = source_fixtures.TITLE + ": earlier edition"
+    with patch.object(
+        source_fixtures.ResearchDeliverableTests,
+        "make_records",
+        lambda current: make_records(current, title=lookup_title),
+    ):
+        case.setUp()
+    case.records["papers"][0]["title"] = source_fixtures.TITLE
+    _, _, replay = sources.validate_archive(_archive(case))
+    write_json(_archive(case) / "validation.json", replay)
+    _rebind(case)
+    return case
+
+
 class ObservedDoiTests(unittest.TestCase):
+    def test_replayed_own_title_replaces_stale_lookup_without_identity_promotion(self):
+        case = _stale_title_package(self)
+        path = _archive(case) / "original.json"
+        before = path.read_bytes()
+        original = read_json(path)
+        index = case.project()
+        self.assertEqual(source_fixtures.TITLE, index["papers"][0]["title"])
+        self.assertEqual(original, index["sources"][0]["receipt"])
+        self.assertEqual(before, path.read_bytes())
+        self.assertEqual("", original["expected_identity"]["doi"])
+        self.assertIsNone(case.records["papers"][0]["doi"])
+
+    def test_stale_lookup_cannot_bind_wrong_observed_title(self):
+        case = _stale_title_package(self)
+        _alter_receipt(
+            case,
+            lambda receipt: receipt["observed_identity"].update(title="Other work"),
+        )
+        with self.assertRaises(DeliverableError):
+            case.project()
+
+    def test_stale_lookup_cannot_supply_unobserved_canonical_doi(self):
+        case = _stale_title_package(self)
+        case.records["papers"][0]["doi"] = DOI
+        _rebind(case)
+        with self.assertRaises(DeliverableError):
+            case.project()
+
     def test_url_only_replayed_doi_reaches_project_package(self):
         observed_package = _observed_package(self)
         case = observed_package
@@ -151,11 +198,11 @@ class ObservedDoiTests(unittest.TestCase):
 
     def test_title_guard_still_rejects_rehashed_mismatch(self):
         observed_package = _observed_package(self)
-        _alter_receipt(
-            observed_package,
-            lambda receipt: receipt["expected_identity"].update(title="Another work"),
-        )
-        with self.assertRaisesRegex(DeliverableError, "source title binding mismatch"):
+        observed_package.records["papers"][0]["title"] = "Different canonical work"
+        _rebind(observed_package)
+        with self.assertRaisesRegex(
+            DeliverableError, "source expected identity differs from canonical work"
+        ):
             observed_package.project()
 
     def test_replayed_receipt_must_equal_the_bound_receipt(self):

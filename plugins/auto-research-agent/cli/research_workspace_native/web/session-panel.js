@@ -1,6 +1,16 @@
 /* A separate injected session overlay. Research records and source text stay unchanged. */
 (() => {
   "use strict";
+  const atlas = window.WORKSPACE_NATIVE_ATLAS;
+  delete window.WORKSPACE_NATIVE_ATLAS;
+  if (atlas && atlas.enabled !== true) return;
+  // Only AtlasHost's matched saved-source bootstrap opts into public source identity.
+  // Generic session responses keep controller identities private.
+  const sourceBinding = atlas && typeof atlas.source_project_id === "string" &&
+    atlas.source_project_id.length > 0 && atlas.source_project_id.length <= 128 ? Object.freeze({
+      source_project_id: atlas.source_project_id, project_ref: atlas.project_ref,
+      index_sha256: atlas.index_sha256, input_version: atlas.input_version,
+    }) : null;
   const rows = {
     title: ["Session discussion & history", "会话对话与历史", "工作階段對話與歷史"],
     boundary: ["Injected session overlay · native authentication and live research are not verified. The Wiki above remains an offline reference.", "注入会话覆盖层 · 原生认证和真实研究尚未验收。上方 Wiki 仍为离线参考。", "注入工作階段覆蓋層 · 原生認證與實際研究尚未驗收。上方 Wiki 仍為離線參考。"],
@@ -12,6 +22,7 @@
     source: ["Bound source version", "绑定来源版本", "綁定來源版本"],
     send: ["Send answer", "提交回答", "提交回答"],
     decline: ["Decline request", "拒绝请求", "拒絕請求"],
+    accept: ["Approve this request", "批准本次请求", "核准本次請求"],
     cancel: ["Cancel request", "取消请求", "取消請求"],
     interrupt: ["Interrupt active turn", "中断当前执行", "中斷目前執行"],
     approval: ["Native approval request", "原生审批请求", "原生核准請求"],
@@ -77,6 +88,7 @@
   history.id = "native-history";
   document.querySelector(".footer-note")?.before(root);
   if (!root.isConnected) document.body.append(root);
+  if (atlas) document.getElementById("host-panel")?.prepend(root);
   let credential = "", project = "", view = null, busy = false, generation = 0, readSequence = 0;
   const drafts = new Map(), extensions = []; let noticeKey = null;
   const locale = () => ({en: 0, "zh-Hans": 1, "zh-Hant": 2}[document.documentElement.lang] ?? 0);
@@ -98,13 +110,22 @@
   const held = target => ledger().some(r => r.target === target) ||
     view.actions.some(a => a.target_ref === target);
   const path = () => `/api/native/projects/${encodeURIComponent(project)}`;
+  const sameBinding = (first, second) => Boolean(first && second) &&
+    ["project_ref", "index_sha256", "input_version"].every(name => first[name] === second[name]);
   const request = async (method, suffix = "", body) => {
     const response = await fetch(path() + suffix, {
       method, credentials: "omit", cache: "no-store", redirect: "error",
       headers: {Authorization: "Bearer " + credential, ...(body ? {"Content-Type": "application/json"} : {})},
       ...(body ? {body: JSON.stringify(body)} : {}),
     });
-    if (!response.ok) throw Error("session-request-failed");
+    if (!response.ok) {
+      const error = Error("session-request-failed");
+      try {
+        const body = await response.json();
+        if (body && typeof body === "object" && Object.hasOwn(body, "receipt")) error.receipt = body.receipt;
+      } catch {} // An unreadable rejection body leaves the outcome unknown.
+      throw error;
+    }
     return response.json();
   };
   const render = () => {
@@ -145,9 +166,9 @@
       } else if (["item/commandExecution/requestApproval", "item/fileChange/requestApproval"].includes(r.method)) {
         label("h3", "approval", card);
         make("pre", JSON.stringify(r.payload, null, 2), card, true);
-        for (const decision of ["decline", "cancel"]) {
+        for (const decision of ["accept", "decline", "cancel"]) {
           const button = label("button", decision, card);
-          button.type = "button"; button.disabled = locked;
+          button.type = "button"; button.disabled = locked || (decision === "accept" && r.can_accept !== true);
           button.onclick = () => submit("answer", r, {decision});
         }
       } else make("p", r.method + " · unsupported", card, true);
@@ -174,9 +195,11 @@
     try {loaded = await request("GET");}
     catch (error) {if (current !== generation || sequence !== readSequence) return; throw error;}
     if (current !== generation || sequence !== readSequence || (view && loaded.revision < view.revision)) return;
-    if (loaded.project_ref !== project || (view && (loaded.index_sha256 !== view.index_sha256 ||
+    if (sourceBinding && sourceBinding.source_project_id !== window.WORKSPACE_VIEW?.index?.project_id)
+      throw Error("project-binding-changed");
+    if (!Number.isSafeInteger(loaded.revision) || loaded.revision < 0 || !Array.isArray(loaded.requests) || !Array.isArray(loaded.actions) || !Array.isArray(loaded.operations) || loaded.project_ref !== project || (atlas && (loaded.index_sha256 !== atlas.index_sha256 || loaded.input_version !== atlas.input_version)) || (view && (loaded.index_sha256 !== view.index_sha256 ||
       loaded.input_version !== view.input_version))) throw Error("binding-changed");
-    view = loaded; render();
+    view = loaded; render(); return loaded;
   };
   const submit = async (kind, target, result) => {
     if (!view || busy || held(target.request_ref || target.action_ref)) return;
@@ -204,23 +227,52 @@
     const candidate = projectInput.value;
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(candidate)) return;
     const current = ++generation; credential = credentialInput.value; project = candidate;
-    credentialInput.value = ""; view = null; drafts.clear(); showNotice(null);
+    credentialInput.value = ""; view = null; drafts.clear(); render(); showNotice(null);
     try {await refresh();} catch {if (current === generation) {view = null; render(); showNotice("error");}}
   };
   refreshButton.onclick = async () => {try {await refresh();} catch {showNotice("error");}};
   disconnect.onclick = () => {if (busy) return; generation++; credential = ""; view = null; drafts.clear(); render(); showNotice(null);};
   window.NativePanel = {extend(factory) {
-    extensions.push(factory({root, available: () => Boolean(view) && !busy, read: async suffix => {
-      if (!/^\/scope(?:\/versions\/[0-9a-f]{64})?$/.test(suffix) || !view) throw Error("invalid-scope-read");
-      const current = generation, value = await request("GET", suffix);
-      if (current !== generation) throw Error("stale-display");
+    const extension = factory({root, sourceBinding, available: () => Boolean(view) && !view.failure && !busy,
+    refresh: async expected => {
+      const current = generation;
+      if (!sameBinding(view, expected) || busy) throw Error("bound-refresh-blocked");
+      const loaded = await refresh();
+      if (current !== generation || !loaded || !sameBinding(loaded, expected)) throw Error("stale-display");
+      return loaded;
+    }, read: async suffix => {
+      if (!/^(?:\/scope(?:\/versions\/[0-9a-f]{64})?|\/offer|\/transcript)$/.test(suffix) || !view) throw Error("invalid-scope-read");
+      const current = generation, binding = view, value = await request("GET", suffix);
+      if (current !== generation || !sameBinding(binding, view)) throw Error("stale-display");
       return value;
     }, write: async (suffix, body) => {
-      if (!/^\/scope\/(versions|reviews)$/.test(suffix) || !view || busy) throw Error("scope-write-blocked");
+      if (!/^(?:\/scope\/(versions|reviews)|\/messages)$/.test(suffix) || !view || busy) throw Error("scope-write-blocked");
+      const current = generation, binding = view;
+      let value, failure;
       busy = true;
-      try {return await request("POST", suffix, body);}
-      finally {busy = false; await refresh();}
-    }}));
+      try {value = await request("POST", suffix, body);}
+      catch (error) {failure = error;}
+      finally {
+        busy = false;
+        try {await refresh();} catch (error) {if (!failure) failure = error;}
+      }
+      if (current !== generation || !sameBinding(binding, view)) throw Error("stale-display");
+      if (failure) throw failure;
+      return value;
+    }});
+    extensions.push(extension);
+    if (view) extension.refresh(view);
   }};
+  if (atlas) {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(atlas.project_ref || "") ||
+        !/^[a-f0-9]{64}$/.test(atlas.index_sha256 || "") ||
+        !/^[a-f0-9]{64}$/.test(atlas.input_version || "") ||
+        typeof atlas.credential !== "string" || !atlas.credential) {
+      root.remove(); return;
+    }
+    credential = atlas.credential; project = atlas.project_ref;
+    connection.hidden = true;
+    refresh().catch(() => showNotice("error")); // GET only; no launcher or resend.
+  }
   translate();
 })();

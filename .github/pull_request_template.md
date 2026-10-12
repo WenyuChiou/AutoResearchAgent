@@ -5,7 +5,7 @@ Use short, plain sentences that a new teammate can understand. Define necessary
 technical terms where they first appear. -->
 
 - Plain-language summary: <!-- One sentence: what is wrong, what changes, and why it helps. -->
-- Target primary metric(s): <!-- P1-P9 -->
+- Target primary metric(s): <!-- P1-P9; not-applicable or contextual "None — reason" is allowed only for a Git-diff-verified governance-only PR. -->
 - Observed problem and evidence:
 - Why this matters to the research workflow:
 
@@ -13,14 +13,14 @@ technical terms where they first appear. -->
 
 <!-- Compare plausible methods. Use reuse, wrap, extend, or build-new. -->
 
-- Affected capability ID(s): <!-- IDs from capability-metric-map.v1.json, v3 extension, or stage2-v2 extension -->
+- Affected capability ID(s): <!-- IDs from the capability maps; not-applicable or contextual "None — reason" is allowed only for a Git-diff-verified governance-only PR. -->
 - Options considered:
 - Capability decision: <!-- exactly one: reuse / wrap / extend / build-new -->
 - Chosen change:
 - Out of scope:
-- Related external PR(s): <!-- None, or external GitHub PR URLs separated by semicolons. Do not list this AutoResearchAgent PR. -->
-- Internal prerequisite PR(s): <!-- None, or stacked AutoResearchAgent PR URLs separated by semicolons. -->
-- External dependency pin(s): <!-- None, or PR_URL @ 40-character SHA @ open|merged. Use the open head SHA or immutable merge SHA. -->
+- Related external PR(s): <!-- None — reason, or external GitHub PR URLs separated by semicolons. Do not list this AutoResearchAgent PR. -->
+- Internal prerequisite PR(s): <!-- None — reason, or stacked AutoResearchAgent PR URLs separated by semicolons. -->
+- External dependency pin(s): <!-- Only runtime dependencies: None — reason, or PR_URL @ 40-character SHA @ open|merged. Every pin must also appear in Related external PR(s); related governance/docs PRs need no pin. -->
 
 ## How
 
@@ -40,6 +40,22 @@ Before:
 After:
 
 ## Evaluation
+
+<!-- For a governance-only PR accepted by the Git-diff classifier, use either
+the exact value not-applicable or a contextual value such as "None — no metric
+is measured by this documentation change" for research metrics, capabilities,
+rubric criteria, operational mappings, invariant IDs/evidence, evaluation mode,
+hard measures, AI-judge evidence, guardrails, per-PR metrics, and readiness
+artifacts. The contextual reason must be concrete. PR text cannot select this
+path: only a complete, verified AGENTS-only Git diff can waive research metric
+IDs. Runtime, validator, evaluation, test, or CI changes still require their
+mapped metric, capability, criteria, and invariant evidence. Keep readiness
+implementation-only; state that no research-quality improvement is claimed;
+include commands, actual results, limitations, and traceable source references
+for both independent reviews, the reviewed revision, and patch hash. This
+validator checks body format only: it cannot authenticate review sources or
+accept their results. Do not claim PASS here; the core team verifies external
+records against the exact revision and patch before merge. -->
 
 - Evaluation readiness: <!-- exactly one: implementation-only / stage-executable / improvement-demonstrated -->
 - Baseline and treatment:
@@ -81,8 +97,10 @@ in every evidence field. -->
 - [ ] Targeted regression tests pass.
 - [ ] Evaluation schema and synthetic fixture tests pass.
 - [ ] No frozen benchmark title or answer key enters production logic.
-- [ ] Independent review is complete when required.
+- [ ] External review source links and revision/hash references are included; core-team acceptance is separate.
 - [ ] Limitations and deferred work are recorded.
+- Governance validation evidence: <!-- Governance-only PRs: actual command(s), result(s), and explicit limits of what the checks establish. -->
+- Governance review evidence: <!-- Governance-only PRs: code review source: HTTPS URL; harness-drift review source: HTTPS URL; reviewed revision: 40-hex SHA; patch SHA256: 64-hex SHA; external acceptance: not verified by this validator. Do not write PASS. -->
 
 Commands and actual results:
 

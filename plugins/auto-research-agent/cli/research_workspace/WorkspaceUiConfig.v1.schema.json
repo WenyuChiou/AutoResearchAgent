@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceUiConfig v1",
+  "description": "Trusted server configuration. This compiler declares settings only; no native launch, registration, consent or permit is created.",
+  "type": "object", "additionalProperties": false,
+  "required": ["kind", "schema_version", "interface_sha256", "views", "presentation", "native", "maintenance"],
+  "properties": {
+    "kind": {"const": "WorkspaceUiConfig"},
+    "schema_version": {"const": "1.0.0"},
+    "interface_sha256": {"$ref": "#/$defs/hash"},
+    "views": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/view"}},
+    "presentation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["language", "density"],
+      "properties": {
+        "language": {"enum": ["en", "zh-Hans", "zh-Hant"]},
+        "density": {"enum": ["comfortable", "compact"]}
+      }
+    },
+    "native": {"oneOf": [
+      {"$ref": "#/$defs/disabled"},
+      {"type": "object", "additionalProperties": false,
+       "required": ["mode", "runtime_ref"],
+       "properties": {"mode": {"const": "server-registered"}, "runtime_ref": {"$ref": "#/$defs/ref"}}}
+    ]},
+    "maintenance": {"oneOf": [
+      {"$ref": "#/$defs/disabled"},
+      {"type": "object", "additionalProperties": false,
+       "required": ["mode", "inbox_ref"],
+       "properties": {"mode": {"const": "record-only"}, "inbox_ref": {"$ref": "#/$defs/ref"}}}
+    ]}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "ref": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+    "disabled": {"type": "object", "additionalProperties": false,
+      "required": ["mode"], "properties": {"mode": {"const": "disabled"}}},
+    "view": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ref", "label", "manifest", "sha256", "fixture"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/ref"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 160},
+        "manifest": {"type": "string", "minLength": 1,
+          "description": "Existing absolute private manifest path, validated by load_views before use."},
+        "sha256": {"$ref": "#/$defs/hash"},
+        "fixture": {"type": "boolean"}
+      }
+    }
+  }
+}

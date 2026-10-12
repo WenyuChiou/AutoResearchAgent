@@ -7,6 +7,8 @@ from pathlib import Path
 from stage1_coverage.plan import compile_plan, quote, validate_bundle
 from stage1_ledger.journal import LedgerError, canonical, decode, digest, write_new
 
+from .formal_target import VERSION as FORMAL_VERSION, formal_target_state
+
 VERSION = "1.0.0"
 CHOICES = {"specified", "unrestricted", "not-applicable"}
 
@@ -22,7 +24,9 @@ def has_text(value):
 
 def state(brief):
     require(brief.get("kind") == "ResearchBrief", "wrong kind")
-    require(brief.get("schema_version") == VERSION, "unsupported version")
+    require(
+        brief.get("schema_version") in (VERSION, FORMAL_VERSION), "unsupported version"
+    )
     require(
         has_text(brief.get("original_description")),
         "missing original description",
@@ -147,6 +151,14 @@ def validate_brief(brief, *, require_confirmed=False):
         for f in brief["scope_fields"]
         if f["material"] and current[f["field"]]["status"] not in CHOICES
     ]
+    formal = {}
+    if brief["schema_version"] == FORMAL_VERSION:
+        require(
+            "formal_final_count" not in current, "formal count is not a scope field"
+        )
+        formal["formal_final_count"] = formal_target_state(brief)
+        if formal["formal_final_count"]["status"] == "pending":
+            unresolved.append("formal_final_count")
     # Non-material geography may remain broad; a reason is still preserved.
     if require_confirmed:
         require(
@@ -155,6 +167,7 @@ def validate_brief(brief, *, require_confirmed=False):
         )
     decisions = brief.get("decisions", [])
     return {
+        **formal,
         "valid": True,
         "scope": current,
         "necessary_clarification_complete": not unresolved,
@@ -170,11 +183,17 @@ def validate_brief(brief, *, require_confirmed=False):
 
 def create_brief(request, output, previous=None):
     brief = deepcopy(request)
-    brief.update(kind="ResearchBrief", schema_version=VERSION)
+    brief.update(
+        kind="ResearchBrief", schema_version=request.get("schema_version", VERSION)
+    )
     if previous is not None:
         raw = Path(previous).read_bytes()
         old = decode(raw, str(previous))
         validate_brief(old)
+        require(
+            brief["schema_version"] == old["schema_version"],
+            "history cannot change brief schema",
+        )
         require(
             brief["original_description"] == old["original_description"],
             "original description cannot be rewritten",
@@ -183,6 +202,33 @@ def create_brief(request, output, previous=None):
             require(
                 brief.get(key, [])[: len(old.get(key, []))] == old.get(key, []),
                 "history must be append-only: " + key,
+            )
+        if brief["schema_version"] == FORMAL_VERSION:
+            require(
+                type(brief.get("formal_final_count")) is dict,
+                "formal count must be an object",
+            )
+            for key in ("project_id", "input_version"):
+                require(
+                    type(brief.get(key)) is type(old[key])
+                    and brief.get(key) == old[key],
+                    "formal binding cannot change",
+                )
+            new_target, old_target = (
+                brief["formal_final_count"],
+                old["formal_final_count"],
+            )
+            require(
+                all(
+                    new_target.get(key) == old_target[key]
+                    for key in ("request_id", "proposed_target")
+                ),
+                "formal question cannot change",
+            )
+            require(
+                new_target.get("decisions", [])[: len(old_target["decisions"])]
+                == old_target["decisions"],
+                "formal history must be append-only",
             )
         brief["previous_sha256"] = digest(raw)
     else:
@@ -277,7 +323,7 @@ def compile_confirmed(brief_path, request, output, *, as_of, actor):
     )
     binding = {
         "kind": "ResearchBriefPlanBinding",
-        "schema_version": VERSION,
+        "schema_version": brief["schema_version"],
         "brief_sha256": digest(raw),
         "request": request,
         "plan_manifest_sha256": digest(
@@ -285,6 +331,10 @@ def compile_confirmed(brief_path, request, output, *, as_of, actor):
         ),
         "intake_metrics": metrics,
     }
+    if brief["schema_version"] == FORMAL_VERSION:
+        binding["formal_final_count_sha256"] = digest(
+            canonical(metrics["formal_final_count"])
+        )
     write_new(Path(output) / "research_brief.json", raw)
     write_new(Path(output) / "research_brief_binding.json", canonical(binding) + b"\n")
     return {**result, "research_brief_sha256": digest(raw), "intake_metrics": metrics}
@@ -299,10 +349,15 @@ def validate_bound_plan(directory, current_brief_path):
     )
     require(
         binding.get("kind") == "ResearchBriefPlanBinding"
-        and binding.get("schema_version") == VERSION,
+        and binding.get("schema_version") in (VERSION, FORMAL_VERSION),
         "invalid scope binding version",
     )
     raw = Path(current_brief_path).read_bytes()
+    brief = decode(raw, "brief")
+    require(
+        binding["schema_version"] == brief["schema_version"],
+        "brief/binding versions differ",
+    )
     require(
         raw == (root / "research_brief.json").read_bytes()
         and digest(raw) == binding["brief_sha256"],
@@ -318,6 +373,12 @@ def validate_bound_plan(directory, current_brief_path):
         plan["proposal"] == scoped_proposal(binding["request"], digest(raw)),
         "scope mapping references a different proposal",
     )
-    metrics = validate_search_request(decode(raw, "brief"), binding["request"])
+    metrics = validate_search_request(brief, binding["request"])
     require(metrics == binding["intake_metrics"], "intake metrics changed")
+    if brief["schema_version"] == FORMAL_VERSION:
+        require(
+            binding.get("formal_final_count_sha256")
+            == digest(canonical(metrics["formal_final_count"])),
+            "formal count binding changed",
+        )
     return {"valid": True, "intake_metrics": metrics}

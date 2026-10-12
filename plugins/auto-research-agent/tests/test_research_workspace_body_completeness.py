@@ -197,6 +197,30 @@ class BodyCompletenessTests(unittest.TestCase):
         self.assertEqual(result["status"], "incomplete")
         self.assertIn("document-extent-binding-stale", result["reasons"])
 
+    def test_pending_or_malformed_reading_order_cannot_confirm_complete_extents(self):
+        for factory in (pdf_row, document_row):
+            for receipt in (
+                {"status": "pending"},
+                {"status": "failed"},
+                {"status": []},
+                {"status": {}},
+                {},
+                None,
+            ):
+                with self.subTest(factory=factory.__name__, receipt=receipt):
+                    row = factory()
+                    row["reading"]["diagnostics"]["reading_order"] = receipt
+                    before = deepcopy(row)
+                    result = assess_body_completeness(row)
+                    self.assertEqual(result["status"], "pending")
+                    self.assertIn("reading-order-unreviewed", result["reasons"])
+                    self.assertEqual(row, before)
+
+    def test_explicit_confirmed_order_preserves_complete_extent_result(self):
+        row = pdf_row()
+        row["reading"]["diagnostics"]["reading_order"] = {"status": "confirmed"}
+        self.assertEqual(assess_body_completeness(row)["status"], "confirmed")
+
     def test_abstract_only_locator_cannot_confirm_full_body(self):
         row = {
             "raw_sha256": RAW_HASH,
