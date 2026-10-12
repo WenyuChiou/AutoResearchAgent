@@ -1,0 +1,30 @@
+ROOT D:\Codex_Learning\harness_building\_temp\r11\ci-path-\tmpxnqkj_8m BYTES 65
+source-review 2089
+research 4004
+extraction 9803
+challenger 3146
+challenger-extraction 5133
+feasibility 3147
+feasibility-extraction 5134
+reconciliation 7212
+Stage2Error pipeline-prompt-byte-bound-exceeded PHASE reconciliation-extraction
+ROOT D:\Codex_Learning\harness_building\_temp\r11\ci-path-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\tmpidap32mz BYTES 97
+source-review 2089
+research 4004
+extraction 9803
+challenger 3146
+challenger-extraction 5133
+feasibility 3147
+feasibility-extraction 5134
+reconciliation 7276
+Stage2Error pipeline-prompt-byte-bound-exceeded PHASE reconciliation-extraction
+ROOT D:\Codex_Learning\harness_building\_temp\r11\ci-path-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\tmp4mduiywk BYTES 129
+source-review 2089
+research 4004
+extraction 9803
+challenger 3146
+challenger-extraction 5133
+feasibility 3147
+feasibility-extraction 5134
+reconciliation 7340
+Stage2Error pipeline-prompt-byte-bound-exceeded PHASE reconciliation-extraction

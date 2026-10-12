@@ -1,0 +1,147 @@
+{
+  "kind": "PortablePipelineFixtureEvidence.v1",
+  "parent": "2ec7fbb92f41b26dd6da1cc040f918548b273b57",
+  "main": "605782a9f89fb02ab411549b3666d766086aa855",
+  "source_sha256": {
+    "plugins/auto-research-agent/tests/stage_pipeline_fixture_helpers.py": "a7801669b15d454bca06666ce8a2affdf43dc5ec15e05fbfdd03b824e2af66f0",
+    "plugins/auto-research-agent/tests/test_stage_pipeline.py": "b1fed77b859515d8382acfb3cb6f974f97c02e16f058b7627bc7781465c77292"
+  },
+  "production_unchanged": {
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_pipeline.py": "2d3e74e2e185ee84b7fa4b6cbbec0184ab76a5d84b296d4496c61436188b6547"
+  },
+  "original_renderer_unchanged": [
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-associations.js",
+      "sha256": "9b5f202377b848e25bb6e86882cab5c2f2209a69c3ba23fe06a3e8222adde6aa"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v1.md",
+      "sha256": "360ec66744a32f1b85baf75d0c9955642b4d9fb7510381018b0149ee1ca49cf0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v2.md",
+      "sha256": "f4342b51f8482d747ebd58b62a36bbeb6c86097d05109cc31bed23252d0787e2"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-layout.v3.md",
+      "sha256": "15abb6215c57f3dceb41ee82c7a2a653b179e54a419f6ffebd5f060e8d0bed5c"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-model.js",
+      "sha256": "63e774d1e4b133762688db30c4149ec5fe8e91f0b16bf3b80964fd429616d56e"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-network.js",
+      "sha256": "fd3bf24f150832b23aaa6fc9aaece2af967830b611b7556f1fc83ad5adff1ad0"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-spatial.js",
+      "sha256": "2d600f54188cea7cf2f8f127efea1c86ab636f6e4e8deb7364fe153e7f988b26"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas-ui.js",
+      "sha256": "2a92b930316e52ea3c03d1b87207293174400be6f6566cc9f0ef35b02b8d7667"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.css",
+      "sha256": "bec89cbf2176de13e347ce69770ce8c5f32f3f67b57fcf024695c249a6918350"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/atlas.html",
+      "sha256": "6870e7999674c66ac23de25cce14a360dad47e4ff58d1ba2a823a1199a1c7cc3"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js",
+      "sha256": "13088340aad408156064fd120c3bc3a47c93a3cc45b8f132d6284b20e2223be9"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-LICENSE.txt",
+      "sha256": "7262e566e874d1ce8cfadace01d4f635f8d704b6bdf7b4345cc028e5faeafded"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/THIRD_PARTY_LICENSES.txt",
+      "sha256": "18a5ca9ab7f8fe3e89d381c5a5617828010a90a327b0871963a0d11f32519280"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas/vendor/vendor-lock.json",
+      "sha256": "4ea67bed252da979c0adeb5a0ece6568bc0a4bc2bf0ff412571c04e6358388aa"
+    }
+  ],
+  "logs": {
+    "portable-root-before.txt": {
+      "original_sha256": "5c3408bc54749690daf0b667cbf852e8a1960ea7a2b95a16e781e2163b4ec404",
+      "published_sha256": "a375c4f84b0b5cfa46469b76e6f01c338837b9713ea71ca341a9bbe30620ff2a",
+      "transform": "CRLF-to-LF only"
+    },
+    "pipeline-focused-final-v5.txt": {
+      "original_sha256": "065ed91ffb0339f01006ca3730b46fe5cce9e1b7a2955d0a54183f9f266d2813",
+      "published_sha256": "78797b868065b95692ffff08fcc0c9ffaa08b4ea151d6910e1f0eb55c969b468",
+      "transform": "CRLF-to-LF only"
+    },
+    "portable-root-after-final-v5.txt": {
+      "original_sha256": "00d52547ca5e66049f97f70bd179dcf797e991fd1818c85429e3769e96d4be75",
+      "published_sha256": "1e4db8bc25af578df0d8a70efac28ee843ba558356cd958b835650e3929082c6",
+      "transform": "CRLF-to-LF only"
+    }
+  },
+  "private_retained_logs": {
+    "fresh-v2\\pipeline-focused-final-v4.txt": "f9cdc03b891b3280c60e446fe4ad5d3c364caeaf9f042135b3ecbcaa3825e7ff",
+    "fresh-v2\\pipeline-focused-final-v5.txt": "065ed91ffb0339f01006ca3730b46fe5cce9e1b7a2955d0a54183f9f266d2813",
+    "fresh-v2\\pipeline-focused-v2.txt": "15d69e6b0c63eb0bbcd96fc1153705c0775f45f2b615e659af0852b2b21bb93c",
+    "fresh-v2\\pipeline-focused-v3.txt": "daf3f69382ba5e88853c9cf83df0775205276171a303713024d2273cd706b403",
+    "fresh-v2\\portable-root-after-final-v5.txt": "00d52547ca5e66049f97f70bd179dcf797e991fd1818c85429e3769e96d4be75",
+    "fresh-v2\\portable-root-after-v3.txt": "58bf16b76582367f51d3cc021b51a2d21132076ff945ff7b7ebf777fe71f1228",
+    "fresh-v2\\portable-root-before.txt": "5c3408bc54749690daf0b667cbf852e8a1960ea7a2b95a16e781e2163b4ec404",
+    "b-ci-macos-before.txt": "27ea84c8353fb746ae063841257e0c825b877fb3fe32ab7be48636197c5dd93b",
+    "b-ci-ubuntu-before.txt": "6758589ca6b650fc963ef41c8a92f1509da03826cd9ca3ab47d0917d94f93977"
+  },
+  "hosted_before": [
+    {
+      "os": "macOS",
+      "run": 38183592148,
+      "job": 114608728712,
+      "tests": 2826,
+      "failures": 0,
+      "errors": 2,
+      "skips": 3,
+      "seconds": 1238.072,
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/actions/runs/38183592148/job/114608728712"
+    },
+    {
+      "os": "Ubuntu",
+      "run": 38183592148,
+      "job": 114608728720,
+      "tests": 2826,
+      "failures": 0,
+      "errors": 2,
+      "skips": 3,
+      "seconds": 1323.483,
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/actions/runs/38183592148/job/114608728720"
+    }
+  ],
+  "focused": {
+    "tests": 23,
+    "seconds": 13.837,
+    "skips": 0,
+    "status": "passed"
+  },
+  "long_root": {
+    "actual_diagnostic_utf8_bytes": 161,
+    "steps": 9,
+    "extraction_bytes": 9745,
+    "final_extraction_bytes": 9810,
+    "status": "incomplete-assessment",
+    "regression": "additional authored component with64 ASCII padding characters; actual complete length depends on TEMP prefix"
+  },
+  "review": "Independent narrow static review found no blocking; not Core approval.",
+  "new_full_suite": false,
+  "new_native_model_search_research_calls": 0,
+  "stage2": "execution deferred",
+  "stage3_6": "planned/unconnected",
+  "limits": [
+    "Hosted original failures remain FAILED, new-head CI not yet observed.",
+    "Shortened authored mock prose is not production truncation, schema relaxation or cap override.",
+    "No arbitrary real-output/path portability or scientific completion proof.",
+    "Private hashes are declarations, not evidence that Core inspected private logs."
+  ]
+}
