@@ -12,12 +12,14 @@ from unittest.mock import patch
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PLUGIN / "cli"), str(PLUGIN / "tests")]
 
+from stage1_eval import model_calls  # noqa: E402
 from stage1_eval.common import EvaluationError, canonical  # noqa: E402
 from stage2_common import Stage2Error, canonical_hash  # noqa: E402
 from stage2_fixture_helpers import write_stage2_fixture  # noqa: E402
 from stage2_live.content_revision import (  # noqa: E402
     UPDATE_MODE,
     _authenticate_extraction,
+    _model_config,
     prepare_content_revision,
     prepare_content_revision_input,
 )
@@ -38,6 +40,7 @@ from stage2_workflow.reviews import prepare_review  # noqa: E402
 from test_stage2_checker import assessment  # noqa: E402
 from test_stage2_controller import _write_faithful_model_archive  # noqa: E402
 from test_stage2_live_extraction import POLICY, generated_extraction  # noqa: E402
+import test_stage2_native_namespace_integration as namespaces  # noqa: E402
 from test_stage2_readonly_replay import digest, write_json  # noqa: E402
 
 
@@ -150,7 +153,7 @@ class ContentRevisionTests(unittest.TestCase):
                 "a" * 64,
             )
 
-    def _archive_backed_content_revision(self):
+    def _archive_backed_content_revision(self, config=None):
         snapshot = "a" * 64
         raw = (
             "The corrected comparison retains the frozen source boundary.\n"
@@ -189,19 +192,25 @@ class ContentRevisionTests(unittest.TestCase):
         task = build_extraction_task(raw, self.parent, snapshot)
         schema = generation_schema(spans, self.parent)
         prompt = _prompt(task, self.parent, spans, schema, UPDATE_MODE)
-        output = self.root / "archive-backed"
+        output_root = (
+            Path(config["native_namespace"]["scope"]["capture_root"])
+            if config is not None and "native_namespace" in config
+            else self.root
+        )
+        output = output_root / "archive-backed"
         output.mkdir()
-        codex = self.root / "synthetic-codex.exe"
-        codex.write_bytes(b"synthetic test executable; no model dispatch")
-        home = self.root / "synthetic-evaluator-home"
-        home.mkdir()
-        config = {
-            "codex": str(codex.resolve()),
-            "codex_executable_sha256": digest(codex),
-            "evaluator_home": str(home.resolve()),
-            "model": "synthetic-test-model",
-            "reasoning": "high",
-        }
+        if config is None:
+            codex = self.root / "synthetic-codex.exe"
+            codex.write_bytes(b"synthetic test executable; no model dispatch")
+            home = self.root / "synthetic-evaluator-home"
+            home.mkdir()
+            config = {
+                "codex": str(codex.resolve()),
+                "codex_executable_sha256": digest(codex),
+                "evaluator_home": str(home.resolve()),
+                "model": "synthetic-test-model",
+                "reasoning": "high",
+            }
         write_json(output / "extraction.schema.json", schema)
         replayed = _write_faithful_model_archive(
             output, "extraction", prompt, schema, generated, config, POLICY
@@ -263,6 +272,97 @@ class ContentRevisionTests(unittest.TestCase):
             "unit_receipts": {"extraction": digest(unit_path)},
         }
         return output, receipt, snapshot, next_packet
+
+    def _namespaced_content_revision(self):
+        fixture = namespaces.NamespaceIntegrationTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        scope = patch.object(
+            model_calls, "bind_namespace", return_value=fixture.binding
+        )
+        wrapper = patch.object(model_calls, "wrap_namespace", side_effect=fixture.wrap)
+        dispatcher = patch.object(
+            model_calls,
+            "call_model_v31",
+            side_effect=AssertionError("archive authentication must not dispatch"),
+        )
+        for mock in (scope, wrapper, dispatcher):
+            self.addCleanup(mock.stop)
+        scope_mock = scope.start()
+        wrapper.start()
+        dispatcher_mock = dispatcher.start()
+        config = model_calls._request_config(
+            fixture.codex, fixture.home, "synthetic-test-model", "high"
+        )
+        archive = self._archive_backed_content_revision(config)
+        return fixture, scope_mock, dispatcher_mock, archive
+
+    def test_namespaced_content_authentication_replays_without_dispatch_or_writes(self):
+        fixture, _, dispatcher, archive = self._namespaced_content_revision()
+        output, receipt, snapshot, next_packet = archive
+        before = {
+            str(path): digest(path)
+            for root in (self.root, fixture.root)
+            for path in root.rglob("*")
+            if path.is_file()
+        }
+        proof = _authenticate_extraction(
+            output, receipt, self.parent, self.sources, snapshot
+        )
+        after = {
+            str(path): digest(path)
+            for root in (self.root, fixture.root)
+            for path in root.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(before, after)
+        self.assertEqual(proof["next_packet"], next_packet["packet"])
+        self.assertEqual(proof["actual_call_count"], 1)
+        self.assertEqual(proof["next_packet"]["sources"], self.parent["sources"])
+        dispatcher.assert_not_called()
+
+    def test_namespaced_content_authentication_rejects_scope_drift_and_downgrade(self):
+        fixture, scope, dispatcher, archive = self._namespaced_content_revision()
+        output, receipt, snapshot, _ = archive
+        variants = [None]
+        for field in ("workspace", "capture_root"):
+            changed = copy.deepcopy(fixture.binding)
+            changed["scope"][field] += "-changed"
+            variants.append(changed)
+        for field in ("sha256", "dispatcher_sha256"):
+            changed = copy.deepcopy(fixture.binding)
+            changed[field] = "e" * 64
+            variants.append(changed)
+        for changed in variants:
+            with self.subTest(namespace=changed):
+                scope.return_value = changed
+                with self.assertRaisesRegex(EvaluationError, "request fingerprint"):
+                    _authenticate_extraction(
+                        output, receipt, self.parent, self.sources, snapshot
+                    )
+        dispatcher.assert_not_called()
+
+    def test_content_replay_config_rejects_missing_or_changed_runtime_pin(self):
+        fixture, _, dispatcher, archive = self._namespaced_content_revision()
+        request = json.loads((archive[0] / "request.json").read_text(encoding="utf-8"))
+        config = _model_config(request)
+        self.assertEqual(config["effective_cwd"], str(fixture.work))
+        self.assertEqual(config["native_namespace"], fixture.binding)
+        for change in ("missing", "changed", "unavailable"):
+            changed = copy.deepcopy(request)
+            if change == "missing":
+                del changed["codex_runtime_sha256"]
+                expected = "extraction-config-missing"
+            elif change == "changed":
+                changed["codex_runtime_sha256"] = "e" * 64
+                expected = "extraction-runtime-changed"
+            else:
+                changed["codex"] = str(self.root / "missing-codex")
+                expected = "extraction-config-missing"
+            with self.subTest(change=change):
+                with self.assertRaisesRegex(Stage2Error, expected):
+                    _model_config(changed)
+        dispatcher.assert_not_called()
 
     def test_real_extraction_authentication_replays_archive_and_rejects_rehashes(self):
         output, receipt, snapshot, next_packet = self._archive_backed_content_revision()

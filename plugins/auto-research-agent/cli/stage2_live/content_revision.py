@@ -7,7 +7,8 @@ import re
 import shutil
 from pathlib import Path
 
-from stage1_eval.common import canonical
+from stage1_eval.common import EvaluationError, canonical
+from stage1_eval.model_calls import _request_config
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_common.contract import _bound_path
 from stage2_ideation import build_extraction_task, validate_extraction
@@ -22,6 +23,7 @@ from .extraction import (
     generation_schema,
 )
 from .judges import _execution_policy
+from .native import CaptureError, codex_runtime_sha
 from .replay import replay_unit
 
 
@@ -193,14 +195,17 @@ def _external_receipt(value_or_path):
 
 def _model_config(request):
     try:
-        return {
-            "codex": request["codex"],
-            "codex_executable_sha256": request["codex_runtime_sha256"],
-            "evaluator_home": request["evaluator_home"],
-            "model": request["model"],
-            "reasoning": request["reasoning"],
-        }
-    except (KeyError, TypeError) as error:
+        runtime = codex_runtime_sha(request["codex"])
+        config = _request_config(
+            request["codex"],
+            request["evaluator_home"],
+            request["model"],
+            request["reasoning"],
+        )
+        if runtime != request["codex_runtime_sha256"]:
+            raise Stage2Error("content-revision-extraction-runtime-changed")
+        return config
+    except (KeyError, TypeError, EvaluationError, CaptureError) as error:
         raise Stage2Error("content-revision-extraction-config-missing") from error
 
 
