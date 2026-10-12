@@ -404,7 +404,8 @@
         "plugins/auto-research-agent/tests/browser/project-unified-test.cjs",
         "plugins/auto-research-agent/tests/browser/project-atlas-child-test.cjs",
         "plugins/auto-research-agent/tests/test_project_stage_slots.py",
-        "plugins/auto-research-agent/tests/browser/project-stage-slots-test.cjs"
+        "plugins/auto-research-agent/tests/browser/project-stage-slots-test.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_example_view.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

@@ -600,6 +600,7 @@
       } catch (_) { if (generation === state.generation && state.project === project) state.stageContract = null; }
       if (generation !== state.generation || state.project !== project) return;
       renderStages(); await refreshList(); await history(); await native();
+      if (generation === state.generation && state.project === project) return {generation, project, stage1: snapshot.stage1};
     } finally { if (generation === state.generation) { state.loading = false; buttons(); renderStages(); } }
   }
   function identity() {
@@ -964,7 +965,22 @@
     const ref = state.project.project_ref, generation = state.generation, version = state.project.input_version, brief = state.project.brief_sha256;
     const result = await mutate("stage1/" + operation, body, ref);
     if (result && generation === state.generation && state.project && state.project.project_ref === ref
-        && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+        && state.project.input_version === version && state.project.brief_sha256 === brief) {
+      const saved = await loadProject(ref), artifact = saved && saved.stage1 && saved.stage1.delivery && saved.stage1.delivery.canonical_package;
+      if (operation !== "deliver" || result.status !== "saved" || result.delivery_status !== "saved-evidence-validated"
+          || !saved || saved.generation !== state.generation || saved.project !== state.project
+          || saved.project.project_ref !== ref || saved.project.input_version !== version || saved.project.brief_sha256 !== brief
+          || !artifact || artifact.status !== "saved-evidence-validated" || artifact.artifact_ref !== result.artifact_ref
+          || !/^[A-Za-z0-9_-]{1,128}$/.test(artifact.artifact_ref || "") || !/^[0-9a-f]{64}$/.test(artifact.manifest_sha256 || "")
+          || artifact.manifest_sha256 !== result.manifest_sha256 || !artifact.binding || artifact.binding.project_id !== saved.project.project_id
+          || artifact.binding.input_version !== version || artifact.binding.brief_sha256 !== brief
+          || !window.ResearchProjectStages || window.ResearchProjectStages.activeStage() !== 1) return;
+      const target = $("project-stage-1-results");
+      if (target && !target.hidden) {
+        if (document.body.classList.contains("project-embedded")) document.dispatchEvent(new CustomEvent("research-project-navigate", {detail: {target: target.id}}));
+        else target.scrollIntoView({block: "start", behavior: "smooth"});
+      }
+    }
   }
   $("ledger-init").onclick = guarded(() => ledger("initialize"));
   $("ledger-checkpoint").onclick = guarded(() => ledger("checkpoint"));

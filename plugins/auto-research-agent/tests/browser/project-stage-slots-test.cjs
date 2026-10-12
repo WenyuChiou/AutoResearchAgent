@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const {webcrypto} = require('node:crypto');
 const fixture = JSON.parse(fs.readFileSync(0, 'utf8'));
 const web = path.resolve(__dirname, '../../cli/research_workspace_native/web');
 
@@ -42,6 +43,9 @@ class Element {
   removeAttribute(name) { delete this.attributes[name]; if (name === 'hidden' || name === 'disabled') this[name] = false; }
   addEventListener(name, callback) { (this.listeners[name] ||= []).push(callback); }
   click() { if (!this.disabled) { const event = {target: this, preventDefault() {}}; this.onclick?.(event); for (const fn of this.listeners.click || []) fn(event); } }
+  reset() {}
+  focus() {}
+  scrollIntoView(options) { (this.scrolls ||= []).push(JSON.parse(JSON.stringify(options))); }
   querySelectorAll(selector) { return descendants(this).filter(node => matches(node, selector)); }
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
 }
@@ -149,7 +153,7 @@ for (const language of ['zh-Hans', 'zh-Hant', 'en']) {
   slots.forEach((slot, i) => assert.equal(get(`project-stage-${i + 1}`), slot, 'stable stage nodes survive render'));
 }
 const translations = [
-  ['en', /status/i, /Operations/, /Results/, /Expected outputs/, /unconnected/i],
+  ['en', /status/i, /Operations/, /Delivered results/, /Expected outputs/, /unconnected/i],
   ['zh-Hans', /状态/, /操作/, /结果/, /预期输出/, /未接通/],
   ['zh-Hant', /狀態/, /操作/, /結果/, /預期輸出/, /未接通/]
 ];
@@ -212,4 +216,128 @@ assert.equal(statusText().includes(savedCanary), false, 'clear retires current s
 assert.equal(sideEffects.length, 0, 'all paths remain presentation only');
 assert.equal(JSON.stringify(events).includes('authored-private-credential'), false);
 assert.equal(JSON.stringify(events).includes('key'), false, 'presentation events have no action identity');
-console.log(JSON.stringify({kind: 'ProjectStageSlotsAuthoredDomChecks', stages: 6, languages: 3, refused_contracts: invalidContracts.length, presentation_events: events.length, side_effects: sideEffects.length, checks: ['current-bound-fields', 'literal-source-text', 'unknown-and-recorded-zero', 'six-stage-navigation', 'invalid-stage-refusal', 'same-binding-node-preservation', 'trilingual-labels', 'future-stage-disabled', 'malformed-and-foreign-binding', 'loading-and-clear']}));
+
+// Load the complete existing broker, using its public portal and real button
+// handlers. Only its transport replies and DOM are authored; no function is
+// extracted, replaced or copied into this test.
+async function deliveryNavigationGuards() {
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  async function until(predicate, diagnostic = () => '') {
+    const deadline = Date.now() + 3000;
+    while (!predicate() && Date.now() < deadline) await flush();
+    assert(predicate(), `mock broker reached its awaited boundary: ${diagnostic()}`);
+  }
+  async function scenario(options = {}) {
+    const tree = htmlTree(fs.readFileSync(path.join(web, 'projects.html'), 'utf8'));
+    const find = id => descendants(tree).find(node => node.id === id);
+    const project = {...clone(fixture.project), brief: {original_description: 'Authored delivery topic', needs: []}};
+    const freshProject = {...clone(project), ...(options.freshProject || {})};
+    const artifact = {artifact_ref: 'authored-package', manifest_sha256: 'c'.repeat(64), status: 'saved-evidence-validated', binding: {
+      project_id: project.project_id, input_version: project.input_version, brief_sha256: project.brief_sha256
+    }, ...(options.artifact || {})};
+    const receipt = {status: 'saved', delivery_status: 'saved-evidence-validated', artifact_ref: artifact.artifact_ref, manifest_sha256: artifact.manifest_sha256, ...(options.receipt || {})};
+    const posts = [], requests = [], navigation = [], listeners = {};
+    let overviewCount = 0, finishPost, finishReadback;
+    const sample = (current, delivered) => ({project: current, stage1: {
+      stage1_status: 'partial', ledger: {state_sha256: 'd'.repeat(64), gate: {outcome: 'continue'}, next_allowed_action: 'review'},
+      delivery: {canonical_package: delivered ? artifact : null, offers: [{status: 'ready-for-saved-evidence-delivery', offer_ref: 'authored-offer', offer_sha256: 'e'.repeat(64)}]}
+    }, stage2: null, models: null, model_offers: []});
+    const doc = {
+      getElementById: find, createElement: tag => new Element(tag), querySelectorAll: selector => tree.querySelectorAll(selector),
+      documentElement: tree.querySelector('html'), body: tree.querySelector('body'),
+      addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+      dispatchEvent(event) { if (event.type === 'research-project-navigate') navigation.push(JSON.parse(JSON.stringify(event.detail))); for (const fn of listeners[event.type] || []) fn(event); }
+    };
+    if (options.embedded) doc.body.classList.add('project-embedded');
+    const brokerWindow = {RESEARCH_PROJECTS: {credential: 'authored-private-credential', models: false, views: []}, dispatchEvent() {}, addEventListener() {}};
+    const storage = new Map();
+    const fetchMock = async (url, init) => {
+      requests.push({url, method: init.method});
+      let value;
+      if (init.method === 'POST') {
+        assert.equal(url, `/api/projects/${project.project_ref}/stage1/${options.operation || 'deliver'}`);
+        posts.push(JSON.parse(init.body)); value = await new Promise(resolve => { finishPost = () => resolve(receipt); });
+      } else if (url === '/api/projects') value = {projects: []};
+      else if (url.endsWith('/overview')) {
+        overviewCount++;
+        if (overviewCount > 1 && options.holdReadback) value = await new Promise(resolve => {finishReadback = () => resolve(sample(freshProject, true));});
+        else value = sample(overviewCount > 1 ? freshProject : project, overviewCount > 1);
+      } else if (url.endsWith('/contract')) {
+        value = clone(fixture.contract); const currentProject = overviewCount > 1 ? freshProject : project;
+        value.identity = {...value.identity, ...currentProject};
+        for (const stage of Object.values(value.stages)) stage.input = {...stage.input, ...currentProject};
+      } else if (/\/(history|models\/actions\/0|stage2\/actions)$/.test(url)) value = {actions: [], next_offset: null};
+      else if (url.endsWith('/models/native')) value = {};
+      else throw new Error(`Unexpected mocked route: ${url}`);
+      return {ok: true, json: async () => value};
+    };
+    const sandbox = {
+      document: doc, window: brokerWindow, fetch: fetchMock, TextEncoder,
+      sessionStorage: {getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value)},
+      crypto: {subtle: webcrypto.subtle, randomUUID: () => 'authored-ui-key'},
+      Event: class {constructor(type) {this.type = type;}},
+      CustomEvent: class {constructor(type, init = {}) {this.type = type; this.detail = init.detail;}}, console
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(fs.readFileSync(path.join(web, 'projects-stages.js'), 'utf8'), sandbox);
+    vm.runInContext(fs.readFileSync(path.join(web, 'projects.js'), 'utf8'), sandbox);
+    await flush();
+    assert.equal(await brokerWindow.ResearchProjectPortal.selectProject(project.project_ref), true, find('notice').textContent);
+    brokerWindow.ResearchProjectStages.showStage(options.activeStage || 1);
+    const button = find(options.operation === 'export' ? 'ledger-export' : 'ledger-deliver');
+    assert.equal(button.disabled, false, find('notice').textContent);
+    const saving = button.onclick({preventDefault() {}});
+    await until(() => finishPost, () => find('notice').textContent + ' ' + JSON.stringify(requests));
+    if (options.beforePostReply) options.beforePostReply({project, find, brokerWindow});
+    finishPost();
+    if (options.holdReadback) { await until(() => finishReadback); find('new-project').onclick(); finishReadback(); }
+    await saving;
+    assert.equal(posts.length, 1, 'explicit button produces exactly one authored POST');
+    assert.equal(requests.filter(row => row.method === 'POST').length, 1, 'readback/navigation cannot send another POST');
+    assert.equal(posts[0].confirmed, true);
+    assert.equal(posts[0].input_version, fixture.project.input_version);
+    assert.equal(posts[0].brief_sha256, fixture.project.brief_sha256);
+    const scrolls = find('project-stage-1-results').scrolls || [];
+    return {navigation, scrolls, notice: find('notice').textContent};
+  }
+  const successful = await scenario();
+  assert.deepEqual(successful.scrolls, [{block: 'start', behavior: 'smooth'}], 'fresh explicit delivery scrolls to lower Stage 1 result');
+  assert.deepEqual(successful.navigation, []);
+  const embedded = await scenario({embedded: true});
+  assert.deepEqual(embedded.navigation, [{target: 'project-stage-1-results'}], 'embedded project requests only the lower result mount');
+  assert.deepEqual(embedded.scrolls, []);
+  const failures = [
+    ['failed receipt', {receipt: {status: 'failed'}}],
+    ['unknown receipt', {receipt: {status: 'execution-unknown'}}],
+    ['incomplete delivery receipt', {receipt: {delivery_status: 'unknown'}}],
+    ['mismatched receipt artifact', {receipt: {artifact_ref: 'foreign-package'}}],
+    ['mismatched receipt manifest', {receipt: {manifest_sha256: 'f'.repeat(64)}}],
+    ['invalid manifest', {artifact: {manifest_sha256: 'bad'}}],
+    ['invalid artifact reference', {artifact: {artifact_ref: '../foreign'}}],
+    ['unverified artifact', {artifact: {status: 'source-verification-failed'}}],
+    ['missing artifact binding', {artifact: {binding: null}}],
+    ['foreign artifact project', {artifact: {binding: {...identity, project_id: 'foreign-id'}}}],
+    ['stale artifact input', {artifact: {binding: {...identity, project_id: fixture.project.project_id, input_version: 2}}}],
+    ['stale artifact brief', {artifact: {binding: {...identity, project_id: fixture.project.project_id, brief_sha256: 'f'.repeat(64)}}}],
+    ['active Stage 2', {activeStage: 2}],
+    ['export operation', {operation: 'export'}],
+    ['project changes during POST', {beforePostReply: ({project}) => {project.project_ref = 'foreign';}}],
+    ['input changes during POST', {beforePostReply: ({project}) => {project.input_version = 2;}}],
+    ['brief changes during POST', {beforePostReply: ({project}) => {project.brief_sha256 = 'f'.repeat(64);}}],
+    ['generation changes during POST', {beforePostReply: ({find}) => find('new-project').onclick()}],
+    ['project changes in readback', {freshProject: {project_ref: 'foreign'}}],
+    ['input changes in readback', {freshProject: {input_version: 2}}],
+    ['brief changes in readback', {freshProject: {brief_sha256: 'f'.repeat(64)}}],
+    ['generation changes during readback', {holdReadback: true}]
+  ];
+  for (const [name, options] of failures) {
+    const result = await scenario({...options, embedded: true});
+    assert.deepEqual(result.navigation, [], `${name} cannot navigate`);
+    assert.deepEqual(result.scrolls, [], `${name} cannot scroll`);
+  }
+  return failures.length + 2;
+}
+(async () => {
+  const delivery_navigation_cases = await deliveryNavigationGuards();
+  console.log(JSON.stringify({kind: 'ProjectStageSlotsAuthoredDomChecks', stages: 6, languages: 3, refused_contracts: invalidContracts.length, presentation_events: events.length, side_effects: sideEffects.length, delivery_navigation_cases, authored_broker_posts: delivery_navigation_cases, real_network_calls: 0, checks: ['current-bound-fields', 'literal-source-text', 'unknown-and-recorded-zero', 'six-stage-navigation', 'invalid-stage-refusal', 'same-binding-node-preservation', 'trilingual-labels', 'future-stage-disabled', 'malformed-and-foreign-binding', 'loading-and-clear', 'whole-broker-delivery-navigation']}));
+})().catch(error => {console.error(error); process.exitCode = 1;});

@@ -260,6 +260,44 @@ async function selectProject(project, expectResult = true) {
       assert.equal(await child.locator('#atlas-project').textContent(), alpha.topic);
       assert.equal(posts.length, 0);
     });
+    await check('Stage2 pinned example renders below operations without becoming current-project output', async () => {
+      const {operation} = await selectProject(alpha);
+      await operation.locator('#project-stage-nav-2').click();
+      await operation.waitForFunction(() => document.querySelector('#stage2-preview-frame') && document.querySelector('#stage2-preview-entry [role="status"]').textContent === '');
+      const handle = await operation.locator('#stage2-preview-frame').elementHandle(), example = await handle.contentFrame();
+      await example.waitForFunction(() => document.documentElement.dataset.atlasStage === '2');
+      assert.equal(await example.evaluate(() => window.WORKSPACE_VIEW.fixture && window.WORKSPACE_VIEW.stage2.fixture), true);
+      assert.equal(await example.evaluate(() => Boolean(window.RESEARCH_PROJECTS || window.RESEARCH_HOST)), false);
+      assert.notEqual(await example.evaluate(() => window.WORKSPACE_VIEW.index.project_id), alpha.project_ref);
+      assert.equal(await operation.locator('#stage2-preview-entry [data-refusal]').count(), 0);
+      assert.match(await operation.locator('#project-stage-2-result-state').textContent(), /Not generated|尚未生成|尚未產生/);
+      for (const language of ['en', 'zh-Hans', 'zh-Hant']) {
+        await page.locator('#atlas-language').selectOption(language);
+        await example.waitForFunction(language => document.getElementById('atlas-language').value === language, language);
+        assert.match(await operation.locator('#stage2-preview-entry > p').first().textContent(), /not this project|不是当前项目|並非目前專案/);
+      }
+      await operation.locator('#stage2-preview-entry select').click();
+      await shot('unified-stage2-example');
+      assert.equal(posts.length, 0);
+    });
+    await check('deferred result navigation is discarded after switching stages', async () => {
+      const {operation} = await selectProject(alpha);
+      const observed = await page.evaluate(() => {
+        const portalFrame = document.getElementById('project-operations-frame'), child = portalFrame.contentWindow;
+        const originalRaf = window.requestAnimationFrame, originalScroll = window.scrollTo, callbacks = [], scrolls = [];
+        try {
+          window.requestAnimationFrame = callback => {callbacks.push(callback); return 0;};
+          window.scrollTo = value => scrolls.push(value);
+          child.document.dispatchEvent(new child.CustomEvent('research-project-navigate', {detail:{target:'project-stage-1-results'}}));
+          child.ResearchProjectPortal.showStage(6);
+          callbacks.forEach(callback => callback());
+          return {queued:callbacks.length, scrolls:scrolls.length};
+        } finally {window.requestAnimationFrame = originalRaf; window.scrollTo = originalScroll;}
+      });
+      assert(observed.queued > 0); assert.equal(observed.scrolls, 0);
+      await operation.locator('#project-stage-nav-1').click();
+      assert.equal(posts.length, 0);
+    });
     await check('Stage2 saved input switches project identity without adopting an earlier review', async () => {
       const {operation} = await selectProject(alpha);
       await operation.locator('#project-stage-nav-2').click();

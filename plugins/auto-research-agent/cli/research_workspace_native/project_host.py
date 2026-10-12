@@ -22,7 +22,13 @@ from .project_stage1_records import reading_registration_view
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
 from .project_atlas_shell import shell_assets
-from .project_ui_overlay import PANEL, PANEL_CSP, PARENT_CSP, install_project_overlay
+from .project_ui_overlay import (
+    PANEL,
+    PANEL_CSP,
+    PARENT_CSP,
+    install_project_overlay,
+    stage2_example_views,
+)
 from .project_stage1_library import ProjectStage1LibraryService
 from .project_stage1_source_service import ProjectStage1SourceService
 from .project_source_dispatcher import ProjectSourceDispatcher
@@ -120,11 +126,15 @@ class ProjectHost(AtlasHost):
                 "projects-progress.js",
                 "projects-stages.js",
                 "projects-stages.css",
+                "projects-stage2-preview.js",
                 "project-operations.js",
                 "project-operations.css",
             )
         }
         atlas_shell = shell_assets(ASSETS)
+        example_assets, self.stage2_examples, self.stage2_example_routes = (
+            stage2_example_views(options["files"], options["views"])
+        )
         self.projects, self.project_models, self.project_stage2 = (
             projects,
             models,
@@ -218,6 +228,7 @@ class ProjectHost(AtlasHost):
         self.RequestHandlerClass = ProjectHandler
         self._assets.update(project_assets)
         self._assets.update(atlas_shell)
+        self._assets.update(example_assets)
         self.project_panel_parents = install_project_overlay(
             self._assets, self.views, ASSETS
         )
@@ -340,6 +351,10 @@ class ProjectHandler(AtlasHandler):
             if self.path == PANEL:
                 value = PANEL_CSP
             elif self.path == "/project-atlas.html":
+                value = value.replace(
+                    "frame-ancestors 'none'", "frame-ancestors 'self'"
+                )
+            elif self.path in self.server.stage2_example_routes:
                 value = value.replace(
                     "frame-ancestors 'none'", "frame-ancestors 'self'"
                 )
@@ -799,6 +814,7 @@ class ProjectHandler(AtlasHandler):
                     dict(
                         credential=self.server.credential,
                         views=self.server.views,
+                        stage2_examples=self.server.stage2_examples,
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
                         stage1=self.server.project_stage1 is not None,

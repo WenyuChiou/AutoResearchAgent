@@ -14,6 +14,7 @@
   <script src="/projects-saved-claims.js" defer></script>
   <script src="/projects-atlas.js" defer></script>
   <script src="/projects-progress.js" defer></script>
+  <script src="/projects-stage2-preview.js" defer></script>
   <script src="/projects-stages.js" defer></script>
   <script src="/projects.js" defer></script>
 </head>
@@ -94,9 +95,6 @@
           <header class="project-stage-heading"><p class="eyebrow">STAGE 01</p><h2 id="project-stage-1-title"></h2></header>
           <div id="project-stage-1-status" class="card project-stage-status" role="status"></div>
         <section id="stage1-progress" class="card" aria-live="polite" hidden></section>
-          <div id="project-stage-1-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
-        <section id="project-atlas-inline" aria-label="Current project Stage1 results"></section>
-          </div>
           <div id="project-stage-1-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
         <details id="stage1-actions" class="card workspace-actions"><summary data-text="stage1Actions">Stage1 operations · scope, search, reading and review</summary>
           <article class="card"><p class="eyebrow">STAGE 01</p><h2 data-text="stage1Title">Literature & evidence</h2><p id="stage1-state"></p><p data-text="stage1Outputs">Knowledge network · Complete screening library · Source notes · Bibliography · Coverage and stop decision</p><div id="plan-summary" class="status-box"></div><div class="actions"><button id="suggest-topic" data-text="suggestTopic">Ask Codex for topic options</button><button id="plan-search" data-text="planSearch">Ask Codex to propose a search plan</button></div><p id="model-state" class="subtle"></p><details><summary data-text="authorizationTitle">Authorize a bounded Codex content task</summary><p id="authorization-budget"></p><p class="subtle" data-text="authorizationHelp">This authorizes one content call only. No search, commands, file changes or stage completion is granted. Sending the offered task is a separate step.</p><label for="model-consent" data-text="confirmation">Your confirmation, saved verbatim</label><textarea id="model-consent" rows="2" maxlength="4096"></textarea><div class="actions"><button id="authorize-topic" data-text="authorizeTopic">Authorize topic options</button><button id="authorize-plan" data-text="authorizePlan">Authorize search-plan proposal</button></div></details><div id="model-result"></div></article>
@@ -119,52 +117,56 @@
         <section id="source-claim-card" class="card" hidden><div id="source-claim-panel"></div></section>
         </details>
           </div>
+          <div id="project-stage-1-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
+        <section id="project-atlas-inline" aria-label="Current project Stage1 results"></section>
+          </div>
         </section>
         <section id="project-stage-2" class="project-stage-slot" data-project-stage="2" aria-labelledby="project-stage-2-title" hidden>
           <header class="project-stage-heading"><p class="eyebrow">STAGE 02</p><h2 id="project-stage-2-title"></h2></header>
           <div id="project-stage-2-status" class="card project-stage-status" role="status"></div>
-          <div id="project-stage-2-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
-            <div id="project-stage-2-result-state" class="card"></div>
-          </div>
           <div id="project-stage-2-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
           <article id="project-stage2-controls" class="card"><p class="eyebrow">STAGE 02</p><h2 data-text="stage2Title">Comparison & research directions</h2><p id="stage2-state"></p><p data-text="stage2Outputs">Shared comparison dimensions · Evidence-backed opportunities · Candidate routes · Independent review · Selection package</p><div id="stage2-offer" class="status-box"></div><button id="activate-stage2" data-text="activateStage2">Accept this Stage1 evidence for Stage2</button><p class="subtle" data-text="activationHelp">Import binds saved evidence. It does not start research, approve a direction or unlock Stage3.</p></article>
             <div id="stage2-input-entry" class="card"></div>
+          </div>
+          <div id="project-stage-2-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
+            <div id="project-stage-2-result-state" class="card"></div>
+            <section id="stage2-preview-entry" class="card" aria-label="Stage2 interface example"></section>
           </div>
         </section>
         <section id="project-stage-3" class="project-stage-slot" data-project-stage="3" aria-labelledby="project-stage-3-title" hidden>
           <header class="project-stage-heading"><p class="eyebrow">STAGE 03</p><h2 id="project-stage-3-title"></h2></header>
           <div id="project-stage-3-status" class="card project-stage-status" role="status"></div>
+          <div id="project-stage-3-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
+          </div>
           <div id="project-stage-3-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
             <div id="project-stage-3-result-state" class="card"></div>
-          </div>
-          <div id="project-stage-3-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
           </div>
         </section>
         <section id="project-stage-4" class="project-stage-slot" data-project-stage="4" aria-labelledby="project-stage-4-title" hidden>
           <header class="project-stage-heading"><p class="eyebrow">STAGE 04</p><h2 id="project-stage-4-title"></h2></header>
           <div id="project-stage-4-status" class="card project-stage-status" role="status"></div>
+          <div id="project-stage-4-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
+          </div>
           <div id="project-stage-4-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
             <div id="project-stage-4-result-state" class="card"></div>
-          </div>
-          <div id="project-stage-4-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
           </div>
         </section>
         <section id="project-stage-5" class="project-stage-slot" data-project-stage="5" aria-labelledby="project-stage-5-title" hidden>
           <header class="project-stage-heading"><p class="eyebrow">STAGE 05</p><h2 id="project-stage-5-title"></h2></header>
           <div id="project-stage-5-status" class="card project-stage-status" role="status"></div>
+          <div id="project-stage-5-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
+          </div>
           <div id="project-stage-5-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
             <div id="project-stage-5-result-state" class="card"></div>
-          </div>
-          <div id="project-stage-5-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
           </div>
         </section>
         <section id="project-stage-6" class="project-stage-slot" data-project-stage="6" aria-labelledby="project-stage-6-title" hidden>
           <header class="project-stage-heading"><p class="eyebrow">STAGE 06</p><h2 id="project-stage-6-title"></h2></header>
           <div id="project-stage-6-status" class="card project-stage-status" role="status"></div>
+          <div id="project-stage-6-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
+          </div>
           <div id="project-stage-6-results" class="project-stage-results"><h3 data-stage-text="results">Results</h3>
             <div id="project-stage-6-result-state" class="card"></div>
-          </div>
-          <div id="project-stage-6-operations" class="project-stage-operations"><h3 data-stage-text="operations">Operations</h3>
           </div>
         </section>
         <details class="card workflow"><summary data-text="workflowTitle">Workflow, expected outputs and remaining connections</summary><ol><li><strong data-text="workflow1">1. Confirm the scope</strong><span data-text="output1">Versioned ResearchBrief and resource limits</span></li><li><strong data-text="workflow2">2. Search, read and screen</strong><span data-text="output2">Query/source attempts, keep/reject reasons and source-bound claims</span></li><li><strong data-text="workflow3">3. Check coverage and deliver Stage1</strong><span data-text="output3">Real coverage gate, canonical reports and accepted evidence handoff</span></li><li><strong data-text="workflow4">4. Compare and propose Stage2 routes</strong><span data-text="output4">Comparison, candidates, independent checks and retained revisions</span></li><li><strong data-text="workflow5">5. Review and select</strong><span data-text="output5">User choice and unresolved conditions; Stage3–6 planned/unconnected</span></li></ol><p class="subtle" data-text="completionHelp">A completed call, a valid artifact and an accepted research stage are different states. A partial result or Unknown is retained; refresh reads history and never resends.</p></details>

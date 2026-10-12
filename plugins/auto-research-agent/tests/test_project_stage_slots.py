@@ -40,11 +40,16 @@ class Mounts(HTMLParser):
         self.stack = []
         self.ids = {}
         self.scripts = []
+        self.sequence = 0
+        self.starts = {}
+        self.ends = {}
 
     def handle_starttag(self, tag, attrs):
+        self.sequence += 1
         attrs = dict(attrs)
         identity = attrs.get("id")
         if identity:
+            self.starts[identity] = self.sequence
             self.ids.setdefault(identity, []).append(
                 tuple(item[1] for item in self.stack if item[1])
             )
@@ -54,11 +59,14 @@ class Mounts(HTMLParser):
             self.stack.append((tag, identity))
 
     def handle_endtag(self, tag):
+        self.sequence += 1
         if tag in self.void_tags:
             return
         if not self.stack or self.stack[-1][0] != tag:
             raise AssertionError(f"Unbalanced stage HTML at closing {tag}")
-        self.stack.pop()
+        _, identity = self.stack.pop()
+        if identity:
+            self.ends[identity] = self.sequence
 
 
 class ProjectStageSlotsTests(unittest.TestCase):
@@ -92,6 +100,7 @@ class ProjectStageSlotsTests(unittest.TestCase):
         self.assertEqual(report["stages"], 6)
         self.assertEqual(report["languages"], 3)
         self.assertGreaterEqual(report["refused_contracts"], 30)
+        self.assertGreaterEqual(report["delivery_navigation_cases"], 20)
         self.assertEqual(report["side_effects"], 0)
         print(result.stdout.strip())
 
@@ -117,12 +126,35 @@ class ProjectStageSlotsTests(unittest.TestCase):
             for other in range(1, 7):
                 if other != number:
                     self.assertNotIn(f"project-stage-{other}", mounts.ids[stage][0])
+            self.assertLess(
+                mounts.ends[f"{stage}-status"],
+                mounts.starts[f"{stage}-operations"],
+                f"Stage {number} status must precede its operations in actual DOM order",
+            )
+            self.assertLess(
+                mounts.ends[f"{stage}-operations"],
+                mounts.starts[f"{stage}-results"],
+                f"Stage {number} operations must finish above its results",
+            )
         self.assertIn("project-stage-1-operations", mounts.ids["stage1-actions"][0])
+        self.assertIn("project-stage-1-operations", mounts.ids["ledger-deliver"][0])
         self.assertIn("project-stage-1-results", mounts.ids["project-atlas-inline"][0])
+        self.assertLess(
+            mounts.ends["stage1-progress"],
+            mounts.starts["project-stage-1-operations"],
+        )
+        self.assertLess(
+            mounts.starts["ledger-deliver"], mounts.starts["project-atlas-inline"]
+        )
         self.assertIn(
             "project-stage-2-operations", mounts.ids["project-stage2-controls"][0]
         )
         self.assertNotIn("stage1-actions", mounts.ids["project-stage2-controls"][0])
+        self.assertIn("project-stage-2-operations", mounts.ids["stage2-input-entry"][0])
+        for identity in ("project-stage2-controls", "stage2-input-entry"):
+            self.assertLess(
+                mounts.ends[identity], mounts.starts["project-stage-2-results"]
+            )
         self.assertIn(
             "project-stage-2-results", mounts.ids["project-stage-2-result-state"][0]
         )

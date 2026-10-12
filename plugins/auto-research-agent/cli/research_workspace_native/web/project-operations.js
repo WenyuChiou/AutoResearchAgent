@@ -19,9 +19,9 @@
     "zh-Hans": {open: "Codex 与 Harness", drawer: "研究操作", close: "关闭操作面板", hint: "所选操作项目与下方已保存图谱独立。打开面板不会执行研究。", title: "项目与研究题目", step: "STAGE 1 之前", help: "选择已有项目，或准备一个新题目。在同一个操作面板中创建项目并确认范围；下方已保存图谱仍是历史结果。", choice: "已有研究项目", choose: "请明确选择项目", topic: "新研究题目或方向", select: "打开所选项目", create: "用此题目新建项目", confirm: "审阅并确认研究范围", next: "继续当前项目", refresh: "刷新项目列表", none: "尚未选择当前操作项目", current: "当前操作项目", version: "输入版本", loading: "正在读取已保存项目…", ready: "选择项目与准备题目不会提交或执行研究。", invalid: "请使用完整 Unicode 填写研究题目，不超过 4096 个 UTF-8 字节。", unavailable: "项目导航暂不可用。请刷新项目列表，或查看操作面板。", prepared: "题目已预填。请在面板中补全研究需要，再创建项目。"},
     "zh-Hant": {open: "Codex 與 Harness", drawer: "研究操作", close: "關閉操作面板", hint: "所選操作專案與下方已保存圖譜獨立。開啟面板不會執行研究。", title: "專案與研究題目", step: "STAGE 1 之前", help: "選擇既有專案，或準備一個新題目。在同一個操作面板中建立專案並確認範圍；下方已保存圖譜仍是歷史結果。", choice: "既有研究專案", choose: "請明確選擇專案", topic: "新研究題目或方向", select: "開啟所選專案", create: "以此題目建立專案", confirm: "審閱並確認研究範圍", next: "繼續目前專案", refresh: "重新整理專案清單", none: "尚未選擇目前操作專案", current: "目前操作專案", version: "輸入版本", loading: "正在讀取已保存專案…", ready: "選擇專案與準備題目不會提交或執行研究。", invalid: "請使用完整 Unicode 填寫研究題目，不超過 4096 個 UTF-8 位元組。", unavailable: "專案導覽暫不可用。請重新整理專案清單，或查看操作面板。", prepared: "題目已預填。請在面板中補全研究需要，再建立專案。"}
   };
-  Object.assign(words.en, {help: "Choose a topic, run each approved Stage1 step, and review this project's saved results below.", current: "Current project", none: "Choose or create a project to begin", history: "Original saved result · historical view", planned: "Stage3–6 are planned and unconnected. No research starts from navigation."});
-  Object.assign(words["zh-Hans"], {help: "选择研究题目，逐步执行已授权的 Stage1 操作，在下方查看此项目的保存结果。", current: "当前项目", none: "选择或创建项目后开始", history: "本页原始保存结果 · 历史视图", planned: "Stage3–6 尚在规划，未接通。切换页面不会启动研究。"});
-  Object.assign(words["zh-Hant"], {help: "選擇研究題目，逐步執行已授權的 Stage1 操作，在下方查看此專案的保存結果。", current: "目前專案", none: "選擇或建立專案後開始", history: "本頁原始保存結果 · 歷史視圖", planned: "Stage3–6 尚在規劃，未接通。切換頁面不會啟動研究。"});
+  Object.assign(words.en, {help: "Use the Harness operations above, then read this project's delivered results below.", current: "Current project", none: "Choose or create a project to begin", history: "Historical reference · new deliveries appear in the current stage above", planned: "Stage3–6 are planned and unconnected. No research starts from navigation."});
+  Object.assign(words["zh-Hans"], {help: "在上方操作 Harness，交付后直接在下方查看当前项目的结果。", current: "当前项目", none: "选择或创建项目后开始", history: "历史参考 · 新交付显示在上方当前阶段结果区", planned: "Stage3–6 尚在规划，未接通。切换页面不会启动研究。"});
+  Object.assign(words["zh-Hant"], {help: "在上方操作 Harness，交付後直接在下方檢視目前專案的結果。", current: "目前專案", none: "選擇或建立專案後開始", history: "歷史參考 · 新交付顯示於上方目前階段結果區", planned: "Stage3–6 尚在規劃，未接通。切換頁面不會啟動研究。"});
   const w = () => words[language?.value] || words.en;
   function node(tag, id, parent) {
     const result = document.createElement(tag); if (id) result.id = id; if (parent) parent.append(result); return result;
@@ -218,12 +218,14 @@
   }
   function openWorkspace(target = "project-stage-" + activeStage) {
     translate();
+    const requestedSelection = selection, requestedStage = activeStage, requestedFrame = frame;
     const section = frame?.contentDocument?.getElementById(target);
     for (let parent = section; parent; parent = parent.parentElement) if (parent.tagName === "DETAILS") parent.open = true;
     fitPortal();
     // Scroll the owning page, so opening a step never creates an inner scroll trap.
     requestAnimationFrame(() => {
-      if (section && !section.hidden) window.scrollTo({top: window.scrollY + frame.getBoundingClientRect().top + section.getBoundingClientRect().top - 20, behavior: "smooth"});
+      if (selection !== requestedSelection || activeStage !== requestedStage || frame !== requestedFrame) return;
+      if (section?.isConnected && !section.closest("[hidden]")) window.scrollTo({top: window.scrollY + frame.getBoundingClientRect().top + section.getBoundingClientRect().top - 20, behavior: "smooth"});
       else workspace.scrollIntoView({block: "start", behavior: "smooth"});
     });
   }

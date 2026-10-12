@@ -53,6 +53,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stop-file", type=Path, required=True)
     parser.add_argument("--lease-seconds", type=int, default=300)
+    parser.add_argument("--example-views-config", type=Path)
+    parser.add_argument("--example-views-sha256")
     args = parser.parse_args()
     own = Path(__file__).resolve(strict=True)
     repo, plugin = own.parents[3], own.parents[1]
@@ -85,6 +87,7 @@ def main():
     from research_workspace_native.project_host import ProjectHost
     from stage1_ledger.journal import canonical
     from test_workspace_atlas import payload
+    from test_research_workspace_stage2_presentation import attachment
 
     case = ProjectStage1DeliveryTests(methodName="runTest")
     host = worker = None
@@ -182,6 +185,12 @@ def main():
         value = payload()
         value["index"]["topic"] = "Unrelated historical fixture must stay hidden"
         value["index_sha256"] = digest(canonical(value["index"]))
+        # Authored, inert interface sample; never adopted by an operation project.
+        value["fixture"] = True
+        value["stage2"] = attachment()
+        value["stage2"]["fixture"] = True
+        value["stage2"]["project_id"] = value["index"]["project_id"]
+        value["stage2"]["stage1_index_sha256"] = value["index_sha256"]
         files = atlas_files(value)
         files["workspace-index.json"] = canonical(value["index"])
         folder = case.root / "view"
@@ -214,6 +223,18 @@ def main():
         config_path = folder / "views.json"
         config_path.write_bytes(config)
         assets, views = load_views(config_path, digest(config))
+        if args.example_views_config is not None:
+            if not args.example_views_sha256:
+                raise ValueError(
+                    "example views require their existing configuration hash"
+                )
+            references, registered = load_views(
+                args.example_views_config, args.example_views_sha256
+            )
+            if set(assets) & set(references):
+                raise ValueError("example view routes collide")
+            assets.update(references)
+            views.extend(registered)
         host = ProjectHost(
             projects=case.intake,
             credential=token,
