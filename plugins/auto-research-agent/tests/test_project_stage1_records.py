@@ -14,7 +14,7 @@ import test_stage1_deliverable as package_fixture
 import test_project_stage1_delivery as delivery_fixture
 from research_workspace_native.project_stage1_records import ProjectStage1RecordsService
 from research_workspace_native.session_api import SessionApiError
-from stage1_deliverable.common import read_json, sha, write_json
+from stage1_deliverable.common import DeliverableError, read_json, sha, write_json
 from stage1_deliverable.core_records import artifact_path, read_artifacts
 from stage1_deliverable.records import validate_records
 from stage1_deliverable.screening_records import artifacts as screening_artifacts
@@ -243,19 +243,21 @@ class SavedStage1RecordsTests(unittest.TestCase):
             expected_checkpoint_event_id=fixture["checkpoint"]["event_id"],
         )
 
-    def test_unconnected_screening_records_refused_before_delivery_offer(self):
+    def test_screening_records_registration_rechecks_library_and_archives(self):
         fixture = self.two_sources()
         self.register_all(fixture)
         offer = self.produce(fixture)
         context = self.delivery._context(fixture["ref"])
         saved = context[1]["stage1_delivery_offers"][offer["offer_ref"]]
-        path = Path(saved["records_path"]).with_name("screening-native-refusal.json")
+        path = Path(saved["records_path"]).with_name(
+            "screening-native-registration.json"
+        )
         records = read_json(saved["records_path"])
         ledger = fixture["ledger"]
         journal = deepcopy(ledger.events())
         # All papers have saved readings and source-linked nonnull claims.
-        # The native consumer must refuse a valid unsupported format before
-        # creating an offer through its legacy comparison branch.
+        # Registration and consumption bind the complete canonical 1.2
+        # library to the live project, journal and physical archive bytes.
         history = [row for row in journal if row["payload"]["kind"] == "ClaimEvidence"]
         by_id = {row["payload"]["event_id"]: row for row in history}
         refs = {
@@ -305,7 +307,13 @@ class SavedStage1RecordsTests(unittest.TestCase):
         write_json(path, records)
         before = self.intake.history("alice-token", fixture["ref"])
         state = self.intake.read("alice-token", fixture["ref"])
-        with self.assertRaisesRegex(SessionApiError, "consumer-unconnected"):
+        foreign = deepcopy(records)
+        foreign["screening_library"]["binding"]["project_ref"] = "foreign-project"
+        validate_records(foreign)
+        write_json(path, foreign)
+        with self.assertRaisesRegex(
+            SessionApiError, "screening-library-binding-differs"
+        ):
             self.delivery.register_records(
                 fixture["ref"],
                 records_path=path,
@@ -314,6 +322,43 @@ class SavedStage1RecordsTests(unittest.TestCase):
             )
         self.assertEqual(self.intake.history("alice-token", fixture["ref"]), before)
         self.assertEqual(self.intake.read("alice-token", fixture["ref"]), state)
+        write_json(path, records)
+        connected = self.delivery.register_records(
+            fixture["ref"],
+            records_path=path,
+            expected_records_sha256=sha(path.read_bytes()),
+            expected_ledger_state_sha256=ledger.state_hash(),
+        )
+        context = self.delivery._context(fixture["ref"])
+        registered = context[1]["stage1_delivery_offers"][connected["offer_ref"]]
+        self.assertEqual(self.delivery._check_offer(registered, context), records)
+        before = self.intake.history("alice-token", fixture["ref"])
+        state = self.intake.read("alice-token", fixture["ref"])
+        for relative in (
+            records["screening_journal"]["path"],
+            records["core_artifacts"][0]["artifact_path"],
+        ):
+            target = path.parent / relative
+            raw = target.read_bytes()
+            with self.subTest(archive=relative):
+                try:
+                    target.write_bytes(raw + b" ")
+                    with self.assertRaises((DeliverableError, SessionApiError)):
+                        self.delivery.register_records(
+                            fixture["ref"],
+                            records_path=path,
+                            expected_records_sha256=sha(path.read_bytes()),
+                            expected_ledger_state_sha256=ledger.state_hash(),
+                        )
+                    with self.assertRaises((DeliverableError, SessionApiError)):
+                        self.delivery._check_offer(registered, context)
+                finally:
+                    target.write_bytes(raw)
+                self.assertEqual(
+                    self.intake.history("alice-token", fixture["ref"]), before
+                )
+                self.assertEqual(self.intake.read("alice-token", fixture["ref"]), state)
+        self.assertEqual(ledger.events(), journal)
         self.runner.assert_not_called()
 
     def test_two_sources_reading_records_delivery_and_true_sqlite_reopen(self):
