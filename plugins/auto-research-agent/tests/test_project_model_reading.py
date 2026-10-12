@@ -55,6 +55,53 @@ def draft(snapshot):
 
 
 class SavedReadingTests(unittest.TestCase):
+    def test_reading_before_first_checkpoint_preserves_eligible_saved_sources(self):
+        with saved_stage1_case(checkpoint=False) as (case, fixture):
+            ledger, ref = fixture["ledger"], fixture["ref"]
+            self.assertFalse(
+                any(row["payload"]["kind"] == "Checkpoint" for row in ledger.events())
+            )
+            work = fixture["records"]["papers"][0]["work_id"]
+            snapshot = saved_reading_snapshot(case.producer, ref, work)
+            self.assertIsNone(snapshot["checkpoint"])
+            original = canonical(snapshot)
+            prompt = reading_prompt(snapshot)
+            visible = json.loads(
+                prompt.split("BEGIN SAVED INPUT JSON\n", 1)[1].rsplit(
+                    "\nEND SAVED INPUT JSON", 1
+                )[0]
+            )
+            self.assertLessEqual(len(prompt.encode("utf8")), 10000)
+            self.assertIsNone(visible["checkpoint"])
+            self.assertEqual(visible["context_projection"]["excluded_metadata"], [])
+            self.assertEqual(
+                {k: v for k, v in visible.items() if k != "context_projection"},
+                snapshot,
+            )
+            self.assertEqual(canonical(snapshot), original)
+            factory = Mock(side_effect=AssertionError("model launch"))
+            model = ProjectModelService(
+                case.intake,
+                provider_factory=factory,
+                model="synthetic-reader",
+                reading_records=case.producer,
+            )
+            self.addCleanup(model.close)
+            view = case.intake.read("alice-token", ref)
+            preview = model.reading_offer(
+                "alice-token",
+                ref,
+                work,
+                expected_input_version=view["input_version"],
+                expected_ledger_state_sha256=ledger.state_hash(),
+            )
+            self.assertTrue(preview["available"], preview)
+            self.assertEqual(preview["snapshot_sha256"], sha(original))
+            self.assertEqual(
+                view["revision"], case.intake.read("alice-token", ref)["revision"]
+            )
+            factory.assert_not_called()
+
     def test_oversized_prompt_is_unavailable_and_authorization_keeps_no_permit(self):
         original = delivery_fixture.submit_body
 
@@ -74,7 +121,7 @@ class SavedReadingTests(unittest.TestCase):
             # source/registry verification is unchanged; no model is launched.
             original_source = snapshot["sources"][0]
             snapshot["sources"] = []
-            for number in range(3):
+            for number in range(1):
                 source = deepcopy(original_source)
                 source.update(
                     source_id="authored-size-source-" + str(number),
@@ -91,6 +138,7 @@ class SavedReadingTests(unittest.TestCase):
                 )
             )
             self.assertLess(len(canonical(snapshot)), 48000)
+            self.assertLess(len(canonical(snapshot)), 32768)
             with self.assertRaises(SessionApiError) as blocked:
                 reading_prompt(snapshot)
             self.assertEqual(
@@ -168,7 +216,35 @@ class SavedReadingTests(unittest.TestCase):
                 source["text_sha256"],
                 sha(fixture["ledger"].read_ref(source["text_ref"])),
             )
-            self.assertIn("Synthetic", reading_prompt(snapshot))
+            saved_bytes = canonical(snapshot)
+            prompt = reading_prompt(snapshot)
+            self.assertIn("Synthetic", prompt)
+            self.assertLessEqual(len(prompt.encode("utf8")), 10000)
+            visible = json.loads(
+                prompt.split("BEGIN SAVED INPUT JSON\n", 1)[1].rsplit(
+                    "\nEND SAVED INPUT JSON", 1
+                )[0]
+            )
+            self.assertEqual(
+                {
+                    k: v
+                    for k, v in visible.items()
+                    if k not in {"checkpoint", "context_projection"}
+                },
+                {k: v for k, v in snapshot.items() if k != "checkpoint"},
+            )
+            self.assertEqual(
+                visible["checkpoint"]["saved_checkpoint_sha256"],
+                sha(canonical(snapshot["checkpoint"])),
+            )
+            self.assertEqual(
+                visible["context_projection"]["excluded_metadata"],
+                ["checkpoint.created_at", "checkpoint.stage_result"],
+            )
+            self.assertFalse(
+                visible["context_projection"]["source_or_claim_text_truncated"]
+            )
+            self.assertEqual(canonical(snapshot), saved_bytes)
             checked = validate_reading_draft(canonical(draft(snapshot)), snapshot)
             self.assertEqual(checked["draft"]["findings"]["main_findings"], "Unknown")
             self.assertFalse(checked["core_claims_created"])

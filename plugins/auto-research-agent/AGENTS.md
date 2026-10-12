@@ -135,3 +135,58 @@ Downloaded papers and copyrighted full text remain private and never enter Git.
   core team reviews and merges into `WenyuChiou/AutoResearchAgent` only; do not
   send this harness to OpenAI upstream.
 - Governance changes require independent code review and harness-drift review.
+
+The governance-only CI fast path is classified from the complete base/head Git
+diff, never from PR text. It applies only when every change is a regular-file
+modification of root `AGENTS.md` or this plugin's `AGENTS.md`; additions,
+deletions, renames, copies, mode/type changes, empty or unavailable diffs, and
+any runtime, evaluation, test, or CI file keep the full path. Both base and head
+blobs must exist and contain non-empty UTF-8 text without binary markers;
+unreadable, invalidly encoded, or binary blobs keep the full path. Changes to
+the selector or workflow themselves always select full tests. Because `pull_request`
+executes candidate-controlled workflow code, this optimization is not a security
+boundary against malicious forks; do not use `pull_request_target` to promote
+untrusted code. Eligible PRs use exact `not-applicable` values or a concrete
+contextual `None — reason` for research metrics, capabilities, rubric and
+invariant fields; name no research-quality improvement; report actual checks
+and limitations; and include traceable source references for independent code
+and harness-drift reviews, the exact reviewed revision, and patch SHA-256. The PR
+body validator checks formatting only; it does not authenticate review sources
+or accept review results. Do not self-assert PASS in the body. The core team must
+verify both external review records against the exact revision and patch before
+acceptance. Editing the PR body cannot opt into this path.
+
+### Review-only path checks
+
+These checks apply only while conducting code review for this plugin. They do
+not replace implementation or publication instructions or valid authorization
+for other tasks. Route by the changed Stage 1 or Stage 2 paths; use the current
+versioned protocols and registries already listed above instead of restating
+their full scientific standards.
+
+- For Stage 1 retrieval, source, or deliverable paths, verify source/version
+  identity and claim receipts, including the closest supporting and contrary
+  evidence. Keep inaccessible or uncertain source access explicitly `unknown`;
+  do not convert it into absence, rejection, or a negative scientific finding.
+- For Stage 2 gap and selection paths, check that gap importance and
+  answerability are evaluated separately, and that required materials and
+  available resources remain distinct. Unknowns must remain visible through
+  recovery, and any candidate choice must bind to an explicit human selection.
+- A production checker or preflight is not a blinded, version-bound,
+  independent scientific A/B evaluation. Do not accept it as such; verify the
+  applicable frozen plan, evaluator versions, pair/run evidence, and decision
+  bindings required by the referenced protocol before any improvement claim.
+- Check that source context is bounded and that restart/resume reuses the
+  recorded, version-bound evidence. Re-reading an unbounded corpus after a
+  restart is not evidence of correct recovery.
+- For HTML reports, claim validation only when the relevant validator or
+  rendered inspection actually ran against the reviewed revision. Otherwise
+  mark HTML validation as a verification gap.
+- For CI scope-selection changes, inspect the effective changed-path to
+  capability/test-selector mapping. Missing or ambiguous required selectors
+  must fail closed; an explicit skip is not a pass. Do not substitute a stale
+  fixed test count for the current selector and run evidence.
+- Keep review read-only: do not edit findings into the implementation, install
+  packages, launch paid models, or merge. Preserve the core-team-only merge
+  ownership stated above and require separate explicit user consent for every
+  merge after the review and actual test summary are available.

@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
+from research_workspace import atlas
 from research_workspace_native.http import token_authenticator
 from research_workspace_native.atlas_host import AtlasHost
 from research_workspace_native import project_host
@@ -34,7 +35,7 @@ class ProjectHostConstructionTests(unittest.TestCase):
                 authenticate=token_authenticator({token: "local-viewer"}),
             )
             try:
-                for filename in (
+                portal_filenames = (
                     "projects.html",
                     "projects.js",
                     "projects.css",
@@ -47,9 +48,24 @@ class ProjectHostConstructionTests(unittest.TestCase):
                     "projects-progress.js",
                     "project-operations.js",
                     "project-operations.css",
-                ):
+                )
+                assets = (
+                    tuple(
+                        (project_host.ASSETS / name, False) for name in portal_filenames
+                    )
+                    + tuple(
+                        (atlas.ATLAS_ROOT / name, True) for name in atlas.ATLAS_ASSETS
+                    )
+                    + (
+                        (atlas.ATLAS_ROOT / "atlas-model.js", False),
+                        (project_host.ASSETS / "project-atlas-screening.js", False),
+                        (project_host.ASSETS / "project-atlas-child.js", False),
+                    )
+                )
+                for asset_path, wrapped in assets:
+                    asset_path = asset_path.resolve()
                     for error in (FileNotFoundError, PermissionError):
-                        with self.subTest(filename=filename, error=error.__name__):
+                        with self.subTest(asset=asset_path, error=error.__name__):
                             allocated = []
 
                             def capture_init(host, *args, **options):
@@ -57,7 +73,7 @@ class ProjectHostConstructionTests(unittest.TestCase):
                                 allocated.append(host)
 
                             def fail_asset(path):
-                                if path == project_host.ASSETS / filename:
+                                if path.resolve() == asset_path:
                                     raise error("injected project asset read failure")
                                 return real_read(path)
 
@@ -65,7 +81,9 @@ class ProjectHostConstructionTests(unittest.TestCase):
                                 with (
                                     patch.object(AtlasHost, "__init__", capture_init),
                                     patch.object(Path, "read_bytes", fail_asset),
-                                    self.assertRaises(error),
+                                    self.assertRaises(
+                                        ValueError if wrapped else error
+                                    ) as raised,
                                 ):
                                     ProjectHost(
                                         projects=projects,
@@ -80,6 +98,8 @@ class ProjectHostConstructionTests(unittest.TestCase):
                                     host.server_close()
                             self.assertEqual(allocated, [])
                             self.assertEqual(projects.list(token), [])
+                            if wrapped:
+                                self.assertIsInstance(raised.exception.__cause__, error)
             finally:
                 projects.close()
 

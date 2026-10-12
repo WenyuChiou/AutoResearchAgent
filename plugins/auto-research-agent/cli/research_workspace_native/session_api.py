@@ -41,6 +41,25 @@ def _text(value):
     return isinstance(value, str) and 0 < len(value) <= 128
 
 
+MAX_MODEL_INPUT_BYTES = 10000
+
+
+def _bounded_text_inputs(text):
+    """Bound the complete user message; the Core consumer aggregates inputs.
+
+    This conservative byte-level tokenization bound is not a measured token
+    count. Inputs that can cross 1K tokens remain P0/manual-review scope under
+    the repository review rules; this function does not attest that review.
+    """
+    _check(isinstance(text, str) and bool(text), "invalid-message-text", 400)
+    _check(
+        len(text.encode("utf8")) <= MAX_MODEL_INPUT_BYTES,
+        "model-input-bound-exceeded",
+        400,
+    )
+    return [dict(type="text", text=text, text_elements=[])]
+
+
 def _hash(value):
     return isinstance(value, str) and re.fullmatch("[0-9a-f]{64}", value) is not None
 
@@ -264,6 +283,9 @@ class SessionApi:
                     "project_ref",
                 )
             },
+        )
+        document["limits"]["max_text_bytes"] = min(
+            document["limits"]["max_text_bytes"], MAX_MODEL_INPUT_BYTES
         )
         digest = sha(canonical(document))
         return dict(
@@ -689,7 +711,7 @@ class SessionApi:
                         threadId=controller.thread_id,
                         cwd=offer["document"]["source_root"],
                         model=offer["document"]["model"],
-                        input=[dict(type="text", text=body["text"], text_elements=[])],
+                        input=_bounded_text_inputs(body["text"]),
                     )
                 elif kind == "answer":
                     matches = [

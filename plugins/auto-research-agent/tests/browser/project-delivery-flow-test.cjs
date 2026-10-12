@@ -119,8 +119,15 @@ const record = name => checks.push({name,passed:true});
     const graph=await (await page.locator("#project-atlas-frame").elementHandle()).contentFrame(), atlas=await (await graphResponse).json();
     assert.equal(context.pages().length,1);
     assert.equal(atlas.project_ref,ready.project_ref); assert.equal(atlas.manifest_sha256,manifest);
-    await graph.getByRole("heading",{name:"Literature knowledge network",exact:true}).first().waitFor({state:"visible"});
-    await graph.getByRole("button",{name:"Return to project",exact:true}).waitFor({state:"visible"});
+    async function waitForBoundAtlas(frame) {
+      await frame.getByRole("heading",{name:"Literature knowledge network",exact:true}).first().waitFor({state:"visible"});
+      await frame.waitForFunction(expected=>document.body.classList.contains("project-atlas-inline")
+        && window.WORKSPACE_VIEW?.index_sha256===expected.index_sha256
+        && document.querySelector("#project-atlas-status span")?.textContent===
+          " · "+expected.project_ref+" · Input version "+expected.input_version,
+        {project_ref:atlas.project_ref,input_version:atlas.input_version,index_sha256:atlas.index_sha256});
+    }
+    await waitForBoundAtlas(graph);
     assert.equal(await graph.locator("#project-intake-card").count(),0);
     assert.equal(await graph.locator("#project-operations-frame").count(),0);
     assert((await graph.locator("#project-atlas-status").innerText()).includes(ready.project_ref));
@@ -148,19 +155,27 @@ const record = name => checks.push({name,passed:true});
     }
     const postsBefore=posts.length;
     const refreshed=page.waitForResponse(response=>response.url().includes("/stage1/atlas/") && response.status()===200);
-    await graph.evaluate(()=>location.reload()); assert.equal((await (await refreshed).json()).manifest_sha256,manifest);
-    await graph.getByRole("button",{name:"Return to project",exact:true}).waitFor({state:"visible"});
+    await graph.evaluate(()=>location.reload()); const reloadedAtlas=await (await refreshed).json();
+    for(const key of ["project_ref","input_version","revision","artifact_ref","manifest_sha256","index_sha256"]) assert.equal(reloadedAtlas[key],atlas[key]);
+    await waitForBoundAtlas(graph);
     assert.equal(posts.length,postsBefore);
     record("trilingual rendering and child reload re-read the same saved binding with zero new mutation");
-    await graph.getByRole("button",{name:"Return to project",exact:true}).click();
     assert.equal(context.pages().length,1);
+    const historyRefresh=page.waitForResponse(response=>response.url().endsWith("/overview") && response.status()===200);
+    const ownerGraphRefresh=page.waitForResponse(response=>response.url().includes("/stage1/atlas/") && !response.url().includes("/files/") && response.status()===200);
     await page.locator("#refresh").click();
+    const refreshedOverview=await (await historyRefresh).json(), ownerAtlas=await (await ownerGraphRefresh).json();
+    assert.equal(refreshedOverview.stage1.delivery.canonical_package.manifest_sha256,manifest);
+    for(const key of ["project_ref","input_version","revision","artifact_ref","manifest_sha256","index_sha256"]) assert.equal(ownerAtlas[key],atlas[key]);
     await page.locator("#project-atlas-frame").waitFor({state:"visible"});
+    const ownerGraph=await (await page.locator("#project-atlas-frame").elementHandle()).contentFrame();
+    await waitForBoundAtlas(ownerGraph);
+    assert.equal(context.pages().length,1);
     assert.equal(posts.length,postsBefore);
     assert((await page.locator("#delivery-artifact").innerText()).includes(manifest));
     assert.notEqual((await page.locator("#stage1-state").textContent()).trim(),"complete");
     await page.screenshot({path:path.join(output,"delivery-operation-history.png"),fullPage:false});
-    record("return and project history refresh preserve one preparation/delivery and do not accept research");
+    record("owning workspace refresh restores the bound inline view and preserves one preparation/delivery without accepting research");
     for (const tail of ["checkpoint","prepare-delivery","deliver"]) assert.equal(posts.filter(route=>route.endsWith("/stage1/"+tail)).length,1);
     const inputArea=page.locator("#project-atlas-entry details").first();
     await inputArea.locator(":scope > summary").click();

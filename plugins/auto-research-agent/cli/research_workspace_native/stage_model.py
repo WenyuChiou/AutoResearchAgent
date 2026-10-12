@@ -22,6 +22,7 @@ from .frame_journal import _validated
 from .process_deadline import SessionLeaseExpired
 from .runtime_factory import compose_runtime
 from .runtime_spec import _hash, _require, _thread_config
+from .session_api import MAX_MODEL_INPUT_BYTES, _bounded_text_inputs
 from .stage_inputs import snapshot_inputs, source_digest
 
 
@@ -55,8 +56,9 @@ class StageModel:
     ``admit`` must durably reserve the unit at phase=reserve and return literal
     True at every later phase without reserving another model call.
     ``runtime_factory`` is an explicit injected seam for synthetic tests only.
-    ``trusted_stage_unit=True`` selects a separately bound, single-start 32-KiB
-    stage-prompt spec; ordinary native/UI prompts retain the 16-KiB default.
+    ``trusted_stage_unit=True`` selects a separately bound, single-start stage
+    spec. Historical 16/32-KiB spec envelopes remain readable, while current
+    complete model inputs are capped at 10,000 UTF-8 bytes before reservation.
     Neither selection supplies execution authority or increases calls/time.
     """
 
@@ -88,7 +90,9 @@ class StageModel:
         )
         _require(type(trusted_stage_unit) is bool, "literal stage unit opt-in required")
         self.trusted_stage_unit = trusted_stage_unit
-        self.prompt_limit = 32768 if trusted_stage_unit else 16384
+        self.prompt_limit = min(
+            32768 if trusted_stage_unit else 16384, MAX_MODEL_INPUT_BYTES
+        )
         _require(
             isinstance(project_ref, str)
             and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", project_ref),
@@ -222,10 +226,7 @@ class StageModel:
                     payload.get("model") == self.model
                     and payload.get("cwd")
                     == Path(self.checked["source_root"]).as_posix()
-                    and payload.get("input")
-                    == [
-                        {"type": "text", "text": request["prompt"], "text_elements": []}
-                    ],
+                    and payload.get("input") == _bounded_text_inputs(request["prompt"]),
                     "unit prompt binding differs",
                 )
             elif method not in {
@@ -506,7 +507,7 @@ class StageModel:
                 threadId=thread,
                 cwd=spec["source_root"],
                 model=spec["model"],
-                input=[dict(type="text", text=request["prompt"], text_elements=[])],
+                input=_bounded_text_inputs(request["prompt"]),
             ),
             "saved native payload differs",
         )

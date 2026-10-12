@@ -26,7 +26,7 @@ from stage1_deliverable.common import (
     sha,
 )
 from stage1_ledger.journal import decode
-from .session_api import SessionApiError, _check
+from .session_api import MAX_MODEL_INPUT_BYTES, SessionApiError, _check
 from .stage_run_service import StageUnitProvider
 from .transport import validate_answer
 from .project_resource_budget import reserve_resource, resource_view
@@ -170,7 +170,8 @@ def _prompt(operation, binding, as_of):
         + canonical(brief).decode()
     )
     _check(
-        0 < len(text.encode("utf8")) <= 32768 and len(canonical(text)) <= 63488,
+        0 < len(text.encode("utf8")) <= MAX_MODEL_INPUT_BYTES
+        and len(canonical(text)) <= 63488,
         "model-task-prompt-too-large",
     )
     return text

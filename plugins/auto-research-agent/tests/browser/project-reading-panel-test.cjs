@@ -128,8 +128,9 @@ const item = {...project, ledger_state_sha256: hash, output_ref: hash, draft_sha
 function broker(operation = 'claim') {
   const state = {project: {...project}, generation: 7, busy: false, loading: false, activeJob: false,
     stage1: context.stage1, readingReview: reply};
-  let finish, calls = [], posted = [];
+  let finish, calls = [], posted = [], notices = [];
   const sandbox = {state, pending: [], rows: (value, name) => value[name],
+    notice: text => notices.push(text), t: key => key,
     identity: () => ({revision: state.project.revision, input_version: state.project.input_version, brief_sha256: state.project.brief_sha256}),
     mutate: async (operation, body, ref) => {
       assert.equal(operation, 'stage1/' + requested); assert.equal(body.confirmed, true); assert.equal(ref, project.project_ref);
@@ -140,12 +141,13 @@ function broker(operation = 'claim') {
   };
   const requested = operation, notes = operation === 'reading-review';
   vm.runInNewContext(actualFunction(notes ? 'submitReadingReview' : 'submitReadingClaim', notes ? 'submitCoverage' : 'submitReadingReview'), sandbox);
-  return {state, calls, posted, submit: () => sandbox.invoke(notes ? notesItem : item), finish: () => finish({status: 'saved'})};
+  return {state, calls, posted, notices, submit: () => sandbox.invoke(notes ? notesItem : item), finish: () => finish({status: 'saved'})};
 }
 async function saveRaces() {
   for (const operation of ['claim', 'reading-review']) {
     const active = broker(operation), saved = active.submit(); active.finish(); await saved;
     assert.deepEqual(active.calls, ['synthetic-A'], 'same project identity may refresh after save');
+    assert.deepEqual(active.notices, operation === 'claim' ? ['claimReadingNext'] : [], 'saved claim prompts separate reading notes only for the same identity');
     if (operation === 'reading-review') assert.deepEqual(active.posted[0], {
       revision: 1, input_version: 1, brief_sha256: hash, ledger_state_sha256: hash,
       output_ref: hash, draft_sha256: hash, offer_ref: 'reading-synthetic', offer_sha256: hash,
@@ -158,12 +160,14 @@ async function saveRaces() {
     assert.equal(switched.state.project.project_ref, 'synthetic-A');
     switched.finish(); assert.equal((await waiting).status, 'saved');
     assert.deepEqual(switched.calls, [], 'A must not refresh and take back B while B is loading');
+    assert.deepEqual(switched.notices, [], 'generation change cannot announce a stale saved claim');
     for (const change of [{project_ref: 'synthetic-B'}, {input_version: 2}, {brief_sha256: 'b'.repeat(64)}]) {
       const altered = broker(operation), pending = altered.submit(); altered.state.project = {...altered.state.project, ...change};
       altered.finish(); await pending; assert.deepEqual(altered.calls, [], 'changed project identity must not refresh A');
+      assert.deepEqual(altered.notices, [], 'changed project identity cannot announce a stale saved claim');
     }
   }
-  console.log('PASS brokers: claim/notes exact body and same-identity refresh; A pending / B starts / A saved; ref, input version and brief changes');
+  console.log('PASS brokers: claim/notes exact body and same-identity refresh/claim notice; A pending / B starts / A saved; ref, input version and brief changes refuse stale refresh/notice');
 }
 
 async function registryIntent() {
@@ -192,7 +196,10 @@ async function registryIntent() {
 
 async function preparationGuard() {
   const nodes = new Map(), calls = [], posts = [];
-  const valid = {ledger: {state_sha256: hash}, checkpoint: {current: true, event_id: 'synthetic-checkpoint'}, saved_records_connected: true};
+  const registration = {...project, kind: 'ProjectStage1ReadingRegistration', schema_version: '1.0.0',
+    status: 'ready', grants_execution: false, missing_works: [], ledger_state_sha256: hash};
+  const valid = {ledger: {state_sha256: hash}, checkpoint: {current: true, event_id: 'synthetic-checkpoint'}, saved_records_connected: true,
+    reading_registration: registration};
   let finish, expectedOperation = 'stage1/prepare-delivery';
   const sandbox = {state: {project: {...project, brief: {}}, stage1: valid, generation: 2, busy: false, loading: false, activeJob: false, modelOffers: []},
     pending: [], bootstrap: {models: false}, window: {}, document: {querySelectorAll: () => []},
@@ -207,6 +214,16 @@ async function preparationGuard() {
   sandbox.invoke(); assert.equal(nodes.get('ledger-prepare').disabled, false);
   for (const stage1 of [{...valid, ledger: null}, {...valid, checkpoint: {current: false}}, {...valid, saved_records_connected: false}]) {
     sandbox.state.stage1 = stage1; sandbox.invoke(); assert.equal(nodes.get('ledger-prepare').disabled, true);
+  }
+  for (const reading_registration of [null,
+    {...registration, kind: 'foreign-registration'}, {...registration, schema_version: '0.0.0'},
+    {...registration, status: 'stale'}, {...registration, grants_execution: true}, {...registration, grants_execution: 'false'},
+    {...registration, missing_works: ['authored-unregistered']}, {...registration, missing_works: null},
+    {...registration, ledger_state_sha256: 'b'.repeat(64)}, {...registration, project_ref: 'synthetic-B'},
+    {...registration, revision: 2}, {...registration, input_version: 2}, {...registration, brief_sha256: 'b'.repeat(64)}
+  ]) {
+    sandbox.state.stage1 = {...valid, reading_registration}; sandbox.invoke();
+    assert.equal(nodes.get('ledger-prepare').disabled, true, 'only the current complete non-executing reading registration permits saved preparation');
   }
   sandbox.state.stage1 = valid; sandbox.state.busy = true; sandbox.invoke(); assert.equal(nodes.get('ledger-prepare').disabled, true);
   sandbox.state.busy = false;
@@ -227,7 +244,7 @@ async function preparationGuard() {
   expectedOperation = 'stage1/prepare-delivery';
   const stale = sandbox.invoke('prepare-delivery'); finish({status: 'saved'}); await stale;
   assert.deepEqual(posts[3], posts[0], 'stale recovery offer must not select another saved producer');
-  console.log('PASS prepare: actual button disabled without current checkpoint/connection, exact saved body, late project guard');
+  console.log('PASS prepare: actual button disabled without current checkpoint/connection/bound reading registration, exact saved body, late project guard');
 }
 
 const sourceReply = {...project, source_mode: 'saved-source-review', work_ref: 'authored-work', version_id: 'v1',

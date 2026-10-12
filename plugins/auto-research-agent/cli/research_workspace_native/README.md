@@ -272,15 +272,17 @@ permission. Legacy projects already revised with a used stale seal remain held;
 this increment does not migrate their historical execution. Stage2 execution is
 still deferred and Stage3–6 remain planned/unconnected.
 
-The newly delivered `/project-atlas.html` child is a read-only view of the exact
-project/input version, reached through the owner workspace's bound memory
-channel. It keeps the original v6 renderer and verified note/BibTeX file reads.
-Project setup and Harness operations remain in the owning workspace; use
-**Return to project** rather than creating another project inside this viewer.
+The newly delivered `/project-atlas.html` child appears inline in the owning
+project workspace as a read-only view of the exact project/input version,
+reached through its bound memory channel. It keeps the original v6 renderer and
+verified note/BibTeX file reads. Project setup and Harness operations stay in
+that workspace. **Refresh saved state** reloads its saved history and restores
+the inline view with the current project and delivery binding.
 The browser fixture `tests/browser/project-delivery-flow-test.cjs` walks two
 authored saved sources through reading registration, checkpoint, preparation,
-delivery, exact BibTeX click/download and a non-executing Stage2 input hold.
-This exercises actual HTTP/SQLite/Core services, without real model, search,
+delivery, bound inline-view reloads, exact BibTeX click/download and a
+non-executing Stage2 input hold. It is designed to exercise actual
+HTTP/SQLite/Core services, without real model, search,
 native research, scientific evaluation or acceptance of the incomplete stage.
 
 ## Complete saved Stage1 screening library

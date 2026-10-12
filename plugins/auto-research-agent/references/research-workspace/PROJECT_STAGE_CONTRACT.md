@@ -307,11 +307,13 @@ remain unconnected by this seam; Stage2 is unchanged.
 
 ### Open a saved Stage1 delivery in the v6 Atlas
 
-The project delivery card offers **Open saved literature network** only for
-the current `saved-evidence-validated` artifact. It opens the original v6
-graph, details, compact direction summary and bibliography in a separate
-window; **Return to project** restores the Harness workspace. This is a
-read-only projection of the same package, not another research execution.
+The current `saved-evidence-validated` artifact appears automatically as an
+inline saved literature network in the owning project workspace. It uses the
+original v6 graph, details, compact direction summary and bibliography, bound
+to the current project and input version. Project setup and Harness operations
+stay in that workspace; **Refresh saved state** reloads saved history and
+restores the inline view for the current delivery binding. Viewing the saved
+package does not execute research.
 
 Authenticated GET routes bind project, input version, revision, artifact and
 manifest: `/api/projects/{ref}/stage1/atlas/{input}/{revision}/{artifact}/{sha}`.

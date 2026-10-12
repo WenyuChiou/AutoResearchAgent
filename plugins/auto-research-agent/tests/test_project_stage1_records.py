@@ -44,8 +44,8 @@ class SavedStage1RecordsTests(unittest.TestCase):
     def setUp(self):
         delivery_fixture.ProjectStage1DeliveryTests.setUp(self)
 
-    def two_sources(self):
-        fixture = self.saved()
+    def two_sources(self, *, checkpoint=True):
+        fixture = self.saved(checkpoint=checkpoint)
         ledger = fixture["ledger"]
         coverage = ledger.coverage_state()
         query = ledger.start_planned(list(coverage.queries)[1])
@@ -180,7 +180,7 @@ class SavedStage1RecordsTests(unittest.TestCase):
                 assessor="fixture",
                 rationale="Authored partial operational review.",
             )
-        fixture["checkpoint"] = ledger.checkpoint()
+        fixture["checkpoint"] = ledger.checkpoint() if checkpoint else None
         fixture["pairs"] = [
             (fixture["records"], fixture["path"].parent),
             (second, self.inputs),
@@ -983,13 +983,13 @@ class SavedStage1RecordsTests(unittest.TestCase):
 
 
 @contextmanager
-def saved_stage1_case():
+def saved_stage1_case(*, checkpoint=True):
     """Reusable mock-HTTP case with real persisted Core, no live authority."""
     case = SavedStage1RecordsTests()
     case.setUpClass()
     try:
         case.setUp()
-        fixture = case.two_sources()
+        fixture = case.two_sources(checkpoint=checkpoint)
         case.register_all(fixture)
         yield case, fixture
     finally:
