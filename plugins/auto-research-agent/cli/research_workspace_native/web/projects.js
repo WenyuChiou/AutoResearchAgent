@@ -229,6 +229,9 @@
     for (const id of ["authorize-topic", "authorize-plan"]) $(id).disabled = projectBlocked || !state.modelStatus || state.modelStatus.authorization_available !== true;
     $("authorize-plan").disabled ||= !state.project || !state.project.intake_report || !state.project.intake_report.necessary_clarification_complete;
     $("native-refresh").disabled = state.loading || !state.project;
+    document.querySelectorAll('#stage2-input-entry form button[type="submit"]').forEach(button => {
+      button.disabled = blocked || !state.project || state.activeJob || pending.some(row => row.project_ref === state.project.project_ref);
+    });
     document.querySelectorAll("button[data-model-retire]").forEach((button) => { button.disabled = blocked || !state.project; });
     $("ledger-init").disabled = projectBlocked || !state.stage1 || !state.stage1.initialization_offer;
     for (const id of ["ledger-checkpoint", "ledger-export"]) $(id).disabled = projectBlocked || !state.stage1 || !state.stage1.ledger;

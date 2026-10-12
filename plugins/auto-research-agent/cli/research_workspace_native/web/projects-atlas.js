@@ -62,6 +62,9 @@
     const label = node("label", w[5]), input = document.createElement("textarea");
     input.rows = 3; input.required = true; input.maxLength = 4096; label.append(input);
     const button = node("button", w[6]); button.type = "submit";
+    // The view can arrive before the broker finishes loading history/contract.
+    const portal = window.ResearchProjectPortal;
+    if (portal && typeof portal.selection === "function") button.disabled = !portal.selection();
     form.append(choice, label, button);
     form.onsubmit = event => {
       event.preventDefault();
