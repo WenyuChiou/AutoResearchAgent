@@ -23,6 +23,9 @@ jobs:
     outputs:
       plugin_test_scope: ${{ steps.select.outputs.plugin_test_scope }}
     steps:
+      # pull_request executes the candidate workflow and selector. Governance
+      # scope is a test-time optimization, not protection from a hostile fork.
+      # Selector/workflow changes themselves are excluded from that fast path.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
@@ -49,29 +52,36 @@ jobs:
         env:
           SCOPE_RESULT: ${{ needs.scope.result }}
           PLUGIN_TEST_SCOPE: ${{ needs.scope.outputs.plugin_test_scope }}
-        run: python -c "import os; raise SystemExit(not (os.environ['SCOPE_RESULT'] == 'success' and os.environ['PLUGIN_TEST_SCOPE'] in ('docs', 'ui', 'full')))"
+        run: python -c "import os; raise SystemExit(not (os.environ['SCOPE_RESULT'] == 'success' and os.environ['PLUGIN_TEST_SCOPE'] in ('docs', 'ui', 'full', 'governance')))"
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
-        if: needs.scope.outputs.plugin_test_scope != 'docs'
+        if: ${{ needs.scope.outputs.plugin_test_scope != 'docs' && needs.scope.outputs.plugin_test_scope != 'governance' }}
         with:
           node-version: 22
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
           version: "0.11.3"
       - run: npm install --global @openai/codex@0.153.0
-        if: needs.scope.outputs.plugin_test_scope != 'docs'
+        if: ${{ needs.scope.outputs.plugin_test_scope != 'docs' && needs.scope.outputs.plugin_test_scope != 'governance' }}
       - run: codex --version
-        if: needs.scope.outputs.plugin_test_scope != 'docs'
+        if: ${{ needs.scope.outputs.plugin_test_scope != 'docs' && needs.scope.outputs.plugin_test_scope != 'governance' }}
       - name: Check plugin and CI Python formatting
+        if: ${{ needs.scope.outputs.plugin_test_scope == 'ui' || needs.scope.outputs.plugin_test_scope == 'full' }}
         run: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Check plugin and CI Python quality
+        if: ${{ needs.scope.outputs.plugin_test_scope == 'ui' || needs.scope.outputs.plugin_test_scope == 'full' }}
         run: uv run --frozen --project scripts ruff check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Check plugin spelling
-        run: uvx --from codespell==2.4.3 codespell plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/fixtures/pr_bodies .github/scripts/fixtures/pr_evidence .github/scripts/criterion-submetric-map.v1.json .github/scripts/invariant-registry.v1.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
+        run: uvx --from codespell==2.4.3 codespell AGENTS.md plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/fixtures/pr_bodies .github/scripts/fixtures/pr_evidence .github/scripts/criterion-submetric-map.v1.json .github/scripts/invariant-registry.v1.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Plugin loading and stage contracts
+        if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
         run: uv run --isolated --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py
       - name: Research PR contract tests
+        if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
         run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py --contracts
+      - name: Governance scope and validator contracts
+        if: ${{ needs.scope.outputs.plugin_test_scope == 'governance' }}
+        run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py --governance
