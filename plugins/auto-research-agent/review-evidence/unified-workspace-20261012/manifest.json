@@ -1,0 +1,33 @@
+{
+  "kind": "SamePageStage1UiEvidence",
+  "source_commit": "058e90ed2781c22e66725ce76cc8adae63d420b5",
+  "source_tree": "8ff919a1bf7e893688af49a050360f6c59365e1b",
+  "readiness": "implementation-only",
+  "research_quality": "not yet demonstrated",
+  "raw_receipt_sha256": "1f2302ee8780c300af2ad367af36ce9e983a467d111de87a466c9d1fd6ba97dc",
+  "browser_checks": 9,
+  "actual_model_native_search_calls": 0,
+  "post_count": 0,
+  "owned_source_hashes": 215,
+  "screenshot_hashes_in_receipt": 12,
+  "single_work_authored_fixtures": true,
+  "files": {
+    "browser-receipt.json": "1f2302ee8780c300af2ad367af36ce9e983a467d111de87a466c9d1fd6ba97dc",
+    "empty-scope-version.png": "7b0fb3fd6e97a3bac0059bca239da3c5627e6d6382fbc6ceeef2cbb081cfd78d",
+    "same-page-stage1.png": "32d6250f9966b33808d845c57d497d55254b37cd7c673f460b9b3cd617dff386"
+  },
+  "other_tests": {
+    "host_atlas": 32,
+    "pr_contracts": 91,
+    "stage_contracts": 7,
+    "stage2_input_context": 2,
+    "progress_dom_groups": 11,
+    "invariant_selectors": 4
+  },
+  "limits": [
+    "No native/model/research/scientific acceptance.",
+    "One authored work per saved project; Unknown classifications and absent relationships preserved.",
+    "Stage2 execution deferred; Stage3-6 planned/unconnected.",
+    "R1/R2 failures remain private and unmodified; older passes retain their own heads."
+  ]
+}
