@@ -553,3 +553,36 @@ pages allow that frame but still forbid being embedded themselves. External
 framing, unsafe Host/Origin and API admission checks remain rejected; an iframe
 separates styles, not same-origin script privileges. Stage2 execution remains
 deferred and Stage3–6 planned/unconnected.
+
+### Independent stage areas in the same workspace
+
+The v6 sidebar and project stage selector switch six separate areas. Each has
+its own saved status, operations and results, bound to the current project,
+input version, revision and brief. Topic and resource settings remain shared.
+Navigation does not submit an operation or grant execution permission.
+
+Stage1 retains its saved v6 graph and progress links. Stage2 has its own saved
+Stage1 input review and existing import controls; it has no connected producer
+for a current-project comparison/direction result in this interface. Missing
+results stay ungenerated and refused reads show their own Stage2 notice.
+Stage3–6 remain planned/unconnected with disabled execution placeholders.
+
+### Operations above, delivered results below
+
+Each stage puts its operations above its result area. After an explicit Stage1
+delivery succeeds, the UI rereads saved state and checks the current project,
+input version, brief and artifact/manifest binding before scrolling to its v6
+result below. Unknown or failed operations do not redirect; switching projects
+clears old output and a missing delivery stays "not generated". The historical
+reference is separate and is never the destination for new deliveries.
+
+Stage2 may show a registered synthetic interface example below its empty real
+result notice. Only pinned snapshots marked as fixtures in both the inventory
+and payload qualify. Their original project/source identity remains unchanged;
+the static copy has no injected project or native bootstrap. This is a reference,
+not a current-project delivery or execution permission.
+
+Actual Stage2 result display still needs the project service to register a
+trusted final delivery root and manifest hashes bound to its activation/input
+version. A workflow activation or input review alone supplies neither. The UI
+does not discover directories, rebuild packages, or treat the example as output.

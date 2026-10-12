@@ -1,0 +1,6 @@
+test_saved_projects_switch_inline_without_research_or_mutation (test_project_unified_browser.UnifiedProjectBrowserTests.test_saved_projects_switch_inline_without_research_or_mutation) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 145.044s
+
+OK

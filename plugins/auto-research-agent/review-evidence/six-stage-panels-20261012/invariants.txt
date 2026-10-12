@@ -1,0 +1,9 @@
+test_runtime_bytes_bound_including_added_cached_bytecode (test_research_workspace_native_binding.WorkspaceNativeBindingTests.test_runtime_bytes_bound_including_added_cached_bytecode) ... ok
+test_dependency_sha_bound_and_changed_checkout_rejected (test_research_workspace_native_binding.WorkspaceNativeBindingTests.test_dependency_sha_bound_and_changed_checkout_rejected) ... ok
+test_resume_no_reexecution_after_disconnect_timeout_or_partial_write (test_research_workspace_native_transport.NativeTransportTests.test_resume_no_reexecution_after_disconnect_timeout_or_partial_write) ... ok
+test_content_packet_is_identical_when_only_native_trace_changes (test_stage1_general_eval.GeneralEvaluationTests.test_content_packet_is_identical_when_only_native_trace_changes) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 13.728s
+
+OK

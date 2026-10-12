@@ -1,4 +1,4 @@
-"""Discoverable owned-app integration check; optional installed browser runtime.
+"""Owned-app six-stage integration check; optional installed browser runtime.
 
 Set ARA_UNIFIED_BROWSER_NODE, ARA_UNIFIED_BROWSER_PLAYWRIGHT and
 ARA_UNIFIED_BROWSER_CHROME to run outside the bundled Windows environment.
@@ -83,7 +83,10 @@ class UnifiedProjectBrowserTests(unittest.TestCase):
             self.assertTrue(receipt["passed"], receipt["failure"])
             self.assertEqual(receipt["post_count"], 0)
             self.assertTrue(receipt["fixture_final"]["readonly_sqlite_and_ledger"])
-            self.assertGreaterEqual(len(receipt["checks"]), 8)
+            self.assertGreaterEqual(len(receipt["checks"]), 11)
+            self.assertTrue(
+                receipt["contracts"], "real saved stage contract GETs required"
+            )
 
 
 if __name__ == "__main__":

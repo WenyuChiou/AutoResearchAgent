@@ -1,0 +1,81 @@
+{
+  "kind": "SixStageWorkspaceEngineeringEvidence",
+  "source_commit": "cc74acb97f477c4c1c01a99b5510b028df07f3c2",
+  "source_tree": "10bad3096592fb0a570399cc48353840ac2fdae9",
+  "parent_public_head": "6134500dd82c708b008ad3de8e98dfbd400092d5",
+  "source_hashes_verified_against_commit_blobs": 217,
+  "browser_groups": 11,
+  "contract_GETs": 36,
+  "post_count": 0,
+  "screenshot_hashes_verified": 24,
+  "readonly_sqlite_core": true,
+  "stage2_scope": "input-review-and-existing-import-controls-only; no connected current-project result producer",
+  "stage3_6": "planned/unconnected",
+  "no_new_model_search_native_scoring": true,
+  "scientific_improvement": "not yet demonstrated",
+  "files": [
+    {
+      "path": "browser-receipt.json",
+      "sha256": "d80618a00f36c150e6602f7eed8e456f47ddc6fc8687222d747bcabb6921df4c",
+      "bytes": 261449
+    },
+    {
+      "path": "host-contract.txt",
+      "sha256": "693479bd1dd87ebfeba0ed827e2babb07ed223f51a251c6d1561631877e91925",
+      "bytes": 3572
+    },
+    {
+      "path": "invariants.txt",
+      "sha256": "4a70aeed14ea490adb3cf7feba69c701151e0b8593608fc2dbe55db024db326c",
+      "bytes": 871
+    },
+    {
+      "path": "README.md",
+      "sha256": "1fb927afdd18c569f2ee727b199a863c70235a8f209dd59ff0b2c154efbf0f82",
+      "bytes": 2633
+    },
+    {
+      "path": "stage-slots.txt",
+      "sha256": "339c20393b24970a576e5438f1bf187c71a19a53749c79551d1e50db5d880d16",
+      "bytes": 905
+    },
+    {
+      "path": "stage2-input-final.txt",
+      "sha256": "19e21a5b0568b1ae5f2bf89aea8b08faadc6afbf35043f72ba84fdb2e7490814",
+      "bytes": 847
+    },
+    {
+      "path": "unified-stage2-zh-Hans.png",
+      "sha256": "15da6d06bdb31eacd669862a37c9e8033790e088bf9e1566e554c723c30188da",
+      "bytes": 249572
+    },
+    {
+      "path": "unified-stage6-zh-Hans.png",
+      "sha256": "a003f7833c65fd5bc3654fcdd318afbff971129b87528e899c6f15eb57aef6e3",
+      "bytes": 171692
+    }
+  ],
+  "four_required_invariants": "each1test/0skip;13.728s",
+  "log_source_bytes": [
+    {
+      "public_path": "host-contract.txt",
+      "original_private_sha256": "dfcc75abea9469a072c1817f8d52112cdd4891ed17e95c7498da06de87b8160a",
+      "public_normalization": "CRLF to LF only; original private log retained"
+    },
+    {
+      "public_path": "stage-slots.txt",
+      "original_private_sha256": "24b3c8bef13791563698bfacdce0c95dcd23dda78378de4979d831233e3a8e7b",
+      "public_normalization": "CRLF to LF only; original private log retained"
+    },
+    {
+      "public_path": "stage2-input-final.txt",
+      "original_private_sha256": "4338c2158b2be40f023c0d1c46725d94ce1315a09f4c864a9a9d37d6ef4c6d30",
+      "public_normalization": "CRLF to LF only; original private log retained"
+    },
+    {
+      "public_path": "invariants.txt",
+      "original_private_sha256": "82a79bcfe1accc6e2a736025a201f7298aae9f3320eb30d8c4ecf0587c0b37f3",
+      "public_normalization": "CRLF to LF only; original private log retained"
+    }
+  ]
+}
