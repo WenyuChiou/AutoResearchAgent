@@ -1,4 +1,5 @@
 # ruff: noqa: E402 -- use the repository CLI.
+import json
 import sys
 from pathlib import Path
 import unittest
@@ -7,6 +8,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cli"))
 sys.path.insert(0, str(HERE))
 from stage_pipeline_fixture_helpers import StagePipelineFixture
+from stage2_fixture_helpers import write_stage2_fixture
 from research_workspace_native.stage_pipeline import (
     MAX_TASK_PROMPT_BYTES,
     StagePipeline,
@@ -56,6 +58,47 @@ class StagePipelineTests(StagePipelineFixture):
         self.assertEqual(reopened.view()["status"], "incomplete-assessment")
         self.assertIsNone(reopened.next_task())
         self.assertEqual(before, len(list((self.root / "nine").rglob("*"))))
+
+    def test_nine_steps_keep_real_long_root_paths_and_reopen_without_writes(self):
+        original_root = self.root
+        self.root = original_root / ("authored-long-root-" + "x" * 64)
+        self.root.mkdir()
+        self.sources = self.root / "sources"
+        self.packet = write_stage2_fixture(self.sources, candidate_count=0)
+        self.path = self.root / "packet.json"
+        self.path.write_text(json.dumps(self.packet), encoding="utf8")
+        self.pipeline = self.open(max_calls=9)
+        self.assertGreater(len(str(self.root)), len(str(original_root)) + 64)
+        for _ in range(9):
+            task = self.pipeline.next_task()
+            self.assertLessEqual(
+                len(task["prompt"].encode("utf8")), MAX_TASK_PROMPT_BYTES
+            )
+            self.step()
+        self.assertEqual(self.pipeline.view()["status"], "incomplete-assessment")
+        self.assertEqual(self.pipeline.view()["model_units_observed"], 9)
+        for record in self.pipeline.records:
+            artifact = Path(record["verified_raw_artifact"]["path"])
+            self.assertTrue(artifact.is_absolute())
+            self.assertEqual(artifact.parent, self.root)
+            self.assertTrue(artifact.is_file())
+        before = {
+            str(path.relative_to(self.pipeline.root)): path.read_bytes()
+            for path in self.pipeline.root.rglob("*")
+            if path.is_file()
+        }
+        self.pipeline = self.open(max_calls=9)
+        self.assertEqual(self.pipeline.view()["status"], "incomplete-assessment")
+        self.assertIsNone(self.pipeline.next_task())
+        self.assertEqual(len(self.pipeline.records), 9)
+        self.assertEqual(
+            before,
+            {
+                str(path.relative_to(self.pipeline.root)): path.read_bytes()
+                for path in self.pipeline.root.rglob("*")
+                if path.is_file()
+            },
+        )
 
 
 if __name__ == "__main__":

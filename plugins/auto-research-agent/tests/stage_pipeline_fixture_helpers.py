@@ -64,10 +64,10 @@ class StagePipelineFixture(unittest.TestCase):
                 axis: dict(
                     status="unknown",
                     score=None,
-                    rationale="Authored evidence remains unknown.",
+                    rationale="Unknown.",
                     evidence_ids=[],
                     blocking=True,
-                    next_check="Obtain bounded evidence.",
+                    next_check="Read source.",
                 )
                 for axis in (
                     "opportunity",
@@ -78,8 +78,8 @@ class StagePipelineFixture(unittest.TestCase):
                 )
             },
             disposition="park",
-            reason="Evidence remains incomplete.",
-            next_step="Review missing prerequisites.",
+            reason="Unknown.",
+            next_step="Read source.",
             scope_change_requested=False,
         )
 
@@ -125,11 +125,11 @@ class StagePipelineFixture(unittest.TestCase):
                 candidates=[
                     dict(
                         candidate=dict(
-                            question="Can a bounded validation improve measurement?",
+                            question="Can validation help?",
                             research_mode="exploratory",
-                            opportunity="A recorded boundary remains unknown.",
-                            value="Measurement might improve.",
-                            approach="Compare on supplied bytes.",
+                            opportunity="Boundary unknown.",
+                            value="Measurement may improve.",
+                            approach="Inspect bytes.",
                             requirements=["Retain declared limits."],
                             limitations=["Synthetic corpus only."],
                             evidence_ids=["ev-1"],
@@ -138,13 +138,11 @@ class StagePipelineFixture(unittest.TestCase):
                         route="improvement",
                         mechanism="Bounded validation.",
                         closest_work_refs=[],
-                        strong_alternatives=["Keep current method."],
-                        change_mind_conditions=[
-                            "Missing evidence changes feasibility."
-                        ],
+                        strong_alternatives=["Retain method."],
+                        change_mind_conditions=["New evidence."],
                         claim_labels=[
                             dict(
-                                text="Expected benefit is untested.",
+                                text="Untested benefit.",
                                 status="untested-benefit",
                                 evidence_ids=[],
                             )
@@ -152,13 +150,13 @@ class StagePipelineFixture(unittest.TestCase):
                         spans=spans,
                     )
                 ],
-                unresolved=["Prerequisites remain unknown."],
+                unresolved=["Prerequisites unknown."],
             )
         if phase in {"challenger-extraction", "feasibility-extraction"}:
             return dict(
                 assessment=self.assessment(),
-                assumptions=["Supplied corpus is synthetic."],
-                strongest_alternative="Preserve current measurement.",
+                assumptions=["Synthetic sources."],
+                strongest_alternative="Retain measurement.",
                 change_conditions=["New evidence."],
             )
         if phase == "reconciliation-extraction":
@@ -171,7 +169,7 @@ class StagePipelineFixture(unittest.TestCase):
                 substantive_disagreements=[],
                 changed_judgment_reason=None,
             )
-        return "The supplied synthetic source records a measurement boundary; a bounded validation is untested."
+        return "Synthetic evidence; benefit untested."
 
     def receipt(self, task, text=None):
         self.uid += 1
