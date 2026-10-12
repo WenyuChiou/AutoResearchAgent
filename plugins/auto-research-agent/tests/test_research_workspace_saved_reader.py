@@ -5,8 +5,10 @@ import sys
 import tempfile
 import unittest
 from copy import deepcopy
+from io import BytesIO
 from pathlib import Path
 
+from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 
@@ -610,6 +612,20 @@ class OfflineHistoryTests(unittest.TestCase):
 
 
 class SavedPublicImportTests(unittest.TestCase):
+    def test_saved_import_without_claims_exports_without_fabricated_rows(self):
+        reader = _saved_import_reader(self)
+        self.assertEqual(reader.index["claims"], [])
+        output, digest, _ = reader.build("empty-claims-export")
+        attached = attach_rerun(reader.index, output, digest)
+        exported = rerun_files(attached, output)
+        availability = json.loads(exported["source-rerun/source-availability.json"])
+        self.assertEqual(availability["claim_rows"], [])
+        workbook = load_workbook(BytesIO(exported["source-rerun/catalog.xlsx"]))
+        self.addCleanup(workbook.close)
+        self.assertIn("SourceRerun", workbook.sheetnames)
+        self.assertIn("SourceAvailability", workbook.sheetnames)
+        self.assertNotIn("ClaimAvailability", workbook.sheetnames)
+
     def test_malformed_saved_import_diagnostics_are_rejected(self):
         reader = _saved_import_reader(self)
         original = reader.index["sources"][0]["receipt"]
@@ -800,6 +816,54 @@ class SavedPublicImportTests(unittest.TestCase):
                         reference,
                         sha(index_bytes),
                     )
+
+    def test_saved_import_rejects_rehashed_separate_raw_in_all_gates(self):
+        reader = _saved_import_reader(self)
+        reader.index["claims"] = [
+            {
+                "claim_id": "saved-source-claim",
+                "work_id": "fixture-0",
+                "version_id": "version-0",
+                "text": "A synthetic historical claim keeps its source binding.",
+                "support": "Unknown",
+            }
+        ]
+        output, digest, _ = reader.build("separate-raw-substitution")
+        attached = attach_rerun(reader.index, output, digest)
+        extension = attached["source_rerun"]
+        row = extension["data"]["rows"][0]
+        raw_path = output / row["raw_path"]
+        replacement = b"X" * len(raw_path.read_bytes())
+        self.assertNotEqual(sha(replacement), row["raw_sha256"])
+        raw_path.write_bytes(replacement)
+        extension["artifact_hashes"][row["raw_path"]]["sha256"] = sha(replacement)
+        manifest_bytes = canonical(
+            {"data": extension["data"], "files": extension["artifact_hashes"]}
+        )
+        extension["manifest_sha256"] = sha(manifest_bytes)
+        (output / "source-rerun-manifest.json").write_bytes(manifest_bytes)
+        for gate in (validate_rerun_index, view_fixture.validate_index):
+            with self.subTest(gate=gate.__module__):
+                with self.assertRaises(DeliverableError):
+                    gate(attached)
+        with self.subTest(gate="export"):
+            with self.assertRaises(DeliverableError):
+                rerun_files(attached, output)
+        with self.subTest(gate="attachment"):
+            with self.assertRaises(DeliverableError):
+                attach_rerun(reader.index, output, sha(manifest_bytes))
+        index_bytes = canonical(attached)
+        index_path = reader.root / "substituted-index.json"
+        index_path.write_bytes(index_bytes)
+        reference = Path(__file__).parents[1] / "references/research-workspace"
+        with self.subTest(gate="render"):
+            with self.assertRaises(DeliverableError):
+                view_fixture.render_view(
+                    index_path,
+                    reader.root / "rejected-view",
+                    reference,
+                    sha(index_bytes),
+                )
 
     def test_saved_public_import_replays_sdk_verified_source_without_fake_http(self):
         reader = _saved_import_reader(self)

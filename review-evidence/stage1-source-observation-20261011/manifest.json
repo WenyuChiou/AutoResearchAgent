@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "scope": "offline saved SDK observation helper; not execution attestation",
+  "source_head_observed_during_packaging": "0c1a9ff3d689cbabdc6b0541ee87a7a4401b6e5d",
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_source_observation.py": "bb531a315f5aa1fada16e7c89add44e613b331487554db4625addd6e43272df6",
+    "plugins/auto-research-agent/tests/test_project_stage1_source_observation.py": "501d4d7b20bb26e2ecde87fe3e4c81939ea207a858a4ac796b7c693b76bf6bb1"
+  },
+  "test_selector": "test_project_stage1_source_observation.SourceObservationTests",
+  "tests": 8,
+  "test_seconds": 13.96,
+  "failures": 0,
+  "errors": 0,
+  "skips": 0,
+  "exit_code": 0,
+  "driver_elapsed_seconds": 16.84299999999348,
+  "source_inventory_equal": true,
+  "original_private_receipt_sha256": "ab93d34024bd27b72818b6297b3a7213b8e8e8cb2ac29f419dbf26206ddad342",
+  "public_receipt_sanitized": true,
+  "actual_external_search": 0,
+  "actual_source_acquisition": 0,
+  "actual_native_or_model_calls": 0,
+  "scientific_acceptance_claim": false,
+  "full_plugin_suite_or_ci_claim": false,
+  "production_owner_wrapper_claim": false,
+  "files": {
+    "README.md": {
+      "sha256": "ff14e76ca410abeacca4a0cb8d298220b7f9b5e65e7c6934e343999fab41f1c3",
+      "bytes": 2264,
+      "raw_byte_copy": false
+    },
+    "receipt.json": {
+      "sha256": "04de27925a5db778eade53a42a6a451a49f41a640aa9ecc0ece10ad063d30b9d",
+      "bytes": 175200,
+      "raw_byte_copy": false
+    },
+    "stderr.log": {
+      "sha256": "3808d474a629f337832748df29ee0164b0bdf6adac4ae709593ec7632550d01f",
+      "bytes": 1774,
+      "raw_byte_copy": true
+    },
+    "stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "raw_byte_copy": true
+    }
+  }
+}

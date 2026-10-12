@@ -1,0 +1,8 @@
+Capture scope: partial actual tool stdout; final process result was not captured.
+Command: python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_canonical_delivery.py -v
+
+test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping) ... ok
+test_consumed_document_checked_against_external_snapshot (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_consumed_document_checked_against_external_snapshot) ... ok
+test_core_11_bare_projection_preserves_nulls_history_and_stage2_gate (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_core_11_bare_projection_preserves_nulls_history_and_stage2_gate) ...
+
+Completion: unobserved. This capture is not a passed or failed test summary.

@@ -774,10 +774,13 @@ def validate_rerun_index(index):
             )
             _validate_saved_import_provenance(row, source, saved_members)
             selected_member = artifact_map(source["receipt"])[selected["raw_path"]]
+            raw_artifact = extension["artifact_hashes"].get(row.get("raw_path"), {})
             require(
                 saved_members[selected_member]["sha256"] == row.get("raw_sha256")
                 and saved_members[selected_member]["bytes"]
-                == selected.get("response_bytes"),
+                == selected.get("response_bytes")
+                and raw_artifact.get("sha256") == row.get("raw_sha256")
+                and raw_artifact.get("bytes") == selected.get("response_bytes"),
                 "rerun saved import selected source binding differs",
             )
             saved_import_bound = True
@@ -1049,7 +1052,8 @@ def rerun_files(index, rerun_root):
     )
     tables["SourceRerun"] = flattened
     tables["SourceAvailability"] = tabular(availability["source_rows"])
-    tables["ClaimAvailability"] = tabular(availability["claim_rows"])
+    if availability["claim_rows"]:
+        tables["ClaimAvailability"] = tabular(availability["claim_rows"])
     availability_markdown = (
         "# Saved-source availability\n\n"
         "Availability records whether a readable saved body is present. It does not change or explain the historical claim assessment.\n\n"

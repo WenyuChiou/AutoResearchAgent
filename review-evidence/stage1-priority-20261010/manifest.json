@@ -1,0 +1,89 @@
+{
+  "kind": "EngineeringEvidenceIndex",
+  "evaluation_readiness": "implementation-only",
+  "base_stage_head": "460175528fab1e52f42298bf183daa22c3e2ff85",
+  "sources": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_delivery.py": "360fcafd364798f751656d7b7d7e165ad11de53d96678dce78a68e5a84beae87",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "9853a5c79f20bdc78df51305f85ff9cb3ae13719cc9d7a009b003d3862270504",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_contract.py": "38a72d9f94540f8c4e31ad107e0b3d6a2f20dda656a9937b7494691dafd66c50",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_intake_contract.py": "f6e8d7bb90a21c0a8e67c573143c5b62f1829332847b929929fba8d82d992451",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage2.py": "fa46f84f9c963533461e32957bd341ce8b4520b46b9e01ede9cf60c800bd6388",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.html": "2874215590a09e728da1b3565988db952c44b96fffac08ae1468cf652cd61c3e",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "4aaf6e7b3685e4d7de41ac94f8d1c377fd9bf25b0a4bc325acf341ec36555cd7",
+    "plugins/auto-research-agent/tests/test_project_stage1_delivery.py": "37dc5697c52dd5b55c64679a2804d314e833ea717187687e40e8a2a3b72631d2",
+    "plugins/auto-research-agent/tests/test_project_stage1_delivery_http.py": "eb366a6fcb99d1743955e1dce8abc078cf0a2bc732e35116120da57d17432888",
+    "plugins/auto-research-agent/tests/test_project_stage2_frontier.py": "9ce482e83b28649ace8d8b7b118583174dfce5fbde9b02bc12812281af4cafc9",
+    "plugins/auto-research-agent/tests/browser/project-intake-fixture.py": "959d71b912db352bee7835f4630d379954eeb84a3f0a56c1d28cfc8caf0c75f8"
+  },
+  "artifacts": [
+    {
+      "path": "review-evidence/stage1-priority-20261010/delivery-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/delivery-stderr.log",
+      "sha256": "441f150d011c4e8e464eb97da545b9abecdc2b4d213a60a42ad5eb7ec38fa0e4"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/delivery-receipt.json",
+      "sha256": "5c4489e50170e5493e763a9971db643349d2127c60f35f3b61747bfa6f555185"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/targeted-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/targeted-stderr.log",
+      "sha256": "4d2a7b18a3b98d3ab320350265c41783c8462dc26be9cfb9b78416a62b62a68b"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/targeted-receipt.json",
+      "sha256": "fb11232495949c2bc3d87752254a63c5313b7205aa1bf28615e7939a230b2d2d"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/browser-receipt-v1.json",
+      "sha256": "81bd5c3867e9e6d74f0f911c05a7429a7dc095350d359bb22191ec8a7406a916"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/browser-receipt-v2.json",
+      "sha256": "84d2a838902d44fe6def463069dc236efb35e7f91e64b80187567da34c4a92df"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/frontier-format-receipt-v1.json",
+      "sha256": "6538edd6b0bacd16a9becace3ad65d1014b5d591950ff1abb5016292722c0d97"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/historical-pilot-reuse-v1.json",
+      "sha256": "ed4dcd4f39ca95111565fc392c8dab86fea7def9497288d02264573af80657de"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/browser-1.png",
+      "sha256": "5efab0736038b703b3a44f50eb3aeed3f621e82fb89a2ea3b340f3ec286a9792"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/browser-2.png",
+      "sha256": "d97ea34400dabbed1c1a5edbc0be9f025e28a922e5831bc05fe66d6803d79ea4"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/browser-3.png",
+      "sha256": "3de815f7bdd85f2db34f17fcadf17d6d2f6d86bfa900264010aed45f1ab4ca17"
+    },
+    {
+      "path": "review-evidence/stage1-priority-20261010/browser-4.png",
+      "sha256": "647ca458349074488971357296670dc32a5324cc9c0306f4313ec0941510c500"
+    }
+  ],
+  "tests": {
+    "delivery": "18/18 64.500s current adapter360fcafd/test37dc5697",
+    "targeted": "25/25 19.619s; source hashes in separate receipt before final failed-source binding extension",
+    "browser": "16/16; original failed12/13 preserved separately",
+    "frontier": "21/21 80.693s before Ruff-only AST-equivalent formatting; summary recorded by subagent"
+  },
+  "actual_external_search": false,
+  "actual_native_model": false,
+  "scientific_acceptance": false,
+  "stage1_complete": false,
+  "stage2_full_execution": false,
+  "stage3_to_6": "planned/unconnected",
+  "note": "Test source fetch/model proposals use authored mocks. Historical pilot is not rerun or attributed to this adapter. Hosted final-head CI is pending."
+}

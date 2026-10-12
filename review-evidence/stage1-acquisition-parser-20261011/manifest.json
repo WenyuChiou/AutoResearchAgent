@@ -1,0 +1,26 @@
+{
+  "kind": "BoundedSourceOfflineEvidence.v1",
+  "scope": "Offline selected component tests only; no connected source job or native/scientific acceptance",
+  "original_private_receipt_sha256": {
+    "driver-missing": "9a93481187d15103c6782654ecff221ea1831596cb2902b24785c08ab92a6e47",
+    "final22": "70b91ffe0e4a7326bca0a018cdaf6469ae956e06c7b589cd2351e5409a6e0d0a",
+    "registry5": "4e5c3f9ee9c138dff24b313a8cbff8fbbfff5257a1f473cb0925e2d0a5daf621",
+    "failure-guards15": "f2efbe4f4a7bf21bfe83f2e25a33a2595de9f6a5eda4d11ec726d94215fbb9d4"
+  },
+  "unpublished_manifest_before_lf_sha256": "3e296bf6e90d58340aebbedab550424f028c287241cf3e952d90709295a04977",
+  "files": {
+    "driver-missing-stderr.log": "ddc4b2a7beed562f613ea7a65f90cd509f10d7f4e7a564743e980cab083a949c",
+    "driver-missing-stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "driver-missing.json": "c3ab33c2702ecb92d7841ae58b91da880c90b97391364e43c72785de9106fe6a",
+    "failure-guards15-stderr.log": "18069411858cea784193ede8d272cf3f5b299cf53b5bcd900b3a21e7c3f4a903",
+    "failure-guards15-stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "failure-guards15.json": "3b5d996e8dc58b61c3b0d6916295a4b795e1eb79b3076bbca10abe586028630a",
+    "final22-stderr.log": "b6ae5f6b2f7ba3ea870c766ec4d7da10cecee45152b81b55164a7f208cad81fd",
+    "final22-stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final22.json": "e9809a55cb7d81640d242df3f555e6ee72f0d664cd8a953ff9c9bc9187868070",
+    "README.md": "83c6cdd8c173453526e22c4d66ce4bde593f0339c5a65c57ec803c346c668631",
+    "registry5-stderr.log": "fdcb472cffecea806e56ebe97b58a49116f4db74ce6640062bde4151bf509a77",
+    "registry5-stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "registry5.json": "ad8b7381c9192f82dff95337f31ed43ed56cb588d9cc60da09fc9cd2bd8227d8"
+  }
+}
