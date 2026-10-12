@@ -44,7 +44,9 @@
     if (!node || node.hidden) return;
     if (node.tagName === "DETAILS") node.open = true;
     for (let parent = node.parentElement; parent; parent = parent.parentElement) if (parent.tagName === "DETAILS") parent.open = true;
-    node.scrollIntoView({block: "start", behavior: "smooth"}); node.setAttribute("tabindex", "-1"); node.focus({preventScroll: true});
+    if (document.body.classList.contains("project-embedded")) document.dispatchEvent(new CustomEvent("research-project-navigate", {detail: {target: node.id}}));
+    else node.scrollIntoView({block: "start", behavior: "smooth"});
+    node.setAttribute("tabindex", "-1"); node.focus({preventScroll: true});
   }
   function render({project, view, language, busy, loading, held}) {
     const area = document.getElementById("stage1-progress"); if (!area) return;
@@ -59,7 +61,9 @@
     for (const phase of view.phases) {
       if (!Object.hasOwn(targets, phase.phase_id) || !Object.hasOwn(words, phase.status)) continue;
       const item = add(grid, "li", ""); item.dataset.status = phase.status;
-      add(item, "strong", words[phase.phase_id]); add(item, "span", words[phase.status]);
+      const step = add(item, "button", words[phase.phase_id]); step.type = "button"; step.disabled = Boolean(busy || loading);
+      step.onclick = () => navigate(phase.phase_id);
+      add(item, "span", words[phase.status]);
     }
     const next = held ? {target: "history", phase_id: "history"} : view.next_action;
     if (next && Object.hasOwn(targets, next.target)) {

@@ -1,14 +1,15 @@
 /* Fixed v6 renderer receives saved data over an exact-parent memory channel. */
 (function () {
   "use strict";
-  const status = document.getElementById("project-atlas-status"), parent = window.opener;
+  const status = document.getElementById("project-atlas-status"), parent = window.parent !== window ? window.parent : null;
   const hash = value => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
   const messages = {
-    en: {ready: "Saved delivery view · Return to the project workspace for Harness actions.", loading: "Opening the saved literature network…", failed: "Saved view unavailable. Open it again from the project workspace.", file: "This saved file could not be read. Refresh the project before reopening the view.", back: "Return to project", version: "Input version"},
-    "zh-Hans": {ready: "已保存交付视图 · Harness 操作请返回项目工作台。", loading: "正在打开已保存文献网络…", failed: "保存视图不可用。请从项目工作台重新打开。", file: "无法读取已保存文件。请刷新项目后重新打开视图。", back: "返回项目", version: "输入版本"},
-    "zh-Hant": {ready: "已保存交付視圖 · Harness 操作請返回專案工作台。", loading: "正在開啟已保存文獻網絡…", failed: "保存視圖不可用。請從專案工作台重新開啟。", file: "無法讀取已保存檔案。請重新整理專案後再開啟視圖。", back: "返回專案", version: "輸入版本"}
+    en: {ready: "Saved delivery view", loading: "Opening the saved literature network…", failed: "Saved view unavailable. Refresh the project workspace.", file: "This saved file could not be read. Refresh the project workspace.", version: "Input version"},
+    "zh-Hans": {ready: "已保存交付视图", loading: "正在打开已保存文献网络…", failed: "保存视图不可用。请刷新项目工作台。", file: "无法读取已保存文件。请刷新项目工作台。", version: "输入版本"},
+    "zh-Hant": {ready: "已保存交付視圖", loading: "正在開啟已保存文獻網絡…", failed: "保存視圖不可用。請重新整理專案工作台。", file: "無法讀取已保存檔案。請重新整理專案工作台。", version: "輸入版本"}
   };
-  let port = null, view = null, bound = false, language = "en", serial = 0;
+  let port = null, view = null, binding = null, bound = false, language = "en", serial = 0;
+  let resize = null, mutations = null, scheduled = false, lastHeight = 0;
   const pending = new Map();
   function notice(key) { status.textContent = (messages[language] || messages.en)[key]; }
   function ready() {
@@ -16,11 +17,32 @@
     const identity = document.createElement("span"); identity.setAttribute("translate", "no");
     identity.textContent = " · " + view.project_ref + " · " + messages[language].version + " " + view.input_version;
     status.append(identity);
-    const back = document.createElement("button"); back.type = "button"; back.textContent = messages[language].back; back.onclick = () => { if (port) port.postMessage({kind: "return"}); }; status.append(" ", back);
+    measure();
+  }
+  function measure() {
+    if (!port || !binding || scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      if (!port || !binding) return;
+      const height = Math.max(240, Math.min(12000, Math.ceil(document.body.getBoundingClientRect().height)));
+      if (height === lastHeight) return;
+      lastHeight = height; port.postMessage({kind: "layout", ...binding, height});
+    });
+  }
+  function inlineLayout() {
+    document.body.classList.add("project-atlas-inline");
+    const style = document.createElement("style");
+    style.textContent = ".project-atlas-inline{margin:0;min-height:0;overflow-x:hidden}.project-atlas-inline .atlas-shell{display:block;min-height:0}.project-atlas-inline .atlas-sidebar,.project-atlas-inline .atlas-topbar{display:none}.project-atlas-inline #atlas-content{padding:16px 0;max-width:none}.project-atlas-inline #project-atlas-status{margin:0 0 8px!important}.project-atlas-inline #atlas-footer{padding:12px 0}";
+    document.head.append(style);
+    if (typeof ResizeObserver === "function") { resize = new ResizeObserver(measure); resize.observe(document.body); }
+    if (typeof MutationObserver === "function") { mutations = new MutationObserver(measure); mutations.observe(document.body, {childList: true, subtree: true, attributes: true}); }
+    window.addEventListener("resize", measure);
   }
   function clear() {
     for (const row of pending.values()) clearTimeout(row.timer);
-    pending.clear(); if (port) port.close(); port = null; view = null;
+    pending.clear(); if (resize) resize.disconnect(); if (mutations) mutations.disconnect();
+    resize = null; mutations = null; if (port) port.close(); port = null; view = null; binding = null;
     delete window.WORKSPACE_VIEW;
   }
   function script(name) {
@@ -43,14 +65,24 @@
     link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   window.addEventListener("message", async event => {
-    if (bound || !parent || event.source !== parent || event.origin !== location.origin || !event.data || event.data.kind !== "project-atlas-bound" || event.ports.length !== 1) return;
-    const item = event.data.view;
+    if (bound || !parent || event.source !== parent || event.origin !== location.origin || !event.data || event.data.kind !== "project-atlas-bound" || event.data.inline !== true || event.ports.length !== 1) return;
+    const item = event.data.view, identity = event.data.binding;
+    if (!identity || !/^[A-Za-z0-9_-]{1,64}$/.test(identity.project_ref || "") || !/^[A-Za-z0-9_-]{1,128}$/.test(identity.artifact_ref || "") || !Number.isSafeInteger(identity.input_version) || identity.input_version < 1 || !Number.isSafeInteger(identity.revision) || identity.revision < 0 || !hash(identity.manifest_sha256) || !hash(identity.brief_sha256) || !item || !["project_ref", "input_version", "revision", "artifact_ref", "manifest_sha256"].every(key => item[key] === identity[key]) || item.stage2_input?.brief_sha256 !== identity.brief_sha256) return;
     if (!item || item.schema !== "ProjectStage1AtlasView/1" || !hash(item.index_sha256) || !item.payload || item.payload.index_sha256 !== item.index_sha256 || !Array.isArray(item.files) || item.files.length > 1024 || !item.files.every(file => hash(file.file_ref) && hash(file.sha256) && /^(wiki\/[a-f0-9]{64}\.md|references\.bib|literature\/(screening|included)\.bib)$/.test(file.path) && ["text/markdown", "application/x-bibtex"].includes(file.mime))) return;
-    bound = true; view = item; language = messages[event.data.language] ? event.data.language : "en"; port = event.ports[0];
-    port.onmessage = received => { if (received.data && ["file", "file-error"].includes(received.data.kind)) fileResult(received.data).catch(() => notice("file")); };
+    bound = true; view = item; binding = identity; language = messages[event.data.language] ? event.data.language : "en"; port = event.ports[0];
+    port.onmessage = received => {
+      if (!received.data) return;
+      if (["file", "file-error"].includes(received.data.kind)) fileResult(received.data).catch(() => notice("file"));
+      else if (received.data.kind === "language" && Object.hasOwn(messages, received.data.language)) {
+        language = received.data.language;
+        const control = document.getElementById("atlas-language");
+        if (control) { control.value = language; control.dispatchEvent(new Event("change")); }
+        ready();
+      }
+    };
     port.start(); notice("loading");
     const languageControl = document.getElementById("atlas-language"); if (languageControl) languageControl.value = language;
-    window.WORKSPACE_VIEW = item.payload;
+    window.WORKSPACE_VIEW = item.payload; inlineLayout();
     try {
       for (const name of ["atlas-model.js", "vendor/3d-force-graph-1.80.1.min.js", "atlas-associations.js", "atlas-spatial.js", "atlas-network.js", "project-atlas-screening.js", "atlas-ui.js"]) await script(name);
       ready();
@@ -59,7 +91,7 @@
           language = languageControl.value; ready(); if (port) port.postMessage({kind: "language", language});
         }
       });
-    } catch (_) { clear(); notice("failed"); }
+    } catch (_) { if (port) port.postMessage({kind: "view-error"}); clear(); notice("failed"); }
   });
   function localLink(event) {
     const link = event.target.closest && event.target.closest("a[href]");

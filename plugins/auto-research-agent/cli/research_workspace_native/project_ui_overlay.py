@@ -4,7 +4,10 @@ from .atlas_host import CSP
 
 PANEL = "/projects-panel.html"
 PARENT_CSP = CSP + "; frame-src 'self'"
-PANEL_CSP = CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+PANEL_CSP = (
+    CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+    + "; frame-src 'self'"
+)
 
 
 def install_project_overlay(assets, views, web_root):

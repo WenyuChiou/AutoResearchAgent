@@ -158,6 +158,40 @@ class ProjectHostTests(unittest.TestCase):
         ref = receipt["project_ref"]
         return ref, self.get("/api/projects/" + ref)
 
+    def test_inline_frame_policy_is_limited_to_project_pages_and_keeps_admission(self):
+        changes = self.projects.db.total_changes
+        for route, frame, ancestor in (
+            ("/", True, "none"),
+            ("/projects.html", True, "none"),
+            ("/projects-panel.html", True, "self"),
+            ("/project-atlas.html", False, "self"),
+            ("/project-atlas-child.js", False, "none"),
+            ("/projects.js", False, "none"),
+        ):
+            with self.subTest(route=route):
+                client = http.client.HTTPConnection(
+                    "127.0.0.1", self.host.server_port, timeout=5
+                )
+                try:
+                    client.request("GET", route)
+                    response = client.getresponse()
+                    raw = response.read()
+                    self.assertEqual(response.status, 200, raw)
+                    policy = response.getheader("Content-Security-Policy")
+                    self.assertEqual("frame-src 'self'" in policy, frame)
+                    self.assertIn("frame-ancestors '" + ancestor + "'", policy)
+                    self.assertNotIn(self.token.encode(), raw)
+                finally:
+                    client.close()
+                for headers in (
+                    {"Origin": "https://foreign.invalid"},
+                    {"Host": "foreign.invalid"},
+                    {"Sec-Fetch-Site": "cross-site"},
+                ):
+                    self.assertEqual(self.request(route, headers=headers)[0], 403)
+        self.assertEqual(self.projects.db.total_changes, changes)
+        self.assertEqual(self.projects.list(self.token), [])
+
     def test_two_topics_real_confirm_compile_and_common_stage_metrics(self):
         for topic in (
             "Polyphonic music transcription",

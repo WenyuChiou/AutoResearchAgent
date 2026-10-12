@@ -3,7 +3,9 @@
 import http.client
 import json
 import os
+import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -23,6 +25,24 @@ from research_workspace_native.session_api import SessionApiError
 from stage1_deliverable.common import inventory, sha
 from stage1_ledger.journal import canonical
 from test_project_stage1_records import saved_stage1_case
+
+
+class ProjectStage1AtlasChannelTests(unittest.TestCase):
+    def test_inline_parent_and_child_channels_remain_bound_and_readonly(self):
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "Node is required for actual channel source checks")
+        folder = Path(__file__).parent / "browser"
+        for name in ("project-atlas-channel-test.cjs", "project-atlas-child-test.cjs"):
+            with self.subTest(script=name):
+                result = subprocess.run(
+                    [node, str(folder / name)],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf8",
+                    timeout=30,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                print(result.stdout.strip())
 
 
 class ProjectStage1AtlasTests(unittest.TestCase):

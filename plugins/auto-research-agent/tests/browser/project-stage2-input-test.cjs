@@ -3,9 +3,10 @@
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
 const view = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 class Element {
-  constructor(tag) {this.tag = tag; this.children = []; this.connected = true; this.text = '';}
-  append(...nodes) {this.children.push(...nodes);}
-  replaceChildren(...nodes) {for (const node of this.children) node.disconnect(); this.children = nodes;}
+  constructor(tag) {this.tag = tag; this.children = []; this.connected = true; this.text = ''; this.style = {};}
+  append(...nodes) {for (const node of nodes) node.parent = this; this.children.push(...nodes);}
+  replaceChildren(...nodes) {for (const node of this.children) node.disconnect(); this.children = []; this.append(...nodes);}
+  remove() {this.disconnect(); if (this.parent) this.parent.children = this.parent.children.filter(node => node !== this);}
   disconnect() {this.connected = false; this.children.forEach(node => node.disconnect());}
   get isConnected() {return this.connected;}
   set textContent(text) {this.text = text;}
@@ -13,25 +14,30 @@ class Element {
   setAttribute(name, value) {this[name] = value;}
 }
 const flatten = element => [element, ...element.children.flatMap(flatten)];
-const area = new Element('div'), listeners = {}, requests = [], events = [];
+const area = new Element('div'), inline = new Element('div'), listeners = {}, requests = [], events = [];
 let reply = view;
 const sandbox = {
-  document: {getElementById: id => id === 'project-atlas-entry' ? area : flatten(area).find(row => row.id === id), createElement: tag => new Element(tag), addEventListener: (key, fn) => {listeners[key] = fn;}, dispatchEvent: event => {events.push(event);}},
-  window: {RESEARCH_PROJECTS: {credential: 'authored-private-credential'}, addEventListener() {}},
+  document: {getElementById: id => id === 'project-atlas-entry' ? area : id === 'project-atlas-inline' ? inline : [...flatten(area), ...flatten(inline)].find(row => row.id === id), createElement: tag => new Element(tag), addEventListener: (key, fn) => {listeners[key] = fn;}, dispatchEvent: event => {events.push(event);}},
+  window: {RESEARCH_PROJECTS: {credential: 'authored-private-credential'}, addEventListener() {}, open() {throw new Error('Atlas popup is forbidden');}},
   location: {origin: 'http://127.0.0.1:12345'}, TextEncoder, setTimeout, clearTimeout,
   CustomEvent: class {constructor(type, options) {this.type = type; this.detail = options.detail;}},
   fetch: async (url, options) => {requests.push({url, options}); return {ok: true, json: async () => reply};}
 };
 vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../../cli/research_workspace_native/web/projects-atlas.js'), 'utf8'), sandbox);
 const state = (language = 'en', update = {}) => listeners['project-atlas-state']({detail: {
-  project: {project_ref: view.project_ref, input_version: view.input_version, revision: view.revision},
+  project: {project_ref: view.project_ref, input_version: view.input_version, revision: view.revision, brief_sha256: view.stage2_input.brief_sha256},
   artifact: {artifact_ref: view.artifact_ref, manifest_sha256: view.manifest_sha256, status: 'saved-evidence-validated'}, language, ...update
 }});
+const flush = () => new Promise(resolve => setImmediate(resolve));
 (async () => {
   let checks = 0;
   for (const [language, title] of [['en', 'Review Stage 1'], ['zh-Hans', '审阅 Stage 1'], ['zh-Hant', '審閱 Stage 1']]) {
-    state(language); const before = requests.length;
-    const details = area.children[2]; assert(details.textContent.includes(title));
+    const prior = requests.length; state(language); await flush();
+    assert.equal(requests.length, prior + 1, 'changed project binding auto-reads only its saved result');
+    const frame = inline.children.find(row => row.tag === 'iframe'); assert(frame); assert.equal(frame.src, '/project-atlas.html');
+    const before = requests.length; state(language); await flush();
+    assert.equal(inline.children.find(row => row.tag === 'iframe'), frame, 'same binding retains the inline result');
+    const details = area.children.find(row => row.tag === 'details'); assert(details.textContent.includes(title));
     assert.equal(requests.length, before, 'closed review panel does not read or execute');
     await details.children[1].children[0].onclick();
     assert.equal(requests.length, before + 1);
@@ -44,20 +50,24 @@ const state = (language = 'en', update = {}) => listeners['project-atlas-state']
     form.onsubmit({preventDefault() {}});
     const event = events.at(-1); assert.equal(event.type, 'project-review-stage2-input');
     assert.equal(event.detail.context_sha256, view.stage2_input.context_sha256);
+    assert.equal(event.detail.brief_sha256, view.stage2_input.brief_sha256);
     assert.equal(event.detail.artifact_ref, view.artifact_ref); assert.equal(event.detail.decision, 'request-stage2');
     assert.equal(event.detail.user_input, input.value); assert.equal(JSON.stringify(event).includes('credential'), false);
     const count = events.length;
     input.value = '中'.repeat(2000); form.onsubmit({preventDefault() {}});
     input.value = '\ud800'; form.onsubmit({preventDefault() {}}); assert.equal(events.length, count);
-    state(language, {project: {project_ref: 'another-project', input_version: 1, revision: 0}});
+    state(language, {project: {project_ref: 'another-project', input_version: 1, revision: 0, brief_sha256: view.stage2_input.brief_sha256}});
     input.value = 'stale'; form.onsubmit({preventDefault() {}}); assert.equal(events.length, count);
+    await flush(); assert.equal(frame.isConnected, false);
     checks++;
   }
   reply = {...view, stage2_input: {...view.stage2_input, project_ref: 'foreign-project'}};
-  state(); const content = area.children[2].children[1]; await content.children[0].onclick();
+  state(); await flush(); const content = area.children.find(row => row.tag === 'details').children[1]; await content.children[0].onclick();
   assert.equal(flatten(content).some(node => node.tag === 'form'), false);
   assert.equal(requests.every(row => row.options.method === 'GET'), true);
   assert.equal(requests.every(row => row.options.credentials === 'omit' && row.options.redirect === 'error'), true);
-  listeners['project-screening-clear'](); assert.equal(area.children.length, 0);
-  console.log(JSON.stringify({kind: 'SavedStage2InputPanelAuthoredDomChecks', trilingual_panels: checks, mutation_requests: 0, checks: ['opaque-bound-decision', 'all-works-retained', 'unknown', 'source-text', 'UTF8-bound', 'surrogate-rejection', 'stale-form', 'foreign-context', 'GET-only']}));
+  listeners['project-screening-clear'](); assert.equal(flatten(area).some(row => row.tag === 'form' || row.tag === 'details'), false);
+  assert.equal(inline.children.some(row => row.tag === 'iframe'), false);
+  assert.match(flatten(inline).find(row => row.id === 'project-atlas-result-notice').textContent, /Not generated yet/);
+  console.log(JSON.stringify({kind: 'SavedStage2InputPanelAuthoredDomChecks', trilingual_panels: checks, mutation_requests: 0, checks: ['inline-auto-GET', 'same-binding-retained', 'opaque-bound-decision', 'all-works-retained', 'unknown', 'source-text', 'UTF8-bound', 'surrogate-rejection', 'stale-form', 'foreign-context', 'GET-only']}));
 })().catch(error => {console.error(error); process.exitCode = 1;});

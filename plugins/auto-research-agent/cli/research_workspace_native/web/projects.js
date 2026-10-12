@@ -166,6 +166,9 @@
   Object.assign(words["zh-Hans"], {deliveryHeld: "保存的资料包已过时或未通过来源核查。继续前请检查状态与历史。", readingRegistrationMissing: "准备交付前，请审阅并登记这些已保存主张对应的阅读笔记。", claimReadingNext: "主张已保存。交付前仍需另行审阅并登记这篇论文的阅读笔记。"});
   Object.assign(words["zh-Hant"], {deliveryHeld: "保存的資料包已過時或未通過來源核查。繼續前請檢查狀態及歷史。", readingRegistrationMissing: "準備交付前，請審閱並登記這些已保存主張對應的閱讀筆記。", claimReadingNext: "主張已保存。交付前仍須另行審閱並登記這篇論文的閱讀筆記。"});
   const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0, readingReview: null, readingGeneration: 0 };
+  Object.assign(words.en, {stage1Actions: "Stage1 operations · scope, search, reading and review"});
+  Object.assign(words["zh-Hans"], {stage1Actions: "Stage1 操作 · 范围、检索、阅读与审阅"});
+  Object.assign(words["zh-Hant"], {stage1Actions: "Stage1 操作 · 範圍、檢索、閱讀與審閱"});
   const storageKey = "harness-project-ui-intents-v1";
   let pending = [];
   try { pending = JSON.parse(sessionStorage.getItem(storageKey) || "[]"); } catch (_) {}
@@ -564,6 +567,8 @@
   async function loadProject(ref) {
     const generation = ++state.generation;
     document.dispatchEvent(new Event("project-screening-clear"));
+    state.project = null;
+    $("project-content").hidden = true; $("create-card").hidden = true;
     state.readingReview = null; ++state.readingGeneration;
     state.modelHistory = []; state.historyNext = null; state.output = null;
     $("output-reader").hidden = true; $("history-more").hidden = true;

@@ -3,11 +3,11 @@
   "use strict";
   const bootstrap = window.RESEARCH_PROJECTS;
   if (!bootstrap || typeof bootstrap.credential !== "string") return;
-  let area = null;
+  let area = null, inline = null;
   const words = {
-    en: {open: "Open saved literature network", help: "The same saved package opens in the v6 graph. Return here for Harness actions; viewing never reruns research.", loading: "Reading the bound delivery…", failed: "This saved view could not be opened. Refresh the project and check the delivery status.", popup: "Allow this project to open its saved graph window.", expired: "Project binding changed. Open the current saved view again."},
-    "zh-Hans": {open: "打开已保存文献网络", help: "用 v6 图谱查看同一交付包。Harness 操作仍在此项目页；查看不会重跑研究。", loading: "正在读取绑定的交付包…", failed: "无法打开此交付视图。请刷新项目并检查交付状态。", popup: "请允许此项目打开已保存图谱窗口。", expired: "项目绑定已变化。请重新打开当前保存视图。"},
-    "zh-Hant": {open: "開啟已保存文獻網絡", help: "用 v6 圖譜查看同一交付包。Harness 操作仍在此專案頁；查看不會重跑研究。", loading: "正在讀取綁定的交付包…", failed: "無法開啟此交付視圖。請重新整理專案並檢查交付狀態。", popup: "請允許此專案開啟已保存圖譜視窗。", expired: "專案綁定已變更。請重新開啟目前保存視圖。"}
+    en: {title: "Saved literature network", help: "The graph below shows this project's saved package. Viewing does not rerun research.", loading: "Reading this project's saved delivery…", failed: "This saved view was refused or could not be read. Refresh the project and check the delivery status.", empty: "Not generated yet. This project has no validated saved literature result. Complete Stage 1 and save its delivery to see the network here.", expired: "The project binding changed. The earlier saved view has been cleared."},
+    "zh-Hans": {title: "已保存文献网络", help: "下方图谱显示当前项目已保存的交付包。查看不会重跑研究。", loading: "正在读取当前项目已保存的交付包…", failed: "此保存视图被拒绝或无法读取。请刷新项目并检查交付状态。", empty: "尚未生成。当前项目尚无通过校验的已保存文献结果。完成 Stage 1 并保存交付包后，图谱会显示在这里。", expired: "项目绑定已变化，旧保存视图已清除。"},
+    "zh-Hant": {title: "已保存文獻網絡", help: "下方圖譜顯示目前專案已保存的交付包。檢視不會重跑研究。", loading: "正在讀取目前專案已保存的交付包…", failed: "此保存視圖被拒絕或無法讀取。請重新整理專案並檢查交付狀態。", empty: "尚未產生。目前專案尚無通過校驗的已保存文獻結果。完成 Stage 1 並保存交付包後，圖譜會顯示在這裡。", expired: "專案綁定已變更，舊保存視圖已清除。"}
   };
   const digest = value => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
   let current = null, session = null, language = "en", generation = 0;
@@ -74,15 +74,21 @@
     if (session) {
       clearTimeout(session.timer);
       if (session.port) session.port.close();
-      if (!session.win.closed) session.win.close();
+      session.frame.remove();
     }
     session = null;
+    if (inline) inline.replaceChildren();
+    show(current ? "expired" : "empty");
   }
   function route(binding) {
     return "/api/projects/" + binding.project_ref + "/stage1/atlas/" + binding.input_version + "/" + binding.revision + "/" + binding.artifact_ref + "/" + binding.manifest_sha256;
   }
-  function equal(view, binding) {
+  function artifactMatches(view, binding) {
     return ["project_ref", "input_version", "revision", "artifact_ref", "manifest_sha256"].every(key => view[key] === binding[key]);
+  }
+  function equal(view, binding) {
+    const brief = view.schema === "ProjectStage1AtlasView/1" ? view.stage2_input?.brief_sha256 : view.brief_sha256;
+    return artifactMatches(view, binding) && (!binding.brief_sha256 || brief === binding.brief_sha256);
   }
   async function get(path) {
     const response = await fetch(path, {method: "GET", headers: {Authorization: "Bearer " + bootstrap.credential}, cache: "no-store", credentials: "omit", redirect: "error"});
@@ -92,37 +98,54 @@
   function show(key) {
     const notice = document.getElementById("project-atlas-notice");
     if (notice) notice.textContent = t(key);
+    if (!inline) return;
+    inline.hidden = false;
+    let title = document.getElementById("project-atlas-inline-title"), visible = document.getElementById("project-atlas-result-notice");
+    if (!title || !visible) {
+      title = document.createElement("h3"); title.id = "project-atlas-inline-title";
+      visible = document.createElement("p"); visible.id = "project-atlas-result-notice";
+      visible.className = "subtle"; visible.setAttribute("role", "status"); inline.append(title, visible);
+    }
+    title.textContent = t("title"); visible.textContent = t(key);
+  }
+  const live = active => session === active && active.generation === generation && active.frame.isConnected && current && equal(current, active.binding);
+  function layout(active, height) {
+    if (!live(active) || !Number.isSafeInteger(height) || height < 240 || height > 12000) return;
+    active.frame.style.height = height + "px";
+    document.dispatchEvent(new CustomEvent("project-atlas-layout", {detail: {...active.binding, height}}));
   }
   async function fileRequest(active, message) {
-    if (session !== active || active.win.closed || active.reads >= 4 || !message || !/^[A-Za-z0-9_-]{1,64}$/.test(message.id || "")) return;
+    if (!live(active) || !active.view || active.reads >= 4 || !message || !/^[A-Za-z0-9_-]{1,64}$/.test(message.id || "")) return;
     const file = active.view.files.find(row => row.file_ref === message.file_ref && row.sha256 === message.sha256);
     if (!file) return;
     const connection = active.connection; ++active.reads;
     try {
       const result = await get(route(active.binding) + "/files/" + file.file_ref + "/" + file.sha256);
-      if (session !== active || active.win.closed || connection !== active.connection) return;
-      if (!equal(result, active.binding) || result.index_sha256 !== active.view.index_sha256 || !result.file || result.file.file_ref !== file.file_ref || result.file.sha256 !== file.sha256) throw new Error("saved-file-binding-differs");
+      if (!live(active) || connection !== active.connection) return;
+      if (!artifactMatches(result, active.binding) || result.index_sha256 !== active.view.index_sha256 || !result.file || result.file.file_ref !== file.file_ref || result.file.sha256 !== file.sha256) throw new Error("saved-file-binding-differs");
       active.port.postMessage({kind: "file", id: message.id, file: result.file});
     } catch (_) {
-      if (session === active && !active.win.closed && connection === active.connection && active.port) active.port.postMessage({kind: "file-error", id: message.id});
+      if (live(active) && connection === active.connection && active.port) active.port.postMessage({kind: "file-error", id: message.id});
     } finally { --active.reads; }
   }
   function connect(active) {
-    if (session !== active || !active.ready || !active.view || active.port || active.win.closed) return;
-    const channel = new MessageChannel(); active.port = channel.port1;
+    if (!live(active) || !active.ready || !active.view || active.port) return;
+    const channel = new MessageChannel(), port = channel.port1, connection = active.connection; active.port = port;
     active.port.onmessage = event => {
-      if (session !== active || !event.data) return;
-      if (event.data.kind === "return") { window.focus(); close(); }
+      if (!live(active) || active.port !== port || active.connection !== connection || !event.data) return;
+      if (event.data.kind === "return") { if (area) area.scrollIntoView({block: "start"}); }
       else if (event.data.kind === "language" && Object.hasOwn(words, event.data.language)) active.language = event.data.language;
       else if (event.data.kind === "file-read") fileRequest(active, event.data);
+      else if (event.data.kind === "layout" && equal(event.data, active.binding)) layout(active, event.data.height);
+      else if (event.data.kind === "view-error") { close(); show("failed"); }
     };
     active.port.start();
-    active.win.postMessage({kind: "project-atlas-bound", view: active.view, language: active.language || language}, location.origin, [channel.port2]);
+    active.frame.contentWindow.postMessage({kind: "project-atlas-bound", view: active.view, binding: active.binding, language: active.language || language, inline: true}, location.origin, [channel.port2]);
     clearTimeout(active.timer); show("help");
   }
   window.addEventListener("message", event => {
     const active = session;
-    if (active && event.origin === location.origin && event.source === active.win && event.data && event.data.kind === "project-atlas-ready") {
+    if (active && live(active) && event.origin === location.origin && event.source === active.frame.contentWindow && event.data && event.data.kind === "project-atlas-ready") {
       active.ready = true;
       if (active.port) {
         // A refreshed child has retired its old port. Re-read the same binding;
@@ -133,34 +156,41 @@
     }
   });
   async function load(active) {
-    active.timer = setTimeout(() => { if (session === active) { close(); show("failed"); } }, 45000);
+    clearTimeout(active.timer);
+    const connection = active.connection;
+    active.timer = setTimeout(() => { if (live(active) && connection === active.connection) { close(); show("failed"); } }, 45000);
     try {
       const view = await get(route(active.binding));
-      if (session !== active) return;
-      if (!equal(view, active.binding) || view.schema !== "ProjectStage1AtlasView/1" || !digest(view.index_sha256) || !view.payload || view.payload.index_sha256 !== view.index_sha256 || !Array.isArray(view.files) || view.files.length > 1024) throw new Error("saved-view-binding-differs");
+      if (!live(active) || connection !== active.connection) return;
+      if (!equal(view, active.binding) || view.schema !== "ProjectStage1AtlasView/1" || !digest(view.index_sha256) || !view.payload || view.payload.index_sha256 !== view.index_sha256 || !Array.isArray(view.files) || view.files.length > 1024 || !view.files.every(file => digest(file.file_ref) && digest(file.sha256) && /^(wiki\/[a-f0-9]{64}\.md|references\.bib|literature\/(screening|included)\.bib)$/.test(file.path) && ["text/markdown", "application/x-bibtex"].includes(file.mime))) throw new Error("saved-view-binding-differs");
       active.view = view; connect(active);
-    } catch (_) { if (session === active) { close(); show("failed"); } }
+    } catch (_) { if (live(active) && connection === active.connection) { close(); show("failed"); } }
   }
-  async function open() {
-    if (!current) return;
+  function open() {
+    if (!current || !inline) return;
     const binding = {...current}; close();
-    const win = window.open("/project-atlas.html", "_blank");
-    if (!win) { show("popup"); return; }
-    const active = {win, binding, generation, connection: 0, reads: 0, ready: false, view: null, port: null}; session = active;
+    const frame = document.createElement("iframe"); frame.id = "project-atlas-frame";
+    frame.title = t("title"); frame.setAttribute("referrerpolicy", "no-referrer");
+    frame.style.width = "100%"; frame.style.height = "720px"; frame.style.border = "0";
+    const active = {frame, binding, generation, connection: 0, reads: 0, ready: false, view: null, port: null}; session = active;
+    inline.append(frame); frame.src = "/project-atlas.html";
     show("loading");
-    await load(active);
+    load(active);
   }
   document.addEventListener("project-atlas-state", event => {
     area = document.getElementById("project-atlas-entry");
-    if (!area) { current = null; close(); return; }
+    inline = document.getElementById("project-atlas-inline");
+    if (!area || !inline) { current = null; close(); return; }
     const {project, artifact} = event.detail || {}; language = (event.detail || {}).language || "en";
-    const next = project && artifact && artifact.status === "saved-evidence-validated" && /^[A-Za-z0-9_-]{1,64}$/.test(project.project_ref) && /^[A-Za-z0-9_-]{1,128}$/.test(artifact.artifact_ref) && Number.isSafeInteger(project.input_version) && Number.isSafeInteger(project.revision) && digest(artifact.manifest_sha256)
-      ? {project_ref: project.project_ref, input_version: project.input_version, revision: project.revision, artifact_ref: artifact.artifact_ref, manifest_sha256: artifact.manifest_sha256} : null;
+    const next = project && artifact && artifact.status === "saved-evidence-validated" && /^[A-Za-z0-9_-]{1,64}$/.test(project.project_ref) && /^[A-Za-z0-9_-]{1,128}$/.test(artifact.artifact_ref) && Number.isSafeInteger(project.input_version) && project.input_version >= 1 && Number.isSafeInteger(project.revision) && project.revision >= 0 && digest(project.brief_sha256) && digest(artifact.manifest_sha256)
+      ? {project_ref: project.project_ref, input_version: project.input_version, revision: project.revision, brief_sha256: project.brief_sha256, artifact_ref: artifact.artifact_ref, manifest_sha256: artifact.manifest_sha256} : null;
     if (!next || current && !equal(next, current)) close();
     current = next; area.replaceChildren();
+    const help = document.createElement("p"); help.id = "project-atlas-notice"; help.className = "subtle"; help.setAttribute("role", "status"); area.append(help);
+    show(current ? session && session.port ? "help" : "loading" : artifact ? "failed" : "empty");
     if (!current) return;
-    const button = document.createElement("button"); button.id = "project-atlas-open"; button.type = "button"; button.textContent = t("open"); button.onclick = open;
-    const help = document.createElement("p"); help.id = "project-atlas-notice"; help.className = "subtle"; help.setAttribute("role", "status"); help.textContent = t("help"); area.append(button, help);
+    if (session) { session.language = language; session.frame.title = t("title"); if (session.port) session.port.postMessage({kind: "language", language}); }
+    else open();
     const w = inputWords[language] || inputWords.en, details = document.createElement("details"), summary = document.createElement("summary");
     summary.textContent = w[0]; details.append(summary);
     const content = document.createElement("div"), read = document.createElement("button"); read.type = "button"; read.textContent = w[0]; content.append(read); details.append(content); area.append(details);
@@ -173,6 +203,6 @@
       } catch (_) { if (content.isConnected) { show("failed"); read.disabled = false; } }
     };
   });
-  document.addEventListener("project-screening-clear", () => { current = null; close(); if (area) area.replaceChildren(); });
+  document.addEventListener("project-screening-clear", () => { current = null; close(); if (area) { area.replaceChildren(); const notice = document.createElement("p"); notice.id = "project-atlas-notice"; notice.setAttribute("role", "status"); notice.textContent = t("expired"); area.append(notice); } });
   window.addEventListener("pagehide", close);
 }());

@@ -337,6 +337,14 @@ class ProjectHandler(AtlasHandler):
         if keyword.lower() == "content-security-policy":
             if self.path == PANEL:
                 value = PANEL_CSP
+            elif self.path == "/project-atlas.html":
+                value = value.replace(
+                    "frame-ancestors 'none'", "frame-ancestors 'self'"
+                )
+            elif self.path == "/projects.html" or (
+                self.path == "/" and not self.server.views
+            ):
+                value = PARENT_CSP
             elif self.path in self.server.project_panel_parents:
                 value = PARENT_CSP
         super().send_header(keyword, value)

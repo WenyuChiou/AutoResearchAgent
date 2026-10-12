@@ -85,6 +85,7 @@ class ProjectUiOverlayTests(unittest.TestCase):
         status, headers, child = self.get(server, "/project-atlas.html")
         self.assertEqual(status, 200)
         self.assertNotIn("/project-atlas.html", server.project_panel_parents)
+        self.assertIn("frame-ancestors 'self'", headers["Content-Security-Policy"])
         self.assertNotIn("frame-src", headers["Content-Security-Policy"])
         self.assertNotIn(b"frame-src", child)
         self.assertNotIn(b"project-operations.js", child)
@@ -100,7 +101,10 @@ class ProjectUiOverlayTests(unittest.TestCase):
             self.assertIn(
                 "frame-ancestors '" + ancestor + "'", headers["Content-Security-Policy"]
             )
-            self.assertNotIn("frame-src", headers["Content-Security-Policy"])
+            if path in ("/projects-panel.html", "/projects.html"):
+                self.assertIn("frame-src 'self'", headers["Content-Security-Policy"])
+            else:
+                self.assertNotIn("frame-src", headers["Content-Security-Policy"])
             self.assertEqual(headers["Cache-Control"], "no-store")
             self.assertEqual(headers["Cross-Origin-Resource-Policy"], "same-origin")
             if path.endswith(".html"):
