@@ -414,6 +414,9 @@
     buttons();
     document.dispatchEvent(new CustomEvent("project-atlas-state", {detail: {project, artifact: delivered, language: state.language}}));
   }
+  Object.assign(words.en, {queryCurrentBudget: "Reserved in this input version", queryLifetimeBudget: "Reserved across all input versions", queryArchived: "Saved earlier search versions (history only)", queryVersion: "Input version"});
+  Object.assign(words["zh-Hans"], {queryCurrentBudget: "此输入版本已预留", queryLifetimeBudget: "所有输入版本累计预留", queryArchived: "已保存的旧搜索版本（仅历史）", queryVersion: "输入版本"});
+  Object.assign(words["zh-Hant"], {queryCurrentBudget: "此輸入版本已預留", queryLifetimeBudget: "所有輸入版本累計預留", queryArchived: "已保存的舊搜尋版本（僅歷史）", queryVersion: "輸入版本"});
   function renderQueries() {
     const value = state.stage1 && state.stage1.query_execution;
     $("query-state").textContent = value ? value.status : t("queryUnavailable");
@@ -422,7 +425,8 @@
     if (!value) return;
     const allowed = value.limits || value.authorization_offer && value.authorization_offer.document && value.authorization_offer.document.limits;
     if (allowed) text(limits, "p", t("queryAttempts") + ": ≤ " + allowed.max_attempts + " · " + t("seconds") + ": ≤ " + allowed.max_reserved_seconds + " · " + t("queryResultLimit") + ": ≤ " + allowed.max_results);
-    if (value.budget) text(limits, "p", t("queryBudget") + ": " + value.budget.attempts + " " + t("queryAttempts") + " · " + value.budget.seconds + " s · " + t("queryProbes") + ": " + value.budget.probes, "subtle");
+    if (value.budget) text(limits, "p", t("queryCurrentBudget") + ": " + value.budget.attempts + " " + t("queryAttempts") + " · " + value.budget.seconds + " s · " + t("queryProbes") + ": " + value.budget.probes, "subtle");
+    if (value.lifetime_budget && canonical(value.lifetime_budget) !== canonical(value.budget)) text(limits, "p", t("queryLifetimeBudget") + ": " + value.lifetime_budget.attempts + " " + t("queryAttempts") + " · " + value.lifetime_budget.seconds + " s · " + t("queryProbes") + ": " + value.lifetime_budget.probes, "subtle");
     text(limits, "p", t("queryNoReading"), "subtle");
     if (value.refusal || value.query_offer_refusal) text(limits, "p", value.refusal || value.query_offer_refusal, "subtle");
     const offered = value.query_offer && value.query_offer.document;
@@ -435,6 +439,11 @@
       if (row.error || row.failure) text(card, "p", typeof row.error === "object" ? row.error.code : row.error || row.failure);
       const observation = row.result || row.receipt;
       if (observation) text(card, "p", observation.execution_ref || observation.probe_observation || observation.outcome || "Unknown", "subtle");
+    }
+    if (rows(value, "archived_versions").length) text(history, "strong", t("queryArchived"));
+    for (const version of rows(value, "archived_versions")) {
+      text(history, "p", t("queryVersion") + " " + version.input_version + " · " + version.budget.attempts + " " + t("queryAttempts") + " · " + version.budget.seconds + " s", "subtle");
+      for (const job of rows(version, "jobs")) text(history, "p", job.key + " · " + (job.status || "Unknown"), "subtle");
     }
   }
   function availableDelivery() {

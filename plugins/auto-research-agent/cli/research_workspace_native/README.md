@@ -260,6 +260,18 @@ authenticates an actual reader, launcher, model or research result. This seam is
 not currently an external source execution endpoint. Stage2 execution remains
 deferred and Stage3–6 planned/unconnected.
 
+Topic revision preserves settled searches as separate input-version history.
+Before revising an initialized query ledger, restore its saved ownership with
+the existing explicit action after a restart; GET does not restore it. Running
+or unknown operations and an unfinished source parser hold revision. The old
+permit, ledger, failed actions and cumulative reservations remain saved. Confirm
+the new scope/settings and compile its plan, then explicitly authorize a new
+search seal; old keys only replay history. The panel shows both current-version
+and cumulative reservations. This does not refund budgets or grant model/source
+permission. Legacy projects already revised with a used stale seal remain held;
+this increment does not migrate their historical execution. Stage2 execution is
+still deferred and Stage3–6 remain planned/unconnected.
+
 The newly delivered `/project-atlas.html` child is a read-only view of the exact
 project/input version, reached through the owner workspace's bound memory
 channel. It keeps the original v6 renderer and verified note/BibTeX file reads.

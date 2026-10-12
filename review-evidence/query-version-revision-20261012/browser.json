@@ -1,0 +1,648 @@
+{
+  "kind": "SyntheticProjectQueryUiBrowserEvidence",
+  "status": "passed",
+  "browser": "155.0.8059.39",
+  "run_id": "cda4633c-1b84-477d-884c-77e6c1351939",
+  "source_before": {
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.html": "e403617ca106b1e48ac15e98aeb8c67bb5c1abc9aab165ae2109314ece7ddeeb",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "dd01fe98bbe69ccb1bf43b03d681d37c100f8bb74707e1e040d7785ef7075f8b",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.css": "b09918399f205d452736c9ef1194eb849f07594696123052156972835fc9f7b3",
+    "plugins/auto-research-agent/tests/test_project_query_panel_browser.cjs": "90e2061a8f9c1933d2d5649b682adb5d2936518c586ae84506ef82b4d30f7ea5"
+  },
+  "source_after": {
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.html": "e403617ca106b1e48ac15e98aeb8c67bb5c1abc9aab165ae2109314ece7ddeeb",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.js": "dd01fe98bbe69ccb1bf43b03d681d37c100f8bb74707e1e040d7785ef7075f8b",
+    "plugins/auto-research-agent/cli/research_workspace_native/web/projects.css": "b09918399f205d452736c9ef1194eb849f07594696123052156972835fc9f7b3",
+    "plugins/auto-research-agent/tests/test_project_query_panel_browser.cjs": "90e2061a8f9c1933d2d5649b682adb5d2936518c586ae84506ef82b4d30f7ea5"
+  },
+  "source_unchanged": true,
+  "results": [
+    {
+      "name": "unregistered query service disables all four actions",
+      "status": "passed"
+    },
+    {
+      "name": "three languages render real raw panel with preserved synthetic failures",
+      "status": "passed"
+    },
+    {
+      "name": "opaque authorize action records intent before POST",
+      "status": "passed"
+    },
+    {
+      "name": "opaque bootstrap action records intent before POST",
+      "status": "passed"
+    },
+    {
+      "name": "opaque execute action records intent before POST",
+      "status": "passed"
+    },
+    {
+      "name": "opaque restore-owner action records intent before POST",
+      "status": "passed"
+    },
+    {
+      "name": "lost query response survives reload and only exact GET history releases it",
+      "status": "passed"
+    },
+    {
+      "name": "mobile simplified Chinese panel remains within viewport",
+      "status": "passed"
+    }
+  ],
+  "screenshots": [
+    {
+      "label": "en",
+      "path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\query-version-revision-20261012-v1\\query-en-cda4633c-1b84-477d-884c-77e6c1351939.png",
+      "sha256": "e4c4c1ba404093786764448d6350dfdb0adf794f881ea502de4783f5dda0aed4"
+    },
+    {
+      "label": "zh-Hans",
+      "path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\query-version-revision-20261012-v1\\query-zh-Hans-cda4633c-1b84-477d-884c-77e6c1351939.png",
+      "sha256": "6cc222b4a390795832420637cb36fe58e4b5749cc14d82aa819656847314b816"
+    },
+    {
+      "label": "zh-Hant",
+      "path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\query-version-revision-20261012-v1\\query-zh-Hant-cda4633c-1b84-477d-884c-77e6c1351939.png",
+      "sha256": "620709d1be9734c643257cc092f17e5b4d15fb1aaa3930bfd7142670c54cc059"
+    },
+    {
+      "label": "response-loss-history",
+      "path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\query-version-revision-20261012-v1\\query-response-loss-history-cda4633c-1b84-477d-884c-77e6c1351939.png",
+      "sha256": "9c49f1029ab683388e702cea64492dd21050e484b16fc473580df2702c2df77e"
+    },
+    {
+      "label": "mobile-zh-Hans",
+      "path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\query-version-revision-20261012-v1\\query-mobile-zh-Hans-cda4633c-1b84-477d-884c-77e6c1351939.png",
+      "sha256": "4f69e05e7fb66969385f55cd1a5a35fda06e9219b24b77e5b7d487c4591cd240"
+    }
+  ],
+  "api_requests": [
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-query-ui-fixture/stage1/query-authorize",
+      "body": {
+        "revision": 4,
+        "input_version": 2,
+        "brief_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "offer_ref": "opaque-offer-0",
+        "offer_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "confirmed": true,
+        "user_input": "Keep my exact scope confirmation. 搜索许可。",
+        "key": "f468fcf4-4fd3-4d02-9eb5-8ed8589cc760"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-query-ui-fixture/stage1/query-bootstrap",
+      "body": {
+        "revision": 4,
+        "input_version": 2,
+        "brief_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "offer_ref": "opaque-offer-1",
+        "offer_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "confirmed": true,
+        "key": "1e98e575-c0ab-451f-99cd-17655112e439"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-query-ui-fixture/stage1/query-execute",
+      "body": {
+        "revision": 4,
+        "input_version": 2,
+        "brief_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "offer_ref": "opaque-offer-2",
+        "offer_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "confirmed": true,
+        "key": "391e6697-fd8c-45f1-8797-630053e416d8"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-query-ui-fixture/stage1/query-restore-owner",
+      "body": {
+        "revision": 4,
+        "input_version": 2,
+        "brief_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "offer_ref": "opaque-offer-3",
+        "offer_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+        "confirmed": true,
+        "key": "ef2d7d83-9b85-4a77-b2ef-7999710b4e21"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/project-query-ui-fixture/stage1/query-execute",
+      "body": {
+        "revision": 4,
+        "input_version": 2,
+        "brief_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "offer_ref": "opaque-offer-2",
+        "offer_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "confirmed": true,
+        "key": "a6541470-c765-412c-b712-279e8da1c90a"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/actions/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/stage2/actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/project-query-ui-fixture/models/native"
+    }
+  ],
+  "page_errors": [],
+  "route_errors": [],
+  "outbound_requests": [],
+  "actual_core_host": false,
+  "actual_runtime_probe": false,
+  "actual_native_model": false,
+  "actual_search": false,
+  "scope": "Installed Chrome executes current raw UI assets. Every API response and project/permit/query/history observation is an authored fixture; no real service execution or scientific completion is demonstrated."
+}

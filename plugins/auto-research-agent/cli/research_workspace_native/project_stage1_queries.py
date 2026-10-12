@@ -30,6 +30,7 @@ from .project_stage1 import ProjectStage1Service, _basis
 from .query_execution_source import check_execution_source
 from .project_query_history import admitted_query, bound_run, reserved_intents
 from .project_resource_budget import reserve_resource, resource_view
+from .project_query_versions import archived_versions, current_budget
 
 FIELDS = BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"}
 
@@ -71,10 +72,12 @@ class ProjectStage1QueryService:
         self.verify_source, self.admit = verify_source, admit
         self.services, self.workers, self.closing = {}, {}, False
         require(
-            getattr(stage1, "query_service", None) is None,
+            getattr(stage1, "query_service", None) is None
+            and self.intake._query_service is None,
             "project-query-service-already-attached",
         )
         stage1.query_service = self
+        self.intake._query_service = self
 
     def _state(self, credential, ref):
         principal = self.intake._principal(credential)
@@ -110,6 +113,8 @@ class ProjectStage1QueryService:
                 source_acquisition=False,
                 automatic_retry=False,
                 budget=deepcopy(state.get("stage1_query_budget")),
+                lifetime_budget=deepcopy(state.get("stage1_query_budget")),
+                archived_versions=[],
                 jobs=[
                     {
                         k: deepcopy(job[k])
@@ -128,6 +133,8 @@ class ProjectStage1QueryService:
                 ],
             )
             try:
+                result["archived_versions"] = archived_versions(self.intake, state)
+                result["budget"] = current_budget(self.intake, state, principal)
                 if authorization is None:
                     _, _, offer = proposal(self.intake, ref, principal, self.config)
                     result["authorization_offer"] = offer
@@ -223,6 +230,7 @@ class ProjectStage1QueryService:
                 not state.get("stage1_query_authorization"),
                 "project-query-seal-replacement-refused",
             )
+            archived_versions(self.intake, state)
             _, document, offer = proposal(self.intake, ref, actor, self.config)
             require(
                 body["offer_ref"] == offer["offer_ref"]
@@ -271,7 +279,8 @@ class ProjectStage1QueryService:
             self.config,
             ready=not expansion,
         )
-        budget, limits = state["stage1_query_budget"], permit["limits"]
+        budget = current_budget(self.intake, state, principal)
+        limits = permit["limits"]
         reserved_intents(
             self.intake,
             state,
@@ -305,8 +314,8 @@ class ProjectStage1QueryService:
             seconds=seconds,
             calls=0 if probe else 1,
         )
-        budget["seconds"] += seconds
-        budget["probes" if probe else "attempts"] += 1
+        state["stage1_query_budget"]["seconds"] += seconds
+        state["stage1_query_budget"]["probes" if probe else "attempts"] += 1
         return permit
 
     def bootstrap(self, credential, ref, body, *, check_deadline=None):
@@ -1036,3 +1045,5 @@ class ProjectStage1QueryService:
         for service in self.services.values():
             service.close()
         self.services.clear()
+        if self.intake._query_service is self:
+            self.intake._query_service = None

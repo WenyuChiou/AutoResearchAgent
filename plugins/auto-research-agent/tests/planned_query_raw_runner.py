@@ -32,6 +32,13 @@ def main():
         shutil.copytree(
             repo / "plugins/auto-research-agent/schemas", plugin / "schemas"
         )
+        # ProjectHost always constructs its passive v6 delivery viewer. A CLI
+        # snapshot therefore needs these original assets too, without importing
+        # unrelated plugin source or weakening the renderer's existing pins.
+        shutil.copytree(
+            repo / "plugins/auto-research-agent/references/research-workspace/atlas",
+            plugin / "references/research-workspace/atlas",
+        )
         if args.complete_plugin:
             shutil.copytree(
                 repo / "plugins/auto-research-agent",

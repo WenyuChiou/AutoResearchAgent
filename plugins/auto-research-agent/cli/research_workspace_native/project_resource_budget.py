@@ -317,6 +317,14 @@ def _query(intake, state, principal, intents):
     return rows
 
 
+def query_resources(intake, state, principal):
+    """Validate all lifetime query charges; return their immutable input scopes."""
+    events = _reservation_events(intake, state)
+    intents = _intents(intake, state, principal, events)
+    rows = _query(intake, state, principal, intents)
+    return rows, {digest: intents[digest][1] for digest in rows}
+
+
 def _models(state, intents, reservation_events):
     row = state.get("model_operations", {})
     jobs, offers = row.get("jobs", {}), row.get("offers", {})

@@ -196,7 +196,9 @@ class ProjectStage1ExpansionService:
             "project-query-owner-reopen-required",
         )
         frontier = service.inspect_saved(credential, ref)
-        budget = state["stage1_query_budget"]
+        from .project_query_versions import current_budget
+
+        budget = current_budget(self.intake, state, principal)
         seconds = self.queries.config["pin"]["timeout_seconds"] + 30
         resources = resource_view(self.intake, state, principal)
         remaining = original["limits"]["max_attempts"] - budget["attempts"]

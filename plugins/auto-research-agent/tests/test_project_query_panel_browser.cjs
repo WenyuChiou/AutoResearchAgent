@@ -32,7 +32,7 @@ const operations = ['authorize', 'bootstrap', 'execute', 'restore-owner'];
 const results = [], screenshots = [], pageErrors = [], routeErrors = [], outbound = [], requests = [];
 let browser, context, page, browserVersion, failure;
 const project = {
-  project_ref: ref, project_id: ref, revision: 4, input_version: 1, brief_sha256: 'a'.repeat(64),
+  project_ref: ref, project_id: ref, revision: 4, input_version: 2, brief_sha256: 'a'.repeat(64),
   brief: {original_description: 'Synthetic query UI fixture · No research calls', needs: [{question: 'Test saved UI observations only.'}]},
   intake_report: {necessary_clarification_complete: true}, plan: {execution_status: 'not-executed'},
   settings: {resource_envelope: 'Fixture only', user_input: 'No actual execution',
@@ -45,6 +45,9 @@ const offer = index => ({offer_ref: 'opaque-offer-' + index, offer_sha256: Strin
     arguments: {query: '<img src=x onerror="window.__injected=true"> fixture query'}}});
 const queryView = selected => ({status: 'synthetic-query-history', limits,
   budget: {attempts: 1, seconds: 62, probes: 1},
+  lifetime_budget: {attempts: 2, seconds: 124, probes: 2},
+  archived_versions: [{input_version: 1, brief_sha256: 'b'.repeat(64), budget: {attempts: 1, seconds: 62, probes: 1},
+    jobs: [{key: 'old-bootstrap', status: 'completed'}], execution_authorized: false, automatic_retry: false}],
   ...Object.fromEntries(fields.map((field, index) => [field, selected === 'all' || selected === index ? offer(index) : null])),
   jobs: [{operation: 'bootstrap', status: 'execution-unknown', error: {code: 'fixture-probe-unknown'}}],
   query_history: {history: [{operation: 'backend', status: 'failed', result: {outcome: 'fixture-network-error'}}]},
@@ -147,6 +150,12 @@ const intents = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('har
       assert.match(history, /failed/); assert.match(history, /fixture-network-error/);
       assert.equal(await page.locator('#query-observations img').count(), 0);
       assert.equal(await page.evaluate(() => Boolean(window.__injected)), false);
+      const versionLabels = {en: ['Reserved in this input version', 'Reserved across all input versions', 'Saved earlier search versions (history only)', 'Input version 1'],
+        'zh-Hans': ['此输入版本已预留', '所有输入版本累计预留', '已保存的旧搜索版本（仅历史）', '输入版本 1'],
+        'zh-Hant': ['此輸入版本已預留', '所有輸入版本累計預留', '已保存的舊搜尋版本（僅歷史）', '輸入版本 1']}[language];
+      const rendered = await page.locator('#query-limits').innerText() + '\n' + history;
+      for (const label of versionLabels) assert(rendered.includes(label));
+      assert.match(rendered, /124 s/); assert.match(rendered, /old-bootstrap.*completed/);
       await screenshot(language);
     }
   });
@@ -162,7 +171,7 @@ const intents = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('har
     assert.equal(posts.length, 1); assert.equal(captured.url, '/api/projects/' + ref + '/stage1/query-' + operations[index]);
     assert.deepEqual(Object.keys(captured.body).sort(), ['revision', 'input_version', 'brief_sha256', 'offer_ref', 'offer_sha256', 'confirmed', 'key', ...(!index ? ['user_input'] : [])].sort());
     assert.equal(captured.body.offer_ref, offer(index).offer_ref); assert.equal(captured.body.offer_sha256, offer(index).offer_sha256);
-    assert.equal(captured.body.input_version, 1); assert.equal(captured.body.brief_sha256, project.brief_sha256); assert.equal(captured.body.confirmed, true);
+    assert.equal(captured.body.input_version, project.input_version); assert.equal(captured.body.brief_sha256, project.brief_sha256); assert.equal(captured.body.confirmed, true);
     if (!index) assert.equal(captured.body.user_input, 'Keep my exact scope confirmation. 搜索许可。');
     const held = captured.intents.find(row => row.key === captured.body.key);
     assert.ok(held); assert.equal(held.project_ref, ref); assert.equal(held.kind, 'stage1-query-' + operations[index]);
