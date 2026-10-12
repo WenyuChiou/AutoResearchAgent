@@ -67,9 +67,7 @@ class ScopeTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertFalse(ci_scope.governance_only([record]))
                 self.assertEqual(
-                    ci_scope.plugin_test_scope(
-                        [path], [record], event="pull_request"
-                    ),
+                    ci_scope.plugin_test_scope([path], [record], event="pull_request"),
                     "full",
                 )
 

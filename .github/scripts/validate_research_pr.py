@@ -1211,9 +1211,7 @@ def validate_governance_body(parsed, errors):
     }
     for section, labels in exact_na.items():
         for label in labels:
-            if not governance_field_is_na(
-                label_value(parsed.get(section, ""), label)
-            ):
+            if not governance_field_is_na(label_value(parsed.get(section, ""), label)):
                 errors.append(
                     f"governance-only PRs require not-applicable or contextual "
                     f"None — reason for '{label}'"
@@ -1264,9 +1262,7 @@ def validate_governance_body(parsed, errors):
             "governance review evidence requires the exact reviewed 40-character revision"
         )
     if not re.search(r"\bpatch sha256:\s*[0-9a-f]{64}\b", review):
-        errors.append(
-            "governance review evidence requires the reviewed patch SHA-256"
-        )
+        errors.append("governance review evidence requires the reviewed patch SHA-256")
     if "external acceptance: not verified by this validator" not in review:
         errors.append(
             "governance review evidence must state that external acceptance is not "
@@ -1519,8 +1515,10 @@ def validate_pr_body(
             "problem, change, and benefit"
         )
     external_prs = label_value(parsed.get("What", ""), "Related external PR(s)")
-    if external_prs and external_prs.casefold() != "none" and not is_contextual_none(
+    if (
         external_prs
+        and external_prs.casefold() != "none"
+        and not is_contextual_none(external_prs)
     ):
         external_entries = [entry.strip() for entry in external_prs.split(";")]
         invalid_external = []
@@ -1537,8 +1535,10 @@ def validate_pr_body(
                 "list of external GitHub pull-request URLs"
             )
     internal_prs = label_value(parsed.get("What", ""), "Internal prerequisite PR(s)")
-    if internal_prs and internal_prs.casefold() != "none" and not is_contextual_none(
+    if (
         internal_prs
+        and internal_prs.casefold() != "none"
+        and not is_contextual_none(internal_prs)
     ):
         invalid_internal = []
         for entry in semicolon_entries(internal_prs):
@@ -1555,8 +1555,10 @@ def validate_pr_body(
             )
     dependency_pins = label_value(parsed.get("What", ""), "External dependency pin(s)")
     dependency_entries = []
-    if dependency_pins and dependency_pins.casefold() != "none" and not is_contextual_none(
+    if (
         dependency_pins
+        and dependency_pins.casefold() != "none"
+        and not is_contextual_none(dependency_pins)
     ):
         dependency_entries = semicolon_entries(dependency_pins)
         if any(not DEPENDENCY_PIN.fullmatch(entry) for entry in dependency_entries):
@@ -1642,9 +1644,7 @@ def validate_pr_body(
         validate_governance_body(parsed, errors)
         example = visible_text(parsed.get("Example", ""))
         for label in ("Before", "After"):
-            if not re.search(
-                rf"^{label}:[ \t]*[^\s\r\n].*$", example, re.MULTILINE
-            ):
+            if not re.search(rf"^{label}:[ \t]*[^\s\r\n].*$", example, re.MULTILINE):
                 errors.append(f"Example requires a non-empty '{label}:' value")
         return errors
     declared_metrics = set(METRIC.findall(target_metrics))

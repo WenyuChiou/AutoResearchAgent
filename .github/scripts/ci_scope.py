@@ -136,10 +136,13 @@ def governance_only(records, repo=None):
                 return False
             old_sha = record["old_sha"]
             new_sha = record["new_sha"]
-            if not all(
-                isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha)
-                for sha in (old_sha, new_sha)
-            ) or old_sha == new_sha:
+            if (
+                not all(
+                    isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha)
+                    for sha in (old_sha, new_sha)
+                )
+                or old_sha == new_sha
+            ):
                 return False
             blobs = [
                 subprocess.check_output(
@@ -166,8 +169,7 @@ def _is_nonempty_utf8_text(blob):
     if text.startswith("\ufeff"):
         return False
     return not any(
-        (ord(char) < 0x20 and char not in "\t\r\n")
-        or 0x7F <= ord(char) <= 0x9F
+        (ord(char) < 0x20 and char not in "\t\r\n") or 0x7F <= ord(char) <= 0x9F
         for char in text
     )
 

@@ -348,9 +348,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
             git("commit", "-m", "governance updates")
             governance_head = git("rev-parse", "HEAD")
             governance_records = changed_records(base, governance_head, repo)
-            governance_paths = [
-                record["new_path"] for record in governance_records
-            ]
+            governance_paths = [record["new_path"] for record in governance_records]
             body = self.contextual_none_governance_body(
                 self.governance_body(revision=governance_head)
             )
@@ -408,10 +406,7 @@ class ResearchPullRequestContractTests(unittest.TestCase):
                 errors,
             )
             self.assertTrue(
-                any(
-                    "validator:research-pr-contract" in error
-                    for error in errors
-                )
+                any("validator:research-pr-contract" in error for error in errors)
             )
 
     def test_live_deliverable_unobserved_states_are_explicit_not_fabricated(self):

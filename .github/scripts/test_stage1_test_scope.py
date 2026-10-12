@@ -100,9 +100,7 @@ class Stage1TestScopeTests(unittest.TestCase):
         )
         self.assertEqual(allowed["mode"], "governance")
         self.assertEqual(allowed["modules"], list(scope.GOVERNANCE_MODULES))
-        self.assertEqual(
-            scope.plan(["AGENTS.md"], self.repo)["mode"], "full"
-        )
+        self.assertEqual(scope.plan(["AGENTS.md"], self.repo)["mode"], "full")
         self.assertNotEqual(
             scope.plan(["AGENTS.md"], self.repo, records, event_name="push")["mode"],
             "governance",
@@ -140,9 +138,9 @@ class Stage1TestScopeTests(unittest.TestCase):
             }
             with self.subTest(path=path):
                 self.assertEqual(
-                    scope.plan(
-                        [path], self.repo, [record], event_name="pull_request"
-                    )["mode"],
+                    scope.plan([path], self.repo, [record], event_name="pull_request")[
+                        "mode"
+                    ],
                     "full",
                 )
 
