@@ -430,6 +430,12 @@ class StageModel:
                             receipt["failure"] = "native-evidence: " + str(error)[:256]
                             break
                     time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+                else:
+                    receipt.update(
+                        failure="unit-deadline-expired: terminal-not-observed",
+                        failure_code="unit-deadline-expired",
+                        failure_phase="awaiting-native-terminal",
+                    )
             except Exception as error:
                 receipt["failure"] = type(error).__name__ + ": " + str(error)[:512]
             finally:

@@ -135,6 +135,24 @@ class ProjectStage1QueryService:
             try:
                 result["archived_versions"] = archived_versions(self.intake, state)
                 result["budget"] = current_budget(self.intake, state, principal)
+                # Archive/resource integrity is checked before identifying the
+                # fresh brief prerequisite. Generic exceptions remain failures.
+                current = self.intake.read(credential, ref)
+                if (
+                    authorization is None
+                    and not result["jobs"]
+                    and not state.get("stage1_active")
+                    and current.get("plan") is None
+                    and current.get("intake_report", {}).get(
+                        "necessary_clarification_complete"
+                    )
+                    is False
+                ):
+                    result.update(
+                        status="intake-prerequisite-required",
+                        refusal="project-query-intake-not-ready",
+                    )
+                    return result
                 if authorization is None:
                     _, _, offer = proposal(self.intake, ref, principal, self.config)
                     result["authorization_offer"] = offer

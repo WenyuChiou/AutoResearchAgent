@@ -4,6 +4,7 @@ from copy import deepcopy
 from pathlib import Path
 import threading
 import time
+import json
 import unittest
 from unittest.mock import patch
 from stage_model_fixtures import StageModelFixture, FakeChannel
@@ -11,6 +12,54 @@ from stage1_deliverable.common import sha
 
 
 class StageModelSafetyTests(StageModelFixture):
+    def test_natural_deadline_exit_is_durable_unknown_and_never_resends(self):
+        self.mode = "timeout"
+        model = self.model()
+        prompt = "interpret the controlled sources"
+        receipt = model.run("deadline-diagnostic", prompt, time.monotonic() + 1.1)
+        self.assertEqual(receipt["status"], "execution-unknown", receipt)
+        self.assertEqual(receipt.get("failure_code"), "unit-deadline-expired", receipt)
+        self.assertEqual(
+            receipt.get("failure_phase"), "awaiting-native-terminal", receipt
+        )
+        self.assertEqual(
+            receipt.get("failure"),
+            "unit-deadline-expired: terminal-not-observed",
+            receipt,
+        )
+        result = Path(receipt["request_path"]).with_name("result.json")
+        self.assertEqual(json.loads(result.read_bytes()), receipt)
+        self.assertTrue(Path(receipt["native_store_path"]).is_file())
+        self.assertTrue(Path(receipt["raw_artifact"]["path"]).is_file())
+        self.assertNotEqual(
+            receipt["cleanup"]["repo-content-pilot"].get(
+                "process_tree_containment_verified"
+            ),
+            True,
+        )
+        with self.assertRaises(ValueError):
+            self.verify(model, receipt)
+        before = len(self.runtime.channel.sent)
+        self.assertTrue(
+            model.run("deadline-diagnostic", prompt, time.monotonic() + 5)["replayed"]
+        )
+        reopened = self.model()
+        self.assertTrue(
+            reopened.run("deadline-diagnostic", prompt, time.monotonic() + 5)[
+                "replayed"
+            ]
+        )
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(len(self.runtime.channel.sent), before)
+        self.assertEqual(
+            sum(
+                message.get("method") == "turn/start"
+                for message in self.runtime.channel.messages()
+            ),
+            1,
+        )
+        self.assertEqual(sum(event["phase"] == "reserve" for event in self.events), 1)
+
     def test_truthy_admission_is_not_authority_and_unknown_never_resends(self):
         self.allowed = 1
         model = self.model()

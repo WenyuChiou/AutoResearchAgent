@@ -110,6 +110,7 @@ class ProjectQueryHistoryCases(QueryCase):
         # A new real bridge has no live owner. GET must not adopt the still-held
         # old owner's connection or perform explicit restore_owner on its behalf.
         case.stage1.query_service = None
+        case.intake._query_service = None
         replacement = case.bridge()
         before = self.saved_inventory()
         with (

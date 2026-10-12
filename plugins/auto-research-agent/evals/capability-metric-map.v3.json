@@ -387,6 +387,7 @@
         "plugins/auto-research-agent/tests/test_project_source_reading_http.py",
         "plugins/auto-research-agent/tests/test_stage_pipeline_prompt_bounds.py",
         "plugins/auto-research-agent/tests/test_project_stage1_progress.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_intake_prerequisite.py",
         "plugins/auto-research-agent/tests/test_project_progress_browser.cjs",
         "plugins/auto-research-agent/tests/browser/project-operations-test.cjs",
         "plugins/auto-research-agent/tests/project_delivery_browser_fixture.py",

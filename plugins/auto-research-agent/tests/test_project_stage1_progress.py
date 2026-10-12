@@ -74,6 +74,82 @@ class ProgressTests(unittest.TestCase):
         self.assertEqual(value, before)
         self.assertFalse(result["research_complete"])
 
+    def test_typed_fresh_intake_scope_and_all_negative_guards(self):
+        value = snapshot()
+        value["project"].update(
+            intake_report={"necessary_clarification_complete": False}, plan=None
+        )
+        value["stage1"].update(
+            stage1_status="intake-not-ready",
+            ledger=None,
+            query_execution=dict(
+                status="intake-prerequisite-required",
+                refusal="project-query-intake-not-ready",
+                execution_authorized=False,
+                jobs=[],
+            ),
+        )
+        before = deepcopy(value)
+        result = project_progress(value)
+        self.assertEqual(
+            result["next_action"],
+            dict(phase_id="scope", target="scope", reason="scope-required"),
+        )
+        self.assertEqual(value, before)
+        self.assertFalse(result["research_complete"])
+        negatives = [
+            ("stage1", {"stage1_status": "stale-input"}),
+            ("stage1", {"stage1_status": "owner-reopen-required"}),
+            ("stage1", {"input_version": 2}),
+            ("stage1", {"ledger": {}}),
+            ("project", {"status": "execution-unknown"}),
+            ("project", {"plan": {"manifest_sha256": "b" * 64}}),
+            ("project", {"intake_report": {"necessary_clarification_complete": True}}),
+            ("project", {"intake_report": {"necessary_clarification_complete": None}}),
+            ("stage1", {"coverage_actions": {"held": True}}),
+            ("stage1", {"coverage_actions": {"held": None}}),
+            (
+                "stage1",
+                {"source_execution": {"jobs": [{"status": "execution-unknown"}]}},
+            ),
+            ("stage1", {"source_execution": {"jobs": [{"status": "running"}]}}),
+        ]
+        for query_change in (
+            {"status": "unavailable-or-stale", "refusal": "query-binding-unavailable"},
+            {
+                "status": "unavailable-or-stale",
+                "refusal": "project-query-version-archive-history-differs",
+            },
+            {
+                "status": "unavailable-or-stale",
+                "refusal": "project-resource-reservation-event-differs",
+            },
+            {
+                "status": "unavailable-or-stale",
+                "refusal": "project-resource-query-binding-differs",
+            },
+            {"refusal": "query-binding-unavailable"},
+            {"refusal": None},
+            {"execution_authorized": True},
+            {"execution_authorized": 0},
+            {"jobs": None},
+            {"jobs": [{"status": "dispatching"}]},
+            {"jobs": [{"status": "execution-unknown"}]},
+            {"status": "execution-unknown"},
+        ):
+            query = deepcopy(value["stage1"]["query_execution"])
+            query.update(query_change)
+            negatives.append(("stage1", {"query_execution": query}))
+        for component, change in negatives:
+            with self.subTest(component=component, change=change):
+                changed = deepcopy(value)
+                changed[component].update(change)
+                observed = deepcopy(changed)
+                result = project_progress(changed)
+                self.assertEqual(result["next_action"]["target"], "history")
+                self.assertFalse(result["research_complete"])
+                self.assertEqual(changed, observed)
+
     def test_actual_model_offer_envelope_enables_planning_only_when_bound(self):
         value = snapshot()
         value["project"]["plan"] = None

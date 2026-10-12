@@ -185,6 +185,23 @@ def project_progress(overview):
         return hold("query")
     if queries.get("status") == "unavailable-or-stale":
         return hold("query", "stale-input")
+    if queries.get("status") == "intake-prerequisite-required":
+        # Only the typed prerequisite, emitted after query integrity checks,
+        # may route an untouched unconfirmed project back to scope.
+        fresh_intake = (
+            queries.get("refusal") == "project-query-intake-not-ready"
+            and stage.get("stage1_status") == "intake-not-ready"
+            and _dict(project.get("intake_report")).get(
+                "necessary_clarification_complete"
+            )
+            is False
+            and project.get("plan") is None
+            and stage.get("ledger") is None
+            and queries.get("execution_authorized") is False
+            and queries.get("jobs") == []
+        )
+        if not fresh_intake:
+            return hold("query", "unknown-state")
     if coverage.get("held") is True:
         return hold("coverage")
     if "held" in coverage and coverage["held"] is not False:
