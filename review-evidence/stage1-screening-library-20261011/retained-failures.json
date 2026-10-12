@@ -1,0 +1,23 @@
+[
+  {
+    "original_directory": "stage1-records-unscreened-before-20261011-v1",
+    "exit_code": 1,
+    "receipt_sha256": "835dcfb793491a03c8f47ee4382a2cca75cb766a1be4d3b9cf3c1d7b7f9c2ad4",
+    "stderr_sha256": "95585e8f1790889f5718044b89c69f17fb08916e5e8e302ae8536b063bb5bccc",
+    "source_inventory_equal": true
+  },
+  {
+    "original_directory": "stage1-library-first-20261011-v1",
+    "exit_code": 1,
+    "receipt_sha256": "4fbf84d07fecc75015815199e54130e1f803d0402464f9a7b57ff1b82a27daa3",
+    "stderr_sha256": "21d94610bba72bece851c89e47c00bcd3e0e2d11e27f764b17f7eb9af4231c64",
+    "source_inventory_equal": true
+  },
+  {
+    "original_directory": "stage1-library-fixture-fixed-20261011-v1",
+    "exit_code": 1,
+    "receipt_sha256": "01bbd518f1e805eeaed4e3b16414e8e208bd656653f5978b9c6f2199dd7f9d98",
+    "stderr_sha256": "a6ea46d4e2d1e7f7da4c9b7ebf0807dd6f2b9f89302ef03173da2357e0bda69c",
+    "source_inventory_equal": true
+  }
+]

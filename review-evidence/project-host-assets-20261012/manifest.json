@@ -1,0 +1,58 @@
+{
+  "kind": "ProjectHostAssetPreflightEvidence",
+  "evaluation_readiness": "implementation-only",
+  "parent_head": "3bc2214c4bc96b363cf9758fb1c084883b77db0d",
+  "parent_tree": "16c02c358289a8e6d77999a571f94c940a69aaaa",
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "4d2b1e1fc533a4d79d1dca0379187cfec7831c3c1129e5e2c5489637d6500ce0",
+    "plugins/auto-research-agent/tests/test_workspace_project_host.py": "bb0ac3e355d520fdc128fe65f3a9c1247b9db6f560ea70b8606cb33a67bab425",
+    "plugins/auto-research-agent/requirements-test.txt": "e3a8722fafa01676bdb57feae50123ada3014f02f188712431b340980ac339b0"
+  },
+  "artifacts": {
+    "before.log": "889c4dfbfdeb7573a24ef4b600f2894006aacdde09b12cf5e37afc193c427701",
+    "after.log": "076cb72eb10c73bd543dc06b414f810453232db524acbafe55916a393235d20b",
+    "quality.log": "8579cf5596d10fda7a3fd9eaf55a97edcb59eec4bd3a13ca028762dd14e46c7d",
+    "README.md": "88f2842d84c3cc09b955070ca06cd7ed793964764849aa9238c8845c28dac9b4",
+    ".gitattributes": "b4b62d881a4e1535ca0cf2267f5778d2f5742259ba1eb72bb4e4998f1578a4e8"
+  },
+  "environment": {
+    "cwd": "C:\\temp\\lm-wiki-repair-b-20261011",
+    "TEMP": "C:/temp",
+    "TMP": "C:/temp",
+    "uv": "0.11.20",
+    "python": "3.11.9",
+    "ruff": "0.15.13",
+    "dependency_mode": "offline existing requirements-test.txt environment"
+  },
+  "executions": [
+    {
+      "command": "uv run --offline --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_project_host.py -k test_missing_or_unreadable_asset -v",
+      "log": "before.log",
+      "exit_code": 1,
+      "tests": 1,
+      "failed_subcases": 8,
+      "errors": 0,
+      "skips": 0,
+      "seconds": 0.091,
+      "production": "original parent_head"
+    },
+    {
+      "command": "uv run --offline --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_project_host.py -v",
+      "log": "after.log",
+      "exit_code": 0,
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "seconds": 6.742,
+      "production": "source_sha256"
+    }
+  ],
+  "limits": {
+    "new_full_plugin_suite": false,
+    "new_browser_run": false,
+    "native_model_or_research": false,
+    "scientific_improvement": "not yet demonstrated",
+    "current_head_ci": "pending new source commit; predecessor results remain historical"
+  }
+}

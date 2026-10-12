@@ -1,0 +1,28 @@
+{
+  "manifest_sha256": "4f783e16f8ef08ec282cd935e026fa3a16dde2c2bcaeb9e059567278a76b6b95",
+  "artifact_hashes_verified": true,
+  "scope": "Historical producer evidence only; no new adapter or SDK execution",
+  "artifacts": [
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/deliverable-inventory.json",
+      "role": "deliverable-inventory",
+      "sha256": "a94fe9a98241f8f55c232484463754be46ea87379f19e70333d934f623c141e3"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/deliverable-validator-report.json",
+      "role": "deliverable-validator-report",
+      "sha256": "55eaf64b0d1f47a432045479c3e7f35b37a41fc43e39bb545c54b1c61a66b270"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/exporter-runtime-bytes.json",
+      "role": "exporter-runtime-bytes",
+      "sha256": "1a99d226832f17452f8827717d21ce3e76745547796708d3084d04103c427ecc"
+    },
+    {
+      "path": "plugins/auto-research-agent/evals/evidence/2026-09-28-japan-deliverable/repository-guardrail-report.json",
+      "role": "repository-guardrail-report",
+      "sha256": "090af2c84bc89f64437de71e5d662889b5b74d831555a11cb64f76d2682075d3"
+    }
+  ],
+  "actual_new_pilot_execution": false
+}

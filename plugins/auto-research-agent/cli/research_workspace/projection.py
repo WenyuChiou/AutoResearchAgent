@@ -4,7 +4,6 @@ from copy import deepcopy
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, ValidationError
-
 from stage1_deliverable import sources, views
 from stage1_deliverable.common import (
     DeliverableError,
@@ -16,7 +15,9 @@ from stage1_deliverable.common import (
     safe_path,
     sha,
 )
+from stage1_deliverable.core_records import extended
 from stage1_deliverable.records import validate_records
+from stage1_deliverable.screening_records import extended as screened
 
 from .json_bytes import decode_json
 from .stages import stage_registry
@@ -29,6 +30,48 @@ def _require(condition, message):
 
 def validate_index(index):
     """Validate the presentation contract, never scientific correctness."""
+    if extended(index):
+        from stage1_deliverable.core_records import validate_extension
+
+        fields = {
+            "canonical_records_version",
+            "core_claim_history",
+            "core_artifacts",
+            "stage2_canonical_consumer",
+        }
+        if screened(index):
+            fields.update(
+                {"screening_library", "screening_artifacts", "screening_journal"}
+            )
+        version = index["schema_version"]
+        _require(
+            fields <= set(index)
+            and index["canonical_records_version"] == version
+            and index["stage2_canonical_consumer"]
+            == {
+                "status": "unconnected",
+                "reason": "canonical-records-"
+                + version.removesuffix(".0")
+                + "-consumer-required",
+            },
+            "workspace Core records extension differs",
+        )
+        validate_extension(index)
+        if screened(index):
+            from stage1_deliverable.screening_records import (
+                validate_extension as validate_screening,
+            )
+
+            validate_screening(index)
+        legacy = deepcopy(index)
+        for field in fields:
+            legacy.pop(field)
+        legacy["schema_version"] = "1.0.0"
+        if screened(index):
+            for paper in legacy["papers"]:
+                paper.pop("reading_status")
+        validate_index(legacy)
+        return index
     if index.get("schema_version") == "3.0.0":
         from .source_rerun import validate_rerun_index
 
@@ -124,11 +167,15 @@ def _package(root, expected):
     manifest = decode_json(bound_read("deliverable/provenance_manifest.json"))
     _require(
         manifest.get("kind") == "Stage1ResearchDeliverable"
-        and manifest.get("schema_version") == "1.0.0",
+        and manifest.get("schema_version") in {"1.0.0", "1.1.0", "1.2.0"},
         "unsupported canonical package",
     )
     _require(inventory(delivery) == manifest["files"], "deliverable inventory mismatch")
     records = validate_records(manifest["canonical_records"])
+    _require(
+        records["schema_version"] == manifest["schema_version"],
+        "canonical package version differs",
+    )
     original = bound_read("deliverable/records.original.json")
     _require(
         sha(original) == manifest["original_input_sha256"],
@@ -142,7 +189,7 @@ def _package(root, expected):
     return outer, manifest, records
 
 
-def _source_records(package_root, bound_read, records):
+def _source_records(package_root, bound_read, records, *, semantic_replay=True):
     attempts = _jsonl(bound_read("deliverable/paper_manifest.jsonl"))
     _require(
         len({(row["source_id"], row["attempt"]) for row in attempts}) == len(attempts),
@@ -187,6 +234,7 @@ def _source_records(package_root, bound_read, records):
         if not title_matches or receipt["expected_identity"]["doi"] != (
             paper["doi"] or ""
         ):
+            _require(semantic_replay, "source identity requires semantic replay")
             archive_root = safe_path(package_root, archive.rstrip("/"))
             observation = decode_json(bound_read(archive + "validation.json"))
             _require(
@@ -241,6 +289,17 @@ def _source_records(package_root, bound_read, records):
             levels[paper["evidence_level"]] <= maximum,
             "paper evidence level exceeds source",
         )
+    if screened(records):
+        from stage1_deliverable.screening_records import (
+            validate_artifacts as validate_screening,
+        )
+
+        validate_screening(records, lambda path: bound_read("deliverable/" + path))
+    if extended(records):
+        from stage1_deliverable.core_records import validate_artifacts
+
+        validate_artifacts(records, lambda path: bound_read("deliverable/" + path))
+        return output
     for claim in records["claims"]:
         receipt = by_id[claim["source_id"]]
         _require(
@@ -275,27 +334,18 @@ def _missing(value, pointer=""):
     return []
 
 
-def project_package(
-    package_root,
+def _project_records(
     project_id,
     expected_manifest_sha256,
-    *,
-    validation_mode="byte-inventory",
-    repair_root=None,
-    expected_repair_manifest_sha256=None,
-    expected_repair_review_sha256=None,
+    files,
+    bound_read,
+    manifest,
+    records,
+    source_rows,
+    manifest_sha,
+    readiness,
 ):
-    """Return deterministic records; byte checks are not exporter semantic replay."""
-    identifier(project_id)
-    _require(
-        validation_mode == "byte-inventory",
-        "unknown validation mode",
-    )
-    root = private_output(package_root)
-    outer, manifest, records = _package(root, expected_manifest_sha256)
-    bound_read = _bound_reader(root, outer["files"])
-    source_rows = _source_records(root, bound_read, records)
-    manifest_sha = outer["files"]["deliverable/provenance_manifest.json"]["sha256"]
+    """Shared lossless Index construction after source and byte validation."""
     record_sha = manifest["original_input_sha256"]
 
     def provenance(pointer):
@@ -345,19 +395,13 @@ def project_package(
                 "sha256": info["sha256"],
                 "text": bound_read(name).decode("utf-8"),
             }
-            for name, info in sorted(outer["files"].items())
+            for name, info in sorted(files.items())
             if name.endswith(suffix)
         ]
 
-    readiness_raw = bound_read("stage2_readiness.json")
-    _require(
-        outer["stage2_readiness_sha256"] == sha(readiness_raw),
-        "readiness binding mismatch",
-    )
-    readiness = decode_json(readiness_raw)
     result = {
         "kind": "WorkspaceIndex",
-        "schema_version": "1.0.0",
+        "schema_version": records["schema_version"],
         "project_id": project_id,
         "status": "partial-review-only",
         "topic": records["topic"],
@@ -411,9 +455,9 @@ def project_package(
             "package_manifest_sha256": expected_manifest_sha256,
             "deliverable_manifest_sha256": manifest_sha,
             "records_sha256": record_sha,
-            "files": deepcopy(outer["files"]),
+            "files": deepcopy(files),
             "validation": {
-                "mode": validation_mode,
+                "mode": "byte-inventory",
                 "byte_inventory": "passed",
                 "canonical_bindings": "passed",
                 "semantic_replay": "not-performed",
@@ -421,12 +465,65 @@ def project_package(
             },
         },
     }
+    if extended(records):
+        result.update(
+            canonical_records_version=records["schema_version"],
+            core_claim_history=deepcopy(records["core_claim_history"]),
+            core_artifacts=deepcopy(records["core_artifacts"]),
+            stage2_canonical_consumer={
+                "status": "unconnected",
+                "reason": "canonical-records-"
+                + records["schema_version"].removesuffix(".0")
+                + "-consumer-required",
+            },
+        )
+    if screened(records):
+        result.update(
+            screening_library=deepcopy(records["screening_library"]),
+            screening_artifacts=deepcopy(records["screening_artifacts"]),
+            screening_journal=deepcopy(records["screening_journal"]),
+        )
+    canonical(result)  # Reject unserializable output before the caller writes it.
+    return validate_index(result)
+
+
+def project_package(
+    package_root,
+    project_id,
+    expected_manifest_sha256,
+    *,
+    validation_mode="byte-inventory",
+    repair_root=None,
+    expected_repair_manifest_sha256=None,
+    expected_repair_review_sha256=None,
+):
+    """Return deterministic records; byte checks are not exporter semantic replay."""
+    identifier(project_id)
+    _require(validation_mode == "byte-inventory", "unknown validation mode")
+    root = private_output(package_root)
+    outer, manifest, records = _package(root, expected_manifest_sha256)
+    bound_read = _bound_reader(root, outer["files"])
+    source_rows = _source_records(root, bound_read, records)
+    readiness_raw = bound_read("stage2_readiness.json")
+    _require(
+        outer["stage2_readiness_sha256"] == sha(readiness_raw),
+        "readiness binding mismatch",
+    )
+    result = _project_records(
+        project_id,
+        expected_manifest_sha256,
+        outer["files"],
+        bound_read,
+        manifest,
+        records,
+        source_rows,
+        outer["files"]["deliverable/provenance_manifest.json"]["sha256"],
+        decode_json(readiness_raw),
+    )
     _require(
         _package(root, expected_manifest_sha256) == (outer, manifest, records),
         "package changed during projection",
     )
-    canonical(result)  # Reject unserializable output before the caller writes it.
-    validate_index(result)
     supplied = (
         repair_root,
         expected_repair_manifest_sha256,

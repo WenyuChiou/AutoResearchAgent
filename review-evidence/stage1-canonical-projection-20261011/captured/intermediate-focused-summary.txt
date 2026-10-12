@@ -1,0 +1,9 @@
+Capture scope: actual earlier tool stdout summary; full repeated case listing is not included here.
+Command: python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_canonical_delivery.py -v
+Observed exit code: 0
+Revision boundary: before adding the existing write_workspace renderer assertion, and before the later view receipt correction.
+
+----------------------------------------------------------------------
+Ran 7 tests in 14.456s
+
+OK

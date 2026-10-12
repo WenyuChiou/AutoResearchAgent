@@ -38,6 +38,9 @@ class ScriptInventory(HTMLParser):
 
 
 class WorkspaceAtlasAssetTests(unittest.TestCase):
+    def test_harness_tools_saved_intent_authenticated_download_and_recovery(self):
+        self.assertIn("harness panel", self.run_node("test_harness_panel.cjs").lower())
+
     def run_node(self, name):
         node = shutil.which("node")
         self.assertIsNotNone(node, "Node.js is required for the atlas source contracts")

@@ -1,0 +1,12 @@
+test_all_unscreened_library_builds_empty_screening_views_without_promotion (test_stage1_screening_records.ScreeningRecordsTests.test_all_unscreened_library_builds_empty_screening_views_without_promotion) ... ok
+test_core_null_scan_copy_preserves_bytes_and_still_rejects_credentials (test_stage1_screening_records.ScreeningRecordsTests.test_core_null_scan_copy_preserves_bytes_and_still_rejects_credentials) ... ok
+test_history_counts_and_candidate_dropping_are_refused (test_stage1_screening_records.ScreeningRecordsTests.test_history_counts_and_candidate_dropping_are_refused) ... ok
+test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution (test_stage1_screening_records.ScreeningRecordsTests.test_mixed_package_atlas_and_wiki_preserve_all_candidates_without_execution) ... ok
+test_old_guards_remain_and_discovery_cannot_be_promoted_or_hide_source (test_stage1_screening_records.ScreeningRecordsTests.test_old_guards_remain_and_discovery_cannot_be_promoted_or_hide_source) ... ok
+test_raw_discovery_archive_tamper_is_refused (test_stage1_screening_records.ScreeningRecordsTests.test_raw_discovery_archive_tamper_is_refused) ... ok
+test_stage2_refuses_valid_screening_package_before_offer_or_output (test_stage1_screening_records.ScreeningRecordsTests.test_stage2_refuses_valid_screening_package_before_offer_or_output) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 39.549s
+
+OK

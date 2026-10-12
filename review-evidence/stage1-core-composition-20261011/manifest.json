@@ -1,0 +1,81 @@
+{
+  "kind": "StagePipelineCoreCompositionEvidence",
+  "schema_version": "1.0.0",
+  "local_parent": "47807a1d393b5fe3e57cc9bbd74dc9c5fd391b23",
+  "concurrent_core_parent": "6e0daba8ed7206b9de2905f219054bda5d9b955b",
+  "tests_scope": "authored offline fixtures; no native, model, search or science acceptance",
+  "production": {
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_pipeline.py": {
+      "sha256": "2d3e74e2e185ee84b7fa4b6cbbec0184ab76a5d84b296d4496c61436188b6547",
+      "byte_identical_to_core": true
+    },
+    "plugins/auto-research-agent/cli/stage1_deliverable/views.py": {
+      "sha256": "7a39923144f115a7b3b384623e129b313371be7f2e9e21009f43b4e1d1700588",
+      "byte_identical_to_core": true
+    }
+  },
+  "source_inventory": {
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_pipeline.py": "2d3e74e2e185ee84b7fa4b6cbbec0184ab76a5d84b296d4496c61436188b6547",
+    "plugins/auto-research-agent/cli/stage1_deliverable/views.py": "7a39923144f115a7b3b384623e129b313371be7f2e9e21009f43b4e1d1700588",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "04d39c9f883492b6dc6d4433c4b1f55b78bcfbb392dd4df3ba5dc4e608b3fa85",
+    "plugins/auto-research-agent/tests/stage_pipeline_fixture_helpers.py": "6f564be99e47a5e4c388e50154c1cd11a40cf64422299c8c38aba7fda9230771",
+    "plugins/auto-research-agent/tests/test_stage_pipeline.py": "43f264fe3c7ac93d11e596dfbd967e1c69cd843ca0a624363582b5f4b8c1b604",
+    "plugins/auto-research-agent/tests/test_stage_pipeline_safety.py": "302329c6a015da91b34d2e2c49c8e410da55fa5a16cda119bd01730c423f370f",
+    "plugins/auto-research-agent/tests/test_stage_pipeline_prompt_bounds.py": "2fa41f039916d54aea581fed18972fde3889a50cd3750fbc0794c323bbd0994a",
+    "plugins/auto-research-agent/tests/test_stage1_screening_records.py": "4528646938dbdb42ec189f2dd65eba79d1f9ce8cdac6d978cffe7cca6590f864"
+  },
+  "logs": {
+    "pipeline-r1.log": {
+      "original_raw_sha256": "cd19e9bff53427a83742905cfa6c729c6822d51e14ed24921ea37d0748f0fbab",
+      "public_lf_sha256": "ddecc9c44d944b9be6e53eeb3ecaaccfd5184460d1ef1624224c268a8f7da921"
+    },
+    "pipeline-r2.log": {
+      "original_raw_sha256": "454be4851f8d88ff57ab7d70f9770e1fe106726d2a805631b2d292bc93907632",
+      "public_lf_sha256": "89ab5070830b193057899a9444866d18534a7c6878743eab3c6ba6b65ff19179"
+    },
+    "pipeline-r3.log": {
+      "original_raw_sha256": "9832aab50b9448382487bf6e5b30aebdb98c0dbb58d43207075cb21f15bb06c7",
+      "public_lf_sha256": "2640023c88e50ef2b9e7bff0502e66b7c9e0d44de05e9c3eaf3b8cc114b93f4d"
+    },
+    "map-r1.log": {
+      "original_raw_sha256": "42e077d8fd8795c1e8b5316718876c5604aa46a01e584517357449748d5f57d5",
+      "public_lf_sha256": "d8a0e25d68f569fb8707f2e4b186d90ed847c2d55199d04ef5d4f51a85b8b61f"
+    },
+    "screening-r1.log": {
+      "original_raw_sha256": "fdbd4a30c59280aa3e2aa3fb47fecba36cbefba10c54e1d2f6ec502f8ee16ccd",
+      "public_lf_sha256": "344302b2f6728b771d16965df38b8aa7e43c69c1554f5f56d55dd21860bbb838"
+    },
+    "final-prompt-size-r1.json": {
+      "original_raw_sha256": "29e1d1a64bfb7259d0ffa0e6c183b1a3e0d62303f300238cb5a776614774cf1e",
+      "public_lf_sha256": "32d5a6d694b271bc69cc5a25062be06e9fb8aa76afdc50d8a2b319074562a057"
+    }
+  },
+  "frozen_v1_sha256": "b75122de16fe93317958c5d81ab29310a9185103c03eaf2ea22202b7cfa00598",
+  "separate_runs": {
+    "pipeline-r1": {
+      "test_count": 22,
+      "seconds": 11.4,
+      "outcome": "FAILED"
+    },
+    "pipeline-r2": {
+      "test_count": 22,
+      "seconds": 11.705,
+      "outcome": "OK"
+    },
+    "pipeline-r3": {
+      "test_count": 22,
+      "seconds": 11.604,
+      "outcome": "OK"
+    },
+    "map-r1": {
+      "test_count": 5,
+      "seconds": 0.014,
+      "outcome": "OK"
+    },
+    "screening-r1": {
+      "test_count": 8,
+      "seconds": 42.692,
+      "outcome": "OK"
+    }
+  }
+}
