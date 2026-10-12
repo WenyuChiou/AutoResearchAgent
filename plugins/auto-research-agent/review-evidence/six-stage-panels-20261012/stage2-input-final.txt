@@ -1,0 +1,7 @@
+{"kind":"SavedStage2InputPanelAuthoredDomChecks","trilingual_panels":3,"trilingual_stage2_slots":3,"mutation_requests":0,"checks":["inline-auto-GET","same-binding-retained","stage2-input-placement","stage2-reuses-validated-GET","opaque-bound-decision","all-works-retained","unknown","source-text","UTF8-bound","surrogate-rejection","stale-form","disconnected-form","foreign-context","visible-stage2-refusal","trilingual-read-failure","trilingual-child-failure","retired-child-failure","late-failure-project-switch","unconnected-1.1-1.2","GET-only"]}
+test_mixed_core_library_review_reopen_and_stale_or_tampered_refusal (test_project_stage2_context.ProjectStage2ContextTests.test_mixed_core_library_review_reopen_and_stale_or_tampered_refusal) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 49.622s
+
+OK
