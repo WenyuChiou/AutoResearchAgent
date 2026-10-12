@@ -1,0 +1,20 @@
+test_all_unscreened_library_builds_empty_screening_views_without_promotion (test_stage1_screening_records.ScreeningRecordsTests.test_all_unscreened_library_builds_empty_screening_views_without_promotion) ... ERROR
+
+======================================================================
+ERROR: test_all_unscreened_library_builds_empty_screening_views_without_promotion (test_stage1_screening_records.ScreeningRecordsTests.test_all_unscreened_library_builds_empty_screening_views_without_promotion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage1_screening_records.py", line 303, in test_all_unscreened_library_builds_empty_screening_views_without_promotion
+    receipt = build(path, output, sha(original))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\package.py", line 176, in build
+    records = validate_records(read_json(records_path))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\records.py", line 131, in validate_records
+    raise DeliverableError("papers, coverage and screening cannot be empty")
+stage1_deliverable.common.DeliverableError: papers, coverage and screening cannot be empty
+
+----------------------------------------------------------------------
+Ran 1 test in 17.802s
+
+FAILED (errors=1)

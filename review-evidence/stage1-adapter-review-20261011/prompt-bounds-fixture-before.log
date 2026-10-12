@@ -1,0 +1,65 @@
+test_eight_budget_keeps_ninth_guard_and_publishes_pending (test_stage_pipeline.StagePipelineTests.test_eight_budget_keeps_ninth_guard_and_publishes_pending) ... ok
+test_nine_injected_steps_and_reopen_never_execute (test_stage_pipeline.StagePipelineTests.test_nine_injected_steps_and_reopen_never_execute) ... ok
+test_aggregate_limit_applies_across_individually_small_sources (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_aggregate_limit_applies_across_individually_small_sources) ... ok
+test_all_later_retained_prose_phases_count_complete_reply_bytes (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_all_later_retained_prose_phases_count_complete_reply_bytes) ... ERROR
+test_complete_source_at_eight_mib_refused_before_task_or_intent (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_complete_source_at_eight_mib_refused_before_task_or_intent) ... ok
+test_one_unicode_byte_over_ceiling_refused (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_one_unicode_byte_over_ceiling_refused) ... ok
+test_original_normal_extraction_refused_after_two_saved_replies (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_original_normal_extraction_refused_after_two_saved_replies) ... ok
+test_original_normal_final_schema_counts_toward_context_refusal (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_original_normal_final_schema_counts_toward_context_refusal) ... ERROR
+test_oversized_semantic_repair_preserves_failed_attempt (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_oversized_semantic_repair_preserves_failed_attempt) ... ERROR
+test_retained_maximum_reply_refused_without_truncation_and_after_reopen (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_retained_maximum_reply_refused_without_truncation_and_after_reopen) ... ok
+test_unicode_exact_ceiling_preserves_full_prompt_and_duplicate_guard (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_unicode_exact_ceiling_preserves_full_prompt_and_duplicate_guard) ... ok
+test_grown_native_artifact_rejected_without_recording_success (test_stage_pipeline_safety.StagePipelineSafetyTests.test_grown_native_artifact_rejected_without_recording_success) ... ok
+test_invalid_original_and_one_repair_remain_separate (test_stage_pipeline_safety.StagePipelineSafetyTests.test_invalid_original_and_one_repair_remain_separate) ... ok
+test_multiple_candidates_are_accepted_then_require_selection (test_stage_pipeline_safety.StagePipelineSafetyTests.test_multiple_candidates_are_accepted_then_require_selection) ... ok
+test_receipt_binding_and_source_change_fail_closed (test_stage_pipeline_safety.StagePipelineSafetyTests.test_receipt_binding_and_source_change_fail_closed) ... ok
+test_snapshot_receipt_tampering_and_stale_instance_rejected (test_stage_pipeline_safety.StagePipelineSafetyTests.test_snapshot_receipt_tampering_and_stale_instance_rejected) ... ok
+test_thread_isolation_and_native_raw_tampering_rejected (test_stage_pipeline_safety.StagePipelineSafetyTests.test_thread_isolation_and_native_raw_tampering_rejected) ... ok
+test_unknown_pending_reopen_no_new_attempt (test_stage_pipeline_safety.StagePipelineSafetyTests.test_unknown_pending_reopen_no_new_attempt) ... ok
+
+======================================================================
+ERROR: test_all_later_retained_prose_phases_count_complete_reply_bytes (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_all_later_retained_prose_phases_count_complete_reply_bytes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage_pipeline_prompt_bounds.py", line 170, in test_all_later_retained_prose_phases_count_complete_reply_bytes
+    self.seed_reply_context()
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage_pipeline_prompt_bounds.py", line 86, in seed_reply_context
+    receipt = self.receipt(task)
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\stage_pipeline_fixture_helpers.py", line 193, in receipt
+    prompt_sha256=task["prompt_sha256"],
+                  ~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'prompt_sha256'
+
+======================================================================
+ERROR: test_original_normal_final_schema_counts_toward_context_refusal (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_original_normal_final_schema_counts_toward_context_refusal)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage_pipeline_prompt_bounds.py", line 187, in test_original_normal_final_schema_counts_toward_context_refusal
+    self.seed_reply_context()
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage_pipeline_prompt_bounds.py", line 86, in seed_reply_context
+    receipt = self.receipt(task)
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\stage_pipeline_fixture_helpers.py", line 193, in receipt
+    prompt_sha256=task["prompt_sha256"],
+                  ~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'prompt_sha256'
+
+======================================================================
+ERROR: test_oversized_semantic_repair_preserves_failed_attempt (test_stage_pipeline_prompt_bounds.StagePipelinePromptBoundsTests.test_oversized_semantic_repair_preserves_failed_attempt)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage_pipeline_prompt_bounds.py", line 192, in test_oversized_semantic_repair_preserves_failed_attempt
+    self.seed_reply_context()
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_stage_pipeline_prompt_bounds.py", line 86, in seed_reply_context
+    receipt = self.receipt(task)
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\stage_pipeline_fixture_helpers.py", line 193, in receipt
+    prompt_sha256=task["prompt_sha256"],
+                  ~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'prompt_sha256'
+
+----------------------------------------------------------------------
+Ran 18 tests in 9.320s
+
+FAILED (errors=3)

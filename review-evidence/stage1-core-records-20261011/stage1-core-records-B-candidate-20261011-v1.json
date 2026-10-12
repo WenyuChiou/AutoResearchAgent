@@ -1,0 +1,48 @@
+{
+  "actual_model_calls": 0,
+  "actual_native_calls": 0,
+  "actual_search_calls": 0,
+  "elapsed_seconds": 78.7,
+  "exit": 0,
+  "head": "90b8aa3deaf01565fedfa9d0f884e140cb8ec951",
+  "kind": "ActualStage1CoreRecordsBCandidateCheck",
+  "limits": [
+    "No complete Stage1 scientific acceptance or score claim.",
+    "Canonical 1.1.0 Stage2 consumer remains explicitly unconnected.",
+    "Records publication and offer registration remain separate durable actions.",
+    "One Windows checkout does not attest other devices or platforms."
+  ],
+  "log_sha256": "ddda1721e76f972095aa38232bcf096f13ea8f58613bb06b279f66977f45c217",
+  "readiness": "implementation-only",
+  "scope": "Actual B checkout; authored source/HTTP, real SDK/Core/SQLite, no native/model/search",
+  "source_after": {
+    "cli/research_workspace/projection.py": "22faaf0c69a8a96a07778aeedb5d570e862dd2528c8109e504bde95eec4757ab",
+    "cli/research_workspace/view.py": "0813f9b7342fe27a31e8e9d7e9e74def97e7bb67c2806e5b79929b503e82163f",
+    "cli/research_workspace/wiki.py": "02341cd2ab2a137c4b4b8c8b0e8ff6d79ba5972a99cde1b4e3a0898914c910f9",
+    "cli/research_workspace_native/project_stage1_delivery.py": "a1594a1c6619d69702aa935c1f2ca2e50e200a9c98e5093e0b3773923a6da0ce",
+    "cli/research_workspace_native/project_stage1_records.py": "1d5625573e0d75e99142c6d14fe93cd8b113963d9c9545083379a965f0d9259b",
+    "cli/research_workspace_native/project_stage2.py": "f4dfcbb7feb5a753f41b8d8c61a77e3ac33823a9ae3a09efd7a4e5340920431a",
+    "cli/stage1_deliverable/core_records.py": "0df50560bab84fe5e39ebc322c4cc73773f8a32ed6f0c630b9b496b17bb08c0d",
+    "cli/stage1_deliverable/package.py": "b20436a5c27920aee292e7f3c8540814a5f737c41c84a0e8d750e2adefee04ed",
+    "cli/stage1_deliverable/records.py": "28c269f82a3d2b26456d8a3dd8c44ce0a2ca47bcbad175b1ee2a0bcd2a3b23d0",
+    "cli/stage1_deliverable/views.py": "572f98563afa86fc77afa5fc18d08bd5e40985195bd63b0b6d9a5682a4fcf423",
+    "tests/test_stage1_core_records.py": "3a4dd9503e531e7636772492fe741b9451d28f7b29d9399e825cbb9c7a93340d"
+  },
+  "source_before": {
+    "cli/research_workspace/projection.py": "22faaf0c69a8a96a07778aeedb5d570e862dd2528c8109e504bde95eec4757ab",
+    "cli/research_workspace/view.py": "0813f9b7342fe27a31e8e9d7e9e74def97e7bb67c2806e5b79929b503e82163f",
+    "cli/research_workspace/wiki.py": "02341cd2ab2a137c4b4b8c8b0e8ff6d79ba5972a99cde1b4e3a0898914c910f9",
+    "cli/research_workspace_native/project_stage1_delivery.py": "a1594a1c6619d69702aa935c1f2ca2e50e200a9c98e5093e0b3773923a6da0ce",
+    "cli/research_workspace_native/project_stage1_records.py": "1d5625573e0d75e99142c6d14fe93cd8b113963d9c9545083379a965f0d9259b",
+    "cli/research_workspace_native/project_stage2.py": "f4dfcbb7feb5a753f41b8d8c61a77e3ac33823a9ae3a09efd7a4e5340920431a",
+    "cli/stage1_deliverable/core_records.py": "0df50560bab84fe5e39ebc322c4cc73773f8a32ed6f0c630b9b496b17bb08c0d",
+    "cli/stage1_deliverable/package.py": "b20436a5c27920aee292e7f3c8540814a5f737c41c84a0e8d750e2adefee04ed",
+    "cli/stage1_deliverable/records.py": "28c269f82a3d2b26456d8a3dd8c44ce0a2ca47bcbad175b1ee2a0bcd2a3b23d0",
+    "cli/stage1_deliverable/views.py": "572f98563afa86fc77afa5fc18d08bd5e40985195bd63b0b6d9a5682a4fcf423",
+    "tests/test_stage1_core_records.py": "3a4dd9503e531e7636772492fe741b9451d28f7b29d9399e825cbb9c7a93340d"
+  },
+  "source_root": "plugins/auto-research-agent",
+  "source_unchanged": true,
+  "tests_run": 6,
+  "tests_skipped": 0
+}

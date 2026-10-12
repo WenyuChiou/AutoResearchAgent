@@ -4,6 +4,8 @@ import copy
 import hashlib
 import json
 import os
+import tempfile
+from contextlib import contextmanager
 from html import escape
 from pathlib import Path, PurePosixPath
 
@@ -16,6 +18,7 @@ from stage2_check import (
 from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_workflow import inspect_workflow
+from stage2_workflow.store import _restore_packet
 from stage2_workflow.orchestration import reconcile_batch
 from stage2_workflow.revision_provenance import (
     capture_revision_provenance,
@@ -140,8 +143,41 @@ def _verify_source_map(snapshot, packet):
         path = source_root.joinpath(*source["path"].split("/"))
         if not path.is_file() or _file_sha(path) != source["sha256"]:
             raise Stage2Error(f"delivery-source-hash-mismatch: {source_id}")
-    validate_packet(packet, source_root)
+    _verify_checker_input(checker, packet)
     return source_root
+
+
+def _verify_checker_input(checker, packet):
+    # Stored source and receipt paths are relative to the checker root, not
+    # its sources directory. Restore only the authenticated storage projection.
+    validate_packet(checker["packet"], checker["root"])
+    if canonical_hash(_restore_packet(checker)) != canonical_hash(packet):
+        raise Stage2Error("delivery-checker-input-packet-mismatch")
+
+
+@contextmanager
+def _delivery_source_inputs(checker, source_root):
+    receipts = checker["manifest"].get("prior_work_receipts", [])
+    if not receipts:
+        yield source_root
+        return
+    # initialize_run accepts one root for the original packet's source and
+    # receipt paths. Reconstruct that input namespace from verified snapshots;
+    # the temporary copies never replace the retained workflow or its hashes.
+    with tempfile.TemporaryDirectory(prefix="stage2-delivery-input-") as temporary:
+        root = Path(temporary)
+        for record in [*checker["manifest"]["source_snapshots"], *receipts]:
+            stored = _safe_package_path(checker["root"], record["stored_path"])
+            raw = stored.read_bytes()
+            if hashlib.sha256(raw).hexdigest() != record["sha256"]:
+                raise Stage2Error("delivery-input-snapshot-hash-mismatch")
+            target = _safe_package_path(root, record["original_path"])
+            if target.exists():
+                if target.read_bytes() != raw:
+                    raise Stage2Error("delivery-input-path-conflict")
+            else:
+                _write_new(target, raw)
+        yield root
 
 
 def _current_snapshot(state, batch):
@@ -339,12 +375,13 @@ def build_delivery(
     _write_new(output / "review_audit.json", audit)
 
     checker_root = output / "checker"
-    initialize_run(
-        packet_path,
-        source_root,
-        checker_root,
-        canonical_hash(packet),
-    )
+    with _delivery_source_inputs(snapshot["checker"], source_root) as input_root:
+        initialize_run(
+            packet_path,
+            input_root,
+            checker_root,
+            canonical_hash(packet),
+        )
     for index, assessment in enumerate(_resolved_assessments(reconciliation), 1):
         assessment_path = output / "resolved_assessments" / f"{index:06d}.json"
         _write_new(assessment_path, assessment)
@@ -592,7 +629,7 @@ def inspect_delivery(directory, expected_manifest_sha256):
                 f"delivery-published-source-mismatch: {source['source_id']}"
             )
     packet = _read_json(root / "input_packet.json")
-    validate_packet(packet, root / "checker" / "sources")
+    _verify_checker_input(checker, packet)
     if checker["manifest"]["packet_sha256"] != canonical_hash(packet):
         raise Stage2Error("delivery-checker-input-packet-mismatch")
     batch = _read_json(root / manifest["review_input_files"]["batch"])

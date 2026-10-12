@@ -1,0 +1,24 @@
+[
+  {
+    "phase": "reconciliation-extraction",
+    "bytes": 10012,
+    "error": "pipeline-prompt-byte-bound-exceeded",
+    "serialized_parts": [
+      {
+        "field_contract": 751,
+        "task": 7037,
+        "raw_reconciliation": 97
+      },
+      {
+        "type": 8,
+        "properties": 1156,
+        "required": 113,
+        "additionalProperties": 5,
+        "$defs": 488
+      }
+    ]
+  },
+  {
+    "error": "Stage2Error: pipeline-prompt-byte-bound-exceeded"
+  }
+]

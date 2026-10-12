@@ -7,6 +7,7 @@ import unittest
 from research_workspace_native.atlas_host import AtlasHost
 from stage1_deliverable.common import sha
 import test_native_message_host as host_fixture
+from atlas_bootstrap_fixture import bootstrap_objects
 
 
 class NativeAtlasHostAssetsTests(unittest.TestCase):
@@ -78,7 +79,9 @@ class NativeAtlasHostAssetsTests(unittest.TestCase):
     def test_unbound_case_bootstrap_disables_overlay_and_cannot_access_native(self):
         server = self.start()
         _, raw = self.get(server, "/host-bootstrap/unbound.js")
-        native = json.loads(raw.decode().splitlines()[1].split("=", 1)[1][:-1])
+        native = bootstrap_objects(raw, "WORKSPACE_NATIVE_ATLAS")[
+            "WORKSPACE_NATIVE_ATLAS"
+        ]
         self.assertFalse(native["enabled"])
         self.assertIsNone(native["project_ref"])
         self.assertIsNone(native["input_version"])
@@ -106,10 +109,43 @@ class NativeAtlasHostAssetsTests(unittest.TestCase):
         ):
             self.assertEqual(self.get(server, route)[0], 404)
         _, raw = self.get(server, "/host-bootstrap/case.js")
-        native = json.loads(raw.decode().splitlines()[1].split("=", 1)[1][:-1])
+        native = bootstrap_objects(raw, "WORKSPACE_NATIVE_ATLAS")[
+            "WORKSPACE_NATIVE_ATLAS"
+        ]
         self.assertFalse(native["enabled"])
         self.assertEqual(self.get(server, "/api/native/projects/" + self.p.ref)[0], 404)
         self.assertEqual(self.p.channel.calls, [])
+
+
+class BootstrapFixtureTests(unittest.TestCase):
+    def test_names_survive_extra_assignments_and_different_order(self):
+        expected = {
+            "WORKSPACE_HOST": {"current_case": "case"},
+            "WORKSPACE_NATIVE_ATLAS": {"input_version": "v1", "enabled": True},
+            "WORKSPACE_HARNESS": {"project_ref": "different", "enabled": False},
+            "WORKSPACE_EXTENSION": {"enabled": False},
+        }
+        for names in (list(expected), list(reversed(expected))):
+            raw = "\n".join(
+                "window." + name + "=" + json.dumps(expected[name]) + ";"
+                for name in names
+            ).encode()
+            self.assertEqual(
+                bootstrap_objects(raw, "WORKSPACE_HOST", "WORKSPACE_NATIVE_ATLAS"),
+                expected,
+            )
+
+    def test_missing_duplicate_malformed_and_nonobject_assignments_reject(self):
+        for raw in (
+            b"window.WORKSPACE_HARNESS={};\n",
+            b"window.WORKSPACE_NATIVE_ATLAS={};\nwindow.WORKSPACE_NATIVE_ATLAS={};",
+            b"window.WORKSPACE_NATIVE_ATLAS=not-json;",
+            b"window.WORKSPACE_NATIVE_ATLAS=[];",
+            b"window.WORKSPACE_NATIVE_ATLAS={};unexpected();",
+        ):
+            with self.subTest(raw=raw):
+                with self.assertRaises((AssertionError, json.JSONDecodeError)):
+                    bootstrap_objects(raw, "WORKSPACE_NATIVE_ATLAS")
 
 
 if __name__ == "__main__":

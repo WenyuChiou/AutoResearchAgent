@@ -1,0 +1,298 @@
+{
+  "kind": "SavedCanonicalStage1ProjectionImplementationReceipt",
+  "schema_version": "1.0.0",
+  "base_commit": "3199a3f3cb9130abc4a385e06618ca196ab5c40f",
+  "branch": "codex/atlas-stage-consolidation-v2",
+  "capability_id": "cli:research-workspace",
+  "criterion_id": "P3V3.DECISION_TRACE",
+  "decision": "extend",
+  "readiness": "implementation-only",
+  "improvement_statement": "not yet demonstrated",
+  "source_kind": "Stage1ResearchDeliverable",
+  "reader_api": "research_workspace.canonical_delivery.project_canonical_delivery",
+  "atlas_api": "research_workspace.canonical_delivery.project_canonical_atlas",
+  "renderer_api": "research_workspace.view.write_workspace",
+  "input_manifest": "provenance_manifest.json",
+  "supported_canonical_versions": [
+    "1.0.0",
+    "1.1.0"
+  ],
+  "cli_support_for_bare_delivery": false,
+  "server_mount_implemented": false,
+  "native_session_started": false,
+  "research_execution_performed": false,
+  "scientific_quality_scored": false,
+  "stage2_canonical_11_consumer": "unconnected",
+  "input_package_rebuilt_or_copied": false,
+  "original_private_package_used": false,
+  "full_plugin_suite_run": false,
+  "browser_acceptance_run": false,
+  "python_executable": "C:\\Users\\13795\\.codex\\visualizations\\2026\\10\\01\\01a0f99c-fa8d-7a40-ac7e-5521134e0c66\\native-controller-complete-env\\Scripts\\python.exe",
+  "python_version": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+  "temporary_root": "D:/Codex_Learning/harness_building/_temp/nc4",
+  "source_hashes": {
+    "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py": "186317ab9d429812ea2f5e84ad9adb5871f6e1063fedfe3f775b9da6db57f69b",
+    "plugins/auto-research-agent/cli/research_workspace/projection.py": "3b52a0b262f51694f421af2e0145b2681820d4e33420e962850751f895d33602",
+    "plugins/auto-research-agent/cli/research_workspace/view.py": "d01041cc438972450b4fe3b916f7e79ecd5112cd519ee11898b4f94ae1891ff7",
+    "plugins/auto-research-agent/tests/test_workspace_canonical_delivery.py": "e797336491492b5027ec65d88bd65dc75c3c8691ce23b3d961231100d86808ee",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "e99f9e1b2750a7c0da613081cdfb7ab49c87eff616356f25ecc68df46c7e39e7"
+  },
+  "frozen_v1_map_sha256": "b75122de16fe93317958c5d81ab29310a9185103c03eaf2ea22202b7cfa00598",
+  "frozen_v1_map_git_check": "checks/frozen-map.stdout.txt and checks/frozen-map.stderr.txt; exit 0",
+  "test_runs": [
+    {
+      "id": "initial-unobserved",
+      "command": "python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_canonical_delivery.py -v",
+      "status": "completion-unobserved",
+      "count": null,
+      "duration_seconds": null,
+      "exit_code": null,
+      "transcript": "captured/initial-completion-unobserved.txt",
+      "source_binding": "not-captured"
+    },
+    {
+      "id": "initial-core-fixture-failure",
+      "command": "python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_canonical_delivery.py -v",
+      "status": "failed",
+      "count": 16,
+      "errors": 1,
+      "duration_seconds": 17.54,
+      "exit_code": 1,
+      "transcript": "captured/initial-core-fixture-failure.txt",
+      "source_binding": "not-captured",
+      "reason": "Core fixture preparation called package.build and the installed research-hub merge pin was rejected before projection"
+    },
+    {
+      "id": "intermediate-focused",
+      "command": "python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_canonical_delivery.py -v",
+      "status": "passed",
+      "count": 7,
+      "duration_seconds": 14.456,
+      "exit_code": 0,
+      "transcript": "captured/intermediate-focused-summary.txt",
+      "source_binding": "historical-before-renderer-assertion; original source inventory not captured"
+    },
+    {
+      "id": "focused-before-receipt-fix",
+      "command": "python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_canonical_delivery.py -v",
+      "status": "passed",
+      "count": 7,
+      "duration_seconds": 14.605,
+      "exit_code": 0,
+      "transcript": "captured/focused-seven-pass.txt",
+      "source_binding": "historical-before-view-receipt-fix",
+      "observed_source_hashes": {
+        "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py": "186317ab9d429812ea2f5e84ad9adb5871f6e1063fedfe3f775b9da6db57f69b",
+        "plugins/auto-research-agent/cli/research_workspace/projection.py": "3b52a0b262f51694f421af2e0145b2681820d4e33420e962850751f895d33602",
+        "plugins/auto-research-agent/tests/test_workspace_canonical_delivery.py": "7fdd9026b3bd986a0830b00cdea4694a64fe4ec4af06cef84a2b311735693cdf"
+      }
+    },
+    {
+      "id": "legacy-projection",
+      "command": "python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_research_workspace.py -v",
+      "status": "passed",
+      "count": 9,
+      "duration_seconds": 2.847,
+      "exit_code": 0,
+      "transcript": "captured/projection-nine-pass.txt",
+      "source_binding": "historical-before-view-receipt-fix"
+    },
+    {
+      "id": "final-receipt-selectors",
+      "command": "python -B -X utf8 -m unittest test_workspace_canonical_delivery.CanonicalDeliveryTests.test_bare_delivery_and_v6_assets_share_lossless_identity_and_mapping test_research_workspace_view.WorkspaceViewTests.test_graph_assets_are_hash_bound_and_exported -v",
+      "cwd": "plugins/auto-research-agent/tests",
+      "status": "passed",
+      "count": 2,
+      "duration_seconds": 0.921,
+      "exit_code": 0,
+      "transcript": "captured/receipt-two-pass.txt",
+      "source_binding": "post-run hashes; these four Python/test sources remained unchanged after this run",
+      "observed_source_hashes": {
+        "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py": "186317ab9d429812ea2f5e84ad9adb5871f6e1063fedfe3f775b9da6db57f69b",
+        "plugins/auto-research-agent/cli/research_workspace/projection.py": "3b52a0b262f51694f421af2e0145b2681820d4e33420e962850751f895d33602",
+        "plugins/auto-research-agent/cli/research_workspace/view.py": "d01041cc438972450b4fe3b916f7e79ecd5112cd519ee11898b4f94ae1891ff7",
+        "plugins/auto-research-agent/tests/test_workspace_canonical_delivery.py": "e797336491492b5027ec65d88bd65dc75c3c8691ce23b3d961231100d86808ee"
+      }
+    }
+  ],
+  "initial_ruff_failure": {
+    "status": "failed",
+    "diagnostics": 9,
+    "exit_code": 1,
+    "capture_scope": "truncated tool output excerpt",
+    "transcript": "captured/initial-ruff-failure.txt"
+  },
+  "evidence_capture_policy": {
+    "historical_runs": "tool-output transcriptions with original process-stream bytes unavailable",
+    "final_checks": "subprocess streams; retained outside Git, public CRLF-to-LF normalization with both hashes"
+  },
+  "final_checks": [
+    {
+      "name": "map",
+      "argv": [
+        "C:\\Users\\13795\\.codex\\visualizations\\2026\\10\\01\\01a0f99c-fa8d-7a40-ac7e-5521134e0c66\\native-controller-complete-env\\Scripts\\python.exe",
+        "-B",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "plugins/auto-research-agent/tests",
+        "-p",
+        "test_capability_metric_map.py",
+        "-v"
+      ],
+      "cwd": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-stage",
+      "exit_code": 0,
+      "stdout": "checks/map.stdout.txt",
+      "stderr": "checks/map.stderr.txt",
+      "stdout_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "public_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\map.stdout.txt"
+      },
+      "stderr_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "0de73d5fc28b0e15a0920eb2aa14eaa875384dea3dfe3943e111fff05bac6f11",
+        "public_sha256": "db483ed300af0594d99851e6f96ef6e22e9532bfe5aff05e0203a948c6c3b74e",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\map.stderr.txt"
+      }
+    },
+    {
+      "name": "ruff",
+      "argv": [
+        "C:/Users/13795/.local/bin/uv.exe",
+        "run",
+        "--offline",
+        "--no-project",
+        "--with",
+        "ruff",
+        "ruff",
+        "check",
+        "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py",
+        "plugins/auto-research-agent/cli/research_workspace/projection.py",
+        "plugins/auto-research-agent/cli/research_workspace/view.py",
+        "plugins/auto-research-agent/tests/test_workspace_canonical_delivery.py"
+      ],
+      "cwd": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-stage",
+      "exit_code": 0,
+      "stdout": "checks/ruff.stdout.txt",
+      "stderr": "checks/ruff.stderr.txt",
+      "stdout_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        "public_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\ruff.stdout.txt"
+      },
+      "stderr_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "9403f7766efc1714c371850dc43b813010c5fac4303f6e1008ed3cf567814c1e",
+        "public_sha256": "9403f7766efc1714c371850dc43b813010c5fac4303f6e1008ed3cf567814c1e",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\ruff.stderr.txt"
+      }
+    },
+    {
+      "name": "format",
+      "argv": [
+        "C:/Users/13795/.local/bin/uv.exe",
+        "run",
+        "--offline",
+        "--no-project",
+        "--with",
+        "ruff",
+        "ruff",
+        "format",
+        "--check",
+        "plugins/auto-research-agent/cli/research_workspace/canonical_delivery.py",
+        "plugins/auto-research-agent/cli/research_workspace/projection.py",
+        "plugins/auto-research-agent/cli/research_workspace/view.py",
+        "plugins/auto-research-agent/tests/test_workspace_canonical_delivery.py"
+      ],
+      "cwd": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-stage",
+      "exit_code": 0,
+      "stdout": "checks/format.stdout.txt",
+      "stderr": "checks/format.stderr.txt",
+      "stdout_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+        "public_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\format.stdout.txt"
+      },
+      "stderr_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "9403f7766efc1714c371850dc43b813010c5fac4303f6e1008ed3cf567814c1e",
+        "public_sha256": "9403f7766efc1714c371850dc43b813010c5fac4303f6e1008ed3cf567814c1e",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\format.stderr.txt"
+      }
+    },
+    {
+      "name": "diff",
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-stage",
+      "exit_code": 0,
+      "stdout": "checks/diff.stdout.txt",
+      "stderr": "checks/diff.stderr.txt",
+      "stdout_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "public_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\diff.stdout.txt"
+      },
+      "stderr_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "public_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\diff.stderr.txt"
+      }
+    },
+    {
+      "name": "frozen-map",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD",
+        "--",
+        "plugins/auto-research-agent/evals/capability-metric-map.v1.json"
+      ],
+      "cwd": "D:\\Codex_Learning\\harness_building\\worktrees\\ca-stage",
+      "exit_code": 0,
+      "stdout": "checks/frozen-map.stdout.txt",
+      "stderr": "checks/frozen-map.stderr.txt",
+      "stdout_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "public_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\frozen-map.stdout.txt"
+      },
+      "stderr_capture": {
+        "kind": "subprocess-stream",
+        "public_normalization": "CRLF-to-LF",
+        "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "public_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "retained_raw_path": "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\canonical-projection-checks-20261011-160754\\frozen-map.stderr.txt"
+      }
+    }
+  ],
+  "limitations": [
+    "Synthetic authored fixture execution only; no original source package semantic/runtime replay or scientific acceptance",
+    "Bare reader Python API is not the outer-package CLI and does not mount a view",
+    "Final narrow selectors do not substitute for a fresh seven-test or full-plugin run",
+    "Historical unobserved completion and pinned-runtime fixture failure are retained"
+  ]
+}

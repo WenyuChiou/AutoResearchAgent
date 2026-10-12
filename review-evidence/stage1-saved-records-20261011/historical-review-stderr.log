@@ -1,0 +1,22 @@
+test_atomic_post_file_commit_failure_preserves_unknown_and_never_rewrites (test_project_stage1_records.SavedStage1RecordsTests.test_atomic_post_file_commit_failure_preserves_unknown_and_never_rewrites) ... ok
+test_exact_span_rejects_repeated_quote_wrong_offset_and_missing_claim (test_project_stage1_records.SavedStage1RecordsTests.test_exact_span_rejects_repeated_quote_wrong_offset_and_missing_claim) ... ok
+test_failed_source_and_revised_screening_keep_original_attempts_and_reviews (test_project_stage1_records.SavedStage1RecordsTests.test_failed_source_and_revised_screening_keep_original_attempts_and_reviews) ... ok
+test_guard_refusal_precedes_registry_or_file_mutation (test_project_stage1_records.SavedStage1RecordsTests.test_guard_refusal_precedes_registry_or_file_mutation) ... ok
+test_post_publish_binding_failure_records_output_as_unknown (test_project_stage1_records.SavedStage1RecordsTests.test_post_publish_binding_failure_records_output_as_unknown) ... ok
+test_rehashed_mutable_registry_cannot_replace_original_saved_annotation (test_project_stage1_records.SavedStage1RecordsTests.test_rehashed_mutable_registry_cannot_replace_original_saved_annotation) ... ok
+test_same_ref_extra_event_and_rehashed_event_state_cannot_bypass_action (test_project_stage1_records.SavedStage1RecordsTests.test_same_ref_extra_event_and_rehashed_event_state_cannot_bypass_action) ... ERROR
+test_tampered_source_and_old_checkpoint_refuse_without_records (test_project_stage1_records.SavedStage1RecordsTests.test_tampered_source_and_old_checkpoint_refuse_without_records) ... ok
+test_two_sources_reading_records_delivery_and_true_sqlite_reopen (test_project_stage1_records.SavedStage1RecordsTests.test_two_sources_reading_records_delivery_and_true_sqlite_reopen) ... ok
+
+======================================================================
+ERROR: test_same_ref_extra_event_and_rehashed_event_state_cannot_bypass_action (test_project_stage1_records.SavedStage1RecordsTests.test_same_ref_extra_event_and_rehashed_event_state_cannot_bypass_action)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_records.py", line 424, in test_same_ref_extra_event_and_rehashed_event_state_cannot_bypass_action
+    self.intake.db.execute("DELETE FROM intake_events WHERE id=?", (extra,))
+sqlite3.IntegrityError: immutable intake event
+
+----------------------------------------------------------------------
+Ran 9 tests in 65.066s
+
+FAILED (errors=1)

@@ -28,3 +28,24 @@ plugins/auto-research-agent/references/research-workspace/workspace.css text eol
 
 # Preserve the pinned upstream WebGL bundle verbatim.
 plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js -text
+
+# Raw engineering receipts retain the exact captured bytes on every platform.
+review-evidence/stage1-priority-20261010/** -text
+review-evidence/stage1-priority-20261010/*.json whitespace=cr-at-eol
+review-evidence/stage1-priority-20261010/*stdout.log binary
+review-evidence/stage1-priority-20261010/*stderr.log binary
+review-evidence/stage1-saved-records-20261011/** -text
+review-evidence/stage1-saved-records-20261011/*.json whitespace=cr-at-eol
+review-evidence/stage1-saved-records-20261011/*stdout.log binary
+review-evidence/stage1-saved-records-20261011/*stderr.log binary
+review-evidence/stage1-saved-records-20261011/README.md text eol=lf
+review-evidence/stage1-saved-records-20261011/manifest.json text eol=lf
+review-evidence/stage1-saved-records-20261011/OWNER_GUARD.md text eol=lf
+review-evidence/stage1-saved-records-20261011/owner-guard-manifest.json text eol=lf
+review-evidence/stage1-screening-library-20261011/backend-final32.log -text whitespace=cr-at-eol
+# Preserve the exact bounded offline source-observation receipts.
+review-evidence/stage1-source-observation-20261011/*.json text eol=lf
+review-evidence/stage1-source-observation-20261011/README.md text eol=lf
+review-evidence/stage1-source-observation-20261011/*stderr.log -text whitespace=cr-at-eol
+review-evidence/stage1-source-observation-20261011/*stdout.log -text
+review-evidence/stage1-core-records-20261011/*.log -text whitespace=cr-at-eol
