@@ -20,6 +20,7 @@ REQUIRED_SECTIONS = (
     "Research Deliverable",
     "Validation",
 )
+NONE_DECLARATION = re.compile(r"^none(?:\s|$|[—–\-,:;()])", re.IGNORECASE)
 HEADING = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 METRIC = re.compile(r"\bP[1-9]\b")
@@ -266,6 +267,10 @@ def text_is_concrete(value):
     return bool(candidate and not PLACEHOLDER_VALUE.fullmatch(candidate))
 
 
+def is_none_declaration(value):
+    return bool(NONE_DECLARATION.match(value.strip()))
+
+
 def load_capability_metrics(path=DEFAULT_REGISTRY):
     registry = json.loads(path.read_text(encoding="utf-8"))
     entries = list(registry["capabilities"])
@@ -311,10 +316,14 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
 
 
 def capability_ids(value):
+    if is_none_declaration(value):
+        return []
     return [item.strip() for item in re.split(r"[,;]", value) if item.strip()]
 
 
 def semicolon_entries(value):
+    if is_none_declaration(value):
+        return []
     return [item.strip() for item in value.split(";") if item.strip()]
 
 
@@ -1206,8 +1215,12 @@ def validate_pr_body(
         for label in labels:
             if not label_has_value(parsed.get(section, ""), label):
                 errors.append(f"{section} requires a non-empty '{label}:' value")
+    declared_capabilities = capability_ids(
+        label_value(parsed.get("What", ""), "Affected capability ID(s)")
+    )
+    governance_only_change = not declared_capabilities
     target_metrics = label_value(parsed.get("Why", ""), "Target primary metric(s)")
-    if not METRIC.search(target_metrics):
+    if not METRIC.search(target_metrics) and not governance_only_change:
         errors.append("Target primary metric(s) must name at least one metric P1-P9")
     decision = label_value(parsed.get("What", ""), "Capability decision").lower()
     if decision not in CAPABILITY_DECISIONS:
@@ -1400,7 +1413,8 @@ def validate_pr_body(
             "problem, change, and benefit"
         )
     external_prs = label_value(parsed.get("What", ""), "Related external PR(s)")
-    if external_prs and external_prs.casefold() != "none":
+    external_none = is_none_declaration(external_prs)
+    if external_prs and not external_none:
         external_entries = [entry.strip() for entry in external_prs.split(";")]
         invalid_external = []
         for entry in external_entries:
@@ -1416,7 +1430,7 @@ def validate_pr_body(
                 "list of external GitHub pull-request URLs"
             )
     internal_prs = label_value(parsed.get("What", ""), "Internal prerequisite PR(s)")
-    if internal_prs and internal_prs.casefold() != "none":
+    if internal_prs and not is_none_declaration(internal_prs):
         invalid_internal = []
         for entry in semicolon_entries(internal_prs):
             match = EXTERNAL_PR.fullmatch(entry)
@@ -1432,7 +1446,8 @@ def validate_pr_body(
             )
     dependency_pins = label_value(parsed.get("What", ""), "External dependency pin(s)")
     dependency_entries = []
-    if dependency_pins and dependency_pins.casefold() != "none":
+    dependency_none = is_none_declaration(dependency_pins)
+    if dependency_pins and not dependency_none:
         dependency_entries = semicolon_entries(dependency_pins)
         if any(not DEPENDENCY_PIN.fullmatch(entry) for entry in dependency_entries):
             errors.append(
@@ -1449,7 +1464,9 @@ def validate_pr_body(
         for entry in dependency_entries
         if (match := DEPENDENCY_PIN.fullmatch(entry))
     }
-    if related_urls != pinned_urls:
+    if related_urls != pinned_urls and not (
+        governance_only_change and related_urls and dependency_none
+    ):
         errors.append(
             "Related external PR(s) and External dependency pin(s) must name the same PR URLs"
         )
@@ -1571,9 +1588,6 @@ def validate_pr_body(
         known_criterion_submetrics
         if known_criterion_submetrics is not None
         else load_criterion_submetrics()
-    )
-    declared_capabilities = capability_ids(
-        label_value(parsed.get("What", ""), "Affected capability ID(s)")
     )
     if (
         RESEARCH_DELIVERABLE_CAPABILITY in declared_capabilities

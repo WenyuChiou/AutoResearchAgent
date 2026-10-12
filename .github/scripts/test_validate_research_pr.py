@@ -1069,6 +1069,56 @@ class ResearchPullRequestContractTests(unittest.TestCase):
                 for error in validate_pr_body(current_repo, CAPABILITIES)
             )
         )
+        missing_pins = VALID.replace(
+            "- Related external PR(s): None",
+            "- Related external PR(s): https://github.com/WenyuChiou/research-hub/pull/123",
+        )
+        self.assertIn(
+            "Related external PR(s) and External dependency pin(s) must name the same PR URLs",
+            validate_pr_body(missing_pins, CAPABILITIES),
+        )
+
+    def test_governance_only_none_with_context_is_accepted(self):
+        body = VALID.replace(
+            "- Target primary metric(s): P2",
+            "- Target primary metric(s): None — this governance-only change does not change or claim a research-quality metric.",
+        )
+        body = body.replace(
+            "- Affected capability ID(s): skill:stage1-literature",
+            "- Affected capability ID(s): None (governance-only; no production capability changed).",
+        )
+        body = body.replace(
+            "- Rubric criterion ID(s): P2.CLUSTERS",
+            "- Rubric criterion ID(s): None; no criteria are scored for this governance-only change.",
+        )
+        body = body.replace(
+            "- Operational-definition mapping: P2.CLUSTERS -> S1_COVER -> SKILL.coverage_obligations",
+            "- Operational-definition mapping: None; no production metric is changed.",
+        )
+        body = body.replace(
+            "- Required invariant IDs: pr-readiness-enforced",
+            "- Required invariant IDs: None; no production capability is changed.",
+        )
+        body = body.replace(
+            "- Invariant test evidence: pr-readiness-enforced -> .github/scripts/test_validate_research_pr.py::ResearchPullRequestContractTests.test_readiness_manifest_rejects_unbound_evidence -> passed",
+            "- Invariant test evidence: None; no production invariant test was run for this documentation-only change.",
+        )
+        body = body.replace(
+            "- Related external PR(s): None",
+            "- Related external PR(s): https://github.com/WenyuChiou/codex-portable-harness/pull/7; https://github.com/WenyuChiou/ai-research-skills/pull/73; https://github.com/WenyuChiou/research-hub/pull/165",
+        )
+        body = body.replace(
+            "- External dependency pin(s): None",
+            "- External dependency pin(s): None — these are related governance changes, not runtime dependencies.",
+        )
+        self.assertEqual(
+            validate_pr_body(
+                body,
+                CAPABILITIES,
+                changed_paths=["AGENTS.md", "plugins/auto-research-agent/AGENTS.md"],
+            ),
+            [],
+        )
 
     def test_improvement_statement_requires_status_and_concrete_evidence(self):
         for value in (
