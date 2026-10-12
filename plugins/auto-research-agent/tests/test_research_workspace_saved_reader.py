@@ -5,8 +5,10 @@ import sys
 import tempfile
 import unittest
 from copy import deepcopy
+from io import BytesIO
 from pathlib import Path
 
+from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 
@@ -391,6 +393,92 @@ def _legacy_saved_import_rerun(reader):
     return output, sha(manifest_bytes), manifest
 
 
+def _rebind_saved_import(reader, *, provenance_bytes=None, mutate_receipt=None):
+    source = reader.index["sources"][0]
+    receipt = source["receipt"]
+    archive = reader.package / "deliverable/sources/source-0"
+    mapping = artifact_map(receipt)
+    provenance = archive / mapping[receipt["attempts"][0]["raw_path"]]
+    if provenance_bytes is not None:
+        provenance.write_bytes(provenance_bytes)
+        receipt["attempts"][0]["response_bytes"] = len(provenance_bytes)
+        receipt["attempts"][0]["raw_sha256"] = sha(provenance_bytes)
+        receipt["diagnostics"]["saved_import"]["manifest_sha256"] = sha(
+            provenance_bytes
+        )
+    if mutate_receipt is not None:
+        mutate_receipt(receipt)
+    receipt["receipt_sha256"] = receipt_digest(receipt)
+    original = canonical(receipt)
+    (archive / "original.json").write_bytes(original)
+    source["result_sha256"] = sha(original)
+
+
+def _rebind_attached_saved_import(index, *, provenance_bytes=None):
+    """Rehash all outer bindings after editing one attached SDK receipt."""
+    extension = index["source_rerun"]
+    source = index["sources"][0]
+    receipt = source["receipt"]
+    row = extension["data"]["rows"][0]
+    binding = row["saved_import_archive"]
+    if provenance_bytes is None:
+        provenance_bytes = binding["provenance_utf8"].encode("utf-8")
+    receipt["attempts"][0]["response_bytes"] = len(provenance_bytes)
+    receipt["attempts"][0]["raw_sha256"] = sha(provenance_bytes)
+    receipt["diagnostics"]["saved_import"]["manifest_sha256"] = sha(provenance_bytes)
+    receipt["receipt_sha256"] = receipt_digest(receipt)
+    original = canonical(receipt)
+    source["result_sha256"] = sha(original)
+    row["original_result_sha256"] = source["result_sha256"]
+    row["original_attempts"] = deepcopy(receipt["attempts"])
+    provenance = artifact_map(receipt)[receipt["attempts"][0]["raw_path"]]
+    provenance_name = binding["root"] + "/" + provenance
+    original_name = binding["root"] + "/original.json"
+    binding["provenance_utf8"] = provenance_bytes.decode("utf-8")
+    binding["members"][provenance] = {
+        "sha256": sha(provenance_bytes),
+        "bytes": len(provenance_bytes),
+    }
+    binding["members"]["original.json"] = {
+        "sha256": sha(original),
+        "bytes": len(original),
+    }
+    extension["artifact_hashes"][provenance_name] = binding["members"][provenance]
+    extension["artifact_hashes"][original_name] = binding["members"]["original.json"]
+    base = deepcopy(index)
+    base.pop("source_rerun")
+    base["schema_version"] = (
+        "2.0.0" if base["supplement"]["status"] != "not-provided" else "1.0.0"
+    )
+    extension["data"]["base_index_sha256"] = sha(canonical(base))
+    for rerun_row in extension["data"]["rows"]:
+        rerun_row["attempt_id"] = sha(
+            canonical(
+                {
+                    "base": extension["data"]["base_index_sha256"],
+                    "parser": extension["data"]["parser_runtime"]["parser_sha256"],
+                    "work": rerun_row["work_id"],
+                    "version": rerun_row["version_id"],
+                    "raw": rerun_row.get("raw_sha256"),
+                }
+            )
+        )
+    extension["manifest_sha256"] = sha(
+        canonical(
+            {
+                "data": extension["data"],
+                "files": extension["artifact_hashes"],
+            }
+        )
+    )
+    return index
+
+
+def _counterfeit_saved_import(index):
+    """Rehash every outer binding around malformed author-written provenance."""
+    return _rebind_attached_saved_import(deepcopy(index), provenance_bytes=b"{")
+
+
 class OfflineHistoryTests(unittest.TestCase):
     def test_offline_history_replays_matching_actual_body_without_new_access(self):
         for level in ["full-text", "abstract"]:
@@ -530,6 +618,67 @@ class OfflineHistoryTests(unittest.TestCase):
 
 
 class SavedPublicImportTests(unittest.TestCase):
+    def test_persisted_saved_import_rejects_rehashed_identity_aliases(self):
+        reader = _saved_import_reader(self)
+        output, digest, _ = reader.build("identity-aliases")
+        attached = attach_rerun(reader.index, output, digest)
+        index_path = reader.root / "attached-index.json"
+        index_path.write_bytes(canonical(attached))
+        original = json.loads(index_path.read_bytes())
+        self.assertEqual(validate_rerun_index(original), original)
+        self.assertEqual(view_fixture.validate_index(original), original)
+
+        for mutation in (
+            "source-url",
+            "expected-doi",
+            "expected-title",
+            "missing-source-url",
+            "missing-expected-identity",
+            "noncanonical-request-doi",
+        ):
+            mutated = deepcopy(original)
+            receipt = mutated["sources"][0]["receipt"]
+            if mutation == "source-url":
+                receipt["source_url"] = "https://example.test/different-source"
+            elif mutation == "expected-doi":
+                receipt["expected_identity"]["doi"] = "10.1000/different"
+            elif mutation == "expected-title":
+                receipt["expected_identity"]["title"] = "Different evidence"
+            elif mutation == "missing-source-url":
+                receipt.pop("source_url")
+            elif mutation == "missing-expected-identity":
+                receipt.pop("expected_identity")
+            else:
+                receipt["request"]["doi"] = "https://doi.org/10.1000/synthetic"
+            _rebind_attached_saved_import(mutated)
+            mutated_path = reader.root / f"{mutation}-index.json"
+            mutated_path.write_bytes(canonical(mutated))
+            persisted = json.loads(mutated_path.read_bytes())
+            for name, gate in (
+                ("rerun-index", validate_rerun_index),
+                ("workspace-view", view_fixture.validate_index),
+            ):
+                with self.subTest(mutation=mutation, gate=name):
+                    with self.assertRaisesRegex(
+                        DeliverableError,
+                        "saved import provenance/receipt binding differs",
+                    ):
+                        gate(persisted)
+
+    def test_saved_import_without_claims_exports_without_fabricated_rows(self):
+        reader = _saved_import_reader(self)
+        self.assertEqual(reader.index["claims"], [])
+        output, digest, _ = reader.build("empty-claims-export")
+        attached = attach_rerun(reader.index, output, digest)
+        exported = rerun_files(attached, output)
+        availability = json.loads(exported["source-rerun/source-availability.json"])
+        self.assertEqual(availability["claim_rows"], [])
+        workbook = load_workbook(BytesIO(exported["source-rerun/catalog.xlsx"]))
+        self.addCleanup(workbook.close)
+        self.assertIn("SourceRerun", workbook.sheetnames)
+        self.assertIn("SourceAvailability", workbook.sheetnames)
+        self.assertNotIn("ClaimAvailability", workbook.sheetnames)
+
     def test_malformed_saved_import_diagnostics_are_rejected(self):
         reader = _saved_import_reader(self)
         original = reader.index["sources"][0]["receipt"]
@@ -539,13 +688,15 @@ class SavedPublicImportTests(unittest.TestCase):
                 receipt["diagnostics"] = diagnostics
                 self.assertFalse(_saved_public_import(receipt, receipt["attempts"][1]))
 
-    def test_archive_bearing_legacy_import_waits_for_separate_replay_stage(self):
+    def test_saved_import_rejects_incomplete_archive_binding(self):
         reader = _saved_import_reader(self)
         output, _, manifest = _legacy_saved_import_rerun(reader)
         manifest["data"]["rows"][0]["saved_import_archive"] = {}
         raw = canonical(manifest)
         (output / "source-rerun-manifest.json").write_bytes(raw)
-        with self.assertRaisesRegex(DeliverableError, "unbound saved import"):
+        with self.assertRaisesRegex(
+            DeliverableError, "saved import archive root differs"
+        ):
             attach_rerun(reader.index, output, sha(raw))
 
     def test_complete_legacy_saved_import_stays_inaccessible_in_view_and_export(self):
@@ -623,6 +774,17 @@ class SavedPublicImportTests(unittest.TestCase):
             "sha256": sha(text),
             "bytes": len(text),
         }
+        raw = canonical(manifest)
+        (output / "source-rerun-manifest.json").write_bytes(raw)
+        with self.assertRaisesRegex(DeliverableError, "unbound saved import"):
+            attach_rerun(reader.index, output, sha(raw))
+
+    def test_successful_saved_import_cannot_strip_archive_binding(self):
+        reader = _saved_import_reader(self)
+        output, _, manifest = reader.build("stripped-archive-binding")
+        row = manifest["data"]["rows"][0]
+        self.assertEqual(row["reading"]["status"], "extracted")
+        row.pop("saved_import_archive")
         raw = canonical(manifest)
         (output / "source-rerun-manifest.json").write_bytes(raw)
         with self.assertRaisesRegex(DeliverableError, "unbound saved import"):
@@ -707,6 +869,183 @@ class SavedPublicImportTests(unittest.TestCase):
                         reference,
                         sha(index_bytes),
                     )
+
+    def test_saved_import_rejects_rehashed_separate_raw_in_all_gates(self):
+        reader = _saved_import_reader(self)
+        reader.index["claims"] = [
+            {
+                "claim_id": "saved-source-claim",
+                "work_id": "fixture-0",
+                "version_id": "version-0",
+                "text": "A synthetic historical claim keeps its source binding.",
+                "support": "Unknown",
+            }
+        ]
+        output, digest, _ = reader.build("separate-raw-substitution")
+        attached = attach_rerun(reader.index, output, digest)
+        extension = attached["source_rerun"]
+        row = extension["data"]["rows"][0]
+        raw_path = output / row["raw_path"]
+        replacement = b"X" * len(raw_path.read_bytes())
+        self.assertNotEqual(sha(replacement), row["raw_sha256"])
+        raw_path.write_bytes(replacement)
+        extension["artifact_hashes"][row["raw_path"]]["sha256"] = sha(replacement)
+        manifest_bytes = canonical(
+            {"data": extension["data"], "files": extension["artifact_hashes"]}
+        )
+        extension["manifest_sha256"] = sha(manifest_bytes)
+        (output / "source-rerun-manifest.json").write_bytes(manifest_bytes)
+        for gate in (validate_rerun_index, view_fixture.validate_index):
+            with self.subTest(gate=gate.__module__):
+                with self.assertRaises(DeliverableError):
+                    gate(attached)
+        with self.subTest(gate="export"):
+            with self.assertRaises(DeliverableError):
+                rerun_files(attached, output)
+        with self.subTest(gate="attachment"):
+            with self.assertRaises(DeliverableError):
+                attach_rerun(reader.index, output, sha(manifest_bytes))
+        index_bytes = canonical(attached)
+        index_path = reader.root / "substituted-index.json"
+        index_path.write_bytes(index_bytes)
+        reference = Path(__file__).parents[1] / "references/research-workspace"
+        with self.subTest(gate="render"):
+            with self.assertRaises(DeliverableError):
+                view_fixture.render_view(
+                    index_path,
+                    reader.root / "rejected-view",
+                    reference,
+                    sha(index_bytes),
+                )
+
+    def test_saved_public_import_replays_sdk_verified_source_without_fake_http(self):
+        reader = _saved_import_reader(self)
+        legacy_sources = reader.package / "deliverable/sources"
+        legacy_sources.rename(reader.package / "sources")
+        before = deepcopy(reader.index)
+        output, digest, manifest = reader.build()
+        attach_rerun(reader.index, output, digest)
+        row = manifest["data"]["rows"][0]
+        assert row["reading"]["status"] == "extracted"
+        assert row["selected_sequence"] == 2
+        assert row["original_attempts"] == before["sources"][0]["receipt"]["attempts"]
+        assert row["original_attempts"][0]["purpose"] == "saved-input-provenance"
+        assert row["original_attempts"][1]["purpose"] == "saved-public-source"
+        assert row["original_attempts"][1]["http_status"] is None
+        assert "acquisition_sequence" not in row
+        archive = row["saved_import_archive"]
+        assert set(archive["members"]) == {
+            "original.json",
+            *artifact_map(reader.index["sources"][0]["receipt"]).values(),
+        }
+        assert reader.index == before
+
+    def test_saved_public_import_in_memory_and_export_gates_fail_closed(self):
+        reader = _saved_import_reader(self)
+        output, digest, _ = reader.build("counterfeit-index")
+        attached = attach_rerun(reader.index, output, digest)
+        counterfeit = _counterfeit_saved_import(attached)
+        with self.assertRaisesRegex(
+            DeliverableError, "saved import provenance is invalid"
+        ):
+            validate_rerun_index(counterfeit)
+        with self.assertRaisesRegex(
+            DeliverableError, "saved import provenance is invalid"
+        ):
+            rerun_files(counterfeit, output)
+
+        receipt = attached["sources"][0]["receipt"]
+        row = attached["source_rerun"]["data"]["rows"][0]
+        selected = artifact_map(receipt)[receipt["attempts"][1]["raw_path"]]
+        selected_path = output / row["saved_import_archive"]["root"] / selected
+        selected_path.write_bytes(b"tampered contained source")
+        with self.assertRaisesRegex(DeliverableError, "bytes changed while exporting"):
+            rerun_files(attached, output)
+
+    def test_saved_public_import_attach_replays_contained_sdk_archive(self):
+        def rewrite(output, manifest):
+            raw = canonical(manifest)
+            (output / "source-rerun-manifest.json").write_bytes(raw)
+            return sha(raw)
+
+        reader = _saved_import_reader(self)
+        output, _, manifest = reader.build("attach-malformed-provenance")
+        row = manifest["data"]["rows"][0]
+        receipt = reader.index["sources"][0]["receipt"]
+        provenance = artifact_map(receipt)[receipt["attempts"][0]["raw_path"]]
+        name = row["saved_import_archive"]["root"] + "/" + provenance
+        malformed = b"{"
+        (output / name).write_bytes(malformed)
+        bound = {"sha256": sha(malformed), "bytes": len(malformed)}
+        manifest["files"][name] = bound
+        row["saved_import_archive"]["members"][provenance] = bound
+        with self.assertRaisesRegex(
+            DeliverableError, "saved import provenance byte binding differs"
+        ):
+            attach_rerun(reader.index, output, rewrite(output, manifest))
+
+        reader = _saved_import_reader(self)
+        output, _, manifest = reader.build("attach-missing-provenance")
+        row = manifest["data"]["rows"][0]
+        receipt = reader.index["sources"][0]["receipt"]
+        provenance = artifact_map(receipt)[receipt["attempts"][0]["raw_path"]]
+        name = row["saved_import_archive"]["root"] + "/" + provenance
+        (output / name).unlink()
+        manifest["files"].pop(name)
+        row["saved_import_archive"]["members"].pop(provenance)
+        with self.assertRaisesRegex(
+            DeliverableError, "saved import archive inventory differs"
+        ):
+            attach_rerun(reader.index, output, rewrite(output, manifest))
+
+    def test_saved_public_import_provenance_and_attempt_corruption_fail_closed(self):
+        def changed_manifest(reader, **updates):
+            receipt = reader.index["sources"][0]["receipt"]
+            mapping = artifact_map(receipt)
+            path = (
+                reader.package
+                / "deliverable/sources/source-0"
+                / mapping[receipt["attempts"][0]["raw_path"]]
+            )
+            value = json.loads(path.read_bytes())
+            value.update(updates)
+            return canonical(value)
+
+        cases = {
+            "malformed-provenance": lambda reader: _rebind_saved_import(
+                reader, provenance_bytes=b"{"
+            ),
+            "wrong-source-hash": lambda reader: _rebind_saved_import(
+                reader,
+                provenance_bytes=changed_manifest(reader, raw_sha256="0" * 64),
+            ),
+            "wrong-manifest-version": lambda reader: _rebind_saved_import(
+                reader,
+                provenance_bytes=changed_manifest(
+                    reader, schema_version="saved-public-source-input/v2"
+                ),
+            ),
+            "truncated-source": lambda reader: _rebind_saved_import(
+                reader,
+                mutate_receipt=lambda receipt: receipt["attempts"][1].update(
+                    response_truncated=True
+                ),
+            ),
+            "sequence-offset": lambda reader: _rebind_saved_import(
+                reader,
+                mutate_receipt=lambda receipt: receipt["attempts"][1].update(
+                    sequence=3
+                ),
+            ),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(case=name):
+                reader = _saved_import_reader(self)
+                mutate(reader)
+                with self.assertRaisesRegex(
+                    DeliverableError, "public source semantic replay failed"
+                ):
+                    reader.build(name)
 
 
 if __name__ == "__main__":
