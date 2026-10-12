@@ -1,0 +1,14 @@
+{
+  "head": "f86f40d784e179648b85f4fbd669edb38e47092f",
+  "input_version": 2,
+  "status": "unavailable-or-stale",
+  "refusal": "project-query-snapshot-semantics-differ",
+  "authorization_offer": null,
+  "external_searches": 0,
+  "model_calls": 0
+}
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\_private\workspace-return\query-version-revision-20261012-v1\before-repro.py", line 51, in <module>
+    assert observed['authorization_offer'] is not None, 'new version cannot request search authorization'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: new version cannot request search authorization

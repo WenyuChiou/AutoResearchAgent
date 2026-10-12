@@ -80,50 +80,68 @@
     "plugins/auto-research-agent/evals/capability-metric-map.stage2-v3.json": "09971b6456a79b07edeb68d07a4b910666c6402b99973584a525282b9de3ba98"
   },
   "logs": {
-    "before.log": {
+    "before.txt": {
       "original_sha256": "1405b5c199fec20280c345e368fe59da00e35fbcfda08f130965cc25237168cd",
       "published_sha256": "657f559081824fc3148220030250a2c49546525b920634ef92e3e64c91794a55",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "before.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "focused-r1.log": {
+    "focused-r1.txt": {
       "original_sha256": "088d5c8fdefb0a1ee6078f6fd307a188562857f78ea6e3af9ec0f58284ea036c",
       "published_sha256": "f47a83dd7ffe02af4a142477fe213c266338094faf6d1f9df1ffb1423ecf4616",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "focused-r1.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "focused-r2.log": {
+    "focused-r2.txt": {
       "original_sha256": "f5a00e341afc84efd3e95d0f9046cf168b15ac519fabcf6f0c67250d3cb8b45b",
       "published_sha256": "17728e5da93403ab31403445bcf591052e11f919db5324146aaf5092b106c8ec",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "focused-r2.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "focused-r3.log": {
+    "focused-r3.txt": {
       "original_sha256": "adc6e95626a4557658782cb603ecf509d85f1fe705f3332912932cb28394bd8b",
       "published_sha256": "7048efe1d2a81ea5d4178b1377aa4ec606194437cfd2da4f4b9ce3b89701b0ca",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "focused-r3.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "archive-final.log": {
+    "archive-final.txt": {
       "original_sha256": "dd9eb46e53e1267d19b0f7466701ebe6a530b62369a665275c3d08c3fa501ca2",
       "published_sha256": "194524d8b38c17f7686bf121e8ba456b3b7b012b121fac87b07545fbc4714028",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "archive-final.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "http-final.log": {
+    "http-final.txt": {
       "original_sha256": "bd922b0af12832e22c93594518ce747fac4118835ec1464459f7c3495e84debb",
       "published_sha256": "aadeaff67f16b35592d6434c3e206ab3475d91000cf19e96ffbc4a9367041263",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "http-final.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "http-default-final.log": {
+    "http-default-final.txt": {
       "original_sha256": "5392e2c52d9ff31ba81f9267d5b86092f552a6c97ae5c0b3d1c54429bbe50146",
       "published_sha256": "69ed5e538fb65e877bfb0c1c57f1d3a446f0b482d4dda35664f8fc2172b95e23",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "http-default-final.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "intake.log": {
+    "intake.txt": {
       "original_sha256": "ae4865bc07501603c89e4436b91c03948baa3704254d24a9ddc57e920e1fedba",
       "published_sha256": "3d33234d8bcbad07c9a7a5b0205572ae4d872e31b927b83a975c0e4d423f260e",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "intake.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     },
-    "map.log": {
+    "map.txt": {
       "original_sha256": "c2ed47c0de2ce32e7be39428833143068cb33337b341206def31068d0710a100",
       "published_sha256": "42652a6142e73a5dd728e5aed7123a89889e9d20217db05fee8fcb8e25318a0d",
-      "transform": "CRLF-to-LF only"
+      "transform": "CRLF-to-LF only",
+      "original_private_name": "map.log",
+      "publication_name_change": "log-to-txt to retain explicit tracked evidence"
     }
   },
   "browser": {
@@ -169,5 +187,12 @@
     "Browser viewport emulation is not actual mobile/tablet acceptance.",
     "Temporary local HTTP/Core/SQLite with mocked probe/backend does not attest Codex, external search or scientific completion.",
     "Core current-head full coverage, CI and protected integration remain required."
-  ]
+  ],
+  "publication_correction": {
+    "local_unpushed_head": "305b120faf57d5f78f310e5cb3944ee18310c68b",
+    "reason": "Generated README/manifest used Windows text-mode CRLF; .log names were ignored by Git.",
+    "source_and_tests_changed": false,
+    "previous_manifest_sha256": "34d7849082c7d6af99c608daea10999cd3efc669b9e148c4c26a05057a3a5fbb",
+    "transform": "README/manifest CRLF-to-LF; original log bytes kept under tracked txt names"
+  }
 }

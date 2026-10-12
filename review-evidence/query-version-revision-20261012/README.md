@@ -2,7 +2,7 @@
 
 An already authorized project could revise its topic and confirm a new plan, but
 the sole old search seal stayed stale and prevented a new authorization offer.
-The original-head offline failure is preserved in before.log.
+The original-head offline failure is preserved in before.txt.
 
 The existing broker now checks that query/source/model work is settled before
 revision, closes only the verified old saved owner, and archives its seal/job/run
@@ -18,7 +18,7 @@ languages. The original fourteen v6 renderer assets remain byte-identical. The
 preview is an installed-browser test with authored API responses and injected
 failure/safety text; it is not a real research project or connected Codex session.
 
-All runs and their boundaries are listed in manifest.json. FAILED R1/R2/R3 stay
+All runs and their boundaries are listed in manifest.json (logs are published as .txt). FAILED R1/R2/R3 stay
 FAILED. Their driver/fixture/assertion corrections are separate results; no
 combined nine-test or whole-suite final PASS is claimed. The shared test worker
 now includes the original fixed Atlas assets required by passive ProjectHost,
