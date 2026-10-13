@@ -598,7 +598,7 @@ class ScreeningRecordsTests(unittest.TestCase):
             Path(__file__).resolve().parents[1] / "references/research-workspace"
         )
         with self.assertRaisesRegex(
-            DeliverableError, "1.2 Stage2 consumer unconnected"
+            DeliverableError, "Stage 2 delivery, bridge and receipt hash are required"
         ):
             write_workspace(
                 index,
