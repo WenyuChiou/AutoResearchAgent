@@ -133,6 +133,10 @@
     },
     {
       "capability_id": "cli:stage2-live",
+      "content_revision_native_config_contract": "Read-only content-revision authentication reconstructs the current model-call config with the shared builder, retaining namespace, dispatcher and effective cwd before exact archive fingerprint comparison. The original request runtime pin must match current executable/runtime bytes; missing pins, namespace drift and downgrade reject. Legacy absent-namespace config keeps its original shape. No model dispatch, archived-code execution, receipt/source/journal rewrite, scientific approval or execution authority is added.",
+      "content_revision_native_config_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_content_revision.py"
+      ],
       "historical_verifier_contract": "Opt-in binding1.0 validates an externally pinned supported producer Python tree, separately pinned current host code/compatibility registry and Python/dependency bytes. Read-only controller, extraction and environment verification preserves original receipts, source/policy checks, unknown inventory and completion gates; no archive code executes. Namespaced controller replay uses the existing request-config builder, including exact effective cwd and dispatcher binding. Default current-code verification, execution and resume remain strict.",
       "historical_verifier_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller_host_verification.py",
