@@ -1,12 +1,17 @@
 """Run affected plugin tests; uncertain inputs retain the full contract suite."""
 
 import argparse
+from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from fnmatch import fnmatchcase
+import hashlib
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import re
 import sys
+import traceback
 import unittest
 
 from ci_scope import (
@@ -144,7 +149,88 @@ def event_paths(event, event_name, repo=REPO):
     return changed_paths_from_records(event_changes(event, event_name, repo))
 
 
-def run_suite(selection, repo=REPO, contracts=False):
+def test_ids(suite):
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            yield from test_ids(item)
+        else:
+            yield item.id()
+
+
+def partition_tests(ids, workers):
+    """Keep module fixtures together, distributing project integration modules."""
+    modules = {}
+    for name in ids:
+        modules.setdefault(name.rsplit(".", 2)[0], []).append(name)
+    groups = [[] for _ in range(min(workers, len(modules)))]
+    ordered = sorted(
+        modules, key=lambda name: (not name.startswith("test_project"), name)
+    )
+    for index, name in enumerate(ordered):
+        groups[index % len(groups)].extend(modules[name])
+    if Counter(name for group in groups for name in group) != Counter(ids):
+        raise ValueError("Parallel test inventory differs from full discovery")
+    return groups
+
+
+def run_partition(ids, directory):
+    sys.path.insert(0, str(directory))
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromNames(ids)
+    actual = list(test_ids(suite))
+    if loader.errors or Counter(actual) != Counter(ids):
+        raise ValueError("Worker test inventory differs from full discovery")
+    digest = hashlib.sha256(json.dumps(ids).encode()).hexdigest()
+    print(json.dumps({"worker_started": digest, "planned_tests": len(ids)}), flush=True)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    summary = {
+        "test_ids_sha256": digest,
+        "planned_tests": len(ids),
+        "tests_run": result.testsRun,
+        "failures": len(result.failures),
+        "errors": len(result.errors),
+        "skips": len(result.skipped),
+        "passed": result.wasSuccessful() and result.testsRun == len(ids),
+    }
+    print(json.dumps({"worker_completed": summary}), flush=True)
+    return summary
+
+
+def run_parallel(suite, directory, workers):
+    ids = list(test_ids(suite))
+    groups = partition_tests(ids, workers)
+    print(
+        json.dumps({"parallel_workers": len(groups), "planned_tests": len(ids)}),
+        flush=True,
+    )
+    results = []
+    incomplete = 0
+    with ProcessPoolExecutor(
+        max_workers=len(groups), mp_context=multiprocessing.get_context("spawn")
+    ) as executor:
+        futures = [executor.submit(run_partition, group, directory) for group in groups]
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except (Exception, SystemExit):
+                incomplete += 1
+                traceback.print_exc()
+    summary = {
+        "planned_tests": len(ids),
+        "tests_run": sum(item["tests_run"] for item in results),
+        "failures": sum(item["failures"] for item in results),
+        "errors": sum(item["errors"] for item in results),
+        "skips": sum(item["skips"] for item in results),
+        "incomplete_partitions": incomplete,
+        "passed": not incomplete and all(item["passed"] for item in results),
+    }
+    print(json.dumps(summary), flush=True)
+    return 0 if summary["passed"] else 1
+
+
+def run_suite(selection, repo=REPO, contracts=False, workers=1):
+    if not 1 <= workers <= 3:
+        raise ValueError("Test workers must be between one and three")
     governance = selection["mode"] == "governance"
     test_dir = Path(".github/scripts") if contracts or governance else TEST_DIR
     directory = repo / test_dir
@@ -168,6 +254,12 @@ def run_suite(selection, repo=REPO, contracts=False):
             suite.addTests(module_suite)
     if suite.countTestCases() == 0:
         raise ValueError("Selected test suite is empty")
+    if workers > 1 and not contracts and selection["mode"] == "full":
+        if loader.errors:
+            raise ValueError(
+                "Full discovery contains import errors: " + str(loader.errors)
+            )
+        return run_parallel(suite, directory, workers)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     print(
         json.dumps(
@@ -188,6 +280,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--contracts", action="store_true")
     parser.add_argument("--governance", action="store_true")
+    parser.add_argument(
+        "--workers", type=int, default=os.environ.get("PLUGIN_TEST_WORKERS", "1")
+    )
     args = parser.parse_args()
     if args.contracts and args.governance:
         parser.error("--contracts and --governance are mutually exclusive")
@@ -212,7 +307,7 @@ def main():
             paths, records=records, event_name=os.environ.get("GITHUB_EVENT_NAME")
         )
     print(json.dumps(selection), flush=True)
-    return run_suite(selection, contracts=args.contracts)
+    return run_suite(selection, contracts=args.contracts, workers=args.workers)
 
 
 if __name__ == "__main__":

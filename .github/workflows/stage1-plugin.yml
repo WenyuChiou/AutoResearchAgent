@@ -78,6 +78,8 @@ jobs:
         run: uvx --from codespell==2.4.3 codespell AGENTS.md plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/fixtures/pr_bodies .github/scripts/fixtures/pr_evidence .github/scripts/criterion-submetric-map.v1.json .github/scripts/invariant-registry.v1.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Plugin loading and stage contracts
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
+        env:
+          PLUGIN_TEST_WORKERS: ${{ matrix.os == 'windows-latest' && 3 || 1 }}
         run: uv run --isolated --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py
       - name: Research PR contract tests
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}

@@ -120,6 +120,15 @@ class Stage1CiQualityTests(unittest.TestCase):
         )
         self.assertEqual(job["needs"], "scope")
         self.assertEqual(job["if"], "${{ always() }}")
+        plugin_step = next(
+            step
+            for step in job["steps"]
+            if step.get("name") == "Plugin loading and stage contracts"
+        )
+        self.assertEqual(
+            plugin_step["env"]["PLUGIN_TEST_WORKERS"],
+            "${{ matrix.os == 'windows-latest' && 3 || 1 }}",
+        )
         self.assertEqual(source["permissions"], metadata["permissions"])
         scope_checkout = source["jobs"]["scope"]["steps"][0]
         self.assertEqual(scope_checkout["with"]["persist-credentials"], "false")
