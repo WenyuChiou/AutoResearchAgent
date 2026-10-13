@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage1-handoff:2.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["kind", "schema_version", "source_mode", "source_run_id", "source_state_sha256", "snapshot_ref", "acceptance_ref", "project_id", "input_version", "deliverable_manifest_sha256", "brief_sha256", "papers", "comparison_dimensions", "resources_preserved", "limitations", "stage1_gate", "eligible_for_stage2", "stage1_completed", "stage2"],
+  "properties": {
+    "kind": {"const": "Stage1Handoff"}, "schema_version": {"const": "2.0.0"},
+    "source_mode": {"const": "saved-source-current-admission"},
+    "source_run_id": {"type": "string", "minLength": 1},
+    "source_state_sha256": {"$ref": "#/$defs/Sha"},
+    "snapshot_ref": {"$ref": "#/$defs/Ref"},
+    "acceptance_ref": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Ref"}]},
+    "project_id": {"type": "string", "minLength": 1}, "input_version": {"type": "string", "minLength": 1},
+    "deliverable_manifest_sha256": {"$ref": "#/$defs/Sha"}, "brief_sha256": {"$ref": "#/$defs/Sha"},
+    "papers": {"type": "array", "minItems": 1, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["work_id", "title", "listed_version_id", "reviewed_version_id"],
+      "properties": {"work_id": {"type": "string", "minLength": 1}, "title": {"type": "string", "minLength": 1},
+                     "listed_version_id": {"type": "string", "minLength": 1}, "reviewed_version_id": {"type": "string", "minLength": 1}}
+    }},
+    "comparison_dimensions": {"const": ["Citation", "Question", "Method", "Data / study area", "Main claim", "Evidence", "Limitation", "Relevance", "Use as"]},
+    "resources_preserved": {"type": "object", "additionalProperties": false, "required": ["queries", "acquisitions"],
+      "properties": {"queries": {"$ref": "#/$defs/Resource"}, "acquisitions": {"$ref": "#/$defs/Resource"}}},
+    "limitations": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}},
+    "stage1_gate": {"type": "object", "additionalProperties": false, "required": ["status", "quantity_decision", "remaining"],
+      "properties": {"status": {"enum": ["blocked", "ready-for-import"]}, "quantity_decision": {"const": "stop-count-target-and-covered"},
+                     "remaining": {"type": "array", "items": {"type": "string"}}}},
+    "eligible_for_stage2": {"type": "boolean"}, "stage1_completed": {"const": false},
+    "stage2": {"const": {"status": "not-started", "execution_authorized": false}}
+  },
+  "$defs": {
+    "Sha": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "Ref": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "bytes"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/Sha"}, "bytes": {"type": "integer", "minimum": 0}}},
+    "Resource": {"type": "object", "additionalProperties": false, "required": ["used", "limit"],
+      "properties": {"used": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 0}}}
+  }
+}
