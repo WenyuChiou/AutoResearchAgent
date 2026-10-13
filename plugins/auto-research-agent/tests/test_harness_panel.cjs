@@ -46,7 +46,13 @@ async function mount({enabled = true, storage = new Map(), server = {view: baseV
       if (url.includes("/actions/")) return server.view.history.length ? response(transform(server.view.history.at(-1))) : {ok: false, json: async () => ({error: "action-not-found"})};
       return response(transform(server.view));
     }});
-  vm.runInContext(source, context); for (let i = 0; i < 10; i++) await tick();
+  vm.runInContext(source, context);
+  if (enabled) {
+    const deadline = Date.now() + 5000;
+    const loading = () => flatten(html).find(node => node.id === "harness-history-refresh").disabled;
+    while (loading() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(loading(), false, "initial source-bound history verification did not finish");
+  }
   const nodes = () => flatten(html), action = () => nodes().find(node => node.dataset.harnessAction === "validate-index"), refresh = () => nodes().find(node => node.id === "harness-history-refresh");
   const submit = async () => {await action().onclick(); for (let i = 0; i < 10; i++) await tick();};
   return {html, content, review, document, window, storage, server, calls, observers, urls, nodes, action, refresh, submit};

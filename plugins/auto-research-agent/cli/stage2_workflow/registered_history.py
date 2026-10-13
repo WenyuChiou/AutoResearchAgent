@@ -61,6 +61,12 @@ def _required_files(state):
         stage_run = manifest.get("stage_run") or {}
         for row in stage_run.get("input_refs", []):
             hashes[prefix + row["path"]] = row["sha256"]
+        # Every snapshot replays its own validated prior-work dossier, including
+        # older receipts that the latest packet no longer references.
+        for review in checker["packet"].get("prior_work_reviews", []):
+            for search in review["searches"]:
+                if search["status"] != "planned":
+                    hashes[prefix + search["raw_path"]] = search["raw_sha256"]
         original = _inside(
             state["root"], prefix + "input_packet.json", "registered-history"
         )
