@@ -78,6 +78,12 @@ Live execution must also supply the native call evidence.
 
 ## Local command interface
 
+The existing `import-stage1` command can explicitly receive the
+[saved-source handoff2.0](stage1-saved-admission.md). It requires the separate
+evidence root and external Core acceptance hash, replays admission before output,
+and preserves missing historical discovery rather than inventing a sufficient
+legacy ledger. The copied-note receipt remains external to the unchanged packet2.0.
+
 From the plugin's `cli` directory, `python -m stage2_workflow --help` lists the
 record operations. JSON input files are read strictly; errors return exit code 2.
 
@@ -234,3 +240,14 @@ without source context is that unsorted native JSON keys may differ from stored
 canonical-unit order; this change does not fix that separate case. An archive
 failure is an evaluator failure, not a zero scientific score. Ordinary-B replay
 does not establish physical A/B isolation, formal readiness or improvement.
+
+## Receiving a current saved-source admission
+
+The existing `stage2_workflow import-stage1` accepts handoff2.0 only with
+`--saved-source-root EVIDENCE_ROOT --saved-source-acceptance-sha256 HASH`.
+It recomputes the handoff and rejects changed external bindings or projected text.
+The normal Stage2Packet2.0 projection retains the actual current admission ID and
+snapshot hash as source run/state, and carries the missing historical trace and
+unverified claims in unresolved items. It adds no invented ledger events.
+The versioned external import receipt binds copied full notes and cumulative
+resources; candidate count stays zero and Stage2 remains not-started.
