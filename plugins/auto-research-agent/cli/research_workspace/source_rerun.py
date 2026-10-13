@@ -7,12 +7,15 @@ The parser is supplied by an explicitly pinned local source file.
 from copy import deepcopy
 from dataclasses import asdict
 from importlib import metadata, util
+import json
 from pathlib import Path
 import platform
 import re
 import sys
+import tempfile
 from urllib.parse import quote
 from research_hub.utils.doi import normalize_doi
+from research_hub.source_fetch_saved import validate_saved_input_manifest
 
 from stage1_deliverable.common import (
     DeliverableError,
@@ -22,7 +25,7 @@ from stage1_deliverable.common import (
     safe_path,
     sha,
 )
-from stage1_deliverable.sources import artifact_map
+from stage1_deliverable.sources import artifact_map, validate_archive
 from stage1_deliverable.views import bibtex, csv_bytes, workbook_bytes
 from .json_bytes import decode_json
 
@@ -103,6 +106,118 @@ def _saved_public_import(receipt, selected):
     )
 
 
+def _source_archive(package_root, source_id):
+    """Resolve the current package layout while retaining legacy test packages."""
+    candidates = [
+        safe_path(package_root, "sources/" + source_id),
+        safe_path(package_root, "deliverable/sources/" + source_id),
+    ]
+    existing = [path for path in candidates if path.is_dir()]
+    require(len(existing) == 1, "rerun source archive is missing or ambiguous")
+    return existing[0]
+
+
+def _saved_import_archive_files(receipt, archive):
+    """Return the exact SDK archive bytes required for later semantic replay."""
+    members = {"original.json": safe_path(archive, "original.json").read_bytes()}
+    for relative in artifact_map(receipt).values():
+        require(relative not in members, "saved import archive path is ambiguous")
+        members[relative] = safe_path(archive, relative).read_bytes()
+    return members
+
+
+def _saved_import_binding(row, source, artifact_hashes):
+    """Validate the immutable archive inventory recorded in a rerun row."""
+    binding = row.get("saved_import_archive")
+    require(type(binding) is dict, "rerun saved import archive binding missing")
+    root = "source-archives/" + source["source_id"]
+    require(binding.get("root") == root, "rerun saved import archive root differs")
+    expected = {"original.json", *artifact_map(source["receipt"]).values()}
+    members = binding.get("members")
+    require(type(members) is dict, "rerun saved import archive members missing")
+    require(set(members) == expected, "rerun saved import archive inventory differs")
+    for relative, recorded in members.items():
+        name = root + "/" + relative
+        require(
+            recorded == artifact_hashes.get(name),
+            "rerun saved import archive artifact binding differs",
+        )
+    require(
+        members["original.json"]["sha256"] == source["result_sha256"],
+        "rerun saved import receipt hash differs",
+    )
+    return root, members
+
+
+def _validate_saved_import_provenance(row, source, members):
+    """Semantically bind carried provenance to its immutable SDK receipt."""
+    receipt = source["receipt"]
+    attempts = receipt["attempts"]
+    provenance = row.get("saved_import_archive", {}).get("provenance_utf8")
+    require(type(provenance) is str, "rerun saved import provenance is missing")
+    encoded = provenance.encode("utf-8")
+    relative = artifact_map(receipt)[attempts[0]["raw_path"]]
+    recorded = members[relative]
+    require(
+        sha(encoded) == recorded["sha256"] == attempts[0]["raw_sha256"]
+        and len(encoded) == recorded["bytes"] == attempts[0]["response_bytes"],
+        "rerun saved import provenance byte binding differs",
+    )
+    try:
+        manifest = validate_saved_input_manifest(json.loads(provenance))
+    except (json.JSONDecodeError, ValueError) as error:
+        raise DeliverableError("rerun saved import provenance is invalid") from error
+    diagnostics = receipt["diagnostics"]["saved_import"]
+    expected = {
+        "url": receipt["request"]["url"],
+        "final_url": receipt["final_url"],
+        "doi": normalize_doi(receipt["request"].get("doi") or ""),
+        "title": receipt["request"]["title"],
+        "raw_sha256": attempts[1]["raw_sha256"],
+        "content_type": attempts[1]["content_type"],
+        "original_acquired_at": diagnostics.get("original_acquired_at"),
+    }
+    require(
+        all(manifest[key] == value for key, value in expected.items())
+        and receipt.get("source_url") == manifest["url"]
+        and receipt["request"].get("doi") == manifest["doi"]
+        and receipt.get("expected_identity")
+        == {"doi": manifest["doi"], "title": manifest["title"]},
+        "rerun saved import provenance/receipt binding differs",
+    )
+    require(
+        manifest["schema_version"] == diagnostics["manifest_schema_version"]
+        and sha(encoded) == diagnostics["manifest_sha256"]
+        and attempts[0]["url"] == attempts[1]["url"] == manifest["url"]
+        and attempts[0]["final_url"]
+        == attempts[1]["final_url"]
+        == manifest["final_url"],
+        "rerun saved import provenance diagnostics differ",
+    )
+    return manifest
+
+
+def _replay_saved_import_archive(row, source, artifact_hashes, evidence):
+    """Recreate and replay a contained saved-import archive at attachment time."""
+    root, members = _saved_import_binding(row, source, artifact_hashes)
+    with tempfile.TemporaryDirectory(prefix="source-rerun-saved-import-") as temporary:
+        archive = Path(temporary).resolve() / "archive"
+        archive.mkdir()
+        for relative in members:
+            name = root + "/" + relative
+            require(name in evidence, "rerun saved import archive artifact missing")
+            target = safe_path(archive, relative)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(evidence[name])
+        original = safe_path(archive, "original.json").read_bytes()
+        require(
+            sha(original) == source["result_sha256"]
+            and decode_json(original) == source["receipt"],
+            "rerun saved import receipt identity differs",
+        )
+        validate_archive(archive)
+
+
 def _parser(path, expected):
     path = Path(path).resolve(strict=True)
     require(sha(path.read_bytes()) == expected, "rerun parser hash differs")
@@ -176,14 +291,26 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
     for source in index["sources"]:
         paper = papers[(source["work_id"], source["version_id"])]
         receipt = source["receipt"]
-        prefix = "deliverable/sources/" + source["source_id"] + "/"
+        archive = _source_archive(package_root, source["source_id"])
         mapping = artifact_map(receipt)
-        original = safe_path(package_root, prefix + "original.json").read_bytes()
+        original = safe_path(archive, "original.json").read_bytes()
         require(
             sha(original) == source["result_sha256"], "rerun original receipt differs"
         )
         require(decode_json(original) == receipt, "rerun receipt identity differs")
         selected, acquisition = _saved_response_selection(receipt["attempts"])
+        saved_import = (
+            receipt.get("request", {}).get("operation") == "source import-saved"
+        )
+        if saved_import:
+            # Reuse the normal package validator, which invokes the immutable SDK's
+            # public offline validator and verifies provenance/source bytes,
+            # receipt fields, parser replay, versions, and attempt sequencing.
+            validate_archive(archive)
+            require(
+                _saved_public_import(receipt, selected),
+                "saved public import receipt is not replay-admissible",
+            )
         row = {key: source[key] for key in ("work_id", "version_id", "source_id")}
         row.update(
             original_result_sha256=source["result_sha256"],
@@ -191,6 +318,22 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
             previous_evidence_level=receipt["evidence_level"],
             original_attempts=deepcopy(receipt["attempts"]),
         )
+        if saved_import:
+            archive_root = "source-archives/" + source["source_id"]
+            archive_members = _saved_import_archive_files(receipt, archive)
+            for relative, content in archive_members.items():
+                files[archive_root + "/" + relative] = content
+            provenance_relative = artifact_map(receipt)[
+                receipt["attempts"][0]["raw_path"]
+            ]
+            row["saved_import_archive"] = {
+                "root": archive_root,
+                "provenance_utf8": archive_members[provenance_relative].decode("utf-8"),
+                "members": {
+                    relative: {"sha256": sha(content), "bytes": len(content)}
+                    for relative, content in sorted(archive_members.items())
+                },
+            }
         extracted = {}
         reading = {
             "status": "not-attempted-no-saved-response",
@@ -203,9 +346,7 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
             "error": None,
         }
         if selected and selected.get("raw_path"):
-            raw = safe_path(
-                package_root, prefix + mapping[selected["raw_path"]]
-            ).read_bytes()
+            raw = safe_path(archive, mapping[selected["raw_path"]]).read_bytes()
             require(sha(raw) == selected["raw_sha256"], "rerun raw source hash differs")
             suffix = ".pdf" if raw.startswith(b"%PDF-") else ".html"
             raw_name = "sources/" + source["source_id"] + "/raw" + suffix
@@ -237,7 +378,7 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
                         )
                     try:
                         acquisition_raw = safe_path(
-                            package_root, prefix + mapping[acquisition["raw_path"]]
+                            archive, mapping[acquisition["raw_path"]]
                         ).read_bytes()
                     except OSError as error:
                         raise ValueError(
@@ -250,6 +391,9 @@ def build_rerun(index, package_root, output, parser_path, expected_parser_sha256
                     )
                     raw = acquisition_raw
                     row["acquisition_sequence"] = acquisition["sequence"]
+                elif saved_import:
+                    if len(raw) != selected["response_bytes"]:
+                        raise ValueError("saved public import byte count differs")
                 elif selected.get("http_status") != 200:
                     raise PermissionError(
                         "saved HTTP response was not successful; no new access attempted"
@@ -507,6 +651,15 @@ def attach_rerun(
     if source_reviews:
         result["source_rerun"]["whole_source_reviews"] = source_reviews
     validate_rerun_index(result)
+    sources = {source["source_id"]: source for source in index["sources"]}
+    for row in result["source_rerun"]["data"]["rows"]:
+        source = sources[row["source_id"]]
+        if (
+            source["receipt"].get("request", {}).get("operation")
+            == "source import-saved"
+            and "saved_import_archive" in row
+        ):
+            _replay_saved_import_archive(row, source, files, evidence)
     for row in result["source_rerun"]["data"]["rows"]:
         if row.get("raw_path"):
             require(
@@ -613,15 +766,29 @@ def validate_rerun_index(index):
             source["receipt"].get("request", {}).get("operation")
             == "source import-saved"
         )
+        saved_import_bound = False
         if saved_import_receipt:
             require(
                 _saved_public_import(source["receipt"], selected),
                 "rerun saved import receipt is not replay-admissible",
             )
-            require(
-                "saved_import_archive" not in row,
-                "rerun unbound saved import must retain legacy inaccessible reading",
+        if saved_import_receipt and "saved_import_archive" in row:
+            _, saved_members = _saved_import_binding(
+                row, source, extension["artifact_hashes"]
             )
+            _validate_saved_import_provenance(row, source, saved_members)
+            selected_member = artifact_map(source["receipt"])[selected["raw_path"]]
+            raw_artifact = extension["artifact_hashes"].get(row.get("raw_path"), {})
+            require(
+                saved_members[selected_member]["sha256"] == row.get("raw_sha256")
+                and saved_members[selected_member]["bytes"]
+                == selected.get("response_bytes")
+                and raw_artifact.get("sha256") == row.get("raw_sha256")
+                and raw_artifact.get("bytes") == selected.get("response_bytes"),
+                "rerun saved import selected source binding differs",
+            )
+            saved_import_bound = True
+        elif saved_import_receipt:
             # The earlier writer rejected the SDK's null HTTP status before
             # extraction. Preserve that historical failure without admitting text.
             require(
@@ -726,17 +893,21 @@ def validate_rerun_index(index):
                 selected is not None
                 and bool(selected.get("raw_path"))
                 and not selected.get("response_truncated")
-                and (selected.get("http_status") == 200 or acquisition_bound),
+                and (
+                    selected.get("http_status") == 200
+                    or acquisition_bound
+                    or saved_import_bound
+                ),
                 "rerun successful reading lacks saved acquisition",
             )
-            if acquisition_bound:
+            if acquisition_bound or saved_import_bound:
                 require(
                     type(selected.get("response_bytes")) is int
                     and extension["artifact_hashes"]
                     .get(row["raw_path"], {})
                     .get("bytes")
                     == selected["response_bytes"],
-                    "rerun offline acquisition byte count differs",
+                    "rerun saved acquisition byte count differs",
                 )
             require(
                 bool(row.get("extracted_path"))
@@ -822,12 +993,30 @@ def validate_rerun_index(index):
 
 def rerun_files(index, rerun_root):
     validate_rerun_index(index)
-    import json
-
     from .source_availability import derive_source_availability
 
     extension = index["source_rerun"]
     rows = extension["data"]["rows"]
+    root = private_output(rerun_root)
+    evidence = {}
+    for name, recorded in extension["artifact_hashes"].items():
+        raw = safe_path(root, name).read_bytes()
+        require(
+            sha(raw) == recorded["sha256"] and len(raw) == recorded["bytes"],
+            "rerun bytes changed while exporting",
+        )
+        evidence[name] = raw
+    sources = {source["source_id"]: source for source in index["sources"]}
+    for row in rows:
+        source = sources[row["source_id"]]
+        if (
+            source["receipt"].get("request", {}).get("operation")
+            == "source import-saved"
+            and "saved_import_archive" in row
+        ):
+            _replay_saved_import_archive(
+                row, source, extension["artifact_hashes"], evidence
+            )
     availability = derive_source_availability(index)
 
     def tabular(values):
@@ -867,7 +1056,8 @@ def rerun_files(index, rerun_root):
     )
     tables["SourceRerun"] = flattened
     tables["SourceAvailability"] = tabular(availability["source_rows"])
-    tables["ClaimAvailability"] = tabular(availability["claim_rows"])
+    if availability["claim_rows"]:
+        tables["ClaimAvailability"] = tabular(availability["claim_rows"])
     availability_markdown = (
         "# Saved-source availability\n\n"
         "Availability records whether a readable saved body is present. It does not change or explain the historical claim assessment.\n\n"
@@ -907,9 +1097,6 @@ def rerun_files(index, rerun_root):
             "Readable-source status and historical claim assessment are separate.\n\n"
             + fence({"source_availability": row, "claims": claims})
         ).encode("utf-8")
-    root = private_output(rerun_root)
-    for name, row in extension["artifact_hashes"].items():
-        raw = safe_path(root, name).read_bytes()
-        require(sha(raw) == row["sha256"], "rerun bytes changed while exporting")
+    for name, raw in evidence.items():
         files["source-rerun/" + name] = raw
     return files

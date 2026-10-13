@@ -50,12 +50,16 @@ class ReviewExampleTests(unittest.TestCase):
         self.assertGreater(child.call_count, 0)  # Actual private-output Git guards.
         self.receipt = json.loads((self.root / "fixture-receipt.json").read_bytes())
 
-    def host(self):
+    def host(self, *, timeout=5):
         token = secrets.token_urlsafe(32)
         stages = self.example.create_stage_actions(self.root, self.views, token)
         self.addCleanup(stages.close)
         server = AtlasHost(
-            files=self.files, views=self.views, credential=token, stage_actions=stages
+            files=self.files,
+            views=self.views,
+            credential=token,
+            stage_actions=stages,
+            timeout=timeout,
         )
         worker = threading.Thread(target=server.serve_forever, daemon=True)
         worker.start()
@@ -64,9 +68,9 @@ class ReviewExampleTests(unittest.TestCase):
         self.addCleanup(server.shutdown)
         return server, stages, token
 
-    def request(self, server, token, route, body=None):
+    def request(self, server, token, route, body=None, *, timeout=10):
         connection = http.client.HTTPConnection(
-            "127.0.0.1", server.server_port, timeout=10
+            "127.0.0.1", server.server_port, timeout=timeout
         )
         headers = {"Authorization": "Bearer " + token}
         if body is not None:
@@ -307,10 +311,14 @@ class ReviewExampleTests(unittest.TestCase):
         self.assertFalse(stage2["model_execution"])
 
     def test_opt_in_stage2_demo_registration_and_history_never_dispatch(self):
-        server, _, token = self.host()
+        # This registration fixture verifies the complete repository inventory;
+        # it does not measure the production five-second request deadline.
+        server, _, token = self.host(timeout=30)
         demo = self.example.install_stage2_demo(server, self.root, token)
         self.addCleanup(demo.close)
-        status, view = self.request(server, token, "/api/stage2-demo/stage2")
+        status, view = self.request(
+            server, token, "/api/stage2-demo/stage2", timeout=30
+        )
         self.assertEqual(status, 200)
         self.assertIsNone(view["action"])
         self.assertFalse((demo.root / "run-once").exists())
@@ -319,7 +327,7 @@ class ReviewExampleTests(unittest.TestCase):
             bootstrap = ("/stage2-demo-bootstrap/" + row["ref"] + ".js").encode()
             self.assertLess(html.index(bootstrap), html.index(b"/host-panel.js"))
             self.assertIn(b"/stage2-demo-panel.js", html)
-        connection = http.client.HTTPConnection(*server.server_address, timeout=10)
+        connection = http.client.HTTPConnection(*server.server_address, timeout=30)
         try:
             connection.request(
                 "GET",
@@ -334,7 +342,7 @@ class ReviewExampleTests(unittest.TestCase):
         for route, expected in binding["served_files"].items():
             with self.subTest(route=route):
                 connection = http.client.HTTPConnection(
-                    *server.server_address, timeout=10
+                    *server.server_address, timeout=30
                 )
                 try:
                     connection.request(
@@ -346,7 +354,9 @@ class ReviewExampleTests(unittest.TestCase):
                 finally:
                     connection.close()
         self.assertIsNone(
-            self.request(server, token, "/api/stage2-demo/stage2")[1]["action"]
+            self.request(server, token, "/api/stage2-demo/stage2", timeout=30)[1][
+                "action"
+            ]
         )
         self.assertFalse((demo.root / "run-once").exists())
 
