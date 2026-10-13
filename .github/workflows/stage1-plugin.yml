@@ -84,6 +84,11 @@ jobs:
           # venv records the resolved base; uv's interpreter cache may retain the alias.
           & $basePython -I -B -m venv --copies --without-pip $testRoot
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($IsMacOS) {
+            # Standalone macOS copies load libpython beside the new environment.
+            & $basePython -I -B -c "import pathlib,shutil,sys; shutil.copyfile(pathlib.Path(sys.base_prefix)/'lib'/'libpython3.11.dylib', pathlib.Path(sys.argv[1])/'lib'/'libpython3.11.dylib')" $testRoot
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
           $testBin = Join-Path $testRoot $(if ($IsWindows) { "Scripts" } else { "bin" })
           $testPython = Join-Path $testBin $(if ($IsWindows) { "python.exe" } else { "python" })
           uv pip install --no-config --python $testPython --link-mode copy --requirements plugins/auto-research-agent/requirements-test.txt

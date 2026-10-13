@@ -152,7 +152,10 @@ class Stage1CiQualityTests(unittest.TestCase):
         self.assertIn("--managed-python 3.11", install["run"])
         self.assertIn(".resolve(strict=True)", install["run"])
         self.assertIn("-m venv --copies --without-pip", install["run"])
-        self.assertEqual(install["run"].count("exit $LASTEXITCODE"), 5)
+        self.assertIn("if ($IsMacOS)", install["run"])
+        self.assertIn("shutil.copyfile", install["run"])
+        self.assertIn("libpython3.11.dylib", install["run"])
+        self.assertEqual(install["run"].count("exit $LASTEXITCODE"), 6)
         for name, suffix in (
             ("Plugin loading and stage contracts", ""),
             ("Research PR contract tests", " --contracts"),
