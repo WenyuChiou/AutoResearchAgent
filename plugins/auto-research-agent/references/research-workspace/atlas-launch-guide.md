@@ -6,15 +6,15 @@ and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
 search, source import or session resume is required.
 
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
-Candidate B (#271) adds saved-input Harness operations to the reviewed
-Wiki/Atlas assets and retains prerequisite A (#262), including current-main
-CI scope, privacy and legacy saved-source guards. The clone below selects B's existing candidate branch; its
-fixed delivered head and accepted prerequisites are reported in the PR. B is not
-yet merged or accepted by the core team. This launcher is the saved-view review
-host, not C's final ProjectHost/settings/own-account research entry (#295).
+A (#262) and B (#271) are merged. B adds saved-input Harness operations and
+retains A's Wiki/Atlas, privacy and saved-source guards. Use a complete reviewed
+main checkout and retain its exact commit. This fixture launcher is the
+saved-view review host. The already merged ProjectHost root can also serve
+explicitly registered views, as documented below; this does not claim acceptance
+of Draft #295's native session or final Settings integration.
 
 ```powershell
-git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-stage-ui-20261009 https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch main https://github.com/WenyuChiou/AutoResearchAgent.git ara-review
 Set-Location ara-review
 ```
 
@@ -40,8 +40,80 @@ editable settings page. Browser Back follows the pages already visited; after a
 Wiki/Atlas round-trip it may return to the Wiki. Reopen the printed root URL to
 return directly to the case chooser. The original index remains the pinned
 saved package/reference view. The unique full-system
-ProjectHost `/` and real settings entry are deferred to C, without adding C
-functions to this candidate.
+ProjectHost `/` is a separate merged portal entry; the final Settings/native
+session integration remains separate acceptance work.
+
+## Read an evaluated Stage 2 package in a canonical Wiki
+
+For an already saved canonical WorkspaceIndex 1.1 or 1.2, use the existing Python
+API from `plugins/auto-research-agent/cli`. Verify the externally retained index
+bytes/hash first. `prepare_stage2_bridge(index, delivery_dir,
+expected_manifest_sha256=...)` verifies the evaluated delivery and creates an
+explicit reading association. Retain the canonical bridge bytes and their
+external SHA-256 separately. Then call:
+
+```python
+from research_workspace.view import write_workspace
+
+receipt = write_workspace(
+    verified_index,
+    reference_root,
+    new_private_output,
+    stage2_delivery=verified_delivery_root,
+    stage2_bridge=verified_bridge,
+    expected_stage2_bridge_sha256=external_bridge_sha256,
+    atlas=True,
+)
+```
+
+`reference_root` is `references/research-workspace` in the complete reviewed
+checkout; its four frozen assets must match the renderer's `REFERENCE_HASHES`.
+The output must be a new directory outside Git. The existing importer binds the
+project, canonical index/version, external evaluated manifest and bridge, then
+copies the verified artifacts and original evaluation comments without modifying
+the index or either source package. Unknown, pending audit and technical failure
+remain visible. A 3.0 index also retains its required source-rerun root binding.
+
+The Stage 2 manifest receipt hashes canonical content excluding its own
+`manifest_sha256` field; it is not the physical JSON file SHA-256. The bridge uses
+canonical bytes. Host configuration and view manifest pins below use physical
+file bytes. Do not interchange these values or downgrade an index version.
+
+Register the resulting `view-manifest.json` in the existing views config:
+
+```json
+{
+  "views": [{
+    "ref": "saved-stage2",
+    "label": "Saved Stage 2 results",
+    "manifest": "C:/private-wiki/new-view/view-manifest.json",
+    "sha256": "<external SHA-256 of that view-manifest file>",
+    "fixture": false
+  }]
+}
+```
+
+Keep the config outside Git and retain its external physical SHA-256. From the
+plugin CLI directory, start the already merged portal:
+
+```powershell
+python -B -X utf8 -m research_workspace_native.project_host --projects-root <PRIVATE_PROJECT_ROOT> --views-config <ABSOLUTE_CONFIG_PATH> --views-sha256 <EXTERNAL_CONFIG_SHA256> --port 0
+```
+
+Use the actual `url` printed by that process: root `/` serves `projects.html`.
+Saved Results opens `/views/saved-stage2/atlas.html`, with the six stages at the
+left. Stage 2 exposes comparison, directions, original comments and artifacts;
+Stage 3–6 remain planned/unconnected. Original workspace returns to the same
+frozen saved `index.html`, whose Atlas link returns to the Atlas. Browser Back
+returns through the visited pages to the portal; this is not a new portal-back
+button or a final Settings acceptance claim.
+
+This reading association does not attest that Stage 2 originally used that
+Stage 1 package. It keeps native canonical seed admission unconnected, human
+selection pending and execution disabled. It does not start a research stage,
+authorize Stage 3, rerun Stage 1, score research or require Draft #295. Supply the
+latest real evaluated package and actual project/view bindings for real-package
+acceptance; synthetic test success is implementation evidence only.
 
 The retained historical r3 overlay was made by adding Atlas files to an older
 Wiki. That old `index.html` has no forward Atlas link; use browser Back after

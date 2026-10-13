@@ -101,8 +101,9 @@ def project_canonical_delivery(delivery_root, project_id, expected_manifest_sha2
 
     Only the supplied bare delivery is read. Source receipt identity must match
     its canonical work directly: a mismatch requiring an external extractor is
-    refused. Missing readiness stays missing, and canonical 1.1's Stage 2
-    consumer remains unconnected. This projection grants no execution permit.
+    refused. Missing readiness stays missing. Canonical 1.1/1.2 seed admission
+    remains unconnected; a separately verified Stage2 reading attachment does
+    not change that boundary. This projection grants no execution permit.
     """
     identifier(project_id)
     root = private_output(delivery_root)
