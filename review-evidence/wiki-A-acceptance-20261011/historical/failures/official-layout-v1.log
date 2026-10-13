@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+'BODY' !== 'H1'
+
+    at <LOCAL_WORKSPACE>\worktrees\ca-wiki\plugins\auto-research-agent\tests\test_workspace_atlas_browser.js:60:14 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'BODY',
+  expected: 'H1',
+  operator: 'strictEqual',
+  diff: 'simple'
+}

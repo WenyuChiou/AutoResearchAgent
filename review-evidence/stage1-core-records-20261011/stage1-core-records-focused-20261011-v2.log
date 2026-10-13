@@ -1,0 +1,22 @@
+test_complete_core_history_package_projection_and_wiki_without_promotion (test_stage1_core_records.CoreRecordsTests.test_complete_core_history_package_projection_and_wiki_without_promotion) ... ERROR
+test_human_preparation_preserves_request_hash_deadline_and_no_rewrite (test_stage1_core_records.CoreRecordsTests.test_human_preparation_preserves_request_hash_deadline_and_no_rewrite) ... ok
+test_human_registry_uses_original_request_hash_and_preserves_history (test_stage1_core_records.CoreRecordsTests.test_human_registry_uses_original_request_hash_and_preserves_history) ... ok
+test_legacy_records_and_rendered_formats_remain_legacy (test_stage1_core_records.CoreRecordsTests.test_legacy_records_and_rendered_formats_remain_legacy) ... ok
+test_rewritten_event_nullable_span_and_incomplete_history_refused (test_stage1_core_records.CoreRecordsTests.test_rewritten_event_nullable_span_and_incomplete_history_refused) ... ok
+test_stage2_explicitly_refuses_new_format_before_import (test_stage1_core_records.CoreRecordsTests.test_stage2_explicitly_refuses_new_format_before_import) ... ok
+
+======================================================================
+ERROR: test_complete_core_history_package_projection_and_wiki_without_promotion (test_stage1_core_records.CoreRecordsTests.test_complete_core_history_package_projection_and_wiki_without_promotion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\tests\test_stage1_core_records.py", line 106, in test_complete_core_history_package_projection_and_wiki_without_promotion
+    self.assertEqual(validate_package(package, saved["manifest_sha256"])["status"], "passed")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-native-prompt\plugins\auto-research-agent\cli\stage1_deliverable\package.py", line 218, in validate
+    raise DeliverableError("package file inventory or bytes differ")
+stage1_deliverable.common.DeliverableError: package file inventory or bytes differ
+
+----------------------------------------------------------------------
+Ran 6 tests in 75.943s
+
+FAILED (errors=1)

@@ -35,16 +35,32 @@ CORE_CHECKS = (
     "coverage-and-claim-review",
     "handoff-contract",
 )
-PRODUCER_FILES = (
-    "cli/research_workspace/saved_admission.py",
-    "cli/research_workspace/saved_admission_evidence.py",
-    "cli/research_workspace/final_delivery.py",
-    "cli/research_workspace/formal_readiness.py",
-    "cli/stage2_workflow/import_stage1.py",
-    "cli/stage2_workflow/__main__.py",
-    "schemas/stage1-saved-admission.v1.schema.json",
-    "schemas/stage1-handoff.v2.schema.json",
-)
+
+
+def producer_files():
+    """Bind the complete shipped CLI/schema closure, including optional validators.
+
+    Enumerate again during inspection so new modules cannot reuse an acceptance
+    captured before they were installed. Interpreter caches are not shipped input.
+    Dependencies remain governed by the pinned requirements and existing replay.
+    """
+    root = SCHEMA.parent.parent
+    return tuple(
+        sorted(
+            {
+                path.relative_to(root).as_posix()
+                for directory in (root / "cli", root / "schemas")
+                for path in directory.rglob("*")
+                if path.is_file()
+                and "__pycache__" not in path.parts
+                and path.suffix not in {".pyc", ".pyo"}
+            }
+            | {"requirements-test.in", "requirements-test.txt"}
+        )
+    )
+
+
+PRODUCER_FILES = producer_files()
 REQUIRED_CI_JOBS = {
     "pr-contract",
     "contracts (ubuntu-latest)",
@@ -135,13 +151,29 @@ def check_note_binding(row, paper, companion_digest):
 
 def check_acquisition_binding(row, source, provenance, admission_at):
     """Retain the saved original time; current admission does not recreate acquisition."""
+    # A real projected SDK source binds its original JSON via result_sha256;
+    # attempts[*].sha256 binds raw response bytes, not that JSON receipt.
+    original_receipt = source.get("result_sha256") == row["acquisition_provenance"][
+        "sha256"
+    ] and provenance == source.get("receipt")
+    raw_digest = provenance.get("raw_sha256")
+    if original_receipt:
+        raw_digest = (
+            row["raw_source"]["sha256"]
+            if any(
+                attempt.get("raw_sha256") == row["raw_source"]["sha256"]
+                for attempt in provenance.get("attempts", [])
+            )
+            else None
+        )
     require(
-        provenance.get("raw_sha256") == row["raw_source"]["sha256"]
+        raw_digest == row["raw_source"]["sha256"]
         and provenance.get("original_acquired_at") == row["original_acquired_at"],
         "original acquisition binding mismatch",
     )
     require(
-        any(
+        original_receipt
+        or any(
             attempt.get("sha256") == row["acquisition_provenance"]["sha256"]
             for attempt in source.get("attempts", [])
         ),
@@ -229,7 +261,7 @@ def _check_acceptance(
         "producer not delivered",
     )
     require(
-        set(producer["sources"]) == set(PRODUCER_FILES),
+        set(producer["sources"]) == set(producer_files()),
         "producer runtime inventory incomplete",
     )
     for name, digest in producer["sources"].items():
@@ -411,6 +443,11 @@ def inspect_saved_admission(
     deliverable_root = (Path(root) / bindings["deliverable"]["path"]).parent
     deliverable_package.validate(deliverable_root, bindings["deliverable"]["sha256"])
     manifest = read_bound_json(root, bindings["deliverable"])
+    require(
+        index["provenance"]["deliverable_manifest_sha256"]
+        == bindings["deliverable"]["sha256"],
+        "view deliverable manifest mismatch",
+    )
     papers = manifest["canonical_records"]["papers"]
     included = reconcile_rows(snapshot["rows"], papers, progress["target"])
     require(
@@ -418,6 +455,10 @@ def inspect_saved_admission(
         "formal selection differs",
     )
     source_by_id = {source["source_id"]: source for source in index["sources"]}
+    canonical_source_by_id = {
+        source["source_id"]: source
+        for source in manifest["canonical_records"]["sources"]
+    }
     for row in snapshot["rows"]:
         raw = read_bound(root, row["raw_source"])
         text = read_bound(root, row["extracted_text"])
@@ -432,6 +473,15 @@ def inspect_saved_admission(
             and source["work_id"] == row["work_id"]
             and source["version_id"] == row["version_id"],
             "view source identity mismatch",
+        )
+        canonical_source = canonical_source_by_id.get(row["source_id"])
+        require(
+            canonical_source is not None
+            and canonical_source["work_id"] == row["work_id"]
+            and canonical_source["version_id"] == row["version_id"]
+            and canonical_source["result_sha256"]
+            == row["acquisition_provenance"]["sha256"],
+            "deliverable source receipt mismatch",
         )
         check_acquisition_binding(
             row,

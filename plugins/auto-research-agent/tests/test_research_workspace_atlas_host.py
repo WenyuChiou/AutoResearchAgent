@@ -29,6 +29,7 @@ class AtlasHostTests(unittest.TestCase):
             files["workspace-index.json"] = canonical(value["index"])
             files["index.html"] = b"<h1>Original read-only workspace</h1>"
             for name, raw in files.items():
+                (folder / name).parent.mkdir(parents=True, exist_ok=True)
                 (folder / name).write_bytes(raw)
             manifest = canonical(
                 dict(
@@ -88,6 +89,79 @@ class AtlasHostTests(unittest.TestCase):
             return response.status, dict(response.getheaders()), response.read()
         finally:
             client.close()
+
+    def report_files(self, names):
+        folder = self.outputs[0]
+        manifest_path = folder / "view-manifest.json"
+        manifest = json.loads(manifest_path.read_bytes())
+        for name, raw in names.items():
+            path = folder / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(raw)
+            manifest["files"][name] = sha(raw)
+        raw = canonical(manifest)
+        manifest_path.write_bytes(raw)
+        self.entries[0]["sha256"] = sha(raw)
+        self.pin = self.save_config()
+
+    def test_verified_stage2_report_has_scoped_frame_and_opaque_source(self):
+        report = b"<h1>Original report</h1><script>parent.compromised=true</script>"
+        reader = b'<iframe sandbox="" src="selection.html"></iframe>'
+        self.report_files(
+            {
+                "stage2/report-reader.html": reader,
+                "stage2/selection.html": report,
+                "other/selection.html": report,
+            }
+        )
+        server = self.server()
+        status, headers, raw = self.get(
+            server, "/views/stage1/stage2/report-reader.html"
+        )
+        self.assertEqual((status, raw), (200, reader))
+        csp = headers["Content-Security-Policy"]
+        self.assertIn(
+            "frame-src "
+            + server.expected_origin
+            + "/views/stage1/stage2/selection.html",
+            csp,
+        )
+        self.assertIn("frame-ancestors 'none'", csp)
+        status, headers, raw = self.get(server, "/views/stage1/stage2/selection.html")
+        self.assertEqual((status, raw), (200, report))
+        csp = headers["Content-Security-Policy"]
+        for directive in (
+            "default-src 'none'",
+            "script-src 'none'",
+            "connect-src 'none'",
+            "frame-src 'none'",
+            "frame-ancestors 'self'",
+            "form-action 'none'",
+            "sandbox",
+        ):
+            self.assertIn(directive, csp)
+        self.assertNotIn("allow-", csp)
+        for path in ("/views/stage1/atlas.html", "/views/stage1/other/selection.html"):
+            status, headers, _ = self.get(server, path)
+            self.assertEqual(status, 200)
+            self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+            self.assertNotIn("frame-src", headers["Content-Security-Policy"])
+        for path in (
+            "/views/stage1/stage2/selection.html?alias=1",
+            "/views/stage1/stage2/%73election.html",
+            "/views/unknown/stage2/selection.html",
+        ):
+            self.assertEqual(self.get(server, path)[0], 404)
+
+    def test_partial_report_registration_does_not_enable_framing(self):
+        self.report_files({"stage2/report-reader.html": b"reader without source"})
+        server = self.server()
+        status, headers, raw = self.get(
+            server, "/views/stage1/stage2/report-reader.html"
+        )
+        self.assertEqual((status, raw), (200, b"reader without source"))
+        self.assertNotIn("frame-src", headers["Content-Security-Policy"])
+        self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
 
     def test_binding_and_snapshot_leave_canonical_html_and_index_unchanged(self):
         originals = {

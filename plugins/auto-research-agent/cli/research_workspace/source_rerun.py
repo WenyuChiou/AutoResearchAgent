@@ -73,7 +73,12 @@ def _saved_response_selection(attempts):
 def _saved_public_import(receipt, selected):
     """Recognize the immutable SDK's strictly owned saved-source receipt."""
     attempts = receipt.get("attempts", [])
-    diagnostics = receipt.get("diagnostics", {}).get("saved_import", {})
+    diagnostics = receipt.get("diagnostics", {})
+    if not isinstance(diagnostics, dict):
+        return False
+    diagnostics = diagnostics.get("saved_import", {})
+    if not isinstance(diagnostics, dict):
+        return False
     return bool(
         receipt.get("request", {}).get("operation") == "source import-saved"
         and len(attempts) == 2
@@ -173,7 +178,11 @@ def _validate_saved_import_provenance(row, source, members):
         "original_acquired_at": diagnostics.get("original_acquired_at"),
     }
     require(
-        all(manifest[key] == value for key, value in expected.items()),
+        all(manifest[key] == value for key, value in expected.items())
+        and receipt.get("source_url") == manifest["url"]
+        and receipt["request"].get("doi") == manifest["doi"]
+        and receipt.get("expected_identity")
+        == {"doi": manifest["doi"], "title": manifest["title"]},
         "rerun saved import provenance/receipt binding differs",
     )
     require(
@@ -648,6 +657,7 @@ def attach_rerun(
         if (
             source["receipt"].get("request", {}).get("operation")
             == "source import-saved"
+            and "saved_import_archive" in row
         ):
             _replay_saved_import_archive(row, source, files, evidence)
     for row in result["source_rerun"]["data"]["rows"]:
@@ -762,18 +772,55 @@ def validate_rerun_index(index):
                 _saved_public_import(source["receipt"], selected),
                 "rerun saved import receipt is not replay-admissible",
             )
+        if saved_import_receipt and "saved_import_archive" in row:
             _, saved_members = _saved_import_binding(
                 row, source, extension["artifact_hashes"]
             )
             _validate_saved_import_provenance(row, source, saved_members)
             selected_member = artifact_map(source["receipt"])[selected["raw_path"]]
+            raw_artifact = extension["artifact_hashes"].get(row.get("raw_path"), {})
             require(
                 saved_members[selected_member]["sha256"] == row.get("raw_sha256")
                 and saved_members[selected_member]["bytes"]
-                == selected.get("response_bytes"),
+                == selected.get("response_bytes")
+                and raw_artifact.get("sha256") == row.get("raw_sha256")
+                and raw_artifact.get("bytes") == selected.get("response_bytes"),
                 "rerun saved import selected source binding differs",
             )
             saved_import_bound = True
+        elif saved_import_receipt:
+            # The earlier writer rejected the SDK's null HTTP status before
+            # extraction. Preserve that historical failure without admitting text.
+            require(
+                bool(row.get("raw_path"))
+                and "extracted_path" not in row
+                and "acquisition_sequence" not in row
+                and row.get("source_metadata") == {}
+                and row["reading"]
+                == {
+                    "status": "inaccessible",
+                    "evidence_level": "metadata",
+                    "identity_status": "unverified",
+                    "characters": 0,
+                    "text_sha256": None,
+                    "locators": [],
+                    "diagnostics": {},
+                    "error": {
+                        "type": "PermissionError",
+                        "message": "saved HTTP response was not successful; no new access attempted",
+                    },
+                },
+                "rerun unbound saved import must retain legacy inaccessible reading",
+            )
+            raw_artifact = extension["artifact_hashes"].get(row["raw_path"], {})
+            require(
+                bool(row.get("raw_sha256"))
+                and row["raw_sha256"]
+                == selected["raw_sha256"]
+                == raw_artifact.get("sha256")
+                and raw_artifact.get("bytes") == selected["response_bytes"],
+                "rerun legacy saved import raw binding differs",
+            )
         else:
             require(
                 "saved_import_archive" not in row,
@@ -965,6 +1012,7 @@ def rerun_files(index, rerun_root):
         if (
             source["receipt"].get("request", {}).get("operation")
             == "source import-saved"
+            and "saved_import_archive" in row
         ):
             _replay_saved_import_archive(
                 row, source, extension["artifact_hashes"], evidence
@@ -1008,7 +1056,8 @@ def rerun_files(index, rerun_root):
     )
     tables["SourceRerun"] = flattened
     tables["SourceAvailability"] = tabular(availability["source_rows"])
-    tables["ClaimAvailability"] = tabular(availability["claim_rows"])
+    if availability["claim_rows"]:
+        tables["ClaimAvailability"] = tabular(availability["claim_rows"])
     availability_markdown = (
         "# Saved-source availability\n\n"
         "Availability records whether a readable saved body is present. It does not change or explain the historical claim assessment.\n\n"

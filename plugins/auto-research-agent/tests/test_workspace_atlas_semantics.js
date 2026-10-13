@@ -7,13 +7,21 @@ const flatten = node => node.children.flatMap(child => [child, ...flatten(child)
 class Element {
   constructor(tag) {
     this.tagName = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.listeners = {};
-    this.style = {setProperty() {}}; this.className = ""; this._text = "";
+    this.style = {setProperty() {}}; this.className = ""; this._text = ""; this.parentNode = null;
     this.classList = {add: name => { this.className += " " + name; }};
   }
-  set textContent(value) { this._text = String(value); this.children = []; }
+  set textContent(value) { this.replaceChildren(); this._text = String(value); }
   get textContent() { return this._text + this.children.map(node => node.textContent).join(" "); }
-  append(...nodes) { this.children.push(...nodes); }
-  replaceChildren(...nodes) { this._text = ""; this.children = [...nodes]; }
+  append(...nodes) { for (const node of nodes) { node.remove(); node.parentNode = this; this.children.push(node); } }
+  remove() { if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(node => node !== this); this.parentNode = null; }
+  replaceChildren(...nodes) { this._text = ""; for (const node of this.children) node.parentNode = null; this.children = []; this.append(...nodes); }
+  insertBefore(node, anchor) {
+    if (anchor !== null && !this.children.includes(anchor)) throw Error("insertBefore anchor is not a child");
+    if (node === anchor) return node;
+    node.remove(); node.parentNode = this;
+    this.children.splice(anchor === null ? this.children.length : this.children.indexOf(anchor), 0, node);
+    return node;
+  }
   setAttribute(name, value) { this.attributes[name] = String(value); }
   addEventListener(name, handler) { (this.listeners[name] ||= []).push(handler); }
   querySelector(selector) {
@@ -28,6 +36,16 @@ function check(assertion) { checks++; try { assertion(); } catch (error) { failu
 function contains(actual, expected, message) { check(() => assert(actual.includes(expected), message)); }
 function excludes(actual, unexpected, message) { check(() => assert(!actual.includes(unexpected), message)); }
 function equal(actual, expected, message) { check(() => assert.equal(actual, expected, message)); }
+const formerParent = new Element("div"), parent = new Element("div"), moved = new Element("section"), anchor = new Element("section");
+formerParent.append(moved); parent.append(anchor); parent.insertBefore(moved, anchor);
+check(() => assert.deepEqual(parent.children, [moved, anchor], "insertion reorders by reference"));
+equal(formerParent.children.length, 0, "insertion removes the previous parent entry");
+equal(moved.parentNode, parent, "insertion updates the parent reference");
+parent.insertBefore(moved, null); parent.insertBefore(anchor, anchor);
+check(() => assert.deepEqual(parent.children, [anchor, moved], "null appends and self-insertion preserves order without duplicates"));
+check(() => assert.throws(() => parent.insertBefore(new Element("div"), formerParent), /anchor is not a child/));
+parent.replaceChildren(anchor); equal(moved.parentNode, null, "replacement detaches removed children");
+parent.textContent = "reset"; equal(anchor.parentNode, null, "text replacement detaches previous children");
 const words = {
   en: {unknown: "Unknown", assessed: "criteria assessed", provisional: "provisional", paper: "Project / paper version / snapshot hash", project: "Project / snapshot hash", audit: "Required audit is pending.", failed: "Technical assessment failed or is incomplete."},
   "zh-Hans": {unknown: "未知", assessed: "已评估判据", provisional: "暂定", paper: "项目／论文版本／快照哈希", project: "项目／快照哈希", audit: "必要覆核待完成。", failed: "技术评估失败或未完成。"},

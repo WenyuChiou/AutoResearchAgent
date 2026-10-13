@@ -1,0 +1,58 @@
+{
+  "kind": "StageAdapterReviewEvidence.v1",
+  "source_head": "d155e2880b568218c9d71ac70924baea85b125d2",
+  "review_comments": [
+    4242990258,
+    4242990261
+  ],
+  "logs": [
+    {
+      "path": "unscreened-fixture-before.log",
+      "original_sha256": "ffa5ee76c745e88515a76227ba80778114c8995eec117faaa21158a311fd819f",
+      "published_sha256": "9c99f5dbf28cd506dabaab05d7ec0c0405d1cd96e20b0039b54a5af59176ea4b",
+      "transform": "CRLF to LF only"
+    },
+    {
+      "path": "unscreened-production-before.log",
+      "original_sha256": "2390036c8d9e47b7722b19c9ba59f5e4a7dce41310c6fd221354b639f2a3c1c1",
+      "published_sha256": "5a379bd06573708961eadaf9879d39cf7adbd56fb27e5ba8053e28473f93ef64",
+      "transform": "CRLF to LF only"
+    },
+    {
+      "path": "unscreened-after.log",
+      "original_sha256": "e5fdb0badd52afa193dc7f404ba4503c9c357cff168b7facc3524b2685a0df11",
+      "published_sha256": "e4efc3d136103a7362c5c22f74c455b6055f5f1b64944868f9a4e37834cd94f7",
+      "transform": "CRLF to LF only"
+    },
+    {
+      "path": "prompt-bounds-fixture-before.log",
+      "original_sha256": "9a85f3741d9755db823f86736c62834871733d989391777930d45d2489c98e04",
+      "published_sha256": "1d752c05170a41af836865f52bce8bf9a25efe4428822601194b4b9ad6e368ba",
+      "transform": "CRLF to LF only"
+    },
+    {
+      "path": "prompt-bounds-after.log",
+      "original_sha256": "505d4f905aefa849a45a2e38c565d0763f44f7de592b773396face8ad143da80",
+      "published_sha256": "d8f927e6539c7d84405e14beb8244fe15b290536e4750e7d2c69b04571af34e1",
+      "transform": "CRLF to LF only"
+    }
+  ],
+  "source_sha256": {
+    "plugins/auto-research-agent/cli/research_workspace_native/stage_pipeline.py": "06a2afad201f1d0f3606d410f4096c38ca1e247767e45e8b3865f8e33f1af846",
+    "plugins/auto-research-agent/cli/stage1_deliverable/views.py": "7a39923144f115a7b3b384623e129b313371be7f2e9e21009f43b4e1d1700588",
+    "plugins/auto-research-agent/tests/stage_pipeline_fixture_helpers.py": "43cfcbfc23f85147810b4325241df7e9d07b6803d39e1e6f3c449d3db87cbee8",
+    "plugins/auto-research-agent/tests/test_stage1_screening_records.py": "0b292efe82ee5292db8704a01910f35304f167943bf60ba9afa1c6b2f3eac216",
+    "plugins/auto-research-agent/tests/test_stage_pipeline.py": "0abb4c5876e547549549353a4bf0ab03b7d76ac1df4713a23482fae8f2459b68",
+    "plugins/auto-research-agent/tests/test_stage_pipeline_safety.py": "001cb44e25568316b42c3762b498dd1abd90fbcd2610bb48fb8559fcbccf6141",
+    "plugins/auto-research-agent/tests/test_stage_pipeline_prompt_bounds.py": "40eb2dae895de9c775ab88f88fd2c2bde2e4f5f3dcfaff4a02c54001156857ad",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "ddfacd22b8fdd2448df18d08f81a6b0a2150d9d279832a7c5ef49d42ec281353"
+  },
+  "actual_policy_tests": "10 actual 10000 UTF8-byte policy checks, no override",
+  "semantic_tests": "9 historical phase/isolation/reopen tests under explicitly test-only 16KiB override",
+  "prompt_run": "19/10.027s/0skip PASS",
+  "unscreened_run": "7/39.549s/0skip PASS",
+  "production_stage2_completed": false,
+  "context_oversize_phases": "original normal extraction and final extraction remain refused/pending",
+  "new_model_search_native_calls": 0,
+  "full_suite_run": false
+}

@@ -1,0 +1,49 @@
+{
+  "exit_code": 0,
+  "elapsed_seconds": 86.67199999999139,
+  "command": [
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\atlas-current-sdk-env-20261010-v1\\Scripts\\python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\capture-stage1-records-20261011.py",
+    "D:\\Codex_Learning\\harness_building\\worktrees\\ca-stage",
+    "D:\\Codex_Learning\\harness_building\\_private\\workspace-return\\stage1-library-related-20261011-v1",
+    "child",
+    "test_project_stage1_library",
+    "test_project_stage1_library_http",
+    "test_workspace_project_host",
+    "test_capability_metric_map",
+    "test_project_stage1_records.SavedStage1RecordsTests.test_unscreened_candidate_requires_saved_current_decision_without_invented_sources"
+  ],
+  "source_inventory_equal": true,
+  "logs": {
+    "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr.log": "346ba6555eede316497b732418ca09fcae1e0fdea962eb8995fcb2175e31c4e3"
+  },
+  "actual_external_search": 0,
+  "actual_source_acquisition": 0,
+  "actual_native_or_model_calls": 0,
+  "kind": "ScreeningLibraryEngineeringReceipt.v1",
+  "actual_tests": 32,
+  "actual_test_seconds": 84.009,
+  "actual_skips": 0,
+  "captured_sources": {
+    "plugins/auto-research-agent/cli/research_workspace_native/project_host.py": "0e013f013e9984aaf0ae557b5af2c549261bc3b4e555190f0f6b57868efa90b3",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library.py": "32e11d98984e4c2eb8a5074f91199452741809592c6504e09fbc85b7e35dd88f",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_library_http.py": "ee5bbba8e2ac70c36f11856e5eb58d2271a681884a3c1f7f08fa2fb8a19ed21a",
+    "plugins/auto-research-agent/cli/research_workspace_native/project_stage1_records.py": "98a3f580903ee087d8750eb2e0bc13b9cb41e2309a4bca78b48415bdc44e3442",
+    "plugins/auto-research-agent/tests/test_capability_metric_map.py": "7cc741a2f807fd244eaf38ec691e7d1154e3ce556ae78ebceca040602312898c",
+    "plugins/auto-research-agent/tests/test_project_stage1_library.py": "c35f8df6b346c7a40af4569fc869b29991bdc482ae6b94fa2d1ca01ad005f3f0",
+    "plugins/auto-research-agent/tests/test_project_stage1_library_http.py": "f7b687944940a394b837c2253b611c356651ecf421fcc04259c3099e4ea8b61e",
+    "plugins/auto-research-agent/tests/test_project_stage1_records.py": "66c3d025957c26e1834d9b8b70b5258827413b5f2380678cb09b6bd79e5f2c4f",
+    "plugins/auto-research-agent/tests/test_workspace_project_host.py": "39e8a9573627916ec9e70d0e001e66649c134a62a1b7de864b38c97fa319a2b8",
+    "plugins/auto-research-agent/evals/capability-metric-map.v3.json": "1547af3009d3dc9396704642cd67a1313e2fbbdf1153569370ae77d94491d3b2"
+  },
+  "original_raw_receipt_sha256": "7aeef018ff31ba47c4d5b2d4e79ee23196b7b341255472bf19c9881cf1fbf767",
+  "limits": [
+    "Selected source hashes supplement the complete private captured inventory; this is not a full-suite run.",
+    "No actual native, source-acquisition, external search, model or scientific execution."
+  ]
+}

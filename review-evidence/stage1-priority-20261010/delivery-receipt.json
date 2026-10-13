@@ -1,0 +1,28 @@
+{
+  "kind": "Stage1DeliveryRegressionCapture",
+  "exit_code": 0,
+  "tests": "test_project_stage1_delivery",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "441f150d011c4e8e464eb97da545b9abecdc2b4d213a60a42ad5eb7ec38fa0e4",
+  "test_sha256": "37dc5697c52dd5b55c64679a2804d314e833ea717187687e40e8a2a3b72631d2",
+  "adapter_sha256": "360fcafd364798f751656d7b7d7e165ad11de53d96678dce78a68e5a84beae87",
+  "adapter_after_sha256": "360fcafd364798f751656d7b7d7e165ad11de53d96678dce78a68e5a84beae87",
+  "producer_before": {
+    "records.py": "59a187482d6f9e7d6b978fcf4f886b553d6383f5db61d943e632ee032edc3c39",
+    "views.py": "8eb73d47b3384f47aacdf7da3ac80a7453e80ae8ce6dc1d5018fe51bff6feabe",
+    "package.py": "cec00baad1e7f566e0857d0a9a2a3d27756cb299ee1e190d222c963df41eaa31",
+    "common.py": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106",
+    "__init__.py": "0c48dc4eef341d65ed77136dee64853f148a5172f59fd4861b72042d6c38edae",
+    "sources.py": "c6acdfa67ee96ef70f75c55895c5a546447218eb860ceb5e9339a235452eb754",
+    "__main__.py": "7258562fad7d7a1d92b88936061d020c2ba88e29fcffce5f73e05e6ad1605e73"
+  },
+  "producer_after": {
+    "records.py": "59a187482d6f9e7d6b978fcf4f886b553d6383f5db61d943e632ee032edc3c39",
+    "views.py": "8eb73d47b3384f47aacdf7da3ac80a7453e80ae8ce6dc1d5018fe51bff6feabe",
+    "package.py": "cec00baad1e7f566e0857d0a9a2a3d27756cb299ee1e190d222c963df41eaa31",
+    "common.py": "3a8fea696a7755a980e14b9a9fc7c46561c35ee98c9f327cb92c46d78a237106",
+    "__init__.py": "0c48dc4eef341d65ed77136dee64853f148a5172f59fd4861b72042d6c38edae",
+    "sources.py": "c6acdfa67ee96ef70f75c55895c5a546447218eb860ceb5e9339a235452eb754",
+    "__main__.py": "7258562fad7d7a1d92b88936061d020c2ba88e29fcffce5f73e05e6ad1605e73"
+  }
+}

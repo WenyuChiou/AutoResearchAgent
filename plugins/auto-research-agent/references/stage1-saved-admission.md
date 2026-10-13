@@ -34,6 +34,16 @@ downloaded selected bibliography. Static HTML inspection cannot replace this.
 These are externally accepted observations, not authentication supplied by hashes;
 never create these receipts merely to make the validator pass.
 
+The producer source inventory covers every shipped file under `cli/` and
+`schemas/`, plus the pinned requirements. It is re-enumerated on inspection;
+changed or newly installed transitive validators invalidate earlier acceptance.
+Interpreter cache files are excluded. For an SDK-backed projected source, the
+acquisition ref binds the original JSON result via `result_sha256`, while its
+raw source hash remains separately bound through the original attempt.
+The validated view must name that exact deliverable manifest. Each admitted
+acquisition receipt must also match its canonical package source's result hash;
+matching work/version/source IDs alone cannot substitute a different package.
+
 The dependent Stage2 importer slice adds the opt-in handoff2.0 receiver.
 It must pass its separate Stage2 v2 contract before official positive import.
 

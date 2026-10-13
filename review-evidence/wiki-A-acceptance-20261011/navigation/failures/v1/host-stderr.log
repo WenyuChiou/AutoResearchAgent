@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "<LOCAL_WORKSPACE>\_private\workspace-return\wiki-A-compatible-host-20261011.py", line 60, in <module>
+    main()
+  File "<LOCAL_WORKSPACE>\_private\workspace-return\wiki-A-compatible-host-20261011.py", line 27, in main
+    exec(compile(Path(helper.__file__).read_bytes(),helper.__file__,'exec'),helper.__dict__)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<LOCAL_USER_HOME>\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1050, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "<LOCAL_USER_HOME>\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<LOCAL_WORKSPACE>\\_temp\\fq10\\wiki-a-raw-zop6ej5w\\plugins\\auto-research-agent\\cli\\research_workspace_native\\atlas_local_source.py'

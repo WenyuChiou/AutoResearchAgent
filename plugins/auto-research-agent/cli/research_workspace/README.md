@@ -214,3 +214,13 @@ timing checks remain separate. Rendering or refresh never launches research.
 Integration A retains the UI contributions from PRs #214, #215, #222, #225,
 #234 and #239 at source tip `fc46137ac94203faaa2d29450e7ea6f475cf5181`.
 The host/configuration and native conversation increments are delivered separately.
+
+### Normalized-page comparison primitive
+
+`normalized_page_comparison.compare_normalized_page_evidence` checks two supplied
+page strings against recorded NFC/whitespace hashes, equality and ordered differences.
+Punctuation, word boundaries and character order remain significant. This pure
+helper performs no acquisition, reading, research or scoring. Its comparison facts
+do not certify full-body coverage, identity, independent acceptance or eligibility.
+Source/runtime/dual-acceptance binding, whole-body verification and optional
+attachment/CLI/export integration remain separate pending work.

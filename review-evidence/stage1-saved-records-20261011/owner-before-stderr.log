@@ -1,0 +1,33 @@
+test_source_owner_loss_before_commit_rolls_back_registry (test_project_stage1_records.SavedStage1RecordsTests.test_source_owner_loss_before_commit_rolls_back_registry) ... FAIL
+test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts (test_project_stage1_records.SavedStage1RecordsTests.test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts) ... FAIL
+
+======================================================================
+FAIL: test_source_owner_loss_before_commit_rolls_back_registry (test_project_stage1_records.SavedStage1RecordsTests.test_source_owner_loss_before_commit_rolls_back_registry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_records.py", line 461, in test_source_owner_loss_before_commit_rolls_back_registry
+    self.refuse_precommit(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_records.py", line 443, in refuse_precommit
+    self.assertEqual(receipt["status"], "execution-unknown")
+AssertionError: 'saved' != 'execution-unknown'
+- saved
++ execution-unknown
+
+
+======================================================================
+FAIL: test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts (test_project_stage1_records.SavedStage1RecordsTests.test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_records.py", line 507, in test_offer_owner_loss_before_commit_rolls_back_offer_and_reopen_never_adopts
+    self.refuse_precommit(
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_project_stage1_records.py", line 443, in refuse_precommit
+    self.assertEqual(receipt["status"], "execution-unknown")
+AssertionError: 'saved' != 'execution-unknown'
+- saved
++ execution-unknown
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 8.954s
+
+FAILED (failures=2)

@@ -14,9 +14,10 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 import test_native_message_api as fixture
 from research_workspace_native.atlas_host import AtlasHost
-from research_workspace_native.http import SessionHttpServer
+from research_workspace_native.http import SessionHandler, SessionHttpServer
 from research_workspace_native.host_config import HostRegistry, create_host
 from research_workspace_native.session_api import SessionApi
+from atlas_bootstrap_fixture import bootstrap_objects
 
 
 class Runtime:
@@ -317,11 +318,23 @@ class MessageHostTests(unittest.TestCase):
     def test_slow_controller_admission_past_deadline_has_no_write(self):
         server = self.start()
         body = self.message(server)
-        server.timeout_seconds = 0.1
+        expired = threading.Event()
         released = threading.Event()
         requests = []
         original_process = server.process_request
         original_release = server._release
+        original_remaining = SessionHandler._remaining
+
+        def remaining(handler):
+            if expired.is_set():
+                handler.deadline = time.monotonic() - 1
+            return original_remaining(handler)
+
+        def admit(_):
+            # Expire only after the real API intent reaches controller admission.
+            # A short wall-clock timer can instead expire before that intent exists.
+            expired.set()
+            return True
 
         def process(request, address):
             requests.append(request)
@@ -332,17 +345,19 @@ class MessageHostTests(unittest.TestCase):
             if request in requests:
                 released.set()
 
-        self.p.controller.admit_action = lambda _: time.sleep(0.15) or True
+        self.p.controller.admit_action = admit
         server.process_request = process
         server._release = release
-        try:
-            self.request(server, "POST", "/messages", body)
-        except OSError:
-            pass
+        with patch.object(SessionHandler, "_remaining", remaining):
+            try:
+                self.request(server, "POST", "/messages", body)
+            except OSError:
+                pass
         # Socket timeout precedes handler finalization. Observe completion of the
         # exact POST request, including deadline and connection-slot release.
         self.assertTrue(released.wait(5), "POST request did not finish cleanup")
         self.assertEqual(len(requests), 1)
+        self.assertTrue(expired.is_set(), "controller admission was not reached")
         self.assertFalse(server._deadlines)
         self.assertEqual(self.p.channel.sent, [])
         state = self.p.store.snapshot(self.p.pid)
@@ -360,12 +375,14 @@ class MessageHostTests(unittest.TestCase):
                 client.request("GET", "/host-bootstrap/" + ref + ".js")
                 response = client.getresponse()
                 self.assertEqual(response.status, 200)
-                rows = response.read().decode().splitlines()
-                return [json.loads(row.split("=", 1)[1][:-1]) for row in rows]
+                return bootstrap_objects(
+                    response.read(), "WORKSPACE_HOST", "WORKSPACE_NATIVE_ATLAS"
+                )
             finally:
                 client.close()
 
-        host, native = bootstrap("case")
+        values = bootstrap("case")
+        host, native = values["WORKSPACE_HOST"], values["WORKSPACE_NATIVE_ATLAS"]
         self.assertEqual(host["current_case"], native["current_case"])
         self.assertEqual(
             native,
@@ -374,12 +391,18 @@ class MessageHostTests(unittest.TestCase):
                 current_case="case",
                 enabled=True,
                 project_ref=self.p.ref,
+                source_project_id=self.p.pid,
                 index_sha256=self.p.hash,
                 input_version=self.p.version,
             ),
         )
-        self.assertFalse(bootstrap("unbound")[1]["enabled"])
-        self.assertIsNone(bootstrap("unbound")[1]["input_version"])
+        self.assertFalse(bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["enabled"])
+        self.assertIsNone(
+            bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["source_project_id"]
+        )
+        self.assertIsNone(
+            bootstrap("unbound")["WORKSPACE_NATIVE_ATLAS"]["input_version"]
+        )
         self.assertEqual(self.p.channel.calls, [])
         before = deepcopy(self.files)
         self.message(server)

@@ -1,0 +1,44 @@
+Capture scope: actual tool-output failure transcript; normalized text, not an original process-stream file.
+Command: python -B -X utf8 -m unittest discover -s plugins/auto-research-agent/tests -p test_workspace_canonical_delivery.py -v
+Observed exit code: 1
+
+======================================================================
+ERROR: test_core_11_bare_projection_preserves_nulls_history_and_stage2_gate (test_workspace_canonical_delivery.CanonicalDeliveryTests.test_core_11_bare_projection_preserves_nulls_history_and_stage2_gate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 254, in _perform
+    result = work(current, request_hash, principal)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1.py", line 314, in work
+    return producer(state, run, ledger, request_hash, actor)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 670, in producer
+    result = package.build(
+             ^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\package.py", line 116, in build
+    runtime = sources.runtime_binding()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\stage1_deliverable\sources.py", line 69, in runtime_binding
+    raise DeliverableError(
+stage1_deliverable.common.DeliverableError: research-hub must be installed from the pinned merge commit
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\tests\test_workspace_canonical_delivery.py", line 211, in test_core_11_bare_projection_preserves_nulls_history_and_stage2_gate
+    saved = case.delivery.deliver(
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1_delivery.py", line 710, in deliver
+    return self.stage1._mutate(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_stage1.py", line 316, in _mutate
+    return self.intake._perform(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codex_Learning\harness_building\worktrees\ca-stage\plugins\auto-research-agent\cli\research_workspace_native\project_intake.py", line 310, in _perform
+    raise raised from error
+research_workspace_native.session_api.SessionApiError: intake-operation-failed
+
+----------------------------------------------------------------------
+Ran 16 tests in 17.540s
+
+FAILED (errors=1)

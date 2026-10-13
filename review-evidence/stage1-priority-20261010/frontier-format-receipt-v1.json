@@ -1,0 +1,17 @@
+{
+  "scope": "Ruff-only formatting after the 21-test run; AST unchanged, not another test run",
+  "paths": [
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage2.py",
+      "before_sha256": "993f03569d88a003c06dfbc9614d1f2cc23a68c8b368ad42e6761b6095cd04de",
+      "after_sha256": "fa46f84f9c963533461e32957bd341ce8b4520b46b9e01ede9cf60c800bd6388",
+      "ast_unchanged": true
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_project_stage2_frontier.py",
+      "before_sha256": "e2a14c1a4569d13ca1bd35b1926503715cfa793f8276b31805041836da0118c4",
+      "after_sha256": "9ce482e83b28649ace8d8b7b118583174dfce5fbde9b02bc12812281af4cafc9",
+      "ast_unchanged": true
+    }
+  ]
+}

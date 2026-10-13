@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "<LOCAL_WORKSPACE>\_temp\fq10\wiki-a-raw-m17etc5j\plugins\auto-research-agent\cli\stage2_eval\evaluation_v3.py", line 53, in _load_rubric_v3
+  File "<LOCAL_USER_HOME>\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1050, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "<LOCAL_USER_HOME>\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<LOCAL_WORKSPACE>\\_temp\\fq10\\wiki-a-raw-m17etc5j\\plugins\\auto-research-agent\\evals\\rubrics\\stage2-general.v3.json'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<LOCAL_WORKSPACE>\_private\workspace-return\wiki-A-compatible-host-20261011.py", line 63, in <module>
+    main()
+  File "<LOCAL_WORKSPACE>\_private\workspace-return\wiki-A-compatible-host-20261011.py", line 33, in main
+    namespace['build'](out/'current-synthetic-fixture')
+  File "<LOCAL_WORKSPACE>\_temp\fq10\wiki-a-raw-m17etc5j\plugins\auto-research-agent\references\research-workspace\examples\build-review-fixture.py", line 37, in build
+  File "<LOCAL_WORKSPACE>\_temp\fq10\wiki-a-raw-m17etc5j\plugins\auto-research-agent\tests\test_stage2_content_delivery.py", line 55, in setUp
+  File "<LOCAL_WORKSPACE>\_temp\fq10\wiki-a-raw-m17etc5j\plugins\auto-research-agent\tests\test_stage2_content_delivery.py", line 60, in make_bundle
+  File "<LOCAL_WORKSPACE>\_temp\fq10\wiki-a-raw-m17etc5j\plugins\auto-research-agent\cli\stage2_eval\evaluation_v3.py", line 123, in prepare_content_view_v3
+  File "<LOCAL_WORKSPACE>\_temp\fq10\wiki-a-raw-m17etc5j\plugins\auto-research-agent\cli\stage2_eval\evaluation_v3.py", line 84, in _bindings_v3
+  File "<LOCAL_WORKSPACE>\_temp\fq10\wiki-a-raw-m17etc5j\plugins\auto-research-agent\cli\stage2_eval\evaluation_v3.py", line 56, in _load_rubric_v3
+stage2_common.contract.Stage2Error: cannot load Stage 2 v3 rubric: [Errno 2] No such file or directory: '<LOCAL_WORKSPACE>\\_temp\\fq10\\wiki-a-raw-m17etc5j\\plugins\\auto-research-agent\\evals\\rubrics\\stage2-general.v3.json'

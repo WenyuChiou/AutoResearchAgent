@@ -4,6 +4,8 @@ import json
 import re
 
 from stage1_deliverable.common import DeliverableError, canonical, sha
+from stage1_deliverable.core_records import extended
+from stage1_deliverable.screening_records import extended as screened
 
 from .projection import validate_index
 
@@ -84,6 +86,17 @@ def wiki_files(index) -> dict[str, bytes]:
         )
     if availability is not None:
         readme += "## Saved-source availability\n\n" + _fence(availability["counts"])
+    if extended(index):
+        readme += "## Original Core claim history\n\n" + _fence(
+            index["core_claim_history"]
+        )
+    if screened(index):
+        readme += "## Saved screening and discovery library\n\n" + _fence(
+            {
+                "binding": index["screening_library"]["binding"],
+                "counts": index["screening_library"]["counts"],
+            }
+        )
     for ordinal, paper in enumerate(index["papers"]):
         identity = [paper["work_id"], paper["version_id"]]
         filename = sha(canonical(identity)) + ".md"
@@ -102,6 +115,25 @@ def wiki_files(index) -> dict[str, bytes]:
                 "pointer": f"/papers/{ordinal}",
             }
         )
+        if extended(index):
+            note += "## Original Core claim history for this work\n\n" + _fence(
+                [
+                    row
+                    for row in index["core_claim_history"]
+                    if row["payload"]["work_id"] == paper["work_id"]
+                ]
+            )
+        if screened(index):
+            note += (
+                "## Saved discovery, decisions and reversals\n\nDiscovery metadata is not reading evidence. Not-screened does not mean excluded.\n\n"
+                + _fence(
+                    next(
+                        row
+                        for row in index["screening_library"]["rows"]
+                        if row["work_id"] == paper["work_id"]
+                    )
+                )
+            )
         note += "## Original complete paper record\n\n" + _fence(paper)
         findings = paper.get("findings") or {}
         for field, label in FINDINGS:

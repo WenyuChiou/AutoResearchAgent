@@ -218,12 +218,20 @@ class MessageApiTests(unittest.TestCase):
                 input=[dict(type="text", text=body["text"], text_elements=[])],
             ),
         )
-        serialized = json.dumps([body, result, self.api.view("token-a", p.ref)])
+        view = self.api.view("token-a", p.ref)
+        self.assertNotIn("project_id", view)
+        self.assertEqual(
+            (view["project_ref"], view["index_sha256"], view["input_version"]),
+            (p.ref, p.hash, p.version),
+        )
+        self.assertNotIn("project_id", body)
+        self.assertNotIn("project_id", result)
+        serialized = json.dumps([body, result, view])
         for private in (
+            p.pid,
             p.thread,
             p.epoch,
             p.owner,
-            p.pid,
             p.root.as_posix(),
             "synthetic-model",
             "permit_sha256",

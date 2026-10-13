@@ -4,6 +4,13 @@
   const atlas = window.WORKSPACE_NATIVE_ATLAS;
   delete window.WORKSPACE_NATIVE_ATLAS;
   if (atlas && atlas.enabled !== true) return;
+  // Only AtlasHost's matched saved-source bootstrap opts into public source identity.
+  // Generic session responses keep controller identities private.
+  const sourceBinding = atlas && typeof atlas.source_project_id === "string" &&
+    atlas.source_project_id.length > 0 && atlas.source_project_id.length <= 128 ? Object.freeze({
+      source_project_id: atlas.source_project_id, project_ref: atlas.project_ref,
+      index_sha256: atlas.index_sha256, input_version: atlas.input_version,
+    }) : null;
   const rows = {
     title: ["Session discussion & history", "会话对话与历史", "工作階段對話與歷史"],
     boundary: ["Injected session overlay · native authentication and live research are not verified. The Wiki above remains an offline reference.", "注入会话覆盖层 · 原生认证和真实研究尚未验收。上方 Wiki 仍为离线参考。", "注入工作階段覆蓋層 · 原生認證與實際研究尚未驗收。上方 Wiki 仍為離線參考。"],
@@ -15,6 +22,7 @@
     source: ["Bound source version", "绑定来源版本", "綁定來源版本"],
     send: ["Send answer", "提交回答", "提交回答"],
     decline: ["Decline request", "拒绝请求", "拒絕請求"],
+    accept: ["Approve this request", "批准本次请求", "核准本次請求"],
     cancel: ["Cancel request", "取消请求", "取消請求"],
     interrupt: ["Interrupt active turn", "中断当前执行", "中斷目前執行"],
     approval: ["Native approval request", "原生审批请求", "原生核准請求"],
@@ -158,9 +166,9 @@
       } else if (["item/commandExecution/requestApproval", "item/fileChange/requestApproval"].includes(r.method)) {
         label("h3", "approval", card);
         make("pre", JSON.stringify(r.payload, null, 2), card, true);
-        for (const decision of ["decline", "cancel"]) {
+        for (const decision of ["accept", "decline", "cancel"]) {
           const button = label("button", decision, card);
-          button.type = "button"; button.disabled = locked;
+          button.type = "button"; button.disabled = locked || (decision === "accept" && r.can_accept !== true);
           button.onclick = () => submit("answer", r, {decision});
         }
       } else make("p", r.method + " · unsupported", card, true);
@@ -187,6 +195,8 @@
     try {loaded = await request("GET");}
     catch (error) {if (current !== generation || sequence !== readSequence) return; throw error;}
     if (current !== generation || sequence !== readSequence || (view && loaded.revision < view.revision)) return;
+    if (sourceBinding && sourceBinding.source_project_id !== window.WORKSPACE_VIEW?.index?.project_id)
+      throw Error("project-binding-changed");
     if (!Number.isSafeInteger(loaded.revision) || loaded.revision < 0 || !Array.isArray(loaded.requests) || !Array.isArray(loaded.actions) || !Array.isArray(loaded.operations) || loaded.project_ref !== project || (atlas && (loaded.index_sha256 !== atlas.index_sha256 || loaded.input_version !== atlas.input_version)) || (view && (loaded.index_sha256 !== view.index_sha256 ||
       loaded.input_version !== view.input_version))) throw Error("binding-changed");
     view = loaded; render(); return loaded;
@@ -223,7 +233,7 @@
   refreshButton.onclick = async () => {try {await refresh();} catch {showNotice("error");}};
   disconnect.onclick = () => {if (busy) return; generation++; credential = ""; view = null; drafts.clear(); render(); showNotice(null);};
   window.NativePanel = {extend(factory) {
-    const extension = factory({root, available: () => Boolean(view) && !view.failure && !busy,
+    const extension = factory({root, sourceBinding, available: () => Boolean(view) && !view.failure && !busy,
     refresh: async expected => {
       const current = generation;
       if (!sameBinding(view, expected) || busy) throw Error("bound-refresh-blocked");

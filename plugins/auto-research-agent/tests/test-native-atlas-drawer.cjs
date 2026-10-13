@@ -37,7 +37,11 @@ async function mount(locale) {
       manifest_sha256: "b".repeat(64), url: "/views/fixture/atlas.html", fixture: true}], connection: {status: "not-checked"}},
     WORKSPACE_NATIVE_ATLAS: {enabled: true, credential: "only-in-memory", current_case: "fixture", project_ref: fixture.project_ref,
       index_sha256: fixture.index_sha256, input_version: fixture.input_version}};
-  const context = vm.createContext({window, document, TextEncoder, URL,
+  const listeners = new Map();
+  window.addEventListener = (type, handler) => {(listeners.get(type) || listeners.set(type, []).get(type)).push(handler);};
+  window.dispatchEvent = event => {for (const handler of listeners.get(event.type) || []) handler(event); return true;};
+  class CustomEvent {constructor(type, options = {}) {this.type = type; this.detail = options.detail;}}
+  const context = vm.createContext({window, document, TextEncoder, URL, CustomEvent,
     location: {href: "http://127.0.0.1:8774/views/fixture/atlas.html", origin: "http://127.0.0.1:8774"},
     sessionStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key)},
     crypto: {randomUUID: () => "12345678-1234-1234-1234-123456789abc"},

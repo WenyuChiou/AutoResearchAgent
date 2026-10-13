@@ -32,6 +32,12 @@ the current AutoResearchAgent PR in this field. Write `None` when no external
 PR exists. The core team must be notified when any related PR is opened so it
 can review the whole change rather than only the local adapter.
 
+`External dependency pin(s)` lists only external PRs whose runtime code this
+change depends on, each with the exact head or merge SHA and its current
+`open`/`merged` state. Every pin must also appear in `Related external PR(s)`,
+but related governance, documentation, or review-rule PRs do not need a runtime
+pin. Use `None` when there is no runtime dependency.
+
 ### How
 
 Describe the concrete interfaces, artifacts, events, validation, error states,

@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 import unittest
@@ -157,10 +158,30 @@ class SavedSourceAdmissionTests(unittest.TestCase):
                 "companion": proof,
                 "view": proof,
                 "deliverable": save(
-                    "manifest.json", {"canonical_records": {"papers": [paper]}}
+                    "manifest.json",
+                    {
+                        "canonical_records": {
+                            "papers": [paper],
+                            "sources": [
+                                {
+                                    "source_id": row["source_id"],
+                                    "work_id": row["work_id"],
+                                    "version_id": row["version_id"],
+                                    "result_sha256": row["acquisition_provenance"][
+                                        "sha256"
+                                    ],
+                                }
+                            ],
+                        }
+                    },
                 ),
             }
             index = {
+                "provenance": {
+                    "deliverable_manifest_sha256": snapshot["bindings"]["deliverable"][
+                        "sha256"
+                    ]
+                },
                 "papers": [paper],
                 "sources": [
                     {
@@ -465,6 +486,45 @@ class ExternalAcceptanceBindingTests(unittest.TestCase):
         self.assertEqual(self.inspect(), self.acceptance)
         with self.assertRaisesRegex(ValueError, "independent external hash"):
             self.inspect(trusted="0" * 64)
+
+    def test_transitive_runtime_changes_and_new_modules_invalidate_acceptance(self):
+        runtime_root = self.root / "producer"
+        for directory in ("cli", "schemas"):
+            shutil.copytree(
+                SCHEMA.parent.parent / directory,
+                runtime_root / directory,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+            )
+        for name in ("requirements-test.in", "requirements-test.txt"):
+            shutil.copyfile(SCHEMA.parent.parent / name, runtime_root / name)
+        with patch(
+            "research_workspace.saved_admission.SCHEMA",
+            runtime_root / "schemas" / SCHEMA.name,
+        ):
+            self.assertEqual(self.inspect(), self.acceptance)
+            for name in (
+                "cli/stage1_brief/brief.py",
+                "cli/stage1_brief/formal_target.py",
+                "cli/stage1_deliverable/package.py",
+                "cli/research_workspace/literature_selection.py",
+            ):
+                with self.subTest(dependency=name):
+                    self.assertIn(name, self.acceptance["producer"]["sources"])
+                    path = runtime_root / name
+                    original = path.read_bytes()
+                    try:
+                        path.write_bytes(original + b"\n# changed after acceptance\n")
+                        with self.assertRaisesRegex(
+                            ValueError, "producer runtime changed"
+                        ):
+                            self.inspect()
+                    finally:
+                        path.write_bytes(original)
+            (runtime_root / "cli/research_workspace/new_validator.py").write_bytes(
+                b"# new module\n"
+            )
+            with self.assertRaisesRegex(ValueError, "inventory incomplete"):
+                self.inspect()
 
     def test_stale_identity_runtime_failed_ci_and_missing_review_reject(self):
         baseline = copy.deepcopy(self.acceptance)
