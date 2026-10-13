@@ -137,6 +137,34 @@ class Stage1CiQualityTests(unittest.TestCase):
             "${{ github.event_name == 'pull_request' }}",
         )
 
+    def test_parser_checks_use_fresh_copy_environment_without_uv_overlay(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        steps = workflow["jobs"]["contracts"]["steps"]
+        names = {step.get("name"): step for step in steps}
+        install = names["Prepare single-link Python test environment"]
+        self.assertEqual(install["shell"], "pwsh")
+        self.assertIn("--link-mode copy", install["run"])
+        self.assertIn("$env:RUNNER_TEMP", install["run"])
+        self.assertIn("$env:GITHUB_PATH", install["run"])
+        self.assertIn("--managed-python 3.11", install["run"])
+        self.assertIn(".resolve(strict=True)", install["run"])
+        self.assertIn("-m venv --copies --without-pip", install["run"])
+        self.assertEqual(install["run"].count("exit $LASTEXITCODE"), 5)
+        for name, suffix in (
+            ("Plugin loading and stage contracts", ""),
+            ("Research PR contract tests", " --contracts"),
+            ("Governance scope and validator contracts", " --governance"),
+        ):
+            with self.subTest(step=name):
+                self.assertLess(steps.index(install), steps.index(names[name]))
+                self.assertEqual(
+                    names[name]["run"],
+                    "python .github/scripts/stage1_test_scope.py" + suffix,
+                )
+
     def test_required_platform_guard_rejects_selector_failure_and_unknown_plan(self):
         path = REPO_ROOT / ".github/workflows/stage1-plugin.yml"
         workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)

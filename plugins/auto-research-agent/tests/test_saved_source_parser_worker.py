@@ -5,7 +5,6 @@ scientific acceptance, UI wiring or a project owner's execution authorization.
 """
 
 import atlas_test_paths  # noqa: F401
-from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -24,8 +23,13 @@ from research_workspace_native.saved_source_parser_factory import (
 import test_acquired_source_parser as fixtures
 
 REPO = Path(__file__).resolve().parents[3]
+# The offline SDK's repeated physical pin checks can exceed 60 seconds on
+# Windows. Give each new authored case a fixed budget within the 300-second
+# Harness bound; production defaults and already-issued deadlines are unchanged.
+AUTHORED_TIMEOUT_SECONDS = 120
 DRIVER = r"""
 import json, sys, types, time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 case = json.loads(Path(sys.argv[1]).read_text(encoding="utf8"))
 repo = Path(case["repo"])
@@ -41,10 +45,13 @@ from research_workspace_native.portable_source_worker_profile import prepare_sou
 from research_workspace_native.source_worker_runner import ContainedSourceJobRunner
 from research_workspace_native.saved_source_parser_factory import ContainedSavedSourceParserFactory
 from research_workspace_native.acquired_source_parser import parse_acquired_source
-profile = prepare_source_worker_profile(repo=repo, materials_root=case["root"], runtime_sha256="1"*64)
+profile = prepare_source_worker_profile(repo=repo, materials_root=case["root"], runtime_sha256="1"*64, timeout_seconds=case["authored_timeout_seconds"])
 worker = ContainedSourceJobRunner(profile.document["worker"])
 args = case["arguments"]
 request = args["expected_request"]
+# Issue this authored request after local fixture preparation, before admission.
+# Once issued, its fixed bound is never renewed by the worker or parser.
+request["deadline_utc"] = (datetime.now(timezone.utc) + timedelta(seconds=case["authored_timeout_seconds"])).isoformat()
 # Same original request/bindings: fixture resolver declaration becomes the
 # physically pinned resolver before the authored receipt is admitted.
 request["resolver_sha256"] = worker.resolver_sha256
@@ -136,10 +143,7 @@ class SavedSourceParserWorkerTests(unittest.TestCase):
         arguments.pop("deadline")
         arguments.pop("parser_runner")
         request = arguments["expected_request"]
-        request["deadline_utc"] = (
-            datetime.now(timezone.utc) + timedelta(seconds=60)
-        ).isoformat()
-        request["total_timeout_seconds"] = 60
+        request["total_timeout_seconds"] = AUTHORED_TIMEOUT_SECONDS
         receipt["request"] = request
         self.fixture.rehash(arguments, receipt)
         root = self.fixture.root
@@ -148,6 +152,7 @@ class SavedSourceParserWorkerTests(unittest.TestCase):
             repo=str(self.snapshot_repo),
             root=str(root),
             mode=mode,
+            authored_timeout_seconds=AUTHORED_TIMEOUT_SECONDS,
             runtime=self.runtime,
             arguments={
                 name: str(value) if isinstance(value, Path) else value
@@ -162,7 +167,7 @@ class SavedSourceParserWorkerTests(unittest.TestCase):
             [sys.executable, "-I", "-B", str(script), str(path)],
             capture_output=True,
             check=False,
-            timeout=75,
+            timeout=AUTHORED_TIMEOUT_SECONDS + 60,
         )
         self.assertEqual(run.returncode, 0, run.stderr.decode("utf8", errors="replace"))
         # Retain real stderr/control records before the generic fixture cleanup.

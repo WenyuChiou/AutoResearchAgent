@@ -167,6 +167,7 @@ def saved_reading_snapshot(
                 entire_work_read=False,
                 scientific_acceptance=False,
             )
+            snapshot = _fit_saved_excerpts(snapshot)
             _check(
                 len(canonical(snapshot)) <= 48000,
                 "reading-input-too-large-segmentation-unavailable",
@@ -175,7 +176,49 @@ def saved_reading_snapshot(
             return snapshot
 
 
-def reading_prompt(snapshot):
+def _fit_saved_excerpts(snapshot):
+    """Bound saved prefixes using the complete serialized prompt, not raw text."""
+    if len(_reading_prompt(snapshot).encode("utf8")) <= MAX_MODEL_INPUT_BYTES:
+        return snapshot
+    originals = [source["excerpt"].encode("utf8") for source in snapshot["sources"]]
+
+    def project(bound):
+        candidate = deepcopy(snapshot)
+        for source, original in zip(candidate["sources"], originals):
+            excerpt = original[:bound].decode("utf8", errors="ignore")
+            raw = excerpt.encode("utf8")
+            source.update(
+                excerpt=excerpt,
+                excerpt_sha256=sha(raw),
+                excerpt_end_byte=source["excerpt_start_byte"] + len(raw),
+                entire_text_in_prompt=len(raw) == source["text_bytes"],
+            )
+        return candidate
+
+    # Every source identity, claim, failure and Unknown remains present. If
+    # metadata alone cannot fit, refuse rather than silently omitting evidence.
+    empty = project(0)
+    _check(
+        len(_reading_prompt(empty).encode("utf8")) <= MAX_MODEL_INPUT_BYTES,
+        "reading-prompt-too-large-segmentation-unavailable",
+    )
+    low, high = 0, max(map(len, originals))
+    while low < high:
+        bound = (low + high + 1) // 2
+        candidate = project(bound)
+        if len(_reading_prompt(candidate).encode("utf8")) <= MAX_MODEL_INPUT_BYTES:
+            low = bound
+        else:
+            high = bound - 1
+    fitted = project(low)
+    _check(
+        all(source["excerpt"] for source in fitted["sources"]),
+        "reading-prompt-too-large-segmentation-unavailable",
+    )
+    return fitted
+
+
+def _reading_prompt(snapshot):
     # The complete checkpoint stays in the saved input and its context hash.
     # Its derived gate/output trees are not paper evidence or model authority.
     # Expose their omission and exact checkpoint identity, preserving every
@@ -211,6 +254,11 @@ def reading_prompt(snapshot):
         + canonical(visible).decode("utf8")
         + "\nEND SAVED INPUT JSON"
     )
+    return prompt
+
+
+def reading_prompt(snapshot):
+    prompt = _reading_prompt(snapshot)
     _check(
         len(prompt.encode("utf8")) <= MAX_MODEL_INPUT_BYTES,
         "reading-prompt-too-large-segmentation-unavailable",

@@ -33,6 +33,9 @@ class ProjectBrowserGuardTests(unittest.TestCase):
     def test_expansion_guards(self):
         self.run_guard("project-expansions-test.cjs")
 
+    def test_progress_guards(self):
+        self.run_guard("../test_project_progress_browser.cjs")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,6 +3,7 @@
 import os
 import unittest
 
+import atlas_test_paths  # noqa: F401
 from planned_query_raw_runner import run_cases
 
 
@@ -14,6 +15,9 @@ class SourceSavedPipelineIntegrationTests(unittest.TestCase):
             "test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat",
             self,
             complete_plugin=True,
+            # The saved-parser job retains its original 300-second maximum;
+            # this test also prepares and verifies the complete SDK snapshot.
+            timeout_seconds=600,
         )
 
 

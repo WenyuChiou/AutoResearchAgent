@@ -80,7 +80,7 @@ def main():
         return int(not result.wasSuccessful())
 
 
-def run_cases(module, testcase, *, complete_plugin=False):
+def run_cases(module, testcase, *, complete_plugin=False, timeout_seconds=240):
     command = [
         sys.executable,
         "-I",
@@ -98,7 +98,7 @@ def run_cases(module, testcase, *, complete_plugin=False):
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        timeout=240,
+        timeout=timeout_seconds,
         shell=False,
     )
     log = result.stdout.decode("utf8", errors="replace")

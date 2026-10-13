@@ -19,6 +19,7 @@ from research_workspace_native.project_model_factory import (
     OwnAccountProjectModelFactory,
 )
 from research_workspace_native.project_model_reading import (
+    _fit_saved_excerpts,
     reading_prompt,
     saved_reading_snapshot,
     validate_reading_draft,
@@ -27,6 +28,7 @@ from research_workspace_native.session_api import SessionApiError
 from stage1_deliverable.common import canonical, sha
 from stage1_deliverable.records import CLASSIFICATION, FINDINGS
 import test_project_stage1_delivery as delivery_fixture
+import test_stage1_deliverable as package_fixture
 from test_project_stage1_records import saved_stage1_case
 
 
@@ -55,6 +57,156 @@ def draft(snapshot):
 
 
 class SavedReadingTests(unittest.TestCase):
+    def test_multiple_escaped_excerpts_preserve_all_metadata_and_exact_spans(self):
+        with saved_stage1_case() as (case, fixture):
+            snapshot = saved_reading_snapshot(
+                case.producer,
+                fixture["ref"],
+                fixture["records"]["papers"][0]["work_id"],
+            )
+            answer = draft(snapshot)
+            source = snapshot["sources"][0]
+            raw = ('字\\"\n\t' * 1200).encode("utf8")
+            snapshot["sources"] = []
+            for number in range(3):
+                row = deepcopy(source)
+                row.update(
+                    source_id="authored-prefix-" + str(number),
+                    excerpt=raw.decode("utf8"),
+                    excerpt_sha256=sha(raw),
+                    excerpt_end_byte=len(raw),
+                    text_bytes=len(raw),
+                    text_sha256=sha(raw),
+                    entire_text_in_prompt=True,
+                )
+                snapshot["sources"].append(row)
+            original = canonical(snapshot)
+            fitted = _fit_saved_excerpts(snapshot)
+            self.assertEqual(canonical(snapshot), original)
+            self.assertLessEqual(len(reading_prompt(fitted).encode("utf8")), 10000)
+            self.assertEqual(
+                {k: v for k, v in fitted.items() if k != "sources"},
+                {k: v for k, v in snapshot.items() if k != "sources"},
+            )
+            for before, after in zip(snapshot["sources"], fitted["sources"]):
+                shown = after["excerpt"].encode("utf8")
+                self.assertTrue(shown)
+                self.assertEqual(shown, raw[: len(shown)])
+                self.assertEqual(after["excerpt_sha256"], sha(shown))
+                self.assertEqual(after["excerpt_end_byte"], len(shown))
+                self.assertFalse(after["entire_text_in_prompt"])
+                changed = {
+                    "excerpt",
+                    "excerpt_sha256",
+                    "excerpt_end_byte",
+                    "entire_text_in_prompt",
+                }
+                self.assertEqual(
+                    {k: v for k, v in after.items() if k not in changed},
+                    {k: v for k, v in before.items() if k not in changed},
+                )
+            first = fitted["sources"][0]
+            quote = first["excerpt"][0]
+            answer["evidence"] = [
+                dict(
+                    source_id=first["source_id"],
+                    text_sha256=first["text_sha256"],
+                    start_byte=0,
+                    end_byte=len(quote.encode("utf8")),
+                    quote=quote,
+                    claim_id=None,
+                )
+            ]
+            checked = validate_reading_draft(canonical(answer), fitted)
+            self.assertFalse(checked["scientific_acceptance"])
+            answer["evidence"][0].update(
+                start_byte=first["excerpt_end_byte"],
+                end_byte=first["excerpt_end_byte"] + len(quote.encode("utf8")),
+            )
+            with self.assertRaises(SessionApiError) as refused:
+                validate_reading_draft(canonical(answer), fitted)
+            self.assertEqual(refused.exception.code, "reading-draft-span-invalid")
+
+    def test_metadata_over_cap_refuses_without_dropping_claims(self):
+        with saved_stage1_case() as (case, fixture):
+            snapshot = saved_reading_snapshot(
+                case.producer,
+                fixture["ref"],
+                fixture["records"]["papers"][0]["work_id"],
+            )
+            snapshot["existing_claims"][0]["claim_text"] = "Unknown " * 1500
+            original = canonical(snapshot)
+            with self.assertRaises(SessionApiError) as refused:
+                _fit_saved_excerpts(snapshot)
+            self.assertEqual(
+                refused.exception.code,
+                "reading-prompt-too-large-segmentation-unavailable",
+            )
+            self.assertEqual(canonical(snapshot), original)
+
+    def test_long_saved_source_fits_complete_prompt_and_preserves_binding(self):
+        original = package_fixture.ResearchDeliverableTests.make_records
+
+        def long_records(case, raw=package_fixture.HTML, **kwargs):
+            raw = raw.replace(
+                b"</article>",
+                b"<p>"
+                + ("Saved assertion 字 ".encode("utf8") * 900)
+                + b"</p></article>",
+            )
+            return original(case, raw=raw, **kwargs)
+
+        with (
+            patch.object(
+                package_fixture.ResearchDeliverableTests,
+                "make_records",
+                new=long_records,
+            ),
+            saved_stage1_case() as (case, fixture),
+        ):
+            ledger, ref = fixture["ledger"], fixture["ref"]
+            work = fixture["records"]["papers"][0]["work_id"]
+            before = ledger.state_hash()
+            snapshot = saved_reading_snapshot(case.producer, ref, work)
+            prompt = reading_prompt(snapshot)
+            self.assertLessEqual(len(prompt.encode("utf8")), 10000)
+            source = snapshot["sources"][0]
+            raw = ledger.read_ref(source["text_ref"])
+            self.assertGreater(len(raw), 12000)
+            shown = source["excerpt"].encode("utf8")
+            self.assertEqual(shown, raw[: len(shown)])
+            self.assertEqual(source["text_sha256"], sha(raw))
+            self.assertEqual(source["excerpt_sha256"], sha(shown))
+            self.assertEqual(source["excerpt_end_byte"], len(shown))
+            self.assertFalse(source["entire_text_in_prompt"])
+            self.assertFalse(snapshot["entire_work_read"])
+            self.assertTrue(snapshot["existing_claims"])
+            checked = validate_reading_draft(canonical(draft(snapshot)), snapshot)
+            self.assertFalse(checked["scientific_acceptance"])
+            factory = Mock(side_effect=AssertionError("model launch"))
+            model = ProjectModelService(
+                case.intake,
+                provider_factory=factory,
+                model="synthetic-reader",
+                reading_records=case.producer,
+            )
+            self.addCleanup(model.close)
+            view = case.intake.read("alice-token", ref)
+            preview = model.reading_offer(
+                "alice-token",
+                ref,
+                work,
+                expected_input_version=view["input_version"],
+                expected_ledger_state_sha256=before,
+            )
+            self.assertTrue(preview["available"], preview)
+            self.assertEqual(preview["snapshot_sha256"], sha(canonical(snapshot)))
+            self.assertEqual(ledger.state_hash(), before)
+            self.assertEqual(
+                case.intake.read("alice-token", ref)["revision"], view["revision"]
+            )
+            factory.assert_not_called()
+
     def test_reading_before_first_checkpoint_preserves_eligible_saved_sources(self):
         with saved_stage1_case(checkpoint=False) as (case, fixture):
             ledger, ref = fixture["ledger"], fixture["ref"]
