@@ -127,7 +127,7 @@ class Stage1CiQualityTests(unittest.TestCase):
         )
         self.assertEqual(
             plugin_step["env"]["PLUGIN_TEST_WORKERS"],
-            "${{ matrix.os == 'windows-latest' && 3 || 1 }}",
+            "3",
         )
         self.assertEqual(source["permissions"], metadata["permissions"])
         scope_checkout = source["jobs"]["scope"]["steps"][0]

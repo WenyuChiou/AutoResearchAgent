@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import stage1_test_scope as scope
 
@@ -376,6 +377,93 @@ class Group(unittest.TestCase):
         )
         self.assertEqual(summary["incomplete_partitions"], 0)
         self.assertEqual((self.repo / "lifecycle.txt").read_text(), "start\nend\n")
+
+    def test_balancing_preserves_duplicate_ids_and_intact_modules(self):
+        ids = [f"test_{module}.T.test_{n}" for module in "abcd" for n in range(2)]
+        ids.append(ids[0])
+        with patch.object(
+            scope,
+            "MODULE_SECONDS",
+            {"test_a": 100, "test_b": 80, "test_c": 20, "test_d": 10},
+        ):
+            groups = scope.partition_tests(ids, 2)
+        self.assertEqual(
+            scope.Counter(n for group in groups for n in group), scope.Counter(ids)
+        )
+        self.assertEqual({n.split(".")[0] for n in groups[0]}, {"test_a", "test_d"})
+        self.assertEqual({n.split(".")[0] for n in groups[1]}, {"test_b", "test_c"})
+        self.assertEqual(scope.partition_tests([], 3), [])
+
+    def test_deadline_modules_run_after_workers_without_losing_cases(self):
+        self.write(
+            TESTS + "test_group.py",
+            PASSING.replace(
+                "pass",
+                "__import__('pathlib').Path('worker-finished').write_text('done')",
+            ),
+        )
+        self.write(
+            TESTS + "test_stage2_demo.py",
+            """import multiprocessing, unittest
+from pathlib import Path
+class Serial(unittest.TestCase):
+ def test_after_workers(self):
+  self.assertNotEqual(multiprocessing.current_process().name, 'MainProcess')
+  self.assertEqual(Path('worker-finished').read_text(), 'done')
+""",
+        )
+        result = self.fixture(workers=3)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        summary = json.loads(result.stdout.splitlines()[-1])
+        self.assertEqual(
+            (
+                summary["planned_tests"],
+                summary["tests_run"],
+                summary["incomplete_partitions"],
+            ),
+            (4, 4, 0),
+        )
+        self.assertIn('"serial_tests": 1', result.stdout)
+
+    def test_serial_only_inventory_and_failure_remain_required(self):
+        (self.repo / (TESTS + "test_plugin_loading.py")).unlink()
+        (self.repo / (TESTS + "test_stage_contracts.py")).unlink()
+        for source, code in (
+            (PASSING, 0),
+            (PASSING.replace("pass", "self.fail('serial failure')"), 1),
+        ):
+            with self.subTest(code=code):
+                self.write(TESTS + "test_stage2_demo.py", source)
+                result = self.fixture(workers=3)
+                self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+                summary = json.loads(result.stdout.splitlines()[-1])
+                self.assertEqual(
+                    (summary["planned_tests"], summary["tests_run"]), (1, 1)
+                )
+                self.assertEqual(summary["passed"], code == 0)
+
+    def test_serial_zero_exit_never_reports_success(self):
+        self.write(
+            TESTS + "test_stage2_demo.py",
+            PASSING.replace("pass", "raise SystemExit(0)"),
+        )
+        result = self.fixture(workers=3)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        summary = json.loads(result.stdout.splitlines()[-1])
+        self.assertEqual((summary["errors"], summary["incomplete_partitions"]), (1, 0))
+        self.assertFalse(summary["passed"])
+
+    def test_serial_process_exit_zero_is_incomplete(self):
+        self.write(
+            TESTS + "test_stage2_demo.py",
+            PASSING.replace("pass", "__import__('os')._exit(0)"),
+        )
+        result = self.fixture(workers=3)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        summary = json.loads(result.stdout.splitlines()[-1])
+        self.assertEqual(summary["incomplete_partitions"], 1)
+        self.assertLess(summary["tests_run"], summary["planned_tests"])
+        self.assertFalse(summary["passed"])
 
     def test_parallel_full_suite_propagates_failures_import_errors_and_crashes(self):
         for source, marker in (

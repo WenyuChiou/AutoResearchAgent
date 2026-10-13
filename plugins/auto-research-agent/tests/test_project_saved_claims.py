@@ -13,6 +13,10 @@ import test_project_stage1_delivery as fixture_module
 import test_stage1_deliverable as source_fixture
 from research_workspace_native.project_saved_claims import ProjectSavedClaimService
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.project_model_reading import (
+    reading_prompt,
+    saved_reading_snapshot,
+)
 from research_workspace_native.session_api import SessionApiError
 from stage1_coverage.run import CoverageLedger
 from stage1_ledger.validation import validate_run
@@ -107,6 +111,19 @@ class SavedClaimTests(unittest.TestCase):
                 self.assertEqual(result["status"], "saved")
                 self.assertFalse(result["stage1_complete"])
                 claims[field] = result["claim_event_id"]
+            snapshot = saved_reading_snapshot(case.producer, ref, work, excerpt_bytes=0)
+            self.assertTrue(
+                set(claims.values())
+                <= {row["event_id"] for row in snapshot["existing_claims"]}
+            )
+            self.assertTrue(all(row["excerpt"] == "" for row in snapshot["sources"]))
+            self.assertEqual(service.view("alice-token", ref, work)["model_calls"], 0)
+            with self.assertRaises(SessionApiError) as refused:
+                reading_prompt(snapshot)
+            self.assertEqual(
+                refused.exception.code,
+                "reading-prompt-too-large-segmentation-unavailable",
+            )
             coverage = case.stage1.read("alice-token", ref)["coverage_actions"]
             offer = next(
                 o

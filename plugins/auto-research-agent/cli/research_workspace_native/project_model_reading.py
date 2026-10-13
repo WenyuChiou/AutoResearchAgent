@@ -21,7 +21,7 @@ def saved_reading_snapshot(
     check_deadline=None,
     excerpt_bytes=MAX_EXCERPT_BYTES,
 ):
-    """Recheck original source bytes, current work/version and the owned frontier."""
+    """Recheck source identity; zero excerpts provide bounded manual-claim context."""
     from .project_stage1_records import ProjectStage1RecordsService
     from .project_stage1_sources import source_record
 
@@ -167,7 +167,11 @@ def saved_reading_snapshot(
                 entire_work_read=False,
                 scientific_acceptance=False,
             )
-            snapshot = _fit_saved_excerpts(snapshot)
+            # Manual claims request metadata only and never send a model prompt.
+            # Model callers still fit excerpts here and reading_prompt enforces
+            # the complete prompt limit independently, including zero excerpts.
+            if excerpt_bytes:
+                snapshot = _fit_saved_excerpts(snapshot)
             _check(
                 len(canonical(snapshot)) <= 48000,
                 "reading-input-too-large-segmentation-unavailable",

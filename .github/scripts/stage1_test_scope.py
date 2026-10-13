@@ -27,6 +27,34 @@ REPO = Path(__file__).resolve().parents[2]
 TEST_DIR = Path("plugins/auto-research-agent/tests")
 SMOKE = "test_plugin_loading"
 BASE_MODULES = {SMOKE, "test_stage_contracts"}
+# Scheduling estimates from serial Ubuntu run 38360354676 at 45eacd2e.
+# Adjacent test-start intervals include setup/cleanup; these do not select tests.
+MODULE_SECONDS = {
+    "test_retrieval_execution": 195,
+    "test_project_reading_registration": 175,
+    "test_project_stage1_atlas": 167,
+    "test_project_stage1_records": 141,
+    "test_stage1_core_records": 92,
+    "test_project_saved_claims": 90,
+    "test_project_reading_review": 89,
+    "test_retrieval_audit": 81,
+    "test_project_stage1_delivery": 78,
+    "test_project_expansions": 76,
+    "test_coverage_gate": 75,
+    "test_project_stage1_claims": 71,
+    "test_project_stage2_context": 67,
+    "test_project_records_recovery": 67,
+    "test_stage1_deliverable": 67,
+    "test_planned_query_contract": 63,
+}
+# Real socket deadlines remain unchanged. Run these fixtures after worker exit
+# so slow CI disk/CPU contention does not compete with their bounded requests.
+SERIAL_DEADLINE_MODULES = {
+    "test_stage2_demo",
+    "test_stage2_demo_safety",
+    "test_project_source_reading_http",
+    "test_project_stage1_delivery_http",
+}
 DOCS = {
     "plugins/auto-research-agent/README.md",
     "plugins/auto-research-agent/CONTRIBUTING.md",
@@ -158,16 +186,21 @@ def test_ids(suite):
 
 
 def partition_tests(ids, workers):
-    """Keep module fixtures together, distributing project integration modules."""
+    """Balance estimated module work without splitting or omitting any test ID."""
     modules = {}
     for name in ids:
         modules.setdefault(name.rsplit(".", 2)[0], []).append(name)
     groups = [[] for _ in range(min(workers, len(modules)))]
-    ordered = sorted(
-        modules, key=lambda name: (not name.startswith("test_project"), name)
-    )
-    for index, name in enumerate(ordered):
-        groups[index % len(groups)].extend(modules[name])
+    costs = {
+        name: max(len(rows), MODULE_SECONDS.get(name, 0))
+        for name, rows in modules.items()
+    }
+    ordered = sorted(modules, key=lambda name: (-costs[name], name))
+    loads = [0] * len(groups)
+    for name in ordered:
+        index = min(range(len(groups)), key=lambda index: (loads[index], index))
+        groups[index].extend(modules[name])
+        loads[index] += costs[name]
     if Counter(name for group in groups for name in group) != Counter(ids):
         raise ValueError("Parallel test inventory differs from full discovery")
     return groups
@@ -198,20 +231,49 @@ def run_partition(ids, directory):
 
 def run_parallel(suite, directory, workers):
     ids = list(test_ids(suite))
-    groups = partition_tests(ids, workers)
+    serial = [name for name in ids if name.rsplit(".", 2)[0] in SERIAL_DEADLINE_MODULES]
+    groups = partition_tests(
+        [name for name in ids if name.rsplit(".", 2)[0] not in SERIAL_DEADLINE_MODULES],
+        workers,
+    )
+    if Counter([*serial, *(name for group in groups for name in group)]) != Counter(
+        ids
+    ):
+        raise ValueError("Serial/parallel test inventory differs from full discovery")
     print(
-        json.dumps({"parallel_workers": len(groups), "planned_tests": len(ids)}),
+        json.dumps(
+            {
+                "parallel_workers": len(groups),
+                "serial_tests": len(serial),
+                "planned_tests": len(ids),
+            }
+        ),
         flush=True,
     )
     results = []
     incomplete = 0
-    with ProcessPoolExecutor(
-        max_workers=len(groups), mp_context=multiprocessing.get_context("spawn")
-    ) as executor:
-        futures = [executor.submit(run_partition, group, directory) for group in groups]
-        for future in as_completed(futures):
+    if groups:
+        with ProcessPoolExecutor(
+            max_workers=len(groups), mp_context=multiprocessing.get_context("spawn")
+        ) as executor:
+            futures = [
+                executor.submit(run_partition, group, directory) for group in groups
+            ]
+            for future in as_completed(futures):
+                try:
+                    results.append(future.result())
+                except (Exception, SystemExit):
+                    incomplete += 1
+                    traceback.print_exc()
+    if serial:
+        # Keep the supervisor alive even if a serial fixture terminates itself.
+        with ProcessPoolExecutor(
+            max_workers=1, mp_context=multiprocessing.get_context("spawn")
+        ) as executor:
             try:
-                results.append(future.result())
+                results.append(
+                    executor.submit(run_partition, serial, directory).result()
+                )
             except (Exception, SystemExit):
                 incomplete += 1
                 traceback.print_exc()
@@ -222,7 +284,9 @@ def run_parallel(suite, directory, workers):
         "errors": sum(item["errors"] for item in results),
         "skips": sum(item["skips"] for item in results),
         "incomplete_partitions": incomplete,
-        "passed": not incomplete and all(item["passed"] for item in results),
+        "passed": not incomplete
+        and bool(results)
+        and all(item["passed"] for item in results),
     }
     print(json.dumps(summary), flush=True)
     return 0 if summary["passed"] else 1
