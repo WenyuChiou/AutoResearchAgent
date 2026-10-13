@@ -664,6 +664,34 @@ class AtlasHandler(SessionHandler):
                 if self.path == "/"
                 else kinds.get(Path(self.path).suffix, "application/octet-stream")
             )
+            csp = CSP
+            report = re.fullmatch(
+                r"/views/([A-Za-z0-9_-]{1,64})/stage2/(report-reader|selection)\.html",
+                self.path,
+            )
+            if report and any(
+                row["ref"] == report.group(1) for row in self.server.views
+            ):
+                prefix = "/views/" + report.group(1) + "/stage2/"
+                if all(
+                    prefix + name in self.server._assets
+                    for name in ("report-reader.html", "selection.html")
+                ):
+                    if report.group(2) == "report-reader":
+                        csp += (
+                            "; frame-src "
+                            + self.server.expected_origin
+                            + prefix
+                            + "selection.html"
+                        )
+                    else:
+                        csp = (
+                            "default-src 'none'; script-src 'none'; "
+                            "style-src 'unsafe-inline'; connect-src 'none'; "
+                            "img-src 'none'; frame-src 'none'; object-src 'none'; "
+                            "base-uri 'none'; form-action 'none'; "
+                            "frame-ancestors 'self'; sandbox"
+                        )
             self._remaining()
             self.send_response(200)
             for name, value in (
@@ -672,7 +700,7 @@ class AtlasHandler(SessionHandler):
                 ("Cache-Control", "no-store"),
                 ("Connection", "close"),
                 ("X-Content-Type-Options", "nosniff"),
-                ("Content-Security-Policy", CSP),
+                ("Content-Security-Policy", csp),
                 ("Cross-Origin-Resource-Policy", "same-origin"),
                 ("Referrer-Policy", "no-referrer"),
             ):
