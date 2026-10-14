@@ -1,5 +1,21 @@
 # Launch the Atlas for review
 
+## Review PR #295 in the main Wiki
+
+For the complete project-bound six-stage Wiki under review in #295, use the
+[terminal quick start](PORTABLE_ATLAS_SETUP.md#terminal-quick-start-for-pr-295).
+It downloads that PR's complete branch, installs the pinned dependencies, builds
+the repository's saved Stage 1/2 examples and opens them through ProjectHost.
+Keep the printed current commit and URL with your acceptance notes.
+
+Do not double-click source `atlas.html` or `projects.html`. These are templates:
+the former needs generated `atlas-data.js`, and both need the local server's
+assets and project/authentication context. A downloaded single HTML file, another
+person's localhost URL or an old port cannot replace a running local Wiki.
+The quick start preserves the reviewed v6 layout and starts no research or model.
+
+## Saved-view review on merged main
+
 Run the repository example to inspect Stage 1 and Stage 2 in a browser. It builds
 new private outputs from existing public synthetic fixtures, verifies manifests,
 and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
@@ -111,7 +127,9 @@ plugin CLI directory, start the already merged portal:
 python -B -X utf8 -m research_workspace_native.project_host --projects-root <PRIVATE_PROJECT_ROOT> --views-config <ABSOLUTE_CONFIG_PATH> --views-sha256 <EXTERNAL_CONFIG_SHA256> --port 0
 ```
 
-Use the actual `url` printed by that process: root `/` serves `projects.html`.
+Use the actual `url` printed by that process. With registered saved views, root
+`/` redirects to the first saved Atlas; `/projects.html` is the project portal.
+With no registered views, root `/` serves that portal.
 Saved Results opens `/views/saved-stage2/atlas.html`, with the six stages at the
 left. Stage 2 exposes comparison, directions, original comments and artifacts;
 Stage 3–6 remain planned/unconnected. Original workspace returns to the same

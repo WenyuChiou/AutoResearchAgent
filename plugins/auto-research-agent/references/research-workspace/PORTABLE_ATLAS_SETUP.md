@@ -1,5 +1,74 @@
 # Run your own local Atlas review
 
+## Terminal quick start for PR #295
+
+Run these commands in PowerShell on your own computer. Install Git and Python
+3.11 first. Use a fresh download folder; the PR branch is the review candidate,
+and `main` may not yet contain it. The command-scoped clone settings preserve
+source bytes without changing global Git preferences.
+
+```powershell
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-empty-inventory-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-pr295
+if ($LASTEXITCODE -ne 0) { throw 'PR download failed' }
+Set-Location ara-pr295
+git rev-parse HEAD
+py -3.11 -m venv --copies .venv
+if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 environment failed' }
+$wikiPython = (Resolve-Path .venv/Scripts/python.exe).Path
+& $wikiPython -m pip install -r plugins/auto-research-agent/requirements-test.txt
+if ($LASTEXITCODE -ne 0) { throw 'Pinned dependency installation failed' }
+& $wikiPython -B -X utf8 -c 'import jsonschema, docx, openpyxl, markdown_it; print("Wiki dependencies ready")'
+if ($LASTEXITCODE -ne 0) { throw 'Use the installed .venv Python for every Wiki command' }
+```
+
+Generate and open a saved repository case in the main Wiki. This uses authored
+examples with Stage 1/2 data, not new searches, a native session or research
+execution. A fresh short private parent must be outside every Git checkout;
+change `C:/ara-review-data` if needed. A new timestamp keeps previous attempts.
+
+```powershell
+$repoRoot = (Get-Location).Path
+$examples = "$repoRoot/plugins/auto-research-agent/references/research-workspace/examples"
+$privateParent = 'C:/ara-review-data'
+New-Item -ItemType Directory -Force -Path $privateParent | Out-Null
+$attempt = Get-Date -Format 'yyyyMMdd-HHmmss-ffff'
+$caseRoot = "$privateParent/case-$attempt"
+$projectsRoot = "$privateParent/p-$attempt"
+& $wikiPython -B -X utf8 "$examples/build-review-fixture.py" --output $caseRoot
+if ($LASTEXITCODE -ne 0) { throw 'Saved case generation failed; retain its error and output' }
+$pins = Get-Content -Raw "$caseRoot/fixture-receipt.json" | ConvertFrom-Json
+$helper = "$repoRoot/plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py"
+$helperHash = (Get-FileHash $helper -Algorithm SHA256).Hash.ToLowerInvariant()
+& $wikiPython -B -X utf8 "$examples/run-project-workspace.py" --repo $repoRoot --source-helper-sha256 $helperHash --projects-root $projectsRoot --views-config $pins.config --views-sha256 $pins.config_sha256 --port 0 --open
+```
+
+Keep this terminal running. Open its newly printed `url` on the same computer;
+root `/` redirects to the registered Stage 1 Wiki. The left sidebar switches
+Stage 1/2 results, and **Original workspace** opens that same saved package's
+`index.html`. The same server's `/projects.html` is the topic/project portal.
+Expand **Historical reference** to inspect the generated saved example when no
+current project is selected. The separately registered Stage 2 reference is
+`/views/stage2/atlas.html` on this same server; open it in the same tab.
+Current project deliveries appear under that project's controls; a new project
+without a saved delivery shows **Not generated yet**. The repository example is
+a separate saved reference and never becomes a new project's generated result.
+
+Stop with Ctrl+C. The old URL stops working when its process exits; a teammate
+must start their own server, rather than reuse your `127.0.0.1` address. Windows
+project roots must stay within the existing 60-character path bound. An error
+about private-root depth or Git overlap requires a shorter outside-Git directory;
+do not disable the guard or overwrite a previous attempt.
+
+`--check-only` checks files and the raw source loader only. It does not establish
+installed runtime dependencies, a running HTTP server, Codex login or research
+completion. `ModuleNotFoundError` for `docx` or `jsonschema` means that the chosen
+Python is missing the pinned requirements; use `$wikiPython` above. Git is also
+needed by the private-output checks, including for a ZIP download.
+
+The quick start deliberately does not enable Codex or external stage execution.
+For those separately authorized operations, continue with the own-account and
+runtime sections below; never share account configuration, credentials or permits.
+
 Every teammate runs a complete review checkout on their own computer and uses
 their own Codex account. Do not share `auth.json`, credentials, private research
 payloads, configuration contents or another person's permits.
