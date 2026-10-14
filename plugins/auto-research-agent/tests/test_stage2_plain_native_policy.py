@@ -167,7 +167,7 @@ class PlainNativePolicyTests(unittest.TestCase):
 
     def test_action_trace_and_role_resolution_accept_only_bound_child_paths(self):
         _, args = self.install()
-        action_trace = self.fixture.telemetry / "action-1"
+        action_trace = (self.fixture.telemetry / "action-1").resolve()
         request = {k: v for k, v in args.items() if k != "output_dir"}
         request["capture_dir"] = args["output_dir"]
         request["trace_root"] = action_trace
