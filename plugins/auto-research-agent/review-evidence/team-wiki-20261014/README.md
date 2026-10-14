@@ -69,3 +69,8 @@ The renderer, runtime pin checks, frozen v1, Unknowns, budgets and original
 failures are unchanged. This preserves a working engineering interface; it does
 not prove a complete live Stage1/Stage2 research run or scientific improvement.
 No new PR, approve, resolve or merge is part of this handoff.
+
+Public review reports remove only an extra blank line at EOF. Their original
+private hashes and normalized public hashes are both retained in the manifest;
+reviewed source bytes, patch binding and conclusions are unchanged. The actual
+PR body validator also passed with four required non-skipped invariants executed.

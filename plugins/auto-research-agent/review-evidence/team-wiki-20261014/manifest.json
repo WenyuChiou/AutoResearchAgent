@@ -150,11 +150,11 @@
     },
     {
       "path": "INDEPENDENT-REVIEW-R2.md",
-      "sha256": "96d2a9790ccced9f41b561e50f5f4bf9040ebf813dd2eb39c756c9ab2366ba3a"
+      "sha256": "81faf467146582e8b9a414695c46d342a438bce2748233c03571110b09d71525"
     },
     {
       "path": "INDEPENDENT-REVIEW.md",
-      "sha256": "8fcd015e0595fbc92523a9f10a10954a1635e955e6a893d06cdc434bd63366c2"
+      "sha256": "598763e65e876b92ac6319848cb3ab58a89ed01d3c321d37029a365b13579afd"
     },
     {
       "path": "wiki-stage1.png",
@@ -163,6 +163,20 @@
     {
       "path": "wiki-stage2-example.png",
       "sha256": "ba0c6d94f06db97e4501425b60c1514c4393ff8db09d72f4adad8676ad81b39c"
+    }
+  ],
+  "review_artifact_normalization": [
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "original_sha256": "8fcd015e0595fbc92523a9f10a10954a1635e955e6a893d06cdc434bd63366c2",
+      "published_sha256": "598763e65e876b92ac6319848cb3ab58a89ed01d3c321d37029a365b13579afd",
+      "transformation": "remove extra blank line at EOF only; original private report unchanged"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-R2.md",
+      "original_sha256": "96d2a9790ccced9f41b561e50f5f4bf9040ebf813dd2eb39c756c9ab2366ba3a",
+      "published_sha256": "81faf467146582e8b9a414695c46d342a438bce2748233c03571110b09d71525",
+      "transformation": "remove extra blank line at EOF only; original private report unchanged"
     }
   ]
 }

@@ -90,4 +90,3 @@ ProjectHost 在已注册 views 时 root / 重定向到首个 saved view，配置
 - Clean clone / terminal Wiki / rendered UI：本审阅者未执行；文档与源码一致性已核对，仍需父任务实际验收。
 - Scientific improvement：not yet demonstrated；本改动及局部测试不证明 P1–P9、G1、freeze 或 formal A/B。
 - 本报告不构成 PR approval、review resolution、Core acceptance 或 merge 授权。
-
