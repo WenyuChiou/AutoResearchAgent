@@ -530,7 +530,12 @@
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B."
+      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B.",
+      "advisory_planning_context_mechanism": "Separate advisory context1.0 prepares and replays the complete unselected portfolio from an externally bound ordinary delivery, including zero recommendations, original assessments, history, matrix, sources, scope questions, resources and unknowns. The receiver reconstructs the exact context, rejects rehashed selection or execution claims, and grants no human selection, semantic endorsement, model execution or formal admission. Existing selected planning handoff and recommendation gates remain unchanged.",
+      "advisory_planning_context_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_advisory_handoff.py",
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
+      ]
     },
     {
       "capability_id": "validator:research-pr-contract",
