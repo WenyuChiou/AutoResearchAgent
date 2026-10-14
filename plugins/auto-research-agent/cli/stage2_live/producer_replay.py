@@ -83,7 +83,7 @@ def _verify_inventory(
     if "trace_root" in capture_request:
         parent = policy.get("telemetry_path")
         if (
-            policy.get("schema_version") != native_policy.CAPTURE_ROOT_POLICY_VERSION
+            not native_policy.capture_root_policy(policy)
             or not isinstance(selected, (str, os.PathLike))
             or not isinstance(parent, str)
             or not Path(parent).is_absolute()

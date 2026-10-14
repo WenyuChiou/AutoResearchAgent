@@ -41,7 +41,7 @@ def _telemetry(policy, trace_root=None):
     selected = declared if trace_root is None else os.fspath(trace_root)
     if trace_root is not None:
         _require(
-            policy.get("schema_version") == native_policy.CAPTURE_ROOT_POLICY_VERSION,
+            native_policy.capture_root_policy(policy),
             "producer-action-trace-requires-policy-1.1",
         )
         path = Path(selected)
