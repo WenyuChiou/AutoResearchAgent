@@ -40,7 +40,7 @@ def _action_root(request, *, resume):
     if (
         not isinstance(policy, dict)
         or policy.get("kind") != native_policy.NAMED_POLICY_KIND
-        or policy.get("schema_version") != native_policy.CAPTURE_ROOT_POLICY_VERSION
+        or not native_policy.capture_root_policy(policy)
     ):
         raise CaptureError("observed action requires named policy 1.1")
     selected = request.get("trace_root")

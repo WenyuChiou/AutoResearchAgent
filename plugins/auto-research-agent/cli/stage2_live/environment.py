@@ -18,7 +18,7 @@ from .preflight import (
     _inventory,
 )
 from .native_policy import (
-    CAPTURE_ROOT_POLICY_VERSION,
+    capture_root_policy,
     NAMED_POLICY_KIND,
     NamedPolicyError,
     named_policy_args,
@@ -44,7 +44,7 @@ def native_for_environment(spec, home, workspace):
     if (
         not isinstance(policy, dict)
         or policy.get("kind") != NAMED_POLICY_KIND
-        or policy.get("schema_version") != CAPTURE_ROOT_POLICY_VERSION
+        or not capture_root_policy(policy)
     ):
         raise Stage2Error("execution-specific-named-policy-required")
     native["policy_bindings"] = copy.deepcopy(policy)
