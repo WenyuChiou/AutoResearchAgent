@@ -1,0 +1,168 @@
+{
+  "schema": "pr295-team-wiki-v1",
+  "baseline_head": "de4815a5f3045546dd956a81398d68b3e1515651",
+  "baseline_tree": "996e1c80959d573ba989c01bb56944cadace008b",
+  "inherited_main": "356cc24df148f9e238f2e42f96607991ed836dc4",
+  "seven_path_patch_sha256": "b472458f8ec3bd4e7e84a66cdbc7863b9239659b7cf7553931142a44de918acc",
+  "source_files": [
+    {
+      "path": ".github/scripts/stage1_test_scope.py",
+      "sha256": "60841721dbb0aa5cf1cb9b79a7db6222636e1edd4c092b1b21c95cc025b0883c"
+    },
+    {
+      "path": ".github/scripts/test_stage1_ci_quality.py",
+      "sha256": "46d816076d2af1ffd5b5126388aa10185ce568f1af4a44763beafba9bccef69c"
+    },
+    {
+      "path": ".github/scripts/test_stage1_test_scope.py",
+      "sha256": "2d815af5a6c21cbc22a01ee87cf47360d716d12633ea29564021824404567a89"
+    },
+    {
+      "path": ".github/workflows/stage1-plugin.yml",
+      "sha256": "f1cc64ab2ede252175cb0791c40330dbc133a6f4de0e4e2c5a74a325b423ab6b"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md",
+      "sha256": "50c117a5d43c8bb374b0787b8fcc772ba4667fe1d500f03543cf1df70364a165"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/research-workspace/atlas-launch-guide.md",
+      "sha256": "e7d2ac0305789fee3eabef75f1ddbefc7ff9d93a69bfdf6ea57c7552162a6ba7"
+    },
+    {
+      "path": "plugins/auto-research-agent/tests/test_research_workspace_process_channel_recovery.py",
+      "sha256": "7dd684c22b466c24fb8f2118bc8affa9b2054038f2296b6efc798cc6dba06426"
+    }
+  ],
+  "ci_checks": {
+    "test_cases_run": 47,
+    "passed": 46,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "unittest_elapsed_seconds": 360.574,
+    "coordinator_elapsed_seconds": 362,
+    "exit_code": 0,
+    "start_utc": "2026-10-14T07:32:20.354401+00:00",
+    "finish_utc": "2026-10-14T07:38:22.383595+00:00",
+    "existing_skip": {
+      "selector": "test_runtime_identity.RuntimeIdentityTests.test_file_symlinks_bind_external_target_and_target_bytes",
+      "reason": "Host does not grant symlink creation"
+    },
+    "non_skipped_repaired_and_guard_checks": [
+      "test_stage1_ci_quality.Stage1CiQualityTests.test_contract_environment_keeps_spawned_and_nested_imports_read_only",
+      "test_stage1_test_scope.Stage1TestScopeTests.test_deadline_modules_run_after_workers_without_losing_cases",
+      "test_research_workspace_process_channel_recovery.ObservationTests.test_post_spawn_database_busy_cannot_delay_lease_cleanup",
+      "test_portable_atlas_git_checkout.PortableAtlasGitCheckoutTests.test_autocrlf_checkout_preserves_retained_and_new_atlas_paths",
+      "test_owned_source_observations.OwnedSourceObservationTests.test_sealed_owned_source_observations",
+      "test_retrieval_execution.ExecutionTests.test_frozen_plan_and_citation_backends_and_development_gate",
+      "test_runtime_identity.RuntimeIdentityTests.test_new_code_file_is_not_hidden_by_old_inventory",
+      "test_runtime_identity.RuntimeIdentityTests.test_package_mutation_invalidates_real_python_m_environment",
+      "test_research_workspace_native_binding.WorkspaceNativeBindingTests.test_runtime_bytes_bound_including_added_cached_bytecode"
+    ]
+  },
+  "quality_checks": {
+    "ruff_format": {
+      "exit_code": 0,
+      "output": "4 files already formatted"
+    },
+    "ruff_check": {
+      "exit_code": 0,
+      "output": "All checks passed!"
+    },
+    "diff_check": {
+      "exit_code": 0
+    }
+  },
+  "wiki": {
+    "terminal_started": true,
+    "loopback": true,
+    "startup_status": "local-UI-ready",
+    "content_model": "disabled",
+    "installed_chrome_tests": 1,
+    "elapsed_seconds": 167.305,
+    "checked_groups": [
+      "unselected shell hides unrelated historic result and opens no popup",
+      "top selector switches operations, progress, graph and saved paper identities",
+      "late saved result and retired child message cannot overwrite new project",
+      "empty project and known scope version without result clear saved graphs",
+      "EN, simplified and traditional Chinese propagate through inline graph",
+      "six sidebar and portal stage transitions retain current contract and Stage1 graph in three languages",
+      "Stage2 pinned example renders below operations without becoming current-project output",
+      "deferred result navigation is discarded after switching stages",
+      "Stage2 saved input switches project identity without adopting an earlier review",
+      "saved source links, review draft and file read stay bound and GET only",
+      "desktop, tablet and narrow layouts retain long content and usable inline graph",
+      "default 3D canvas and 2D paper selection render the current saved work",
+      "credentials remain out of child, URL, storage and receipt"
+    ],
+    "post_count": 0,
+    "external_requests": [],
+    "page_errors": [],
+    "readonly_sqlite_and_ledger": true,
+    "rendered_graph_modes": [
+      3,
+      2,
+      2
+    ],
+    "saved_example_scope": "authored-saved-result-engineering-only",
+    "source_inventory_sha256": "735c9051090a4963e363f73f9ea378fc5b23a156f5b4ca9f964c3d4d8303a055",
+    "source_inventory_count": 218
+  },
+  "actual_new_model_calls": 0,
+  "actual_new_search_calls": 0,
+  "actual_native_research_calls": 0,
+  "frozen_v1_sha256": "b75122de16fe93317958c5d81ab29310a9185103c03eaf2ea22202b7cfa00598",
+  "private_logs": [
+    {
+      "label": "wiki-build.log",
+      "sha256": "b9125b05a35d91f5f4fde21b87c51ac6eca31e443a3d6973b8a7ca1b527ceb31"
+    },
+    {
+      "label": "wiki-browser-installed.log",
+      "sha256": "27f4be0f83eb3a850fc0d0bdaa76c7717c10863f5df97f28fe2e605a58383be4"
+    },
+    {
+      "label": "browser-receipt.json",
+      "sha256": "207a0df2ba83a6fac8f5369e2a901935eb070468c66bc33414a08ca672ae3652"
+    },
+    {
+      "label": "CI-validation.json",
+      "sha256": "d0b3dadf12d5594a4e1f2109f040a8ffce59647535386d13c2552274109902f2"
+    },
+    {
+      "label": "related-checks.stderr.log",
+      "sha256": "a9a0773bf7f1a98d610f87dd256557918acd8d088edb7f5c7ae13764b51eb101"
+    }
+  ],
+  "remaining": [
+    "New exact-head three-OS full CI and following PR contracts",
+    "Genuine Core product/composition and existing six review dispositions",
+    "Private A03 actual browser0/7 and native admission remain unaccepted",
+    "Full Stage1, positive Stage1-to-Stage2 handoff and scientific improvement not demonstrated",
+    "Ubuntu identity field difference and old Windows timeout causes not fully proven",
+    "No additional Stage2 research execution; Stage3-6 planned/unconnected"
+  ],
+  "public_artifacts": [
+    {
+      "path": "graph-3d.png",
+      "sha256": "70a4aa58fbc9ff045903a2e425958278fefbfd4bfbd4518130aa8dff79cef36a"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-R2.md",
+      "sha256": "96d2a9790ccced9f41b561e50f5f4bf9040ebf813dd2eb39c756c9ab2366ba3a"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "sha256": "8fcd015e0595fbc92523a9f10a10954a1635e955e6a893d06cdc434bd63366c2"
+    },
+    {
+      "path": "wiki-stage1.png",
+      "sha256": "8e1488744a0396927a35706159438e29238f4608371d668091581cb44528b588"
+    },
+    {
+      "path": "wiki-stage2-example.png",
+      "sha256": "ba0c6d94f06db97e4501425b60c1514c4393ff8db09d72f4adad8676ad81b39c"
+    }
+  ]
+}
