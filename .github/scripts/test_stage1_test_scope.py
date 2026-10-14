@@ -402,16 +402,21 @@ class Group(unittest.TestCase):
                 "__import__('pathlib').Path('worker-finished').write_text('done')",
             ),
         )
-        self.write(
-            TESTS + "test_stage2_demo.py",
-            """import multiprocessing, unittest
+        for module in (
+            "test_stage2_demo",
+            "test_owned_source_observations",
+            "test_portable_atlas_git_checkout",
+        ):
+            self.write(
+                TESTS + module + ".py",
+                """import multiprocessing, unittest
 from pathlib import Path
 class Serial(unittest.TestCase):
  def test_after_workers(self):
   self.assertNotEqual(multiprocessing.current_process().name, 'MainProcess')
   self.assertEqual(Path('worker-finished').read_text(), 'done')
 """,
-        )
+            )
         result = self.fixture(workers=3)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         summary = json.loads(result.stdout.splitlines()[-1])
@@ -421,9 +426,9 @@ class Serial(unittest.TestCase):
                 summary["tests_run"],
                 summary["incomplete_partitions"],
             ),
-            (4, 4, 0),
+            (6, 6, 0),
         )
-        self.assertIn('"serial_tests": 1', result.stdout)
+        self.assertIn('"serial_tests": 3', result.stdout)
 
     def test_serial_only_inventory_and_failure_remain_required(self):
         (self.repo / (TESTS + "test_plugin_loading.py")).unlink()

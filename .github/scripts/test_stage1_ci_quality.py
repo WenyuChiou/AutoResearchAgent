@@ -168,6 +168,57 @@ class Stage1CiQualityTests(unittest.TestCase):
                     "python .github/scripts/stage1_test_scope.py" + suffix,
                 )
 
+    def test_contract_environment_keeps_spawned_and_nested_imports_read_only(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        env = dict(os.environ)
+        env.pop("PYTHONDONTWRITEBYTECODE", None)
+        env.update(workflow["jobs"]["contracts"].get("env", {}))
+        with tempfile.TemporaryDirectory(prefix="ci-cache-") as directory:
+            root = Path(directory)
+            (root / "synthetic_import.py").write_text("VALUE = 1\n", encoding="utf8")
+            script = root / "cache_probe.py"
+            script.write_text(
+                """from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
+import subprocess
+import sys
+
+def worker():
+    import synthetic_import
+    assert synthetic_import.VALUE == 1
+    assert sys.dont_write_bytecode
+    subprocess.run(
+        [sys.executable, '-c',
+         'import sys, synthetic_import; assert sys.dont_write_bytecode'],
+        check=True,
+    )
+    return True
+
+if __name__ == '__main__':
+    import synthetic_import
+    assert synthetic_import.VALUE == 1
+    assert sys.dont_write_bytecode
+    with ProcessPoolExecutor(
+        max_workers=1, mp_context=multiprocessing.get_context('spawn')
+    ) as executor:
+        assert executor.submit(worker).result()
+""",
+                encoding="utf8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(list(root.rglob("*.pyc")), [])
+
     def test_required_platform_guard_rejects_selector_failure_and_unknown_plan(self):
         path = REPO_ROOT / ".github/workflows/stage1-plugin.yml"
         workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)

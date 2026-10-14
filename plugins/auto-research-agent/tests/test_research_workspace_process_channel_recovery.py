@@ -2,6 +2,7 @@
 
 import sqlite3
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -86,9 +87,13 @@ class ObservationTests(OwnedProcessCase):
             blocked_at.append(time.monotonic())
             return process
 
+        # Patch only the owned-child call site. Windows cleanup starts taskkill
+        # through the shared subprocess module and must retain its real behavior.
+        child_subprocess = SimpleNamespace(**vars(module.subprocess))
+        child_subprocess.Popen = after_spawn
         try:
             with (
-                patch.object(module.subprocess, "Popen", side_effect=after_spawn),
+                patch.object(module, "subprocess", child_subprocess),
                 patch.object(module, "Deadline", side_effect=bounded_startup),
             ):
                 with self.assertRaises(ValueError):

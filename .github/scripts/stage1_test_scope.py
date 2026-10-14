@@ -47,9 +47,11 @@ MODULE_SECONDS = {
     "test_stage1_deliverable": 67,
     "test_planned_query_contract": 63,
 }
-# Real socket deadlines remain unchanged. Run these fixtures after worker exit
-# so slow CI disk/CPU contention does not compete with their bounded requests.
+# Real socket and subprocess deadlines remain unchanged. Run these fixtures
+# after worker exit so slow CI disk/CPU contention does not compete with them.
 SERIAL_DEADLINE_MODULES = {
+    "test_owned_source_observations",
+    "test_portable_atlas_git_checkout",
     "test_stage2_demo",
     "test_stage2_demo_safety",
     "test_project_source_reading_http",
