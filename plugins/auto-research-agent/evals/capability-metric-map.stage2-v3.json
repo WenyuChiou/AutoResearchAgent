@@ -415,6 +415,10 @@
       "resolution_unknown_axis_followup_contract": "Reconciliation extraction field-contract1.1 explicitly requires a source-bound next_check for every unknown axis before the initial generation and bounded correction. Unknown scores remain null; missing followups still fail closed without automatic filling, fabricated evidence or additional semantic retries. Original rejected attempts and source/runtime/policy/external-receipt/human/formal guards remain unchanged; synthetic tests do not attest successful scientific extraction, complete rehearsals or improvement. New live resolution results seal field-contract1.1.0 in resolution_field_contract_version; strict read-only controller replay reconstructs frozen1.0.0 for older sealed results and rejects unsupported versions or changed prompt/version bindings without replaying models or executing archived source.",
       "resolution_unknown_axis_followup_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_live_review_models.py"
+      ],
+      "plain_native_policy_contract": "Opt-in named-policy1.2 preserves restrictive capture-root permissions and archived runtime verification while binding an explicit positive native child-thread limit, disabled apps/plugins/remote_plugin/memories and an empty MCP table. Exact config hashes, denied directories, managed network proxy, ancestor-layer rejection and completed resume remain strict. Existing1.0/1.1 profiles retain their behavior. These requested settings neither increase authorized budgets nor establish actual inventory, isolation, formal admission or quality.",
+      "plain_native_policy_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_plain_native_policy.py"
       ]
     },
     {
@@ -530,7 +534,12 @@
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B."
+      "completion_evidence_contract": "Reconstruct content completeness, exact executed review/reconciliation records and source-bound independent v3 assessment. Missing matrix/resources/reviewers/assessment, null dimensions or pending audit remain incomplete; rehashed omitted actions, forged completion and foreign/stale evaluation reject. Low scores and zero recommendations do not block completion. Completeness does not attest scientific truth, native isolation, human selection, Stage3 permission or formal A/B.",
+      "advisory_planning_context_mechanism": "Separate advisory context1.0 prepares and replays the complete unselected portfolio from an externally bound ordinary delivery, including zero recommendations, original assessments, history, matrix, sources, scope questions, resources and unknowns. The receiver reconstructs the exact context, rejects rehashed selection or execution claims, and grants no human selection, semantic endorsement, model execution or formal admission. Existing selected planning handoff and recommendation gates remain unchanged.",
+      "advisory_planning_context_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_advisory_handoff.py",
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
+      ]
     },
     {
       "capability_id": "validator:research-pr-contract",

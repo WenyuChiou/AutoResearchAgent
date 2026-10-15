@@ -46,6 +46,8 @@ def main(argv=None):
     handoff.add_argument("--brief", required=True)
     handoff.add_argument("--resources", required=True)
     handoff.add_argument("--output", required=True)
+    handoff.add_argument("--saved-source-root")
+    handoff.add_argument("--saved-source-acceptance-sha256")
     exploratory = commands.add_parser(
         "import-stage1-exploratory",
         help="build a non-sufficient Stage 2 seed from a reviewed Stage 1 deliverable",
@@ -207,6 +209,17 @@ def main(argv=None):
     )
     for name in ("package", "delivery", "expected-manifest-sha256", "output"):
         planning_check.add_argument("--" + name, required=True)
+    advisory = commands.add_parser(
+        "prepare-stage3-advice", help="retain unselected context for direction advice"
+    )
+    for name in ("delivery", "expected-delivery-manifest-sha256", "output"):
+        advisory.add_argument("--" + name, required=True)
+    advisory_check = commands.add_parser(
+        "inspect-stage3-advice",
+        help="replay advisory context without selecting research",
+    )
+    for name in ("package", "delivery", "expected-manifest-sha256", "output"):
+        advisory_check.add_argument("--" + name, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command in {"reconcile", "deliver"} and bool(
@@ -216,6 +229,15 @@ def main(argv=None):
                 "guard bundles and external hash must be supplied together"
             )
         if args.command == "import-stage1":
+            saved_source = {}
+            if (
+                args.saved_source_root is not None
+                or args.saved_source_acceptance_sha256 is not None
+            ):
+                saved_source = {
+                    "saved_source_root": args.saved_source_root,
+                    "saved_source_acceptance_sha256": args.saved_source_acceptance_sha256,
+                }
             result = build_stage2_seed(
                 args.deliverable,
                 args.deliverable_manifest_sha256,
@@ -224,6 +246,7 @@ def main(argv=None):
                 args.brief,
                 args.resources,
                 args.output,
+                **saved_source,
             )
         elif args.command == "import-stage1-exploratory":
             result = build_exploratory_seed(
@@ -295,6 +318,32 @@ def main(argv=None):
                 args.output,
                 args.expected_head,
             )
+        elif args.command == "prepare-stage3-advice":
+            from .advisory_handoff import prepare_advisory_handoff
+
+            result = prepare_advisory_handoff(
+                args.delivery,
+                expected_delivery_manifest_sha256=args.expected_delivery_manifest_sha256,
+                output_dir=args.output,
+            )
+        elif args.command == "inspect-stage3-advice":
+            from .advisory_handoff import inspect_advisory_handoff
+            from .planning_handoff import _private_output, _require
+
+            output = _private_output(args.output)
+            _require(
+                not any(
+                    output.is_relative_to(Path(root).resolve())
+                    for root in (args.package, args.delivery)
+                ),
+                "advisory-inspection-output-overlaps-input",
+            )
+            result = inspect_advisory_handoff(
+                args.package,
+                args.delivery,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+            )
+            _save(output, result)
         elif args.command == "prepare-stage3-input":
             from .planning_handoff import prepare_planning_handoff
 

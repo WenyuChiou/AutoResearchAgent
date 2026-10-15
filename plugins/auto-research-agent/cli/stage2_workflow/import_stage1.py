@@ -231,6 +231,9 @@ def build_stage2_seed(
     brief_path,
     resources_path,
     output_dir,
+    *,
+    saved_source_root=None,
+    saved_source_acceptance_sha256=None,
 ):
     """Validate Stage 1, then create an unstarted Stage 2 v2 packet."""
 
@@ -254,7 +257,41 @@ def build_stage2_seed(
                 + records["schema_version"]
             )
         handoff = _read_bound_json(handoff_path, handoff_sha256, "stage1-handoff")
-        check_stage1_contract(handoff, "Stage1Handoff")
+        saved_snapshot = None
+        if isinstance(handoff, dict) and handoff.get("schema_version") == "2.0.0":
+            if saved_source_root is None or saved_source_acceptance_sha256 is None:
+                raise Stage2Error("saved-source-handoff-needs-external-Core-acceptance")
+            from research_workspace.saved_admission import (
+                check_handoff,
+                inspect_saved_admission,
+            )
+            from research_workspace.saved_admission_evidence import read_bound_json
+
+            check_handoff(handoff)
+            replay = inspect_saved_admission(
+                saved_source_root,
+                handoff["snapshot_ref"],
+                acceptance_ref=handoff["acceptance_ref"],
+                trusted_acceptance_sha256=saved_source_acceptance_sha256,
+            )
+            if (
+                replay != handoff
+                or handoff["deliverable_manifest_sha256"] != deliverable_manifest_sha256
+            ):
+                raise Stage2Error("saved-source-handoff-replay-mismatch")
+            if (
+                hashlib.sha256(Path(brief_path).read_bytes()).hexdigest()
+                != handoff["brief_sha256"]
+            ):
+                raise Stage2Error("saved-source-handoff-brief-bytes-mismatch")
+            saved_snapshot = read_bound_json(saved_source_root, handoff["snapshot_ref"])
+        else:
+            if (
+                saved_source_root is not None
+                or saved_source_acceptance_sha256 is not None
+            ):
+                raise Stage2Error("saved-source-arguments-require-handoff-v2")
+            check_stage1_contract(handoff, "Stage1Handoff")
         if not handoff["eligible_for_stage2"]:
             raise Stage2Error("stage1-handoff-not-eligible-for-stage2")
         if handoff["stage2"] != {
@@ -289,6 +326,26 @@ def build_stage2_seed(
         literature, stage2_sources, evidence, unavailable = _project_stage1(
             deliverable_root, output, records, included
         )
+        note_inventory = {}
+        if saved_snapshot is not None:
+            from research_workspace.saved_admission_evidence import read_bound
+
+            projected = {row["source_id"]: row for row in stage2_sources}
+            for row in saved_snapshot["rows"]:
+                if (
+                    projected[row["source_id"]]["sha256"]
+                    != row["extracted_text"]["sha256"]
+                ):
+                    raise Stage2Error("saved-source-projected-text-mismatch")
+                raw_note = read_bound(saved_source_root, row["full_note"])
+                name = f"notes/{hashlib.sha256(row['work_id'].encode('utf-8')).hexdigest()}.json"
+                safe_path(output, name).parent.mkdir(exist_ok=True)
+                safe_path(output, name).write_bytes(raw_note)
+                note_inventory[row["work_id"]] = {
+                    "version_id": row["version_id"],
+                    "path": name,
+                    "sha256": hashlib.sha256(raw_note).hexdigest(),
+                }
         upstream = {
             "kind": "Stage1Stage2Binding",
             "schema_version": "1.0.0",
@@ -309,6 +366,9 @@ def build_stage2_seed(
             "stage2": copy.deepcopy(handoff["stage2"]),
         }
         upstream["binding_sha256"] = canonical_hash(upstream)
+        unresolved = _unresolved(records, unavailable, included)
+        if saved_snapshot is not None:
+            unresolved.extend(handoff["limitations"])
         packet = {
             "kind": "Stage2Packet",
             "schema_version": "2.0.0",
@@ -320,7 +380,7 @@ def build_stage2_seed(
             "evidence": evidence,
             "sources": stage2_sources,
             "candidates": [],
-            "unresolved": _unresolved(records, unavailable, included),
+            "unresolved": unresolved,
             "upstream": upstream,
         }
         # Revalidate after source reads so the imported projection cannot mix
@@ -328,7 +388,7 @@ def build_stage2_seed(
         _revalidate_deliverable(deliverable_root, deliverable_manifest_sha256, manifest)
         validate_packet(packet, output)
         (output / "packet.json").write_bytes(_canonical_bytes(packet))
-        return {
+        receipt = {
             "kind": "Stage1Stage2ImportReceipt",
             "schema_version": "1.0.0",
             "status": "ready-for-explicit-stage2-start",
@@ -340,6 +400,20 @@ def build_stage2_seed(
             "candidate_count": 0,
             "stage2_execution_authorized": False,
         }
+        if saved_snapshot is not None:
+            receipt.update(
+                {
+                    "schema_version": "2.0.0",
+                    "source_mode": "saved-source-current-admission",
+                    "saved_snapshot_sha256": handoff["snapshot_ref"]["sha256"],
+                    "Core_acceptance_sha256": saved_source_acceptance_sha256,
+                    "note_inventory": note_inventory,
+                    "note_inventory_sha256": canonical_hash(note_inventory),
+                    "resources_preserved": handoff["resources_preserved"],
+                    "historical_discovery_trace": "missing",
+                }
+            )
+        return receipt
     except (DeliverableError, LedgerError, OSError, ValueError) as error:
         if owned_output and output.exists():
             reject_links(output)

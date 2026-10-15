@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage1-saved-admission:1.0.0",
+  "$defs": {
+    "Ref": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "Row": {
+      "type": "object", "additionalProperties": false,
+      "required": ["work_id", "version_id", "source_id", "raw_source", "extracted_text", "full_note", "acquisition_provenance", "original_acquired_at"],
+      "properties": {
+        "work_id": {"type": "string", "minLength": 1},
+        "version_id": {"type": "string", "minLength": 1},
+        "source_id": {"type": "string", "minLength": 1},
+        "raw_source": {"$ref": "#/$defs/Ref"},
+        "extracted_text": {"$ref": "#/$defs/Ref"},
+        "full_note": {"$ref": "#/$defs/Ref"},
+        "acquisition_provenance": {"$ref": "#/$defs/Ref"},
+        "original_acquired_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "Snapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "schema_version", "admission_id", "recorded_at", "project_id", "input_version", "source_mode", "historical_discovery_events", "historical_trace_status", "bindings", "rows"],
+      "properties": {
+        "kind": {"const": "SavedSourceCandidateSnapshot"},
+        "schema_version": {"const": "1.0.0"},
+        "admission_id": {"type": "string", "minLength": 1},
+        "recorded_at": {"type": "string", "format": "date-time"},
+        "project_id": {"type": "string", "minLength": 1},
+        "input_version": {"type": "string", "minLength": 1},
+        "source_mode": {"const": "saved-source-current-admission"},
+        "historical_discovery_events": {"type": "null"},
+        "historical_trace_status": {"const": "missing"},
+        "bindings": {
+          "type": "object", "additionalProperties": false,
+          "required": ["original_request", "brief", "resources", "deliverable", "view", "companion"],
+          "properties": {
+            "original_request": {"$ref": "#/$defs/Ref"}, "brief": {"$ref": "#/$defs/Ref"},
+            "resources": {"$ref": "#/$defs/Ref"}, "deliverable": {"$ref": "#/$defs/Ref"},
+            "view": {"$ref": "#/$defs/Ref"}, "companion": {"$ref": "#/$defs/Ref"}
+          }
+        },
+        "rows": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Row"}}
+      }
+    }
+  },
+  "$ref": "#/$defs/Snapshot"
+}

@@ -11,6 +11,19 @@ import tomllib
 NAMED_POLICY_KIND = "Stage2NamedPermissionsPolicy"
 NAMED_POLICY_VERSION = "1.0.0"
 CAPTURE_ROOT_POLICY_VERSION = "1.1.0"
+PLAIN_NATIVE_POLICY_VERSION = "1.2.0"
+CAPTURE_ROOT_POLICY_VERSIONS = frozenset(
+    {CAPTURE_ROOT_POLICY_VERSION, PLAIN_NATIVE_POLICY_VERSION}
+)
+
+
+def capture_root_policy(policy):
+    """Recognize supported root-bound versions without promoting legacy policies."""
+    return (
+        isinstance(policy, dict)
+        and isinstance(policy.get("schema_version"), str)
+        and policy.get("schema_version") in CAPTURE_ROOT_POLICY_VERSIONS
+    )
 
 
 class NamedPolicyError(ValueError):
@@ -41,10 +54,13 @@ def named_policy_args(binding, config_bytes, output_dir):
     """
     policy = binding.get("policy_bindings")
     _require(isinstance(policy, dict), "named policy must be an object")
-    root_bound = policy.get("schema_version") == CAPTURE_ROOT_POLICY_VERSION
+    root_bound = capture_root_policy(policy)
+    plain_native = policy.get("schema_version") == PLAIN_NATIVE_POLICY_VERSION
     fields = {"kind", "schema_version", "name", "config_sha256", "telemetry_path"}
     if root_bound:
         fields.add("capture_root")
+    if plain_native:
+        fields.add("max_child_threads")
     _require(
         set(policy) == fields,
         "named policy fields differ",
@@ -52,7 +68,7 @@ def named_policy_args(binding, config_bytes, output_dir):
     _require(
         policy["kind"] == NAMED_POLICY_KIND
         and policy["schema_version"]
-        in {NAMED_POLICY_VERSION, CAPTURE_ROOT_POLICY_VERSION},
+        in {NAMED_POLICY_VERSION, *CAPTURE_ROOT_POLICY_VERSIONS},
         "named policy version is unsupported",
     )
     name = policy["name"]
@@ -84,6 +100,7 @@ def named_policy_args(binding, config_bytes, output_dir):
             "features",
             "projects",
             "permissions",
+            *(("agents", "mcp_servers") if plain_native else ()),
         },
         "named policy contains unsupported configuration",
     )
@@ -95,8 +112,31 @@ def named_policy_args(binding, config_bytes, output_dir):
         and config.get("web_search") == "live",
         "named policy model, native search or selected permissions differ",
     )
+    expected_features = {"multi_agent_v2": True, "network_proxy": True}
+    disabled = ("apps", "plugins", "remote_plugin", "memories")
+    if plain_native:
+        _require(
+            isinstance(config.get("features"), dict),
+            "named policy features must be a table",
+        )
+        expected_features.update({key: False for key in disabled})
+        limit = policy["max_child_threads"]
+        _require(
+            type(limit) is int
+            and limit > 0
+            and config.get("agents") == {"max_threads": limit}
+            and type(config["agents"].get("max_threads")) is int,
+            "named policy child thread limit differs",
+        )
+        _require(
+            config.get("mcp_servers") == {}, "named policy MCP servers must be empty"
+        )
+        _require(
+            all(config.get("features", {}).get(key) is False for key in disabled),
+            "named policy extra extensions must be disabled",
+        )
     _require(
-        config.get("features") == {"multi_agent_v2": True, "network_proxy": True},
+        config.get("features") == expected_features,
         "named policy requires native children and managed network proxy",
     )
     _require(
@@ -173,7 +213,7 @@ def named_policy_args(binding, config_bytes, output_dir):
     _no_project_configs(workspace)
     # Runtime trust participates in discovery before project layers are loaded.
     # Keep it pinned so a newly created local config cannot become active either.
-    return [
+    arguments = [
         "-c",
         f"default_permissions={json.dumps(name)}",
         "-c",
@@ -183,20 +223,25 @@ def named_policy_args(binding, config_bytes, output_dir):
         "-c",
         "features.multi_agent_v2=true",
     ]
+    if plain_native:
+        for option in [
+            *(f"features.{key}=false" for key in disabled),
+            f"agents.max_threads={limit}",
+            "mcp_servers={}",
+        ]:
+            arguments.extend(["-c", option])
+    return arguments
 
 
 def verify_named_runtime(binding, context):
-    """Check observed permissions for v1.1, without promoting legacy evidence.
+    """Check root-bound observed permissions without promoting legacy evidence.
 
     A selected name or workspace-write label alone cannot establish the effective
     restrictions. Both native filesystem representations must match the profile.
     Missing fields remain a rejected, unknown observation.
     """
     policy = binding.get("policy_bindings", {})
-    if (
-        policy.get("kind") != NAMED_POLICY_KIND
-        or policy.get("schema_version") != CAPTURE_ROOT_POLICY_VERSION
-    ):
+    if policy.get("kind") != NAMED_POLICY_KIND or not capture_root_policy(policy):
         return
     active = context.get("active_permission_profile")
     _require(
