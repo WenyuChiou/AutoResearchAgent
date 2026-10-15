@@ -409,6 +409,7 @@ class Group(unittest.TestCase):
             "test_project_model_reading",
             "test_project_resource_budget",
             "test_saved_source_parser_worker",
+            "test_source_saved_pipeline",
             "test_stage_model_safety",
         ):
             self.write(
@@ -430,9 +431,9 @@ class Serial(unittest.TestCase):
                 summary["tests_run"],
                 summary["incomplete_partitions"],
             ),
-            (10, 10, 0),
+            (11, 11, 0),
         )
-        self.assertIn('"serial_tests": 7', result.stdout)
+        self.assertIn('"serial_tests": 8', result.stdout)
 
     def test_calibration_balances_heavy_modules_without_splitting_them(self):
         modules = (
