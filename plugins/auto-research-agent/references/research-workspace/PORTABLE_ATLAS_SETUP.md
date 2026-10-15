@@ -1,16 +1,18 @@
 # Run your own local Atlas review
 
-## Terminal quick start for PR #295
+## Terminal quick start from latest main
 
 Run these commands in PowerShell on your own computer. Install Git and Python
-3.11 first. Use a fresh download folder; the PR branch is the review candidate,
-and `main` may not yet contain it. The command-scoped clone settings preserve
-source bytes without changing global Git preferences.
+3.11 first. Use a fresh download folder; `main` includes the merged PR #295 Wiki
+and project interfaces. Each teammate starts their own local server and uses
+their own Codex account for separately authorized model operations. The
+command-scoped clone settings preserve source bytes without changing global
+Git preferences.
 
 ```powershell
-git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-empty-inventory-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-pr295
-if ($LASTEXITCODE -ne 0) { throw 'PR download failed' }
-Set-Location ara-pr295
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch main https://github.com/WenyuChiou/AutoResearchAgent.git ara-wiki
+if ($LASTEXITCODE -ne 0) { throw 'Main download failed' }
+Set-Location ara-wiki
 git rev-parse HEAD
 py -3.11 -m venv --copies .venv
 if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 environment failed' }

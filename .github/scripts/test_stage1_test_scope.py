@@ -460,6 +460,55 @@ class Serial(unittest.TestCase):
             },
         )
 
+    def test_source_mutating_fixtures_wait_for_capture_readers_and_each_other(self):
+        self.write(
+            TESTS + "test_stage2_review_pre_dispatch.py",
+            """import os, unittest
+from pathlib import Path
+class CaptureReader(unittest.TestCase):
+ def test_unchanged_tree(self):
+  self.assertFalse(Path('evals/private/shared-fixture').exists())
+  Path('capture-reader-finished').write_text(str(os.getpid()))
+""",
+        )
+        for module in (
+            "test_evaluation_plan",
+            "test_judge_bundle",
+            "test_paired_evaluation",
+            "test_stage1_ab_contract_v2",
+            "test_stage1_ab_execution",
+        ):
+            self.write(
+                TESTS + module + ".py",
+                """import os, unittest
+from pathlib import Path
+class SourceWriter(unittest.TestCase):
+ def test_write_after_readers(self):
+  self.assertTrue(Path('capture-reader-finished').is_file())
+  shared = Path('evals/private/shared-fixture')
+  shared.parent.mkdir(parents=True, exist_ok=True)
+  with shared.open('x') as stream: stream.write('synthetic evidence')
+  self.addCleanup(shared.unlink)
+  with Path('writer-pids').open('a') as stream: stream.write(str(os.getpid()) + '\\n')
+""",
+            )
+        result = self.fixture(workers=3)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        summary = json.loads(result.stdout.splitlines()[-1])
+        self.assertEqual(
+            (summary["planned_tests"], summary["tests_run"], summary["skips"]),
+            (8, 8, 0),
+        )
+        self.assertEqual(summary["incomplete_partitions"], 0)
+        self.assertIn('"serial_tests": 5', result.stdout)
+        writer_pids = (self.repo / "writer-pids").read_text().splitlines()
+        self.assertEqual(len(writer_pids), 5)
+        self.assertEqual(len(set(writer_pids)), 1)
+        self.assertNotEqual(
+            writer_pids[0], (self.repo / "capture-reader-finished").read_text()
+        )
+        self.assertFalse((self.repo / "evals/private/shared-fixture").exists())
+
     def test_serial_only_inventory_and_failure_remain_required(self):
         (self.repo / (TESTS + "test_plugin_loading.py")).unlink()
         (self.repo / (TESTS + "test_stage_contracts.py")).unlink()

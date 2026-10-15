@@ -88,6 +88,16 @@ SERIAL_DEADLINE_MODULES = {
     "test_saved_source_parser_worker",
     "test_stage_model_safety",
 }
+# These legacy validator fixtures create temporary evidence below the plugin
+# source root. Run them only after source-bound recovery/capture readers exit;
+# their byte-identity guards must still reject any real concurrent tree change.
+SERIAL_SOURCE_MUTATION_MODULES = {
+    "test_evaluation_plan",
+    "test_judge_bundle",
+    "test_paired_evaluation",
+    "test_stage1_ab_contract_v2",
+    "test_stage1_ab_execution",
+}
 DOCS = {
     "plugins/auto-research-agent/README.md",
     "plugins/auto-research-agent/CONTRIBUTING.md",
@@ -264,9 +274,10 @@ def run_partition(ids, directory):
 
 def run_parallel(suite, directory, workers):
     ids = list(test_ids(suite))
-    serial = [name for name in ids if name.rsplit(".", 2)[0] in SERIAL_DEADLINE_MODULES]
+    exclusive = SERIAL_DEADLINE_MODULES | SERIAL_SOURCE_MUTATION_MODULES
+    serial = [name for name in ids if name.rsplit(".", 2)[0] in exclusive]
     groups = partition_tests(
-        [name for name in ids if name.rsplit(".", 2)[0] not in SERIAL_DEADLINE_MODULES],
+        [name for name in ids if name.rsplit(".", 2)[0] not in exclusive],
         workers,
     )
     if Counter([*serial, *(name for group in groups for name in group)]) != Counter(
