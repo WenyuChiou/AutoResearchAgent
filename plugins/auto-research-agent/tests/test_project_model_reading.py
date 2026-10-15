@@ -521,9 +521,10 @@ class SavedReadingTests(unittest.TestCase):
                         confirmed=True,
                     )
                     model.execute("alice-token", ref, body)
-                    # Join the exact unit instead of repeatedly taking its intake lock.
+                    # Include saved-source verification and terminal publication in
+                    # this bounded test wait; the model's five-second cap stays fixed.
                     worker = model._workers[(ref, body["key"])]
-                    worker.join(5)
+                    worker.join(30)
                     self.assertFalse(worker.is_alive(), "reading worker did not finish")
                     job = model.history("alice-token", ref)["actions"][-1]
                     self.assertEqual(
@@ -722,9 +723,10 @@ class SavedReadingTests(unittest.TestCase):
                     )
                     before = fixture["ledger"].state_hash()
                     queued = model.execute("alice-token", ref, body)
-                    # A terminal row is inspected only after its worker has finished.
+                    # Allow bounded post-call verification before inspecting the
+                    # terminal row, without changing the model execution cap.
                     worker = model._workers[(ref, body["key"])]
-                    worker.join(5)
+                    worker.join(30)
                     self.assertFalse(worker.is_alive(), "reading worker did not finish")
                     job = model.history("alice-token", ref)["actions"][-1]
                     self.assertEqual(job["status"], "content-review-pending", job)

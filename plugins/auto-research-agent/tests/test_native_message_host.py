@@ -286,8 +286,10 @@ class MessageHostTests(unittest.TestCase):
         before = self.p.store.snapshot(self.p.pid)
         reached, done, errors = threading.Event(), threading.Event(), []
         original = self.case.api._authenticate
+        deadlines = []
 
         def authenticate(token):
+            deadlines.append(self.case.api._guards.check.__self__.deadline)
             reached.set()
             return original(token)
 
@@ -305,7 +307,13 @@ class MessageHostTests(unittest.TestCase):
             worker = threading.Thread(target=submit)
             worker.start()
             self.assertTrue(reached.wait(1))
-            self.assertTrue(done.wait(1))  # Accept-time timer closes the socket.
+            self.assertTrue(done.wait(1))
+            # A closed socket is not proof that the monotonic deadline passed.
+            # Keep the real store lock until this exact request has expired.
+            self.assertEqual(len(deadlines), 1)
+            while (remaining := deadlines[0] - time.monotonic()) > 0:
+                time.sleep(min(remaining, 0.005))
+            self.assertGreaterEqual(time.monotonic(), deadlines[0])
         worker.join(2)
         limit = time.monotonic() + 1
         while server._deadlines and time.monotonic() < limit:
