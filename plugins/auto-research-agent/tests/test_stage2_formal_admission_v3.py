@@ -47,7 +47,7 @@ class Stage2FormalAdmissionV3Tests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
 
         fixture = formal_fixtures.Stage2FormalTests()
         fixture.setUp()
