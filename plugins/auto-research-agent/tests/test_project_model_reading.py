@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 import sys
 import threading
-import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -522,16 +521,11 @@ class SavedReadingTests(unittest.TestCase):
                         confirmed=True,
                     )
                     model.execute("alice-token", ref, body)
-                    stop = time.monotonic() + 5
-                    while time.monotonic() < stop:
-                        job = model.history("alice-token", ref)["actions"][-1]
-                        if job["status"] in {
-                            "content-review-pending",
-                            "validation-failed",
-                            "failed-or-unknown",
-                        }:
-                            break
-                        time.sleep(0.01)
+                    # Join the exact unit instead of repeatedly taking its intake lock.
+                    worker = model._workers[(ref, body["key"])]
+                    worker.join(5)
+                    self.assertFalse(worker.is_alive(), "reading worker did not finish")
+                    job = model.history("alice-token", ref)["actions"][-1]
                     self.assertEqual(
                         job["status"],
                         "failed-or-unknown" if fails else "content-review-pending",
@@ -728,16 +722,11 @@ class SavedReadingTests(unittest.TestCase):
                     )
                     before = fixture["ledger"].state_hash()
                     queued = model.execute("alice-token", ref, body)
-                    stop = time.monotonic() + 5
-                    while time.monotonic() < stop:
-                        job = model.history("alice-token", ref)["actions"][-1]
-                        if job["status"] in {
-                            "content-review-pending",
-                            "validation-failed",
-                            "failed-or-unknown",
-                        }:
-                            break
-                        time.sleep(0.01)
+                    # A terminal row is inspected only after its worker has finished.
+                    worker = model._workers[(ref, body["key"])]
+                    worker.join(5)
+                    self.assertFalse(worker.is_alive(), "reading worker did not finish")
+                    job = model.history("alice-token", ref)["actions"][-1]
                     self.assertEqual(job["status"], "content-review-pending", job)
                     self.assertGreater(job["reading_draft"]["evidence_count"], 0)
                     self.assertFalse(job["reading_draft"]["core_claims_created"])

@@ -27,28 +27,55 @@ REPO = Path(__file__).resolve().parents[2]
 TEST_DIR = Path("plugins/auto-research-agent/tests")
 SMOKE = "test_plugin_loading"
 BASE_MODULES = {SMOKE, "test_stage_contracts"}
-# Scheduling estimates from serial Ubuntu run 38360354676 at 45eacd2e.
-# Adjacent test-start intervals include setup/cleanup; these do not select tests.
+# Scheduling estimates from Windows job 115763053921 at 304420f0.
+# Rounded adjacent module-log windows can include setup/cleanup and buffering;
+# they balance workers only and never select tests or alter any deadline.
 MODULE_SECONDS = {
-    "test_retrieval_execution": 195,
-    "test_project_reading_registration": 175,
-    "test_project_stage1_atlas": 167,
-    "test_project_stage1_records": 141,
-    "test_stage1_core_records": 92,
-    "test_project_saved_claims": 90,
-    "test_project_reading_review": 89,
+    "test_project_expansions": 745,
+    "test_project_stage1_atlas": 650,
+    "test_project_reading_registration": 595,
+    "test_source_saved_pipeline": 485,
+    "test_retrieval_execution": 470,
+    "test_project_stage1_records": 415,
+    "test_project_stage1_delivery": 310,
+    "test_stage1_deliverable": 305,
+    "test_stage1_core_records": 295,
+    "test_project_reading_review": 260,
+    "test_project_stage1_claims": 245,
+    "test_research_workspace_source_availability": 240,
+    "test_saved_source_parser_worker": 235,
+    "test_coverage_gate": 215,
+    "test_project_saved_claims": 210,
+    "test_project_model_reading": 205,
+    "test_project_source_reading_review": 205,
+    "test_project_stage2_context": 165,
+    "test_project_saved_record_owner": 150,
+    "test_project_stage1_query_http": 150,
+    "test_source_evidence": 140,
+    "test_planned_queries": 130,
+    "test_project_records_recovery": 130,
+    "test_project_resource_budget": 130,
+    "test_project_stage1_source_service": 125,
+    "test_project_stage1_library": 120,
+    "test_project_planned_query_contract": 115,
+    "test_project_source_permit": 115,
+    "test_atlas_review_example": 110,
+    "test_project_query_history": 110,
+    "test_project_source_dispatch": 110,
+    "test_project_stage1_discovery_records": 100,
+    "test_native_readable": 95,
+    "test_plugin_loading": 95,
+    "test_project_stage2_frontier": 95,
+    "test_export_stop_fields": 90,
+    "test_planned_query_http": 90,
+    "test_project_stage1_coverage": 90,
+    "test_project_atlas_screening": 85,
+    "test_source_credentials": 85,
     "test_retrieval_audit": 81,
-    "test_project_stage1_delivery": 78,
-    "test_project_expansions": 76,
-    "test_coverage_gate": 75,
-    "test_project_stage1_claims": 71,
-    "test_project_stage2_context": 67,
-    "test_project_records_recovery": 67,
-    "test_stage1_deliverable": 67,
     "test_planned_query_contract": 63,
 }
-# Real socket and subprocess deadlines remain unchanged. Run these fixtures
-# after worker exit so slow CI disk/CPU contention does not compete with them.
+# Socket, subprocess and asynchronous-unit deadlines remain unchanged. Run these
+# fixtures after worker exit so slow CI disk/CPU contention does not compete.
 SERIAL_DEADLINE_MODULES = {
     "test_owned_source_observations",
     "test_portable_atlas_git_checkout",
@@ -56,6 +83,10 @@ SERIAL_DEADLINE_MODULES = {
     "test_stage2_demo_safety",
     "test_project_source_reading_http",
     "test_project_stage1_delivery_http",
+    "test_project_model_reading",
+    "test_project_resource_budget",
+    "test_saved_source_parser_worker",
+    "test_stage_model_safety",
 }
 DOCS = {
     "plugins/auto-research-agent/README.md",

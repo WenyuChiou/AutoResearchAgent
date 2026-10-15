@@ -2,8 +2,10 @@
 
 from copy import deepcopy
 from pathlib import Path
+import sqlite3
 import threading
 import time
+from types import SimpleNamespace
 import json
 import unittest
 from unittest.mock import patch
@@ -16,7 +18,26 @@ class StageModelSafetyTests(StageModelFixture):
         self.mode = "timeout"
         model = self.model()
         prompt = "interpret the controlled sources"
-        receipt = model.run("deadline-diagnostic", prompt, time.monotonic() + 1.1)
+        # Expire in the intended phase, after real synthetic bootstrap and start.
+        # Host speed must not turn this into a different admission-expiry test.
+        now = time.monotonic()
+        deadline = now + 10
+        clock = SimpleNamespace(monotonic=lambda: now)
+
+        def expire_after_start(_):
+            nonlocal now
+            self.assertEqual(
+                sum(
+                    row.get("method") == "turn/start"
+                    for row in self.runtime.channel.messages()
+                ),
+                1,
+            )
+            now = deadline
+
+        clock.sleep = expire_after_start
+        with patch("research_workspace_native.stage_model.time", clock):
+            receipt = model.run("deadline-diagnostic", prompt, deadline)
         self.assertEqual(receipt["status"], "execution-unknown", receipt)
         self.assertEqual(receipt.get("failure_code"), "unit-deadline-expired", receipt)
         self.assertEqual(
@@ -59,6 +80,31 @@ class StageModelSafetyTests(StageModelFixture):
             1,
         )
         self.assertEqual(sum(event["phase"] == "reserve" for event in self.events), 1)
+
+    def test_bootstrap_failure_closes_partially_constructed_fixture_store(self):
+        for phase, target in (
+            ("before-spec", "stage_model_fixtures.source.decode"),
+            ("after-store", "stage_model_fixtures.BootstrapSession.open_thread"),
+        ):
+            with self.subTest(phase=phase):
+                model = self.model()
+                failure = "synthetic constructor failure " + phase
+                with patch(target, side_effect=ValueError(failure)):
+                    receipt = model.run(
+                        "bootstrap-failed-" + phase,
+                        "interpret the controlled sources",
+                        time.monotonic() + 10,
+                    )
+                self.assertEqual(receipt["status"], "execution-unknown", receipt)
+                self.assertEqual(receipt["failure"], "ValueError: " + failure)
+                self.assertTrue(self.runtime.closed)
+                if phase == "after-store":
+                    with self.assertRaises(sqlite3.ProgrammingError):
+                        self.runtime.store.db.execute("SELECT 1")
+                    self.assertTrue(Path(receipt["raw_artifact"]["path"]).is_file())
+                else:
+                    self.assertFalse(hasattr(self.runtime, "store"))
+                    self.assertNotIn("raw_artifact", receipt)
 
     def test_truthy_admission_is_not_authority_and_unknown_never_resends(self):
         self.allowed = 1

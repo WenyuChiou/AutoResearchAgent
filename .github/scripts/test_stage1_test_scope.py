@@ -406,6 +406,10 @@ class Group(unittest.TestCase):
             "test_stage2_demo",
             "test_owned_source_observations",
             "test_portable_atlas_git_checkout",
+            "test_project_model_reading",
+            "test_project_resource_budget",
+            "test_saved_source_parser_worker",
+            "test_stage_model_safety",
         ):
             self.write(
                 TESTS + module + ".py",
@@ -426,9 +430,35 @@ class Serial(unittest.TestCase):
                 summary["tests_run"],
                 summary["incomplete_partitions"],
             ),
-            (6, 6, 0),
+            (10, 10, 0),
         )
-        self.assertIn('"serial_tests": 3', result.stdout)
+        self.assertIn('"serial_tests": 7', result.stdout)
+
+    def test_calibration_balances_heavy_modules_without_splitting_them(self):
+        modules = (
+            "test_project_expansions",
+            "test_project_stage1_atlas",
+            "test_project_reading_registration",
+            "test_source_saved_pipeline",
+            "test_project_stage1_records",
+            "test_project_stage1_delivery",
+        )
+        ids = [f"{module}.T.test_{n}" for module in modules for n in range(2)]
+        groups = scope.partition_tests(ids, 3)
+        self.assertEqual(
+            scope.Counter(name for group in groups for name in group),
+            scope.Counter(ids),
+        )
+        self.assertEqual(
+            {frozenset(name.split(".")[0] for name in group) for group in groups},
+            {
+                frozenset({"test_project_expansions", "test_project_stage1_delivery"}),
+                frozenset({"test_project_stage1_atlas", "test_project_stage1_records"}),
+                frozenset(
+                    {"test_project_reading_registration", "test_source_saved_pipeline"}
+                ),
+            },
+        )
 
     def test_serial_only_inventory_and_failure_remain_required(self):
         (self.repo / (TESTS + "test_plugin_loading.py")).unlink()

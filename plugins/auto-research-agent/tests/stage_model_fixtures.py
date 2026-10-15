@@ -220,13 +220,18 @@ class FakeRuntime:
         self.thread.start()
 
     def shutdown(self, timeout=10):
-        if not self.closed:
-            self.stop.set()
-            if self.thread is not None:
+        if not getattr(self, "closed", False):
+            if getattr(self, "stop", None) is not None:
+                self.stop.set()
+            if getattr(self, "thread", None) is not None:
                 self.thread.join(timeout)
-            self.controller.close()
-            self.store.close()
+            if getattr(self, "controller", None) is not None:
+                self.controller.close()
+            if getattr(self, "store", None) is not None:
+                self.store.close()
             self.closed = True
+        if not hasattr(self, "spec"):
+            return {}
         return {
             self.spec["project_ref"]: dict(
                 leader_reaped=True,
@@ -294,11 +299,16 @@ class StageModelFixture(unittest.TestCase):
 
         def factory(registrations, **kwargs):
             self.calls.append(registrations)
-            runtime = FakeRuntime(
-                registrations[0], kwargs["authenticate"], kwargs["gates"], self.mode
-            )
+            runtime = FakeRuntime.__new__(FakeRuntime)
             self.runtime = runtime
             self.addCleanup(runtime.shutdown)
+            try:
+                runtime.__init__(
+                    registrations[0], kwargs["authenticate"], kwargs["gates"], self.mode
+                )
+            except BaseException:
+                runtime.shutdown()
+                raise
             return runtime
 
         self.instance = StageModel(
