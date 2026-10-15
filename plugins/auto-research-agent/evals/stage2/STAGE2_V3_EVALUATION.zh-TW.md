@@ -12,6 +12,18 @@ plugins、MCP 的回應。每個項目都能回到原始 bytes 與 hash。
 RPC 回應使用原生觀察器的獨立大小上限，不能錯套單一 trace 檔案上限。
 此接口不會自行證明角色隔離、完整預演、正式 A/B 或研究品質改善。
 
+正式准入清單可明示使用 `schema_version: 2.1.0`，並提供兩份不同的 A／B
+`executions`。每份保存 telemetry 相對路徑、capture request 與 inventory 的
+artifact／外部 receipt、prompt 檔案 hash，以及原始 producer receipt。
+驗證器透過既有唯讀接口重新核對實際紀錄，並比對凍結計畫的原生 runtime、
+model、reasoning、permissions policy 和各 arm 的擴充版本。只改報告並重算
+hash、混用 prompt／trace root、重複捕捉或提供執行注入參數都會拒絕。
+
+這只能解除已完成的「每次執行紀錄蒐集器未接入」阻擋。紀錄不完整仍標示
+`execution-inventory-incomplete:A/B`，unknown token／成本保留原值；完整的
+子 agent 預算、正式隔離、v3 校準與兩個預演重播仍各有未完成門檻，
+`formal_ready=false`。舊版 2.0 的五個阻擋及輸出不變，不重跑模型。
+
 前例定位的 packet 2.4 接口及操作流程見
 [前例定位說明](../../references/stage2-prior-work.zh-TW.md)。它把候選、來源、
 實際搜尋及重疊／差異綁在同一版，送到獨立查核與 Markdown／HTML／Wiki。

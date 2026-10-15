@@ -11,15 +11,18 @@ from .evaluation_v3 import (
 from .formal import (
     FormalError,
     _arm_contamination,
+    _contained,
     _fields,
     _read_manifest,
     _read_ref,
     _require,
     _sha,
+    _verify_ref,
 )
 from .formal_v3 import validate_formal_plan_v2
 
 VERSION = "2.0.0"
+EXECUTION_INVENTORY_VERSION = "2.1.0"
 ORDERS = ("AB", "BA", "AB")
 READINESS_BLOCKERS = (
     "complete-subagent-budget-accounting-unavailable",
@@ -45,6 +48,132 @@ def _neutral(value, label):
     _require(not _arm_contamination(value), f"{label} contains arm assignment")
 
 
+def _execution_inventory_inputs(rows, evidence_root, plan):
+    """Replay authentic inventories without treating them as full admission."""
+    from stage2_live.execution_inventory import inspect_execution_inventory
+
+    _require(isinstance(rows, list), "execution inventories must be a list")
+    for row in rows:
+        _fields(
+            row,
+            (
+                "arm",
+                "telemetry_root",
+                "capture_request",
+                "prompt",
+                "producer_receipt",
+                "inventory",
+            ),
+            "execution inventory binding",
+        )
+    _require(
+        [row["arm"] for row in rows] == ["A", "B"], "execution inventories need A/B"
+    )
+    roots, receipts, reports, blockers = set(), set(), [], []
+    for row in rows:
+        arm = row["arm"]
+        root = _contained(
+            evidence_root, row["telemetry_root"], "execution telemetry", directory=True
+        )
+        _sha(row["producer_receipt"], "execution producer receipt")
+        _require(
+            root not in roots and row["producer_receipt"] not in receipts,
+            "execution inventories must be distinct",
+        )
+        roots.add(root)
+        receipts.add(row["producer_receipt"])
+        request, _ = _read_bound_ref(
+            evidence_root, row["capture_request"], "capture request"
+        )
+        _fields(
+            request,
+            (
+                "codex",
+                "codex_home",
+                "workspace",
+                "model",
+                "reasoning",
+                "input_bindings",
+                "config_bindings",
+                "policy_bindings",
+                "capture_dir",
+                "trace_root",
+                "timeout_seconds",
+                "prompt_sha256",
+            ),
+            "capture request",
+        )
+        _require(
+            request["trace_root"] == str(root),
+            "execution telemetry differs from request",
+        )
+        prompt, _ = _verify_ref(evidence_root, row["prompt"], "capture prompt")
+        _require(
+            request["prompt_sha256"] == row["prompt"]["sha256"],
+            "execution prompt differs from request",
+        )
+        args = {key: value for key, value in request.items() if key != "prompt_sha256"}
+        args["prompt"] = prompt
+        expected, _ = _read_bound_ref(
+            evidence_root, row["inventory"], "execution inventory"
+        )
+        try:
+            actual = inspect_execution_inventory(
+                root, row["producer_receipt"], capture_request=args
+            )
+        except (Stage2Error, ValueError, OSError) as error:
+            raise FormalError(
+                f"execution inventory replay rejected: {error}"
+            ) from error
+        _require(
+            actual == expected, "execution inventory differs from authentic replay"
+        )
+        stable = actual["capture"]["stable_request_binding"]
+        _require(
+            stable["codex_runtime_sha256"] == plan["runtime_sha256"]
+            and stable["model"] == plan["model"]
+            and stable["reasoning"] == plan["reasoning"],
+            "execution runtime differs from plan",
+        )
+        _require(
+            all(
+                item["model"] == plan["model"]
+                and isinstance(item["reasoning"], dict)
+                and item["reasoning"].get("effort") == plan["reasoning"]
+                for item in actual["inferences"]
+            ),
+            "execution effective model or reasoning differs from plan",
+        )
+        contract = plan["runtime_contracts"][arm]
+        _require(
+            stable["policy_bindings"] == contract["policy_bindings"],
+            "execution policy differs from plan",
+        )
+        configs = {
+            key: value["sha256"] for key, value in stable["config_bindings"].items()
+        }
+        _require(
+            configs == contract["config_bindings"],
+            "execution configuration differs from arm",
+        )
+        if actual["coverage_complete"] is not True:
+            blockers.append(f"execution-inventory-incomplete:{arm}")
+        reports.append(
+            {
+                "arm": arm,
+                "producer_receipt": row["producer_receipt"],
+                "inventory": row["inventory"],
+                "coverage_complete": actual["coverage_complete"],
+                "call_accounting_complete": actual["call_accounting_complete"],
+                "token_usage_complete": actual["token_usage_complete"],
+                "counts": actual["counts"],
+                "token_usage_totals": actual["token_usage_totals"],
+                "cost": actual["cost"],
+            }
+        )
+    return reports, blockers
+
+
 def validate_readiness_v2(
     manifest_path, evidence_root, externally_retained_manifest_receipt
 ):
@@ -55,7 +184,7 @@ def validate_readiness_v2(
         evidence_root,
         externally_retained_manifest_receipt,
         "Stage2FormalReadinessManifest",
-        versions=(VERSION,),
+        versions=(VERSION, EXECUTION_INVENTORY_VERSION),
     )
     _fields(
         manifest,
@@ -67,6 +196,11 @@ def validate_readiness_v2(
             "preflights",
             "pilots",
             "calibration",
+            *(
+                ("executions",)
+                if manifest["schema_version"] == EXECUTION_INVENTORY_VERSION
+                else ()
+            ),
         ),
         "formal v3 readiness manifest",
     )
@@ -116,17 +250,32 @@ def validate_readiness_v2(
     _require(isinstance(calibration, dict), "calibration evidence must be an object")
     _neutral(calibration, "formal calibration")
 
-    return {
+    inventory_reports = None
+    blockers = list(READINESS_BLOCKERS)
+    if manifest["schema_version"] == EXECUTION_INVENTORY_VERSION:
+        inventory_reports, execution_blockers = _execution_inventory_inputs(
+            manifest["executions"], evidence_root, plan
+        )
+        blockers.remove("per-execution-inventory-collector-unavailable")
+        blockers.extend(execution_blockers)
+    result = {
         "kind": "Stage2FormalReadinessValidation",
-        "schema_version": VERSION,
+        "schema_version": manifest["schema_version"],
         "status": "blocked",
         "formal_ready": False,
         "external_claim_ready": False,
-        "validation_scope": "artifact-binding-only",
-        "evidence_class": "manifest-bound-inputs",
-        "blockers": list(READINESS_BLOCKERS),
+        "validation_scope": "artifact-binding-only"
+        if inventory_reports is None
+        else "artifact-bindings-and-authentic-execution-inventory",
+        "evidence_class": "manifest-bound-inputs"
+        if inventory_reports is None
+        else "manifest-bound-inputs-and-native-replay",
+        "blockers": blockers,
         "plan_sha256": plan["plan_sha256"],
     }
+    if inventory_reports is not None:
+        result["execution_inventories"] = inventory_reports
+    return result
 
 
 def validate_formal_result_v2(
