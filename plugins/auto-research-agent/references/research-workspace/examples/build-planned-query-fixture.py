@@ -51,8 +51,24 @@ def canonical(value):
 
 
 def save(path, value):
-    with path.open("xb") as stream:
-        stream.write(canonical(value))
+    """Publish a closed, complete receipt without replacing an existing one."""
+    raw = canonical(value)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=path.parent, prefix="." + path.name + ".", delete=False
+        ) as stream:
+            temporary = Path(stream.name)
+            if stream.write(raw) != len(raw):
+                raise OSError("fixture receipt write incomplete")
+            stream.flush()
+            os.fsync(stream.fileno())
+        # Match the repository's exclusive publication pattern. A reader that
+        # sees this name can read the entire JSON; an existing name is untouched.
+        os.link(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink()
 
 
 def install_demo_bootstrap(server, credential):

@@ -1,6 +1,7 @@
 """Public download example: actual loopback API/ledger with a fake Hub boundary."""
 
 import http.client
+import io
 import json
 from pathlib import Path
 import re
@@ -8,14 +9,109 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+from types import ModuleType
 import unittest
+from unittest.mock import patch
 
 
 PLUGIN = Path(__file__).resolve().parents[1]
 
 
 class PlannedQueryExampleTests(unittest.TestCase):
+    def test_ready_receipt_is_invisible_during_partial_write(self):
+        example = (
+            PLUGIN
+            / "references/research-workspace/examples/build-planned-query-fixture.py"
+        )
+        module = ModuleType("planned_query_receipt")
+        module.__file__ = str(example)
+        exec(compile(example.read_bytes(), str(example), "exec"), module.__dict__)
+        partial_written, release = threading.Event(), threading.Event()
+        original_open = io.open
+        errors = []
+
+        class DelayedWriter:
+            def __init__(self, stream):
+                self.stream = stream
+
+            def __getattr__(self, name):
+                return getattr(self.stream, name)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return self.stream.__exit__(*args)
+
+            def write(self, raw):
+                middle = len(raw) // 2
+                first = self.stream.write(raw[:middle])
+                self.stream.flush()
+                partial_written.set()
+                if not release.wait(5):
+                    raise TimeoutError("test did not release partial receipt write")
+                return first + self.stream.write(raw[middle:])
+
+        def delayed_open(*args, **kwargs):
+            stream = original_open(*args, **kwargs)
+            mode = kwargs.get("mode", args[1] if len(args) > 1 else "r")
+            return DelayedWriter(stream) if "b" in mode and "r" not in mode else stream
+
+        with tempfile.TemporaryDirectory(prefix="query-ready-") as folder:
+            ready = Path(folder) / "serving-receipt.json"
+            receipt = {"status": "serving", "origin": "http://127.0.0.1:12345"}
+
+            def publish():
+                try:
+                    module.save(ready, receipt)
+                except BaseException as error:
+                    errors.append(error)
+
+            worker = threading.Thread(target=publish)
+            try:
+                with patch.object(io, "open", side_effect=delayed_open):
+                    worker.start()
+                    self.assertTrue(partial_written.wait(5), errors)
+                    # Exercise the same exists/read boundary as the live consumer
+                    # while the writer has flushed only half its JSON.
+                    self.assertFalse(ready.exists())
+                    release.set()
+                    worker.join(5)
+                self.assertFalse(worker.is_alive())
+                self.assertEqual(errors, [])
+                self.assertEqual(json.loads(ready.read_bytes()), receipt)
+                self.assertEqual(list(Path(folder).iterdir()), [ready])
+                with self.assertRaises(FileExistsError):
+                    module.save(ready, {"status": "different"})
+                self.assertEqual(json.loads(ready.read_bytes()), receipt)
+                self.assertEqual(list(Path(folder).iterdir()), [ready])
+            finally:
+                release.set()
+                if worker.ident is not None:
+                    worker.join(5)
+
+    def test_receipt_publication_failure_does_not_leave_a_ready_name(self):
+        example = (
+            PLUGIN
+            / "references/research-workspace/examples/build-planned-query-fixture.py"
+        )
+        module = ModuleType("planned_query_receipt_failure")
+        module.__file__ = str(example)
+        exec(compile(example.read_bytes(), str(example), "exec"), module.__dict__)
+        with tempfile.TemporaryDirectory(prefix="query-ready-failure-") as folder:
+            ready = Path(folder) / "serving-receipt.json"
+            for operation in ("fsync", "link"):
+                with self.subTest(operation=operation):
+                    with patch.object(
+                        module.os, operation, side_effect=OSError("injected failure")
+                    ):
+                        with self.assertRaisesRegex(OSError, "injected failure"):
+                            module.save(ready, {"status": "serving"})
+                    self.assertFalse(ready.exists())
+                    self.assertEqual(list(Path(folder).iterdir()), [])
+
     def test_complete_checkout_explicit_query_saved_stage2_and_no_repeat(self):
         with tempfile.TemporaryDirectory(prefix="query-example-") as folder:
             fixture_lifetime, cleanup_allowance = 60, 15
