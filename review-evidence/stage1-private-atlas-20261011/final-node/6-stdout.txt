@@ -1,6 +1,0 @@
-PASS panel: explicit defaults, exact quote, Unicode/UTF-8, held/busy, stale version/language, bounded response
-PASS notes: folded form, explicit checkbox, 13 raw Unknown fields, roles0, Unicode/UTF-8, held/busy/no offer, stale version
-PASS brokers: claim/notes exact body and same-identity refresh; A pending / B starts / A saved; ref, input version and brief changes
-PASS intents: actual mutate registry/produce-records kinds, exact bodies, one POST each, no extra entry SHA
-PASS prepare: actual button disabled without current checkpoint/connection, exact saved body, late project guard
-PASS: project reading panel focused UI mock only

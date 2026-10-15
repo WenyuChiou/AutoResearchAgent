@@ -1,3 +1,0 @@
-WARN `--no-project` was provided, but no project was found
-WARN ruff==0.16.10 needs to be downloaded from a registry
-WARN ruff needs to be downloaded from a registry

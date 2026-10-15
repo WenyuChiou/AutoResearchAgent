@@ -1,2 +1,0 @@
-actual-base source paths: 783
-Research PR contract passed.

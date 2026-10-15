@@ -1,7 +1,0 @@
-PASS 1: trilingual GET/render/refresh zero actions; original title and safe text
-PASS 2: explicit unchecked authorization; pending/double click/refresh held; exact offer
-PASS 3: execution requires a distinct user click and exact saved offer
-PASS 4: blocked/unconnected/stale rendered controls cannot dispatch
-PASS 5: lost response remains held; refresh does not resend
-PASS 6: invalid hash/backend and exhausted shared budget offer refuse actions
-PASS 7: input observations unchanged; local UI evidence only

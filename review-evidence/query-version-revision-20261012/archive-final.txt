@@ -1,6 +1,0 @@
-test_removed_archive_refuses_new_permission_without_repair_or_dispatch (project_query_version_cases.ProjectQueryVersionCases.test_removed_archive_refuses_new_permission_without_repair_or_dispatch) ... ok
-
-----------------------------------------------------------------------
-Ran 1 test in 0.767s
-
-OK

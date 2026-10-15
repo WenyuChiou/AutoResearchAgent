@@ -1,8 +1,0 @@
-test_missing_duplicate_or_already_derived_ledger_entry_is_refused (test_project_atlas_screening.ProjectAtlasScreeningTests.test_missing_duplicate_or_already_derived_ledger_entry_is_refused) ... ok
-test_saved_mixed_library_real_renderer_selection_and_trilingual_history (test_project_atlas_screening.ProjectAtlasScreeningTests.test_saved_mixed_library_real_renderer_selection_and_trilingual_history) ... ok
-
-----------------------------------------------------------------------
-Ran 2 tests in 25.533s
-
-OK
-{"kind":"SavedScreeningPresenterDOM","passed":true,"languages":3,"exact_version_selections":12,"checks":["derived-v6-hook","legacy-fallback","unmatched-refusal","unknown-rounds","literal-source-text","bounded-pagination","immutable-data"],"native_model_search_calls":0}

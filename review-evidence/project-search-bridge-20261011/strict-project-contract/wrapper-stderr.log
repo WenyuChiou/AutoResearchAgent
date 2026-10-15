@@ -1,7 +1,0 @@
-test_all_scenarios_in_fresh_raw_loader (test_planned_query_contract.PlannedQueryContractDiscoveryTests.test_all_scenarios_in_fresh_raw_loader) ... ok
-test_all_scenarios_in_fresh_raw_loader (test_project_planned_query_contract.ProjectPlannedQueryContractDiscoveryTests.test_all_scenarios_in_fresh_raw_loader) ... ok
-
-----------------------------------------------------------------------
-Ran 2 tests in 14.419s
-
-OK

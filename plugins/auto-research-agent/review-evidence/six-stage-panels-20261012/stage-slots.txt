@@ -1,8 +1,0 @@
-test_physical_stage_mounts_are_unique_and_stage2_is_outside_stage1_actions (test_project_stage_slots.ProjectStageSlotsTests.test_physical_stage_mounts_are_unique_and_stage2_is_outside_stage1_actions) ... ok
-test_shared_projection_six_slots_guards_and_presentation_only_navigation (test_project_stage_slots.ProjectStageSlotsTests.test_shared_projection_six_slots_guards_and_presentation_only_navigation) ... ok
-{"kind":"ProjectStageSlotsAuthoredDomChecks","stages":6,"languages":3,"refused_contracts":35,"presentation_events":134,"side_effects":0,"checks":["current-bound-fields","literal-source-text","unknown-and-recorded-zero","six-stage-navigation","invalid-stage-refusal","same-binding-node-preservation","trilingual-labels","future-stage-disabled","malformed-and-foreign-binding","loading-and-clear"]}
-
-----------------------------------------------------------------------
-Ran 2 tests in 0.346s
-
-OK

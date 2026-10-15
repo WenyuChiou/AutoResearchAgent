@@ -1,6 +1,0 @@
-test_true_reopen_retirement_preserves_unknown_budget_key_and_ui_intent (test_project_model_recovery.ModelRecoveryTests.test_true_reopen_retirement_preserves_unknown_budget_key_and_ui_intent) ... ok
-
-----------------------------------------------------------------------
-Ran 1 test in 0.228s
-
-OK

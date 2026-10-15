@@ -1,8 +1,0 @@
-test_narrow_csp_and_read_only_panel_do_not_create_actions (test_project_ui_overlay.ProjectUiOverlayTests.test_narrow_csp_and_read_only_panel_do_not_create_actions) ... ok
-test_original_route_relative_assets_and_pinned_bytes_retained (test_project_ui_overlay.ProjectUiOverlayTests.test_original_route_relative_assets_and_pinned_bytes_retained) ... ok
-test_unsafe_panel_redirect_and_bootstrap_requests_still_refuse (test_project_ui_overlay.ProjectUiOverlayTests.test_unsafe_panel_redirect_and_bootstrap_requests_still_refuse) ... ok
-
-----------------------------------------------------------------------
-Ran 3 tests in 3.659s
-
-OK

@@ -1,1 +1,0 @@
-{"passed":false,"checks":0,"failure":"AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 2\n\n    at D:\\Codex_Learning\\harness_building\\worktrees\\ca-native-prompt\\plugins\\auto-research-agent\\tests\\browser\\project-delivery-flow-test.cjs:50:12"}

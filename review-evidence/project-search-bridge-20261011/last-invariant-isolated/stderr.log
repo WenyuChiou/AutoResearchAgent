@@ -1,6 +1,0 @@
-test_content_packet_is_identical_when_only_native_trace_changes (__main__.GeneralEvaluationTests.test_content_packet_is_identical_when_only_native_trace_changes) ... ok
-
-----------------------------------------------------------------------
-Ran 1 test in 0.001s
-
-OK

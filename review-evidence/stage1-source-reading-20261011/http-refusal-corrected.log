@@ -1,6 +1,0 @@
-test_http_stale_foreign_tamper_and_origin_refuse_before_registration (test_project_source_reading_http.ProjectSourceReadingHttpTests.test_http_stale_foreign_tamper_and_origin_refuse_before_registration) ... ok
-
-----------------------------------------------------------------------
-Ran 1 test in 5.980s
-
-OK

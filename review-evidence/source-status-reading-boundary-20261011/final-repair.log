@@ -1,7 +1,0 @@
-test_oversized_prompt_is_unavailable_and_authorization_keeps_no_permit (test_project_model_reading.SavedReadingTests.test_oversized_prompt_is_unavailable_and_authorization_keeps_no_permit) ... ok
-test_public_followup_reaches_trilingual_ui_without_dispatch_or_html (test_project_source_status_ui.ProjectSourceStatusUiTests.test_public_followup_reaches_trilingual_ui_without_dispatch_or_html) ... ok
-
-----------------------------------------------------------------------
-Ran 2 tests in 5.386s
-
-OK

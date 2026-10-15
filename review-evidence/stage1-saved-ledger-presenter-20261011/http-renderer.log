@@ -1,7 +1,0 @@
-test_renderer_snapshot_is_readonly_and_projection_drift_is_refused (test_project_stage1_atlas.ProjectStage1AtlasTests.test_renderer_snapshot_is_readonly_and_projection_drift_is_refused) ... ok
-test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly (test_project_stage1_atlas.ProjectStage1AtlasHttpTests.test_actual_http_bound_view_file_and_auth_rejections_are_private_and_readonly) ... ok
-
-----------------------------------------------------------------------
-Ran 2 tests in 22.295s
-
-OK
