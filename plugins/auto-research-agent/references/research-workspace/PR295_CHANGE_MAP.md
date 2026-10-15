@@ -48,7 +48,8 @@ These are review batches inside this existing PR, not additional PRs.
    `cli/research_workspace/canonical_delivery.py`.
 5. **The v6 Wiki and stage boundaries.** Same-page topic/operations/progress,
    current-project results below, paper selection, graphs and Stage 2 views.
-   Start with `web/projects-*.js` and the registered browser/HTTP tests.
+   Start with `cli/research_workspace_native/web/projects-*.js` and the
+   registered browser/HTTP tests.
    Stage 3-6 UI execution remains planned/unconnected.
 
 Paths above are relative to `plugins/auto-research-agent/` unless starting with
