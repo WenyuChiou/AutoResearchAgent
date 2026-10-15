@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "cli"))
@@ -46,7 +47,7 @@ class Stage2FormalAdmissionV3Tests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
 
         fixture = formal_fixtures.Stage2FormalTests()
         fixture.setUp()
@@ -127,6 +128,231 @@ class Stage2FormalAdmissionV3Tests(unittest.TestCase):
 
     def _validate_readiness(self):
         return self._validate_readiness_manifest(self.readiness)
+
+    def _execution_manifest(self):
+        manifest = copy.deepcopy(self.readiness)
+        manifest["schema_version"] = "2.1.0"
+        manifest["executions"] = []
+        actual = {}
+        for arm in ("A", "B"):
+            root = self.root / f"telemetry-{arm}"
+            root.mkdir(exist_ok=True)
+            prompt = self.root / f"prompt-{arm}.txt"
+            prompt.write_bytes(b"Bounded neutral task.\n")
+            contract = self.plan["runtime_contracts"][arm]
+            request = {
+                "codex": "fixture-native",
+                "codex_home": str(self.root / f"home-{arm}"),
+                "workspace": str(self.root / f"workspace-{arm}"),
+                "model": self.plan["model"],
+                "reasoning": self.plan["reasoning"],
+                "input_bindings": {},
+                "config_bindings": {},
+                "policy_bindings": contract["policy_bindings"],
+                "capture_dir": str(self.root / f"capture-{arm}"),
+                "trace_root": str(root),
+                "timeout_seconds": 600,
+                "prompt_sha256": reference(self.root, prompt)["sha256"],
+            }
+            request_path = write_json(self.root / f"request-{arm}.json", request)
+            inventory = {
+                "capture": {
+                    "stable_request_binding": {
+                        "codex_runtime_sha256": self.plan["runtime_sha256"],
+                        "model": self.plan["model"],
+                        "reasoning": self.plan["reasoning"],
+                        "policy_bindings": contract["policy_bindings"],
+                        "config_bindings": {
+                            key: {"sha256": value}
+                            for key, value in contract["config_bindings"].items()
+                        },
+                    }
+                },
+                "coverage_complete": True,
+                "call_accounting_complete": True,
+                "token_usage_complete": True,
+                "counts": {"inferences": 2, "threads": 1},
+                "inferences": [
+                    {
+                        "model": self.plan["model"],
+                        "reasoning": {"effort": self.plan["reasoning"]},
+                    }
+                ],
+                "token_usage_totals": {"total_tokens": 100},
+                "cost": {"amount": None, "state": "unknown"},
+            }
+            actual[str(root)] = copy.deepcopy(inventory)
+            inventory_path = write_json(self.root / f"inventory-{arm}.json", inventory)
+            manifest["executions"].append(
+                {
+                    "arm": arm,
+                    "telemetry_root": root.relative_to(self.root).as_posix(),
+                    "capture_request": binding(self.root, request_path),
+                    "prompt": reference(self.root, prompt),
+                    "producer_receipt": ("a" if arm == "A" else "b") * 64,
+                    "inventory": binding(self.root, inventory_path),
+                }
+            )
+        return manifest, actual
+
+    def _inventory_replay(self, actual):
+        # Controlled test seam only: no native dispatch and no readiness promotion.
+        return mock.patch(
+            "stage2_live.execution_inventory.inspect_execution_inventory",
+            side_effect=lambda root, receipt, *, capture_request: copy.deepcopy(
+                actual[str(root)]
+            ),
+        )
+
+    def test_opt_in_execution_replay_removes_only_stale_collector_blocker(self):
+        manifest, actual = self._execution_manifest()
+        with self._inventory_replay(actual) as replay:
+            result = self._validate_readiness_manifest(manifest)
+        self.assertEqual(replay.call_count, 2)
+        self.assertEqual(
+            replay.call_args.kwargs["capture_request"]["prompt"],
+            b"Bounded neutral task.\n",
+        )
+        self.assertEqual(
+            result["blockers"],
+            [
+                value
+                for value in READINESS_BLOCKERS
+                if value != "per-execution-inventory-collector-unavailable"
+            ],
+        )
+        self.assertFalse(result["formal_ready"])
+        self.assertFalse(result["external_claim_ready"])
+        self.assertEqual(result["execution_inventories"][0]["cost"]["amount"], None)
+
+    def test_incomplete_execution_preserves_unknown_usage_and_blocks(self):
+        manifest, actual = self._execution_manifest()
+        root = str(self.root / "telemetry-A")
+        actual[root].update(
+            coverage_complete=False, token_usage_complete=False, token_usage_totals=None
+        )
+        row = manifest["executions"][0]
+        path = self.root / row["inventory"]["artifact"]["path"]
+        write_json(path, actual[root])
+        row["inventory"] = binding(self.root, path)
+        with self._inventory_replay(actual):
+            result = self._validate_readiness_manifest(manifest)
+        self.assertIn("execution-inventory-incomplete:A", result["blockers"])
+        self.assertIsNone(result["execution_inventories"][0]["token_usage_totals"])
+        self.assertFalse(result["formal_ready"])
+
+    def test_rehashed_inventory_labels_cannot_replace_authentic_replay(self):
+        manifest, actual = self._execution_manifest()
+        row = manifest["executions"][0]
+        path = self.root / row["inventory"]["artifact"]["path"]
+        forged = copy.deepcopy(actual[str(self.root / "telemetry-A")])
+        forged["counts"]["inferences"] = 0
+        write_json(path, forged)
+        row["inventory"] = binding(self.root, path)
+        with (
+            self._inventory_replay(actual),
+            self.assertRaisesRegex(FormalError, "authentic replay"),
+        ):
+            self._validate_readiness_manifest(manifest)
+
+    def test_execution_prompt_and_trace_must_match_bound_request(self):
+        for key, replacement, error in [
+            ("prompt_sha256", "0" * 64, "prompt differs"),
+            ("trace_root", str(self.root), "telemetry differs"),
+        ]:
+            with self.subTest(key=key):
+                manifest, actual = self._execution_manifest()
+                row = manifest["executions"][0]
+                path = self.root / row["capture_request"]["artifact"]["path"]
+                request = json.loads(path.read_bytes())
+                request[key] = replacement
+                write_json(path, request)
+                row["capture_request"] = binding(self.root, path)
+                with (
+                    self._inventory_replay(actual) as replay,
+                    self.assertRaisesRegex(FormalError, error),
+                ):
+                    self._validate_readiness_manifest(manifest)
+                replay.assert_not_called()
+
+    def test_execution_duplicates_and_outside_paths_are_rejected(self):
+        for key, replacement in [
+            ("producer_receipt", "a" * 64),
+            ("telemetry_root", "telemetry-A"),
+            ("telemetry_root", "../outside"),
+        ]:
+            with self.subTest(key=key, replacement=replacement):
+                manifest, actual = self._execution_manifest()
+                manifest["executions"][1][key] = replacement
+                with self._inventory_replay(actual), self.assertRaises(FormalError):
+                    self._validate_readiness_manifest(manifest)
+
+    def test_execution_effective_runtime_policy_and_extensions_match_plan(self):
+        for field, changed in [
+            ("model", "other-model"),
+            ("codex_runtime_sha256", "f" * 64),
+            ("policy_bindings", {"policy": "changed"}),
+            ("config_bindings", {"extra": {"sha256": "f" * 64}}),
+        ]:
+            with self.subTest(field=field):
+                manifest, actual = self._execution_manifest()
+                root = str(self.root / "telemetry-A")
+                actual[root]["capture"]["stable_request_binding"][field] = changed
+                row = manifest["executions"][0]
+                path = self.root / row["inventory"]["artifact"]["path"]
+                write_json(path, actual[root])
+                row["inventory"] = binding(self.root, path)
+                with self._inventory_replay(actual), self.assertRaises(FormalError):
+                    self._validate_readiness_manifest(manifest)
+
+    def test_execution_replay_failure_and_synthetic_arguments_reject(self):
+        manifest, actual = self._execution_manifest()
+        with (
+            mock.patch(
+                "stage2_live.execution_inventory.inspect_execution_inventory",
+                side_effect=ValueError("producer receipt invalid"),
+            ),
+            self.assertRaisesRegex(FormalError, "replay rejected"),
+        ):
+            self._validate_readiness_manifest(manifest)
+        row = manifest["executions"][0]
+        path = self.root / row["capture_request"]["artifact"]["path"]
+        request = json.loads(path.read_bytes())
+        request["process_runner"] = "injected"
+        write_json(path, request)
+        row["capture_request"] = binding(self.root, path)
+        with self._inventory_replay(actual) as replay, self.assertRaises(FormalError):
+            self._validate_readiness_manifest(manifest)
+        replay.assert_not_called()
+
+    def test_child_model_or_effort_drift_cannot_hide_in_requested_runtime(self):
+        for field, changed in [
+            ("model", "other-model"),
+            ("reasoning", {"effort": "low"}),
+            ("reasoning", None),
+        ]:
+            with self.subTest(field=field):
+                manifest, actual = self._execution_manifest()
+                root = str(self.root / "telemetry-A")
+                child = copy.deepcopy(actual[root]["inferences"][0])
+                child[field] = changed
+                actual[root]["inferences"].append(child)
+                row = manifest["executions"][0]
+                path = self.root / row["inventory"]["artifact"]["path"]
+                write_json(path, actual[root])
+                row["inventory"] = binding(self.root, path)
+                with (
+                    self._inventory_replay(actual),
+                    self.assertRaisesRegex(FormalError, "effective model"),
+                ):
+                    self._validate_readiness_manifest(manifest)
+
+    def test_legacy_version_cannot_opt_in_without_new_manifest_version(self):
+        manifest, actual = self._execution_manifest()
+        manifest["schema_version"] = "2.0.0"
+        with self._inventory_replay(actual) as replay, self.assertRaises(FormalError):
+            self._validate_readiness_manifest(manifest)
+        replay.assert_not_called()
 
     def _validate_result(self, manifest, name="result.json"):
         path = write_json(self.root / name, manifest)
