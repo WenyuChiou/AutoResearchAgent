@@ -30,6 +30,7 @@ from stage1_deliverable.common import (  # noqa: E402
     canonical,
     inventory,
     preflight,
+    private_output,
     read_json,
     sha,
     safe_path,
@@ -879,6 +880,76 @@ class ResearchDeliverableTests(unittest.TestCase):
         ):
             attempt = {"http_status": 200, "outcome": "inaccessible", "final_url": url}
             self.assertEqual(sources._state(receipt, attempt, body), "login-page")
+
+
+class PrivateOutputGitDiscoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        self.clean_environment = {
+            key: value
+            for key, value in os.environ.items()
+            if not key.upper().startswith("GIT_")
+        }
+
+    def test_plain_ancestry_avoids_process_and_rechecks_new_gitfile(self):
+        target = self.root / "new" / "private"
+        with (
+            patch.dict(
+                os.environ, dict(self.clean_environment, GIT_PAGER="cat"), clear=True
+            ),
+            patch(
+                "stage1_deliverable.common.subprocess.run",
+                side_effect=AssertionError("plain private ancestry must not fork Git"),
+            ) as probe,
+        ):
+            self.assertEqual(private_output(target), target)
+            (self.root / ".git").write_text("gitdir: elsewhere\n", encoding="utf8")
+            with self.assertRaises(DeliverableError):
+                private_output(target)
+            probe.assert_not_called()
+
+    def test_head_marker_preserves_original_git_probe(self):
+        (self.root / "HEAD").write_text("not a repository\n", encoding="utf8")
+        original = subprocess.run
+        with (
+            patch.dict(os.environ, self.clean_environment, clear=True),
+            patch("stage1_deliverable.common.subprocess.run", wraps=original) as probe,
+        ):
+            self.assertEqual(
+                private_output(self.root / "private"), self.root / "private"
+            )
+            probe.assert_called_once()
+
+    def test_git_environment_still_refuses_external_worktree(self):
+        repository = self.root / "repository"
+        subprocess.run(
+            ["git", "init", str(repository)], check=True, capture_output=True
+        )
+        environment = dict(
+            self.clean_environment,
+            GIT_DIR=str(repository / ".git"),
+            GIT_WORK_TREE=str(repository),
+        )
+        with patch.dict(os.environ, environment, clear=True):
+            with self.assertRaises(DeliverableError):
+                private_output(self.root / "private")
+
+    def test_unreadable_discovery_metadata_fails_closed(self):
+        original = os.lstat
+
+        def lstat(path, *args, **kwargs):
+            if Path(path) == self.root / "HEAD":
+                raise PermissionError("authored inaccessible metadata")
+            return original(path, *args, **kwargs)
+
+        with (
+            patch.dict(os.environ, self.clean_environment, clear=True),
+            patch("stage1_deliverable.common.os.lstat", side_effect=lstat),
+        ):
+            with self.assertRaises(PermissionError):
+                private_output(self.root / "private")
 
 
 if __name__ == "__main__":

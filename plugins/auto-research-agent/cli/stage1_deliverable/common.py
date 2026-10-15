@@ -87,11 +87,31 @@ def reject_links(path):
 def private_output(path):
     path = Path(path).absolute()
     reject_links(path)
+    probe_required = any(
+        key.upper().startswith("GIT_") and key.upper() != "GIT_PAGER"
+        for key in os.environ
+    )
     for parent in (path, *path.parents):
-        if parent.is_symlink() or (parent / ".git").exists():
+        try:
+            os.lstat(parent / ".git")
+        except (FileNotFoundError, NotADirectoryError):
+            pass
+        else:
             raise DeliverableError(
                 "private package must be outside a Git checkout and links"
             )
+        try:
+            os.lstat(parent / "HEAD")
+        except (FileNotFoundError, NotADirectoryError):
+            pass
+        else:
+            probe_required = True
+    # Ordinary discovery needs .git or a bare repository's HEAD. Environment
+    # overrides and ambiguous HEAD markers retain the original Git check.
+    # GIT_PAGER affects display only, never repository discovery.
+    # Never cache ancestry: a newly introduced gitfile must be rejected.
+    if not probe_required:
+        return path
     probe = subprocess.run(
         ["git", "-C", str(path.parent), "rev-parse", "--show-toplevel"],
         capture_output=True,

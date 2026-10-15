@@ -32,17 +32,16 @@ class NativeStageRunCaseTests(unittest.TestCase):
         builder = load_builder()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve() / "case"
-            popen, commands = subprocess.Popen, []
+            popen = subprocess.Popen
 
             def readonly_git_only(command, *args, **kwargs):
-                commands.append(command)
                 self.assertEqual(Path(command[0]).stem, "git")
                 self.assertIn("rev-parse", command)
                 return popen(command, *args, **kwargs)
 
             with patch("subprocess.Popen", side_effect=readonly_git_only):
                 case = builder.build(root)
-            self.assertTrue(commands)
+            # A private root needs no Git child; every actual child is checked.
             packet = json.loads((root / "packet.json").read_bytes())
             ledger = builder.Ledger(case["stage1_ledger_root"])
             self.assertTrue(builder.validate_run(ledger.root)["valid"])
