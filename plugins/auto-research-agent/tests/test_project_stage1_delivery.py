@@ -56,7 +56,12 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
         self.delivery = ProjectStage1DeliveryService(self.stage1)
 
     def saved(
-        self, key="one", topic="Aircraft diagnosis with sensor drift", *, doi=None
+        self,
+        key="one",
+        topic="Aircraft diagnosis with sensor drift",
+        *,
+        doi=None,
+        checkpoint=True,
     ):
         created = self.intake.create("alice-token", {"key": key, "topic": topic})
         ref = created["project_ref"]
@@ -204,9 +209,12 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
             reason="Synthetic incomplete ledger; no stop claim.",
         )
         write_json(records_path, records)
-        checkpoint = ledger.checkpoint()
+        checkpoint = ledger.checkpoint() if checkpoint else None
         self.assertTrue(validate_run(ledger.root)["valid"])
-        self.assertEqual(checkpoint["stage_result"]["next_allowed_action"], "continue")
+        if checkpoint is not None:
+            self.assertEqual(
+                checkpoint["stage_result"]["next_allowed_action"], "continue"
+            )
         return dict(
             ref=ref,
             ledger=ledger,

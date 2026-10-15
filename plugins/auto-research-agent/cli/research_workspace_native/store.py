@@ -73,7 +73,21 @@ class ProjectStore:
         return json.loads(row[0])
 
     @contextmanager
-    def _edit(self, project_id, owner, revision, kind, payload, *, acquiring=False):
+    def _edit(
+        self,
+        project_id,
+        owner,
+        revision,
+        kind,
+        payload,
+        *,
+        acquiring=False,
+        check_current=None,
+    ):
+        _require(
+            check_current is None or callable(check_current),
+            "current owner check required",
+        )
         with self._lock:
             _require(
                 os.getpid() == self._pid, "journal cannot be shared across processes"
@@ -96,6 +110,8 @@ class ProjectStore:
                         "stale revision",
                     )
                 before = canonical(state)
+                if check_current is not None:
+                    check_current()
                 yield state
                 if canonical(state) != before:
                     state["revision"] += 1
@@ -114,6 +130,8 @@ class ProjectStore:
                             sha(raw),
                         ),
                     )
+                if check_current is not None:
+                    check_current()
                 self.db.commit()
             except BaseException:
                 self.db.rollback()

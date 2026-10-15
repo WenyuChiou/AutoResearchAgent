@@ -162,7 +162,7 @@ class ScopeApi:
 
     @staticmethod
     def _receipt(row, replayed=False):
-        return dict(
+        result = dict(
             _pick(
                 row,
                 "action_ref client_key kind status version_ref version_sha256 decision recorded_at",
@@ -171,6 +171,21 @@ class ScopeApi:
             replayed=replayed,
             execution_authorized=False,
         )
+        if row["status"] == "rejected-known-unsent":
+            result.update(
+                _pick(
+                    row,
+                    "failure request_sha256 submitted_request_sha256 submitted_revision observed_revision",
+                ),
+                submitted_request=deepcopy(row["submitted_request"]),
+            )
+        return result
+
+    @classmethod
+    def _reject_receipt(cls, row, replayed=False):
+        error = SessionApiError(row["failure"])
+        error.receipt = cls._receipt(row, replayed)
+        raise error
 
     def history(self, credential, project_ref):
         with self._access(credential, project_ref) as (
@@ -272,8 +287,9 @@ class ScopeApi:
                     saved["request_sha256"] == request_hash,
                     "idempotency-payload-differs",
                 )
+                if saved["status"] == "rejected-known-unsent":
+                    self._reject_receipt(saved, True)
                 return self._receipt(saved, True)
-            _check(body["revision"] == state["revision"], "stale-revision")
             _check(len(overlay["actions"]) < MAX_ACTIONS, "scope-action-bound-exceeded")
             recorded_at = datetime.now(timezone.utc).isoformat()
             if kind == "append":
@@ -360,16 +376,31 @@ class ScopeApi:
                 status="version-saved" if kind == "append" else "review-recorded",
                 decision=body.get("decision"),
             )
+            stale = body["revision"] != state["revision"]
+            if stale:
+                # Fully validate the original choice above, then record only its
+                # refusal. It must never become a saved version on a later replay.
+                target = body["parent_ref"] if kind == "append" else body["version_ref"]
+                row.update(
+                    status="rejected-known-unsent",
+                    failure="stale-revision",
+                    version_ref=target,
+                    version_sha256=overlay["versions"][target]["sha256"],
+                    submitted_request=deepcopy(body),
+                    submitted_request_sha256=sha(canonical(body)),
+                    submitted_revision=body["revision"],
+                    observed_revision=state["revision"],
+                )
             self._source(binding, self._bindings[project_ref])
             with controller.store._edit(
                 controller.project_id,
                 controller.owner,
                 state["revision"],
-                "scope-" + kind,
+                "scope-rejected" if stale else "scope-" + kind,
                 dict(key=key, action=row),
             ) as current:
                 target = current["scope_overlay"]
-                if kind == "append":
+                if kind == "append" and not stale:
                     target["versions"][version_ref] = version
                     target["order"].append(version_ref)
                 target["actions"][key] = row
@@ -379,4 +410,6 @@ class ScopeApi:
                         check_deadline()
                     except TimeoutError:
                         raise SessionApiError("request-timeout", 408) from None
+            if stale:
+                self._reject_receipt(row)
             return self._receipt(row)

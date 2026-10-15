@@ -1,12 +1,17 @@
 """Run affected plugin tests; uncertain inputs retain the full contract suite."""
 
 import argparse
+from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from fnmatch import fnmatchcase
+import hashlib
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import re
 import sys
+import traceback
 import unittest
 
 from ci_scope import (
@@ -22,6 +27,67 @@ REPO = Path(__file__).resolve().parents[2]
 TEST_DIR = Path("plugins/auto-research-agent/tests")
 SMOKE = "test_plugin_loading"
 BASE_MODULES = {SMOKE, "test_stage_contracts"}
+# Scheduling estimates from Windows job 115763053921 at 304420f0.
+# Rounded adjacent module-log windows can include setup/cleanup and buffering;
+# they balance workers only and never select tests or alter any deadline.
+MODULE_SECONDS = {
+    "test_project_expansions": 745,
+    "test_project_stage1_atlas": 650,
+    "test_project_reading_registration": 595,
+    "test_source_saved_pipeline": 485,
+    "test_retrieval_execution": 470,
+    "test_project_stage1_records": 415,
+    "test_project_stage1_delivery": 310,
+    "test_stage1_deliverable": 305,
+    "test_stage1_core_records": 295,
+    "test_project_reading_review": 260,
+    "test_project_stage1_claims": 245,
+    "test_research_workspace_source_availability": 240,
+    "test_saved_source_parser_worker": 235,
+    "test_coverage_gate": 215,
+    "test_project_saved_claims": 210,
+    "test_project_model_reading": 205,
+    "test_project_source_reading_review": 205,
+    "test_project_stage2_context": 165,
+    "test_project_saved_record_owner": 150,
+    "test_project_stage1_query_http": 150,
+    "test_source_evidence": 140,
+    "test_planned_queries": 130,
+    "test_project_records_recovery": 130,
+    "test_project_resource_budget": 130,
+    "test_project_stage1_source_service": 125,
+    "test_project_stage1_library": 120,
+    "test_project_planned_query_contract": 115,
+    "test_project_source_permit": 115,
+    "test_atlas_review_example": 110,
+    "test_project_query_history": 110,
+    "test_project_source_dispatch": 110,
+    "test_project_stage1_discovery_records": 100,
+    "test_native_readable": 95,
+    "test_plugin_loading": 95,
+    "test_project_stage2_frontier": 95,
+    "test_export_stop_fields": 90,
+    "test_planned_query_http": 90,
+    "test_project_stage1_coverage": 90,
+    "test_project_atlas_screening": 85,
+    "test_source_credentials": 85,
+    "test_retrieval_audit": 81,
+    "test_planned_query_contract": 63,
+}
+# Socket, subprocess and asynchronous-unit deadlines remain unchanged. Run these
+# fixtures after worker exit so slow CI disk/CPU contention does not compete.
+SERIAL_DEADLINE_MODULES = {
+    "test_owned_source_observations",
+    "test_portable_atlas_git_checkout",
+    "test_stage2_demo",
+    "test_stage2_demo_safety",
+    "test_project_source_reading_http",
+    "test_project_stage1_delivery_http",
+    "test_project_model_reading",
+    "test_project_resource_budget",
+    "test_saved_source_parser_worker",
+    "test_stage_model_safety",
+}
 DOCS = {
     "plugins/auto-research-agent/README.md",
     "plugins/auto-research-agent/CONTRIBUTING.md",
@@ -144,7 +210,124 @@ def event_paths(event, event_name, repo=REPO):
     return changed_paths_from_records(event_changes(event, event_name, repo))
 
 
-def run_suite(selection, repo=REPO, contracts=False):
+def test_ids(suite):
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            yield from test_ids(item)
+        else:
+            yield item.id()
+
+
+def partition_tests(ids, workers):
+    """Balance estimated module work without splitting or omitting any test ID."""
+    modules = {}
+    for name in ids:
+        modules.setdefault(name.rsplit(".", 2)[0], []).append(name)
+    groups = [[] for _ in range(min(workers, len(modules)))]
+    costs = {
+        name: max(len(rows), MODULE_SECONDS.get(name, 0))
+        for name, rows in modules.items()
+    }
+    ordered = sorted(modules, key=lambda name: (-costs[name], name))
+    loads = [0] * len(groups)
+    for name in ordered:
+        index = min(range(len(groups)), key=lambda index: (loads[index], index))
+        groups[index].extend(modules[name])
+        loads[index] += costs[name]
+    if Counter(name for group in groups for name in group) != Counter(ids):
+        raise ValueError("Parallel test inventory differs from full discovery")
+    return groups
+
+
+def run_partition(ids, directory):
+    sys.path.insert(0, str(directory))
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromNames(ids)
+    actual = list(test_ids(suite))
+    if loader.errors or Counter(actual) != Counter(ids):
+        raise ValueError("Worker test inventory differs from full discovery")
+    digest = hashlib.sha256(json.dumps(ids).encode()).hexdigest()
+    print(json.dumps({"worker_started": digest, "planned_tests": len(ids)}), flush=True)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    summary = {
+        "test_ids_sha256": digest,
+        "planned_tests": len(ids),
+        "tests_run": result.testsRun,
+        "failures": len(result.failures),
+        "errors": len(result.errors),
+        "skips": len(result.skipped),
+        "passed": result.wasSuccessful() and result.testsRun == len(ids),
+    }
+    print(json.dumps({"worker_completed": summary}), flush=True)
+    return summary
+
+
+def run_parallel(suite, directory, workers):
+    ids = list(test_ids(suite))
+    serial = [name for name in ids if name.rsplit(".", 2)[0] in SERIAL_DEADLINE_MODULES]
+    groups = partition_tests(
+        [name for name in ids if name.rsplit(".", 2)[0] not in SERIAL_DEADLINE_MODULES],
+        workers,
+    )
+    if Counter([*serial, *(name for group in groups for name in group)]) != Counter(
+        ids
+    ):
+        raise ValueError("Serial/parallel test inventory differs from full discovery")
+    print(
+        json.dumps(
+            {
+                "parallel_workers": len(groups),
+                "serial_tests": len(serial),
+                "planned_tests": len(ids),
+            }
+        ),
+        flush=True,
+    )
+    results = []
+    incomplete = 0
+    if groups:
+        with ProcessPoolExecutor(
+            max_workers=len(groups), mp_context=multiprocessing.get_context("spawn")
+        ) as executor:
+            futures = [
+                executor.submit(run_partition, group, directory) for group in groups
+            ]
+            for future in as_completed(futures):
+                try:
+                    results.append(future.result())
+                except (Exception, SystemExit):
+                    incomplete += 1
+                    traceback.print_exc()
+    if serial:
+        # Keep the supervisor alive even if a serial fixture terminates itself.
+        with ProcessPoolExecutor(
+            max_workers=1, mp_context=multiprocessing.get_context("spawn")
+        ) as executor:
+            try:
+                results.append(
+                    executor.submit(run_partition, serial, directory).result()
+                )
+            except (Exception, SystemExit):
+                incomplete += 1
+                traceback.print_exc()
+    summary = {
+        "planned_tests": len(ids),
+        "tests_run": sum(item["tests_run"] for item in results),
+        "failures": sum(item["failures"] for item in results),
+        "errors": sum(item["errors"] for item in results),
+        "skips": sum(item["skips"] for item in results),
+        "incomplete_partitions": incomplete,
+        "passed": not incomplete
+        and bool(results)
+        and all(item["passed"] for item in results),
+    }
+    print(json.dumps(summary), flush=True)
+    return 0 if summary["passed"] else 1
+
+
+def run_suite(selection, repo=REPO, contracts=False, workers=1):
+    if not 1 <= workers <= 3:
+        raise ValueError("Test workers must be between one and three")
     governance = selection["mode"] == "governance"
     test_dir = Path(".github/scripts") if contracts or governance else TEST_DIR
     directory = repo / test_dir
@@ -168,6 +351,12 @@ def run_suite(selection, repo=REPO, contracts=False):
             suite.addTests(module_suite)
     if suite.countTestCases() == 0:
         raise ValueError("Selected test suite is empty")
+    if workers > 1 and not contracts and selection["mode"] == "full":
+        if loader.errors:
+            raise ValueError(
+                "Full discovery contains import errors: " + str(loader.errors)
+            )
+        return run_parallel(suite, directory, workers)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     print(
         json.dumps(
@@ -188,6 +377,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--contracts", action="store_true")
     parser.add_argument("--governance", action="store_true")
+    parser.add_argument(
+        "--workers", type=int, default=os.environ.get("PLUGIN_TEST_WORKERS", "1")
+    )
     args = parser.parse_args()
     if args.contracts and args.governance:
         parser.error("--contracts and --governance are mutually exclusive")
@@ -212,7 +404,7 @@ def main():
             paths, records=records, event_name=os.environ.get("GITHUB_EVENT_NAME")
         )
     print(json.dumps(selection), flush=True)
-    return run_suite(selection, contracts=args.contracts)
+    return run_suite(selection, contracts=args.contracts, workers=args.workers)
 
 
 if __name__ == "__main__":

@@ -172,6 +172,9 @@ class ProjectStage1Tests(unittest.TestCase):
         view = self.service.read("alice-token", ref)
         self.assertEqual(len(view["ledger"]["pending_actions"]), 1)
         self.assertEqual(view["queries"][0]["status"], "intent-recorded-not-executed")
+        operations = {row["operation"] for row in view["coverage_actions"]["offers"]}
+        self.assertIn("human-action", operations)
+        self.assertNotIn("close-round", operations)
         self.runner.assert_not_called()
 
     def test_real_checkpoint_and_export_preserve_gate_unknowns_and_unscored_evidence(

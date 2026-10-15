@@ -56,7 +56,7 @@ class MessageApiTests(unittest.TestCase):
         }.get(token)
         self.api = SessionApi(authenticate=self.authenticate)
 
-    def project(self, name="a", enabled=True):
+    def project(self, name="a", enabled=True, trusted_stage_unit=False):
         root = self.root / name
         root.mkdir()
         index = root / "index.json"
@@ -98,6 +98,7 @@ class MessageApiTests(unittest.TestCase):
                     input_version=p.version,
                     thread_id=p.thread,
                     connection_id=p.epoch,
+                    **({"trusted_stage_unit": True} if trusted_stage_unit else {}),
                 )
                 and hashlib.sha256(index.read_bytes()).hexdigest() == p.hash
             )
@@ -112,7 +113,11 @@ class MessageApiTests(unittest.TestCase):
                 input_version=p.version,
                 source_root=root.as_posix(),
                 model="synthetic-model",
-                limits=dict(max_text_bytes=128, max_starts=2, timeout_seconds=3),
+                limits=dict(
+                    max_text_bytes=32768 if trusted_stage_unit else 128,
+                    max_starts=1 if trusted_stage_unit else 2,
+                    timeout_seconds=3,
+                ),
                 permit_sha256="a" * 64,
             )
             value.update(deepcopy(p.offer_changes))
@@ -128,9 +133,62 @@ class MessageApiTests(unittest.TestCase):
             input_version=p.version,
             verify_source=source,
             start_offer=offer if enabled else None,
+            trusted_stage_unit=trusted_stage_unit,
         )
         self.api.register(p.ref, **p.registration)
         return p
+
+    def test_trusted_complete_10k_input_replays_without_resend(self):
+        p = self.project("trusted", trusted_stage_unit=True)
+        self.assertEqual(self.api.offer("token-a", p.ref)["max_text_bytes"], 10000)
+        body = self.body(p, text="文" * 3333 + "x")
+        result = self.api.message("token-a", p.ref, body)
+        self.assertEqual(len(p.channel.sent), 1)
+        self.assertEqual(
+            "".join(
+                item["text"] for item in p.channel.messages()[0]["params"]["input"]
+            ),
+            body["text"],
+        )
+        self.assertTrue(
+            all(
+                0 < len(item["text"].encode("utf8")) <= 10000
+                for item in p.channel.messages()[0]["params"]["input"]
+            )
+        )
+        replay = self.api.message("token-a", p.ref, body)
+        self.assertIs(replay["replayed"], True)
+        self.assertEqual(
+            {k: v for k, v in replay.items() if k != "replayed"},
+            {k: v for k, v in result.items() if k != "replayed"},
+        )
+        self.assertEqual(len(p.channel.sent), 1)
+        with self.assertRaises(SessionApiError):
+            self.api.message("token-a", p.ref, {**body, "trusted_stage_unit": True})
+        self.assertEqual(len(p.channel.sent), 1)
+        self.assertIs(
+            p.store.snapshot(p.pid)["session_api_binding"]["trusted_stage_unit"], True
+        )
+
+    def test_trusted_legacy_envelope_rejects_over_10k_before_intent_or_write(self):
+        p = self.project("trusted-overflow", trusted_stage_unit=True)
+        body = self.body(p, text="x" * 10001)
+        before = p.store.snapshot(p.pid)
+        with self.assertRaises(SessionApiError):
+            self.api.message("token-a", p.ref, body)
+        self.assert_zero(p, before)
+
+    def test_ordinary_registration_rejects_32k_marker_or_truthy_optin(self):
+        p = self.project("ordinary")
+        p.offer_changes = {
+            "limits": dict(max_text_bytes=32768, max_starts=1, timeout_seconds=3)
+        }
+        with self.assertRaises(SessionApiError):
+            self.api.offer("token-a", p.ref)
+        other = SessionApi(authenticate=self.authenticate)
+        with self.assertRaises(SessionApiError):
+            other.register(p.ref, **{**p.registration, "trusted_stage_unit": 1})
+        self.assertEqual(p.channel.sent, [])
 
     def controller(self, p):
         p.controller = InjectedSessionController(

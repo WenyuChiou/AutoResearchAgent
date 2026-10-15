@@ -229,6 +229,11 @@ class AtlasHost(SessionHttpServer):
             raise ValueError("scope requires the same explicit native runtime")
         self.stage_actions = stage_actions
         self.stage_cases = bind_stages(stage_actions, files, views, credential)
+        self.query_cases = (
+            stage_actions.planned_queries.bindings()
+            if stage_actions is not None and stage_actions.planned_queries is not None
+            else {}
+        )
         self._stage_owned = self._stage_closed = False
         self.scope_api = scope_api
         self.harness_ops = harness_ops
@@ -269,6 +274,11 @@ class AtlasHost(SessionHttpServer):
                 self._assets["/" + filename] = _read(assets / filename, 256 * 1024)
             stage_script = '<script src="/stage-panel.js"></script>'
             stage_style = '<link rel="stylesheet" href="/stage-panel.css">'
+            if self.query_cases:
+                self._assets["/stage-query-panel.js"] = (
+                    assets / "stage-query-panel.js"
+                ).read_bytes()
+                stage_script += '<script src="/stage-query-panel.js"></script>'
         native_scripts, native_style = [], ""
         if native_script is not None:
             if (
@@ -299,6 +309,7 @@ class AtlasHost(SessionHttpServer):
             "execution_authority": False,
             "harness_operations": deepcopy(self.harness_cases),
             "stage_operations": deepcopy(self.stage_cases),
+            "planned_query_operations": deepcopy(self.query_cases),
             "stage_operation_scope": "offline-saved-stage-input"
             if self.stage_cases
             else "disabled",
@@ -420,7 +431,12 @@ class AtlasHost(SessionHttpServer):
             + cards
             + "</ul><p>Codex connection check: "
             + html.escape(self.connection_check["status"])
-            + ". Research/model execution is not enabled.</p></main></body></html>"
+            + (
+                ". A planned-query service is registered; each query still needs its separate research permit. Model research execution is not enabled."
+                if self.query_cases
+                else ". Research/model execution is not enabled."
+            )
+            + "</p></main></body></html>"
         ).encode("utf-8")
 
     def server_close(self):
@@ -576,6 +592,23 @@ class AtlasHandler(SessionHandler):
                     + b";\n"
                 )
                 stage = self.server.stage_cases.get(ref)
+                query = self.server.query_cases.get(ref)
+                raw += (
+                    b"window.WORKSPACE_PLANNED_QUERIES="
+                    + json.dumps(
+                        dict(
+                            enabled=query is not None,
+                            project_ref=ref if query else None,
+                            index_sha256=query["index_sha256"] if query else None,
+                            input_version=query["input_version"] if query else None,
+                        ),
+                        ensure_ascii=True,
+                        allow_nan=False,
+                    )
+                    .replace("<", "\\u003c")
+                    .encode()
+                    + b";\n"
+                )
                 raw += (
                     b"window.WORKSPACE_STAGE_ACTIONS="
                     + json.dumps(

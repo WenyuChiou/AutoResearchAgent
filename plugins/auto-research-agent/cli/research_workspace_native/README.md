@@ -208,6 +208,83 @@ is neither native-user attestation nor permission to execute the next stage.
 Run test_workspace_stage_http, test_workspace_stage_storage and test_workspace_stage_panel
 for repository-case HTTP/SQLite and synthetic DOM checks.
 
+Trusted embeddings can call runtime_factory.compose_runtime with exact pinned
+runtime specs, authenticate and five server gates: verify_source, admit_spawn,
+admit_lifecycle, admit_attach and admit_action. enabled defaults to False. Optional
+approval_policy independently admits one exact saved approval. The runtime owns
+the existing process/bootstrap/controller/registry sequence; call start once,
+then pass it to AtlasHost(native_runtime=runtime, credential=credential).
+Successful host composition owns shutdown. Spec loading rejects previous journals,
+sidecars and cross-project source/store overlap; this is a bounded NEW session,
+not resume, multi-tenant authentication or proven process-tree containment.
+Runtime tests use actual Python fake children and HTTP/SQLite, never Codex/models.
+Run test_atlas_runtime_spec and test_atlas_runtime_factory for those offline cases.
+
+## Public-source proposal and owned local observation seam
+
+`project_source_permit.proposal` prepares a source-specific offer from the
+authenticated project's current brief, settings, plan, run, manifest, semantic
+state, candidate, screening decision and selected saved version. Core metadata
+currently has no saved URL field: the offer explicitly proposes the resolver for
+that exact DOI; missing DOI or disabled resolver policy remains unavailable.
+Credential-bearing, structurally private or nonstandard URLs refuse without
+DNS. Counts remain integral; finite fractional reserved seconds stay exact.
+The raw search/source reservation state has its own SHA, so an old offer becomes
+stale even when both remaining amounts saturate the same displayed server cap.
+Search and source seconds share the configured total. A future orchestration
+service must also reconcile all other lane reservations before admission.
+
+This proposal is read-only, not a saved approval or executable permit. Its URL
+and limits do not attest DNS, redirects, an actual connection or enforcement by
+the SDK. The retained SDK only exposes per-request timeout; a separate bounded
+transport, durable approval/job/reservations and project API/UI are still needed.
+Never reuse a query-only permit to acquire a source or invoke a model.
+
+`OwnedSourceObservations` is a trusted local adapter over an already registered
+`PlannedQueryService`. It stores intent before local Core changes, recognizes
+only its exact recorded `SourceReadStarted`, and preserves the original owner,
+principal, request hash, frontier and append-only observations. The ordinary
+search offer and generic saved writer continue to refuse pending sources.
+GET does not restore ownership or dispatch I/O. Same-key history, including an
+unknown outcome, never calls the producer again; changed payload refuses.
+Only explicit existing service registration may read history after real SQLite
+reopen. It is not source-job adoption, permission recovery or an automatic retry.
+
+The separate store checker runs before mutation and after SQL immediately before
+commit. Losing the real owner after intent SQL prevents any Core write; losing
+it after Core effects or final SQL rolls back successful publication and retains
+unknown. Core journal effects cannot be rolled back, so this seam does not
+pretend multi-store atomicity. The trusted completion producer must check the
+current project/decision/version and saved original receipt; neither adapter
+authenticates an actual reader, launcher, model or research result. This seam is
+not currently an external source execution endpoint. Stage2 execution remains
+deferred and Stage3–6 planned/unconnected.
+
+Topic revision preserves settled searches as separate input-version history.
+Before revising an initialized query ledger, restore its saved ownership with
+the existing explicit action after a restart; GET does not restore it. Running
+or unknown operations and an unfinished source parser hold revision. The old
+permit, ledger, failed actions and cumulative reservations remain saved. Confirm
+the new scope/settings and compile its plan, then explicitly authorize a new
+search seal; old keys only replay history. The panel shows both current-version
+and cumulative reservations. This does not refund budgets or grant model/source
+permission. Legacy projects already revised with a used stale seal remain held;
+this increment does not migrate their historical execution. Stage2 execution is
+still deferred and Stage3–6 remain planned/unconnected.
+
+The newly delivered `/project-atlas.html` child appears inline in the owning
+project workspace as a read-only view of the exact project/input version,
+reached through its bound memory channel. It keeps the original v6 renderer and
+verified note/BibTeX file reads. Project setup and Harness operations stay in
+that workspace. **Refresh saved state** reloads its saved history and restores
+the inline view with the current project and delivery binding.
+The browser fixture `tests/browser/project-delivery-flow-test.cjs` walks two
+authored saved sources through reading registration, checkpoint, preparation,
+delivery, bound inline-view reloads, exact BibTeX click/download and a
+non-executing Stage2 input hold. It is designed to exercise actual
+HTTP/SQLite/Core services, without real model, search,
+native research, scientific evaluation or acceptance of the incomplete stage.
+
 ## Complete saved Stage1 screening library
 
 The universal project portal has a read-only screening library next to the real
@@ -319,3 +396,193 @@ bounded parser process and current job/permission/budget checks. This helper
 does not dispatch from GET, mutate Core, register a paper, grant protected
 import authority or connect the full Stage 1 UI execution path. Stage 2 keeps
 its existing source-bound interfaces; Stage 3–6 remain planned/unconnected.
+
+## Shared resource reservations and controlled public-source transport
+
+`project_resource_budget` validates search, model and source reservations against
+the same project/input/brief/settings declaration. A reservation event and its
+next causal action intent are saved in the first SQLite transaction. Changing
+the mutable reservation map or counters cannot reduce that saved reservation;
+failed and unknown operations do not refund it. Historical query permits bind
+their original authorization bytes. Model offers bind the original action
+request, and recoverable legacy model windows conservatively reserve the original
+allowance. Missing historical evidence refuses execution; reads never migrate it.
+Declared/reserved seconds and calls remain separate from observed usage or cost.
+The final query checker runs outside the service lock, then rechecks local owner,
+closing, deadline and permit expiry before allowing a worker to proceed.
+
+`bounded_public_source.acquire_public_source` accepts a separately admitted exact
+request, numeric public-peer binding and an explicitly configured typed resolver.
+Its default resolver is unavailable. Redirects, aggregate HTTP attempts/body bytes
+and network/cleanup/file finalization share one deadline. Raw/error/partial bytes
+and original attempts remain private. A successful raw body is compared with the
+streamed write count/hash; drift or late completion cannot become a usable success.
+A receipt published before a later timeout remains immutable, with a separate
+exclusive failure observation that the acquisition parser must reject.
+
+`ProcessBoundedResolver` uses a fresh spawned child and waits for its sole writer
+to exit before reading bounded IPC. Private/mixed/malformed/late answers refuse,
+and failed cleanup poisons the resolver. Cleanup has an additional bounded
+allowance; synchronous process startup, filesystem operations and parser execution
+still need an outer owned hard-deadline worker. Resolver/transport hashes are
+bindings, not execution authentication or a source permit.
+Final physical-body verification also uses a bounded regular-file reader and
+stable identity checks; a filesystem without stable file identities refuses
+execution. An oversized probe never becomes a complete-file hash.
+
+The low-level transport alone grants no source permission or model execution.
+The project host composes it with separate bound authorization, durable jobs and
+source/reading controls. GET remains passive. Offline fixtures make no actual
+external search/source/native/model/research/scoring call.
+
+Saved reading draft review is a separate local UI action. Open the saved
+`read-paper` result in project history, select its exact source quotation, and
+enter a claim, source location, relation and evidence level. The default relation
+is pending; summary/classification/findings retain their original Unknown values.
+`ProjectStage1ClaimService` resolves source/work/version and UTF-8 positions from
+the saved model artifacts, rechecks the current project and source bytes, then
+calls the unchanged Core `Ledger.claim`. A real saved claim returns its event ID
+and character locator; it does not register the whole reading, approve coverage,
+complete Stage1 or unlock Stage2. Refresh/response loss reads the same durable
+action history. A failed or unobserved append holds new writes across reconnect.
+
+Saved-source reading now retains the last checkpoint as historical evidence
+without requiring that checkpoint to be current. The current owned frontier,
+source SDK receipts and exact text hashes are still checked. Delivery retains
+its separate current checkpoint and canonical records gates. Canonical records
+1.1 retain every legal Core relation/evidence level, nullable locator, original
+claim event and historical source bytes; existing 1.0 records remain supported.
+These UI/adapter checks do not demonstrate a live Codex research run.
+
+Saved-source evidence review also works without a model draft. In the project
+literature library, open a paper and choose **Review evidence in saved source
+text**. Select a verbatim passage, enter one claim and its location, then explicitly
+review its relation and evidence level. Bounded pages cover the saved text beyond
+the model excerpt; this action makes no model or source-acquisition call. The
+server binds the current work/version, source registry, original text hash and
+owned ledger frontier before appending Core `ClaimEvidence`. Core identity
+review still requires five distinct primary-text claim IDs; these are human
+judgments, not automatic identity approval. Unknown values remain Unknown.
+The same durable `stage1-claim` history handles replay and uncertain writes;
+refresh after a lost response reads history without submitting again.
+
+After reviewing source quotations, choose **Review and register reading notes**
+in the Codex/Harness operation panel. The saved-source route reviews existing
+sources and claims without inventing a model draft. Edit the classification and
+findings, optionally select literature roles with an explicit reason and
+same-work claim evidence, check the confirmation, and save the reading note.
+The model-draft review route remains available separately. Unknown
+and all Core claims remain; this single SQLite action grants no source/model
+permission and appends no Core claim. Once all current readings are registered,
+check the evidence gate, export the saved ledger, prepare the records, then build
+the canonical delivery. A review-only/partial package does not complete Stage1.
+Stage2 refuses a 1.1 package until its consumer is implemented; Stage3-6 remain
+planned/unconnected. A failed or uncertain prepare is retained for reconciliation;
+refresh and same-key replay cannot repeat the file producer.
+
+Saved-source reading offers bind the current project revision, input/brief,
+work/version, source-registry snapshot, raw source bytes, Core claim set and
+owned ledger frontier. A manual quotation's original durable intent and receipt
+bind its exact UTF-8 byte range, including repeated passages; registration does
+not choose the first occurrence. A changed source, claim, revision or owner
+requires a fresh review. Unknown and uncertain writes stay recorded, and true
+SQLite reopen reads the same-key action instead of registering again. This
+offline human-review path makes no search, model or native research call and
+does not grant Stage1 acceptance.
+
+### Preserve the reviewed v6 interface
+
+The operation drawer includes a version-bound **Stage1 current progress** guide.
+It reads the same overview used by the existing controls, identifies held or
+uncertain work first, and navigates to scope, search, screening, reading,
+coverage, delivery or retained history. Navigation issues no POST and never
+creates a key, permit, session or retry. A saved step or validated package is
+labelled separately from accepted research. Missing evidence remains Unknown;
+old input versions cannot supply the current guide. English and both Chinese
+variants use the same source-bound states, with no changes to the original graph.
+
+Saving a claim does not register the paper's reading annotation. The overview
+reports `reading_registration` with the current project revision, input/brief
+and ledger-state hash. The guide keeps the next step on reading when a current
+annotation required by the saved-record producer is missing, and preparation
+stays disabled until that bound registry check is ready. Pure discovery-only
+records remain supported; a source observation may require an annotation whose
+unassessed fields stay Unknown. This does not accept reading quality or research.
+GET checks retained entries and source/action bindings without registering,
+restoring an owner, dispatching work or retrying a producer. A stale or unverifiable
+package is shown as held with its original status/hash, rather than as a validated
+delivery. Source acquisition and model-reading availability are separate: a
+temporarily unavailable model does not make a saved current source missing.
+
+Saved Stage1/Stage2 pages retain their dark sidebar, 2D/3D graph, paper detail,
+compact direction summary and folded process history. A compact **Project &
+research topic** section precedes Stage1. Select an existing project, or enter
+a new topic and open the existing scope form; entering a topic alone submits
+nothing. Selection reads the current server-owned project and input version.
+The same **Codex & Harness** button opens that one operation document in a
+drawer with separate styles. Closing it retains both the graph and operation
+document. Opening, closing, translation and refresh never dispatch research.
+Select the operation project explicitly; a historical saved case is not the
+current project's result or permission. Original package/renderer files stay
+unchanged and derived host assets have separate hashes.
+
+The selector and drawer share one broker and one iframe. Initialisation reads
+the project list; it creates no project, permit, session or turn. Topic prefill,
+project selection and translation do not start Harness research. Confirm the
+scope and budgets explicitly in the operation form, then use its current
+server-bound offers for each stage action, question or approval. Only opaque
+project references and nonsecret display context cross this presentation seam;
+credentials, permits and durable action keys remain in the existing broker.
+The saved Atlas shown below is labelled separately from the selected operation
+project; selecting a new project never relabels a historical package as its
+result. Stage2 uses the same project identity when admitted, with execution
+still deferred here; Stage3-6 remain planned/unconnected.
+
+When starting `run-project-workspace.py`, pass the existing private, pinned
+`--views-config <views.json> --views-sha256 <SHA256>` alongside the existing
+project/runtime flags. `/` redirects to the first registered view, preserving
+its relative asset/note paths; the config order chooses this landing view.
+Omitting the config registers no saved cases: the initial topic-intake page is
+then available, but an old `/views/.../atlas.html` URL cannot exist. A new topic
+does not receive an invented graph. Its validated saved delivery opens through
+the existing private v6 viewer. `/projects.html` remains a separate operation
+entry, not a replacement saved-results UI.
+
+Only the derived `/projects-panel.html` allows same-origin framing. Atlas parent
+pages allow that frame but still forbid being embedded themselves. External
+framing, unsafe Host/Origin and API admission checks remain rejected; an iframe
+separates styles, not same-origin script privileges. Stage2 execution remains
+deferred and Stage3–6 planned/unconnected.
+
+### Independent stage areas in the same workspace
+
+The v6 sidebar and project stage selector switch six separate areas. Each has
+its own saved status, operations and results, bound to the current project,
+input version, revision and brief. Topic and resource settings remain shared.
+Navigation does not submit an operation or grant execution permission.
+
+Stage1 retains its saved v6 graph and progress links. Stage2 has its own saved
+Stage1 input review and existing import controls; it has no connected producer
+for a current-project comparison/direction result in this interface. Missing
+results stay ungenerated and refused reads show their own Stage2 notice.
+Stage3–6 remain planned/unconnected with disabled execution placeholders.
+
+### Operations above, delivered results below
+
+Each stage puts its operations above its result area. After an explicit Stage1
+delivery succeeds, the UI rereads saved state and checks the current project,
+input version, brief and artifact/manifest binding before scrolling to its v6
+result below. Unknown or failed operations do not redirect; switching projects
+clears old output and a missing delivery stays "not generated". The historical
+reference is separate and is never the destination for new deliveries.
+
+Stage2 may show a registered synthetic interface example below its empty real
+result notice. Only pinned snapshots marked as fixtures in both the inventory
+and payload qualify. Their original project/source identity remains unchanged;
+the static copy has no injected project or native bootstrap. This is a reference,
+not a current-project delivery or execution permission.
+
+Actual Stage2 result display still needs the project service to register a
+trusted final delivery root and manifest hashes bound to its activation/input
+version. A workflow activation or input review alone supplies neither. The UI
+does not discover directories, rebuild packages, or treat the example as output.

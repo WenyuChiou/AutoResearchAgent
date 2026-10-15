@@ -56,6 +56,7 @@ class ProjectIntakeService:
         self.root = private_output(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.authenticate = authenticate
+        self._query_service = None
         self._lock = threading.RLock()
         path = safe_path(self.root, "project-intake.sqlite")
         for suffix in ("-wal", "-shm", "-journal"):
@@ -268,7 +269,9 @@ class ProjectIntakeService:
             except BaseException as error:
                 self.db.rollback()
                 receipt.update(
-                    status="execution-unknown" if work_completed else "failed",
+                    status="execution-unknown"
+                    if work_completed or kind in {"stage1-coverage", "stage1-claim"}
+                    else "failed",
                     error=str(error)[:512],
                 )
                 if work_completed:
@@ -276,6 +279,10 @@ class ProjectIntakeService:
                         failure_phase="post-work-before-commit",
                         output_observation=deepcopy(result),
                     )
+                elif kind in {"stage1-coverage", "stage1-claim"}:
+                    # A Core append can succeed before its producer raises.
+                    # Keep this new local action held; failed is unlockable by UI.
+                    receipt["failure_phase"] = "core-write-outcome-unobserved"
                 self.db.execute("BEGIN IMMEDIATE")
                 try:
                     self.db.execute(
@@ -644,7 +651,25 @@ class ProjectIntakeService:
         )
         request = _scope(_text(body["topic"]), body)
 
+        def reserve(state, _, __):
+            from .project_query_versions import check_revision
+
+            service = self._query_service
+            _check(
+                service is not None or not state.get("stage1_query_authorization"),
+                "project-query-revision-service-required",
+            )
+            if service is not None:
+                check_revision(service, credential, state)
+
         def work(state, request_hash, _):
+            from .project_query_versions import archive_revision
+
+            archive_sha = None
+            if self._query_service is not None:
+                archive_sha = archive_revision(
+                    self._query_service, credential, state, request_hash
+                )
             state["input_version"] += 1
             state["settings"] = None
             value = prepare_formal_intake(
@@ -654,7 +679,10 @@ class ProjectIntakeService:
                 request_id="formal-" + request_hash[:24],
                 proposed_target=30,
             )
-            return self._write_brief(state, value)
+            result = self._write_brief(state, value)
+            if archive_sha is not None:
+                result["archived_query_scope_sha256"] = archive_sha
+            return result
 
         return self._perform(
             self._principal(credential),
@@ -662,6 +690,7 @@ class ProjectIntakeService:
             "revise",
             deepcopy(body),
             work,
+            reserve=reserve,
             check_deadline=check_deadline,
         )
 

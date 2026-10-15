@@ -4,6 +4,8 @@ import http.client
 import json
 import unittest
 
+import atlas_test_paths  # noqa: F401 -- standalone test discovery needs the CLI path
+
 from research_workspace_native.atlas_host import AtlasHost
 from stage1_deliverable.common import sha
 import test_native_message_host as host_fixture

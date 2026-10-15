@@ -1,5 +1,7 @@
 """Existing repository producers over saved cases, never model/native calls."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from copy import deepcopy
 from pathlib import Path
 import tempfile

@@ -6,6 +6,7 @@ from stage1_deliverable.common import sha
 from .stage_actions import StageActions
 from .session_api import SessionApiError
 from .transport import _decode
+from .query_http import bind_query_views, handle_queries
 
 ROUTE = re.compile(
     r"/api/stages/projects/([A-Za-z0-9_-]{1,64})"
@@ -20,6 +21,7 @@ def bind_stages(service, files, views, credential):
     if not isinstance(service, StageActions) or credential is None:
         raise ValueError("explicit StageActions and credential required")
     bindings = service.bindings()
+    bind_query_views(service, bindings, credential)
     for ref, binding in bindings.items():
         matches = [row for row in views if row["ref"] == ref]
         if len(matches) != 1 or any(
@@ -34,6 +36,8 @@ def bind_stages(service, files, views, credential):
 
 
 def handle_stages(handler, method):
+    if "/queries" in handler.path:
+        return handle_queries(handler, method)
     try:
         token, length = handler._headers(method)
         if handler.headers.get("Sec-Fetch-Site") not in (None, "none", "same-origin"):

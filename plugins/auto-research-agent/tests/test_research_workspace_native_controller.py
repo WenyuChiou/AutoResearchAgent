@@ -63,6 +63,39 @@ class ControllerFixture(NativeSessionFixture, unittest.TestCase):
 
 
 class InjectedControllerTests(ControllerFixture):
+    def test_unsupported_permission_approval_is_durable_and_never_auto_answered(self):
+        controller = self.connect()
+        message = dict(
+            id=13,
+            method="item/permissions/requestApproval",
+            params=dict(
+                threadId="thread-a",
+                turnId="turn-a",
+                itemId="permission-item",
+                cwd=str(self.store.path.parent),
+                permissions={},
+                startedAtMs=1,
+                reason="Synthetic protocol compatibility observation",
+            ),
+        )
+        self.channel.queue(message)
+        with self.assertRaises(ControllerError):
+            controller.pump()
+        state = self.store.snapshot("alpha")
+        self.assertIn(
+            "unsupported native request", state["protocol"]["quarantine"]["reason"]
+        )
+        self.assertEqual(self.channel.messages(), [])
+        self.assertEqual(self.channel.closed, 1)
+        frames = [
+            e for e in self.store.events("alpha") if e["kind"] == "protocol-frame"
+        ]
+        self.assertEqual(frames[-1]["payload"]["frame"]["message"], message)
+        self.assertEqual(state["requests"], {})
+        with self.assertRaises(ControllerError):
+            controller.pump()
+        self.assertEqual(self.channel.messages(), [])
+
     def test_answer_partial_writes_resolution_and_terminal_are_separate(self):
         self.channel.limit = 7
         controller = self.connect()

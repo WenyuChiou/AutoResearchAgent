@@ -1,5 +1,7 @@
 """Actual loopback HTTP over repository stage cases and durable SQLite."""
 
+import atlas_test_paths  # noqa: F401 -- standalone discovery needs the local CLI.
+
 from copy import deepcopy
 import http.client
 import io

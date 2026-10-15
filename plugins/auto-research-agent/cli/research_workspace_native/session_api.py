@@ -19,6 +19,7 @@ import threading
 
 from stage1_deliverable.common import canonical, private_output, sha
 from .controller import InjectedSessionController
+from .process_deadline import SessionLeaseExpired
 from .store import JournalError
 from .transport import validate_answer
 from .transcript import project_transcript
@@ -38,6 +39,25 @@ def _check(condition, code, status=409):
 
 def _text(value):
     return isinstance(value, str) and 0 < len(value) <= 128
+
+
+MAX_MODEL_INPUT_BYTES = 10000
+
+
+def _bounded_text_inputs(text):
+    """Bound the complete user message; the Core consumer aggregates inputs.
+
+    This conservative byte-level tokenization bound is not a measured token
+    count. Inputs that can cross 1K tokens remain P0/manual-review scope under
+    the repository review rules; this function does not attest that review.
+    """
+    _check(isinstance(text, str) and bool(text), "invalid-message-text", 400)
+    _check(
+        len(text.encode("utf8")) <= MAX_MODEL_INPUT_BYTES,
+        "model-input-bound-exceeded",
+        400,
+    )
+    return [dict(type="text", text=text, text_elements=[])]
 
 
 def _hash(value):
@@ -73,6 +93,7 @@ class SessionApi:
         self._authenticate, self._projects = authenticate, {}
         self._start_offers = {}
         self._approval_policies = {}
+        self._trusted_stage_units = set()
         self._lock = threading.RLock()
         self._guards = threading.local()
 
@@ -104,8 +125,10 @@ class SessionApi:
         verify_source,
         start_offer=None,
         approval_policy=None,
+        trusted_stage_unit=False,
     ):
         """Trusted startup only; all roots and controller identities stay server-side."""
+        _check(type(trusted_stage_unit) is bool, "literal-stage-unit-optin-required")
         _check(
             _text(project_ref) and isinstance(controller, InjectedSessionController),
             "invalid-registration",
@@ -133,6 +156,8 @@ class SessionApi:
             input_version=input_version,
             thread_id=controller.thread_id,
         )
+        if trusted_stage_unit:
+            binding["trusted_stage_unit"] = True
         registration = (controller, frozenset(principals), binding, verify_source)
         _check(start_offer is None or callable(start_offer), "invalid-start-offer")
         _check(
@@ -169,6 +194,8 @@ class SessionApi:
             self._projects[project_ref] = registration
             self._start_offers[project_ref] = start_offer
             self._approval_policies[project_ref] = approval_policy
+            if trusted_stage_unit:
+                self._trusted_stage_units.add(project_ref)
 
     def _can_accept(self, binding, principal, request):
         """A displayed approval is not authority; recheck its trusted policy on POST."""
@@ -228,14 +255,18 @@ class SessionApi:
             "start-offer-binding-differs",
         )
         limits = offer["limits"]
+        trusted_stage_unit = binding["project_ref"] in self._trusted_stage_units
         _check(
             _text(offer["model"])
             and _hash(offer["permit_sha256"])
             and isinstance(limits, dict)
             and set(limits) == {"max_text_bytes", "max_starts", "timeout_seconds"}
             and all(type(value) is int for value in limits.values())
-            and 1 <= limits["max_text_bytes"] <= 16384
+            and 1
+            <= limits["max_text_bytes"]
+            <= (32768 if trusted_stage_unit else 16384)
             and 1 <= limits["max_starts"] <= 128
+            and (not trusted_stage_unit or limits["max_starts"] == 1)
             and 1 <= limits["timeout_seconds"] <= 30,
             "invalid-start-offer-limits",
             403,
@@ -252,6 +283,9 @@ class SessionApi:
                     "project_ref",
                 )
             },
+        )
+        document["limits"]["max_text_bytes"] = min(
+            document["limits"]["max_text_bytes"], MAX_MODEL_INPUT_BYTES
         )
         digest = sha(canonical(document))
         return dict(
@@ -301,6 +335,8 @@ class SessionApi:
             valid = valid and controller.thread_id == binding["thread_id"]
             checked = dict(binding, connection_id=controller.connection_id)
             _check(valid and verifier(deepcopy(checked)) is True, "source-check-failed")
+        except SessionLeaseExpired:
+            raise SessionApiError("session-lease-expired") from None
         except Exception:
             raise SessionApiError("source-check-failed") from None
 
@@ -583,7 +619,13 @@ class SessionApi:
                 try:
                     json.dumps(body, allow_nan=False)
                     encoded = canonical(body)
-                    _check(len(encoded) <= 32768, "action-too-large", 400)
+                    limit = (
+                        65536
+                        if kind == "message"
+                        and project_ref in self._trusted_stage_units
+                        else 32768
+                    )
+                    _check(len(encoded) <= limit, "action-too-large", 400)
                     body = deepcopy(body)
                 except SessionApiError:
                     raise
@@ -669,7 +711,7 @@ class SessionApi:
                         threadId=controller.thread_id,
                         cwd=offer["document"]["source_root"],
                         model=offer["document"]["model"],
-                        input=[dict(type="text", text=body["text"], text_elements=[])],
+                        input=_bounded_text_inputs(body["text"]),
                     )
                 elif kind == "answer":
                     matches = [

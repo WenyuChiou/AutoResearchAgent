@@ -298,7 +298,21 @@ class OwnedProcessChannel:
                         raw_hex=raw.hex(),
                     )
                 if name == "stdout":
-                    self._stdout.put(raw, timeout=self._remaining(1))
+                    # Retry only enqueueing this same retained chunk. Source
+                    # admission may delay the consumer; no extra OS read occurs.
+                    # Short waits make close responsive within the total/lease cap.
+                    budget = Deadline(30, self.deadline)
+                    while not self.closed:
+                        remaining = budget.left()
+                        if not remaining:
+                            raise queue.Full("stdout backpressure deadline expired")
+                        try:
+                            self._stdout.put(raw, timeout=min(0.1, remaining))
+                            break
+                        except queue.Full:
+                            continue
+                    if self.closed:
+                        return
                 if not raw:
                     self._observe(name + "-eof", byte_count=total)
                     break

@@ -23,9 +23,10 @@ from .project_stage1_delivery import (
     ProjectStage1DeliveryService,
     _raw,
     _records_match,
+    _screening_library,
 )
 from .project_stage1_sources import describe_source, source_record
-from .session_api import _check
+from .session_api import SessionApiError, _check
 
 MAX_ENTRIES = 1024
 MAX_RECORDS = 256
@@ -42,6 +43,33 @@ READING_ACTION_FIELDS = {
     "review",
     "confirmed",
 }
+SOURCE_READING_ACTION_FIELDS = (
+    READING_ACTION_FIELDS - {"output_ref", "draft_sha256"}
+) | {"work_ref", "source_snapshot_sha256"}
+
+
+def reading_registration_view(
+    project,
+    ledger_state=None,
+    *,
+    status="unconnected",
+    reason="saved-records-unconnected",
+):
+    return dict(
+        kind="ProjectStage1ReadingRegistration",
+        schema_version="1.0.0",
+        **{
+            key: project[key]
+            for key in ("project_ref", "revision", "input_version", "brief_sha256")
+        },
+        ledger_state_sha256=ledger_state,
+        status=status,
+        reason=reason,
+        missing_works=[],
+        required_work_count=None,
+        registered_work_count=None,
+        grants_execution=False,
+    )
 
 
 class ProjectStage1RecordsService:
@@ -121,7 +149,12 @@ class ProjectStage1RecordsService:
                 "saved-reading-action-body-invalid",
                 400,
             )
-            _keys(action_body, READING_ACTION_FIELDS, "human saved reading action")
+            fields = (
+                SOURCE_READING_ACTION_FIELDS
+                if "work_ref" in action_body
+                else READING_ACTION_FIELDS
+            )
+            _keys(action_body, fields, "human saved reading action")
             _keys(
                 action_body["review"],
                 ("classification", "findings", "roles"),
@@ -132,6 +165,10 @@ class ProjectStage1RecordsService:
                 and action_body["input_version"] == binding["input_version"]
                 and action_body["brief_sha256"] == binding["brief_sha256"]
                 and action_body["ledger_state_sha256"] == context[5]["state_sha256"]
+                and (
+                    "work_ref" not in action_body
+                    or action_body["work_ref"] == payload["work_id"]
+                )
                 and all(
                     action_body["review"][field] == payload[field]
                     for field in ("classification", "findings", "roles")
@@ -196,7 +233,12 @@ class ProjectStage1RecordsService:
             if "entry_sha256" not in request:
                 _keys(
                     request,
-                    READING_ACTION_FIELDS - {"revision"},
+                    (
+                        SOURCE_READING_ACTION_FIELDS
+                        if "work_ref" in request
+                        else READING_ACTION_FIELDS
+                    )
+                    - {"revision"},
                     "human saved reading action",
                 )
                 _keys(
@@ -211,6 +253,10 @@ class ProjectStage1RecordsService:
                     == entry["basis"]["binding"]["input_version"]
                     and request["brief_sha256"]
                     == entry["basis"]["binding"]["brief_sha256"]
+                    and (
+                        "work_ref" not in request
+                        or request["work_ref"] == entry["payload"]["work_id"]
+                    )
                     and all(
                         request["review"][field] == entry["payload"][field]
                         for field in ("classification", "findings", "roles")
@@ -246,6 +292,177 @@ class ProjectStage1RecordsService:
             "stage1-saved-registry-history-incomplete",
         )
         return [entry for entry in observed if entry["basis"] == self._basis(context)]
+
+    @staticmethod
+    def _matching_readings(ledger, readings):
+        decisions = ledger.coverage_state().evidence.decisions
+        return {
+            work: [
+                reading
+                for reading in readings
+                if reading["work_id"] == work
+                and reading["candidate_event_id"] == candidate["event_id"]
+                and decisions.get(work) is not None
+                and reading["decision_event_id"] == decisions[work]["event_id"]
+            ]
+            for work, candidate in ledger.candidates().items()
+        }
+
+    @staticmethod
+    def _reading_required(work, candidate, events, reviews):
+        version = candidate["discoveries"][-1]["version_id"]
+        return work in reviews or any(
+            row["kind"] in {"SourceReadStarted", "ClaimEvidence"}
+            and row["work_id"] == work
+            and row["version_id"] == version
+            for row in events.values()
+        )
+
+    def reading_readiness(
+        self, credential, project_ref, *, expected_ledger_state_sha256=None
+    ):
+        """Inspect actual producer prerequisites under its existing saved owner."""
+        actor = self.intake._principal(credential)
+        with self.intake._lock:
+            project = self.intake.read(credential, project_ref)
+            result = reading_registration_view(
+                project,
+                expected_ledger_state_sha256,
+                status="held",
+                reason="reading-ledger-unavailable",
+            )
+            if expected_ledger_state_sha256 is None:
+                return result
+            try:
+                context = self._context(project_ref, expected_ledger_state_sha256)
+                with self.guard(*context[3:6]) as guard_check:
+                    check = self._mutation_check(
+                        project_ref, expected_ledger_state_sha256, guard_check
+                    )
+                    context = check()
+                    _check(context[0] == actor, "reading-registration-owner-differs")
+                    _check(
+                        context[1]["input_version"] == project["input_version"]
+                        and context[2]["brief_sha256"] == project["brief_sha256"],
+                        "reading-registration-input-differs",
+                    )
+                    actions = self.intake.db.execute(
+                        "SELECT receipt FROM intake_actions WHERE principal=? AND project=?",
+                        (actor, project_ref),
+                    ).fetchall()
+                    _check(
+                        not any(
+                            row["kind"]
+                            in {
+                                "stage1-reading-registry",
+                                "stage1-source-registry",
+                                "stage1-produce-records",
+                            }
+                            and row["status"]
+                            in {"intent-recorded", "execution-unknown"}
+                            for row in (
+                                decode(raw[0].encode(), "reading registration action")
+                                for raw in actions
+                            )
+                        ),
+                        "reading-registration-unresolved",
+                    )
+                    entries = self._entries(context)
+                    sources = [
+                        row["payload"]
+                        for row in entries
+                        if row["ref"].startswith("stage1-source-registry-")
+                    ]
+                    for source in sources:
+                        source_record(context[4], self.root, source)
+                    readings = [
+                        row["payload"]
+                        for row in entries
+                        if row["ref"].startswith("stage1-reading-registry-")
+                    ]
+                    ledger = context[4]
+                    events = {
+                        row["payload"]["event_id"]: row["payload"]
+                        for row in ledger.events()
+                    }
+                    reviews = ledger.coverage_state().evidence.current()
+                    decisions = ledger.coverage_state().evidence.decisions
+                    matches = self._matching_readings(ledger, readings)
+                    missing, required, registered = [], 0, 0
+                    for work, candidate in ledger.candidates().items():
+                        rows = matches[work]
+                        needed = bool(rows) or self._reading_required(
+                            work, candidate, events, reviews
+                        )
+                        if not needed:
+                            continue
+                        required += 1
+                        review = reviews.get(work)
+                        version = (
+                            review["version_id"]
+                            if review
+                            else candidate["discoveries"][-1]["version_id"]
+                        )
+                        self._saved_claim_locators(context, work, version)
+                        current = False
+                        if rows:
+                            try:
+                                self._reading(context, rows[-1], sources)
+                                current = True
+                            except SessionApiError as error:
+                                if error.code not in {
+                                    "saved-reading-current-review-differs",
+                                    "saved-reading-source-set-differs",
+                                    "saved-reading-claim-history-incomplete",
+                                }:
+                                    raise
+                        if current:
+                            registered += 1
+                        else:
+                            decision = decisions.get(work)
+                            missing.append(
+                                dict(
+                                    work_ref=work,
+                                    version_id=version,
+                                    candidate_event_id=candidate["event_id"],
+                                    decision_event_id=None
+                                    if decision is None
+                                    else decision["event_id"],
+                                    reason="saved-reading-current-record-required",
+                                )
+                            )
+                    check()
+                    _check(
+                        self._entries(context) == entries,
+                        "reading-registration-history-differs",
+                    )
+                    for source in sources:
+                        source_record(ledger, self.root, source)
+                    result.update(
+                        status="missing" if missing else "ready",
+                        reason="reading-registration-required"
+                        if missing
+                        else "reading-registration-ready",
+                        missing_works=missing,
+                        required_work_count=required,
+                        registered_work_count=registered,
+                    )
+            except (
+                SessionApiError,
+                ValueError,
+                OSError,
+                KeyError,
+                TypeError,
+                UnicodeError,
+            ) as error:
+                result.update(
+                    status="held",
+                    reason=getattr(error, "code", "saved-reading-validation-failed"),
+                    missing_works=[],
+                    required_work_count=None,
+                    registered_work_count=None,
+                )
+            return result
 
     def register_source(
         self,
@@ -508,6 +725,138 @@ class ProjectStage1RecordsService:
                 "saved-reading-claim-span-differs",
             )
 
+    def _saved_claim_locators(self, context, work_id, version_id):
+        """Recover exact manual spans only from matching durable Core receipts."""
+        actor, state, binding, _, ledger, *_ = context
+        manual = {
+            row["payload"]["event_id"]: row["payload"]
+            for row in ledger.events()
+            if row["payload"]["kind"] == "ClaimEvidence"
+            and (row["payload"]["work_id"], row["payload"]["version_id"])
+            == (work_id, version_id)
+            and row["payload"]["verifier"]["method"] == "explicit-saved-source-review"
+        }
+        rows = self.intake.db.execute(
+            "SELECT key,request_hash,receipt FROM intake_actions WHERE principal=? AND project=?",
+            (actor, state["project_ref"]),
+        ).fetchall()
+        claim_events = [
+            decode(row[0].encode(), "manual claim durable event")
+            for row in self.intake.db.execute(
+                "SELECT payload FROM intake_events WHERE project=? AND kind IN ('stage1-claim-intent','stage1-claim-saved')",
+                (state["project_ref"],),
+            ).fetchall()
+        ]
+        locators = {}
+        for row in rows:
+            receipt = decode(row["receipt"].encode(), "manual claim receipt")
+            if receipt["kind"] != "stage1-claim" or receipt["status"] != "saved":
+                continue
+            event_id = receipt.get("claim_event_id")
+            if event_id not in manual:
+                continue
+            event = manual[event_id]
+            signature, request = receipt.get("saved_source_claim"), receipt["request"]
+            _keys(
+                signature,
+                (
+                    "work_id",
+                    "version_id",
+                    "input_version",
+                    "brief_sha256",
+                    "source_id",
+                    "text_sha256",
+                    "start",
+                    "end",
+                    "quote",
+                    "review",
+                ),
+                "saved manual claim signature",
+            )
+            _keys(
+                signature["review"],
+                (
+                    "claim_text",
+                    "relation",
+                    "evidence_level",
+                    "section",
+                ),
+                "saved manual claim review",
+            )
+            intent = {
+                field: receipt[field]
+                for field in (
+                    "project_ref",
+                    "key",
+                    "kind",
+                    "request_sha256",
+                    "request",
+                    "recorded_at",
+                )
+            } | {"status": "intent-recorded"}
+            _check(
+                receipt["key"] == row["key"]
+                and receipt["project_ref"] == state["project_ref"]
+                and row["request_hash"]
+                == receipt["request_sha256"]
+                == sha(canonical(dict(kind="stage1-claim", body=request)))
+                and claim_events.count(receipt) == 1
+                and claim_events.count(intent) == 1
+                and event_id not in locators
+                and signature["work_id"] == request["work_ref"] == work_id
+                and signature["version_id"] == version_id
+                and signature["input_version"]
+                == request["input_version"]
+                == binding["input_version"]
+                and signature["brief_sha256"]
+                == request["brief_sha256"]
+                == binding["brief_sha256"]
+                and signature["source_id"] == event["source_ref"]["producer"]
+                and signature["review"] == request["review"]
+                and signature["quote"] == request["quote"] == event["locator"]["quote"]
+                and signature["start"] == request["start_byte"]
+                and signature["end"] == request["end_byte"]
+                and event["verifier"]
+                == dict(
+                    actor=actor,
+                    actor_type="human",
+                    method="explicit-saved-source-review",
+                )
+                and all(
+                    signature["review"][field] == event[field]
+                    for field in ("claim_text", "relation", "evidence_level")
+                )
+                and signature["review"]["section"] == event["locator"]["section"],
+                "saved-reading-manual-claim-receipt-differs",
+            )
+            raw = ledger.read_ref(event["source_ref"])
+            start, end = signature["start"], signature["end"]
+            _check(
+                type(start) is int
+                and type(end) is int
+                and 0 <= start < end <= len(raw)
+                and sha(raw) == signature["text_sha256"]
+                and raw[start:end] == signature["quote"].encode("utf8"),
+                "saved-reading-manual-claim-span-differs",
+            )
+            locator = dict(
+                claim_id=event_id,
+                source_id=signature["source_id"],
+                text_sha256=signature["text_sha256"],
+                start=len(raw[:start].decode("utf8", errors="strict")),
+                end=len(raw[:end].decode("utf8", errors="strict")),
+                quote=signature["quote"],
+            )
+            _check(
+                locator == receipt.get("reading_locator"),
+                "saved-reading-manual-claim-locator-differs",
+            )
+            locators[event_id] = locator
+        _check(
+            set(locators) == set(manual), "saved-reading-manual-claim-receipt-required"
+        )
+        return locators
+
     def derive_reading_payload(
         self,
         project_ref,
@@ -544,6 +893,7 @@ class ProjectStage1RecordsService:
                 for s in source_entries
                 if s["work_id"] == work_id and s["version_id"] == selected
             ]
+            manual_locators = self._saved_claim_locators(context, work_id, selected)
             spans = []
             for row in ledger.events():
                 event = row["payload"]
@@ -551,6 +901,9 @@ class ProjectStage1RecordsService:
                     event["work_id"],
                     event["version_id"],
                 ) != (work_id, selected):
+                    continue
+                if event["event_id"] in manual_locators:
+                    spans.append(deepcopy(manual_locators[event["event_id"]]))
                     continue
                 raw = ledger.read_ref(event["source_ref"])
                 quote = event["locator"]["quote"] if event["locator"] else None
@@ -649,22 +1002,45 @@ class ProjectStage1RecordsService:
         events = {row["payload"]["event_id"]: row["payload"] for row in ledger.events()}
         journal = {row["payload"]["event_id"]: row for row in ledger.events()}
         core = any(row.get("schema_version") == "1.1.0" for row in readings)
+        candidates = ledger.candidates()
+        matches_by_work = self._matching_readings(ledger, readings)
+        discovery_records = any(not rows for rows in matches_by_work.values())
+        core = core or discovery_records
         papers, claims, source_rows = [], [], []
         _check(
             len(ledger.candidates()) <= MAX_RECORDS and len(sources) <= MAX_RECORDS,
             "stage1-saved-record-bound-exceeded",
         )
-        for work, candidate in ledger.candidates().items():
-            decision = ledger.coverage_state().evidence.decisions.get(work)
-            _check(decision is not None, "saved-current-decision-required")
-            matches = [
-                reading
-                for reading in readings
-                if reading["work_id"] == work
-                and reading["candidate_event_id"] == candidate["event_id"]
-                and reading["decision_event_id"] == decision["event_id"]
-            ]
-            _check(bool(matches), "saved-reading-current-record-required")
+        reviews = ledger.coverage_state().evidence.current()
+        for work, candidate in candidates.items():
+            matches = matches_by_work[work]
+            if not matches:
+                version = candidate["discoveries"][-1]["version_id"]
+                _check(
+                    not self._reading_required(work, candidate, events, reviews),
+                    "saved-reading-current-record-required",
+                )
+                metadata = candidate["discoveries"][-1]["record"]
+                papers.append(
+                    dict(
+                        work_id=work,
+                        version_id=version,
+                        title=metadata["title"],
+                        authors=metadata["authors"],
+                        year=metadata["year"],
+                        venue=metadata.get("venue") or "Unknown",
+                        doi=metadata.get("doi"),
+                        url=metadata.get("url"),
+                        evidence_level="metadata",
+                        source_ids=[],
+                        claim_ids=[],
+                        roles=[],
+                        reading_status="discovery-only",
+                        classification={key: "Unknown" for key in CLASSIFICATION},
+                        findings={key: "Unknown" for key in FINDINGS},
+                    )
+                )
+                continue
             # SQLite event order selects the latest explicit saved annotation;
             # canonical state-key order never acts as reading revision order.
             reading = matches[-1]
@@ -728,6 +1104,11 @@ class ProjectStage1RecordsService:
                     findings=reading["findings"],
                     roles=reading["roles"],
                     claim_ids=[span["claim_id"] for span in reading["claims"]],
+                    **(
+                        {"reading_status": "human-reviewed"}
+                        if discovery_records
+                        else {}
+                    ),
                 )
             )
         versions = {paper["work_id"]: paper["version_id"] for paper in papers}
@@ -775,7 +1156,11 @@ class ProjectStage1RecordsService:
         ]
         records = dict(
             kind="Stage1ResearchRecords",
-            schema_version="1.1.0" if core else "1.0.0",
+            schema_version="1.2.0"
+            if discovery_records
+            else "1.1.0"
+            if core
+            else "1.0.0",
             topic=ledger.manifest["research_run"]["objective"],
             as_of=context[6]["created_at"],
             papers=papers,
@@ -784,6 +1169,18 @@ class ProjectStage1RecordsService:
             screening=screening,
             coverage=needs,
         )
+        library = _screening_library(context) if discovery_records else None
+        if discovery_records:
+            from stage1_deliverable.screening_records import artifacts
+
+            records.update(
+                screening_library=library,
+                screening_artifacts=artifacts(library),
+                screening_journal={
+                    "path": "screening_events.jsonl",
+                    "sha256": library["binding"]["journal_sha256"],
+                },
+            )
         if core:
             from stage1_deliverable.core_records import artifact_path
 
@@ -804,7 +1201,13 @@ class ProjectStage1RecordsService:
                 ],
             )
         validate_records(records)
-        _records_match(records, ledger, self.root, check_core_archives=False)
+        _records_match(
+            records,
+            ledger,
+            self.root,
+            check_core_archives=False,
+            screening_library=library,
+        )
         return records
 
     def produce_records(
@@ -910,8 +1313,11 @@ class ProjectStage1RecordsService:
                     temporary = path.with_suffix(".partial")
                     try:
                         check_current()
-                        if records["schema_version"] == "1.1.0":
-                            for artifact in records["core_artifacts"]:
+                        if records["schema_version"] in {"1.1.0", "1.2.0"}:
+                            artifacts = records["core_artifacts"] + records.get(
+                                "screening_artifacts", []
+                            )
+                            for artifact in artifacts:
                                 target = safe_path(self.root, artifact["artifact_path"])
                                 target.parent.mkdir(exist_ok=True)
                                 observed = ledger.read_ref(artifact["source_ref"])
@@ -925,7 +1331,29 @@ class ProjectStage1RecordsService:
                                         stream.flush()
                                         os.fsync(stream.fileno())
                                 _raw(target, artifact["source_ref"]["sha256"])
-                            _records_match(records, ledger, self.root)
+                            if records["schema_version"] == "1.2.0":
+                                journal = records["screening_journal"]
+                                observed = _raw(
+                                    ledger.root / "stage_events.jsonl",
+                                    journal["sha256"],
+                                )
+                                target = safe_path(self.root, journal["path"])
+                                check_current()
+                                if not target.exists():
+                                    with target.open("xb") as stream:
+                                        _check(
+                                            stream.write(observed) == len(observed),
+                                            "stage1-records-partial-write",
+                                        )
+                                        stream.flush()
+                                        os.fsync(stream.fileno())
+                                _raw(target, journal["sha256"])
+                            _records_match(
+                                records,
+                                ledger,
+                                self.root,
+                                screening_library=_screening_library(context, records),
+                            )
                         with temporary.open("xb") as stream:
                             _check(
                                 stream.write(raw) == len(raw),

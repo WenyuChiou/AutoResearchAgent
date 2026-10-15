@@ -10,3 +10,12 @@
 .stage-action-record { margin: 14px 0; padding: 16px; background: #f1f6f4; border-radius: 8px; }
 .stage-action-record p { margin: 8px 0; overflow-wrap: anywhere; }
 .stage-action-record code { display: block; margin: 8px 0; overflow-wrap: anywhere; }
+
+.stage-check-summary { margin: 18px 0; padding: 18px 20px; border: 1px solid #d9e5df; border-radius: 10px; background: #f4f8f5; }
+.stage-check-summary h3 { margin: 0 0 10px; font-size: 18px; }
+.stage-check-summary p, .stage-check-summary li { line-height: 1.55; overflow-wrap: anywhere; }
+.stage-check-summary ul { margin: 8px 0 12px; padding-left: 22px; max-height: 180px; overflow: auto; }
+.stage-check-summary details { margin: 12px 0; }
+.stage-check-badge { display: inline-block; padding: 5px 10px; border-radius: 6px; background: #e6ebed; color: #344f5f; }
+.stage-check-badge[data-state="pass"], .stage-check-badge[data-state="ready"] { background: #dcebe3; color: #205d4a; }
+.stage-check-badge[data-state="blocked"], .stage-check-badge[data-state="incomplete"], .stage-check-badge[data-state="failed"] { background: #f2e6d0; color: #765427; }

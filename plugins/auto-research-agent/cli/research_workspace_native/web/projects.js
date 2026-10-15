@@ -41,6 +41,8 @@
       planReady: "Confirmed brief and compiled plan are saved. Searches need a separate, bound tool permit.",
       modelMissing: "Codex content provider is not registered for this project. No model call is available.",
       modelReady: "Only registered, budgeted content tasks can run. Suggestions and planning do not complete Stage1.",
+      modelConfigured: "The local content service is configured. A bounded task permit is still required; this does not verify Codex account authentication.",
+      modelHeld: "An earlier task has an uncertain result, so new submissions stay held. Inspect saved operations below; refresh never resends the task.",
       stage2Missing: "No accepted canonical Stage1 package is registered for this project/version.",
       stage2Ready: "A source-bound Stage1 import is available for explicit review.",
       emptyHistory: "No actions are saved yet.", working: "Saving the action intent…",
@@ -82,6 +84,8 @@
       planReady: "已保存确认范围与编译计划。搜索仍需另行绑定的工具许可。",
       modelMissing: "此项目尚未注册 Codex 内容服务，当前不能调用模型。",
       modelReady: "只可运行已注册、预算绑定的内容任务。选题与规划不代表 Stage1 完成。",
+      modelConfigured: "本地内容服务已配置，仍需有界任务许可；这不代表 Codex 账号认证已通过。",
+      modelHeld: "此前任务结果尚不确定，已暂停新的送出。请查看下方保存的操作；刷新不会重发任务。",
       stage2Missing: "此项目/版本尚未注册已接受的规范 Stage1 交付包。",
       stage2Ready: "已有来源绑定的 Stage1 导入选项，等待明确审阅。",
       emptyHistory: "尚无保存操作。", working: "正在保存操作意图…",
@@ -122,6 +126,8 @@
       planReady: "已保存確認範圍與編譯計畫。搜尋仍需另行綁定的工具許可。",
       modelMissing: "此專案尚未註冊 Codex 內容服務，目前不能呼叫模型。",
       modelReady: "只可執行已註冊、預算綁定的內容任務。選題與規劃不代表 Stage1 完成。",
+      modelConfigured: "本機內容服務已設定，仍需有界任務許可；這不代表 Codex 帳號認證已通過。",
+      modelHeld: "先前任務結果仍不確定，已暫停新的送出。請查看下方保存的操作；重新整理不會重送任務。",
       stage2Missing: "此專案/版本尚未註冊已接受的規範 Stage1 交付包。",
       stage2Ready: "已有來源綁定的 Stage1 匯入選項，等待明確審閱。",
       emptyHistory: "尚無保存操作。", working: "正在保存操作意圖…",
@@ -140,11 +146,29 @@
   Object.assign(words.en, {ledgerTitle: "Stage1 coverage and saved evidence", ledgerInit: "Initialize the bound evidence ledger", ledgerHelp: "A ledger records the real Harness plan and evidence history. Initialization and a checkpoint do not execute a search or complete Stage1.", ledgerCheckpoint: "Check the current evidence gate", ledgerExport: "Export saved ledger artifacts", plannedQueries: "Planned queries", moreHistory: "Read more history"});
   Object.assign(words["zh-Hans"], {ledgerTitle: "Stage1 覆盖与证据记录", ledgerInit: "初始化绑定的证据记录", ledgerHelp: "记录真实 Harness 计划与证据历史。初始化和检查点不会执行搜索，也不代表 Stage1 完成。", ledgerCheckpoint: "检查当前证据门", ledgerExport: "导出已保存记录", plannedQueries: "计划查询", moreHistory: "读取更多历史"});
   Object.assign(words["zh-Hant"], {ledgerTitle: "Stage1 覆蓋與證據紀錄", ledgerInit: "初始化綁定的證據紀錄", ledgerHelp: "紀錄真實 Harness 計畫與證據歷史。初始化和檢查點不會執行搜尋，也不代表 Stage1 完成。", ledgerCheckpoint: "檢查目前證據門", ledgerExport: "匯出已保存紀錄", plannedQueries: "計畫查詢", moreHistory: "讀取更多歷史"});
+  Object.assign(words.en, {queryTitle: "Stage1 search execution", queryHelp: "Authorize a bound search budget, initialize the runtime, then send one offered query. Each step retains an intent and its observed outcome. Refresh reads history; it never retries.", queryAuthorize: "Authorize these search limits", queryBootstrap: "Initialize the search runtime", queryExecute: "Execute the offered query", queryRestore: "Restore saved ledger ownership", querySaved: "Action recorded. Read the execution history for its actual outcome.", queryBudget: "Reserved budget", queryAttempts: "Backend attempts", queryNoReading: "Source acquisition and model reading need separate permits; they are not granted here.", queryUnavailable: "No search runtime is registered. Saved evidence remains readable.", queryOffer: "Next offered query", queryHistory: "Execution observations"});
+  Object.assign(words["zh-Hans"], {queryTitle: "Stage1 搜索执行", queryHelp: "先授权绑定的搜索预算，再初始化运行时，然后执行一条服务端提供的查询。每步保留意图和实际结果；刷新只读历史，不重试。", queryAuthorize: "授权此搜索范围与限额", queryBootstrap: "初始化搜索运行时", queryExecute: "执行当前查询", queryRestore: "恢复保存记录的写入控制", querySaved: "已记录操作，请读取执行历史确认实际结果。", queryBudget: "已预留预算", queryAttempts: "后端尝试次数", queryNoReading: "来源获取与模型阅读需要独立许可；此处未授予。", queryUnavailable: "尚未注册搜索运行时，保存的证据仍可读取。", queryOffer: "下一条可执行查询", queryHistory: "执行回执"});
+  Object.assign(words["zh-Hant"], {queryTitle: "Stage1 搜尋執行", queryHelp: "先授權綁定的搜尋預算，再初始化執行環境，然後執行一條伺服器提供的查詢。每步保留意圖和實際結果；重新整理只讀歷史，不重試。", queryAuthorize: "授權此搜尋範圍與限額", queryBootstrap: "初始化搜尋執行環境", queryExecute: "執行目前查詢", queryRestore: "恢復保存紀錄的寫入控制", querySaved: "已記錄操作，請讀取執行歷史確認實際結果。", queryBudget: "已預留預算", queryAttempts: "後端嘗試次數", queryNoReading: "來源取得與模型閱讀需要獨立許可；此處未授予。", queryUnavailable: "尚未註冊搜尋執行環境，保存的證據仍可讀取。", queryOffer: "下一條可執行查詢", queryHistory: "執行回執"});
+  Object.assign(words.en, {queryResultLimit: "Results per query", queryProbes: "Runtime probes"});
+  Object.assign(words["zh-Hans"], {queryResultLimit: "每次查询结果上限", queryProbes: "运行时探测次数"});
+  Object.assign(words["zh-Hant"], {queryResultLimit: "每次查詢結果上限", queryProbes: "執行環境探測次數"});
   const $ = (id) => document.getElementById(id);
-  Object.assign(words.en, {ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
-  Object.assign(words["zh-Hans"], {ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
-  Object.assign(words["zh-Hant"], {ledgerDeliver: "用已保存閱讀紀錄產生正式交付包", deliveryMissing: "尚無此版本綁定的閱讀紀錄。紀錄匯出與研究交付包是不同產物。", deliveryReady: "閱讀紀錄已綁定目前檢查點。產生檔案不代表覆蓋或研究品質通過。", deliverySaved: "已保存正式研究交付包 · 繼續前請檢查覆蓋判斷。"});
-  const state = { language: "en", project: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0 };
+  Object.assign(words.en, {retire: "End this unsent attempt", retirementHelp: "Only a server-verified, never-dispatched attempt can be ended. Unknown outcome and reserved budget remain; this never reruns the task.", retirementReason: "Reason for ending this unsent attempt", retired: "Ended without resend · original outcome remains Unknown", retirementBlocked: "Native dispatch or cleanup remains unproven; this attempt stays held."});
+  Object.assign(words["zh-Hans"], {retire: "结束这次未派发尝试", retirementHelp: "仅能结束服务端确认未派发的尝试。未知结果与已预留预算保留，不会重跑任务。", retirementReason: "结束这次未派发尝试的原因", retired: "已结束且不重发 · 原结果仍为 Unknown", retirementBlocked: "缺少原生派发或清理证据；这次尝试继续保持暂停。"});
+  Object.assign(words["zh-Hant"], {retire: "結束這次未派發嘗試", retirementHelp: "僅能結束伺服器確認未派發的嘗試。未知結果與已預留預算保留，不會重跑任務。", retirementReason: "結束這次未派發嘗試的原因", retired: "已結束且不重送 · 原結果仍為 Unknown", retirementBlocked: "缺少原生派發或清理證據；這次嘗試繼續保持暫停。"});
+  Object.assign(words.en, {ledgerPrepare: "Prepare saved reading delivery", ledgerDeliver: "Build the canonical delivery from saved reading", deliveryMissing: "No version-bound reading records are registered yet. A ledger export is separate from the research package.", deliveryReady: "Saved reading records are bound to this checkpoint. Building a package does not approve coverage or research quality.", deliverySaved: "Canonical research package saved · Check coverage before proceeding."});
+  Object.assign(words["zh-Hans"], {ledgerPrepare: "准备已保存阅读交付", ledgerDeliver: "用已保存阅读记录生成正式交付包", deliveryMissing: "尚无此版本绑定的阅读记录。记录导出与研究交付包是不同产物。", deliveryReady: "阅读记录已绑定当前检查点。生成文件不代表覆盖或研究质量通过。", deliverySaved: "已保存正式研究交付包 · 继续前请检查覆盖判断。"});
+  Object.assign(words["zh-Hant"], {ledgerPrepare: "準備已保存閱讀交付", ledgerDeliver: "用已保存閱讀紀錄產生正式交付包", deliveryMissing: "尚無此版本綁定的閱讀紀錄。紀錄匯出與研究交付包是不同產物。", deliveryReady: "閱讀紀錄已綁定目前檢查點。產生檔案不代表覆蓋或研究品質通過。", deliverySaved: "已保存正式研究交付包 · 繼續前請檢查覆蓋判斷。"});
+  Object.assign(words.en, {ledgerRecover: "Continue delivery from committed records", recoveryReady: "The records are saved, but delivery registration is unfinished. Continue from these exact records; no search, reading or model call will run."});
+  Object.assign(words["zh-Hans"], {ledgerRecover: "从已保存记录继续交付", recoveryReady: "记录已保存，但交付注册尚未完成。继续使用这些精确记录，不重新搜索、阅读或调用模型。"});
+  Object.assign(words["zh-Hant"], {ledgerRecover: "從已保存紀錄繼續交付", recoveryReady: "紀錄已保存，但交付註冊尚未完成。繼續使用這些精確紀錄，不重新搜尋、閱讀或呼叫模型。"});
+  Object.assign(words.en, {deliveryHeld: "Saved package is stale or failed source verification. Inspect its status and history before proceeding.", readingRegistrationMissing: "Review and register the reading notes for the saved claims before preparing delivery.", claimReadingNext: "Claim saved. Review and register the paper's reading notes separately before delivery."});
+  Object.assign(words["zh-Hans"], {deliveryHeld: "保存的资料包已过时或未通过来源核查。继续前请检查状态与历史。", readingRegistrationMissing: "准备交付前，请审阅并登记这些已保存主张对应的阅读笔记。", claimReadingNext: "主张已保存。交付前仍需另行审阅并登记这篇论文的阅读笔记。"});
+  Object.assign(words["zh-Hant"], {deliveryHeld: "保存的資料包已過時或未通過來源核查。繼續前請檢查狀態及歷史。", readingRegistrationMissing: "準備交付前，請審閱並登記這些已保存主張對應的閱讀筆記。", claimReadingNext: "主張已保存。交付前仍須另行審閱並登記這篇論文的閱讀筆記。"});
+  const state = { language: "en", project: null, stageContract: null, modelOffers: [], modelStatus: null, stage1: null, stage2: null, busy: false, loading: false, activeJob: false, generation: 0, modelHistory: [], historyNext: null, historyBusy: false, output: null, outputGeneration: 0, readingReview: null, readingGeneration: 0 };
+  Object.assign(words.en, {stage1Actions: "Stage1 operations · scope, search, reading and review"});
+  Object.assign(words["zh-Hans"], {stage1Actions: "Stage1 操作 · 范围、检索、阅读与审阅"});
+  Object.assign(words["zh-Hant"], {stage1Actions: "Stage1 操作 · 範圍、檢索、閱讀與審閱"});
   const storageKey = "harness-project-ui-intents-v1";
   let pending = [];
   try { pending = JSON.parse(sessionStorage.getItem(storageKey) || "[]"); } catch (_) {}
@@ -173,8 +197,23 @@
     }
     return new TextEncoder().encode(value).length <= maximum;
   }
-  function canonical(value) { if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]"; if (value && typeof value === "object") return "{" + Object.keys(value).sort().map((k) => JSON.stringify(k) + ":" + canonical(value[k])).join(",") + "}"; return JSON.stringify(value); }
+  function canonical(value) {
+    // Match Python's Unicode codepoint ordering, including supplementary IDs.
+    // Default JavaScript sorting compares UTF-16 units and changes intent hashes.
+    const compare = (left, right) => {
+      const a = Array.from(left), b = Array.from(right);
+      for (let i = 0; i < Math.min(a.length, b.length); ++i) {
+        const difference = a[i].codePointAt(0) - b[i].codePointAt(0);
+        if (difference) return difference;
+      }
+      return a.length - b.length;
+    };
+    if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
+    if (value && typeof value === "object") return "{" + Object.keys(value).sort(compare).map((k) => JSON.stringify(k) + ":" + canonical(value[k])).join(",") + "}";
+    return JSON.stringify(value);
+  }
   async function requestHash(kind, body) { const semantic = Object.fromEntries(Object.entries(body).filter(([name]) => name !== "revision")); const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical({kind, body: semantic}))); return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""); }
+  async function nativeRequestHash(kind, body) { const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical({kind, body}))); return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""); }
   function availableStage2() { return state.stage2 && !state.stage2.activation && rows(state.stage2, "offers").find((row) => row.status === "ready-for-researcher-activation"); }
   function text(parent, tag, value, className) { const node = document.createElement(tag); node.textContent = String(value === null || value === undefined ? "Unknown" : value); if (className) node.className = className; parent.append(node); return node; }
   function buttons() {
@@ -190,18 +229,150 @@
     for (const id of ["authorize-topic", "authorize-plan"]) $(id).disabled = projectBlocked || !state.modelStatus || state.modelStatus.authorization_available !== true;
     $("authorize-plan").disabled ||= !state.project || !state.project.intake_report || !state.project.intake_report.necessary_clarification_complete;
     $("native-refresh").disabled = state.loading || !state.project;
+    document.querySelectorAll('#stage2-input-entry form button[type="submit"]').forEach(button => {
+      button.disabled = blocked || !state.project || state.activeJob || pending.some(row => row.project_ref === state.project.project_ref);
+    });
+    document.querySelectorAll("button[data-model-retire]").forEach((button) => { button.disabled = blocked || !state.project; });
     $("ledger-init").disabled = projectBlocked || !state.stage1 || !state.stage1.initialization_offer;
     for (const id of ["ledger-checkpoint", "ledger-export"]) $(id).disabled = projectBlocked || !state.stage1 || !state.stage1.ledger;
+    $("ledger-prepare").disabled = projectBlocked || !availableSavedPreparation();
     $("ledger-deliver").disabled = projectBlocked || !availableDelivery();
+    const queries = state.stage1 && state.stage1.query_execution;
+    for (const [id, field] of [["query-authorize", "authorization_offer"], ["query-bootstrap", "bootstrap_offer"], ["query-execute", "query_offer"], ["query-restore-owner", "owner_offer"]]) $(id).disabled = projectBlocked || !queries || !queries[field];
+    if (window.ProjectExpansions) window.ProjectExpansions.render($("expansion-panel"), {value: state.stage1 && state.stage1.expansion_execution, language: state.language, blocked: projectBlocked, onAction: submitExpansion});
+    if (window.ResearchProjectCoverage) window.ResearchProjectCoverage.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked, submit: submitCoverage});
+    if (window.ResearchProjectReading) window.ResearchProjectReading.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
+    if (window.ResearchSavedClaims) window.ResearchSavedClaims.update({project: state.project, stage1: state.stage1, language: state.language, busy: blocked, held: projectBlocked});
+    if (window.ResearchStage1Progress) window.ResearchStage1Progress.render({project: state.project, view: state.stage1 && state.stage1.progress, language: state.language, busy: state.busy, loading: state.loading, held: pending.some(row => state.project && row.project_ref === state.project.project_ref)});
+    if (typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("research-project-selection"));
+    document.querySelectorAll("button[data-reading-draft]").forEach(button => { button.disabled = blocked || !state.project || button.dataset.readingInput !== String(state.project.input_version) || button.dataset.readingBrief !== state.project.brief_sha256; });
+  }
+  async function openReadingDraft(ref, result) {
+    const project = state.project, generation = state.generation, language = state.language;
+    const draftSha = result.reading_draft && result.reading_draft.sha256;
+    if (!window.ResearchProjectReading || state.busy || state.loading || !project || project.project_ref !== ref
+        || result.input_version !== project.input_version || result.brief_sha256 !== project.brief_sha256
+        || !/^[0-9a-f]{64}$/.test(result.output_ref || "") || !/^[0-9a-f]{64}$/.test(draftSha || "")) return;
+    const task = ++state.readingGeneration;
+    const reply = await request(route(ref, "stage1/reading/" + result.output_ref));
+    if (generation !== state.generation || task !== state.readingGeneration || language !== state.language
+        || !state.project || state.project.project_ref !== ref) return;
+    if (reply.output_ref !== result.output_ref || reply.draft_sha256 !== draftSha
+        || !window.ResearchProjectReading.render(reply, submitReadingClaim, submitReadingReview)) throw new Error("reading-draft-binding-differs");
+    state.readingReview = reply;
+  }
+  async function submitReadingClaim(item) {
+    const project = state.project, view = state.readingReview;
+    if (!project || state.busy || state.loading || state.activeJob || !view
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || !state.stage1 || !state.stage1.ledger
+        || item.ledger_state_sha256 !== state.stage1.ledger.state_sha256
+        || item.output_ref !== view.output_ref || item.draft_sha256 !== view.draft_sha256
+        || !rows(view, "offers").some(offer => offer.evidence_index === item.evidence_index && offer.offer_ref === item.offer_ref && offer.offer_sha256 === item.offer_sha256)) return null;
+    const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
+    const result = await mutate("stage1/claim", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, output_ref: item.output_ref, draft_sha256: item.draft_sha256, evidence_index: item.evidence_index, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) {
+      await loadProject(ref);
+      if (result.status === "saved" && state.project && state.project.project_ref === ref
+          && state.project.input_version === version && state.project.brief_sha256 === brief) notice(t("claimReadingNext"));
+    }
+    return result;
+  }
+  async function readSavedClaims(item, sourceRef, offset = 0) {
+    const project = state.project, generation = state.generation, language = state.language;
+    if (!project || state.busy || state.loading || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    const task = state.savedClaimGeneration = (state.savedClaimGeneration || 0) + 1;
+    const tail = "stage1/source-claims/" + encodeURIComponent(item.work_ref)
+      + (sourceRef ? "/" + encodeURIComponent(sourceRef) + "/" + offset : "");
+    const reply = await request(route(project.project_ref, tail));
+    if (generation !== state.generation || task !== state.savedClaimGeneration || reply.work_ref !== item.work_ref
+        || language !== state.language || state.busy || state.loading
+        || state.project !== project || reply.revision !== project.revision
+        || reply.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)) return;
+    state.savedClaimView = reply;
+    window.ResearchSavedClaims.render(reply, (source, next) => guarded(() => readSavedClaims(item, source, next))(), submitSavedClaim,
+      source => guarded(() => readSourceReading(source))());
+    return true;
+  }
+  async function readSourceReading(item) {
+    const project = state.project, generation = state.generation, language = state.language;
+    if (!project || state.busy || state.loading || state.activeJob
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || item.revision !== project.revision
+        || item.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)) return;
+    const task = ++state.readingGeneration;
+    const reply = await request(route(project.project_ref, "stage1/source-reading/" + encodeURIComponent(item.work_ref)));
+    if (generation !== state.generation || task !== state.readingGeneration || state.project !== project
+        || language !== state.language || state.busy || state.loading || reply.work_ref !== item.work_ref) return;
+    if (!window.ResearchProjectReading.renderSource(reply, submitReadingReview)) throw new Error("source-reading-binding-differs");
+    state.readingReview = reply;
+  }
+  async function submitSavedClaim(item) {
+    const view = state.savedClaimView, project = state.project;
+    if (!view || !project || state.busy || state.loading || state.activeJob
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || item.revision !== project.revision
+        || item.ledger_state_sha256 !== (state.stage1 && state.stage1.ledger && state.stage1.ledger.state_sha256)
+        || item.work_ref !== view.work_ref || item.source_ref !== view.selected_source.source_ref
+        || item.offer_sha256 !== view.selected_source.offer_sha256) return null;
+    const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
+    const result = await mutate("stage1/source-claim", Object.assign(identity(), {
+      ledger_state_sha256: item.ledger_state_sha256, work_ref: item.work_ref, source_ref: item.source_ref,
+      offer_sha256: item.offer_sha256, start_byte: item.start_byte, end_byte: item.end_byte,
+      quote: item.quote, review: item.review, confirmed: true
+    }), ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) {
+      await loadProject(ref);
+      if (result.status === "saved" && state.project && state.project.project_ref === ref
+          && state.project.input_version === version && state.project.brief_sha256 === brief) notice(t("claimReadingNext"));
+    }
+    return result;
+  }
+  async function submitReadingReview(item) {
+    const project = state.project, view = state.readingReview, offer = view && view.reading_review_offer;
+    const sourceMode = view && view.source_mode === "saved-source-review";
+    const matches = sourceMode ? item.work_ref === view.work_ref && item.source_snapshot_sha256 === view.source_snapshot_sha256
+      : view && item.output_ref === view.output_ref && item.draft_sha256 === view.draft_sha256;
+    if (!project || state.busy || state.loading || state.activeJob || !offer || item.confirmed !== true
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || !state.stage1 || !state.stage1.ledger
+        || item.ledger_state_sha256 !== state.stage1.ledger.state_sha256
+        || !matches || (sourceMode && item.revision !== project.revision)
+        || item.offer_ref !== offer.offer_ref || item.offer_sha256 !== offer.offer_sha256) return null;
+    const ref = project.project_ref, generation = state.generation, version = project.input_version, brief = project.brief_sha256;
+    const content = sourceMode ? {work_ref: item.work_ref, source_snapshot_sha256: item.source_snapshot_sha256} : {output_ref: item.output_ref, draft_sha256: item.draft_sha256};
+    const result = await mutate("stage1/reading-review", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}, content), ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+    return result;
+  }
+  async function submitCoverage(item) {
+    const project = state.project, view = state.stage1 && state.stage1.coverage_actions;
+    if (!project || state.busy || state.loading || state.activeJob || !view
+        || pending.some(row => row.project_ref === project.project_ref)
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.brief_sha256 !== project.brief_sha256 || item.ledger_state_sha256 !== view.ledger_state_sha256
+        || !state.stage1.ledger || item.ledger_state_sha256 !== state.stage1.ledger.state_sha256
+        || !rows(view, "offers").some(offer => offer.operation === item.operation && offer.offer_ref === item.offer_ref && offer.offer_sha256 === item.offer_sha256)) return null;
+    const ref = project.project_ref;
+    const result = await mutate("stage1/coverage", Object.assign(identity(), {ledger_state_sha256: item.ledger_state_sha256, operation: item.operation, offer_ref: item.offer_ref, offer_sha256: item.offer_sha256, review: item.review, confirmed: true}), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+    return result;
   }
   async function mutate(operation, body, ref) {
     if (state.busy || state.loading) return null;
-    if (pending.some((row) => row.project_ref === (ref || null))) { notice(t("unsent"), true); return null; }
+    if (pending.some((row) => row.project_ref === (ref || null) && !(operation === "models/retire" && row.kind === "model-operation" && row.key === body.job_ref && row.request_sha256 === body.job_request_sha256))) { notice(t("unsent"), true); return null; }
     state.busy = true; buttons(); notice(t("working"));
     const actionKey = key(); body.key = actionKey;
     let sent = false;
     try {
-      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate"}[operation] || operation.replace("stage1/", "stage1-");
+      const kind = {create: "create", confirm: "submit", "models/actions": "model-operation", "models/retire": "model-retirement", "models/authorize": "model-authorization", "stage2/actions": "stage2-activate", "stage1/sources/authorize": "stage1-source-authorize", "stage1/sources/execute": "stage1-source-execute", "stage1/source-claim": "stage1-claim", "stage1/reading-review": "stage1-reading-registry", "stage1/prepare-delivery": "stage1-produce-records"}[operation] || operation.replace("stage1/", "stage1-");
       const request_sha256 = await requestHash(kind, body);
       remember({ key: actionKey, project_ref: ref || null, operation, kind, request_sha256 });
       sent = true;
@@ -210,7 +381,7 @@
       // Its saved/queued admission is not a completed call. Only history's exact,
       // source-bound terminal job can reconcile a model-operation key.
       if (operation !== "models/actions" && !["queued", "running", "execution-unknown", "failed-or-unknown"].includes(result.model_status || result.status)) forget(actionKey);
-      notice(t("saved")); return result;
+      notice(t(operation.startsWith("stage1/query-") ? "querySaved" : "saved")); return result;
     } catch (error) {
       if (!sent) { pending = pending.filter((row) => row.key !== actionKey); }
       const record = pending.find((row) => row.key === actionKey), receipt = error.receipt;
@@ -233,29 +404,159 @@
     $("stage1-state").textContent = state.stage1 && state.stage1.stage1_status || project.stage1_status || "not-started";
     $("stage2-state").textContent = state.stage2 && state.stage2.activation && state.stage2.activation.stage2_status || project.stage2_status || "not-started";
     $("plan-summary").textContent = t(project.plan ? "planReady" : "planMissing");
-    $("model-state").textContent = t(state.modelOffers.some((row) => row.available === true) ? "modelReady" : "modelMissing");
+    $("model-state").textContent = t(state.modelStatus && (state.modelStatus.blocking_unknown_count ?? state.modelStatus.unknown_count) > 0
+      ? "modelHeld" : state.modelOffers.some((row) => row.available === true)
+        ? "modelReady" : state.modelStatus && state.modelStatus.authorization_available === true
+          ? "modelConfigured" : "modelMissing");
     $("stage2-offer").textContent = t(availableStage2() ? "stage2Ready" : "stage2Missing");
     const budgets = project.settings && project.settings.budgets;
     $("authorization-budget").textContent = budgets ? "1 × Codex · ≤ " + Math.min(budgets.seconds, state.modelStatus && state.modelStatus.local_cap_seconds || 600) + " s · " + budgets.model_calls + " " + t("modelCalls") : "Unknown";
     const ledger = state.stage1 && state.stage1.ledger;
     $("ledger-state").textContent = ledger ? ledger.gate.outcome + " · " + ledger.next_allowed_action : state.stage1 && state.stage1.stage1_status || "unconnected";
     const delivered = state.stage1 && state.stage1.delivery && state.stage1.delivery.canonical_package;
-    $("delivery-state").textContent = t(delivered ? "deliverySaved" : availableDelivery() ? "deliveryReady" : "deliveryMissing");
+    $("ledger-prepare").textContent = t(availableRecordsRecovery() ? "ledgerRecover" : "ledgerPrepare");
+    $("delivery-state").textContent = t(delivered ? delivered.status === "saved-evidence-validated" ? "deliverySaved" : "deliveryHeld" : availableDelivery() ? "deliveryReady" : availableRecordsRecovery() ? "recoveryReady" : state.stage1 && state.stage1.reading_registration && state.stage1.reading_registration.status === "missing" ? "readingRegistrationMissing" : "deliveryMissing");
     const artifactArea = $("delivery-artifact"); artifactArea.replaceChildren();
     if (delivered) {
-      text(artifactArea, "p", delivered.status + " · " + delivered.counts.papers + " · " + delivered.artifact_kind);
-      text(artifactArea, "p", "SHA-256: " + delivered.manifest_sha256, "subtle");
+      const count = delivered.counts && delivered.counts.papers;
+      text(artifactArea, "p", (delivered.status || "Unknown") + " · " + (Number.isSafeInteger(count) && count >= 0 ? count : "Unknown") + " · " + (delivered.artifact_kind || "Unknown"));
+      text(artifactArea, "p", "SHA-256: " + (delivered.manifest_sha256 || "Unknown"), "subtle");
     }
+    const atlasEntry = document.createElement("div"); atlasEntry.id = "project-atlas-entry"; artifactArea.append(atlasEntry);
     const queries = $("ledger-queries"); queries.replaceChildren();
     for (const query of state.stage1 && state.stage1.queries || []) { const card = document.createElement("div"); card.className = "history-row"; queries.append(card); text(card, "p", query.query); text(card, "p", query.purpose + " · " + query.status, "subtle"); }
+    renderQueries();
+    renderSources();
+    renderReadingOffers();
     $("create-card").hidden = true; $("project-content").hidden = false;
     $("intake-card").open = !Boolean(project.intake_report && project.intake_report.necessary_clarification_complete);
     buttons();
+    document.dispatchEvent(new CustomEvent("project-atlas-state", {detail: {project, artifact: delivered, language: state.language}}));
+    renderStages();
+  }
+  function renderStages() {
+    if (window.ResearchProjectStages) window.ResearchProjectStages.render({project: state.project, contract: state.stageContract, language: state.language, loading: state.loading});
+  }
+  Object.assign(words.en, {queryCurrentBudget: "Reserved in this input version", queryLifetimeBudget: "Reserved across all input versions", queryArchived: "Saved earlier search versions (history only)", queryVersion: "Input version"});
+  Object.assign(words["zh-Hans"], {queryCurrentBudget: "此输入版本已预留", queryLifetimeBudget: "所有输入版本累计预留", queryArchived: "已保存的旧搜索版本（仅历史）", queryVersion: "输入版本"});
+  Object.assign(words["zh-Hant"], {queryCurrentBudget: "此輸入版本已預留", queryLifetimeBudget: "所有輸入版本累計預留", queryArchived: "已保存的舊搜尋版本（僅歷史）", queryVersion: "輸入版本"});
+  function renderQueries() {
+    const value = state.stage1 && state.stage1.query_execution;
+    $("query-state").textContent = value ? value.status : t("queryUnavailable");
+    const limits = $("query-limits"), history = $("query-observations");
+    limits.replaceChildren(); history.replaceChildren();
+    if (!value) return;
+    const allowed = value.limits || value.authorization_offer && value.authorization_offer.document && value.authorization_offer.document.limits;
+    if (allowed) text(limits, "p", t("queryAttempts") + ": ≤ " + allowed.max_attempts + " · " + t("seconds") + ": ≤ " + allowed.max_reserved_seconds + " · " + t("queryResultLimit") + ": ≤ " + allowed.max_results);
+    if (value.budget) text(limits, "p", t("queryCurrentBudget") + ": " + value.budget.attempts + " " + t("queryAttempts") + " · " + value.budget.seconds + " s · " + t("queryProbes") + ": " + value.budget.probes, "subtle");
+    if (value.lifetime_budget && canonical(value.lifetime_budget) !== canonical(value.budget)) text(limits, "p", t("queryLifetimeBudget") + ": " + value.lifetime_budget.attempts + " " + t("queryAttempts") + " · " + value.lifetime_budget.seconds + " s · " + t("queryProbes") + ": " + value.lifetime_budget.probes, "subtle");
+    text(limits, "p", t("queryNoReading"), "subtle");
+    if (value.refusal || value.query_offer_refusal) text(limits, "p", value.refusal || value.query_offer_refusal, "subtle");
+    const offered = value.query_offer && value.query_offer.document;
+    if (offered) { text(history, "strong", t("queryOffer")); text(history, "p", offered.backend + " · " + (offered.arguments && offered.arguments.query || offered.planned_id)); }
+    const observations = (value.jobs || []).concat(rows(value.query_history, "history"));
+    if (observations.length) text(history, "strong", t("queryHistory"));
+    for (const row of observations) {
+      const card = document.createElement("div"); card.className = "history-row"; history.append(card);
+      text(card, "p", (row.operation || row.action || "runtime") + " · " + (row.status || "Unknown"));
+      if (row.error || row.failure) text(card, "p", typeof row.error === "object" ? row.error.code : row.error || row.failure);
+      const observation = row.result || row.receipt;
+      if (observation) text(card, "p", observation.execution_ref || observation.probe_observation || observation.outcome || "Unknown", "subtle");
+    }
+    if (rows(value, "archived_versions").length) text(history, "strong", t("queryArchived"));
+    for (const version of rows(value, "archived_versions")) {
+      text(history, "p", t("queryVersion") + " " + version.input_version + " · " + version.budget.attempts + " " + t("queryAttempts") + " · " + version.budget.seconds + " s", "subtle");
+      for (const job of rows(version, "jobs")) text(history, "p", job.key + " · " + (job.status || "Unknown"), "subtle");
+    }
   }
   function availableDelivery() {
     const delivery = state.stage1 && state.stage1.delivery;
     if (!delivery || delivery.canonical_package && delivery.canonical_package.status === "saved-evidence-validated") return null;
     return (delivery.offers || []).find((row) => row.status === "ready-for-saved-evidence-delivery") || null;
+  }
+  function availableSavedPreparation() {
+    const stage1 = state.stage1, project = state.project, registration = stage1 && stage1.reading_registration;
+    return Boolean(stage1 && project && stage1.ledger && stage1.checkpoint && stage1.checkpoint.current === true && stage1.saved_records_connected === true
+      && registration && registration.kind === "ProjectStage1ReadingRegistration" && registration.schema_version === "1.0.0"
+      && registration.status === "ready" && registration.grants_execution === false
+      && Array.isArray(registration.missing_works) && registration.missing_works.length === 0
+      && ["project_ref", "revision", "input_version", "brief_sha256"].every(key => registration[key] === project[key])
+      && registration.ledger_state_sha256 === stage1.ledger.state_sha256);
+  }
+  function availableRecordsRecovery() {
+    const saved = state.stage1 && state.stage1.saved_records_recovery;
+    return saved && saved.revision === state.project.revision && (saved.offers || []).find(row => row.status === "ready-for-saved-records-registration") || null;
+  }
+  function renderSources() {
+    const source = state.stage1 && state.stage1.source_execution;
+    if (!source) return;
+    const area = $("query-observations"), lang = state.language;
+    text(area, "strong", {en: "Public source jobs", "zh-Hans": "公开来源任务", "zh-Hant": "公開來源任務"}[lang] || "Public source jobs");
+    text(area, "p", {en: "Acquisition, parsing and reading are separate observations. Refresh reads saved history and never repeats execution.", "zh-Hans": "取得、解析和阅读分别记录。刷新只读取历史，不会重复执行。", "zh-Hant": "取得、解析及閱讀分別記錄。重新整理只讀取歷史，不會重複執行。"}[lang], "subtle");
+    for (const job of Object.values(source.jobs || {})) {
+      const card = text(area, "div", "", "history-row");
+      text(card, "strong", job.work_ref);
+      const labels = {
+        en: ["Acquisition", "Parsing / Harness source registration", "Reading is recorded separately; this source job does not complete Stage 1."],
+        "zh-Hans": ["来源获取", "解析 / Harness 来源登记", "阅读单独记录；此来源任务不代表 Stage 1 已完成。"],
+        "zh-Hant": ["來源取得", "解析 / Harness 來源登記", "閱讀單獨記錄；此來源任務不代表 Stage 1 已完成。"]
+      }[lang] || ["Acquisition", "Parsing / Harness source registration", "Reading is recorded separately; this source job does not complete Stage 1."];
+      text(card, "p", labels[0] + " · " + (job.status || "Unknown"));
+      if (job.failure) text(card, "p", job.failure.code || "Unknown", "subtle");
+      const followup = job.followup;
+      text(card, "p", labels[1] + " · " + (followup && followup.status || "Unknown"));
+      if (followup && followup.failure) {
+        text(card, "p", followup.failure.code || "Unknown", "subtle");
+        if (followup.failure.error_code) text(card, "p", followup.failure.error_code, "subtle");
+        else if (followup.failure.error_type) text(card, "p", followup.failure.error_type, "subtle");
+      }
+      text(card, "p", labels[2], "subtle");
+    }
+    const project = state.project;
+    for (const grant of Object.values(source.grants || {})) {
+      if (!project || grant.status !== "authorized" || grant.input_version !== project.input_version
+          || grant.brief_sha256 !== project.brief_sha256 || grant.expires_at * 1000 <= Date.now()
+          || Object.values(source.jobs || {}).some(job => job.grant_ref === grant.grant_ref)) continue;
+      const card = text(area, "div", "", "history-row");
+      text(card, "p", grant.work_ref + " · " + {en: "Permission saved; not executed", "zh-Hans": "许可已保存，尚未执行", "zh-Hant": "許可已保存，尚未執行"}[lang]);
+      const button = text(card, "button", {en: "Execute this saved source permission", "zh-Hans": "执行此保存的来源许可", "zh-Hant": "執行此已保存的來源許可"}[lang]);
+      button.type = "button";
+      button.onclick = guarded(() => executeSourceGrant(grant, project.project_ref, project.input_version, project.brief_sha256));
+    }
+  }
+  async function executeSourceGrant(grant, ref, version, brief) {
+    if (state.busy || state.loading || !grant.grant_ref || !grant.grant_sha256) return;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== version
+        || state.project.brief_sha256 !== brief) return;
+    const result = await mutate("stage1/sources/execute", Object.assign(identity(), {
+      grant_ref: grant.grant_ref, grant_sha256: grant.grant_sha256, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }
+  function renderReadingOffers() {
+    const project = state.project, lang = state.language;
+    if (!project) return;
+    for (const offer of state.modelOffers) {
+      if (offer.operation !== "read-paper" || offer.available !== true || offer.input_version !== project.input_version
+          || offer.brief_sha256 !== project.brief_sha256) continue;
+      const card = text($("query-observations"), "div", "", "history-row");
+      text(card, "p", offer.work_ref + " · " + {en: "Reading permission saved; not executed", "zh-Hans": "阅读许可已保存，尚未执行", "zh-Hant": "閱讀許可已保存，尚未執行"}[lang]);
+      const button = text(card, "button", {en: "Execute this saved reading permission", "zh-Hans": "执行此保存的阅读许可", "zh-Hant": "執行此已保存的閱讀許可"}[lang]);
+      button.type = "button";
+      button.onclick = guarded(() => executeReadingOffer(offer, project.project_ref, project.input_version, project.brief_sha256));
+    }
+  }
+  async function executeReadingOffer(offer, ref, version, brief) {
+    if (state.busy || state.loading) return;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== version
+        || state.project.brief_sha256 !== brief || !state.modelOffers.some(row => row.offer_ref === offer.offer_ref
+          && row.offer_sha256 === offer.offer_sha256 && row.available === true)) return;
+    const result = await mutate("models/actions", Object.assign(identity(), {
+      offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
   }
   async function refreshList() {
     const value = await request(route());
@@ -265,6 +566,7 @@
     for (const project of projects) {
       const button = text(list, "button", project.topic || project.original_description || project.project_ref);
       button.type = "button";
+      button.dataset.projectRef = project.project_ref;
       button.setAttribute("aria-current", String(Boolean(state.project && state.project.project_ref === project.project_ref)));
       button.onclick = () => loadProject(project.project_ref).catch((error) => notice(error.message, true));
     }
@@ -272,12 +574,16 @@
   async function loadProject(ref) {
     const generation = ++state.generation;
     document.dispatchEvent(new Event("project-screening-clear"));
+    state.project = null; state.stageContract = null;
+    $("project-content").hidden = true; $("create-card").hidden = true;
+    state.readingReview = null; ++state.readingGeneration;
     state.modelHistory = []; state.historyNext = null; state.output = null;
     $("output-reader").hidden = true; $("history-more").hidden = true;
     state.loading = true; state.activeJob = false; state.modelOffers = []; state.modelStatus = null; state.stage1 = null; state.stage2 = null; buttons();
     try {
       const snapshot = await request(route(ref, "overview")), project = snapshot.project;
       if (generation !== state.generation) return;
+      if (!project || project.project_ref !== ref) throw new Error("project-overview-binding-differs");
       state.project = project;
       $("confirm-form").reset(); $("revised-topic").value = project.brief ? project.brief.original_description : "";
       const settings = project.settings;
@@ -286,11 +592,19 @@
         for (const [name, id] of Object.entries(budgetIds)) $(id).value = settings.budgets[name];
         $("search-consent").checked = settings.consent.external_search; $("read-consent").checked = settings.consent.public_source_read;
       }
-      renderProject();
       state.modelOffers = rows(snapshot.model_offers, "offers"); state.stage2 = snapshot.stage2;
       state.modelStatus = snapshot.models; state.stage1 = snapshot.stage1;
-      renderProject(); await refreshList(); await history(); await native();
-    } finally { if (generation === state.generation) { state.loading = false; buttons(); } }
+      renderProject();
+      try {
+        const contract = await request(route(ref, "contract"));
+        if (generation !== state.generation || state.project !== project) return;
+        const same = value => value && ["project_ref", "input_version", "revision", "brief_sha256"].every(key => value[key] === project[key]);
+        state.stageContract = same(contract.identity) && contract.stages && [1, 2, 3, 4, 5, 6].every(number => same(contract.stages[String(number)]?.input)) ? contract : null;
+      } catch (_) { if (generation === state.generation && state.project === project) state.stageContract = null; }
+      if (generation !== state.generation || state.project !== project) return;
+      renderStages(); await refreshList(); await history(); await native();
+      if (generation === state.generation && state.project === project) return {generation, project, stage1: snapshot.stage1};
+    } finally { if (generation === state.generation) { state.loading = false; buttons(); renderStages(); } }
   }
   function identity() {
     const project = state.project;
@@ -300,7 +614,7 @@
     for (const row of rowsToCheck) {
       const record = pending.find((item) => item.key === row.key);
       const safeTerminal = row.kind === "model-operation"
-        ? row.operation ? ["content-review-pending", "plan-validated-not-executed", "validation-failed"].includes(row.status) : row.status === "known-unsent"
+        ? row.operation ? ["content-review-pending", "plan-validated-not-executed", "validation-failed"].includes(row.status) || Boolean(row.retirement && row.retirement.status === "retired-no-resend" && row.retirement.job_request_sha256 === row.request_sha256 && row.retirement.evidence && row.retirement.evidence.basis === "never-admitted-no-runtime") : row.status === "known-unsent"
         : ["saved", "failed", "known-unsent"].includes(row.status);
       if (record && safeTerminal && row.kind === record.kind && row.project_ref === record.project_ref && row.request_sha256 === record.request_sha256) forget(row.key);
     }
@@ -342,15 +656,37 @@
       if (!existing || row.operation || !existing.operation) unique.set(row.key, row);
     }
     all = Array.from(unique.values());
-    state.activeJob = Boolean(bootstrap.models && !state.modelStatus) || Boolean(state.modelStatus && (rows(state.modelStatus, "active_jobs").length || state.modelStatus.unknown_count));
+    state.activeJob = Boolean(bootstrap.models && !state.modelStatus) || Boolean(state.modelStatus && (rows(state.modelStatus, "active_jobs").length || (state.modelStatus.blocking_unknown_count ?? state.modelStatus.unknown_count)));
     for (const row of all) {
       const card = document.createElement("div"); card.className = "history-row"; list.append(card);
       text(card, "strong", (row.operation || row.kind || row.action || "action") + " · " + (row.status || "Unknown"));
       if (row.error || row.failure) text(card, "p", row.error || row.failure);
+      if (row.retirement && row.retirement.status === "retired-no-resend") text(card, "p", t("retired"), "subtle");
+      else if (row.retirement_offer) {
+        const offer = row.retirement_offer;
+        text(card, "p", t(offer.available ? "retirementHelp" : "retirementBlocked"), "subtle");
+        if (offer.available) {
+          const label = text(card, "label", t("retirementReason"));
+          const input = document.createElement("input"); label.append(input); input.maxLength = 4096;
+          const button = text(card, "button", t("retire")); button.type = "button";
+          button.dataset.modelRetire = offer.job_ref;
+          button.disabled = state.busy || state.loading;
+          button.onclick = guarded(async () => {
+            if (!state.project || state.project.project_ref !== ref || !input.value.trim() || !bounded(input.value, 4096)) return;
+            const result = await mutate("models/retire", Object.assign(identity(), {job_ref: offer.job_ref, job_request_sha256: offer.job_request_sha256, job_snapshot_sha256: offer.job_snapshot_sha256, confirmed: true, user_input: input.value}), ref);
+            if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+          });
+        }
+      }
       const result = row.result || row;
       if (result.output_preview || result.output || result.final_text || result.proposal_text || result.text) text(card, "pre", result.output_preview || result.output || result.final_text || result.proposal_text || result.text);
       if (result.output_truncated) text(card, "p", t("preview"), "subtle");
       if (result.output_ref && result.output_sha256) { const button = text(card, "button", t("viewOutput")); button.type = "button"; button.onclick = guarded(() => readOutput(ref, result.output_ref, 0, result.output_sha256)); }
+      if (window.ResearchProjectReading && result.reading_draft && /^[0-9a-f]{64}$/.test(result.reading_draft.sha256 || "") && /^[0-9a-f]{64}$/.test(result.output_ref || "")) {
+        const button = text(card, "button", window.ResearchProjectReading.text("open")); button.type = "button";
+        button.dataset.readingDraft = result.output_ref; button.dataset.readingInput = String(result.input_version); button.dataset.readingBrief = result.brief_sha256;
+        button.onclick = guarded(() => openReadingDraft(ref, result));
+      }
       if (result.plan || result.plan_manifest_sha256) text(card, "p", t("planReady"));
       if (result.import_status || result.workflow_status) text(card, "p", result.import_status || result.workflow_status);
       const details = document.createElement("details"); card.append(details); text(details, "summary", t("sourceDetails"));
@@ -395,6 +731,14 @@
   try { nativePending = JSON.parse(sessionStorage.getItem(nativeStorage) || "[]"); } catch (_) {}
   if (!Array.isArray(nativePending)) nativePending = [];
   nativePending = nativePending.filter((row) => row && typeof row.key === "string" && typeof row.project_ref === "string" && typeof row.target === "string");
+  function nativeObservationMatches(record, action) {
+    return action && action.kind === "ProjectNativeActionObservation.v1" && action.key === record.key && action.project_ref === record.project_ref && action.target_ref === record.target && action.operation === record.operation && /^[0-9a-f]{64}$/.test(record.request_sha256) && action.request_sha256 === record.request_sha256 && ["known-unsent", "result-observed"].includes(action.status);
+  }
+  function reconcileNative(actions) {
+    if (!Array.isArray(actions)) return;
+    nativePending = nativePending.filter((record) => !actions.some((action) => nativeObservationMatches(record, action)));
+    try { sessionStorage.setItem(nativeStorage, JSON.stringify(nativePending)); } catch (_) {}
+  }
   async function native() {
     const ref = state.project && state.project.project_ref, generation = state.generation;
     if (!ref) return;
@@ -402,14 +746,11 @@
     try { observed = await request(route(ref, "models/native")); } catch (_) { observed = null; }
     if (generation !== state.generation || !state.project || state.project.project_ref !== ref) return;
     const area = $("native-questions"); area.replaceChildren();
+    // Only bound durable broker observations reconcile an intent. A provider's
+    // client_key, HTTP error or queued/unknown outcome alone cannot release it.
+    reconcileNative(observed && observed.native_actions);
     const view = observed && observed.native_view;
     if (!view || !Array.isArray(view.requests) || !Array.isArray(view.operations) || !Array.isArray(view.actions)) { text(area, "p", t("nativeEmpty")); return; }
-    for (const action of view.actions) {
-      if (action.client_key && !["execution-unknown", "intent-recorded"].includes(action.status)) {
-        nativePending = nativePending.filter((row) => !(row.project_ref === ref && row.key === action.client_key));
-      }
-    }
-    try { sessionStorage.setItem(nativeStorage, JSON.stringify(nativePending)); } catch (_) {}
     const held = (target) => nativePending.some((row) => row.project_ref === ref && row.target === target);
     for (const question of view.requests.filter((row) => row.status === "pending")) {
       const card = document.createElement("form"); card.className = "history-row"; area.append(card);
@@ -444,7 +785,9 @@
     if (kind === "answer") Object.assign(body, {request_ref: target.request_ref, request_sha256: target.request_sha256, result});
     else Object.assign(body, {action_ref: target.action_ref, action_sha256: target.action_sha256});
     if (!bounded(JSON.stringify(body), 32768)) { notice(t("tooLarge"), true); return; }
-    const record = {key: actionKey, project_ref: ref, target: targetRef};
+    const generation = state.generation, request_sha256 = await nativeRequestHash(kind, body);
+    if (generation !== state.generation || !state.project || state.project.project_ref !== ref || state.loading || nativePending.some((row) => row.project_ref === ref && row.target === targetRef)) return;
+    const record = {key: actionKey, project_ref: ref, target: targetRef, operation: kind, request_sha256};
     sessionStorage.setItem(nativeStorage, JSON.stringify([...nativePending, record])); nativePending.push(record);
     try { await request(route(ref, "models/native/" + kind), body); }
     catch (error) { notice(t("responseLost") + " (" + error.message + ")", true); }
@@ -454,6 +797,7 @@
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-text]").forEach((node) => { node.textContent = t(node.dataset.text); });
     renderProject();
+    if (!state.project) renderStages();
     const list = $("view-list"); list.replaceChildren();
     if (!bootstrap.views.length) text(list, "p", t("none"), "subtle");
     for (const view of bootstrap.views) {
@@ -463,8 +807,8 @@
     }
     buttons();
   }
-  $("language").onchange = () => { state.language = $("language").value; translate(); };
-  $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.project = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); $("topic").focus(); };
+  $("language").onchange = guarded(async () => { state.language = $("language").value; translate(); if (state.project) await Promise.all([history(), native()]); });
+  $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.project = null; state.stageContract = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); renderStages(); $("topic").focus(); };
   $("create-form").onsubmit = async (event) => {
     event.preventDefault();
     const generation = state.generation;
@@ -530,6 +874,81 @@
   }
   $("authorize-topic").onclick = guarded(() => authorize("suggest-topic"));
   $("authorize-plan").onclick = guarded(() => authorize("plan-search"));
+  document.addEventListener("project-review-stage2-input", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || state.busy || state.activeJob || !item
+        || item.project_ref !== project.project_ref || item.input_version !== project.input_version
+        || item.revision !== project.revision || item.brief_sha256 !== project.brief_sha256
+        || !["request-stage2", "keep-stage1", "hold"].includes(item.decision)
+        || !bounded(item.user_input, 4096) || !item.user_input.trim()) return;
+    const artifact = state.stage1 && state.stage1.delivery && state.stage1.delivery.canonical_package;
+    if (!artifact || artifact.status !== "saved-evidence-validated"
+        || artifact.artifact_ref !== item.artifact_ref || artifact.manifest_sha256 !== item.manifest_sha256) return;
+    const ref = project.project_ref;
+    const result = await mutate("stage1/review-stage2-input", Object.assign(identity(), {
+      artifact_ref: item.artifact_ref, manifest_sha256: item.manifest_sha256,
+      context_sha256: item.context_sha256, decision: item.decision,
+      user_input: item.user_input, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }));
+  document.addEventListener("project-screen-paper", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || state.busy || !item || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    if (!["include", "exclude", "pending"].includes(item.decision) || !item.rationale.trim() || !bounded(item.rationale, 4096)) {
+      notice(t("missingChoice"), true); return;
+    }
+    const ref = project.project_ref;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== item.input_version
+        || state.project.brief_sha256 !== item.brief_sha256 || !state.stage1 || !state.stage1.ledger) return;
+    if (state.stage1.ledger.state_sha256 !== item.ledger_state_sha256) { notice(t("recovered"), true); return; }
+    const result = await mutate("stage1/screen", Object.assign(identity(), {
+      ledger_state_sha256: item.ledger_state_sha256, work_ref: item.work_ref,
+      decision: item.decision, rationale: item.rationale, confirmed: true
+    }), ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }));
+  document.addEventListener("project-acquire-paper", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || state.busy || !item || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    const ref = project.project_ref;
+    await loadProject(ref);
+    if (!state.project || state.project.project_ref !== ref || state.project.input_version !== item.input_version
+        || state.project.brief_sha256 !== item.brief_sha256) return;
+    const offer = await request(route(ref, "stage1/sources/works/" + encodeURIComponent(item.work_ref)));
+    if (!offer || offer.runner_connected !== true || !offer.offer_ref || !offer.offer_sha256) return;
+    const permission = await mutate("stage1/sources/authorize", Object.assign(identity(), {
+      work_ref: item.work_ref, offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true
+    }), ref);
+    if (!permission) return;
+    const grant = permission.result || permission;
+    await executeSourceGrant(grant, ref, item.input_version, item.brief_sha256);
+  }));
+  document.addEventListener("project-review-source", guarded(event => readSavedClaims(event.detail)));
+  document.addEventListener("project-close-source-review", () => { state.savedClaimGeneration = (state.savedClaimGeneration || 0) + 1; state.savedClaimView = null; });
+  document.addEventListener("project-read-paper", guarded(async event => {
+    const item = event.detail, project = state.project;
+    if (!project || state.loading || !item || item.project_ref !== project.project_ref
+        || item.input_version !== project.input_version || item.brief_sha256 !== project.brief_sha256) return;
+    const input = $("model-consent").value;
+    if (!input.trim() || !bounded(input, 4096)) { notice(t("missingChoice"), true); $("model-consent").focus(); return; }
+    const ref = project.project_ref;
+    const permission = await mutate("models/authorize", Object.assign(identity(), {
+      operation: "read-paper", work_ref: item.work_ref, snapshot_sha256: item.snapshot_sha256,
+      user_input: input, confirmed: true
+    }), ref);
+    if (!permission || !state.project || state.project.project_ref !== ref) return;
+    await loadProject(ref);
+    const granted = permission.result || permission;
+    const offer = state.modelOffers.find(row => row.offer_ref === granted.offer_ref && row.offer_sha256 === granted.offer_sha256
+      && row.operation === "read-paper" && row.work_ref === item.work_ref
+      && row.snapshot_sha256 === item.snapshot_sha256 && row.available === true);
+    if (!offer) return;
+    await executeReadingOffer(offer, ref, item.input_version, item.brief_sha256);
+  }));
   $("native-refresh").onclick = guarded(() => native());
   async function ledger(operation) {
     if (!state.project || !state.stage1 || state.loading) return;
@@ -537,13 +956,69 @@
     if (operation === "initialize") { const offer = state.stage1.initialization_offer; if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
     else { if (!state.stage1.ledger) return; body.ledger_state_sha256 = state.stage1.ledger.state_sha256; }
     if (operation === "deliver") { const offer = availableDelivery(); if (!offer) return; Object.assign(body, {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256}); }
-    const ref = state.project.project_ref, result = await mutate("stage1/" + operation, body, ref);
-    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+    if (operation === "prepare-delivery") {
+      if (!availableSavedPreparation()) return;
+      const saved = availableRecordsRecovery();
+      body.checkpoint_event_id = state.stage1.checkpoint.event_id;
+      if (saved) {
+        operation = "recover-delivery";
+        Object.assign(body, {producer_key: saved.producer_key, producer_request_sha256: saved.producer_request_sha256, records_sha256: saved.records_sha256, checkpoint_event_id: saved.checkpoint_event_id});
+      }
+    }
+    const ref = state.project.project_ref, generation = state.generation, version = state.project.input_version, brief = state.project.brief_sha256;
+    const result = await mutate("stage1/" + operation, body, ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref
+        && state.project.input_version === version && state.project.brief_sha256 === brief) {
+      const saved = await loadProject(ref), artifact = saved && saved.stage1 && saved.stage1.delivery && saved.stage1.delivery.canonical_package;
+      if (operation !== "deliver" || result.status !== "saved" || result.delivery_status !== "saved-evidence-validated"
+          || !saved || saved.generation !== state.generation || saved.project !== state.project
+          || saved.project.project_ref !== ref || saved.project.input_version !== version || saved.project.brief_sha256 !== brief
+          || !artifact || artifact.status !== "saved-evidence-validated" || artifact.artifact_ref !== result.artifact_ref
+          || !/^[A-Za-z0-9_-]{1,128}$/.test(artifact.artifact_ref || "") || !/^[0-9a-f]{64}$/.test(artifact.manifest_sha256 || "")
+          || artifact.manifest_sha256 !== result.manifest_sha256 || !artifact.binding || artifact.binding.project_id !== saved.project.project_id
+          || artifact.binding.input_version !== version || artifact.binding.brief_sha256 !== brief
+          || !window.ResearchProjectStages || window.ResearchProjectStages.activeStage() !== 1) return;
+      const target = $("project-stage-1-results");
+      if (target && !target.hidden) {
+        if (document.body.classList.contains("project-embedded")) document.dispatchEvent(new CustomEvent("research-project-navigate", {detail: {target: target.id}}));
+        else target.scrollIntoView({block: "start", behavior: "smooth"});
+      }
+    }
   }
   $("ledger-init").onclick = guarded(() => ledger("initialize"));
   $("ledger-checkpoint").onclick = guarded(() => ledger("checkpoint"));
   $("ledger-export").onclick = guarded(() => ledger("export"));
+  $("ledger-prepare").onclick = guarded(() => ledger("prepare-delivery"));
   $("ledger-deliver").onclick = guarded(() => ledger("deliver"));
+  async function queryAction(operation, field) {
+    if (!state.project || state.loading || !state.stage1) return;
+    const view = state.stage1.query_execution, offer = view && view[field];
+    if (!offer) return;
+    const body = Object.assign(identity(), {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true});
+    if (operation === "authorize") {
+      const value = $("query-consent").value;
+      if (!value.trim() || !bounded(value, 4096)) { notice(t("missingChoice"), true); return; }
+      body.user_input = value;
+    }
+    const ref = state.project.project_ref, result = await mutate("stage1/query-" + operation, body, ref);
+    if (result && state.project && state.project.project_ref === ref) await loadProject(ref);
+  }
+  $("query-authorize").onclick = guarded(() => queryAction("authorize", "authorization_offer"));
+  $("query-bootstrap").onclick = guarded(() => queryAction("bootstrap", "bootstrap_offer"));
+  $("query-execute").onclick = guarded(() => queryAction("execute", "query_offer"));
+  $("query-restore-owner").onclick = guarded(() => queryAction("restore-owner", "owner_offer"));
+  async function submitExpansion(action, offer) {
+    const project = state.project, value = state.stage1 && state.stage1.expansion_execution;
+    if (!project || state.loading || !value || !["expansion-authorize", "expansion-execute"].includes(action)) return;
+    const field = action === "expansion-authorize" ? "authorization_offers" : "execution_offers";
+    if (!(value[field] || []).some(row => row.offer_ref === offer.offer_ref && row.offer_sha256 === offer.offer_sha256)) return;
+    const body = Object.assign(identity(), {offer_ref: offer.offer_ref, offer_sha256: offer.offer_sha256, confirmed: true});
+    if (action === "expansion-authorize") body.user_input = $("query-consent").value.trim() || {en: "I authorize this one exact citation attempt using the existing budget.", "zh-Hans": "我明确授权这一次精确绑定的引文追踪，使用已有预算。", "zh-Hant": "我明確授權這一次精確綁定的引文追蹤，使用既有預算。"}[state.language];
+    if (body.user_input && !bounded(body.user_input, 4096)) { notice(t("missingChoice"), true); return; }
+    const generation = state.generation, ref = project.project_ref, version = project.input_version, brief = project.brief_sha256;
+    const result = await mutate("stage1/" + action, body, ref);
+    if (result && generation === state.generation && state.project && state.project.project_ref === ref && state.project.input_version === version && state.project.brief_sha256 === brief) await loadProject(ref);
+  }
   $("activate-stage2").onclick = guarded(async () => {
     const offer = availableStage2(); if (!offer) return;
     const ref = state.project.project_ref;
@@ -555,6 +1030,34 @@
   $("history-more").onclick = guarded(() => state.historyNext !== null && history(true));
   $("output-next").onclick = guarded(() => state.output && state.output.next !== null && readOutput(state.output.ref, state.output.outputRef, state.output.next));
   $("recover-intents").onclick = guarded(async () => { await recover(); if (state.project) await loadProject(state.project.project_ref); notice(t("recovered")); });
+  function portalSelection() {
+    const project = state.project;
+    return !project || state.loading ? null : {
+      project_ref: project.project_ref, input_version: project.input_version,
+      revision: project.revision, brief_sha256: project.brief_sha256,
+      topic: project.brief ? project.brief.original_description : project.original_description || project.topic || ""
+    };
+  }
+  // Presentation navigation only. Credentials, permits and action keys remain
+  // private to this existing broker; these methods never authorize execution.
+  window.ResearchProjectPortal = Object.freeze({
+    selection: portalSelection,
+    showStage: number => Boolean(window.ResearchProjectStages && window.ResearchProjectStages.showStage(number)),
+    activeStage: () => window.ResearchProjectStages ? window.ResearchProjectStages.activeStage() : 1,
+    listProjects: async () => rows(await request(route()), "projects").map(project => ({
+      project_ref: project.project_ref, topic: project.topic || project.original_description || project.project_ref,
+      input_version: project.input_version
+    })),
+    selectProject: async ref => {
+      if (state.busy || state.loading || typeof ref !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) return false;
+      await loadProject(ref); return Boolean(state.project && state.project.project_ref === ref && !state.loading);
+    },
+    beginTopic: topic => {
+      if (state.busy || state.loading || $("new-project").disabled || !bounded(topic, 4096) || !topic.trim()) return false;
+      $("new-project").click(); $("topic").value = topic;
+      window.dispatchEvent(new Event("research-project-selection")); return true;
+    }
+  });
   translate();
   recover().catch((error) => notice(error.message, true));
   if (pending.length) notice(t("responseLost"), true);
