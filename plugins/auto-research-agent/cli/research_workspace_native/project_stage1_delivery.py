@@ -80,11 +80,31 @@ def _checkpoint(ledger, report):
     return checkpoint, ref, handoff
 
 
-def _records_match(records, ledger, root, *, check_core_archives=True):
+def _screening_library(context, records=None):
+    if records is not None and records["schema_version"] != "1.2.0":
+        return None
+    from .project_stage1_library import _project
+
+    _, state, binding, run, ledger, report, *_ = context
+    return _project(state["project_ref"], binding, run, ledger, report)
+
+
+def _records_match(
+    records, ledger, root, *, check_core_archives=True, screening_library=None
+):
     """Enrichment must refer to saved observations, never invent their history."""
     validate_records(records)
+    from stage1_deliverable.core_records import extended
+
+    discovery_records = records["schema_version"] == "1.2.0"
+    if discovery_records:
+        _check(
+            screening_library is not None
+            and records["screening_library"] == screening_library,
+            "stage1-screening-library-binding-differs",
+        )
     _check(
-        records["schema_version"] in {"1.0.0", "1.1.0"},
+        records["schema_version"] in {"1.0.0", "1.1.0", "1.2.0"},
         "stage1-records-format-consumer-unconnected",
     )
     _check(
@@ -117,11 +137,16 @@ def _records_match(records, ledger, root, *, check_core_archives=True):
         candidate = candidates[work]
         review = reviews.get(work)
         latest_decision = next(
-            row for row in reversed(decisions) if row["subject_id"] == work
+            (row for row in reversed(decisions) if row["subject_id"] == work), None
+        )
+        _check(
+            discovery_records or latest_decision is not None,
+            "saved-current-decision-required",
         )
         if review is not None:
             _check(
-                review["candidate_event_id"] == candidate["event_id"]
+                latest_decision is not None
+                and review["candidate_event_id"] == candidate["event_id"]
                 and review["decision_event_id"] == latest_decision["event_id"],
                 "stage1-records-review-stale",
             )
@@ -143,6 +168,17 @@ def _records_match(records, ledger, root, *, check_core_archives=True):
             and paper["year"] == record["year"],
             "stage1-records-work-version-differs",
         )
+        if discovery_records and paper["reading_status"] == "discovery-only":
+            _check(
+                review is None
+                and not any(
+                    row["kind"] in {"SourceReadStarted", "ClaimEvidence"}
+                    and row["work_id"] == work
+                    and row["version_id"] == selected
+                    for row in events.values()
+                ),
+                "stage1-discovery-only-hides-observed-evidence",
+            )
     source_receipts = {}
     for source in records["sources"]:
         event = events.get(source["source_id"])
@@ -228,7 +264,7 @@ def _records_match(records, ledger, root, *, check_core_archives=True):
     )
     for claim in records["claims"]:
         event = events.get(claim["claim_id"])
-        if records["schema_version"] == "1.1.0":
+        if extended(records):
             journal = next(
                 row
                 for row in ledger.events()
@@ -285,7 +321,7 @@ def _records_match(records, ledger, root, *, check_core_archives=True):
             text[claim["start"] : claim["end"]] == claim["quote"],
             "stage1-claim-span-differs",
         )
-    if records["schema_version"] == "1.1.0":
+    if extended(records):
         from stage1_deliverable.core_records import read_artifacts
 
         history = [
@@ -294,6 +330,10 @@ def _records_match(records, ledger, root, *, check_core_archives=True):
         _check(records["core_claim_history"] == history, "stage1-claim-history-differs")
         if check_core_archives:
             read_artifacts(records, root)
+    if discovery_records and check_core_archives:
+        from stage1_deliverable.screening_records import read_artifacts
+
+        read_artifacts(records, root)
 
 
 def _source_attempt(receipt):
@@ -416,7 +456,12 @@ class ProjectStage1DeliveryService:
         records = decode(
             _raw(offer["records_path"], offer["records_sha256"]), "stage1 records"
         )
-        _records_match(records, ledger, Path(offer["records_path"]).parent)
+        _records_match(
+            records,
+            ledger,
+            Path(offer["records_path"]).parent,
+            screening_library=_screening_library(context, records),
+        )
         _check(
             not any(row["stop_decision"] == "stop" for row in records["coverage"])
             or checkpoint["stage_result"]["next_allowed_action"] == "stop-sufficient",
@@ -432,6 +477,7 @@ class ProjectStage1DeliveryService:
         expected_records_sha256,
         expected_ledger_state_sha256,
         check_deadline=None,
+        action_body=None,
     ):
         """Trusted local producer registration, without search/import authority."""
         _check(
@@ -449,7 +495,12 @@ class ProjectStage1DeliveryService:
             )
             path = Path(records_path).absolute()
             records = decode(_raw(path, expected_records_sha256), "stage1 records")
-            _records_match(records, ledger, path.parent)
+            _records_match(
+                records,
+                ledger,
+                path.parent,
+                screening_library=_screening_library(context, records),
+            )
             _check(
                 not any(row["stop_decision"] == "stop" for row in records["coverage"])
                 or checkpoint["stage_result"]["next_allowed_action"]
@@ -480,6 +531,22 @@ class ProjectStage1DeliveryService:
                 brief_sha256=binding["brief_sha256"],
                 offer_sha256=digest,
             )
+            kind = "stage1-register-delivery"
+            if action_body is not None:
+                from .project_records_recovery import FIELDS, KIND
+
+                _check(
+                    type(action_body) is dict
+                    and set(action_body) == FIELDS
+                    and action_body["confirmed"] is True
+                    and action_body["input_version"] == binding["input_version"]
+                    and action_body["brief_sha256"] == binding["brief_sha256"]
+                    and action_body["ledger_state_sha256"] == report["state_sha256"]
+                    and action_body["checkpoint_event_id"] == checkpoint["event_id"]
+                    and action_body["records_sha256"] == expected_records_sha256,
+                    "stage1-delivery-recovery-binding-differs",
+                )
+                body, kind = deepcopy(action_body), KIND
 
             def work(current, _, __):
                 saved = current.setdefault("stage1_delivery_offers", {})
@@ -490,7 +557,7 @@ class ProjectStage1DeliveryService:
             result = self.intake._perform(
                 principal,
                 project_ref,
-                "stage1-register-delivery",
+                kind,
                 body,
                 work,
                 check_deadline=check_deadline,
@@ -498,7 +565,7 @@ class ProjectStage1DeliveryService:
             _check(
                 result["status"] == "saved", "stage1-delivery-registration-unobserved"
             )
-            return deepcopy(result["offer"])
+            return deepcopy(result if action_body is not None else result["offer"])
 
     def _saved_artifact(self, principal, state, artifact, context):
         """Bind mutable display state to the durable successful action event.

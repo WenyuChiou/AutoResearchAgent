@@ -131,6 +131,46 @@ def project_view(
         )
         # Content planning is not a Stage1 search/read/delivery executor.
         first["attempts"] = deepcopy(model.get("jobs", []))
+    queries = getattr(stage1, "query_service", None)
+    if queries is not None:
+        query = queries.read(credential, ref)
+        first["search_execution"] = deepcopy(query)
+        first["connected"] = True
+        first["execution_authorized"] = query["execution_authorized"]
+        first["intake"]["research_execution"] = "explicit-planned-query-only"
+        first["attempts"].extend(deepcopy(query["jobs"]))
+        history = (query.get("query_history") or {}).get("history", [])
+        first["attempts"].extend(deepcopy(history))
+        budget = query.get("budget")
+        if budget is not None:
+            for name, unit, field in (
+                ("search_attempts_reserved", "reservations", "attempts"),
+                ("runtime_probes_reserved", "reservations", "probes"),
+                ("search_seconds_reserved", "seconds", "seconds"),
+            ):
+                first["metrics"][name] = measurement(
+                    unit,
+                    value=budget[field],
+                    status="recorded",
+                    evidence=[query.get("permit_sha256")],
+                )
+        observed = [
+            row
+            for row in history
+            if row["status"] == "completed"
+            and (row.get("result") or {}).get("execution_ref")
+        ]
+        if observed:
+            # Count only saved runner receipts. Unknown attempts remain separate;
+            # a backend attempt is not its provider's HTTP request or cost count.
+            first["metrics"]["actual_search_calls"] = measurement(
+                "backend-attempts",
+                value=len(observed),
+                status="partial"
+                if any(row["status"] != "completed" for row in history)
+                else "recorded",
+                evidence=[row["result"]["execution_ref"] for row in observed],
+            )
     if second is not None:
         activation = second.get("activation")
         stages["2"]["source_activation"] = deepcopy(activation)

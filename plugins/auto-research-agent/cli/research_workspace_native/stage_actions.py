@@ -68,7 +68,9 @@ def _summary(row):
 
 
 class StageActions:
-    def __init__(self, store_path, *, registrations, authenticate):
+    def __init__(
+        self, store_path, *, registrations, authenticate, planned_queries=None
+    ):
         _check(callable(authenticate), "identity-check-required", 400)
         _check(
             isinstance(registrations, dict) and 1 <= len(registrations) <= 16,
@@ -158,6 +160,11 @@ class StageActions:
             }
             binding.update(project_ref=ref, output_root=root.as_posix())
             prepared.append((ref, item, root, binding))
+        self.planned_queries = None
+        if planned_queries is not None:
+            from .query_http import bind_query_registration
+
+            bind_query_registration(planned_queries, registrations)
         database = preflight_storage(prepared, store_path)
         self.store = ProjectStore(database)
         try:
@@ -181,6 +188,7 @@ class StageActions:
                     owner=owner,
                     principals=frozenset(item["principals"]),
                 )
+            self.planned_queries = planned_queries
         except BaseException:
             self.store.close()
             self._closed = True
@@ -451,5 +459,7 @@ class StageActions:
     def close(self):
         with self._lock:
             if not self._closed:
+                if self.planned_queries is not None:
+                    self.planned_queries.close()
                 self.store.close()
                 self._closed = True

@@ -1,6 +1,7 @@
 """Actual local HTTP, SQLite and brief compiler; no process/model/search calls."""
 
 import http.client
+from contextlib import nullcontext
 import json
 from pathlib import Path
 import sys
@@ -10,6 +11,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
+from research_workspace import atlas
 from research_workspace_native.http import token_authenticator
 from research_workspace_native.atlas_host import AtlasHost
 from research_workspace_native import project_host
@@ -17,6 +19,8 @@ from research_workspace_native.project_contract import measurement
 from research_workspace_native.project_host import ProjectHost
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage1 import ProjectStage1Service
+from research_workspace_native.project_stage1_queries import ProjectStage1QueryService
+from research_workspace_native.project_stage1_records import ProjectStage1RecordsService
 from stage1_deliverable.common import sha
 from test_workspace_project_intake import compile_body, submit_body
 
@@ -31,14 +35,40 @@ class ProjectHostConstructionTests(unittest.TestCase):
                 authenticate=token_authenticator({token: "local-viewer"}),
             )
             try:
-                for filename in (
+                portal_filenames = (
                     "projects.html",
                     "projects.js",
                     "projects.css",
                     "projects-library.js",
-                ):
+                    "projects-coverage.js",
+                    "projects-expansions.js",
+                    "projects-reading.js",
+                    "projects-saved-claims.js",
+                    "projects-atlas.js",
+                    "projects-progress.js",
+                    "projects-stages.js",
+                    "projects-stages.css",
+                    "projects-stage2-preview.js",
+                    "project-operations.js",
+                    "project-operations.css",
+                )
+                assets = (
+                    tuple(
+                        (project_host.ASSETS / name, False) for name in portal_filenames
+                    )
+                    + tuple(
+                        (atlas.ATLAS_ROOT / name, True) for name in atlas.ATLAS_ASSETS
+                    )
+                    + (
+                        (atlas.ATLAS_ROOT / "atlas-model.js", False),
+                        (project_host.ASSETS / "project-atlas-screening.js", False),
+                        (project_host.ASSETS / "project-atlas-child.js", False),
+                    )
+                )
+                for asset_path, wrapped in assets:
+                    asset_path = asset_path.resolve()
                     for error in (FileNotFoundError, PermissionError):
-                        with self.subTest(filename=filename, error=error.__name__):
+                        with self.subTest(asset=asset_path, error=error.__name__):
                             allocated = []
 
                             def capture_init(host, *args, **options):
@@ -46,7 +76,7 @@ class ProjectHostConstructionTests(unittest.TestCase):
                                 allocated.append(host)
 
                             def fail_asset(path):
-                                if path == project_host.ASSETS / filename:
+                                if path.resolve() == asset_path:
                                     raise error("injected project asset read failure")
                                 return real_read(path)
 
@@ -54,7 +84,9 @@ class ProjectHostConstructionTests(unittest.TestCase):
                                 with (
                                     patch.object(AtlasHost, "__init__", capture_init),
                                     patch.object(Path, "read_bytes", fail_asset),
-                                    self.assertRaises(error),
+                                    self.assertRaises(
+                                        ValueError if wrapped else error
+                                    ) as raised,
                                 ):
                                     ProjectHost(
                                         projects=projects,
@@ -69,6 +101,8 @@ class ProjectHostConstructionTests(unittest.TestCase):
                                     host.server_close()
                             self.assertEqual(allocated, [])
                             self.assertEqual(projects.list(token), [])
+                            if wrapped:
+                                self.assertIsInstance(raised.exception.__cause__, error)
             finally:
                 projects.close()
 
@@ -146,6 +180,40 @@ class ProjectHostTests(unittest.TestCase):
         )
         ref = receipt["project_ref"]
         return ref, self.get("/api/projects/" + ref)
+
+    def test_inline_frame_policy_is_limited_to_project_pages_and_keeps_admission(self):
+        changes = self.projects.db.total_changes
+        for route, frame, ancestor in (
+            ("/", True, "none"),
+            ("/projects.html", True, "none"),
+            ("/projects-panel.html", True, "self"),
+            ("/project-atlas.html", False, "self"),
+            ("/project-atlas-child.js", False, "none"),
+            ("/projects.js", False, "none"),
+        ):
+            with self.subTest(route=route):
+                client = http.client.HTTPConnection(
+                    "127.0.0.1", self.host.server_port, timeout=5
+                )
+                try:
+                    client.request("GET", route)
+                    response = client.getresponse()
+                    raw = response.read()
+                    self.assertEqual(response.status, 200, raw)
+                    policy = response.getheader("Content-Security-Policy")
+                    self.assertEqual("frame-src 'self'" in policy, frame)
+                    self.assertIn("frame-ancestors '" + ancestor + "'", policy)
+                    self.assertNotIn(self.token.encode(), raw)
+                finally:
+                    client.close()
+                for headers in (
+                    {"Origin": "https://foreign.invalid"},
+                    {"Host": "foreign.invalid"},
+                    {"Sec-Fetch-Site": "cross-site"},
+                ):
+                    self.assertEqual(self.request(route, headers=headers)[0], 403)
+        self.assertEqual(self.projects.db.total_changes, changes)
+        self.assertEqual(self.projects.list(self.token), [])
 
     def test_two_topics_real_confirm_compile_and_common_stage_metrics(self):
         for topic in (
@@ -255,7 +323,16 @@ class ProjectHostTests(unittest.TestCase):
 
     def test_served_portal_hashes_and_bootstrap_credential_boundary(self):
         binding = self.get("/host-binding.json")
-        for path in ("/", "/projects.html", "/projects.js", "/projects.css"):
+        self.assertFalse(binding["project_stage1_saved_records"])
+        self.assertFalse(binding["project_stage1_source_acquisition"])
+        self.assertFalse(binding["project_stage1_automatic_reading"])
+        for path in (
+            "/",
+            "/projects.html",
+            "/projects.js",
+            "/projects.css",
+            "/projects-saved-claims.js",
+        ):
             status, raw = self.request(path)
             self.assertEqual(status, 200)
             self.assertEqual(sha(raw), binding["served_files"][path])
@@ -269,6 +346,96 @@ class ProjectHostTests(unittest.TestCase):
             )[0],
             403,
         )
+
+    def test_saved_records_host_requires_attached_same_intake_typed_query_owner(self):
+        stage1 = self.host.project_stage1
+        queries = object.__new__(ProjectStage1QueryService)
+        queries.stage1, queries.intake = stage1, self.projects
+        for attached, owner_stage, owner_intake in (
+            (None, stage1, self.projects),
+            (object(), stage1, self.projects),
+            (queries, object(), self.projects),
+            (queries, stage1, object()),
+        ):
+            stage1.query_service = attached
+            queries.stage1, queries.intake = owner_stage, owner_intake
+            with (
+                self.subTest(owner=attached),
+                patch.object(
+                    ProjectStage1QueryService, "create_records_service"
+                ) as factory,
+                self.assertRaisesRegex(
+                    ValueError,
+                    r"trusted query owner|^project-expansion-query-owner-required$",
+                ),
+            ):
+                ProjectHost(
+                    projects=self.projects,
+                    credential=self.token,
+                    stage1=stage1,
+                    stage1_materials_root="never-resolved-by-host",
+                    files={},
+                    views=[],
+                    port=0,
+                )
+            factory.assert_not_called()
+        self.assertEqual(self.projects.list(self.token), [])
+
+    def test_saved_records_host_passes_exact_delivery_and_root_without_reader(self):
+        stage1 = self.host.project_stage1
+        queries = object.__new__(ProjectStage1QueryService)
+        queries.stage1, queries.intake = stage1, self.projects
+        stage1.query_service = queries
+        materials = tempfile.TemporaryDirectory(prefix="project-host-materials-")
+        self.addCleanup(materials.cleanup)
+        root = Path(materials.name).resolve()
+        created = []
+
+        def construct(owner, delivery, *, materials_root):
+            # Only the host forwarding boundary uses a synthetic guard here.
+            # The actual query-owner guard has its own real SQLite tests.
+            self.assertIs(owner, queries)
+            self.assertIs(delivery.stage1, stage1)
+            self.assertIs(delivery.intake, self.projects)
+            self.assertEqual(materials_root, root)
+            records = ProjectStage1RecordsService(
+                delivery,
+                materials_root=root,
+                mutation_guard=lambda *args: nullcontext(),
+            )
+            created.append(records)
+            return records
+
+        configured = None
+        try:
+            with patch.object(
+                ProjectStage1QueryService,
+                "create_records_service",
+                autospec=True,
+                side_effect=construct,
+            ) as factory:
+                configured = ProjectHost(
+                    projects=self.projects,
+                    credential=self.token,
+                    stage1=stage1,
+                    stage1_materials_root=root,
+                    files={},
+                    views=[],
+                    port=0,
+                )
+            factory.assert_called_once_with(
+                queries, configured.project_stage1_delivery, materials_root=root
+            )
+            self.assertIs(configured.project_stage1_records, created[0])
+            binding = json.loads(configured._assets["/host-binding.json"])
+            self.assertTrue(binding["project_stage1_saved_records"])
+            self.assertFalse(binding["project_stage1_source_acquisition"])
+            self.assertFalse(binding["project_stage1_automatic_reading"])
+            self.assertFalse(list(root.iterdir()))
+            self.assertEqual(self.projects.list(self.token), [])
+        finally:
+            if configured is not None:
+                configured.server_close()
 
     def test_stage1_real_http_ledger_gate_and_export_are_not_stage_completion(self):
         ref, view = self.new()
@@ -294,6 +461,15 @@ class ProjectHostTests(unittest.TestCase):
         snapshot = self.get(path + "/overview")
         self.assertEqual(snapshot["stage1"]["stage1_status"], "offline-ledger-active")
         self.assertFalse(snapshot["stage1"]["stage1_complete"])
+        progress = snapshot["stage1"]["progress"]
+        self.assertEqual(
+            progress["binding"],
+            {
+                name: snapshot["project"][name]
+                for name in ("project_ref", "revision", "input_version", "brief_sha256")
+            },
+        )
+        self.assertFalse(progress["research_complete"])
         for action in ("checkpoint", "export"):
             current, stage = self.get(path), self.get(path + "/stage1")
             identity = {
@@ -327,6 +503,11 @@ class ProjectHostTests(unittest.TestCase):
             snapshot = self.get("/api/projects/" + ref + "/overview")
             self.assertEqual(snapshot["project"]["project_ref"], ref)
             self.assertIsNone(snapshot["models"])
+            progress = snapshot["stage1"]["progress"]
+            self.assertEqual(progress["kind"], "ProjectStage1Progress")
+            self.assertFalse(progress["research_complete"])
+            self.assertEqual(len(progress["phases"]), 7)
+            self.assertEqual(progress["next_action"]["target"], "scope")
 
     def test_measurement_does_not_turn_unknown_into_zero(self):
         self.assertIsNone(measurement("calls")["value"])

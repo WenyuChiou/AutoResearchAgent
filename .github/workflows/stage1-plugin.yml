@@ -47,6 +47,9 @@ jobs:
     # Full-suite run 38148254212 exceeded Ubuntu/macOS job deadlines.
     # Keep every check, with a bounded allowance only for the full scope.
     timeout-minutes: ${{ needs.scope.outputs.plugin_test_scope == 'full' && 90 || matrix.os == 'windows-latest' && 50 || matrix.os == 'macos-latest' && 30 || 20 }}
+    env:
+      # Runtime inventories bind cache bytes shared by every test process.
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Require a successful, recognized scope selection
         env:
@@ -68,6 +71,32 @@ jobs:
         if: ${{ needs.scope.outputs.plugin_test_scope != 'docs' && needs.scope.outputs.plugin_test_scope != 'governance' }}
       - run: codex --version
         if: ${{ needs.scope.outputs.plugin_test_scope != 'docs' && needs.scope.outputs.plugin_test_scope != 'governance' }}
+      - name: Prepare single-link Python test environment
+        shell: pwsh
+        run: |
+          # Parser inventories require physical single-link dependency files.
+          # uv run can reuse an overlay with hardlinked cached packages on Windows.
+          $testRoot = Join-Path $env:RUNNER_TEMP ("stage1-python-" + [guid]::NewGuid())
+          uv python install --no-config 3.11
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $basePython = uv python find --no-config --no-project --managed-python 3.11
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Select the physical interpreter, not a managed-version junction.
+          $basePython = python -c "import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve(strict=True))" $basePython
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # venv records the resolved base; uv's interpreter cache may retain the alias.
+          & $basePython -I -B -m venv --copies --without-pip $testRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($IsMacOS) {
+            # Standalone macOS copies load libpython beside the new environment.
+            & $basePython -I -B -c "import pathlib,shutil,sys; shutil.copyfile(pathlib.Path(sys.base_prefix)/'lib'/'libpython3.11.dylib', pathlib.Path(sys.argv[1])/'lib'/'libpython3.11.dylib')" $testRoot
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $testBin = Join-Path $testRoot $(if ($IsWindows) { "Scripts" } else { "bin" })
+          $testPython = Join-Path $testBin $(if ($IsWindows) { "python.exe" } else { "python" })
+          uv pip install --no-config --python $testPython --link-mode copy --requirements plugins/auto-research-agent/requirements-test.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $testBin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
       - name: Check plugin and CI Python formatting
         if: ${{ needs.scope.outputs.plugin_test_scope == 'ui' || needs.scope.outputs.plugin_test_scope == 'full' }}
         run: uv run --frozen --project scripts ruff format --check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
@@ -78,10 +107,12 @@ jobs:
         run: uvx --from codespell==2.4.3 codespell AGENTS.md plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/fixtures/pr_bodies .github/scripts/fixtures/pr_evidence .github/scripts/criterion-submetric-map.v1.json .github/scripts/invariant-registry.v1.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Plugin loading and stage contracts
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
-        run: uv run --isolated --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py
+        env:
+          PLUGIN_TEST_WORKERS: 3
+        run: python .github/scripts/stage1_test_scope.py
       - name: Research PR contract tests
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
-        run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py --contracts
+        run: python .github/scripts/stage1_test_scope.py --contracts
       - name: Governance scope and validator contracts
         if: ${{ needs.scope.outputs.plugin_test_scope == 'governance' }}
-        run: uv run --no-project --python 3.11 --with-requirements plugins/auto-research-agent/requirements-test.txt python .github/scripts/stage1_test_scope.py --governance
+        run: python .github/scripts/stage1_test_scope.py --governance

@@ -120,6 +120,15 @@ class Stage1CiQualityTests(unittest.TestCase):
         )
         self.assertEqual(job["needs"], "scope")
         self.assertEqual(job["if"], "${{ always() }}")
+        plugin_step = next(
+            step
+            for step in job["steps"]
+            if step.get("name") == "Plugin loading and stage contracts"
+        )
+        self.assertEqual(
+            plugin_step["env"]["PLUGIN_TEST_WORKERS"],
+            "3",
+        )
         self.assertEqual(source["permissions"], metadata["permissions"])
         scope_checkout = source["jobs"]["scope"]["steps"][0]
         self.assertEqual(scope_checkout["with"]["persist-credentials"], "false")
@@ -127,6 +136,88 @@ class Stage1CiQualityTests(unittest.TestCase):
             source["concurrency"]["cancel-in-progress"],
             "${{ github.event_name == 'pull_request' }}",
         )
+
+    def test_parser_checks_use_fresh_copy_environment_without_uv_overlay(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        steps = workflow["jobs"]["contracts"]["steps"]
+        names = {step.get("name"): step for step in steps}
+        install = names["Prepare single-link Python test environment"]
+        self.assertEqual(install["shell"], "pwsh")
+        self.assertIn("--link-mode copy", install["run"])
+        self.assertIn("$env:RUNNER_TEMP", install["run"])
+        self.assertIn("$env:GITHUB_PATH", install["run"])
+        self.assertIn("--managed-python 3.11", install["run"])
+        self.assertIn(".resolve(strict=True)", install["run"])
+        self.assertIn("-m venv --copies --without-pip", install["run"])
+        self.assertIn("if ($IsMacOS)", install["run"])
+        self.assertIn("shutil.copyfile", install["run"])
+        self.assertIn("libpython3.11.dylib", install["run"])
+        self.assertEqual(install["run"].count("exit $LASTEXITCODE"), 6)
+        for name, suffix in (
+            ("Plugin loading and stage contracts", ""),
+            ("Research PR contract tests", " --contracts"),
+            ("Governance scope and validator contracts", " --governance"),
+        ):
+            with self.subTest(step=name):
+                self.assertLess(steps.index(install), steps.index(names[name]))
+                self.assertEqual(
+                    names[name]["run"],
+                    "python .github/scripts/stage1_test_scope.py" + suffix,
+                )
+
+    def test_contract_environment_keeps_spawned_and_nested_imports_read_only(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        env = dict(os.environ)
+        env.pop("PYTHONDONTWRITEBYTECODE", None)
+        env.update(workflow["jobs"]["contracts"].get("env", {}))
+        with tempfile.TemporaryDirectory(prefix="ci-cache-") as directory:
+            root = Path(directory)
+            (root / "synthetic_import.py").write_text("VALUE = 1\n", encoding="utf8")
+            script = root / "cache_probe.py"
+            script.write_text(
+                """from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
+import subprocess
+import sys
+
+def worker():
+    import synthetic_import
+    assert synthetic_import.VALUE == 1
+    assert sys.dont_write_bytecode
+    subprocess.run(
+        [sys.executable, '-c',
+         'import sys, synthetic_import; assert sys.dont_write_bytecode'],
+        check=True,
+    )
+    return True
+
+if __name__ == '__main__':
+    import synthetic_import
+    assert synthetic_import.VALUE == 1
+    assert sys.dont_write_bytecode
+    with ProcessPoolExecutor(
+        max_workers=1, mp_context=multiprocessing.get_context('spawn')
+    ) as executor:
+        assert executor.submit(worker).result()
+""",
+                encoding="utf8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(list(root.rglob("*.pyc")), [])
 
     def test_required_platform_guard_rejects_selector_failure_and_unknown_plan(self):
         path = REPO_ROOT / ".github/workflows/stage1-plugin.yml"

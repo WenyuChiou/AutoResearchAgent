@@ -42,6 +42,17 @@ def refusal_shape(kind, body, key, project_ref):
             BOUND_FIELDS | {"operation", "user_input", "confirmed"},
             set(),
         ),
+        "model-retirement": (
+            BOUND_FIELDS
+            | {
+                "job_ref",
+                "job_request_sha256",
+                "job_snapshot_sha256",
+                "confirmed",
+                "user_input",
+            },
+            set(),
+        ),
         "stage1-initialize": (
             BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"},
             set(),
@@ -65,7 +76,50 @@ def refusal_shape(kind, body, key, project_ref):
             BOUND_FIELDS | {"ledger_state_sha256", "confirmed"},
             set(),
         ),
+        "stage1-coverage": (
+            BOUND_FIELDS
+            | {
+                "ledger_state_sha256",
+                "operation",
+                "offer_ref",
+                "offer_sha256",
+                "review",
+                "confirmed",
+            },
+            set(),
+        ),
+        "stage1-claim": (
+            BOUND_FIELDS
+            | {
+                "ledger_state_sha256",
+                "output_ref",
+                "draft_sha256",
+                "evidence_index",
+                "offer_ref",
+                "offer_sha256",
+                "review",
+                "confirmed",
+            },
+            set(),
+        ),
         "stage1-export": (BOUND_FIELDS | {"ledger_state_sha256", "confirmed"}, set()),
+        "stage1-reading-registry": (
+            BOUND_FIELDS
+            | {
+                "ledger_state_sha256",
+                "output_ref",
+                "draft_sha256",
+                "offer_ref",
+                "offer_sha256",
+                "review",
+                "confirmed",
+            },
+            set(),
+        ),
+        "stage1-produce-records": (
+            BOUND_FIELDS | {"ledger_state_sha256", "checkpoint_event_id", "confirmed"},
+            set(),
+        ),
         "stage1-deliver": (
             BOUND_FIELDS
             | {"ledger_state_sha256", "offer_ref", "offer_sha256", "confirmed"},
@@ -75,12 +129,51 @@ def refusal_shape(kind, body, key, project_ref):
             BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"},
             set(),
         ),
+        "stage1-review-stage2-input": (
+            BOUND_FIELDS
+            | {
+                "artifact_ref",
+                "manifest_sha256",
+                "context_sha256",
+                "decision",
+                "user_input",
+                "confirmed",
+            },
+            set(),
+        ),
     }
+    for operation in ("bootstrap", "execute", "restore-owner", "authorize"):
+        shapes["stage1-query-" + operation] = (
+            BOUND_FIELDS
+            | {"offer_ref", "offer_sha256", "confirmed"}
+            | ({"user_input"} if operation == "authorize" else set()),
+            set(),
+        )
+    for operation in ("authorize", "execute"):
+        shapes["stage1-expansion-" + operation] = (
+            BOUND_FIELDS
+            | {"offer_ref", "offer_sha256", "confirmed"}
+            | ({"user_input"} if operation == "authorize" else set()),
+            set(),
+        )
     if kind not in shapes or type(body) is not dict or body.get("key") != key:
         return False
     try:
         identifier(key)
         expected, optional = shapes[kind]
+        if kind == "stage1-claim" and "work_ref" in body:
+            expected = BOUND_FIELDS | {
+                "ledger_state_sha256",
+                "confirmed",
+                "work_ref",
+                "source_ref",
+                "offer_sha256",
+                "start_byte",
+                "end_byte",
+                "quote",
+                "review",
+            }
+            optional = set()
         _fields(body, expected, optional)
         if kind == "create":
             return project_ref is None and type(body["topic"]) is str

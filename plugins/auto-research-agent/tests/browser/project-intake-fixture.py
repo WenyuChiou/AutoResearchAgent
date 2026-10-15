@@ -66,6 +66,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("repo", "temp-root", "control-file"):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument("--ui-overlay", action="store_true")
+    parser.add_argument("--views-config", type=Path)
+    parser.add_argument("--views-sha256")
     args = parser.parse_args()
     if not all(
         path.is_absolute() for path in (args.repo, args.temp_root, args.control_file)
@@ -79,7 +82,11 @@ def main():
         raise ValueError("private regular control file required")
     plugin = repo / "plugins/auto-research-agent"
     own = plugin / "tests/browser/project-intake-fixture.py"
-    driver = plugin / "tests/test_workspace_project_browser.cjs"
+    driver = plugin / (
+        "tests/browser/project-operations-test.cjs"
+        if args.ui_overlay
+        else "tests/test_workspace_project_browser.cjs"
+    )
     if Path(__file__).resolve(strict=True) != own or own.resolve() != own:
         raise ValueError("fixture must belong to the sole candidate")
     roots = (plugin / "cli", plugin / "tests")
@@ -111,13 +118,64 @@ def main():
     diagnostics = []
     source_hashes = {}
     try:
+        files, views = {}, []
+        if args.ui_overlay:
+            # Authored local project records for selector checks, not research
+            # results, permits or browser-generated requests.
+            for key, topic in (
+                ("overlay-rl", "Authored RL traffic signal project"),
+                ("overlay-autonomy", "Authored autonomous driving project"),
+            ):
+                service.create(token, {"key": key, "topic": topic})
+            from research_workspace_native.atlas_host import load_views
+
+            if args.views_config is None:
+                from research_workspace.atlas import atlas_files
+                from test_workspace_atlas import payload
+
+                value = payload()
+                saved = atlas_files(value)
+                saved["workspace-index.json"] = canonical(value["index"])
+                folder = root / "view"
+                for name, raw in saved.items():
+                    path = folder / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(raw)
+                manifest = canonical(
+                    dict(
+                        kind="WorkspaceReadOnlyView",
+                        index_sha256=value["index_sha256"],
+                        files={name: digest(raw) for name, raw in saved.items()},
+                    )
+                )
+                path = folder / "view-manifest.json"
+                path.write_bytes(manifest)
+                config = canonical(
+                    dict(
+                        views=[
+                            dict(
+                                ref="stage1-original-r3",
+                                label="Offline synthetic saved fixture",
+                                fixture=True,
+                                manifest=str(path),
+                                sha256=digest(manifest),
+                            )
+                        ]
+                    )
+                )
+                args.views_config = root / "views.json"
+                args.views_config.write_bytes(config)
+                args.views_sha256 = digest(config)
+            files, views = load_views(args.views_config, args.views_sha256)
+        elif args.views_config is not None or args.views_sha256 is not None:
+            raise ValueError("saved views require the explicit UI overlay fixture")
         server = ProjectHost(
             projects=service,
             credential=token,
             stage1=stage1,
             stage2=stage2,
-            files={},
-            views=[],
+            files=files,
+            views=views,
             port=0,
             timeout=5,
             max_connections=8,
@@ -153,6 +211,12 @@ def main():
                     "projects.js",
                     "projects.css",
                     "projects-library.js",
+                    "projects-progress.js",
+                    "projects-stages.js",
+                    "projects-stages.css",
+                    "projects-stage2-preview.js",
+                    "project-operations.js",
+                    "project-operations.css",
                 )
             ),
         ):

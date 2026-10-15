@@ -26,26 +26,80 @@ plugins/auto-research-agent/references/research-workspace/literature-reference.j
 plugins/auto-research-agent/references/research-workspace/workspace-i18n.js text eol=lf
 plugins/auto-research-agent/references/research-workspace/workspace.css text eol=lf
 
+# Preserve raw Git bytes for the local Atlas assets on autocrlf checkouts.
+plugins/auto-research-agent/cli/research_workspace_native/web/*.js text eol=lf
+plugins/auto-research-agent/cli/research_workspace_native/web/*.css text eol=lf
+plugins/auto-research-agent/references/research-workspace/atlas/atlas-*.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/atlas/atlas.css text eol=lf
+plugins/auto-research-agent/references/research-workspace/atlas/atlas.html text eol=lf
+plugins/auto-research-agent/references/research-workspace/examples/planned-query-fixture-notice.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/examples/stage2-demo-panel.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/tests/localization.html text eol=lf
+plugins/auto-research-agent/references/research-workspace/workspace-*.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/workspace-*.css text eol=lf
+plugins/auto-research-agent/references/stage1-source-capability-resolution.csv text eol=lf
+plugins/auto-research-agent/tests/*.js text eol=lf
+plugins/auto-research-agent/tests/*.cjs text eol=lf
+plugins/auto-research-agent/tests/browser/workspace-records.js text eol=lf
+plugins/auto-research-agent/tests/browser/native-session/browser_driver.cjs text eol=lf
+plugins/auto-research-agent/tests/research_workspace_native_browser/core_panel_path.js text eol=lf
+
 # Preserve the pinned upstream WebGL bundle verbatim.
 plugins/auto-research-agent/references/research-workspace/atlas/vendor/3d-force-graph-1.80.1.min.js -text
 
-# Raw engineering receipts retain the exact captured bytes on every platform.
+# Preserve the real stage pilot overlay on Windows downloads.
+plugins/auto-research-agent/references/research-workspace/web/*.js text eol=lf
+plugins/auto-research-agent/references/research-workspace/web/*.css text eol=lf
+
+# Preserve exact saved-record delivery evidence.
 review-evidence/stage1-priority-20261010/** -text
 review-evidence/stage1-priority-20261010/*.json whitespace=cr-at-eol
 review-evidence/stage1-priority-20261010/*stdout.log binary
 review-evidence/stage1-priority-20261010/*stderr.log binary
+
+review-evidence/stage1-native-merge-20261010/** -text
+review-evidence/stage1-native-merge-20261010/*.json whitespace=cr-at-eol
+review-evidence/stage1-native-merge-20261010/*stdout.log binary
+review-evidence/stage1-native-merge-20261010/*stderr.log binary
+
+# Preserve source-bound synthetic search-bridge logs verbatim.
+review-evidence/project-search-bridge-20261011/** -text
+review-evidence/project-search-bridge-20261011/**/*.json whitespace=cr-at-eol
+review-evidence/project-search-bridge-20261011/**/*.log binary
+review-evidence/project-search-bridge-20261011/**/*.bin binary
+review-evidence/project-search-bridge-20261011/delivery-final24/commit-message.txt whitespace=cr-at-eol
+
+review-evidence/stage1-source-frontier-20261011/** -text
+review-evidence/stage1-source-frontier-20261011/**/*.json whitespace=cr-at-eol
+review-evidence/stage1-source-frontier-20261011/**/*.log binary
 review-evidence/stage1-saved-records-20261011/** -text
 review-evidence/stage1-saved-records-20261011/*.json whitespace=cr-at-eol
 review-evidence/stage1-saved-records-20261011/*stdout.log binary
 review-evidence/stage1-saved-records-20261011/*stderr.log binary
 review-evidence/stage1-saved-records-20261011/README.md text eol=lf
 review-evidence/stage1-saved-records-20261011/manifest.json text eol=lf
+review-evidence/stage1-main329-integration-20261011/** -text
+review-evidence/stage1-main329-integration-20261011/*.json whitespace=cr-at-eol
+review-evidence/stage1-main329-integration-20261011/*.log binary
 review-evidence/stage1-saved-records-20261011/OWNER_GUARD.md text eol=lf
 review-evidence/stage1-saved-records-20261011/owner-guard-manifest.json text eol=lf
 review-evidence/stage1-screening-library-20261011/backend-final32.log -text whitespace=cr-at-eol
+review-evidence/stage1-screening-library-20261011/native-integration/*.log -text whitespace=cr-at-eol
 # Preserve the exact bounded offline source-observation receipts.
 review-evidence/stage1-source-observation-20261011/*.json text eol=lf
 review-evidence/stage1-source-observation-20261011/README.md text eol=lf
 review-evidence/stage1-source-observation-20261011/*stderr.log -text whitespace=cr-at-eol
 review-evidence/stage1-source-observation-20261011/*stdout.log -text
+review-evidence/stage1-source-owned-20261011/*.json text eol=lf
+review-evidence/stage1-source-owned-20261011/README.md text eol=lf
+review-evidence/stage1-source-owned-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-adapter-integration-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/model-retirement-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-coverage-20261011/*.log -text whitespace=cr-at-eol
 review-evidence/stage1-core-records-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-claim-review-20261011/*.log -text whitespace=cr-at-eol
+review-evidence/stage1-reading-delivery-20261011/*.log -text whitespace=cr-at-eol
+
+# Keep saved-record recovery evidence in its declared published representation.
+review-evidence/stage1-records-recovery-20261011/** -text
+review-evidence/stage1-claim-review-20261011/stage1-claim-existing-20261011-v1.log -text -whitespace

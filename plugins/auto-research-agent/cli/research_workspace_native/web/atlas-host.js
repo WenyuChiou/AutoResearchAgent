@@ -14,6 +14,13 @@
     "needs-login": ["Sign in needed", "需要登录", "需要登入"],
     "check-failed": ["Check failed", "检查失败", "檢查失敗"],
     "not-checked": ["Not checked", "尚未检查", "尚未檢查"],
+    "native-ready": ["Codex session handshake observed", "已观察到 Codex 会话握手", "已觀察到 Codex 工作階段握手"],
+    "native-stopped": ["Codex session stopped; saved history retained", "Codex 会话已停止，已保存历史保留", "Codex 工作階段已停止，已儲存歷史保留"],
+    nativeBoundary: ["Pinned Codex process and session replies were observed. No saved model reply is visible yet; research is not verified.", "已观察固定 Codex 进程和会话握手；目前尚未看到已保存的模型回复，研究尚未验收。", "已觀察固定 Codex 程序與工作階段握手；目前尚未看到已儲存的模型回覆，研究尚未驗收。"],
+    replyObserved: ["Saved Codex reply observed. This conversation does not establish successful research or native authentication.", "已观察到保存的 Codex 回复；本次对话不代表研究成功或原生身份认证已验收。", "已觀察到儲存的 Codex 回覆；本次對話不代表研究成功或原生身分認證已驗收。"],
+    partialObserved: ["Partial conversation observed; a completed model reply is not established in this window.", "已观察到部分对话；此窗口尚未证明完整模型回复。", "已觀察到部分對話；此視窗尚未證明完整模型回覆。"],
+    fixtureReply: ["Saved fixture reply observed; this does not prove a real model ran.", "已观察到保存的演示回复；这不能证明真实模型运行。", "已觀察到儲存的示範回覆；這不能證明真實模型執行。"],
+    transcriptWindow: ["The transcript window is partial.", "当前对话窗口不完整。", "目前對話視窗不完整。"],
     boundary: ["Research session not started. No model turn tested.", "尚未启动研究会话，也未测试模型执行。", "尚未啟動研究工作階段，也未測試模型執行。"],
     unavailable: ["Requested session or feedback service is unavailable.", "请求的会话或反馈服务不可用。", "要求的工作階段或回饋服務目前無法使用。"],
     unconnected: ["Registered session is awaiting connection.", "已注册的会话尚未连接。", "已註冊的工作階段尚未接通。"],
@@ -109,14 +116,28 @@
       pending = saved; feedbackState = "unknownSave";
     }
   } catch { /* Storage is optional; no secret or user text is persisted here. */ }
-  let connection = bootstrap.connection || {}, busy = false, readFailed = false;
+  let connection = bootstrap.connection || {}, busy = false, readFailed = false, conversation = null;
+  const native = window.WORKSPACE_NATIVE_ATLAS;
+  const nativeBinding = native?.enabled === true ? Object.fromEntries(
+    ["project_ref", "index_sha256", "input_version"].map(key => [key, native[key]])) : null;
+  const nativeReady = () => connection.status === "native-ready" && connection.actual_codex_process_observed === true;
+  window.NativeHostDisplay = Object.freeze({nativeReady, observeConversation(view, observed) {
+    if (!nativeBinding || !view || !observed ||
+        !["project_ref", "index_sha256", "input_version"].every(key => view[key] === nativeBinding[key])) return false;
+    conversation = {reply: observed.reply === true, partial: observed.partial === true, stopped: Boolean(view.failure)};
+    render(); return true; // Presentation only; no new I/O or authority.
+  }});
   const render = () => {
     const capability = bootstrap.capability_state;
     capabilityNotice.textContent = capability && Object.values(capability).includes("unavailable") ? t("unavailable") : capability?.native === "registered-unconnected" ? t("unconnected") : "";
-    const key = ["check-passed", "needs-login", "check-failed", "not-checked"].includes(connection.status) ? connection.status : "not-checked";
+    const key = nativeReady() ? conversation?.stopped ? "native-stopped" : "native-ready" :
+      ["check-passed", "needs-login", "check-failed", "not-checked"].includes(connection.status) ? connection.status : "not-checked";
     open.textContent = t("open"); title.textContent = t("open"); close.textContent = t("close");
     status.textContent = t(key); status.dataset.status = key;
-    boundary.textContent = t("boundary"); refresh.textContent = t("refresh");
+    const boundaryKey = nativeReady() ? conversation?.reply ? "replyObserved" : conversation?.partial ? "partialObserved" : "nativeBoundary" :
+      conversation?.reply ? "fixtureReply" : "boundary";
+    boundary.textContent = t(boundaryKey) + (conversation?.reply && conversation.partial ? " " + t("transcriptWindow") : "");
+    refresh.textContent = t("refresh");
     readNotice.textContent = readFailed ? t("readFailed") : "";
     refresh.disabled = busy || !credential || location.origin === "null";
     metadata.replaceChildren();

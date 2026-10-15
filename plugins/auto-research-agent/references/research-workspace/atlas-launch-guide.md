@@ -1,9 +1,29 @@
 # Launch the Atlas for review
 
+## Review PR #295 in the main Wiki
+
+For the complete project-bound six-stage Wiki under review in #295, use the
+[terminal quick start](PORTABLE_ATLAS_SETUP.md#terminal-quick-start-for-pr-295).
+It downloads that PR's complete branch, installs the pinned dependencies, builds
+the repository's saved Stage 1/2 examples and opens them through ProjectHost.
+Keep the printed current commit and URL with your acceptance notes.
+
+Do not double-click source `atlas.html` or `projects.html`. These are templates:
+the former needs generated `atlas-data.js`, and both need the local server's
+assets and project/authentication context. A downloaded single HTML file, another
+person's localhost URL or an old port cannot replace a running local Wiki.
+The quick start preserves the reviewed v6 layout and starts no research or model.
+
+## Saved-view review on merged main
+
 Run the repository example to inspect Stage 1 and Stage 2 in a browser. It builds
 new private outputs from existing public synthetic fixtures, verifies manifests,
 and hosts them on `127.0.0.1`. No real paper payload, Codex process, model call,
-search, source import or session resume is required.
+search, protected source import, new source acquisition or session resume is required.
+
+The optional [Stage 2 controller demo](STAGE2_REPOSITORY_DEMO.md) generates a new
+synthetic workflow and delivery from an explicit UI action. Its fixed legacy
+fixture is independent of the saved Stage 1 and ordinary daily_v3 scoring.
 
 Use the complete final review branch, including every preceding review slice. Downloading a single HTML file omits required JavaScript and bundled assets.
 A (#262) and B (#271) are merged. B adds saved-input Harness operations and
@@ -18,10 +38,17 @@ git -c core.longpaths=true clone --config core.autocrlf=false --config core.long
 Set-Location ara-review
 ```
 
-From the repository root, use Python with the plugin test requirements installed:
+The checkout keeps Git source bytes unchanged. Its local `core.autocrlf=false`
+setting does not change your global Git preferences and also protects older
+review assets without an explicit line-ending rule. A source-byte mismatch
+remains a failure; do not bypass the source checks.
+
+From the repository root, use Python with the plugin test requirements installed.
+The [per-user setup guide](PORTABLE_ATLAS_SETUP.md) includes virtual-environment
+installation; use that environment's Python for the following commands:
 
 ```powershell
-python -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/attempt-1 --serve --harness-operations --open
+& .venv/Scripts/python.exe -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/attempt-1 --serve --harness-operations --open
 ```
 
 Choose a new output directory outside every Git checkout. On Windows, use a short,
@@ -100,7 +127,9 @@ plugin CLI directory, start the already merged portal:
 python -B -X utf8 -m research_workspace_native.project_host --projects-root <PRIVATE_PROJECT_ROOT> --views-config <ABSOLUTE_CONFIG_PATH> --views-sha256 <EXTERNAL_CONFIG_SHA256> --port 0
 ```
 
-Use the actual `url` printed by that process: root `/` serves `projects.html`.
+Use the actual `url` printed by that process. With registered saved views, root
+`/` redirects to the first saved Atlas; `/projects.html` is the project portal.
+With no registered views, root `/` serves that portal.
 Saved Results opens `/views/saved-stage2/atlas.html`, with the six stages at the
 left. Stage 2 exposes comparison, directions, original comments and artifacts;
 Stage 3–6 remain planned/unconnected. Original workspace returns to the same
@@ -125,12 +154,61 @@ for A commands, original bindings, screenshots and explicit remaining limits.
 That A evidence is now retained in this candidate for review; it does not
 establish a B runtime test result.
 
-With `--harness-operations`, each case has three real repository operations:
+With `--harness-operations`, each case has real repository operations:
 validate the saved workspace, derive its conservative literature selection, and
-export its literature files. The outputs and operation history are retained in
-`attempt-1/harness-operations`; source snapshots remain unchanged. These are
+export its literature files. It also registers saved Stage 1 checkpoint,
+Stage 2 completion inspection and explicit review/hold/request-next actions.
+Their outputs and history are retained in `attempt-1/harness-operations`,
+`stage-results` and `stage-actions.sqlite3`; source snapshots remain unchanged. These are
 saved-input functions, not searches, Stage 2 generation, scientific evaluation
 or a native Codex session. The fixture launcher registers no native runtime.
+`--stage-actions` serves only the stage actions without the literature operations.
+The Stage 1 ledger and Stage 2 saved delivery are independent synthetic cases,
+not an end-to-end research run. A successful checkpoint can still report blocked
+readiness. Requesting the next stage records a request; it grants no execution
+authority. Refresh/reconnect reads history without restarting operations.
+
+To demonstrate a passing saved Stage 1 check, choose a separate new output:
+
+```powershell
+& .venv/Scripts/python.exe -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/ready-case-1 --demonstrate-ready-saved-case --serve --harness-operations --open
+```
+
+This optional mode runs the existing public coverage fixture through the real
+ledger and coverage gate. It preserves the reviewed work/version, claim IDs and
+saved source references in the displayed paper and the checked input. It does
+not substitute an unrelated paper into the view. The saved rounds have qualified
+yields `1, 0, 0`; missing paper findings stay Unknown. These are synthetic saved
+inputs, not retrieved literature, a complete Stage 1 delivery package or evidence
+of scientific adequacy. Stage 2 remains an independent saved example; the receipt
+does not claim continuous Stage 1-to-Stage 2 research lineage.
+
+In the stage panel, choose a stage and press **Check this stage**. An attempt
+marked completed means the saved-input function returned and its result was
+recorded. Read **Latest stage check** separately: `pass` or `ready` means the
+particular saved check passed; `blocked` or `incomplete` means the listed work
+remains. A failed attempt preserves its error. An unknown outcome requires
+**Read saved history**, rather than another submission. Inspect the full check
+and output references, then enter a review reason and confirm its source version.
+Changing stages clears that reason and confirmation. **Request next stage**
+records a request only; it never starts research, authorizes a model call or
+automatically feeds the independent Stage 2 fixture.
+
+中文使用步骤：选择 Stage 1 或 Stage 2，点击「检查本阶段」。操作完成表示保存材料的
+检查已结束并留下回执；还要看「本阶段最近检查」是否通过、受阻或交付未完整。
+查看待处理事项、完整检查记录及产物位置后，再填写审阅理由并确认当前来源版本。
+切换阶段会清空上一阶段的理由和确认，防止错用。「申请进入下一阶段」只记录申请，
+不会自动开始研究、调用模型或执行下一阶段。结果未知时读取历史，不重复提交。
+默认案例保留证据不足的受阻情况；新增选项展示保存的 synthetic 覆盖案例正常通过。
+页面论文与该 Stage 1 ledger 使用同一作品、版本和保存来源；Stage 2 仍是独立示例。
+
+The example writes an unconfirmed synthetic `brief.json` into each view root and
+separately pins `stage-inputs.json` in `fixture-receipt.json`. These added inputs
+are not attested by the original read-only view manifest and are not researcher
+intake or research permission. Native preparation inventories them separately.
+Use the [per-user setup guide](PORTABLE_ATLAS_SETUP.md) to prepare your own bounded
+Codex text session. Keep saved-case checks and actual research execution separate.
+
 It also registers a separate saved-stage action panel. The reopening command
 below restores only the three Harness operations and their history; it does
 not attach that separate stage-action service or launch a stage runtime.
@@ -151,8 +229,9 @@ To reopen saved outputs without rebuilding, read the `config` and
 `config_sha256` printed in `fixture-receipt.json`, then run from the plugin CLI:
 
 ```powershell
+$atlasReviewPython = (Resolve-Path .venv/Scripts/python.exe).Path
 Set-Location plugins/auto-research-agent/cli
-python -B -X utf8 -m research_workspace_native.atlas_host --config C:/ara-review-data/attempt-1/host.json --config-sha256 <CONFIG_SHA256> --harness-operations-root C:/ara-review-data/attempt-1/harness-operations --harness-operations-reuse --open
+& $atlasReviewPython -B -X utf8 -m research_workspace_native.atlas_host --config C:/ara-review-data/attempt-1/host.json --config-sha256 <CONFIG_SHA256> --harness-operations-root C:/ara-review-data/attempt-1/harness-operations --harness-operations-reuse --open
 ```
 
 The host snapshots only files listed by each pinned manifest. It has no arbitrary
@@ -167,6 +246,9 @@ server credential and process-held owner replace the closed owner. Existing
 attempts and failures stay saved; unfinished attempts become `execution-unknown`.
 Reading history does not recompute anything. A saved key never automatically
 resubmits. Without `--harness-operations-reuse`, an existing root is rejected.
+This plain host reuse command reopens literature-operation history; it does not
+register StageActions or a native session. The fixture's stage database is retained
+separately. Rebuilding into the same output directory is refused.
 
 ## Opt-in rendered navigation regression
 
@@ -242,3 +324,48 @@ Changing research content requires a new source version and appropriate recheck.
 UI review, nine-row synthetic scoring, native message delivery, completed research
 and scientific improvement are separate outcomes. Unknown, partial, audit-required
 and evaluator failure remain visible.
+
+In the C Projects portal, an uncertain model attempt is retained in **Saved
+actions and results**. **End this unsent attempt** requires your reason and a
+server check: no provider admission, no active worker, and no runtime content
+beyond its exact binding file. Ending it preserves the original Unknown,
+failure, request key and reserved budget. It does not resend or authorize work.
+Dispatched attempts with unverified process cleanup remain held; a missing PID
+or a browser confirmation cannot release them. Refresh only reads history.
+
+## Saved Stage 1 coverage review
+
+In the Projects portal, open **Coverage and stop review** below the saved ledger.
+Select one server-offered action, review its current source-bound fields, and
+explicitly save. Available actions are paper coverage review, query completeness
+receipt, bounded round open/close, and a human stop or cluster request. Paper
+reviews use existing Core claim IDs; this panel does not create claims from a
+model draft. Missing identity or truncation information stays Unknown.
+
+These are real local Core journal operations, not search or model execution.
+Opening a round does not execute its queries. The existing Core gate decides
+whether coverage is sufficient; a human stop request cannot bypass its blockers,
+and a sufficient coverage checkpoint alone does not complete Stage 1 or unlock
+Stage 2. Canonical delivery and its independent prerequisites remain required.
+
+Offers expire when the input or ledger changes. Refresh reads saved history;
+reusing the same request key returns that history without another Core write.
+An unobserved write retains execution-unknown and holds new saved Stage 1 writes.
+Closed-round saved observations remain readable through their existing owner;
+query execution still requires an open, ready, admitted round.
+
+## Saved reading and delivery
+
+Open a saved read-paper result, choose an exact quote, and explicitly record the
+claim and source location. Pending stays pending. Separately review the reading
+classification/findings and confirm the reading note. Neither action accepts
+coverage or starts another model task. Unknown, rejected/pending works, old
+versions, failed source reads and original Core claim events remain available.
+
+For a delivery preview: check the current evidence gate, export the saved ledger,
+prepare its reading records, then build the canonical package. Inspect the gate
+and artifact hashes; a successful file save can still be partial/review-only.
+Do not treat it as accepted Stage1 or scientific improvement. Canonical 1.1 has
+no Stage2 consumer yet, so Stage2 remains unconnected for that package. Stage3-6
+are planned. Complete live Stage1 and each teammate own-account acceptance have
+not been demonstrated. Earlier expired permits do not authorize new work.

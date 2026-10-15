@@ -55,7 +55,11 @@ def identifier_for(ledger, query):
     raise LedgerError("citation-seed-has-no-supported-identifier")
 
 
-def execute(root, query_id, backend):
+def execute(root, query_id, backend, *, before_spawn=None):
+    require(
+        before_spawn is None or callable(before_spawn),
+        "execution-admission-callback-required",
+    )
     ledger = Ledger(root)
     require(ledger.manifest["mode"] == "research-hub-cli", "live-runtime-required")
     pin = ledger.manifest["research_hub_pin"]
@@ -112,6 +116,19 @@ def execute(root, query_id, backend):
         (capture / "stderr.bin").open("xb") as err,
     ):
         try:
+            if before_spawn is not None:
+                require(
+                    before_spawn(
+                        dict(
+                            query_id=query_id,
+                            backend=backend,
+                            argv=list(argv),
+                            runtime_sha256=digest(canonical(pin)),
+                        )
+                    )
+                    is True,
+                    "execution-admission-refused",
+                )
             child = subprocess.Popen(
                 argv,
                 cwd=pin["cwd"],

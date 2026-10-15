@@ -120,6 +120,102 @@ class OwnersTests(OwnedProcessCase):
             result={"answers": {"q": {"answers": ["Synthetic scope confirmed"]}}},
         )
 
+    def test_bounded_slow_source_check_keeps_passive_session_alive(self):
+        owner = self.register()
+
+        def verify(binding):
+            time.sleep(0.15)  # Real source checks can exceed the old 0.1 s.
+            return self.source_ok
+
+        owner._verifier = verify
+        owner.start()
+        self.wait(lambda: self.question() is not None)
+        self.assertTrue(owner.status()["running"])
+        self.assertFalse(owner.status()["stopped"])
+        self.assertEqual(self.state()["intents"]["session"]["method"], "thread/start")
+        self.assertNotIn(
+            "turn/start", [v["method"] for v in self.state()["intents"].values()]
+        )
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_six_second_shared_gate_wait_keeps_passive_session_alive(self):
+        owner = self.register()
+        gate_lock = threading.RLock()
+        held, verifying, release = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
+        waits = []
+
+        def full_gate():
+            with gate_lock:
+                held.set()
+                if not verifying.wait(2):
+                    return
+                started = time.monotonic()
+                release.wait(6)  # Simulate the lock held by full source admission.
+                waits.append(time.monotonic() - started)
+
+        def verify(binding):
+            verifying.set()
+            with gate_lock:
+                return self.source_ok
+
+        worker = threading.Thread(target=full_gate)
+        worker.start()
+        try:
+            self.assertTrue(held.wait(1))
+            owner._verifier = verify
+            with patch.object(
+                self.channel_raw.process.stdin,
+                "write",
+                wraps=self.channel_raw.process.stdin.write,
+            ) as writes:
+                owner.start()
+                self.assertTrue(verifying.wait(2))
+                worker.join(7)
+                self.assertFalse(worker.is_alive())
+                self.assertEqual(len(waits), 1)
+                self.assertGreaterEqual(waits[0], 6)
+                self.assertTrue(owner.status()["running"], owner.status())
+                self.assertFalse(owner.status()["stopped"], owner.status())
+                self.wait(lambda: self.question() is not None)
+                writes.assert_not_called()
+                self.assertNotIn(
+                    "turn/start",
+                    [v["method"] for v in self.state()["intents"].values()],
+                )
+        finally:
+            release.set()
+            worker.join(3)
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_passive_source_deadline_clamps_lease_and_ignores_late_success(self):
+        owner = self.register()
+        entered, release = threading.Event(), threading.Event()
+
+        def verify(binding):
+            entered.set()
+            release.wait(3)
+            return True
+
+        owner._verifier = verify
+        self.channel_raw.deadline = time.monotonic() + 0.08
+        try:
+            owner.start()
+            self.assertTrue(entered.wait(1))
+            self.wait(lambda: owner.status()["cleanup_observed"])
+            self.assertTrue(self.channel_raw.closed)
+            self.assertIn("TimeoutError", owner.status()["failure"])
+            self.assertIsNone(self.question())
+        finally:
+            release.set()
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+        with self.assertRaises(ValueError):
+            owner.start()
+        self.assertIsNone(self.question())
+
     def test_get_is_passive_explicit_single_pump_receives_question_and_answer(self):
         owner = self.register()
         binding = self.registry.bindings()
@@ -375,6 +471,90 @@ class OwnersTests(OwnedProcessCase):
             release.set()
             worker.join(3)
         self.assertTrue(owner.shutdown(3)["leader_reaped"])
+
+    def test_typed_permit_expiry_stops_before_read_and_rejects_restart(self):
+        from research_workspace_native.process_deadline import SessionLeaseExpired
+
+        owner = self.register()
+
+        def expired(binding):
+            raise SessionLeaseExpired("private detail must not enter status")
+
+        owner._verifier = expired
+        with patch.object(self.controller, "pump", wraps=self.controller.pump) as pump:
+            owner.start()
+            self.wait(lambda: owner.status()["cleanup_observed"])
+            pump.assert_not_called()
+        self.assertEqual(owner.status()["failure"], "session-lease-expired")
+        self.assertNotIn("private detail", owner.status()["failure"])
+        self.assertTrue(self.channel_raw.closed)
+        with self.assertRaises(ValueError):
+            owner.start()
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_expiry_looking_source_error_stays_a_failure(self):
+        owner = self.register()
+
+        def changed(binding):
+            raise ValueError("permit/lease expired; private path")
+
+        owner._verifier = changed
+        owner.start()
+        self.wait(lambda: owner.status()["cleanup_observed"])
+        self.assertEqual(
+            owner.status()["failure"], "pump-failed:source-check:ValueError"
+        )
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+
+    def test_expiry_keeps_pending_request_unknown_and_durable_after_reopen(self):
+        from research_workspace_native.frame_journal import FrameJournal
+        from research_workspace_native.process_deadline import SessionLeaseExpired
+        from research_workspace_native.session_api import SessionApiError
+
+        owner = self.register()
+        expired = threading.Event()
+
+        def verify(binding):
+            if expired.is_set():
+                raise SessionLeaseExpired("permit/lease expired")
+            return True
+
+        owner._verifier = verify
+        self.api._projects["project-ref"] = (
+            *self.api._projects["project-ref"][:3],
+            verify,
+        )
+        owner.start()
+        self.wait(lambda: self.question() is not None)
+        question = self.question()
+        body = self.body(question)
+        with patch.object(
+            self.channel_raw.process.stdin,
+            "write",
+            wraps=self.channel_raw.process.stdin.write,
+        ) as writes:
+            expired.set()
+            self.wait(lambda: owner.status()["cleanup_observed"])
+            with self.assertRaises(SessionApiError) as denied:
+                self.api.answer("token", "project-ref", body)
+            self.assertEqual(denied.exception.code, "session-lease-expired")
+            writes.assert_not_called()
+        self.assertTrue(owner.shutdown()["leader_reaped"])
+        self.store.close()
+        reopened = FrameJournal(self.path)
+        self.addCleanup(reopened.close)
+        state = reopened.snapshot("alpha")
+        self.assertEqual(state["session_service"]["status"], "stopped")
+        self.assertEqual(
+            next(iter(state["requests"].values()))["status"], "execution-unknown"
+        )
+        with reopened._lock:
+            rows = reopened.db.execute(
+                "SELECT payload FROM events WHERE project=? AND kind=?",
+                ("alpha", "session-service-stopped"),
+            ).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(json.loads(rows[0][0])["reason"], "session-lease-expired")
 
 
 class OwnerStartupTests(unittest.TestCase):

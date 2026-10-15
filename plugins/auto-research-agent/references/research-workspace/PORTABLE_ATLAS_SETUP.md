@@ -1,0 +1,272 @@
+# Run your own local Atlas review
+
+## Terminal quick start for PR #295
+
+Run these commands in PowerShell on your own computer. Install Git and Python
+3.11 first. Use a fresh download folder; the PR branch is the review candidate,
+and `main` may not yet contain it. The command-scoped clone settings preserve
+source bytes without changing global Git preferences.
+
+```powershell
+git -c core.longpaths=true clone --config core.autocrlf=false --config core.longpaths=true --branch codex/atlas-empty-inventory-20261010 https://github.com/WenyuChiou/AutoResearchAgent.git ara-pr295
+if ($LASTEXITCODE -ne 0) { throw 'PR download failed' }
+Set-Location ara-pr295
+git rev-parse HEAD
+py -3.11 -m venv --copies .venv
+if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 environment failed' }
+$wikiPython = (Resolve-Path .venv/Scripts/python.exe).Path
+& $wikiPython -m pip install -r plugins/auto-research-agent/requirements-test.txt
+if ($LASTEXITCODE -ne 0) { throw 'Pinned dependency installation failed' }
+& $wikiPython -B -X utf8 -c 'import jsonschema, docx, openpyxl, markdown_it; print("Wiki dependencies ready")'
+if ($LASTEXITCODE -ne 0) { throw 'Use the installed .venv Python for every Wiki command' }
+```
+
+Generate and open a saved repository case in the main Wiki. This uses authored
+examples with Stage 1/2 data, not new searches, a native session or research
+execution. A fresh short private parent must be outside every Git checkout;
+change `C:/ara-review-data` if needed. A new timestamp keeps previous attempts.
+
+```powershell
+$repoRoot = (Get-Location).Path
+$examples = "$repoRoot/plugins/auto-research-agent/references/research-workspace/examples"
+$privateParent = 'C:/ara-review-data'
+New-Item -ItemType Directory -Force -Path $privateParent | Out-Null
+$attempt = Get-Date -Format 'yyyyMMdd-HHmmss-ffff'
+$caseRoot = "$privateParent/case-$attempt"
+$projectsRoot = "$privateParent/p-$attempt"
+& $wikiPython -B -X utf8 "$examples/build-review-fixture.py" --output $caseRoot
+if ($LASTEXITCODE -ne 0) { throw 'Saved case generation failed; retain its error and output' }
+$pins = Get-Content -Raw "$caseRoot/fixture-receipt.json" | ConvertFrom-Json
+$helper = "$repoRoot/plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py"
+$helperHash = (Get-FileHash $helper -Algorithm SHA256).Hash.ToLowerInvariant()
+& $wikiPython -B -X utf8 "$examples/run-project-workspace.py" --repo $repoRoot --source-helper-sha256 $helperHash --projects-root $projectsRoot --views-config $pins.config --views-sha256 $pins.config_sha256 --port 0 --open
+```
+
+Keep this terminal running. Open its newly printed `url` on the same computer;
+root `/` redirects to the registered Stage 1 Wiki. The left sidebar switches
+Stage 1/2 results, and **Original workspace** opens that same saved package's
+`index.html`. The same server's `/projects.html` is the topic/project portal.
+Expand **Historical reference** to inspect the generated saved example when no
+current project is selected. The separately registered Stage 2 reference is
+`/views/stage2/atlas.html` on this same server; open it in the same tab.
+Current project deliveries appear under that project's controls; a new project
+without a saved delivery shows **Not generated yet**. The repository example is
+a separate saved reference and never becomes a new project's generated result.
+
+Stop with Ctrl+C. The old URL stops working when its process exits; a teammate
+must start their own server, rather than reuse your `127.0.0.1` address. Windows
+project roots must stay within the existing 60-character path bound. An error
+about private-root depth or Git overlap requires a shorter outside-Git directory;
+do not disable the guard or overwrite a previous attempt.
+
+`--check-only` checks files and the raw source loader only. It does not establish
+installed runtime dependencies, a running HTTP server, Codex login or research
+completion. `ModuleNotFoundError` for `docx` or `jsonschema` means that the chosen
+Python is missing the pinned requirements; use `$wikiPython` above. Git is also
+needed by the private-output checks, including for a ZIP download.
+
+The quick start deliberately does not enable Codex or external stage execution.
+For those separately authorized operations, continue with the own-account and
+runtime sections below; never share account configuration, credentials or permits.
+
+Every teammate runs a complete review checkout on their own computer and uses
+their own Codex account. Do not share `auth.json`, credentials, private research
+payloads, configuration contents or another person's permits.
+
+The [case launcher](atlas-launch-guide.md) opens repository synthetic Stage 1/2
+examples with real saved-input Harness checks and review history. Those examples
+are not a completed research run. The same UI can host a separately admitted local
+Codex text session. A downloaded HTML file or another computer's localhost URL
+cannot create that session.
+
+Use Python 3.11, the pinned requirements and an installed native Codex executable:
+
+```powershell
+py -3.11 -m venv .venv
+& .venv/Scripts/python.exe -m pip install -r plugins/auto-research-agent/requirements-test.txt
+codex login
+codex login status
+```
+
+Use a model available to your account; its explicit ID is never replaced silently.
+Select the actual native `codex`/`codex.exe`, not an npm `.cmd` or JavaScript wrapper.
+Installation and login follow [official CLI guidance](https://developers.openai.com/codex/cli)
+and [authentication guidance](https://developers.openai.com/codex/auth).
+The recorded actual Windows text roundtrip used CLI 0.153.0. Tests on other
+platforms/versions do not substitute for actual account/protocol acceptance.
+
+Build a fresh saved case outside every Git checkout. Replace the example data
+path with your own existing private parent. This command builds files without
+starting a server, Codex, model, search or judge:
+
+```powershell
+& .venv/Scripts/python.exe -B -X utf8 plugins/auto-research-agent/references/research-workspace/examples/build-review-fixture.py --output C:/ara-review-data/case-1
+```
+
+Prepare from that case. Replace the uppercase values with your own absolute paths
+and deliberate model choice. If `CODEX_HOME` is set, select its `config.toml`;
+otherwise select your own home `.codex/config.toml`. Missing/empty configuration
+refuses without writing it. You may explicitly create a nonempty comment-only
+configuration yourself when absent; never overwrite existing settings or copy auth.
+
+```powershell
+$repoRoot = (Get-Location).Path
+$caseRoot = 'C:/ara-review-data/case-1'
+$nativeExecutable = 'ABSOLUTE_PATH_TO_YOUR_NATIVE_CODEX_EXECUTABLE'
+$ownConfig = 'ABSOLUTE_PATH_TO_YOUR_CODEX_HOME/config.toml'
+$chosenModel = 'MODEL_ID_AVAILABLE_TO_YOUR_ACCOUNT'
+$newBundle = 'C:/ara-review-data/text-session-1'
+$pins = Get-Content -Raw "$caseRoot/fixture-receipt.json" | ConvertFrom-Json
+$helper = "$repoRoot/plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py"
+& .venv/Scripts/python.exe -B -X utf8 plugins/auto-research-agent/cli/research_workspace_native/atlas_local_prepare.py --repo $repoRoot --source-helper-sha256 (Get-FileHash $helper).Hash.ToLowerInvariant() --config $pins.config --config-sha256 $pins.config_sha256 --project-ref stage2 --brief brief.json --stage-inputs $pins.stage_inputs --stage-inputs-sha256 $pins.stage_inputs_sha256 --executable $nativeExecutable --executable-sha256 (Get-FileHash $nativeExecutable).Hash.ToLowerInvariant() --user-config $ownConfig --user-config-sha256 (Get-FileHash $ownConfig).Hash.ToLowerInvariant() --model $chosenModel --output $newBundle
+```
+
+Default returns `checked-only`: no output files or process. Read-only Git probes
+from the original private-path checks remain enabled. All Host view roots, saved
+stage roots and the repository are protected from output overlap. The bundle
+folder must not exist, and its private parent must already exist.
+
+To prepare a restricted text-session permit, repeat the same command with these
+two additional arguments. They are explicit consent to this text scope only:
+
+```powershell
+--allow-text-session --accept-text-scope 'I allow a fresh local read-only Codex session with at most two text turns and a 600-second lease; no research, search, trading, or command/file approval.'
+```
+
+This writes four exclusive files: `byte-inventory.json`, `permit.json`,
+`runtime-spec.json`, `launcher-argv.json`. Preparation never executes the argv,
+creates a session database or sends a message. Launch explicitly within the
+600-second permit expiry; a changed input, existing attempt or expired permit
+refuses. Partial failed preparation remains saved and cannot be reused.
+
+```powershell
+$launchVector = @(Get-Content -Raw "$newBundle/launcher-argv.json" | ConvertFrom-Json)
+$launcherArgs = $launchVector[1..($launchVector.Count - 1)]
+& $launchVector[0] @launcherArgs
+```
+
+Keep that terminal running and open its printed localhost URL on the same
+computer. The selected `stage2` view gets the admitted Codex session and both
+saved Stage 1/2 checks. Other views remain separate; they do not inherit its
+session. Send messages explicitly. Refresh and lost responses read history,
+never automatically resend. The 600-second native lease stops the whole HTTP
+host; inspect the retained cleanup receipt and journal after shutdown. A new
+session requires a new explicit bundle and attempt.
+
+The permit binds two text turns, 4096 text bytes, read-only/networkfalse, all
+required denials and observed user MCP names. Denials are not proof that every
+built-in tool is absent. Command/file approval Accept, automatic resume, research,
+search, trading and scoring are not enabled. Actual native questions/approvals
+were tested synthetically; the previous real smoke observed a text reply only.
+
+Full Harness stage execution requires a separate confirmed research intake,
+version-bound execution permit, tools and budget. Saved-case checks, real Codex
+text, stage research completion and scientific improvement are separate states.
+Remote public hosting also needs a separate authenticated access layer; this
+launcher intentionally binds loopback rather than exposing credentials publicly.
+
+## Universal topic portal and optional Stage1 queries
+
+Run `examples/run-project-workspace.py` from a complete checkout with its explicit
+repo and source-helper hash, and a new short `--projects-root` outside Git.
+Use `--check-only` for a read-only preflight; omit it to start the project portal.
+Teammates prepare their own content-provider configuration and Codex
+executable/configuration pins. No account files or another person's permit are
+portable. Existing saved Atlas views remain optional result snapshots.
+
+Search uses a separate installed, merged Research Hub runtime. The optional
+`--stage1-query-runtime ABSOLUTE_JSON_PATH` and
+`--stage1-query-runtime-sha256 EXACT_RAW_SHA256` must be paired. The external
+file has exactly these fields (replace the pin with the actual validated runtime;
+the example does not grant permission):
+
+```json
+{
+  "kind": "ProjectStage1QueryRuntime",
+  "schema_version": "1.0.0",
+  "pin": "REPLACE_WITH_THE_REAL_RUNTIME_PIN_OBJECT",
+  "caps": {"max_attempts": 2, "max_reserved_seconds": 100, "max_results": 3, "validity_seconds": 600},
+  "backends": ["openalex"]
+}
+```
+
+The runtime pin must satisfy the unchanged Core executable/environment/package/
+configuration/import checks. Its actual timeout also determines the reservation:
+30 seconds for bootstrap plus timeout+30 for each backend attempt. The displayed
+limits use the lower of researcher settings and server caps. Missing or changed
+configuration refuses; startup and checked-only do not probe or call the backend.
+
+In the portal: create a topic, explicitly confirm scope/resources, compile a
+search plan using an independently permitted Codex content call, then review the
+Stage1 search card. Authorize its offered limits, initialize that query runtime,
+refresh saved state, and explicitly execute the next offered query. Inspect the
+actual execution receipt and coverage gate before proceeding. Authorization,
+queued work, runner completion and research acceptance are different states.
+Refresh never resends. After a restart, restore the saved ledger owner explicitly;
+expired permission permits local checkpoint/export but refuses new searches.
+
+To configure the trusted saved-observation producer, optionally add
+`--stage1-materials-root ABSOLUTE_EXISTING_PRIVATE_DIRECTORY` with the paired
+query-runtime options. The directory must be original, unlinked private storage
+outside every Git checkout, separate from both the checkout and `--projects-root`
+in either direction. Saved SDK bundles remain at their recorded output directory;
+copying a bundle or changing its hashes does not establish source acquisition.
+Read-only preflight and preparation report configuration only. When the portal
+host is created, the attached query owner constructs its saved-record service
+using the same intake and Stage1 delivery service. Registrations remain trusted
+server-side operations; the browser cannot submit source paths or inject owners.
+Local production requires a query-owned run and an unchanged saved frontier.
+Offline ledger initialization does not grant query ownership. No downloader,
+automatic reader, model call or research acceptance is enabled by this option,
+and omitting it preserves the existing unconfigured behavior.
+
+For a Windows installation with the pinned SDK, add `--enable-public-sources` to
+register the contained public-source worker and saved SDK/Core bridge. This flag
+does not grant execution: the UI still saves a per-source permission bound to the
+project, input version, selected work, runtime, current ledger and original job
+deadline. The same source reservation covers acquisition, local parsing and Core
+registration. Failed or partial phases retain their bytes and unknown outcome;
+refresh never retries. A current recorded DOI is required by this adapter; a
+missing DOI or unavailable legal body is a visible refusal, not a fabricated PDF.
+The source worker uses Windows process containment. Other operating systems keep
+this source path unavailable until an equivalent admitted implementation exists.
+
+The source-job ceiling defaults to 60 seconds. For SDK parsing plus registration,
+configure `--source-cap-seconds 300` before startup if that fits the researcher's
+total budget. Values must remain within the unchanged Harness 1..300-second bound.
+The displayed source offer includes this limit, and each newly confirmed job
+reserves it against the existing project budget before execution. This does not
+extend an existing job, restore consumed time, or change the overall budget.
+The full contained SDK/Core/registry engineering case was verified with a new
+300-second reservation. Earlier shorter runs remain historical failures; they
+are not retrospectively extended or claimed as successful.
+
+For own-account reading, use `--enable-content-model --model YOUR_MODEL`
+and optionally `--model-cap-seconds 60`; the default per-call ceiling is 120
+seconds. Select your installed Codex executable and home with `--codex` and
+`--codex-home` when discovery is unsuitable. Each teammate supplies their own
+installed runtime, login and byte-bound configuration. No shared account or token
+is included. A static HTML/file URL cannot run Codex: keep the local server open
+and use its printed HTTP URL. Startup and GET do not start a Codex call.
+
+The native launcher requires a physical executable path. If your installation's
+`bin` or `current` directory is a Windows junction, resolve it to the installed
+release before passing `--codex`; for example, use Python's
+`Path(codex_path).resolve(strict=True)`. Do not disable the executable or source
+checks to accept a mutable alias. Updating Codex requires a fresh registration.
+
+In the complete screening library, inspect a paper, save an explicit decision and
+reason, then choose **Acquire this public source**. Inspect the saved job history.
+When a verified saved text is available, enter the model confirmation and choose
+**Ask Codex to read this saved paper**. Reading is a separate budgeted call; its
+output is a draft requiring researcher review. Exact quotes and hashes are checked,
+but no scientific claim, score or stage-completion result is inferred. If a saved
+permission's response was lost, refresh history and explicitly execute that
+existing permission using its displayed recovery button; do not create a new
+permission or repeat a queued job. Rejected and superseded decisions stay visible.
+
+The full Stage1 coverage/delivery loop still requires the Core evidence and review
+gates; a completed source or model call is not complete Stage1. Stage2 retains its
+source-bound input, workflow/frontier and delivery interfaces; full execution is
+deferred. Stage3–6 stay planned/unconnected. Repository fixtures demonstrate only
+their stated engineering boundary, not actual search or scientific acceptance.

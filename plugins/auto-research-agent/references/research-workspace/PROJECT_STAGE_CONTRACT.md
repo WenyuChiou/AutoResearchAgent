@@ -7,7 +7,8 @@ starts an independent project with any topic, or explicitly asks their own Codex
 for topic proposals, confirms a versioned scope and resources, and reviews each
 saved operation and result. A demonstration topic is not a production default.
 
-Current adapters cover project intake, offline Stage1 ledger operations, canonical
+Current adapters cover project intake, offline Stage1 ledger operations, explicitly
+sealed planned-query bootstrap/execution, canonical
 delivery of trusted registered saved reading records, and source-bound Stage2
 import and workflow initialization. The separate native
 candidate supplies bounded Codex **content planning**. They do not yet form a
@@ -81,7 +82,7 @@ started by Stage2 import.
 | --- | --- | --- |
 | Project | create; confirm; configure; revise; compile | project list/detail; history; overview; contract; exact action recovery |
 | Stage1 | initialize; plan-query; checkpoint; export; deliver a registered saved-record offer | bound ledger, real core gate, planned queries, delivery offers/package hashes and action history |
-| Stage1 execution | execute-query currently refuses as unconnected | no search or source-read completion is inferred |
+| Stage1 search execution | query-authorize; query-bootstrap; query-execute; query-restore-owner | sealed limits, runtime job, reserved budgets, real runner receipts and retained failure/unknown history |
 | Stage2 | actions: activate a registered source-bound package | offers, saved activation and history |
 | Content planning | models/authorize; models/actions | models, offers, paginated actions and hashed UTF-8 output chunks |
 | Native content session | models/native/answer; models/native/interrupt | cached native requests, actions and terminal observations |
@@ -143,6 +144,83 @@ reopen do not execute workflow producers. There is no browser execution route,
 native/model/search dispatch, score, completion or next-stage permission. Stage2
 full execution is deferred while Stage1 integration is prioritized.
 
+## Explicit Stage1 search bridge
+
+The optional `ProjectStage1QueryService` wraps the existing `PlannedQueryService`
+and unchanged retrieval runner. Entering a topic, enabling a consent checkbox,
+registering a runtime, startup and GET never authorize or initialize that runtime.
+The browser selects server offers and submits only key/revision/input version,
+brief SHA, offer ref/SHA and explicit confirmation. Authorization also retains the
+researcher's original consent text. Caller roots, executables, RPCs, query text,
+runtime pins and permit paths are refused.
+
+`query-authorize` exclusively writes a project/source/plan/runtime/cap-bound seal
+and a separate input snapshot. That snapshot is not a canonical WorkspaceIndex.
+The integer project input version and original raw brief SHA are distinct from
+the legacy query adapter's brief-hash version domain; strict registration/permit
+1.1 adds these bindings without widening legacy 1.0.
+
+`query-bootstrap` durably reserves one 30-second probe budget and intent before
+Core.create, then saves a new immutable seed and exact writable clone. Old offline
+runs remain in history. The probe receipt says only that Core.create returned:
+it is not authenticated process/import attestation or retained raw probe output.
+Failures after entering Core.create and interrupted dispatch remain unknown and
+cannot automatically retry. A completed job binds the actual manifest, seed tree,
+current state, control database, project registration and permit.
+The bootstrap deadline and unchanged authority are checked inside the final
+SQLite transaction, including immediately before commit. A late callback or
+database write rolls back completion/activation and retains execution-unknown.
+
+### Closest-work citation tracing
+
+The Stage1 project panel reads Core's current included, verified closest-work
+reviews. References and cited-by have distinct explicit single-attempt grants,
+bound to the exact work/version, round, saved frontier, registration and raw
+source/runtime pins. `expansion-authorize` saves that immutable permission;
+`expansion-execute` charges the existing query and project allowances before
+using the same owner, worker and retrieval runner. Search permission alone does
+not authorize these operations. Refresh, same-key replay and restored history
+never dispatch; uncertain attempts remain held and reservations are not refunded.
+
+New query bootstrap declares the supported Semantic Scholar citation backend in
+the Core plan without authorizing a query. Existing immutable plans are retained;
+unsupported legacy citation bindings and seeds without a discovered DOI/arXiv ID
+remain unavailable. A failed seed does not hide other supported offers. Completed
+seed/version/operation evidence is reused across rounds according to Core policy.
+An observed backend return still needs its coverage receipt/truncation review,
+source reading and researcher review; it cannot establish Stage1 completion.
+No new model, source-read, research or scoring permission is granted by this panel.
+
+`query-execute` reserves the next offered backend attempt and timeout+30 seconds
+before dispatch. Cumulative reservations are checked against immutable intake
+intent history, including failed and unknown actions. Admission binds the precise
+outer request/inner client key and current seal/config/raw execution source before
+the existing runner's I/O. Backend attempts are separate from provider HTTP calls,
+bytes and monetary cost; those resource limits are not yet demonstrated.
+
+Live ledger writes, local plan recording, checkpoint and export share the query
+owner/frontier. The bootstrap run identity cannot be replaced by a sibling copy.
+Checkpoint metadata must reference a real ledger event. Restoring an owner is an
+explicit local history operation, with no probe, source or search dispatch. It
+remains available after permit expiry; all new queries still refuse. GET and
+same-key response-loss recovery only read history. A lost bootstrap worker is
+shown as execution-unknown rather than running after a true store reopen.
+
+This first bridge retains one immutable query authorization/bootstrap per project.
+An expired seal or revised input cannot be replaced, reset or reused for another
+version. Versioned renewal/rerun generations, with separate retained budgets and
+attempts, remain a required extension; the UI reports stale/unavailable rather
+than silently granting new execution. Independent projects already have separate
+seals, roots and history.
+
+The common stage projection exposes search observations and separate reserved
+attempts/probes/seconds. Actual backend-attempt counts require saved runner
+receipts; token usage, cost, source reads and scientific scores remain Unknown
+when absent. `stage1_complete` and `accepted` remain false. Source acquisition,
+model reading, ledger-to-reading-record production and the full coverage loop
+still require their own adapters/permits; this search segment does not complete
+the full Stage1 goal. Stage2 execution and Stage3–6 remain unconnected.
+
 ## Adding a stage without rebuilding the UI
 
 A future adapter must use this same project store and binding, expose read-only
@@ -157,7 +235,7 @@ will reuse intake, identity, intent/history, metrics and native/API boundaries;
 it is **not** a promise that an unimplemented stage can be connected by changing
 HTML alone. Only the stage-specific views and output presentation should change.
 
-Remaining production work is authenticated retrieval/source acquisition,
+Remaining production work is authenticated source acquisition,
 ledger-to-reading-record production and authenticated retrieval/read/coverage,
 the full Stage2 generation/extraction and
 independent review/selection chain, stage execution permits and resource limits,
@@ -226,3 +304,68 @@ saved annotations, canonical delivery and the actual offline package validator.
 They are engineering fixtures. Actual public acquisition, native model reading,
 complete coverage/researcher acceptance and source/model execution permits
 remain unconnected by this seam; Stage2 is unchanged.
+
+### Open a saved Stage1 delivery in the v6 Atlas
+
+The current `saved-evidence-validated` artifact appears automatically as an
+inline saved literature network in the owning project workspace. It uses the
+original v6 graph, details, compact direction summary and bibliography, bound
+to the current project and input version. Project setup and Harness operations
+stay in that workspace; **Refresh saved state** reloads saved history and
+restores the inline view for the current delivery binding. Viewing the saved
+package does not execute research.
+
+Authenticated GET routes bind project, input version, revision, artifact and
+manifest: `/api/projects/{ref}/stage1/atlas/{input}/{revision}/{artifact}/{sha}`.
+Notes and BibTeX use its `/files/{opaque_ref}/{sha}` catalog. Paths, owners,
+native IDs and permits cannot be supplied. Source/receipt/frontier checks,
+complete byte inventory and before/after deadline checks reject stale or
+changed evidence. Reading uses the pure canonical reader and existing local
+ledger checks, without package rebuild, source-runtime replay or action writes.
+Responses share the host's 1 MiB bound and refuse larger projections.
+Package traversal rejects unlisted paths before reading their content. Regular
+files are captured with explicit byte/count/aggregate limits; the pure reader
+uses that immutable snapshot rather than reopening disk content. A second
+bounded capture checks the physical package again before returning.
+
+The public shell contains reviewed code only. The original project window
+retains its in-memory credential, reads private JSON and transfers it through
+an exact-origin/window MessageChannel. The graph never receives the credential
+or private server paths; downloads are authenticated by the project window.
+Refreshing the graph rechecks the same saved binding with GET, never POST.
+Changing project/revision retires the view and ignores late responses.
+Directly opening the shell without its project window supplies no private data.
+
+Unknown, partial, pending audit and failed attempts retain their saved meaning.
+The bare package has no new readiness evidence or Stage2 execution authority.
+Source identities requiring unavailable semantic replay fail closed. Stage3–6
+remain planned/unconnected. Graph access does not demonstrate native/model
+execution or full Stage1/Stage2 acceptance.
+
+### Preserve unread candidates in a saved delivery
+
+Canonical records `1.2.0` add the already implemented read-only
+`Stage1ScreeningLibrary` and its original raw artifacts to the delivery. Every
+Core candidate remains in the paper catalog. Query/backend history, first
+discovery order, result position, versions, actual decisions/reversals and
+source attempts remain distinct; result position is not a relevance score.
+An unscreened candidate has no invented `DecisionEvent`.
+
+`discovery-only` papers preserve saved discovery metadata, an actual URL or
+null, metadata evidence level and Unknown reading/classification fields.
+They have no fabricated source receipt or claim. If a selected version already
+has a source attempt, claim or current review, missing registered reading still
+refuses delivery. Human-reviewed rows retain the original complete source and
+claim guards. The server compares the full library to its current Core
+projection during production, registration, delivery and explicit recovery.
+Raw artifacts retain original refs and hashes, including historical versions.
+The exact complete Core journal is also archived and hash/chain checked;
+query, source and decision history cannot be shortened by rewriting counts.
+Legacy fully annotated `1.0/1.1` contracts remain unchanged.
+
+The graph, complete library, notes and bibliography consume the same saved
+Index. The existing project screening-library panel exposes the real discovery
+counts; the unchanged v6 graph's discovery-count presenter remains a separate
+UI follow-up. None of these records establish complete reading, sufficient
+coverage, stage acceptance or a relevance ranking. Stage2 explicitly refuses
+the unconnected `1.2` consumer; Stage3–6 remain planned/unconnected.

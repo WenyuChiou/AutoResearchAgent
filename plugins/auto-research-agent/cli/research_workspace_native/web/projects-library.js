@@ -1,4 +1,4 @@
-/* Saved screening companion. GET only; no intents, approvals or execution. */
+/* Saved screening companion. Reads saved records; explicit actions go to the shared broker. */
 (function () {
   "use strict";
   const $ = id => document.getElementById(id);
@@ -8,7 +8,7 @@
     "zh-Hant": {title: "完整篩選文獻庫", help: "保留全部已記錄候選，包括排除及未閱讀文獻。發現順序不是相關度排名；此列表不代表 Stage1 完成。", more: "讀取更多文獻", loading: "正在讀取已保存的篩選紀錄…", unavailable: "目前專案版本暫無可讀取的篩選紀錄。", empty: "尚未記錄候選文獻。", select: "點選論文查看已保存證據與決定歷史。", total: "候選", include: "納入", exclude: "排除", pending: "待定", "not-screened": "未篩選", "not-acquired": "尚未取得來源", "no-reading-evidence-recorded": "尚無閱讀證據紀錄", "claim-evidence-recorded": "已記錄論述證據", "saved-import-intent-recorded": "已保存匯入意圖", "saved-import-bytes-recorded": "已保存匯入檔案", available: "來源可用", work: "作品／版本", first: "本次執行首次發現次序", discoveries: "發現次數", queries: "不同查詢數", attempts: "後端嘗試數", rounds: "已記錄搜尋輪數", relevance: "相關度", decision: "目前決定", history: "決定歷史", discovery: "搜尋與發現路徑", source: "來源觀察紀錄", claims: "已保存論述", access: "已記錄存取連結", sourceLevel: "證據層級", reading: "閱讀證據", close: "關閉詳情", loaded: "已載入", of: "／", unavailableDetail: "詳情暫不可讀取。請重新整理專案，查看目前已保存版本。", status: "狀態", orderHelp: "候選發現次序及後端結果位置都是保存的觀察紀錄，不是科學排名。", noDecision: "尚未記錄篩選決定。", sourceNotRead: "來源可用不代表已完整閱讀或論述已核實。", noHistory: "暫無紀錄", reason: "理由", outcome: "結果"}
   };
   let language = "en", basis = null, generation = 0, page = null, entries = [], selected = null;
-  let loading = false, detailGeneration = 0;
+  let loading = false, detailGeneration = 0, sourceReady = false;
   const t = key => (words[language] || words.en)[key] || words.en[key] || key;
   const sourceLabels = {
     en: {pending: "Source read unfinished", unavailable: "Source unavailable", not_found: "Source not found", rate_limited: "Source rate limited", http_error: "Source HTTP error", network_error: "Source network error", parse_error: "Source parse error", interrupted: "Source read interrupted"},
@@ -76,6 +76,15 @@
     const ul = document.createElement("ul"); box.append(ul);
     for (const row of list) append(ul, "li", describe(row));
   }
+  function acquisitionNeeded(row) {
+    if (typeof row.selected_version_id !== "string" || !row.selected_version_id || !Array.isArray(row.source_attempts)) return false;
+    const sources = row.source_attempts.filter(item => item && item.started && item.started.version_id === row.selected_version_id);
+    if (!sources.length) return ["not-acquired", "saved-import-intent-recorded", "saved-import-bytes-recorded"].includes(row.source_status);
+    // Reading-model eligibility is separate from a saved source observation.
+    // Preserve pending/unknown outcomes; another version's source is not this one.
+    if (sources.some(item => !item.finished || item.finished.outcome === "available")) return false;
+    return sources.every(item => ["unavailable", "not_found", "rate_limited", "http_error", "network_error", "parse_error", "interrupted"].includes(item.finished.outcome));
+  }
   function renderDetail() {
     const area = $("screening-detail"); area.replaceChildren(); area.hidden = !selected;
     if (!selected) return;
@@ -94,6 +103,20 @@
     append(area, "h4", t("decision"));
     append(area, "p", row.current_decision ? row.current_decision.rationale : t("noDecision"));
     if (row.current_decision) append(area, "p", row.current_decision.reason_code, "subtle");
+    const screening = append(area, "details", "");
+    append(screening, "summary", {en: "Record a screening decision", "zh-Hans": "记录筛选决定", "zh-Hant": "記錄篩選決定"}[language]);
+    const choice = append(screening, "select", "");
+    for (const value of ["pending", "include", "exclude"]) {
+      const option = append(choice, "option", t(value)); option.value = value;
+    }
+    choice.setAttribute("aria-label", t("decision"));
+    const reason = append(screening, "textarea", ""); reason.rows = 3;
+    reason.setAttribute("aria-label", t("reason")); reason.placeholder = t("reason");
+    const save = append(screening, "button", {en: "Save decision", "zh-Hans": "保存决定", "zh-Hant": "保存決定"}[language]); save.type = "button";
+    save.onclick = () => document.dispatchEvent(new CustomEvent("project-screen-paper", {detail: {
+      project_ref: basis.ref, input_version: basis.version, brief_sha256: basis.brief,
+      ledger_state_sha256: basis.state, work_ref: row.work_id, decision: choice.value, rationale: reason.value
+    }}));
     append(area, "h4", t("access"));
     const currentSources = (row.source_attempts || []).filter(item => item.started.version_id === row.selected_version_id);
     const currentImports = (row.source_imports || []).filter(item => item.started.version_id === row.selected_version_id);
@@ -101,6 +124,28 @@
     for (const url of urls) link(area, url);
     if (!area.querySelector("a")) append(area, "p", "Unknown", "subtle");
     append(area, "p", t("sourceNotRead"), "subtle");
+    const reading = selected.reading_offer;
+    const claimButton = append(area, "button", {en: "Review evidence in saved source text", "zh-Hans": "审阅已保存原文的证据", "zh-Hant": "審閱已保存原文的證據"}[language]);
+    claimButton.type = "button";
+    claimButton.onclick = () => document.dispatchEvent(new CustomEvent("project-review-source", {detail: {
+      project_ref: basis.ref, input_version: basis.version, brief_sha256: basis.brief, work_ref: row.work_id
+    }}));
+    if (sourceReady && acquisitionNeeded(row) && !(reading && reading.available === true)) {
+      const caption = {en: "Acquire this public source", "zh-Hans": "取得这篇公开来源", "zh-Hant": "取得這篇公開來源"}[language];
+      const action = append(area, "button", caption); action.type = "button";
+      action.onclick = () => document.dispatchEvent(new CustomEvent("project-acquire-paper", {detail: {
+        project_ref: basis.ref, input_version: basis.version, brief_sha256: basis.brief, work_ref: row.work_id
+      }}));
+    }
+    if (reading && reading.available === true && /^[a-f0-9]{64}$/.test(reading.snapshot_sha256)) {
+      const caption = {en: "Ask Codex to read this saved paper", "zh-Hans": "让 Codex 阅读这篇已保存论文", "zh-Hant": "讓 Codex 閱讀這篇已保存論文"}[language];
+      const action = append(area, "button", caption); action.type = "button";
+      action.onclick = () => document.dispatchEvent(new CustomEvent("project-read-paper", {detail: {
+        project_ref: basis.ref, input_version: basis.version, brief_sha256: basis.brief,
+        work_ref: row.work_id, snapshot_sha256: reading.snapshot_sha256
+      }}));
+      append(area, "p", {en: "Creates a reviewable draft from saved text. Exact quotations are checked; scientific support still needs review.", "zh-Hans": "基于保存文本生成待审草稿。核对引文位置；科学支持仍需审阅。", "zh-Hant": "依已保存文本產生待審草稿。核對引文位置；科學支持仍需審閱。"}[language], "subtle");
+    } else if (reading && reading.blocked_reason) append(area, "p", reading.blocked_reason, "subtle");
     history(area, "history", row.decision_history, item => item.event_id + " · " + t(item.new_decision) + " · " + value(item.reason_code) + " · " + value(item.rationale));
     history(area, "discovery", row.query_history, item => item.started.event_id + " · " + value(item.started.arguments.input && item.started.arguments.input.query || item.started.arguments.query) + " · " + item.backend_attempts.map(attempt => value(attempt.started.backend) + ": " + value(attempt.finished ? attempt.finished.outcome : "pending")).join(" · "));
     history(area, "discoveries", row.discoveries, item => value(item.candidate_discovery_order_in_run) + " · " + value(item.query_id) + " · " + value(item.attempt_id) + " · " + value(item.version_id) + " · " + value(item.result_position) + " · " + value(item.source_ref && item.source_ref.sha256));
@@ -140,6 +185,7 @@
   document.addEventListener("project-screening-clear", clear);
   document.addEventListener("project-screening-state", event => {
     const detail = event.detail; language = words[detail.language] ? detail.language : "en"; labels();
+    sourceReady = Boolean(detail.stage1 && detail.stage1.source_execution && detail.stage1.source_execution.runner_connected);
     const descriptor = detail.stage1 && detail.stage1.screening_library, project = detail.project;
     if (!project || !descriptor || !descriptor.available || descriptor.project_ref !== project.project_ref || descriptor.input_version !== project.input_version) { clear(); labels(); return; }
     const next = {ref: project.project_ref, version: project.input_version, state: descriptor.ledger_state_sha256, brief: project.brief_sha256};
