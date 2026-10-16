@@ -1,4 +1,4 @@
-"""Run affected plugin tests; uncertain inputs retain the full contract suite."""
+"""Run affected tests with explicit accounting for manual-only long integration."""
 
 import argparse
 from collections import Counter
@@ -76,6 +76,19 @@ MODULE_SECONDS = {
 }
 # Socket, subprocess and asynchronous-unit deadlines remain unchanged. Run these
 # fixtures after worker exit so slow CI disk/CPU contention does not compete.
+# Explicit long integration cases from the Windows module windows above.
+# Automatic PR/main CI never runs these; full mode is explicitly manual.
+SLOW_INTEGRATION_MODULES = {
+    "test_project_expansions",
+    "test_project_stage1_atlas",
+    "test_project_reading_registration",
+    "test_source_saved_pipeline",
+    "test_retrieval_execution",
+    "test_project_stage1_records",
+    "test_project_stage1_delivery",
+    "test_stage1_deliverable",
+}
+
 SERIAL_DEADLINE_MODULES = {
     "test_owned_source_observations",
     "test_portable_atlas_git_checkout",
@@ -86,11 +99,23 @@ SERIAL_DEADLINE_MODULES = {
     "test_project_model_reading",
     "test_project_resource_budget",
     "test_saved_source_parser_worker",
+    "test_source_saved_pipeline",
     "test_stage_model_safety",
+}
+# These legacy validator fixtures create temporary evidence below the plugin
+# source root. Run them only after source-bound recovery/capture readers exit;
+# their byte-identity guards must still reject any real concurrent tree change.
+SERIAL_SOURCE_MUTATION_MODULES = {
+    "test_evaluation_plan",
+    "test_judge_bundle",
+    "test_paired_evaluation",
+    "test_stage1_ab_contract_v2",
+    "test_stage1_ab_execution",
 }
 DOCS = {
     "plugins/auto-research-agent/README.md",
     "plugins/auto-research-agent/CONTRIBUTING.md",
+    "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md",
     ".github/pull_request_template.md",
 }
 CI_FILES = {
@@ -264,9 +289,10 @@ def run_partition(ids, directory):
 
 def run_parallel(suite, directory, workers):
     ids = list(test_ids(suite))
-    serial = [name for name in ids if name.rsplit(".", 2)[0] in SERIAL_DEADLINE_MODULES]
+    exclusive = SERIAL_DEADLINE_MODULES | SERIAL_SOURCE_MUTATION_MODULES
+    serial = [name for name in ids if name.rsplit(".", 2)[0] in exclusive]
     groups = partition_tests(
-        [name for name in ids if name.rsplit(".", 2)[0] not in SERIAL_DEADLINE_MODULES],
+        [name for name in ids if name.rsplit(".", 2)[0] not in exclusive],
         workers,
     )
     if Counter([*serial, *(name for group in groups for name in group)]) != Counter(
@@ -325,10 +351,79 @@ def run_parallel(suite, directory, workers):
     return 0 if summary["passed"] else 1
 
 
-def run_suite(selection, repo=REPO, contracts=False, workers=1):
+def apply_test_profile(suite, profile):
+    """Account every test occurrence, including integration checks deferred here."""
+    if profile not in {"standard", "full"}:
+        raise ValueError("Unknown plugin test profile")
+    ids = list(test_ids(suite))
+    deferred_modules = SLOW_INTEGRATION_MODULES if profile == "standard" else set()
+    selected = unittest.TestSuite()
+    deferred = []
+
+    def add(items):
+        for item in items:
+            if isinstance(item, unittest.TestSuite):
+                add(item)
+            elif item.id().rsplit(".", 2)[0] in deferred_modules:
+                deferred.append(item.id())
+            else:
+                selected.addTest(item)
+
+    add(suite)
+    if Counter([*test_ids(selected), *deferred]) != Counter(ids):
+        raise ValueError("Selected/deferred inventory differs from discovery")
+    print(
+        json.dumps(
+            {
+                "test_profile": profile,
+                "discovered_tests": len(ids),
+                "selected_tests": selected.countTestCases(),
+                "deferred_tests": len(deferred),
+                "deferred_test_ids": deferred,
+                "deferred_status": "not-run; not a pass",
+                "full_suite_requested": profile == "full",
+            }
+        ),
+        flush=True,
+    )
+    return selected
+
+
+def run_suite(
+    selection, repo=REPO, contracts=False, workers=1, profile="standard", platform=""
+):
     if not 1 <= workers <= 3:
         raise ValueError("Test workers must be between one and three")
+    if platform not in {"", "Linux", "Windows", "macOS"}:
+        raise ValueError("Unknown plugin test platform")
     governance = selection["mode"] == "governance"
+    if (
+        platform == "Windows"
+        and profile == "standard"
+        and not contracts
+        and not governance
+    ):
+        modules = ["test_stage_contracts"]
+        docs_only = (
+            selection["mode"] == "selected"
+            and bool(selection.get("changed_paths"))
+            and plugin_test_scope(selection["changed_paths"]) == "docs"
+        )
+        if not docs_only:
+            modules.insert(0, "test_plugin_loading")
+        print(
+            json.dumps(
+                {
+                    "plugin_check_scope": "windows-smoke",
+                    "requested_mode": selection["mode"],
+                    "modules": modules,
+                    "windows_integration_status": "not-run; not a pass",
+                    "windows_deferred_inventory": "not enumerated; smoke checks only",
+                }
+            ),
+            flush=True,
+        )
+        selection = {**selection, "mode": "selected", "modules": modules}
     test_dir = Path(".github/scripts") if contracts or governance else TEST_DIR
     directory = repo / test_dir
     sys.path.insert(0, str(directory))
@@ -349,6 +444,8 @@ def run_suite(selection, repo=REPO, contracts=False, workers=1):
             if module_suite.countTestCases() == 0:
                 raise ValueError(f"Selected test module is empty: {name}")
             suite.addTests(module_suite)
+    if not contracts and not governance:
+        suite = apply_test_profile(suite, profile)
     if suite.countTestCases() == 0:
         raise ValueError("Selected test suite is empty")
     if workers > 1 and not contracts and selection["mode"] == "full":
@@ -380,7 +477,24 @@ def main():
     parser.add_argument(
         "--workers", type=int, default=os.environ.get("PLUGIN_TEST_WORKERS", "1")
     )
+    parser.add_argument(
+        "--profile",
+        choices=("standard", "full"),
+        default=os.environ.get("PLUGIN_TEST_PROFILE", "standard"),
+    )
     args = parser.parse_args()
+    if args.profile not in ("standard", "full"):
+        parser.error("PLUGIN_TEST_PROFILE must be standard or full")
+    platform = os.environ.get("PLUGIN_TEST_PLATFORM", "")
+    if platform not in {"", "Linux", "Windows", "macOS"}:
+        parser.error("PLUGIN_TEST_PLATFORM must be Linux, Windows or macOS")
+    if args.profile == "full" and os.environ.get("GITHUB_EVENT_NAME") in {
+        "pull_request",
+        "pull_request_target",
+        "push",
+        "workflow_call",
+    }:
+        parser.error("Long integration tests require an explicit manual full run")
     if args.contracts and args.governance:
         parser.error("--contracts and --governance are mutually exclusive")
     if args.contracts:
@@ -404,7 +518,13 @@ def main():
             paths, records=records, event_name=os.environ.get("GITHUB_EVENT_NAME")
         )
     print(json.dumps(selection), flush=True)
-    return run_suite(selection, contracts=args.contracts, workers=args.workers)
+    return run_suite(
+        selection,
+        contracts=args.contracts,
+        workers=args.workers,
+        profile=args.profile,
+        platform=platform,
+    )
 
 
 if __name__ == "__main__":

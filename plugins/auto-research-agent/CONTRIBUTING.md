@@ -166,7 +166,29 @@ and test modules, and keeps all three required platform jobs:
 | Named CI workflow/runner files or existing standalone `test_*.py` files, optionally with the above docs/evidence | Affected test modules and modules referring to them, plugin loading and stage contracts; CI selection/validator/quality regressions |
 | Runtime/API, JavaScript, prompts, schemas, registries, shared fixtures, dependencies, deleted tests, mixed or unknown paths | Full plugin suite and quality checks |
 
-Manual calls or unavailable change history do not select a reduced suite.
+Every automatic PR and main run uses the `standard` test profile. The eight
+explicitly listed long integration modules never run automatically, including
+when runtime, registry, shared fixtures, unknown paths or their own tests change.
+CI reports their exact deferred IDs/counts as **not run**, never passed or skipped.
+All remaining selected tests, required invariants, PR contracts and three platform
+jobs remain required. Failures, import errors, incomplete workers, invalid profiles
+and empty selected suites still fail. Production guards and deadlines are unchanged.
+Keep new focused regression tests in a fast module when they are needed on PRs.
+
+Every automatic Windows job runs only plugin loading and stage-contract smoke
+checks, plus the separate CI/PR/governance contracts and existing quality checks.
+Docs retain their stage-only smoke without installing the Codex CLI. Linux/macOS
+keep the Git-diff selection above. Runtime, test, registry and unknown changes
+do not enable broader automatic Windows integration. The Windows smoke report
+states that integration is not run; it does not enumerate or claim a full-suite
+pass. The required Windows job actually runs its fast checks and fails on a
+missing module, import error or test failure. Full Windows integration remains
+available only through an explicitly requested manual `test_profile: full` run.
+
+Use the existing **Stage 1 plugin** workflow's manual `test_profile: full` input
+for an explicitly requested complete integration run; this is the manual default.
+Automatic events refuse attempts to opt into full. No periodic full run is added.
+Long integration results remain a separate acceptance gap until actually run.
 Changing only the PR description/base or making it Ready runs the PR contract
 and dependency validation without replacing the source test statuses. A base
 change still requires Core to verify the combined candidate against its new

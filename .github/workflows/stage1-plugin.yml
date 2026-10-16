@@ -7,6 +7,12 @@ on:
     branches: [main]
   workflow_call:
   workflow_dispatch:
+    inputs:
+      test_profile:
+        description: Full is an explicit long integration run; standard excludes long tests
+        type: choice
+        options: [full, standard]
+        default: full
 
 permissions:
   contents: read
@@ -44,12 +50,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # Full-suite run 38148254212 exceeded Ubuntu/macOS job deadlines.
-    # Keep every check, with a bounded allowance only for the full scope.
+    # All automatic runs use standard; long integration tests run only when
+    # a human explicitly requests the manual full profile.
+    # Windows standard runs loading/stage smoke plus the separate CI contracts;
+    # broader Windows integration coverage is explicitly manual full only.
     timeout-minutes: ${{ needs.scope.outputs.plugin_test_scope == 'full' && 90 || matrix.os == 'windows-latest' && 50 || matrix.os == 'macos-latest' && 30 || 20 }}
     env:
       # Runtime inventories bind cache bytes shared by every test process.
       PYTHONDONTWRITEBYTECODE: "1"
+      PLUGIN_TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'standard' }}
     steps:
       - name: Require a successful, recognized scope selection
         env:
@@ -109,6 +118,7 @@ jobs:
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
         env:
           PLUGIN_TEST_WORKERS: 3
+          PLUGIN_TEST_PLATFORM: ${{ runner.os }}
         run: python .github/scripts/stage1_test_scope.py
       - name: Research PR contract tests
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
