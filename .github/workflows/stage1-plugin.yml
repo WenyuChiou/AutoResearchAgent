@@ -59,7 +59,6 @@ jobs:
       # Runtime inventories bind cache bytes shared by every test process.
       PYTHONDONTWRITEBYTECODE: "1"
       PLUGIN_TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'standard' }}
-      PLUGIN_TEST_PLATFORM: ${{ runner.os }}
     steps:
       - name: Require a successful, recognized scope selection
         env:
@@ -119,6 +118,7 @@ jobs:
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
         env:
           PLUGIN_TEST_WORKERS: 3
+          PLUGIN_TEST_PLATFORM: ${{ runner.os }}
         run: python .github/scripts/stage1_test_scope.py
       - name: Research PR contract tests
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}

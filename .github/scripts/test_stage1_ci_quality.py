@@ -150,10 +150,18 @@ class Stage1CiQualityTests(unittest.TestCase):
             workflow["jobs"]["contracts"]["env"]["PLUGIN_TEST_PROFILE"],
             "${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'standard' }}",
         )
-        self.assertEqual(
-            workflow["jobs"]["contracts"]["env"]["PLUGIN_TEST_PLATFORM"],
-            "${{ runner.os }}",
+        job = workflow["jobs"]["contracts"]
+        plugin_step = next(
+            step
+            for step in job["steps"]
+            if step.get("name") == "Plugin loading and stage contracts"
         )
+        self.assertEqual(plugin_step["env"]["PLUGIN_TEST_PLATFORM"], "${{ runner.os }}")
+        self.assertNotIn("PLUGIN_TEST_PLATFORM", job["env"])
+        # GitHub permits runner context in step env, not job env.
+        for configured_job in workflow["jobs"].values():
+            for value in configured_job.get("env", {}).values():
+                self.assertNotRegex(value, r"\$\{\{[^}]*\brunner\.")
 
     def test_parser_checks_use_fresh_copy_environment_without_uv_overlay(self):
         workflow = yaml.load(
