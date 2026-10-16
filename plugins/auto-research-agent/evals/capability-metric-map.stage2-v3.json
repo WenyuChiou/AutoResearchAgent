@@ -59,6 +59,10 @@
         "plugins/auto-research-agent/tests/test_stage2_source_context_quality.py"
       ],
       "formal_admission_bridge": "Schema2.0.0 binds v3 plan/readiness/result artifact receipts and replays six v3 judge bundles; unsupported native inventory, nested usage, quality and preflight/controller replay remain explicit blockers. No formal promotion.",
+      "formal_execution_inventory_readiness_contract": "Opt-in readiness2.1 authenticates two distinct A/B execution inventories with external producer receipts and byte-bound request/prompt/report inputs through the existing read-only native inventory replay. Runtime, effective policy and arm-specific extension pins must match the frozen plan; rehashed reports, mixed prompts/roots, duplicate captures and injected execution arguments reject. Incomplete call/tool/token coverage remains blocked and unknown cost stays unknown. Legacy2.0 remains binding-only with all five original blockers. Full child-budget accounting, formal isolation, v3 calibration and two pilot replay gates remain closed; no model dispatch, resume, scientific acceptance or formal promotion is added.",
+      "formal_execution_inventory_readiness_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_formal_admission_v3.py"
+      ],
       "formal_admission_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_formal_admission_v3.py"
       ],

@@ -164,7 +164,7 @@ class PortablePreparationTests(unittest.TestCase):
         )
 
     def inspect(self, args):
-        actual_run, commands = subprocess.run, []
+        actual_run = subprocess.run
         actual_exists = Path.exists
 
         def fixture_exists(path):
@@ -177,10 +177,10 @@ class PortablePreparationTests(unittest.TestCase):
                 return False
             return actual_exists(path)
 
+        # A private root may require no subprocess; every actual child is checked.
         def readonly_git(argv, *positional, **options):
             self.assertEqual(argv[0], "git")
             self.assertEqual(argv[-2:], ["rev-parse", "--show-toplevel"])
-            commands.append(argv[:])
             return actual_run(argv, *positional, **options)
 
         with (
@@ -190,7 +190,6 @@ class PortablePreparationTests(unittest.TestCase):
             patch.object(Path, "exists", fixture_exists),
         ):
             checked = prep.inspect_inputs(args)
-        self.assertGreater(len(commands), 0)
         return checked
 
     def test_default_checks_saved_inputs_and_writes_nothing(self):

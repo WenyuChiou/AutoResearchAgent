@@ -45,12 +45,14 @@ class Stage1TestScopeTests(unittest.TestCase):
         kind="workflow_dispatch",
         contracts=False,
         workers=1,
+        profile="standard",
     ):
         script = self.repo / ".github/scripts/stage1_test_scope.py"
         env = {
             **os.environ,
             "PYTHONDONTWRITEBYTECODE": "1",
             "PLUGIN_TEST_WORKERS": str(workers),
+            "PLUGIN_TEST_PROFILE": profile,
         }
         if selection is None:
             event_path = self.write("event.json", json.dumps(event or {}))
@@ -63,9 +65,10 @@ class Stage1TestScopeTests(unittest.TestCase):
                 sys.executable,
                 "-c",
                 "import json,sys; import stage1_test_scope as s; "
-                "sys.exit(s.run_suite(json.loads(sys.argv[1]), workers=int(sys.argv[2])))",
+                "sys.exit(s.run_suite(json.loads(sys.argv[1]), workers=int(sys.argv[2]), profile=sys.argv[3]))",
                 json.dumps(selection),
                 str(workers),
+                profile,
             ]
             env["PYTHONPATH"] = str(script.parent)
         return subprocess.run(
@@ -80,6 +83,7 @@ class Stage1TestScopeTests(unittest.TestCase):
     def test_docs_and_ci_use_loading_and_stage_contract_guards(self):
         for path in (
             "plugins/auto-research-agent/README.md",
+            "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md",
             ".github/scripts/test_stage1_test_scope.py",
         ):
             with self.subTest(path=path):
@@ -89,6 +93,86 @@ class Stage1TestScopeTests(unittest.TestCase):
                     ["test_plugin_loading", "test_stage_contracts"],
                 )
                 self.assertEqual(scope.plan(paths, self.repo)["mode"], "selected")
+
+    def slow_fixture(self):
+        self.write(
+            TESTS + "test_source_saved_pipeline.py",
+            PASSING.replace("pass", "self.fail('long integration sentinel')"),
+        )
+        self.write(
+            TESTS + "test_alias.py", "from test_source_saved_pipeline import T\n"
+        )
+        return {
+            "mode": "full",
+            "changed_paths": [".github/scripts/stage1_test_scope.py"],
+        }
+
+    def test_standard_profile_accounts_deferred_duplicates_without_running_them(self):
+        result = self.fixture(self.slow_fixture(), workers=2)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rows = [json.loads(line) for line in result.stdout.splitlines()]
+        profile = next(row for row in rows if "test_profile" in row)
+        self.assertEqual(profile["discovered_tests"], 4)
+        self.assertEqual(profile["selected_tests"], 2)
+        self.assertEqual(profile["deferred_tests"], 2)
+        self.assertEqual(len(set(profile["deferred_test_ids"])), 1)
+        self.assertEqual(profile["deferred_status"], "not-run; not a pass")
+        self.assertEqual(rows[-1]["tests_run"], 2)
+        self.assertEqual(rows[-1]["skips"], 0)
+
+    def test_full_profile_executes_long_tests_and_preserves_duplicate_failures(self):
+        result = self.fixture(self.slow_fixture(), workers=2, profile="full")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        rows = [json.loads(line) for line in result.stdout.splitlines()]
+        profile = next(row for row in rows if "test_profile" in row)
+        self.assertEqual(profile["deferred_tests"], 0)
+        self.assertEqual(rows[-1]["planned_tests"], 4)
+        self.assertEqual(rows[-1]["tests_run"], 4)
+        self.assertEqual(rows[-1]["failures"], 2)
+        self.assertIn("long integration sentinel", result.stderr)
+
+    def test_all_automatic_change_types_defer_long_integration(self):
+        selection = self.slow_fixture()
+        for paths in (
+            [TESTS + "test_source_saved_pipeline.py"],
+            ["plugins/auto-research-agent/cli/unknown/main.py"],
+            ["plugins/auto-research-agent/evals/capability-metric-map.v3.json"],
+            [TESTS + "deleted.py"],
+            ["requirements.txt"],
+            [],
+        ):
+            with self.subTest(paths=paths):
+                selection["changed_paths"] = paths
+                result = self.fixture(selection)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertNotIn("long integration sentinel", result.stderr)
+                row = next(
+                    json.loads(line)
+                    for line in result.stdout.splitlines()
+                    if "deferred_test_ids" in line
+                )
+                self.assertEqual(row["deferred_tests"], 2)
+
+    def test_automatic_events_cannot_enable_full_profile(self):
+        self.slow_fixture()
+        for event in ("pull_request", "pull_request_target", "push", "workflow_call"):
+            with self.subTest(event=event):
+                result = self.fixture(event={}, kind=event, profile="full")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("explicit manual full run", result.stderr)
+                self.assertNotIn("long integration sentinel", result.stderr)
+
+    def test_manual_full_profile_reaches_real_long_test_failures(self):
+        self.slow_fixture()
+        result = self.fixture(event={}, profile="full")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("long integration sentinel", result.stderr)
+
+    def test_cli_rejects_invalid_profile_before_running_tests(self):
+        self.slow_fixture()
+        result = self.fixture(event={}, profile="unknown")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertNotIn("long integration sentinel", result.stderr)
 
     def test_governance_fast_path_requires_verified_allowlisted_changes(self):
         self.git("init")

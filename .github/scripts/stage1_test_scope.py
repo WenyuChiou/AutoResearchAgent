@@ -1,4 +1,4 @@
-"""Run affected plugin tests; uncertain inputs retain the full contract suite."""
+"""Run affected tests with explicit accounting for manual-only long integration."""
 
 import argparse
 from collections import Counter
@@ -76,6 +76,19 @@ MODULE_SECONDS = {
 }
 # Socket, subprocess and asynchronous-unit deadlines remain unchanged. Run these
 # fixtures after worker exit so slow CI disk/CPU contention does not compete.
+# Explicit long integration cases from the Windows module windows above.
+# Automatic PR/main CI never runs these; full mode is explicitly manual.
+SLOW_INTEGRATION_MODULES = {
+    "test_project_expansions",
+    "test_project_stage1_atlas",
+    "test_project_reading_registration",
+    "test_source_saved_pipeline",
+    "test_retrieval_execution",
+    "test_project_stage1_records",
+    "test_project_stage1_delivery",
+    "test_stage1_deliverable",
+}
+
 SERIAL_DEADLINE_MODULES = {
     "test_owned_source_observations",
     "test_portable_atlas_git_checkout",
@@ -101,6 +114,7 @@ SERIAL_SOURCE_MUTATION_MODULES = {
 DOCS = {
     "plugins/auto-research-agent/README.md",
     "plugins/auto-research-agent/CONTRIBUTING.md",
+    "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md",
     ".github/pull_request_template.md",
 }
 CI_FILES = {
@@ -336,7 +350,45 @@ def run_parallel(suite, directory, workers):
     return 0 if summary["passed"] else 1
 
 
-def run_suite(selection, repo=REPO, contracts=False, workers=1):
+def apply_test_profile(suite, profile):
+    """Account every test occurrence, including integration checks deferred here."""
+    if profile not in {"standard", "full"}:
+        raise ValueError("Unknown plugin test profile")
+    ids = list(test_ids(suite))
+    deferred_modules = SLOW_INTEGRATION_MODULES if profile == "standard" else set()
+    selected = unittest.TestSuite()
+    deferred = []
+
+    def add(items):
+        for item in items:
+            if isinstance(item, unittest.TestSuite):
+                add(item)
+            elif item.id().rsplit(".", 2)[0] in deferred_modules:
+                deferred.append(item.id())
+            else:
+                selected.addTest(item)
+
+    add(suite)
+    if Counter([*test_ids(selected), *deferred]) != Counter(ids):
+        raise ValueError("Selected/deferred inventory differs from discovery")
+    print(
+        json.dumps(
+            {
+                "test_profile": profile,
+                "discovered_tests": len(ids),
+                "selected_tests": selected.countTestCases(),
+                "deferred_tests": len(deferred),
+                "deferred_test_ids": deferred,
+                "deferred_status": "not-run; not a pass",
+                "full_suite_requested": profile == "full",
+            }
+        ),
+        flush=True,
+    )
+    return selected
+
+
+def run_suite(selection, repo=REPO, contracts=False, workers=1, profile="standard"):
     if not 1 <= workers <= 3:
         raise ValueError("Test workers must be between one and three")
     governance = selection["mode"] == "governance"
@@ -360,6 +412,8 @@ def run_suite(selection, repo=REPO, contracts=False, workers=1):
             if module_suite.countTestCases() == 0:
                 raise ValueError(f"Selected test module is empty: {name}")
             suite.addTests(module_suite)
+    if not contracts and not governance:
+        suite = apply_test_profile(suite, profile)
     if suite.countTestCases() == 0:
         raise ValueError("Selected test suite is empty")
     if workers > 1 and not contracts and selection["mode"] == "full":
@@ -391,7 +445,21 @@ def main():
     parser.add_argument(
         "--workers", type=int, default=os.environ.get("PLUGIN_TEST_WORKERS", "1")
     )
+    parser.add_argument(
+        "--profile",
+        choices=("standard", "full"),
+        default=os.environ.get("PLUGIN_TEST_PROFILE", "standard"),
+    )
     args = parser.parse_args()
+    if args.profile not in ("standard", "full"):
+        parser.error("PLUGIN_TEST_PROFILE must be standard or full")
+    if args.profile == "full" and os.environ.get("GITHUB_EVENT_NAME") in {
+        "pull_request",
+        "pull_request_target",
+        "push",
+        "workflow_call",
+    }:
+        parser.error("Long integration tests require an explicit manual full run")
     if args.contracts and args.governance:
         parser.error("--contracts and --governance are mutually exclusive")
     if args.contracts:
@@ -415,7 +483,9 @@ def main():
             paths, records=records, event_name=os.environ.get("GITHUB_EVENT_NAME")
         )
     print(json.dumps(selection), flush=True)
-    return run_suite(selection, contracts=args.contracts, workers=args.workers)
+    return run_suite(
+        selection, contracts=args.contracts, workers=args.workers, profile=args.profile
+    )
 
 
 if __name__ == "__main__":

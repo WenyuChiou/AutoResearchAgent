@@ -137,6 +137,20 @@ class Stage1CiQualityTests(unittest.TestCase):
             "${{ github.event_name == 'pull_request' }}",
         )
 
+    def test_automatic_standard_profile_and_manual_full_are_explicit(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        profile = workflow["on"]["workflow_dispatch"]["inputs"]["test_profile"]
+        self.assertEqual(profile["type"], "choice")
+        self.assertEqual(profile["options"], ["full", "standard"])
+        self.assertEqual(profile["default"], "full")
+        self.assertEqual(
+            workflow["jobs"]["contracts"]["env"]["PLUGIN_TEST_PROFILE"],
+            "${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'standard' }}",
+        )
+
     def test_parser_checks_use_fresh_copy_environment_without_uv_overlay(self):
         workflow = yaml.load(
             (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
