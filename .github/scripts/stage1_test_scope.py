@@ -99,6 +99,7 @@ SERIAL_DEADLINE_MODULES = {
     "test_project_model_reading",
     "test_project_resource_budget",
     "test_saved_source_parser_worker",
+    "test_source_saved_pipeline",
     "test_stage_model_safety",
 }
 # These legacy validator fixtures create temporary evidence below the plugin
