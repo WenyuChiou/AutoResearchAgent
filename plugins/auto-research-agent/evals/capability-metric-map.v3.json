@@ -459,7 +459,8 @@
         "raw-page reading acceptance does not certify complete extracted text, authenticate a reviewer, grant formal admission or authorize research/Stage 2 execution",
         "normalized-page comparison preserves punctuation, word boundaries and character order; it is not a full-body or independent acceptance certificate",
         "canonical1.1/1.2 reading attachments preserve unconnected seed admission and require external delivery/bridge/index/project/version bindings; they never authorize Stage2 or Stage3 execution",
-        "Saved-source admission never fabricates search events, HTTP success or saturation; incomplete Core/HTML evidence blocks import and copied notes remain bound in an external receipt. Hashes do not authenticate reviewer or browser authority."
+        "Saved-source admission never fabricates search events, HTTP success or saturation; incomplete Core/HTML evidence blocks import and copied notes remain bound in an external receipt. Hashes do not authenticate reviewer or browser authority.",
+        "Canonical and view result hashes bind the same SourceFetchResult; a separate SDK provenance wrapper retains its registered attempt, raw-byte and original-time checks. Fast saved-source admission regressions cover distinct valid hashes, result/provenance tampering, work/version swaps and original-receipt compatibility."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_research_workspace.py",

@@ -68,142 +68,161 @@ def snapshot_fixture(count=30):
     }
 
 
-class SavedSourceAdmissionTests(unittest.TestCase):
-    def test_identical_bytes_cannot_substitute_an_unqualified_source_id(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
+def saved_binding_fixture(root, *, original_receipt=False):
+    """Real bound fixture files; only separately tested upstream validators are mocked."""
 
-            def save(name, value):
-                raw = json.dumps(value).encode()
-                (root / name).write_bytes(raw)
-                return {
-                    "path": name,
-                    "sha256": hashlib.sha256(raw).hexdigest(),
-                    "bytes": len(raw),
+    def save(name, value):
+        raw = json.dumps(value).encode()
+        (root / name).write_bytes(raw)
+        return {
+            "path": name,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "bytes": len(raw),
+        }
+
+    snapshot = snapshot_fixture(count=1)
+    row = snapshot["rows"][0]
+    row["source_id"] = "unqualified-source"
+    row["original_acquired_at"] = "2026-10-09T00:00:00Z"
+    row["raw_source"] = row["extracted_text"] = row["full_note"] = save(
+        "source-note.json", {"synthetic": "Complete fixture note"}
+    )
+    row["acquisition_provenance"] = save(
+        "acquisition.json",
+        {
+            "raw_sha256": row["raw_source"]["sha256"],
+            "original_acquired_at": row["original_acquired_at"],
+        },
+    )
+    result_receipt = {
+        "kind": "SourceFetchResult",
+        "attempts": [{"raw_sha256": row["raw_source"]["sha256"]}],
+    }
+    result_ref = save("original.json", result_receipt)
+    if original_receipt:
+        # Existing full-result receipts have no original acquisition time field.
+        row["original_acquired_at"] = None
+        row["acquisition_provenance"] = result_ref
+    proof = save("proof.json", {"synthetic_only": True})
+    brief = {
+        "kind": "ResearchBrief",
+        "schema_version": "1.0.0",
+        "project_id": "synthetic",
+        "input_version": "input1",
+        "original_description": "Synthetic source binding fixture.",
+        "needs": [{"need_id": "need1", "question": "What does this fixture bind?"}],
+        "scope_fields": [
+            {
+                "field": "geography",
+                "material": False,
+                "reason": "Controlled fixture.",
+            }
+        ],
+        "suggestions": [],
+        "decisions": [],
+        "previous_sha256": None,
+    }
+    resources = {
+        "project_id": "synthetic",
+        "input_version": "input1",
+        "no_resource_reset": True,
+        "current_round_used": {
+            "queries": 1,
+            "full_source_acquisition_attempts": 1,
+        },
+        "previous_cumulative_used": {
+            "queries": 0,
+            "full_source_acquisition_attempts": 0,
+        },
+        "total_authorized_limits": {
+            "queries": 1,
+            "full_source_acquisition_attempts": 1,
+        },
+    }
+    paper = {
+        "work_id": row["work_id"],
+        "version_id": row["version_id"],
+        "title": "Synthetic fixture",
+        "source_ids": ["qualified-source", "unqualified-source"],
+        "fresh_note": {
+            "companion_binding": {
+                "companion_manifest_sha256": proof["sha256"],
+                "sha256": row["full_note"]["sha256"],
+                "bytes": row["full_note"]["bytes"],
+            },
+            "source_qualification": {
+                "source_id": row["source_id"],
+                "raw_sha256": row["raw_source"]["sha256"],
+                "text_sha256": row["extracted_text"]["sha256"],
+            },
+        },
+    }
+    snapshot["bindings"] = {
+        "original_request": proof,
+        "brief": save("brief.json", brief),
+        "resources": save("resources.json", resources),
+        "companion": proof,
+        "view": proof,
+        "deliverable": save(
+            "manifest.json",
+            {
+                "canonical_records": {
+                    "papers": [paper],
+                    "sources": [
+                        {
+                            "source_id": row["source_id"],
+                            "work_id": row["work_id"],
+                            "version_id": row["version_id"],
+                            "result_sha256": result_ref["sha256"],
+                        }
+                    ],
                 }
-
-            snapshot = snapshot_fixture(count=1)
-            row = snapshot["rows"][0]
-            row["source_id"] = "unqualified-source"
-            row["raw_source"] = row["extracted_text"] = row["full_note"] = save(
-                "source-note.json", {"synthetic": "Complete fixture note"}
-            )
-            row["acquisition_provenance"] = save(
-                "acquisition.json",
-                {
-                    "raw_sha256": row["raw_source"]["sha256"],
-                    "original_acquired_at": None,
-                },
-            )
-            proof = save("proof.json", {"synthetic_only": True})
-            brief = {
-                "kind": "ResearchBrief",
-                "schema_version": "1.0.0",
-                "project_id": "synthetic",
-                "input_version": "input1",
-                "original_description": "Synthetic source binding fixture.",
-                "needs": [
-                    {"need_id": "need1", "question": "What does this fixture bind?"}
-                ],
-                "scope_fields": [
-                    {
-                        "field": "geography",
-                        "material": False,
-                        "reason": "Controlled fixture.",
-                    }
-                ],
-                "suggestions": [],
-                "decisions": [],
-                "previous_sha256": None,
-            }
-            resources = {
-                "project_id": "synthetic",
-                "input_version": "input1",
-                "no_resource_reset": True,
-                "current_round_used": {
-                    "queries": 1,
-                    "full_source_acquisition_attempts": 1,
-                },
-                "previous_cumulative_used": {
-                    "queries": 0,
-                    "full_source_acquisition_attempts": 0,
-                },
-                "total_authorized_limits": {
-                    "queries": 1,
-                    "full_source_acquisition_attempts": 1,
-                },
-            }
-            paper = {
+            },
+        ),
+    }
+    index = {
+        "provenance": {
+            "deliverable_manifest_sha256": snapshot["bindings"]["deliverable"]["sha256"]
+        },
+        "papers": [paper],
+        "sources": [
+            {
+                "source_id": source_id,
+                "result_sha256": result_ref["sha256"],
+                "receipt": result_receipt,
                 "work_id": row["work_id"],
                 "version_id": row["version_id"],
-                "title": "Synthetic fixture",
-                "source_ids": ["qualified-source", "unqualified-source"],
-                "fresh_note": {
-                    "companion_binding": {
-                        "companion_manifest_sha256": proof["sha256"],
-                        "sha256": row["full_note"]["sha256"],
-                        "bytes": row["full_note"]["bytes"],
-                    },
-                    "source_qualification": {
-                        "source_id": "qualified-source",
-                        "raw_sha256": row["raw_source"]["sha256"],
-                        "text_sha256": row["extracted_text"]["sha256"],
-                    },
-                },
+                "attempts": [{"sha256": row["acquisition_provenance"]["sha256"]}],
             }
-            snapshot["bindings"] = {
-                "original_request": proof,
-                "brief": save("brief.json", brief),
-                "resources": save("resources.json", resources),
-                "companion": proof,
-                "view": proof,
-                "deliverable": save(
-                    "manifest.json",
-                    {
-                        "canonical_records": {
-                            "papers": [paper],
-                            "sources": [
-                                {
-                                    "source_id": row["source_id"],
-                                    "work_id": row["work_id"],
-                                    "version_id": row["version_id"],
-                                    "result_sha256": row["acquisition_provenance"][
-                                        "sha256"
-                                    ],
-                                }
-                            ],
-                        }
-                    },
-                ),
-            }
-            index = {
-                "provenance": {
-                    "deliverable_manifest_sha256": snapshot["bindings"]["deliverable"][
-                        "sha256"
-                    ]
-                },
-                "papers": [paper],
-                "sources": [
-                    {
-                        "source_id": source_id,
-                        "work_id": row["work_id"],
-                        "version_id": row["version_id"],
-                        "attempts": [
-                            {"sha256": row["acquisition_provenance"]["sha256"]}
-                        ],
-                    }
-                    for source_id in ("qualified-source", "unqualified-source")
-                ],
-            }
-            progress = {
-                "decision": "stop-count-target-and-covered",
-                "target": 1,
-                "note_pending_versions": 0,
-                "formally_usable_work_ids": [row["work_id"]],
-            }
+            for source_id in ("qualified-source", "unqualified-source")
+        ],
+    }
+    progress = {
+        "decision": "stop-count-target-and-covered",
+        "target": 1,
+        "note_pending_versions": 0,
+        "formally_usable_work_ids": [row["work_id"]],
+    }
+    return snapshot, index, progress, save
+
+
+class SavedSourceAdmissionTests(unittest.TestCase):
+    def inspect_binding_fixture(self, mutate=None, *, original_receipt=False):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            snapshot, index, progress, save = saved_binding_fixture(
+                root, original_receipt=original_receipt
+            )
+            manifest = json.loads(
+                (root / snapshot["bindings"]["deliverable"]["path"]).read_text()
+            )
+            if mutate is not None:
+                mutate(snapshot["rows"][0], index, manifest, save)
+            snapshot["bindings"]["deliverable"] = save("manifest.json", manifest)
+            index["provenance"]["deliverable_manifest_sha256"] = snapshot["bindings"][
+                "deliverable"
+            ]["sha256"]
             ref = save("snapshot.json", snapshot)
-            # Isolate upstream validators already covered separately; execute every
-            # new admission binding with real fixture files and identical source bytes.
             with (
                 patch(
                     "research_workspace.saved_admission._view",
@@ -217,8 +236,98 @@ class SavedSourceAdmissionTests(unittest.TestCase):
                     "research_workspace.saved_admission.deliverable_package.validate"
                 ),
             ):
-                with self.assertRaisesRegex(ValueError, "qualification source"):
-                    inspect_saved_admission(root, ref)
+                return inspect_saved_admission(root, ref)
+
+    def test_identical_bytes_cannot_substitute_an_unqualified_source_id(self):
+        def unqualified(row, index, manifest, save):
+            index["papers"][0]["fresh_note"]["source_qualification"]["source_id"] = (
+                "qualified-source"
+            )
+
+        with self.assertRaisesRegex(ValueError, "qualification source"):
+            self.inspect_binding_fixture(unqualified)
+
+    def test_sdk_provenance_has_separate_result_identity_without_granting_acceptance(
+        self,
+    ):
+        def distinct(row, index, manifest, save):
+            self.assertNotEqual(
+                row["acquisition_provenance"]["sha256"],
+                manifest["canonical_records"]["sources"][0]["result_sha256"],
+            )
+
+        handoff = self.inspect_binding_fixture(distinct)
+        self.assertEqual(handoff["stage1_gate"]["status"], "blocked")
+        self.assertFalse(handoff["eligible_for_stage2"])
+        self.assertFalse(handoff["stage1_completed"])
+        self.assertEqual(
+            handoff["stage2"], {"status": "not-started", "execution_authorized": False}
+        )
+
+    def test_original_result_receipt_remains_compatible(self):
+        handoff = self.inspect_binding_fixture(original_receipt=True)
+        self.assertFalse(handoff["eligible_for_stage2"])
+
+    def test_rehashed_source_provenance_and_identity_tampering_still_reject(self):
+        cases = (
+            ("view-result", "deliverable source receipt"),
+            ("canonical-result", "deliverable source receipt"),
+            ("unregistered-provenance", "acquisition provenance absent"),
+            ("raw", "original acquisition binding"),
+            ("time", "original acquisition binding"),
+            ("work", "view source identity"),
+            ("version", "view source identity"),
+            ("canonical-work", "deliverable source receipt"),
+            ("canonical-version", "deliverable source receipt"),
+        )
+        for change, message in cases:
+            with self.subTest(change=change):
+
+                def tamper(row, index, manifest, save):
+                    source = next(
+                        s
+                        for s in index["sources"]
+                        if s["source_id"] == row["source_id"]
+                    )
+                    canonical = manifest["canonical_records"]["sources"][0]
+                    if change == "view-result":
+                        forged = save(
+                            "forged-result.json",
+                            {"kind": "SourceFetchResult", "forged": True},
+                        )
+                        source["result_sha256"] = forged["sha256"]
+                    elif change == "canonical-result":
+                        canonical["result_sha256"] = "0" * 64
+                    elif change == "unregistered-provenance":
+                        source["attempts"] = []
+                    elif change in ("raw", "time"):
+                        # Rebind all editable wrapper hashes so the semantic guard,
+                        # not stale bytes in read_bound, must reject the change.
+                        provenance = {
+                            "raw_sha256": row["raw_source"]["sha256"],
+                            "original_acquired_at": row["original_acquired_at"],
+                        }
+                        key = (
+                            "raw_sha256" if change == "raw" else "original_acquired_at"
+                        )
+                        provenance[key] = (
+                            "0" * 64 if change == "raw" else "2026-10-08T00:00:00Z"
+                        )
+                        row["acquisition_provenance"] = save(
+                            "forged-provenance.json", provenance
+                        )
+                        source["attempts"] = [
+                            {"sha256": row["acquisition_provenance"]["sha256"]}
+                        ]
+                    elif change in ("work", "version"):
+                        source[change + "_id"] = "different"
+                    elif change.startswith("canonical-"):
+                        canonical[change.removeprefix("canonical-") + "_id"] = (
+                            "different"
+                        )
+
+                with self.assertRaisesRegex(ValueError, message):
+                    self.inspect_binding_fixture(tamper)
 
     def test_original_time_is_bound_without_inventing_unknown_acquisition(self):
         row = snapshot_fixture()["rows"][0]

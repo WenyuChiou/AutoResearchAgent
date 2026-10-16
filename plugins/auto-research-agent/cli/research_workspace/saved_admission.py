@@ -480,7 +480,7 @@ def inspect_saved_admission(
             and canonical_source["work_id"] == row["work_id"]
             and canonical_source["version_id"] == row["version_id"]
             and canonical_source["result_sha256"]
-            == row["acquisition_provenance"]["sha256"],
+            == source["result_sha256"],
             "deliverable source receipt mismatch",
         )
         check_acquisition_binding(
