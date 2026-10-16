@@ -388,10 +388,41 @@ def apply_test_profile(suite, profile):
     return selected
 
 
-def run_suite(selection, repo=REPO, contracts=False, workers=1, profile="standard"):
+def run_suite(
+    selection, repo=REPO, contracts=False, workers=1, profile="standard", platform=""
+):
     if not 1 <= workers <= 3:
         raise ValueError("Test workers must be between one and three")
+    if platform not in {"", "Linux", "Windows", "macOS"}:
+        raise ValueError("Unknown plugin test platform")
     governance = selection["mode"] == "governance"
+    if (
+        platform == "Windows"
+        and profile == "standard"
+        and not contracts
+        and not governance
+    ):
+        modules = ["test_stage_contracts"]
+        docs_only = (
+            selection["mode"] == "selected"
+            and bool(selection.get("changed_paths"))
+            and plugin_test_scope(selection["changed_paths"]) == "docs"
+        )
+        if not docs_only:
+            modules.insert(0, "test_plugin_loading")
+        print(
+            json.dumps(
+                {
+                    "plugin_check_scope": "windows-smoke",
+                    "requested_mode": selection["mode"],
+                    "modules": modules,
+                    "windows_integration_status": "not-run; not a pass",
+                    "windows_deferred_inventory": "not enumerated; smoke checks only",
+                }
+            ),
+            flush=True,
+        )
+        selection = {**selection, "mode": "selected", "modules": modules}
     test_dir = Path(".github/scripts") if contracts or governance else TEST_DIR
     directory = repo / test_dir
     sys.path.insert(0, str(directory))
@@ -453,6 +484,9 @@ def main():
     args = parser.parse_args()
     if args.profile not in ("standard", "full"):
         parser.error("PLUGIN_TEST_PROFILE must be standard or full")
+    platform = os.environ.get("PLUGIN_TEST_PLATFORM", "")
+    if platform not in {"", "Linux", "Windows", "macOS"}:
+        parser.error("PLUGIN_TEST_PLATFORM must be Linux, Windows or macOS")
     if args.profile == "full" and os.environ.get("GITHUB_EVENT_NAME") in {
         "pull_request",
         "pull_request_target",
@@ -484,7 +518,11 @@ def main():
         )
     print(json.dumps(selection), flush=True)
     return run_suite(
-        selection, contracts=args.contracts, workers=args.workers, profile=args.profile
+        selection,
+        contracts=args.contracts,
+        workers=args.workers,
+        profile=args.profile,
+        platform=platform,
     )
 
 

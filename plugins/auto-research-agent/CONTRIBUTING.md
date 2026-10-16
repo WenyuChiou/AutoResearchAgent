@@ -175,6 +175,16 @@ jobs remain required. Failures, import errors, incomplete workers, invalid profi
 and empty selected suites still fail. Production guards and deadlines are unchanged.
 Keep new focused regression tests in a fast module when they are needed on PRs.
 
+Every automatic Windows job runs only plugin loading and stage-contract smoke
+checks, plus the separate CI/PR/governance contracts and existing quality checks.
+Docs retain their stage-only smoke without installing the Codex CLI. Linux/macOS
+keep the Git-diff selection above. Runtime, test, registry and unknown changes
+do not enable broader automatic Windows integration. The Windows smoke report
+states that integration is not run; it does not enumerate or claim a full-suite
+pass. The required Windows job actually runs its fast checks and fails on a
+missing module, import error or test failure. Full Windows integration remains
+available only through an explicitly requested manual `test_profile: full` run.
+
 Use the existing **Stage 1 plugin** workflow's manual `test_profile: full` input
 for an explicitly requested complete integration run; this is the manual default.
 Automatic events refuse attempts to opt into full. No periodic full run is added.

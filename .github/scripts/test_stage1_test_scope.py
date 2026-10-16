@@ -46,6 +46,7 @@ class Stage1TestScopeTests(unittest.TestCase):
         contracts=False,
         workers=1,
         profile="standard",
+        platform="",
     ):
         script = self.repo / ".github/scripts/stage1_test_scope.py"
         env = {
@@ -53,6 +54,7 @@ class Stage1TestScopeTests(unittest.TestCase):
             "PYTHONDONTWRITEBYTECODE": "1",
             "PLUGIN_TEST_WORKERS": str(workers),
             "PLUGIN_TEST_PROFILE": profile,
+            "PLUGIN_TEST_PLATFORM": platform,
         }
         if selection is None:
             event_path = self.write("event.json", json.dumps(event or {}))
@@ -65,10 +67,11 @@ class Stage1TestScopeTests(unittest.TestCase):
                 sys.executable,
                 "-c",
                 "import json,sys; import stage1_test_scope as s; "
-                "sys.exit(s.run_suite(json.loads(sys.argv[1]), workers=int(sys.argv[2]), profile=sys.argv[3]))",
+                "sys.exit(s.run_suite(json.loads(sys.argv[1]), workers=int(sys.argv[2]), profile=sys.argv[3], platform=sys.argv[4]))",
                 json.dumps(selection),
                 str(workers),
                 profile,
+                platform,
             ]
             env["PYTHONPATH"] = str(script.parent)
         return subprocess.run(
@@ -173,6 +176,106 @@ class Stage1TestScopeTests(unittest.TestCase):
         result = self.fixture(event={}, profile="unknown")
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertNotIn("long integration sentinel", result.stderr)
+
+    def test_windows_standard_runs_smoke_without_importing_unrelated_modules(self):
+        selection = self.slow_fixture()
+        self.write(
+            TESTS + "test_unrelated.py", "raise RuntimeError('not a smoke test')"
+        )
+        result = self.fixture(selection, workers=3, platform="Windows")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rows = [json.loads(line) for line in result.stdout.splitlines()]
+        scope_row = next(row for row in rows if "plugin_check_scope" in row)
+        self.assertEqual(
+            scope_row["modules"], ["test_plugin_loading", "test_stage_contracts"]
+        )
+        self.assertEqual(scope_row["windows_integration_status"], "not-run; not a pass")
+        self.assertEqual(rows[-1]["tests_run"], 2)
+        self.assertEqual(rows[-1]["skips"], 0)
+        self.assertNotIn("not a smoke test", result.stderr)
+
+    def test_windows_smoke_propagates_failures_and_missing_required_modules(self):
+        selection = {"mode": "full"}
+        self.write(
+            TESTS + "test_plugin_loading.py",
+            PASSING.replace("pass", "self.fail('smoke failure')"),
+        )
+        result = self.fixture(selection, platform="Windows")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("smoke failure", result.stderr)
+        (self.repo / TESTS / "test_stage_contracts.py").unlink()
+        result = self.fixture(selection, platform="Windows")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertGreater(json.loads(result.stdout.splitlines()[-1])["errors"], 0)
+
+    def test_windows_docs_smoke_does_not_require_cli_loading(self):
+        self.write(
+            TESTS + "test_plugin_loading.py",
+            "raise RuntimeError('CLI not installed for docs')",
+        )
+        self.git("init")
+        self.git("config", "user.name", "Windows docs scope test")
+        self.git("config", "user.email", "ci@example.invalid")
+        readme = "plugins/auto-research-agent/README.md"
+        self.git("add", readme)
+        self.git("commit", "-m", "docs baseline")
+        base = self.git("rev-parse", "HEAD")
+        self.write(readme, "Updated documentation\n")
+        self.git("add", readme)
+        self.git("commit", "-m", "docs update")
+        head = self.git("rev-parse", "HEAD")
+        result = self.fixture(
+            event={"pull_request": {"base": {"sha": base}, "head": {"sha": head}}},
+            kind="pull_request",
+            platform="Windows",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        scope_row = next(
+            json.loads(line)
+            for line in result.stdout.splitlines()
+            if '"plugin_check_scope"' in line
+        )
+        self.assertEqual(scope_row["modules"], ["test_stage_contracts"])
+        self.assertEqual(json.loads(result.stdout.splitlines()[-1])["tests_run"], 1)
+
+    def test_windows_manual_full_and_other_platforms_keep_non_smoke_failures(self):
+        selection = self.slow_fixture()
+        self.write(
+            TESTS + "test_non_smoke.py",
+            PASSING.replace("pass", "self.fail('non-smoke failure')"),
+        )
+        for platform, profile in (
+            ("Windows", "full"),
+            ("Linux", "standard"),
+            ("macOS", "standard"),
+        ):
+            with self.subTest(platform=platform, profile=profile):
+                result = self.fixture(selection, platform=platform, profile=profile)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("non-smoke failure", result.stderr)
+                self.assertNotIn('"plugin_check_scope": "windows-smoke"', result.stdout)
+
+    def test_windows_cli_and_contract_modes_keep_their_required_checks(self):
+        self.write(
+            TESTS + "test_unrelated.py", "raise RuntimeError('not a smoke test')"
+        )
+        result = self.fixture(event={}, platform="Windows")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('"plugin_check_scope": "windows-smoke"', result.stdout)
+        for name in scope.CONTRACT_MODULES:
+            self.write(".github/scripts/" + name + ".py", PASSING)
+        result = self.fixture(contracts=True, platform="Windows")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout.splitlines()[-1])["tests_run"],
+            len(scope.CONTRACT_MODULES),
+        )
+        self.assertNotIn('"plugin_check_scope": "windows-smoke"', result.stdout)
+
+    def test_unknown_platform_fails_before_test_execution(self):
+        result = self.fixture(event={}, platform="unknown")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("PLUGIN_TEST_PLATFORM", result.stderr)
 
     def test_governance_fast_path_requires_verified_allowlisted_changes(self):
         self.git("init")

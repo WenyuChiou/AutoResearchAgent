@@ -52,11 +52,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     # All automatic runs use standard; long integration tests run only when
     # a human explicitly requests the manual full profile.
+    # Windows standard runs loading/stage smoke plus the separate CI contracts;
+    # broader Windows integration coverage is explicitly manual full only.
     timeout-minutes: ${{ needs.scope.outputs.plugin_test_scope == 'full' && 90 || matrix.os == 'windows-latest' && 50 || matrix.os == 'macos-latest' && 30 || 20 }}
     env:
       # Runtime inventories bind cache bytes shared by every test process.
       PYTHONDONTWRITEBYTECODE: "1"
       PLUGIN_TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'standard' }}
+      PLUGIN_TEST_PLATFORM: ${{ runner.os }}
     steps:
       - name: Require a successful, recognized scope selection
         env:

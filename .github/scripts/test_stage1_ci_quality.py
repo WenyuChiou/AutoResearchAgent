@@ -150,6 +150,10 @@ class Stage1CiQualityTests(unittest.TestCase):
             workflow["jobs"]["contracts"]["env"]["PLUGIN_TEST_PROFILE"],
             "${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'standard' }}",
         )
+        self.assertEqual(
+            workflow["jobs"]["contracts"]["env"]["PLUGIN_TEST_PLATFORM"],
+            "${{ runner.os }}",
+        )
 
     def test_parser_checks_use_fresh_copy_environment_without_uv_overlay(self):
         workflow = yaml.load(
