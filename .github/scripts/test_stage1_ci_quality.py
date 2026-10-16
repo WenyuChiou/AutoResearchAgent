@@ -137,6 +137,32 @@ class Stage1CiQualityTests(unittest.TestCase):
             "${{ github.event_name == 'pull_request' }}",
         )
 
+    def test_automatic_standard_profile_and_manual_full_are_explicit(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        profile = workflow["on"]["workflow_dispatch"]["inputs"]["test_profile"]
+        self.assertEqual(profile["type"], "choice")
+        self.assertEqual(profile["options"], ["full", "standard"])
+        self.assertEqual(profile["default"], "full")
+        self.assertEqual(
+            workflow["jobs"]["contracts"]["env"]["PLUGIN_TEST_PROFILE"],
+            "${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'standard' }}",
+        )
+        job = workflow["jobs"]["contracts"]
+        plugin_step = next(
+            step
+            for step in job["steps"]
+            if step.get("name") == "Plugin loading and stage contracts"
+        )
+        self.assertEqual(plugin_step["env"]["PLUGIN_TEST_PLATFORM"], "${{ runner.os }}")
+        self.assertNotIn("PLUGIN_TEST_PLATFORM", job["env"])
+        # GitHub permits runner context in step env, not job env.
+        for configured_job in workflow["jobs"].values():
+            for value in configured_job.get("env", {}).values():
+                self.assertNotRegex(value, r"\$\{\{[^}]*\brunner\.")
+
     def test_parser_checks_use_fresh_copy_environment_without_uv_overlay(self):
         workflow = yaml.load(
             (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),

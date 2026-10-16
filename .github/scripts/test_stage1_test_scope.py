@@ -45,12 +45,16 @@ class Stage1TestScopeTests(unittest.TestCase):
         kind="workflow_dispatch",
         contracts=False,
         workers=1,
+        profile="standard",
+        platform="",
     ):
         script = self.repo / ".github/scripts/stage1_test_scope.py"
         env = {
             **os.environ,
             "PYTHONDONTWRITEBYTECODE": "1",
             "PLUGIN_TEST_WORKERS": str(workers),
+            "PLUGIN_TEST_PROFILE": profile,
+            "PLUGIN_TEST_PLATFORM": platform,
         }
         if selection is None:
             event_path = self.write("event.json", json.dumps(event or {}))
@@ -63,9 +67,11 @@ class Stage1TestScopeTests(unittest.TestCase):
                 sys.executable,
                 "-c",
                 "import json,sys; import stage1_test_scope as s; "
-                "sys.exit(s.run_suite(json.loads(sys.argv[1]), workers=int(sys.argv[2])))",
+                "sys.exit(s.run_suite(json.loads(sys.argv[1]), workers=int(sys.argv[2]), profile=sys.argv[3], platform=sys.argv[4]))",
                 json.dumps(selection),
                 str(workers),
+                profile,
+                platform,
             ]
             env["PYTHONPATH"] = str(script.parent)
         return subprocess.run(
@@ -80,6 +86,7 @@ class Stage1TestScopeTests(unittest.TestCase):
     def test_docs_and_ci_use_loading_and_stage_contract_guards(self):
         for path in (
             "plugins/auto-research-agent/README.md",
+            "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md",
             ".github/scripts/test_stage1_test_scope.py",
         ):
             with self.subTest(path=path):
@@ -89,6 +96,186 @@ class Stage1TestScopeTests(unittest.TestCase):
                     ["test_plugin_loading", "test_stage_contracts"],
                 )
                 self.assertEqual(scope.plan(paths, self.repo)["mode"], "selected")
+
+    def slow_fixture(self):
+        self.write(
+            TESTS + "test_source_saved_pipeline.py",
+            PASSING.replace("pass", "self.fail('long integration sentinel')"),
+        )
+        self.write(
+            TESTS + "test_alias.py", "from test_source_saved_pipeline import T\n"
+        )
+        return {
+            "mode": "full",
+            "changed_paths": [".github/scripts/stage1_test_scope.py"],
+        }
+
+    def test_standard_profile_accounts_deferred_duplicates_without_running_them(self):
+        result = self.fixture(self.slow_fixture(), workers=2)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rows = [json.loads(line) for line in result.stdout.splitlines()]
+        profile = next(row for row in rows if "test_profile" in row)
+        self.assertEqual(profile["discovered_tests"], 4)
+        self.assertEqual(profile["selected_tests"], 2)
+        self.assertEqual(profile["deferred_tests"], 2)
+        self.assertEqual(len(set(profile["deferred_test_ids"])), 1)
+        self.assertEqual(profile["deferred_status"], "not-run; not a pass")
+        self.assertEqual(rows[-1]["tests_run"], 2)
+        self.assertEqual(rows[-1]["skips"], 0)
+
+    def test_full_profile_executes_long_tests_and_preserves_duplicate_failures(self):
+        result = self.fixture(self.slow_fixture(), workers=2, profile="full")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        rows = [json.loads(line) for line in result.stdout.splitlines()]
+        profile = next(row for row in rows if "test_profile" in row)
+        self.assertEqual(profile["deferred_tests"], 0)
+        self.assertEqual(rows[-1]["planned_tests"], 4)
+        self.assertEqual(rows[-1]["tests_run"], 4)
+        self.assertEqual(rows[-1]["failures"], 2)
+        self.assertIn("long integration sentinel", result.stderr)
+
+    def test_all_automatic_change_types_defer_long_integration(self):
+        selection = self.slow_fixture()
+        for paths in (
+            [TESTS + "test_source_saved_pipeline.py"],
+            ["plugins/auto-research-agent/cli/unknown/main.py"],
+            ["plugins/auto-research-agent/evals/capability-metric-map.v3.json"],
+            [TESTS + "deleted.py"],
+            ["requirements.txt"],
+            [],
+        ):
+            with self.subTest(paths=paths):
+                selection["changed_paths"] = paths
+                result = self.fixture(selection)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertNotIn("long integration sentinel", result.stderr)
+                row = next(
+                    json.loads(line)
+                    for line in result.stdout.splitlines()
+                    if "deferred_test_ids" in line
+                )
+                self.assertEqual(row["deferred_tests"], 2)
+
+    def test_automatic_events_cannot_enable_full_profile(self):
+        self.slow_fixture()
+        for event in ("pull_request", "pull_request_target", "push", "workflow_call"):
+            with self.subTest(event=event):
+                result = self.fixture(event={}, kind=event, profile="full")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("explicit manual full run", result.stderr)
+                self.assertNotIn("long integration sentinel", result.stderr)
+
+    def test_manual_full_profile_reaches_real_long_test_failures(self):
+        self.slow_fixture()
+        result = self.fixture(event={}, profile="full")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("long integration sentinel", result.stderr)
+
+    def test_cli_rejects_invalid_profile_before_running_tests(self):
+        self.slow_fixture()
+        result = self.fixture(event={}, profile="unknown")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertNotIn("long integration sentinel", result.stderr)
+
+    def test_windows_standard_runs_smoke_without_importing_unrelated_modules(self):
+        selection = self.slow_fixture()
+        self.write(
+            TESTS + "test_unrelated.py", "raise RuntimeError('not a smoke test')"
+        )
+        result = self.fixture(selection, workers=3, platform="Windows")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rows = [json.loads(line) for line in result.stdout.splitlines()]
+        scope_row = next(row for row in rows if "plugin_check_scope" in row)
+        self.assertEqual(
+            scope_row["modules"], ["test_plugin_loading", "test_stage_contracts"]
+        )
+        self.assertEqual(scope_row["windows_integration_status"], "not-run; not a pass")
+        self.assertEqual(rows[-1]["tests_run"], 2)
+        self.assertEqual(rows[-1]["skips"], 0)
+        self.assertNotIn("not a smoke test", result.stderr)
+
+    def test_windows_smoke_propagates_failures_and_missing_required_modules(self):
+        selection = {"mode": "full"}
+        self.write(
+            TESTS + "test_plugin_loading.py",
+            PASSING.replace("pass", "self.fail('smoke failure')"),
+        )
+        result = self.fixture(selection, platform="Windows")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("smoke failure", result.stderr)
+        (self.repo / TESTS / "test_stage_contracts.py").unlink()
+        result = self.fixture(selection, platform="Windows")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertGreater(json.loads(result.stdout.splitlines()[-1])["errors"], 0)
+
+    def test_windows_docs_smoke_does_not_require_cli_loading(self):
+        self.write(
+            TESTS + "test_plugin_loading.py",
+            "raise RuntimeError('CLI not installed for docs')",
+        )
+        self.git("init")
+        self.git("config", "user.name", "Windows docs scope test")
+        self.git("config", "user.email", "ci@example.invalid")
+        readme = "plugins/auto-research-agent/README.md"
+        self.git("add", readme)
+        self.git("commit", "-m", "docs baseline")
+        base = self.git("rev-parse", "HEAD")
+        self.write(readme, "Updated documentation\n")
+        self.git("add", readme)
+        self.git("commit", "-m", "docs update")
+        head = self.git("rev-parse", "HEAD")
+        result = self.fixture(
+            event={"pull_request": {"base": {"sha": base}, "head": {"sha": head}}},
+            kind="pull_request",
+            platform="Windows",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        scope_row = next(
+            json.loads(line)
+            for line in result.stdout.splitlines()
+            if '"plugin_check_scope"' in line
+        )
+        self.assertEqual(scope_row["modules"], ["test_stage_contracts"])
+        self.assertEqual(json.loads(result.stdout.splitlines()[-1])["tests_run"], 1)
+
+    def test_windows_manual_full_and_other_platforms_keep_non_smoke_failures(self):
+        selection = self.slow_fixture()
+        self.write(
+            TESTS + "test_non_smoke.py",
+            PASSING.replace("pass", "self.fail('non-smoke failure')"),
+        )
+        for platform, profile in (
+            ("Windows", "full"),
+            ("Linux", "standard"),
+            ("macOS", "standard"),
+        ):
+            with self.subTest(platform=platform, profile=profile):
+                result = self.fixture(selection, platform=platform, profile=profile)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("non-smoke failure", result.stderr)
+                self.assertNotIn('"plugin_check_scope": "windows-smoke"', result.stdout)
+
+    def test_windows_cli_and_contract_modes_keep_their_required_checks(self):
+        self.write(
+            TESTS + "test_unrelated.py", "raise RuntimeError('not a smoke test')"
+        )
+        result = self.fixture(event={}, platform="Windows")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('"plugin_check_scope": "windows-smoke"', result.stdout)
+        for name in scope.CONTRACT_MODULES:
+            self.write(".github/scripts/" + name + ".py", PASSING)
+        result = self.fixture(contracts=True, platform="Windows")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout.splitlines()[-1])["tests_run"],
+            len(scope.CONTRACT_MODULES),
+        )
+        self.assertNotIn('"plugin_check_scope": "windows-smoke"', result.stdout)
+
+    def test_unknown_platform_fails_before_test_execution(self):
+        result = self.fixture(event={}, platform="unknown")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("PLUGIN_TEST_PLATFORM", result.stderr)
 
     def test_governance_fast_path_requires_verified_allowlisted_changes(self):
         self.git("init")
@@ -459,6 +646,55 @@ class Serial(unittest.TestCase):
                 ),
             },
         )
+
+    def test_source_mutating_fixtures_wait_for_capture_readers_and_each_other(self):
+        self.write(
+            TESTS + "test_stage2_review_pre_dispatch.py",
+            """import os, unittest
+from pathlib import Path
+class CaptureReader(unittest.TestCase):
+ def test_unchanged_tree(self):
+  self.assertFalse(Path('evals/private/shared-fixture').exists())
+  Path('capture-reader-finished').write_text(str(os.getpid()))
+""",
+        )
+        for module in (
+            "test_evaluation_plan",
+            "test_judge_bundle",
+            "test_paired_evaluation",
+            "test_stage1_ab_contract_v2",
+            "test_stage1_ab_execution",
+        ):
+            self.write(
+                TESTS + module + ".py",
+                """import os, unittest
+from pathlib import Path
+class SourceWriter(unittest.TestCase):
+ def test_write_after_readers(self):
+  self.assertTrue(Path('capture-reader-finished').is_file())
+  shared = Path('evals/private/shared-fixture')
+  shared.parent.mkdir(parents=True, exist_ok=True)
+  with shared.open('x') as stream: stream.write('synthetic evidence')
+  self.addCleanup(shared.unlink)
+  with Path('writer-pids').open('a') as stream: stream.write(str(os.getpid()) + '\\n')
+""",
+            )
+        result = self.fixture(workers=3)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        summary = json.loads(result.stdout.splitlines()[-1])
+        self.assertEqual(
+            (summary["planned_tests"], summary["tests_run"], summary["skips"]),
+            (8, 8, 0),
+        )
+        self.assertEqual(summary["incomplete_partitions"], 0)
+        self.assertIn('"serial_tests": 5', result.stdout)
+        writer_pids = (self.repo / "writer-pids").read_text().splitlines()
+        self.assertEqual(len(writer_pids), 5)
+        self.assertEqual(len(set(writer_pids)), 1)
+        self.assertNotEqual(
+            writer_pids[0], (self.repo / "capture-reader-finished").read_text()
+        )
+        self.assertFalse((self.repo / "evals/private/shared-fixture").exists())
 
     def test_serial_only_inventory_and_failure_remain_required(self):
         (self.repo / (TESTS + "test_plugin_loading.py")).unlink()
