@@ -84,6 +84,23 @@ def reject_links(path):
             )
 
 
+def _readonly_git_placeholder(marker):
+    """Recognize an inert sandbox mount, never writable repository metadata."""
+    try:
+        info = os.lstat(marker)
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or getattr(info, "st_file_attributes", 0) & 0x400
+            or not marker.is_mount()
+        ):
+            return False
+        if not os.statvfs(marker).f_flag & os.ST_RDONLY:
+            return False
+        return next(marker.iterdir(), None) is None
+    except (OSError, AttributeError, NotImplementedError):
+        return False
+
+
 def private_output(path):
     path = Path(path).absolute()
     reject_links(path)
@@ -97,9 +114,11 @@ def private_output(path):
         except (FileNotFoundError, NotADirectoryError):
             pass
         else:
-            raise DeliverableError(
-                "private package must be outside a Git checkout and links"
-            )
+            if not _readonly_git_placeholder(parent / ".git"):
+                raise DeliverableError(
+                    "private package must be outside a Git checkout and links"
+                )
+            probe_required = True
         try:
             os.lstat(parent / "HEAD")
         except (FileNotFoundError, NotADirectoryError):
