@@ -28,7 +28,13 @@ class PortableHost(unittest.TestCase):
             packet_path.write_text(json.dumps(packet), encoding='utf-8')
             pin = hashlib.sha256(packet_path.read_bytes()).hexdigest()
             helper = REPO/'plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py'
-            command = [sys.executable, '-X', 'utf8', str(HERE/'run_v9.py'),
+            startup_probe = (
+                "import faulthandler,os,runpy,sys;"
+                "faulthandler.dump_traceback_later(20);"
+                "script=sys.argv.pop(1);sys.path.insert(0,os.path.dirname(script));"
+                "runpy.run_path(script,run_name='__main__')"
+            )
+            command = [sys.executable, '-X', 'utf8', '-c', startup_probe, str(HERE/'run_v9.py'),
                        '--repo', str(REPO), '--source-helper-sha256', hashlib.sha256(helper.read_bytes()).hexdigest(),
                        '--projects-root', str(root/'projects'), '--ui-state-root', str(root/'state'),
                        '--incoming-root', str(incoming), '--run-limits', str(HERE/'zero-limits.json'), '--port', '0']
@@ -39,7 +45,11 @@ class PortableHost(unittest.TestCase):
                 reader = threading.Thread(target=lambda: output.put(process.stdout.readline()), daemon=True)
                 reader.start()
                 try:
-                    line = output.get(timeout=30)
+                    try:
+                        line = output.get(timeout=30)
+                    except queue.Empty:
+                        errors.seek(0)
+                        self.fail('No startup receipt within 30 seconds; child stderr:\n'+errors.read())
                     if not line:
                         errors.seek(0)
                         self.fail(errors.read())
