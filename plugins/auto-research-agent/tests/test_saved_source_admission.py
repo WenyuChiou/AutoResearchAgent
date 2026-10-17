@@ -471,7 +471,7 @@ class ExternalAcceptanceBindingTests(unittest.TestCase):
         self.proof = self.save("proof.bin", b"synthetic observed evidence")
         self.html_ref = self.save("view/index.html", b"<html>synthetic fixture</html>")
         self.bib = self.save(
-            "view/literature/included-references.bib",
+            "view/literature/included.bib",
             b"@article{synthetic, title={Synthetic fixture}}",
         )
         self.download = self.save(
@@ -480,7 +480,7 @@ class ExternalAcceptanceBindingTests(unittest.TestCase):
         self.view = {
             "files": {
                 "index.html": self.html_ref["sha256"],
-                "literature/included-references.bib": self.bib["sha256"],
+                "literature/included.bib": self.bib["sha256"],
             }
         }
         self.html = {
@@ -595,6 +595,94 @@ class ExternalAcceptanceBindingTests(unittest.TestCase):
         self.assertEqual(self.inspect(), self.acceptance)
         with self.assertRaisesRegex(ValueError, "independent external hash"):
             self.inspect(trusted="0" * 64)
+
+    def bind_producer_selection(self):
+        from test_research_workspace_literature_selection import (
+            attached_index,
+            change_second,
+        )
+        from research_workspace.literature_selection import selection_files
+
+        temporary, index = attached_index(change_second("extracted", "full-text"))
+        self.addCleanup(temporary.cleanup)
+        exports = selection_files(index)
+        for name, raw in exports.items():
+            ref = self.save("view/" + name, raw)
+            self.view["files"][name] = ref["sha256"]
+        raw = exports["literature/included.bib"]
+        self.assertTrue(raw)
+        self.bib = self.save("view/literature/included.bib", raw)
+        self.download = self.save("download.bib", raw)
+        self.html["expected_bibtex"] = self.bib
+        self.html["bibtex_download"] = self.download
+        self.acceptance["html"] = self.save("html-receipt.json", self.html)
+        return raw
+
+    def test_real_selection_export_passes_external_acceptance(self):
+        self.bind_producer_selection()
+        self.assertEqual(self.inspect(), self.acceptance)
+
+    def test_real_selection_rejects_equal_bytes_at_wrong_or_nonmember_path(self):
+        raw = self.bind_producer_selection()
+        baseline = copy.deepcopy(self.view)
+        for name, listed in (
+            ("references.bib", True),
+            ("literature/included-references.bib", True),
+            ("literature/unlisted.bib", False),
+            ("literature/included.bib", False),
+        ):
+            with self.subTest(member=name, listed=listed):
+                self.view = copy.deepcopy(baseline)
+                ref = self.save("view/" + name, raw)
+                if listed:
+                    self.view["files"][name] = ref["sha256"]
+                else:
+                    self.view["files"].pop(name, None)
+                self.html["expected_bibtex"] = ref
+                self.acceptance["html"] = self.save("html-receipt.json", self.html)
+                with self.assertRaisesRegex(ValueError, "not in validated view"):
+                    self.inspect()
+
+    def test_real_selection_rejects_stale_hashes_and_rehashed_changed_bytes(self):
+        raw = self.bind_producer_selection()
+        baseline_html = copy.deepcopy(self.html)
+        baseline_view = copy.deepcopy(self.view)
+        for mutation in (
+            "expected-hash",
+            "view-hash",
+            "rehashed-expected",
+            "rehashed-download",
+            "unrehashed-download",
+        ):
+            with self.subTest(mutation=mutation):
+                self.html = copy.deepcopy(baseline_html)
+                self.view = copy.deepcopy(baseline_view)
+                self.save(self.bib["path"], raw)
+                self.save(self.download["path"], raw)
+                if mutation == "expected-hash":
+                    self.html["expected_bibtex"]["sha256"] = "0" * 64
+                elif mutation == "view-hash":
+                    self.view["files"]["literature/included.bib"] = "0" * 64
+                elif mutation == "rehashed-expected":
+                    self.html["expected_bibtex"] = self.save(
+                        self.bib["path"], raw + b"\n% changed selection\n"
+                    )
+                elif mutation == "rehashed-download":
+                    self.html["bibtex_download"] = self.save(
+                        self.download["path"], raw + b"\n% changed download\n"
+                    )
+                else:
+                    self.save(self.download["path"], raw + b"\n% changed download\n")
+                self.acceptance["html"] = self.save("html-receipt.json", self.html)
+                message = (
+                    "BibTeX download differs"
+                    if mutation == "rehashed-download"
+                    else "evidence artifact binding differs"
+                    if mutation == "unrehashed-download"
+                    else "not in validated view"
+                )
+                with self.assertRaisesRegex(ValueError, message):
+                    self.inspect()
 
     def test_transitive_runtime_changes_and_new_modules_invalidate_acceptance(self):
         runtime_root = self.root / "producer"

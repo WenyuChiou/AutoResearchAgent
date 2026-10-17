@@ -396,7 +396,7 @@ def _check_acceptance(
         .as_posix()
     )
     require(
-        relative == "literature/included-references.bib"
+        relative == "literature/included.bib"
         and relative in files
         and expected_bib["sha256"] == files[relative],
         "HTML bibliography not in validated view",
