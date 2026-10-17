@@ -1,0 +1,41 @@
+name: Harness UI
+
+on:
+  pull_request:
+    paths: ["harness-ui/**", ".github/workflows/harness-ui.yml", "plugins/auto-research-agent/cli/**", "plugins/auto-research-agent/tests/stage2_fixture_helpers.py"]
+  push:
+    branches: [main]
+    paths: ["harness-ui/**", ".github/workflows/harness-ui.yml", "plugins/auto-research-agent/cli/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: 22
+      - name: Obtain pinned renderer dependency
+        run: python harness-ui/setup_vendor.py
+      - name: Install existing Harness schema dependency
+        run: python -m pip install -r harness-ui/requirements.txt
+      - name: Verify material and real loopback HTTP contracts without research
+        run: python -m unittest discover -s harness-ui -p "test_*.py" -v
+      - name: Check generated JavaScript
+        run: python harness-ui/check_bundle.py

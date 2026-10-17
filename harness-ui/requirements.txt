@@ -1,0 +1,2 @@
+# Matches the repository's existing Harness test/runtime schema dependency.
+jsonschema==4.26.0
