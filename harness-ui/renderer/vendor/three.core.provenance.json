@@ -1,0 +1,33 @@
+{
+  "kind": "ThirdPartyVendorByteProvenance",
+  "schema_version": "1.0.0",
+  "package": "three",
+  "version": "0.186.0",
+  "revision": "186",
+  "license": "MIT",
+  "repository": "git+https://github.com/mrdoob/three.js.git",
+  "git_commit": "148ef33ecb6d2502ff796d4554abd1549c95d519",
+  "metadata_url": "https://registry.npmjs.org/three/0.186.0",
+  "tarball_url": "https://registry.npmjs.org/three/-/three-0.186.0.tgz",
+  "tarball_sha256": "61eeff9d7616005c9a481c796f52287d81fbbbc0d55eaca5565322924252c1aa",
+  "tarball_integrity_sha512": "sha512-cr/fIM2ddMSVbYVgkfD4jLJv7Fh/8ZTjvo+7gQeSVGUZHxpx9FDwoL5iC7hUz/LiRA8wMbqfnb90xKfm1/HHkQ==",
+  "tarball_integrity_verified": true,
+  "npm_registry_signatures_verified": false,
+  "archive_member": "package/build/three.core.js",
+  "archive_member_sha256": "9edde002b066a9a05676a6127f67735b62baf399bdea529f2f7e31657da769e6",
+  "archive_member_bytes": 1458113,
+  "license_archive_member": "package/LICENSE",
+  "license_archive_sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc",
+  "byte_identical": true,
+  "official_core_minified_member_available": false,
+  "build_archive_members": [
+    "package/build/three.cjs",
+    "package/build/three.core.js",
+    "package/build/three.module.js",
+    "package/build/three.tsl.js",
+    "package/build/three.webgpu.js",
+    "package/build/three.webgpu.nodes.js"
+  ],
+  "decision": "retain exact official full core distribution; no third-party minifier or alternative version introduced",
+  "verification": "Existing downloaded npm tarball independently rechecked for SHA256 and SHA512, archive member bytes and license bytes; archive was not extracted or executed."
+}
