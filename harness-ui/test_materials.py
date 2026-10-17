@@ -16,7 +16,7 @@ from manual_materials import Materials, MaterialError
 class MaterialProjection(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.incoming = self.root/'incoming'
         self.packet = write_stage2_fixture(self.incoming)
         self.path = self.incoming/'packet.json'

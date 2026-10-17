@@ -16,7 +16,37 @@ function m9Matching(){return m9Current().filter(m=>m.packet_path&&(m.packet_file
 function m9Choice(){return {packet_sha256:n2.meta.packet_json_sha256,source_ids:[...n2.papers],candidates:n2.model.routes.filter(r=>n2.routes.includes(r.candidate.candidate_id)).map(r=>({candidate_id:r.candidate.candidate_id,version:r.candidate.version}))};}
 const m9ResultRender=n2Render;
 n2Render=function(app){const html=m9ResultRender(app);if(!n2.model)return html;const matches=m9Matching();return html+`<section class="hs-panel n9-continuation"><h3>${rl('本次比较与接续状态','Comparison & continuation state','本次比較與接續狀態')}</h3><p>${rl('下方保存的是比较清单。正式选案、研究执行和新产物仍需对应的 Harness 回执；当前图表来自原交付。','Save a comparison shortlist here. Formal selection, execution and new outputs require Harness receipts; current charts show the original delivery.','此處保存比較清單。正式選案、研究執行及新產物仍需對應 Harness 回執；目前圖表來自原交付。')}</p>${matches.length?matches.map(m=>{const d=m9Draft(m),op=m9.catalog.operations.find(o=>o.material_id===m.id),s=d?.selection;return `<div class="n9-material-card"><strong>${rx(m.name)} · ${rx(m.id.slice(0,16))}</strong><p data-n9-selection-status>${s?rx(s.source_ids.join(' / '))+' · '+rx(s.candidates.map(c=>c.candidate_id+' v'+c.version).join(' / '))+' · r'+d.revision:rl('尚未保存比较清单','Comparison shortlist not saved','尚未保存比較清單')}</p><div class="hs-action-row"><button class="hs-button" data-n9-choice-save="${rx(m.id)}" ${m9.busy?'disabled':''}>${rl('保存当前文献与路线比较','Save current literature & route comparison','保存目前文獻與路線比較')}</button><button class="hs-button" data-n9-choice-restore="${rx(m.id)}" ${m9.busy||!s?'disabled':''}>${rl('恢复已保存比较','Restore saved comparison','恢復已保存比較')}</button></div><small>${op?rx(n9UiLabel(op.status))+' · '+rx(op.workflow_id||op.id):rl('Harness工作流尚未建立','Harness workflow not prepared','Harness工作流尚未建立')} · ${rl('新研究产物：尚未生成','New research output: not generated','新研究產物：尚未產生')}</small></div>`;}).join(''):`<p>${rl('先在“加入文件”登记或导入packet，再点“读取并显示这份材料”。比较只绑定当前核验版本，其他项目的结果不会混入。','Register or import a packet, then choose Read & display this input. Comparisons bind to the verified version; other projects are kept separate.','先登記或匯入packet，再點「讀取並顯示此材料」。比較只綁定目前核驗版本，不混入其他專案結果。')}</p>`}<p role="status">${rx(n9Message(m9.status))}</p>${m9.error?`<p role="alert">${rx(m9.error)}</p>`:''}</section>`;};
-document.addEventListener('click',async e=>{const b=e.target.closest('[data-n9-choice-save],[data-n9-choice-restore]');if(!b||m9.busy)return;const id=b.dataset.n9ChoiceSave||b.dataset.n9ChoiceRestore,m=m9Matching().find(x=>x.id===id);if(!m)return;m9.busy=true;m9.error='';try{if(b.dataset.n9ChoiceSave){const d=m9Draft(m);await canonicalOldRequest('/api/v9/draft',{id:m.id,revision:d?.revision||0,note:d?.note||'',target_stage:d?.target_stage||2,selection:m9Choice()});await m9Load();m9.status=()=>rl('比较清单已保存到磁盘；未提交正式选案。','Comparison saved to disk; no formal selection submitted.','比較清單已保存至磁碟，未提交正式選案。');}else{await m9Load();const s=m9Draft(m)?.selection;if(!s||s.packet_sha256!==n2.meta.packet_json_sha256||s.source_ids.some(id=>!n2.model.sourceById.has(id))||s.candidates.some(c=>!n2.model.routes.some(r=>r.candidate.candidate_id===c.candidate_id&&r.candidate.version===c.version)))throw Error('saved-comparison-binding-differs');n2.papers=[...s.source_ids];n2.routes=s.candidates.map(c=>c.candidate_id);n2.view='routes';m9.status=()=>rl('已恢复同一交付版本的文献与路线比较。','Comparison restored for this exact delivery version.','已恢復同一交付版本的文獻與路線比較。');}}catch(error){m9.error=error.message;}finally{m9.busy=false;livePaint();}});
+document.addEventListener('click',async e=>{
+ const b=e.target.closest('[data-n9-choice-save],[data-n9-choice-restore]');if(!b||m9.busy)return;
+ const id=b.dataset.n9ChoiceSave||b.dataset.n9ChoiceRestore,m=m9Matching().find(x=>x.id===id);
+ if(!m||(typeof p9!=='undefined'&&p9.shown&&p9.shown.id!==id))return;
+ const ref=rt.ref,stage=apps[0].stage,model=n2.model,meta=n2.meta,
+  epoch=typeof p9==='undefined'?null:p9.epoch,shown=typeof p9==='undefined'?null:p9.shown;
+ const assertCurrent=()=>{
+  if(ref!==rt.ref||stage!==apps[0].stage||model!==n2.model||meta!==n2.meta||
+     epoch!==(typeof p9==='undefined'?null:p9.epoch)||shown!==(typeof p9==='undefined'?null:p9.shown)||
+     !m9Matching().some(x=>x.id===id&&x.project_ref===ref&&x.sha256===m.sha256))
+   throw Error('comparison-display-changed');
+ };
+ m9.busy=true;m9.error='';
+ try{
+  if(b.dataset.n9ChoiceSave){
+   const d=m9Draft(m);
+   await canonicalOldRequest('/api/v9/draft',{id:m.id,revision:d?.revision||0,note:d?.note||'',target_stage:d?.target_stage||2,selection:m9Choice()});
+   assertCurrent();await m9Load();assertCurrent();
+   m9.status=()=>rl('比较清单已保存到磁盘；未提交正式选案。','Comparison saved to disk; no formal selection submitted.','比較清單已保存至磁碟，未提交正式選案。');
+  }else{
+   await m9Load();assertCurrent();
+   const d=m9Draft(m),s=d?.selection;
+   if(d?.project_ref!==ref||d.source_sha256!==m.sha256||!s||s.packet_sha256!==n2.meta.packet_json_sha256||
+      s.source_ids.some(id=>!n2.model.sourceById.has(id))||
+      s.candidates.some(c=>!n2.model.routes.some(r=>r.candidate.candidate_id===c.candidate_id&&r.candidate.version===c.version)))
+    throw Error('saved-comparison-binding-differs');
+   n2.papers=[...s.source_ids];n2.routes=s.candidates.map(c=>c.candidate_id);n2.view='routes';
+   m9.status=()=>rl('已恢复同一交付版本的文献与路线比较。','Comparison restored for this exact delivery version.','已恢復同一交付版本的文獻與路線比較。');
+  }
+ }catch(error){m9.error=error.message;}finally{m9.busy=false;livePaint();}
+});
 const m9Stage1=stage1,m9Stage2=stage2,m9Later=laterStage,m9After=v7AfterRender;
 stage1=function(app){let html=m9Stage1(app);const top=typeof a03Active==='function'&&a03Active()?a03Top():canonicalReadonly()?canonicalTop():liveTop(app);return html.includes(top)?html.replace(top,top+m9Stage1Bar()+n9OriginalNotice()+m9Panel(app)):m9Stage1Bar()+n9OriginalNotice()+m9Panel(app)+html;};
 stage2=function(app){let html=m9Stage2(app);const top=canonicalTop();return html.includes(top)?html.replace(top,top+m9Panel(app)):m9Panel(app)+html;};

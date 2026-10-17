@@ -4,7 +4,7 @@ const p9BaseActive=n2Active;
 n2Active=()=>p9.views.has(rt.ref)||p9BaseActive();
 function p9State(view){
  const packet=JSON.parse(view.packet_text),model=n2BuildModel(packet,null,view.cards);
- return {meta:{packet_json_sha256:view.packet_file_sha256,selection_json_sha256:'unassessed',documents:[],attachments:[]},
+  return {meta:{project_ref:view.project_ref,material_id:view.material_id,packet_json_sha256:view.packet_file_sha256,selection_json_sha256:'unassessed',documents:[],attachments:[]},
   model,comparison:{},named:null,papers:model.sources.slice(0,2).map(s=>s.source_id),
   routes:model.routes.slice(0,2).map(r=>r.candidate.candidate_id),view:'routes',evidence:null,
   records:new Map(),raw:null,document:null,documents:new Map(),pending:new Set(),errors:new Map(),
@@ -31,7 +31,7 @@ async function p9Open(id){
  for(const card of view.cards){if(await canonicalHash(card.saved_text)!==card.artifact.sha256)throw Error('source-display-binding-differs');}
  const state=p9State(view);
  if(ref!==rt.ref||epoch!==p9.epoch)throw Error('project-changed-during-display-read');
- p9.views.set(ref,{id,view,state});p9Apply();
+ p9.views.set(ref,{id,view,state});p9Apply();n2RestoreDraft();
  // This preference only causes a verified GET after reload, never a POST.
  try{sessionStorage.setItem('v9-imported-view:'+ref,id);}catch{}
  m9.status=()=>rl('已核验导入材料，下面显示该版本；尚未生成新研究。',

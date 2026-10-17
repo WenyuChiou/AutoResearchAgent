@@ -21,7 +21,7 @@ HERE = Path(__file__).resolve().parent
 class PortableHost(unittest.TestCase):
     def test_authenticated_material_to_workflow(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             incoming = root/'incoming'
             packet = write_stage2_fixture(incoming)
             packet_path = incoming/'packet.json'

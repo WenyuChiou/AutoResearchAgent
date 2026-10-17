@@ -1,4 +1,5 @@
 const assert=require('node:assert/strict');
+require('./test_state_recovery.cjs');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
