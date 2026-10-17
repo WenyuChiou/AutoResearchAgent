@@ -56,6 +56,18 @@ class SessionHttpTests(unittest.TestCase):
         self.worker.join(2)
         self.assertFalse(self.worker.is_alive())
 
+    def test_numeric_loopback_bind_never_performs_reverse_dns(self):
+        with patch.object(socket, "getfqdn", side_effect=AssertionError("reverse DNS")):
+            server = SessionHttpServer(self.api)
+        try:
+            self.assertEqual(server.server_name, "127.0.0.1")
+            self.assertEqual(server.server_port, server.server_address[1])
+            self.assertEqual(
+                server.expected_origin, f"http://127.0.0.1:{server.server_port}"
+            )
+        finally:
+            server.server_close()
+
     def request(self, p, method="item/tool/requestUserInput"):
         self.push(
             p,

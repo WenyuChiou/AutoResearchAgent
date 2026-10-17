@@ -7,6 +7,7 @@ import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from socketserver import TCPServer
 
 from .session_api import SessionApi, SessionApiError
 from .store import JournalError
@@ -73,6 +74,11 @@ class SessionHttpServer(ThreadingHTTPServer):
             "127.0.0.1" if bound_port == 80 else f"127.0.0.1:{bound_port}"
         )
         self.expected_origin = "http://" + self.expected_host
+
+    def server_bind(self):
+        """Bind the validated numeric loopback without a reverse-DNS lookup."""
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def process_request(self, request, client_address):
         # Refuse excess sockets before creating a handler or deadline thread.
