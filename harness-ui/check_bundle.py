@@ -14,7 +14,7 @@ app = assets['/app.js']
 at = app.rfind(b'})();')
 if at < 0:
     raise ValueError('missing closure')
-app = app[:at] + b'\n' + b'\n'.join((HERE/name).read_bytes() for name in MODULES) + b'\n' + app[at:]
+app = app[:at] + b'\nconst n9TranslationBundle={schema_version:1,packets:[]};\n' + b'\n'.join((HERE/name).read_bytes() for name in MODULES) + b'\n' + app[at:]
 with tempfile.TemporaryDirectory() as temporary:
     target = Path(temporary)/'app.mjs'
     target.write_bytes(app)

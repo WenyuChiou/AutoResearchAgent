@@ -7,9 +7,10 @@ choices, formal selections, and newly generated research have different states.
 
 ## Start from a checkout
 
-Python 3.11+ and the existing Harness schema dependency (`requirements.txt`) are
-required. Node 22+ is used only for the JavaScript syntax check. Use an existing
-Python environment; if the schema dependency is absent, install it with
+Python 3.11+ and the existing Harness schema/document dependencies (`requirements.txt`)
+are required. The host imports editable-document helpers even when only reading a
+workflow. Node 22+ is used only for the JavaScript syntax check. Use an existing
+Python environment; install the declared dependencies with
 `python -m pip install -r harness-ui/requirements.txt`.
 From the repository root, in PowerShell:
 
@@ -71,9 +72,24 @@ the fact that the user selected a project.
 
 ## Validate without research
 
+Interface language and research-content language are separate. Optional reading
+translations can be supplied with `--display-translations <local-json-file>`.
+The format is `{"schema_version":1,"packets":[{"packet_file_sha256":"<sha256>",
+"fields":[{"candidate_id":"<id>","version":1,"path":"candidate.question",
+"source":"<exact original>","translations":{"zh":"...","en":"...","tw":"..."}}]}]}`.
+Each translation is matched to the packet file hash, candidate version, field and
+exact original value. Array translations must retain every item. Route cards,
+trade-offs, review rationale and next-check text use the selected language;
+translated fields expose the original in a collapsed disclosure. Unknown
+translations are labeled instead of substituting a different topic's text.
+Titles, direct quotations, original JSON and user notes remain verbatim. This
+is display translation, not a new scientific judgment or automatic model call.
+Keep actual delivery text and translations outside the public checkout.
+
 ```powershell
 python -m unittest discover -s harness-ui -p "test_*.py" -v
 python harness-ui/check_bundle.py
+node harness-ui/test_route_language.cjs
 ```
 
 These checks use the repository's explicitly synthetic Stage2 fixture and real

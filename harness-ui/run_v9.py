@@ -6,9 +6,10 @@ import sys
 import run_v7
 from build_v7 import canonical, sha
 from materials_http import install_materials
+from display_translations import load_translations, translation_script
 
 HERE = Path(__file__).resolve().parent
-MODULES = ('stage2_display.js', 'v9-workbench.js', 'v9-materials.js', 'v9-continuation.js')
+MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-continuation.js')
 
 
 def private_directory(path):
@@ -25,11 +26,13 @@ def main(argv=None):
     selection = argparse.ArgumentParser(add_help=False)
     selection.add_argument('--ui-state-root', type=Path, required=True)
     selection.add_argument('--incoming-root', type=Path, required=True)
+    selection.add_argument('--display-translations', type=Path)
     selected, rest = selection.parse_known_args(sys.argv[1:] if argv is None else argv)
     state = private_directory(selected.ui_state_root)
     incoming = private_directory(selected.incoming_root)
     if not incoming.is_dir() or state.is_relative_to(incoming) or incoming.is_relative_to(state):
         raise ValueError('incoming must exist and be separate from UI state')
+    translations = load_translations(selected.display_translations)
     original = run_v7.install_renderer
 
     def install(host, assets, meta, project_handler, atlas_handler):
@@ -40,10 +43,11 @@ def main(argv=None):
         if at < 0:
             raise ValueError('renderer closure missing')
         modules = {name: (HERE / name).read_bytes() for name in MODULES}
-        host._assets['/app.js'] = app[:at] + b'\n' + b'\n'.join(modules.values()) + b'\n' + app[at:]
+        host._assets['/app.js'] = app[:at] + b'\n' + translation_script(translations) + b'\n'.join(modules.values()) + b'\n' + app[at:]
         for route in ('/', '/index.html', '/app.js'):
             host._assets[route] = host._assets[route].replace(b'V7', b'V9') if route != '/app.js' else host._assets[route]
         host._assets['/runtime.css'] += b'\n' + (HERE/'stage2_display.css').read_bytes() + b'\n' + (HERE/'v9.css').read_bytes()
+        host.host_binding['display_translations_sha256'] = sha(translation_script(translations))
         host.host_binding.update(ui_version='V9', v9=dict(modules={k:sha(v) for k,v in modules.items()},
             material_registration=True, packet_projection=True, formal_selection=False,
             active_stage1='existing-bound-project-operations', model_permission='unchanged'))

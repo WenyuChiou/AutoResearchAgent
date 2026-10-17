@@ -33,9 +33,11 @@ jobs:
           node-version: 22
       - name: Obtain pinned renderer dependency
         run: python harness-ui/setup_vendor.py
-      - name: Install existing Harness schema dependency
+      - name: Install Harness host dependencies
         run: python -m pip install -r harness-ui/requirements.txt
       - name: Verify material and real loopback HTTP contracts without research
         run: python -m unittest discover -s harness-ui -p "test_*.py" -v
       - name: Check generated JavaScript
         run: python harness-ui/check_bundle.py
+      - name: Verify locale changes preserve original route content
+        run: node harness-ui/test_route_language.cjs
