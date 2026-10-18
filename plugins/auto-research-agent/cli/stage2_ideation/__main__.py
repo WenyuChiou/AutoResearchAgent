@@ -28,15 +28,32 @@ def _enable_tables(args):
     """Prepare a new opt-in run seed without rewriting or promoting its parent."""
     original = _read(args.packet)
     validate_packet(original, args.source_root)
+    scientific_arguments = getattr(args, "scientific_arguments", False)
     if (
         original["schema_version"] not in {"2.0.0", "2.1.0"}
         and not (original["schema_version"] == "2.2.0" and args.supplemental_versions)
         and not (original["schema_version"] == "2.3.0" and args.prior_work_reviews)
+        and not (
+            original["schema_version"] == "2.4.0"
+            and scientific_arguments
+            and not original["candidates"]
+        )
     ):
-        raise Stage2Error("topic tables require a v2 or exploratory v2.1 input seed")
+        raise Stage2Error(
+            "topic tables require an eligible opt-in seed; scientific arguments "
+            "require an unformed packet 2.4 seed"
+        )
+    if scientific_arguments and (
+        original["schema_version"] != "2.4.0" or original["candidates"]
+    ):
+        raise Stage2Error(
+            "scientific arguments require an unformed packet 2.4 input seed"
+        )
     packet = copy.deepcopy(original)
     packet["schema_version"] = (
-        "2.4.0"
+        "2.5.0"
+        if scientific_arguments
+        else "2.4.0"
         if args.prior_work_reviews
         else "2.3.0"
         if args.supplemental_versions
@@ -87,6 +104,11 @@ def main(argv=None):
         "--prior-work-reviews",
         action="store_true",
         help="opt in to packet 2.4 candidate/source-bound prior-work reviews",
+    )
+    enable.add_argument(
+        "--scientific-arguments",
+        action="store_true",
+        help="start packet 2.5 from an unformed 2.4 seed; candidates require arguments",
     )
     report = commands.add_parser("report", help="export an unassessed ideation draft")
     for name in (

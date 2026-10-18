@@ -7,8 +7,14 @@ import re
 from jsonschema import Draft202012Validator
 
 from stage2_common import canonical_hash
+from stage2_common.scientific_argument import validate_scientific_argument
 
-from .schema import SCHEMA_VERSION, SCHEMA_VERSION_1_1, extraction_schema
+from .schema import (
+    SCHEMA_VERSION,
+    SCHEMA_VERSION_1_1,
+    SCHEMA_VERSION_1_2,
+    extraction_schema,
+)
 from .topic_tables import TopicTableError, materialize_research_tables
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -169,11 +175,13 @@ def validate_extraction(
     result = copy.deepcopy(extraction)
     schema_version = result.get("schema_version")
     _require(
-        schema_version in {SCHEMA_VERSION, SCHEMA_VERSION_1_1},
+        schema_version in {SCHEMA_VERSION, SCHEMA_VERSION_1_1, SCHEMA_VERSION_1_2},
         "unsupported extraction schema version",
     )
     expected_version = (
-        SCHEMA_VERSION_1_1
+        SCHEMA_VERSION_1_2
+        if packet.get("schema_version") == "2.5.0"
+        else SCHEMA_VERSION_1_1
         if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}
         else SCHEMA_VERSION
     )
@@ -341,17 +349,30 @@ def validate_extraction(
             _text(claim["text"], "candidate claim")
             _evidence_ids(claim["evidence_ids"], known_evidence, "candidate claim")
     _validate_candidate_lineage(packet, candidates)
-    if schema_version == SCHEMA_VERSION_1_1 and result["research_tables"] is not None:
+    projected_packet = packet
+    if (
+        schema_version in {SCHEMA_VERSION_1_1, SCHEMA_VERSION_1_2}
+        and result["research_tables"] is not None
+    ):
         try:
-            materialize_research_tables(
+            materialized_tables = materialize_research_tables(
                 result["research_tables"],
                 candidates,
                 packet,
                 raw_proposal,
                 snapshot_sha256,
             )
+            projected_packet = {**packet, "research_tables": materialized_tables}
         except TopicTableError as error:
             raise IdeationError(f"research_tables: {error}") from error
+    if schema_version == SCHEMA_VERSION_1_2:
+        for row in candidates:
+            validate_scientific_argument(
+                row["candidate"],
+                projected_packet,
+                raw_proposal=raw_proposal,
+                error_type=IdeationError,
+            )
     if completeness_record is not None or expected_completeness_sha256 is not None:
         _validate_completeness(
             raw_proposal,

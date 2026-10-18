@@ -1,5 +1,14 @@
 # AutoResearchAgent research plugin
 
+The experimental [generic Stage 2 to Stage 3 planner](references/stage3-scientific-planning.md)
+adds opt-in candidate scientific arguments and a no-tool planning callback after
+a version-bound human selection. It maps each scientific question to evidence,
+resources, design, analysis and result interpretation. Structural checks,
+semantic review and human plan confirmation remain separate; all results are
+unrun and `execution_authorized=false`. Synthetic tests establish implementation
+behavior only. Live execution, scientific quality and the historical manual-v1
+receiver remain unverified. HTML/UI integration is deferred.
+
 Stage 2 now has an experimental [fixed-candidate checker](references/stage2-directions.md)
 and the `stage2-directions` skill. Given a confirmed brief, sources and candidates,
 it validates supplied assessments, preserves revisions and exports a prehuman

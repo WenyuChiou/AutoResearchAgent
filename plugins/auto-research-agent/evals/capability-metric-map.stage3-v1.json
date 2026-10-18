@@ -1,0 +1,168 @@
+{
+  "registry_id": "capability-metric-map-stage3-v1",
+  "schema_version": "1.0.0",
+  "extends": "capability-metric-map-v1",
+  "capabilities": [
+    {
+      "capability_id": "cli:stage3-plan",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": true,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/stage3_plan",
+      "problem": "Stage2 selection handoffs lacked actual generic question-specific planning, traceability, semantic review and version-bound plan confirmation.",
+      "mechanism": "Admit the strict externally pinned selected handoff; invoke one no-tool planning callback, preserve exact inputs/failures and replay; validate many-to-many question/evidence/design/analysis/result links, retain unknowns and require separate bound semantic review and human plan decision.",
+      "metric_effects": [
+        {
+          "metric_id": "P7",
+          "rubric_criteria": [
+            "P7V1.QUESTION_DESIGN"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "S3V1_QUESTION_PATH"
+          ],
+          "human_judgment": "Can each source-bound scientific question be answered by its proposed evidence and design?"
+        },
+        {
+          "metric_id": "P8",
+          "rubric_criteria": [
+            "P8V1.EVIDENCE_INTERPRETATION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "S3V1_EVIDENCE_RESULT"
+          ],
+          "human_judgment": "Are materials, credibility checks, analysis and possible result interpretations adequate for each question?"
+        },
+        {
+          "metric_id": "P9",
+          "rubric_criteria": [
+            "P9V1.FEASIBILITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "S3V1_DEPENDENCIES"
+          ],
+          "human_judgment": "Do scope, resources, dependencies, milestones and stops preserve a useful achievable minimum?"
+        }
+      ],
+      "guardrails": [
+        "Topic-independent input and methods; no fixed research duration or hypothesis quota",
+        "All result slots not-run/null; execution_authorized remains false",
+        "No manual transport renamed as strict delivery; no generated review called independent human verification",
+        "Synthetic tests establish mechanics only; live planning/scientific quality remain unverified"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage3_plan_contracts.py",
+        "plugins/auto-research-agent/tests/test_stage3_plan_generation.py",
+        "plugins/auto-research-agent/tests/test_stage3_plan_traceability.py",
+        "plugins/auto-research-agent/tests/test_stage3_plan_decision.py"
+      ],
+      "live_ab_required_at": "separately-authorized-stage3-generic-milestone",
+      "quality_improvement_claimed": false
+    }
+  ],
+  "capability_extensions": [
+    {
+      "capability_id": "cli:stage2-common",
+      "metric_effects": [
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.CONTRIBUTION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Opt-in packet2.5 scientific argument and source/candidate/question closure; prior-work retained"
+          ],
+          "human_judgment": "Scientific value and suitability still require source-grounded independent assessment."
+        }
+      ],
+      "scientific_argument_contract": "Opt-in2.5; at least one core question, evidence/epistemic labels, stable gap/question IDs and versioned source/resource refs. Legacy packets remain unchanged.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-ideation",
+      "metric_effects": [
+        {
+          "metric_id": "P5",
+          "rubric_criteria": [
+            "P5V3.CONTRIBUTION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Opt-in packet2.5 scientific argument and source/candidate/question closure; prior-work retained"
+          ],
+          "human_judgment": "Scientific value and suitability still require source-grounded independent assessment."
+        }
+      ],
+      "scientific_argument_contract": "Opt-in2.5; at least one core question, evidence/epistemic labels, stable gap/question IDs and versioned source/resource refs. Legacy packets remain unchanged.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage2-workflow",
+      "metric_effects": [
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Opt-in packet2.5 scientific argument and source/candidate/question closure; prior-work retained"
+          ],
+          "human_judgment": "Scientific value and suitability still require source-grounded independent assessment."
+        }
+      ],
+      "scientific_argument_contract": "Opt-in2.5; at least one core question, evidence/epistemic labels, stable gap/question IDs and versioned source/resource refs. Legacy packets remain unchanged.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py"
+      ]
+    },
+    {
+      "capability_id": "cli:stage1-eval",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.DECISION_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Opt-in closed operation_config is bound to native command, request and archive replay; legacy defaults unchanged"
+          ],
+          "human_judgment": "This reusable call primitive establishes trace behavior only, not scientific source quality."
+        }
+      ],
+      "planning_policy_extension": "Only Stage3 opts into web_search=disabled and approval_policy=never; legacy evaluator commands retain their original form.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage3_plan_generation.py"
+      ]
+    },
+    {
+      "capability_id": "cli:research-workspace-native",
+      "metric_effects": [
+        {
+          "metric_id": "P4",
+          "rubric_criteria": [
+            "P4V3.FIDELITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Packet2.5 uses rich reviewview1.2 rather than dropping resources and prior-work"
+          ],
+          "human_judgment": "Routing parity does not establish review correctness or scientific improvement."
+        }
+      ],
+      "scientific_argument_review_view": "Packet2.5 retains resources, assessment contract and prior-work; no Stage3 UI wiring.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py"
+      ]
+    }
+  ]
+}

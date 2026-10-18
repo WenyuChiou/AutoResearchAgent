@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "criterion_submetrics": {
+    "P7V1.QUESTION_DESIGN": [
+      "S3V1_QUESTION_PATH"
+    ],
+    "P8V1.EVIDENCE_INTERPRETATION": [
+      "S3V1_EVIDENCE_RESULT"
+    ],
+    "P9V1.FEASIBILITY": [
+      "S3V1_DEPENDENCIES"
+    ]
+  }
+}

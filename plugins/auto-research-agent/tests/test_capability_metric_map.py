@@ -10,6 +10,7 @@ REPO_ROOT = PLUGIN_ROOT.parents[1]
 REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.v1.json"
 V3_REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.v3.json"
 STAGE2_REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.stage2-v2.json"
+STAGE3_REGISTRY = PLUGIN_ROOT / "evals/capability-metric-map.stage3-v1.json"
 SCORECARD = PLUGIN_ROOT / "evals/primary-scorecard.v1.json"
 RUBRIC = PLUGIN_ROOT / "evals/rubrics/aging-bidirectional-rubric.v1.json"
 GENERAL_RUBRIC = PLUGIN_ROOT / "evals/rubrics/stage1-general.v3.json"
@@ -24,7 +25,7 @@ class CapabilityMetricMapTests(unittest.TestCase):
         cls.registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         extensions = [
             json.loads(path.read_text(encoding="utf-8"))
-            for path in (V3_REGISTRY, STAGE2_REGISTRY)
+            for path in (V3_REGISTRY, STAGE2_REGISTRY, STAGE3_REGISTRY)
         ]
         for extension in extensions:
             if extension["extends"] != cls.registry["registry_version"]:
@@ -67,6 +68,14 @@ class CapabilityMetricMapTests(unittest.TestCase):
         )
         cls.rubric_criteria.update(
             {item["id"]: item["dimension"] for item in stage2["criteria"]}
+        )
+        stage23 = json.loads(
+            (PLUGIN_ROOT / "evals/rubrics/stage23-general.v1.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        cls.rubric_criteria.update(
+            {item["id"]: item["dimension"] for item in stage23["criteria"]}
         )
 
     def test_capability_ids_and_owner_paths_are_unique(self):

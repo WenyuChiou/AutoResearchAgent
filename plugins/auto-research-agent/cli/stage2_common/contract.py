@@ -22,10 +22,12 @@ SCHEMA_PATHS = {
     / "schemas/stage2-packet.v2_3.schema.json",
     "2.4.0": Path(__file__).resolve().parents[2]
     / "schemas/stage2-packet.v2_4.schema.json",
+    "2.5.0": Path(__file__).resolve().parents[2]
+    / "schemas/stage2-packet.v2_5.schema.json",
 }
 
-V2_PACKET_VERSIONS = {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}
-TABLE_PACKET_VERSIONS = {"2.2.0", "2.3.0", "2.4.0"}
+V2_PACKET_VERSIONS = {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0"}
+TABLE_PACKET_VERSIONS = {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}
 
 
 class Stage2Error(ValueError):
@@ -80,26 +82,16 @@ def _schema_validate(packet):
     try:
         schema = json.loads(path.read_text(encoding="utf-8"))
         registry = Registry()
-        dependencies = (
-            [
-                SCHEMA_PATHS["2.0.0"],
-                SCHEMA_PATHS["2.1.0"],
-                SCHEMA_PATHS["2.2.0"],
-            ]
-            if version == "2.3.0"
-            else [
-                SCHEMA_PATHS["2.0.0"],
-                SCHEMA_PATHS["2.1.0"],
-                SCHEMA_PATHS["2.2.0"],
-                SCHEMA_PATHS["2.3.0"],
-            ]
-            if version == "2.4.0"
-            else [SCHEMA_PATHS["2.0.0"], SCHEMA_PATHS["2.1.0"]]
-            if version == "2.2.0"
-            else [SCHEMA_PATHS["2.0.0"]]
-            if version == "2.1.0"
-            else []
-        )
+        dependency_versions = {
+            "2.1.0": ["2.0.0"],
+            "2.2.0": ["2.0.0", "2.1.0"],
+            "2.3.0": ["2.0.0", "2.1.0", "2.2.0"],
+            "2.4.0": ["2.0.0", "2.1.0", "2.2.0", "2.3.0"],
+            "2.5.0": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"],
+        }
+        dependencies = [
+            SCHEMA_PATHS[item] for item in dependency_versions.get(version, [])
+        ]
         for schema_path in dependencies:
             value = json.loads(schema_path.read_text(encoding="utf-8"))
             registry = registry.with_resource(
@@ -204,7 +196,7 @@ def validate_packet(packet, root):
     candidates = packet["candidates"]
     if packet["schema_version"] in V2_PACKET_VERSIONS:
         _unique(literature, "work_id", "literature work_id")
-    if packet["schema_version"] in {"2.3.0", "2.4.0"}:
+    if packet["schema_version"] in {"2.3.0", "2.4.0", "2.5.0"}:
         primary_work_ids = {row["work_id"] for row in literature}
         _require(
             all(row["origin"] == "stage2" for row in supplemental_literature),
@@ -356,7 +348,7 @@ def validate_packet(packet, root):
             and row["version_id"] == source["version_id"],
             f"evidence work/version mismatch: {row['evidence_id']}",
         )
-        if packet["schema_version"] in {"2.3.0", "2.4.0"}:
+        if packet["schema_version"] in {"2.3.0", "2.4.0", "2.5.0"}:
             levels = {"metadata": 0, "abstract": 1, "full-text": 2}
             _require(
                 levels[row["evidence_level"]] <= levels[source["evidence_level"]],
@@ -396,12 +388,17 @@ def validate_packet(packet, root):
         from stage2_ideation.topic_tables import validate_research_tables
 
         validate_research_tables(packet["research_tables"], packet)
-    if packet["schema_version"] == "2.4.0":
+    if packet["schema_version"] in {"2.4.0", "2.5.0"}:
         from .prior_work import validate_prior_work_reviews
 
         validate_prior_work_reviews(
             packet, root, canonical_hash=canonical_hash, error_type=Stage2Error
         )
+    if packet["schema_version"] == "2.5.0":
+        from .scientific_argument import validate_scientific_argument
+
+        for candidate in candidates:
+            validate_scientific_argument(candidate, packet, error_type=Stage2Error)
     return None
 
 

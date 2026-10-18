@@ -116,6 +116,8 @@ def prepare_content_view_v3(
                 )
             }
         )
+        if packet.get("schema_version") == "2.5.0":
+            candidates[-1]["scientific_argument"] = deepcopy(row["scientific_argument"])
     brief = packet["brief"]
     view = {
         "kind": "Stage2ContentView",
@@ -152,7 +154,7 @@ def prepare_content_view_v3(
             "candidates": candidates,
         },
     }
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}:
         tables = packet.get("research_tables")
         if tables is not None:
             from stage2_ideation.topic_tables import validate_research_tables
@@ -160,7 +162,7 @@ def prepare_content_view_v3(
             tables = validate_research_tables(tables, packet)
         content = view["scientific_content"]
         content["literature"] = deepcopy(packet["literature"])
-        if packet.get("schema_version") in {"2.3.0", "2.4.0"}:
+        if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0"}:
             content["supplemental_literature"] = deepcopy(
                 packet["supplemental_literature"]
             )
@@ -189,7 +191,7 @@ def prepare_content_view_v3(
             if tables is not None
             else None
         )
-        if packet.get("schema_version") == "2.4.0":
+        if packet.get("schema_version") in {"2.4.0", "2.5.0"}:
             reviews = current_prior_work_reviews(packet)
             content["prior_work_reviews"] = [
                 reviews[row["candidate_id"]]

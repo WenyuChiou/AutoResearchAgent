@@ -266,6 +266,21 @@ def _candidate_details(lines, candidate, evidence, level="###"):
             "",
         ]
     )
+    if "scientific_argument" in candidate:
+        lines.extend(
+            [
+                "Scientific argument:",
+                "```json",
+                json.dumps(
+                    candidate["scientific_argument"],
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    indent=2,
+                ),
+                "```",
+                "",
+            ]
+        )
 
 
 def _assessment_details(lines, assessment, evidence):
@@ -527,7 +542,7 @@ def render_proposal(
     for option in selection["current_options"]:
         candidate = option["candidate"]
         _candidate_details(lines, candidate, evidence)
-        if packet.get("schema_version") == "2.4.0":
+        if packet.get("schema_version") in {"2.4.0", "2.5.0"}:
             review = prior_reviews.get(
                 (candidate["candidate_id"], candidate["version"])
             )

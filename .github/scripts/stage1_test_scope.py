@@ -139,6 +139,7 @@ CONTRACT_MODULES = (
     "test_validate_research_pr",
     "test_check_research_pr_dependencies",
     "test_stage1_ci_quality",
+    "test_stage3_pr_contract",
 )
 GOVERNANCE_MODULES = (
     "test_ci_scope",

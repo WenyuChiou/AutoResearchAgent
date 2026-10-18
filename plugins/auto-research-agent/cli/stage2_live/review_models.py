@@ -107,7 +107,7 @@ def _review_view_version(packet, candidate_id, snapshot_sha256, role, view_sha25
     versions = tuple(
         version
         for version in REVIEW_VIEW_VERSIONS
-        if version != "1.2.0" or packet["schema_version"] == "2.4.0"
+        if version != "1.2.0" or packet["schema_version"] in {"2.4.0", "2.5.0"}
     )
     matches = [
         version

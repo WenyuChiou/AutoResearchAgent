@@ -325,7 +325,7 @@ def render_stage2_card(attachment) -> str:
     content_gate = (
         render_content_gate_html(derive_content_gate(selection))
         if selection["evaluation_packet"].get("schema_version")
-        in {"2.2.0", "2.3.0", "2.4.0"}
+        in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}
         else ""
     )
     recommendations = selection.get("recommendations") or []

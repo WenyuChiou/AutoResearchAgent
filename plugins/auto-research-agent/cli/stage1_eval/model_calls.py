@@ -204,6 +204,12 @@ def _namespace_command(config, model, reasoning, generation_schema, attempt_outp
     command = _command(
         config["codex"], model, reasoning, generation_schema, attempt_output
     )
+    overrides = config.get("operation_config")
+    if overrides is not None:
+        if overrides != {"web_search": "disabled", "approval_policy": "never"}:
+            raise EvaluationError("unsupported model-call operation configuration")
+        # Explicit opt-in only: historical command/config bytes remain unchanged.
+        command[2:2] = ["-c", 'web_search="disabled"', "-c", 'approval_policy="never"']
     namespace = config.get("native_namespace")
     if namespace is None:
         return command
@@ -572,6 +578,7 @@ def call_model_v31(
     resume_verified,
     semantic_validator,
     api_schema,
+    operation_config=None,
 ):
     # Public provenance returns a resolved path. Use that same identity for
     # execution and replay (macOS temp paths commonly traverse /var symlinks).
@@ -580,6 +587,10 @@ def call_model_v31(
     archive = output_dir / f"{label}.model-call"
     policy = _normalize_policy(execution_policy, timeout)
     config = _request_config(codex, evaluator_home, model, reasoning)
+    if operation_config is not None:
+        if operation_config != {"web_search": "disabled", "approval_policy": "never"}:
+            raise EvaluationError("unsupported model-call operation configuration")
+        config["operation_config"] = copy.deepcopy(operation_config)
     schema_raw = Path(schema_path).read_bytes()
     generation_raw = canonical(api_schema(json.loads(schema_raw)))
     request = _request_record(prompt, schema_raw, generation_raw, config, policy, label)

@@ -112,8 +112,13 @@ def _validate_span_index(raw_proposal, spans):
 
 def generation_schema(span_index, packet=None):
     """Request span selections and leave candidate identity to the host."""
-    table_mode = (packet or {}).get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}
-    schema = extraction_schema("1.1.0") if table_mode else extraction_schema()
+    packet_version = (packet or {}).get("schema_version")
+    table_mode = packet_version in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}
+    schema = (
+        extraction_schema("1.2.0" if packet_version == "2.5.0" else "1.1.0")
+        if table_mode
+        else extraction_schema()
+    )
     ids = [row["span_id"] for row in span_index["spans"]]
     schema["$id"] = "stage2-live-ideation-extraction.span-ids.v1.schema.json"
     if table_mode:
@@ -129,6 +134,8 @@ def generation_schema(span_index, packet=None):
         "required": ["span_id"],
         "properties": {"span_id": {"type": "string", "enum": selectable_ids}},
     }
+    if packet_version == "2.5.0":
+        schema["$defs"]["proposal_span"] = copy.deepcopy(schema["$defs"]["span"])
     candidate = schema["$defs"]["candidate"]
     for name in ("candidate_id", "version", "parent_version"):
         candidate["required"].remove(name)
@@ -202,6 +209,33 @@ def expand_span_ids(value, raw_proposal, span_index, packet=None):
                         "candidate identity and version must be host-assigned"
                     )
                 row["candidate"].update(fields)
+                argument = row["candidate"].get("scientific_argument")
+                if argument is not None:
+                    claims = [argument["motivation"], *argument["current_state"]]
+                    for gap in argument["gaps"]:
+                        claims.extend((gap["statement"], gap["importance"]))
+                    claims.extend(item["statement"] for item in argument["challenges"])
+                    for claim in claims:
+                        expanded_claim_spans = []
+                        seen_claim_spans = set()
+                        for selected in claim["proposal_spans"]:
+                            if not isinstance(selected, dict) or set(selected) != {
+                                "span_id"
+                            }:
+                                raise ValueError(
+                                    "generated scientific claim span has unexpected fields"
+                                )
+                            span_id = selected["span_id"]
+                            if span_id not in by_id or span_id in seen_claim_spans:
+                                raise ValueError(
+                                    "generated scientific claim references foreign or repeated span ID"
+                                )
+                            seen_claim_spans.add(span_id)
+                            source = by_id[span_id]
+                            expanded_claim_spans.append(
+                                {key: source[key] for key in ("start", "end")}
+                            )
+                        claim["proposal_spans"] = expanded_claim_spans
     tables = result.get("research_tables")
     if tables is not None:
         for collection in ("dimensions", "cells", "direction_resources"):
@@ -295,7 +329,7 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
         else "The extracted comparison and unresolved items append to the current packet. "
     )
     table_contract = ""
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}:
         table_contract = (
             "Research-table cell contract: for a text dimension, described or partial "
             "requires a nonempty string value; for a quantity dimension, described or "
@@ -323,6 +357,17 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
             "every component must support the stated status; otherwise split it or keep "
             "it unknown. Preserve supported restrictions and explain the unresolved check. "
         )
+    argument_contract = ""
+    if packet.get("schema_version") == "2.5.0":
+        argument_contract = (
+            "Every formed candidate must include a scientific_argument with at least one "
+            "current-state claim, gap, question, and core question. Keep fact, inference, "
+            "proposal, and unknown distinct. Facts require existing evidence IDs. Resolve "
+            "gap, question, challenge, source, evidence, and candidate-version resource "
+            "references exactly. resource_id is the direction_resources.resource_id value. "
+            "For claim proposal_spans select only supplied span_id values; empty spans are "
+            "allowed for a new inference. Do not invent sources, evidence, or resource rows. "
+        )
     return (
         "Extract the already-captured Stage 2 proposal into one JSON object with no tools "
         "and no new research. The numbered proposal spans cover the original proposal bytes "
@@ -336,6 +381,7 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
         "candidates is valid. "
         + mode_instruction
         + table_contract
+        + argument_contract
         + "Return JSON matching generation_schema exactly.\n"
         + json.dumps(payload, ensure_ascii=False, sort_keys=True)
     )
