@@ -1,0 +1,257 @@
+{
+  "rubric_id": "stage23-general-v1",
+  "rubric_version": "stage23-general-v1",
+  "schema_version": "1.0.0",
+  "status": "experimental",
+  "readiness": "implementation-only",
+  "unit": "source-bound candidate argument and selected research plan",
+  "inherited_criteria": "Stage1-v3 and Stage2-v3 criteria copied byte-for-value solely for PR coverage of reused native helpers and existing consumers; historical scores are not recalculated.",
+  "criteria": [
+    {
+      "id": "P1V3.IDENTITY",
+      "dimension": "P1",
+      "critical": true,
+      "requires_challenge": false,
+      "question": "Are decision-relevant works and versions correctly identified?",
+      "anchors": {
+        "0": "A decision-critical source is demonstrably fabricated or mismatched and is still used.",
+        "1": "Works are identifiable but a noncritical discrepancy remains.",
+        "2": "Decision-relevant identity and version fields match bound source evidence."
+      }
+    },
+    {
+      "id": "P1V3.CLAIM_SUPPORT",
+      "dimension": "P1",
+      "critical": true,
+      "requires_challenge": false,
+      "question": "Do source passages support central methods, results and limitations at the claimed strength?",
+      "anchors": {
+        "0": "A central claim is contradicted or materially overstated by an accessible bound source.",
+        "1": "Accessible evidence partly supports a central claim but its strength or scope is imprecise.",
+        "2": "Every assessed central claim is directly supported at the stated strength and scope."
+      }
+    },
+    {
+      "id": "P1V3.EVIDENCE_LIMITS",
+      "dimension": "P1",
+      "critical": true,
+      "requires_challenge": false,
+      "question": "Are evidence level, locators, uncertainty and search limits honestly stated?",
+      "anchors": {
+        "0": "The answer invents a locator, claims full-text verification from metadata or hides a material limit.",
+        "1": "Limits are broadly stated but some assessable source levels or locators are vague.",
+        "2": "Source level, accessible location and meaningful uncertainty are consistently explicit."
+      }
+    },
+    {
+      "id": "P2V3.SCOPE",
+      "dimension": "P2",
+      "critical": true,
+      "requires_challenge": true,
+      "question": "Are independently frozen applicable information needs covered by directly relevant evidence?",
+      "anchors": {
+        "0": "An observed decision-critical need is omitted or only keyword-matched material is offered as support.",
+        "1": "Main needs have some direct support but a meaningful need or relation is thin.",
+        "2": "Every applicable need has substantive support within the declared evidence scope; known unknowns are not counted as covered."
+      }
+    },
+    {
+      "id": "P2V3.CORE_SELECTION",
+      "dimension": "P2",
+      "critical": false,
+      "requires_challenge": false,
+      "question": "Are topic-core works selected for a source-supported decision role, with omission and substitute reasoning?",
+      "anchors": {
+        "0": "Core status rests on fame, citation count or keywords, or a verified role mismatch is central.",
+        "1": "Most retained works are relevant, but decision role, omission effect or substitute reasoning is weak.",
+        "2": "Retained topic-core roles and their decision effects are defensible from source passages and alternatives; recency is no penalty."
+      }
+    },
+    {
+      "id": "P2V3.CLOSEST_FRONTIER",
+      "dimension": "P2",
+      "critical": true,
+      "requires_challenge": true,
+      "question": "Are closest prior work and the time-bounded frontier substantively checked?",
+      "anchors": {
+        "0": "No required closest/frontier path was attempted, or a verified material omission changes positioning.",
+        "1": "Near work is identified but comparison, update search or substitute assessment is incomplete.",
+        "2": "Closest candidates are compared on relevant dimensions and applicable recent work is checked within the cutoff; no specific paper title or recency fraction is required."
+      }
+    },
+    {
+      "id": "P2V3.BOUNDARIES",
+      "dimension": "P2",
+      "critical": false,
+      "requires_challenge": false,
+      "question": "Are important limits, challenges and contrary findings handled in context?",
+      "anchors": {
+        "0": "A visible material challenge is ignored or misrepresented.",
+        "1": "Some limits are stated but their effect on this question is unclear.",
+        "2": "Relevant boundaries and credible alternatives are presented without inventing opposition."
+      }
+    },
+    {
+      "id": "P3V3.SEARCH_TRACE",
+      "dimension": "P3",
+      "critical": false,
+      "requires_challenge": false,
+      "question": "Can searches and source acquisition be reconstructed from actual subject artifacts?",
+      "anchors": {
+        "0": "Important asserted searches have no observable subject trace.",
+        "1": "Some actions are traceable but query, backend, time, result or source path is missing.",
+        "2": "Key actions and their observed outcomes can be reconstructed from the subject's actual records, whatever their format."
+      }
+    },
+    {
+      "id": "P3V3.DECISION_TRACE",
+      "dimension": "P3",
+      "critical": false,
+      "requires_challenge": false,
+      "question": "Can selection, reversal, version and central-claim decisions be reconstructed?",
+      "anchors": {
+        "0": "Important decisions are absent or history is overwritten.",
+        "1": "Some decisions have reasons and refs but material steps are missing.",
+        "2": "Material inclusion, exclusion, core and claim decisions retain reasons and source/version links."
+      }
+    },
+    {
+      "id": "P3V3.STOP_JUSTIFICATION",
+      "dimension": "P3",
+      "critical": true,
+      "requires_challenge": false,
+      "question": "Is completion or continuation consistent with actual search breadth, failures and marginal yield?",
+      "anchors": {
+        "0": "A failure is represented as zero results, repeated narrow queries are called exhaustive, or an incomplete run is called complete.",
+        "1": "Remaining gaps are honestly identified but stopping evidence is incomplete.",
+        "2": "Distinct search paths, known gaps, marginal yield and failures support the bounded stop/continue decision."
+      }
+    },
+    {
+      "id": "P4V3.FIDELITY",
+      "dimension": "P4",
+      "question": "Are the compared questions, methods, findings and limitations faithful to the sources?",
+      "anchors": {
+        "0": "A central comparison misrepresents a source or the comparison is absent.",
+        "1": "Comparison is partly source-supported but a material representation is incomplete.",
+        "2": "The compared questions, methods, findings and limitations are source-supported and bounded."
+      }
+    },
+    {
+      "id": "P4V3.COMPARABILITY",
+      "dimension": "P4",
+      "question": "Are population, measurement, time and condition differences handled correctly?",
+      "anchors": {
+        "0": "Materially incomparable results are treated as equivalent or contradictory without justification.",
+        "1": "Relevant differences are noted but their consequences remain incomplete.",
+        "2": "Relevant differences and their implications are supported; justified non-comparability is a valid high-quality outcome."
+      }
+    },
+    {
+      "id": "P4V3.SYNTHESIS",
+      "dimension": "P4",
+      "question": "Do agreements, differences, limitations and evidence dependencies support the synthesis?",
+      "anchors": {
+        "0": "The synthesis exceeds evidence, invents agreement or treats dependent reports as independent replication.",
+        "1": "Useful synthesis exists but a material implication or evidence dependency is unresolved.",
+        "2": "Source-grounded synthesis explains agreements, differences, limitations and dependencies without overclaiming."
+      }
+    },
+    {
+      "id": "P5V3.PRECEDENT",
+      "dimension": "P5",
+      "question": "Are closest precedents and the distinction between known and unknown accurately positioned?",
+      "anchors": {
+        "0": "Central novelty relies on omitted or misrepresented precedent or unsupported absence claims.",
+        "1": "Precedents are plausible but a material closest-work comparison or known/unknown boundary is incomplete.",
+        "2": "Closest-work positioning and known/unknown distinctions are evidence-supported under the stated search limits."
+      }
+    },
+    {
+      "id": "P5V3.CONTRIBUTION",
+      "dimension": "P5",
+      "question": "Are the proposed increment, mechanism, boundaries and weakening evidence clear and justified?",
+      "anchors": {
+        "0": "The increment is disproven, relabeling is called novelty, or speculative benefit is asserted as established.",
+        "1": "The increment is plausible but its mechanism, boundaries or weakening evidence remains incomplete.",
+        "2": "The increment, mechanism rationale, boundaries and evidence that could weaken it are supported; untested performance remains a research question."
+      }
+    },
+    {
+      "id": "P5V3.REVISION",
+      "dimension": "P5",
+      "question": "Do retained or revised judgments respond to evidence with the affected parts rechecked?",
+      "anchors": {
+        "0": "Counterevidence is ignored or cosmetic revision retains the underlying error.",
+        "1": "The problem is recognized or partly repaired, but affected material, answerability or other consequential judgments have not been rechecked.",
+        "2": "Substantive repair and affected rechecks are supported with history; retaining a judgment is valid when evidence warrants no change."
+      }
+    },
+    {
+      "id": "P6V3.VALUE",
+      "dimension": "P6",
+      "question": "Is the potential benefit to understanding, measurement, validation or decisions specific and supported?",
+      "anchors": {
+        "0": "Value rests on hype, complexity, prestige or unsupported impact.",
+        "1": "The benefit is plausible but beneficiaries, contribution path or tradeoffs remain incomplete.",
+        "2": "Specific benefits and tradeoffs are supported under consistent standards, including simple, exploratory, theoretical or replication work."
+      }
+    },
+    {
+      "id": "P6V3.FEASIBILITY",
+      "dimension": "P6",
+      "question": "Are answerability, materials, access, tools, models, licenses, resources and alternatives judged reliably?",
+      "anchors": {
+        "0": "Access or suitability is fabricated, a critical constraint is ignored, or download success is treated as answerability.",
+        "1": "Some checks exist but a material feasibility or alternative judgment is unsupported or incomplete.",
+        "2": "Relevant feasibility judgments are evidenced, unknowns and alternatives are honest; correctly established infeasibility can receive full credit."
+      }
+    },
+    {
+      "id": "P6V3.CHOICE",
+      "dimension": "P6",
+      "question": "Do dispositions and the choice package provide justified options, tradeoffs and actionable next steps?",
+      "anchors": {
+        "0": "An unresolved hard blocker passes as feasible, unsupported rejection hides viable options, or no justified useful next step is provided.",
+        "1": "Dispositions or the package are partly useful but evidence, tradeoffs, limitations or next steps remain incomplete.",
+        "2": "Evidence-based dispositions and a usable choice package expose tradeoffs, limitations and next steps; justified zero recommendations are valid but not automatically full credit."
+      }
+    },
+    {
+      "id": "P7V1.QUESTION_DESIGN",
+      "dimension": "P7",
+      "question": "Can each source-bound scientific question be answered by its proposed evidence and design?",
+      "anchors": {
+        "0": "Central questions are missing, unrelated to the gap, or paired with incapable designs.",
+        "1": "Question links exist but a consequential design or claim boundary is incomplete.",
+        "2": "Question-specific evidence, measurement, design and claim limits are justified; research family is appropriate."
+      }
+    },
+    {
+      "id": "P8V1.EVIDENCE_INTERPRETATION",
+      "dimension": "P8",
+      "question": "Are materials, credibility checks, analysis and possible result interpretations adequate for each question?",
+      "anchors": {
+        "0": "Access is mistaken for suitability, unsupported inference is central, or unrun results are fabricated.",
+        "1": "Relevant evidence and analysis exist but suitability, uncertainty or interpretation is incomplete.",
+        "2": "Source conditions, analysis and support/contradiction/inconclusive interpretations are justified with uncertainty."
+      }
+    },
+    {
+      "id": "P9V1.FEASIBILITY",
+      "dimension": "P9",
+      "question": "Do scope, resources, dependencies, milestones and stops preserve a useful achievable minimum?",
+      "anchors": {
+        "0": "Critical resource dependencies are hidden, execution permission is invented, or the minimum cannot answer a core question.",
+        "1": "A useful plan exists but material scale, dependency or stop assumptions are unresolved.",
+        "2": "Estimates and alternatives follow the design; blockers, stops and minimum outputs are explicit and authority remains separate."
+      }
+    }
+  ],
+  "unknown": {
+    "score": null,
+    "rule": "Unavailable necessary independent evidence is unknown. Evaluator failures are separate and never subject zero. Observable omissions or false verification are scored, not hidden as unknown."
+  },
+  "aggregation": "Keep dimensions separate. New P7/P8/P9 criteria each use 0/1/2, necessary missing evidence is null; never combine with historical topic-specific scores. This catalog registers implementation checks, not a formal evaluation runner.",
+  "formal_execution_enabled": false
+}

@@ -56,6 +56,20 @@ def _candidate(candidate, evidence, *, historical=False):
     requirements = _items(candidate["requirements"])
     limitations = _items(candidate["limitations"])
     evidence_links = _evidence_links(candidate["evidence_ids"], evidence)
+    argument = (
+        "<dt>Scientific argument</dt><dd><pre>"
+        + escape(
+            json.dumps(
+                candidate["scientific_argument"],
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            )
+        )
+        + "</pre></dd>"
+        if "scientific_argument" in candidate
+        else ""
+    )
     return f"""
 <article class="card candidate">
   <h3>{_text(candidate["candidate_id"])} v{candidate["version"]}</h3>
@@ -68,6 +82,7 @@ def _candidate(candidate, evidence, *, historical=False):
     <dt>Value</dt><dd>{_text(candidate["value"])}</dd>
     <dt>Approach</dt><dd>{_text(candidate["approach"])}</dd>
     <dt>Evidence</dt><dd>{evidence_links}</dd>
+    {argument}
   </dl>
   <div class="columns"><div><h4>Requirements</h4>{requirements}</div>
   <div><h4>Limitations</h4>{limitations}</div></div>
@@ -277,7 +292,7 @@ def _current_options(selection, evidence, snapshots, receipt_base):
     for option in selection["current_options"]:
         candidate = option["candidate"]
         cards.append(_candidate(candidate, evidence))
-        if packet.get("schema_version") == "2.4.0":
+        if packet.get("schema_version") in {"2.4.0", "2.5.0"}:
             review = prior_reviews.get(
                 (candidate["candidate_id"], candidate["version"])
             )

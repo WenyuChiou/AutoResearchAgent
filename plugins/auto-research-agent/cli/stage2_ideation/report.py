@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import ipaddress
+import json
 import re
 from html import escape as html_escape
 from urllib.parse import quote, urlsplit, urlunsplit
@@ -93,7 +94,7 @@ def build_proposal_view(packet, source_root, raw_proposal, extraction, snapshot_
             ),
         },
     }
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}:
         table_packet = build_next_packet(
             packet, source_root, raw_proposal, extraction, snapshot_sha256
         )["packet"]
@@ -302,6 +303,20 @@ def render_proposal_markdown(view):
                 f"  - [{_md(claim['status'])}] {_md(claim['text'])}; evidence: "
                 f"{', '.join(_md(value) for value in claim['evidence_ids']) or 'unknown'}"
             )
+        if "scientific_argument" in candidate:
+            lines.extend(
+                [
+                    "- Scientific argument (structured JSON):",
+                    *_fence(
+                        json.dumps(
+                            candidate["scientific_argument"],
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            indent=2,
+                        )
+                    ),
+                ]
+            )
         lines.extend(
             [
                 f"- Candidate evidence IDs: {', '.join(_md(value) for value in candidate['evidence_ids']) or 'unknown'}",
@@ -431,6 +446,20 @@ def render_proposal_html(view):
             f"{_h(', '.join(claim['evidence_ids']) or 'unknown')}</li>"
             for claim in row["claim_labels"]
         )
+        argument = (
+            "<dt>Scientific argument</dt><dd><pre>"
+            + _h(
+                json.dumps(
+                    candidate["scientific_argument"],
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+            )
+            + "</pre></dd>"
+            if "scientific_argument" in candidate
+            else ""
+        )
         candidates.append(
             f"<article><h3>{_h(candidate['candidate_id'])} v{candidate['version']} — {_h(row['route'])}</h3><dl>"
             f"<dt>Question</dt><dd>{_h(candidate['question'])}</dd>"
@@ -445,6 +474,7 @@ def render_proposal_html(view):
             f"<dt>Requirements</dt><dd>{_html_list(candidate['requirements'])}</dd>"
             f"<dt>Limitations</dt><dd>{_html_list(candidate['limitations'])}</dd>"
             f"<dt>Claim labels</dt><dd><ul>{claims}</ul></dd>"
+            f"{argument}"
             f"<dt>Candidate evidence IDs</dt><dd>{_h(', '.join(candidate['evidence_ids']) or 'unknown')}</dd>"
             "</dl></article>"
         )

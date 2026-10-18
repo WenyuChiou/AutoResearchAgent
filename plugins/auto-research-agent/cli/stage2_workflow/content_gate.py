@@ -47,7 +47,7 @@ def derive_content_gate(selection):
 
     tables = packet.get("research_tables")
     prepared = (
-        packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}
+        packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}
         and tables is not None
     )
     if prepared:
@@ -120,7 +120,7 @@ def derive_content_gate(selection):
         )
         if not current:
             continue
-        if packet.get("schema_version") == "2.4.0":
+        if packet.get("schema_version") in {"2.4.0", "2.5.0"}:
             check(
                 key + ":prior-work",
                 candidate_id in prior_work,

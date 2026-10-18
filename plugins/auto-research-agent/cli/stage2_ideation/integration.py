@@ -9,7 +9,7 @@ from .topic_tables import materialize_research_tables, validate_research_tables
 
 
 UPDATE_MODES = {"append", "replace-comparison-unresolved"}
-EXPLORATORY_PACKET_VERSIONS = {"2.1.0", "2.2.0", "2.3.0", "2.4.0"}
+EXPLORATORY_PACKET_VERSIONS = {"2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0"}
 
 
 def _comparison_text(rows, *, replacement):
@@ -151,7 +151,7 @@ def build_next_packet(
         for unknown in result["unresolved"]:
             if unknown not in next_packet["unresolved"]:
                 next_packet["unresolved"].append(unknown)
-    if packet.get("schema_version") == "2.4.0" and affected:
+    if packet.get("schema_version") in {"2.4.0", "2.5.0"} and affected:
         affected_ids = set(affected)
         next_packet["prior_work_reviews"] = [
             row
@@ -159,7 +159,7 @@ def build_next_packet(
             if row["candidate_id"] not in affected_ids
         ]
     if (
-        result.get("schema_version") == "1.1.0"
+        result.get("schema_version") in {"1.1.0", "1.2.0"}
         and result["research_tables"] is not None
     ):
         next_packet["research_tables"] = materialize_research_tables(

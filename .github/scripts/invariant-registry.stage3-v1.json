@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "invariants": {
+    "stage3-question-paths": {
+      "path_patterns": [
+        "plugins/auto-research-agent/tests/test_stage3_plan_traceability\\.py"
+      ],
+      "selector_pattern": "Stage3PlanTraceabilityTests\\.test_many_to_many_question_paths_are_valid"
+    },
+    "stage3-result-boundary": {
+      "path_patterns": [
+        "plugins/auto-research-agent/tests/test_stage3_plan_contracts\\.py"
+      ],
+      "selector_pattern": "Stage3PlanContractTests\\.test_schema_is_closed_and_results_are_unrun_null"
+    },
+    "stage3-confirmation-boundary": {
+      "path_patterns": [
+        "plugins/auto-research-agent/tests/test_stage3_plan_decision\\.py"
+      ],
+      "selector_pattern": "Stage3DecisionTests\\.test_confirmation_records_exact_user_text_and_never_executes"
+    }
+  }
+}

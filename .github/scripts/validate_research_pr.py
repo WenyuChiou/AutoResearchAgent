@@ -142,6 +142,9 @@ REQUIRED_LABELS = {
 }
 
 CRITERION_INVARIANTS = {
+    "P7V1.QUESTION_DESIGN": {"stage3-question-paths"},
+    "P8V1.EVIDENCE_INTERPRETATION": {"stage3-result-boundary"},
+    "P9V1.FEASIBILITY": {"stage3-confirmation-boundary"},
     "P4V3.FIDELITY": {"stage2-source-binding", "stage2-content-before-action"},
     "P4V3.COMPARABILITY": {"stage2-content-before-action"},
     "P4V3.SYNTHESIS": {"stage2-source-binding", "stage2-content-before-action"},
@@ -203,6 +206,9 @@ DEFAULT_STAGE2_REGISTRY = DEFAULT_REGISTRY.with_name(
 )
 DEFAULT_STAGE2_V3_REGISTRY = DEFAULT_REGISTRY.with_name(
     "capability-metric-map.stage2-v3.json"
+)
+DEFAULT_STAGE3_REGISTRY = DEFAULT_REGISTRY.with_name(
+    "capability-metric-map.stage3-v1.json"
 )
 DEFAULT_RUBRIC_DIR = (
     Path(__file__).resolve().parents[2] / "plugins/auto-research-agent/evals/rubrics"
@@ -296,6 +302,7 @@ def load_capability_metrics(path=DEFAULT_REGISTRY):
             DEFAULT_V3_REGISTRY,
             DEFAULT_STAGE2_REGISTRY,
             DEFAULT_STAGE2_V3_REGISTRY,
+            DEFAULT_STAGE3_REGISTRY,
         ):
             extension = json.loads(extension_path.read_text(encoding="utf-8"))
             if extension.get("extends") != "capability-metric-map-v1":
@@ -502,10 +509,16 @@ def load_operational_submetrics(path=DEFAULT_OPERATIONAL_DEFINITIONS):
     row = re.compile(
         r"^\|\s*`(S[1-3](?:V[0-9]+)?_[A-Z0-9_]+)`\s*\|.*\|\s*([^|]+?)\s*\|\s*$"
     )
-    for line in path.read_text(encoding="utf-8").splitlines():
-        match = row.match(line)
-        if match:
-            submetrics[match.group(1)] = set(METRIC.findall(match.group(2)))
+    paths = [path]
+    if path == DEFAULT_OPERATIONAL_DEFINITIONS:
+        paths.append(path.parent / "stage3/OPERATIONAL_DEFINITIONS_V1.md")
+    for source in paths:
+        for line in source.read_text(encoding="utf-8").splitlines():
+            match = row.match(line)
+            if match:
+                if match.group(1) in submetrics:
+                    raise ValueError("duplicate operational submetric")
+                submetrics[match.group(1)] = set(METRIC.findall(match.group(2)))
     return submetrics
 
 
@@ -515,6 +528,7 @@ def load_criterion_submetrics(path=DEFAULT_CRITERION_SUBMETRICS):
         for name in (
             "criterion-submetric-map.stage2-v2.json",
             "criterion-submetric-map.stage2-v3.json",
+            "criterion-submetric-map.stage3-v1.json",
         ):
             extension = json.loads(path.with_name(name).read_text(encoding="utf-8"))[
                 "criterion_submetrics"
@@ -530,6 +544,15 @@ def load_criterion_submetrics(path=DEFAULT_CRITERION_SUBMETRICS):
 
 def load_invariant_registry(path=DEFAULT_INVARIANT_REGISTRY):
     value = json.loads(path.read_text(encoding="utf-8"))
+    if path == DEFAULT_INVARIANT_REGISTRY:
+        extension = json.loads(
+            path.with_name("invariant-registry.stage3-v1.json").read_text(
+                encoding="utf-8"
+            )
+        )["invariants"]
+        if set(value["invariants"]) & set(extension):
+            raise ValueError("duplicate invariant across registries")
+        value["invariants"].update(extension)
     return value["invariants"]
 
 
@@ -1654,6 +1677,10 @@ def validate_pr_body(
     if rubric_version == "stage1-general-v3" and readiness != "implementation-only":
         errors.append(
             "experimental v3 rubric currently permits only implementation-only readiness"
+        )
+    if rubric_version == "stage23-general-v1" and readiness != "implementation-only":
+        errors.append(
+            "experimental Stage23 rubric currently permits only implementation-only readiness"
         )
     if (
         rubric_version in {"stage2-general-v2", "stage2-general-v3"}

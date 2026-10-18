@@ -92,7 +92,7 @@ def prepare_review(
     )
     if review_view_version == "1.2.0":
         _require(
-            packet.get("schema_version") == "2.4.0",
+            packet.get("schema_version") in {"2.4.0", "2.5.0"},
             "review-view-1.2-requires-packet-2.4",
         )
     _, latest = latest_candidates(packet, [])

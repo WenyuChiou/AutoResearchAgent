@@ -7,6 +7,7 @@ from pathlib import Path
 
 SCHEMA_VERSION = "1.0.0"
 SCHEMA_VERSION_1_1 = "1.1.0"
+SCHEMA_VERSION_1_2 = "1.2.0"
 _PACKET_SCHEMA_PATH = (
     Path(__file__).resolve().parents[2] / "schemas/stage2-packet.v1.schema.json"
 )
@@ -203,10 +204,207 @@ def _add_research_table_defs(defs):
     )
 
 
+def _add_scientific_argument_defs(defs):
+    defs.update(
+        {
+            "proposal_span": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["start", "end"],
+                "properties": {
+                    "start": {"type": "integer", "minimum": 0},
+                    "end": {"type": "integer", "minimum": 1},
+                },
+            },
+            "scientific_claim": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "text",
+                    "status",
+                    "evidence_ids",
+                    "source_refs",
+                    "proposal_spans",
+                ],
+                "properties": {
+                    "text": {"$ref": "#/$defs/text"},
+                    "status": {"enum": ["fact", "inference", "proposal", "unknown"]},
+                    "evidence_ids": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/id"},
+                    },
+                    "source_refs": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/source_ref"},
+                    },
+                    "proposal_spans": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/proposal_span"},
+                    },
+                },
+            },
+            "scientific_gap": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["gap_id", "statement", "importance"],
+                "properties": {
+                    "gap_id": {"$ref": "#/$defs/id"},
+                    "statement": {"$ref": "#/$defs/scientific_claim"},
+                    "importance": {"$ref": "#/$defs/scientific_claim"},
+                },
+            },
+            "scientific_challenge": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "challenge_id",
+                    "kind",
+                    "statement",
+                    "gap_ids",
+                    "question_ids",
+                ],
+                "properties": {
+                    "challenge_id": {"$ref": "#/$defs/id"},
+                    "kind": {"enum": ["scientific", "implementation"]},
+                    "statement": {"$ref": "#/$defs/scientific_claim"},
+                    "gap_ids": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/id"},
+                    },
+                    "question_ids": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/id"},
+                    },
+                },
+            },
+            "scientific_question": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "question_id",
+                    "text",
+                    "priority",
+                    "gap_ids",
+                    "object",
+                    "intended_claim",
+                    "status",
+                ],
+                "properties": {
+                    "question_id": {"$ref": "#/$defs/id"},
+                    "text": {"$ref": "#/$defs/text"},
+                    "priority": {"enum": ["core", "secondary"]},
+                    "gap_ids": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/id"},
+                    },
+                    "object": {"$ref": "#/$defs/text"},
+                    "intended_claim": {"$ref": "#/$defs/text"},
+                    "status": {"enum": ["proposal", "unknown"]},
+                },
+            },
+            "scientific_contribution": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["text", "question_ids", "status"],
+                "properties": {
+                    "text": {"$ref": "#/$defs/text"},
+                    "question_ids": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/id"},
+                    },
+                    "status": {"enum": ["proposal", "unknown"]},
+                },
+            },
+            "scientific_resource_ref": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "resource_id",
+                    "question_ids",
+                    "purpose",
+                    "fit_status",
+                    "evidence_ids",
+                ],
+                "properties": {
+                    "resource_id": {"$ref": "#/$defs/id"},
+                    "question_ids": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/id"},
+                    },
+                    "purpose": {"$ref": "#/$defs/text"},
+                    "fit_status": {"enum": ["proposed", "supported", "unknown"]},
+                    "evidence_ids": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"$ref": "#/$defs/id"},
+                    },
+                },
+            },
+            "scientific_argument": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "motivation",
+                    "current_state",
+                    "gaps",
+                    "challenges",
+                    "questions",
+                    "contribution_claims",
+                    "resource_refs",
+                ],
+                "properties": {
+                    "motivation": {"$ref": "#/$defs/scientific_claim"},
+                    "current_state": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"$ref": "#/$defs/scientific_claim"},
+                    },
+                    "gaps": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"$ref": "#/$defs/scientific_gap"},
+                    },
+                    "challenges": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/scientific_challenge"},
+                    },
+                    "questions": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"$ref": "#/$defs/scientific_question"},
+                    },
+                    "contribution_claims": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/scientific_contribution"},
+                    },
+                    "resource_refs": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/scientific_resource_ref"},
+                    },
+                },
+            },
+        }
+    )
+    defs["candidate"] = copy.deepcopy(defs["candidate"])
+    defs["candidate"]["required"].append("scientific_argument")
+    defs["candidate"]["properties"]["scientific_argument"] = {
+        "$ref": "#/$defs/scientific_argument"
+    }
+
+
 def extraction_schema(version=SCHEMA_VERSION):
     """Return a fresh JSON Schema using the canonical Stage 2 candidate shape."""
 
-    if version not in {SCHEMA_VERSION, SCHEMA_VERSION_1_1}:
+    if version not in {SCHEMA_VERSION, SCHEMA_VERSION_1_1, SCHEMA_VERSION_1_2}:
         raise ValueError(f"unsupported extraction schema version: {version}")
     defs = _packet_defs()
     defs.update(
@@ -486,22 +684,28 @@ def extraction_schema(version=SCHEMA_VERSION):
         "candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate_row"}},
         "unresolved": {"type": "array", "items": {"$ref": "#/$defs/text"}},
     }
-    if version == SCHEMA_VERSION_1_1:
+    if version in {SCHEMA_VERSION_1_1, SCHEMA_VERSION_1_2}:
         _add_research_table_defs(defs)
         required.append("research_tables")
         properties["research_tables"] = {
             "anyOf": [{"$ref": "#/$defs/research_tables_extraction"}, {"type": "null"}]
         }
+    if version == SCHEMA_VERSION_1_2:
+        _add_scientific_argument_defs(defs)
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": (
             "stage2-ideation-extraction.v1.schema.json"
             if version == SCHEMA_VERSION
+            else "stage2-ideation-extraction.v1_2.schema.json"
+            if version == SCHEMA_VERSION_1_2
             else "stage2-ideation-extraction.v1_1.schema.json"
         ),
         "title": (
             "Stage 2 ideation extraction v1"
             if version == SCHEMA_VERSION
+            else "Stage 2 ideation extraction v1.2"
+            if version == SCHEMA_VERSION_1_2
             else "Stage 2 ideation extraction v1.1"
         ),
         "type": "object",

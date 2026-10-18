@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage3-research-plan.v1.schema.json",
+  "title": "Stage 3 Research Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "plan_id",
+    "version",
+    "source_manifest_sha256",
+    "selected_candidates",
+    "questions",
+    "question_plans",
+    "designs",
+    "analyses",
+    "results",
+    "resources",
+    "milestones",
+    "unknowns",
+    "execution_authorized"
+  ],
+  "properties": {
+    "kind": { "const": "Stage3ResearchPlan" },
+    "schema_version": { "const": "1.0.0" },
+    "plan_id": { "$ref": "#/$defs/text" },
+    "version": { "type": "integer", "minimum": 1 },
+    "source_manifest_sha256": { "$ref": "#/$defs/sha256" },
+    "selected_candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/selected_candidate" }
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    },
+    "question_plans": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question_plan" }
+    },
+    "designs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/design" }
+    },
+    "analyses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/analysis" }
+    },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "resources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resource" }
+    },
+    "milestones": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/milestone" }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/unknown" }
+    },
+    "execution_authorized": { "const": false }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1 },
+    "identifier": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "text_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/text" }
+    },
+    "id_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "nonempty_id_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "selected_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "candidate_version"],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/identifier" },
+        "candidate_version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_ref",
+        "candidate_id",
+        "candidate_version",
+        "question_id",
+        "text",
+        "priority",
+        "gap_ids",
+        "intended_claim"
+      ],
+      "properties": {
+        "question_ref": { "$ref": "#/$defs/identifier" },
+        "candidate_id": { "$ref": "#/$defs/identifier" },
+        "candidate_version": { "type": "integer", "minimum": 1 },
+        "question_id": { "$ref": "#/$defs/identifier" },
+        "text": { "$ref": "#/$defs/text" },
+        "priority": { "enum": ["core", "secondary"] },
+        "gap_ids": { "$ref": "#/$defs/nonempty_id_array" },
+        "intended_claim": { "$ref": "#/$defs/text" }
+      }
+    },
+    "resource_use": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource_id", "purpose", "fit_rationale", "status"],
+      "properties": {
+        "resource_id": { "$ref": "#/$defs/identifier" },
+        "purpose": { "$ref": "#/$defs/text" },
+        "fit_rationale": { "$ref": "#/$defs/text" },
+        "status": { "enum": ["available", "unknown", "unavailable"] }
+      }
+    },
+    "question_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_ref",
+        "evidence_needed",
+        "measurement",
+        "claim_boundary",
+        "resource_uses",
+        "design_ids",
+        "analysis_ids",
+        "result_ids",
+        "blockers",
+        "minimum_deliverable"
+      ],
+      "properties": {
+        "question_ref": { "$ref": "#/$defs/identifier" },
+        "evidence_needed": { "$ref": "#/$defs/text" },
+        "measurement": { "$ref": "#/$defs/text" },
+        "claim_boundary": { "$ref": "#/$defs/text" },
+        "resource_uses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resource_use" }
+        },
+        "design_ids": { "$ref": "#/$defs/id_array" },
+        "analysis_ids": { "$ref": "#/$defs/id_array" },
+        "result_ids": { "$ref": "#/$defs/id_array" },
+        "blockers": { "$ref": "#/$defs/text_array" },
+        "minimum_deliverable": { "$ref": "#/$defs/text" }
+      }
+    },
+    "comparisons": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "description", "reason"],
+      "properties": {
+        "status": { "enum": ["applicable", "not-applicable"] },
+        "description": { "$ref": "#/$defs/text" },
+        "reason": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "not-applicable" } },
+            "required": ["status"]
+          },
+          "then": { "properties": { "reason": { "$ref": "#/$defs/text" } } }
+        }
+      ]
+    },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design_id",
+        "question_refs",
+        "family",
+        "procedure",
+        "comparisons",
+        "credibility_checks",
+        "failure_conditions",
+        "stop_conditions"
+      ],
+      "properties": {
+        "design_id": { "$ref": "#/$defs/identifier" },
+        "question_refs": { "$ref": "#/$defs/nonempty_id_array" },
+        "family": { "$ref": "#/$defs/text" },
+        "procedure": { "$ref": "#/$defs/text" },
+        "comparisons": { "$ref": "#/$defs/comparisons" },
+        "credibility_checks": { "$ref": "#/$defs/text_array" },
+        "failure_conditions": { "$ref": "#/$defs/text_array" },
+        "stop_conditions": { "$ref": "#/$defs/text_array" }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analysis_id",
+        "question_refs",
+        "design_ids",
+        "method",
+        "criteria",
+        "uncertainty",
+        "limitations"
+      ],
+      "properties": {
+        "analysis_id": { "$ref": "#/$defs/identifier" },
+        "question_refs": { "$ref": "#/$defs/nonempty_id_array" },
+        "design_ids": { "$ref": "#/$defs/nonempty_id_array" },
+        "method": { "$ref": "#/$defs/text" },
+        "criteria": { "$ref": "#/$defs/text_array" },
+        "uncertainty": { "$ref": "#/$defs/text" },
+        "limitations": { "$ref": "#/$defs/text" }
+      }
+    },
+    "interpretation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supports", "contradicts", "inconclusive"],
+      "properties": {
+        "supports": { "$ref": "#/$defs/text" },
+        "contradicts": { "$ref": "#/$defs/text" },
+        "inconclusive": { "$ref": "#/$defs/text" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_id",
+        "question_refs",
+        "analysis_ids",
+        "artifact",
+        "status",
+        "observed_value",
+        "interpretation"
+      ],
+      "properties": {
+        "result_id": { "$ref": "#/$defs/identifier" },
+        "question_refs": { "$ref": "#/$defs/nonempty_id_array" },
+        "analysis_ids": { "$ref": "#/$defs/nonempty_id_array" },
+        "artifact": { "$ref": "#/$defs/text" },
+        "status": { "const": "not-run" },
+        "observed_value": { "type": "null" },
+        "interpretation": { "$ref": "#/$defs/interpretation" }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource_id",
+        "origin",
+        "availability",
+        "access_conditions",
+        "fitness",
+        "scale_basis",
+        "minimum",
+        "standard",
+        "uncertainties"
+      ],
+      "properties": {
+        "resource_id": { "$ref": "#/$defs/identifier" },
+        "origin": { "enum": ["stage2", "proposed"] },
+        "availability": { "enum": ["available", "unknown", "unavailable"] },
+        "access_conditions": { "$ref": "#/$defs/text" },
+        "fitness": { "$ref": "#/$defs/text" },
+        "scale_basis": { "$ref": "#/$defs/text" },
+        "minimum": { "$ref": "#/$defs/text" },
+        "standard": { "$ref": "#/$defs/text" },
+        "uncertainties": { "$ref": "#/$defs/text_array" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "origin": { "const": "proposed" } },
+            "required": ["origin"]
+          },
+          "then": {
+            "properties": {
+              "availability": { "const": "unknown" },
+              "uncertainties": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/text" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "milestone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "milestone_id",
+        "description",
+        "depends_on",
+        "design_ids",
+        "duration_basis",
+        "deliverable"
+      ],
+      "properties": {
+        "milestone_id": { "$ref": "#/$defs/identifier" },
+        "description": { "$ref": "#/$defs/text" },
+        "depends_on": { "$ref": "#/$defs/id_array" },
+        "design_ids": { "$ref": "#/$defs/id_array" },
+        "duration_basis": { "$ref": "#/$defs/text" },
+        "deliverable": { "$ref": "#/$defs/text" }
+      }
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "question_refs", "resolution", "blocking"],
+      "properties": {
+        "description": { "$ref": "#/$defs/text" },
+        "question_refs": { "$ref": "#/$defs/nonempty_id_array" },
+        "resolution": { "$ref": "#/$defs/text" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}

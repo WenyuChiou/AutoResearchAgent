@@ -147,7 +147,7 @@ def _initial_review_view_version(packet):
 
     return (
         "1.2.0"
-        if packet.get("schema_version") == "2.4.0"
+        if packet.get("schema_version") in {"2.4.0", "2.5.0"}
         else REVIEW_VIEW_VERSION_CURRENT
     )
 
@@ -161,7 +161,7 @@ def _prior_work_basis_sha256(packet):
 def _prior_work_completion(packet, snapshot_sha256):
     """Describe the explicit dossier gate needed before independent review."""
 
-    if packet.get("schema_version") != "2.4.0":
+    if packet.get("schema_version") not in {"2.4.0", "2.5.0"}:
         return None
     current = _latest_map(packet)
     reviews = current_prior_work_reviews(packet)
@@ -265,12 +265,12 @@ def _extracted_next_packet(value):
 
 
 def _matching_ideation_snapshots(state, next_packet):
-    if next_packet.get("schema_version") == "2.4.0":
+    if next_packet.get("schema_version") in {"2.4.0", "2.5.0"}:
         basis_sha256 = _prior_work_basis_sha256(next_packet)
         return [
             row
             for row in state["snapshots"]
-            if row["packet"].get("schema_version") == "2.4.0"
+            if row["packet"].get("schema_version") == next_packet.get("schema_version")
             and _prior_work_basis_sha256(row["packet"]) == basis_sha256
         ]
     packet_sha256 = canonical_hash(next_packet)
@@ -304,7 +304,7 @@ def _portable_input_path(root, relative):
 def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
     """Build or verify a snapshot-bound combined source and receipt input view."""
 
-    if snapshot["packet"].get("schema_version") != "2.4.0":
+    if snapshot["packet"].get("schema_version") not in {"2.4.0", "2.5.0"}:
         root = Path(snapshot["checker"]["root"]) / "sources"
         validate_packet(snapshot["packet"], root)
         return root

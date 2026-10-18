@@ -191,6 +191,7 @@ def _validate_append_only(previous, current, *, parent_snapshot_sha256=None):
         "2.2.0",
         "2.3.0",
         "2.4.0",
+        "2.5.0",
     } and canonical_hash(previous["upstream"]) != canonical_hash(current["upstream"]):
         raise Stage2Error("workflow-upstream-stage1-binding-rewritten")
     old_tables = previous.get("research_tables")
@@ -436,6 +437,7 @@ def initialize_workflow(
         "2.2.0",
         "2.3.0",
         "2.4.0",
+        "2.5.0",
     }:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
