@@ -22,7 +22,8 @@ class Stage3GenerationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        # macOS temporary roots may use the system /var symlink; fixtures use physical paths.
+        self.root = Path(self.temp.name).resolve()
         self.plan = make_plan()
         self.intake = make_intake(self.plan)
         self.config = {"model": "synthetic-model", "reasoning": "medium"}
