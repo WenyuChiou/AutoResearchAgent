@@ -24,6 +24,12 @@ def main(argv=None):
         description="Generic Stage3 scientific planning (no research execution)"
     )
     commands = parser.add_subparsers(dest="command", required=True)
+    legacy = commands.add_parser("prepare-legacy-mapping")
+    for name in ("packet", "source-root", "expected-packet-sha256", "output"):
+        legacy.add_argument("--" + name, required=True)
+    legacy_inspect = commands.add_parser("inspect-legacy-mapping")
+    legacy_inspect.add_argument("--package", required=True)
+    legacy_inspect.add_argument("--expected-manifest-sha256", required=True)
     draft = commands.add_parser("draft")
     _intake_args(draft)
     for name in (
@@ -61,7 +67,23 @@ def main(argv=None):
             )
     args = parser.parse_args(argv)
     try:
-        if args.command == "draft":
+        if args.command == "prepare-legacy-mapping":
+            from .legacy_mapping import prepare_legacy_mapping
+
+            result = prepare_legacy_mapping(
+                args.packet,
+                args.source_root,
+                expected_packet_sha256=args.expected_packet_sha256,
+                output_dir=args.output,
+            )
+        elif args.command == "inspect-legacy-mapping":
+            from .legacy_mapping import inspect_legacy_mapping
+
+            result = inspect_legacy_mapping(
+                args.package,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+            )
+        elif args.command == "draft":
             from .native import NativePlanner
 
             result = draft_plan(

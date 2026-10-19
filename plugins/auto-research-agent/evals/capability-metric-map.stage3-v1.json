@@ -57,10 +57,12 @@
         "plugins/auto-research-agent/tests/test_stage3_plan_contracts.py",
         "plugins/auto-research-agent/tests/test_stage3_plan_generation.py",
         "plugins/auto-research-agent/tests/test_stage3_plan_traceability.py",
-        "plugins/auto-research-agent/tests/test_stage3_plan_decision.py"
+        "plugins/auto-research-agent/tests/test_stage3_plan_decision.py",
+        "plugins/auto-research-agent/tests/test_stage3_legacy_mapping.py"
       ],
       "live_ab_required_at": "separately-authorized-stage3-generic-milestone",
-      "quality_improvement_claimed": false
+      "quality_improvement_claimed": false,
+      "legacy_mapping_contract": "Explicit v1 packet/source-byte checked read-only question mapping retains manual origin, current versions, full original history, unknown resource status and missing review/human-choice blockers. It is not a strict delivery or a generation admission. Optional mapping enrichment still requires strict current delivery/interaction admission, exact logical packet equivalence, selected-version closure and trusted-host verification of the displayed mapping choice; no CLI override or fabricated old review. Bounded source capture precedes semantic validation; selected original approaches/limitations and packet unresolved context survive into hashed planning requests independently of decision conditions."
     }
   ],
   "capability_extensions": [

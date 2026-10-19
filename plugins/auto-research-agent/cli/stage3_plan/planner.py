@@ -168,12 +168,20 @@ def draft_plan(
     plan_id,
     version=1,
     resume_manifest_sha256=None,
+    scientific_mapping=None,
+    expected_mapping_manifest_sha256=None,
+    verify_mapping_choice=None,
 ):
     """Public selected planning always replays strict external-hash admission."""
     from .intake import admit_intake
 
     intake = admit_intake(
-        package_dir, delivery_dir, expected_manifest_sha256=expected_manifest_sha256
+        package_dir,
+        delivery_dir,
+        expected_manifest_sha256=expected_manifest_sha256,
+        scientific_mapping=scientific_mapping,
+        expected_mapping_manifest_sha256=expected_mapping_manifest_sha256,
+        verify_mapping_choice=verify_mapping_choice,
     )
     return _draft_from_intake(
         intake,
