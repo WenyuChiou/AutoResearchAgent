@@ -30,6 +30,9 @@ def main(argv=None):
     legacy_inspect = commands.add_parser("inspect-legacy-mapping")
     legacy_inspect.add_argument("--package", required=True)
     legacy_inspect.add_argument("--expected-manifest-sha256", required=True)
+    from .workflow_cli import add_commands
+
+    add_commands(commands)
     draft = commands.add_parser("draft")
     _intake_args(draft)
     for name in (
@@ -83,6 +86,10 @@ def main(argv=None):
                 args.package,
                 expected_manifest_sha256=args.expected_manifest_sha256,
             )
+        elif args.command.startswith("workflow-"):
+            from .workflow_cli import run
+
+            result = run(args)
         elif args.command == "draft":
             from .native import NativePlanner
 

@@ -122,3 +122,46 @@ importing the package or reading help.
 Generic capability/rubric/submetric/invariant extensions are discoverable by the
 PR validator. Historical v1 capability/rubric files remain unchanged. Readiness
 is limited to implementation-only, and improvement is not yet demonstrated.
+
+## Offline workflow harness
+
+`python -m stage3_plan workflow-start` admits the existing strict selected
+handoff and writes a private `Stage3WorkflowCheckpoint`. It records the selected
+candidate versions and scientific question references; it never infers a choice.
+Keep its returned `checkpoint_sha256` externally. Every subsequent command takes
+that hash and re-admits the source; inspection reconstructs the saved status from
+its actual dependencies. A forged status still fails after internal rehashing.
+
+The explicit transitions are `workflow-attach-plan`, `workflow-attach-review`,
+`workflow-prepare-ab` and `workflow-revise-source`. Each writes a new checkpoint
+file with a bound previous version; existing checkpoints cannot be overwritten.
+Every inspection verifies the complete checkpoint hash chain, legal action
+transitions, reconstructed historical statuses and source-revision impact. One
+inspection admits at most 64 checkpoint revisions; exceeding this visible
+artifact bound requires an explicit archival/migration design, never automatic
+history truncation or a reset of research evidence.
+`workflow-inspect` resumes without model or research calls. Checkpoints and their
+direct dependencies remain private, bounded and retained; do not prune history
+or change its absolute paths. Each command's `--help` lists the required bindings.
+
+Attach-plan accepts an existing strict-selected plan package, including an
+original failed attempt. Explicit synthetic-intake packages are rejected. A plan
+needs its separate externally pinned semantic review before it can be ready for
+human plan review. These commands never emit `plan-confirmed`: use the existing
+version-bound decision API and trusted native-host verification separately.
+Native human authentication is still unverified. Changing the source explicitly
+records revision impact and clears the active plan, review and A/B preparation;
+the previous files remain evidence. Attach a newly bound plan before proceeding.
+
+A/B preparation takes an externally pinned JSON definition with kind
+`Stage3ABPreparationDefinition`, schema `1.0.0`, case ID, exact intake digest,
+common prompt, shared no-tool runtime (model, reasoning, positive timeout),
+A/B build SHA-256 values and protocols, an absolute generic-rubric path and hash,
+R1/R2/ADJ model/reasoning settings, proposed decision rule and audit triggers.
+The field names are the closed contract in `stage3_plan/preparation.py`.
+This records three alternating pairs with separate null P7/P8/P9 slots, all
+`not-run`. It neither runs subjects/judges nor authenticates reviewer independence,
+blinding, builds or formal authority. Its decision and audit rules still need
+review before a separate formal protocol can be admitted. Preparation status
+does not affect plan readiness. No historical Stage2 scores or denominators are
+reused, and scientific execution and formal A/B both remain disabled.
