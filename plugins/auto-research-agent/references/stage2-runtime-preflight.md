@@ -235,3 +235,18 @@ by profile preparation.
 This gate always leaves overall `formal_ready` false: calibration, complete pilots
 and the separately frozen formal evaluation contract remain necessary. An earlier
 archive-validator pass must not be retrospectively described as a runtime pass.
+
+### Read-only replay of an observed proof from a registered producer
+
+Historical verifier binding `1.1.0` is an explicit opt-in for the read-only
+environment-verification API. It adds `observed_producer_source_sha256`, which
+must equal the `stage2_live/trace_producer.py` bytes in the externally pinned,
+registered original CLI tree. The current verifier source, compatibility
+registry, runtime and dependencies still require their separate current pins.
+
+This route accepts observed preflight `1.2.0` only. It rechecks the original
+producer, capture, runtime, policy, tool witnesses and trace; it never imports
+or executes old source. Current-mode producer verification and resume reject
+the historical binding. Existing binding `1.0.0` keeps its original behavior.
+No original receipt is rewritten, no model is called, and unknown inventory,
+scientific quality, human choice and formal readiness are not promoted.
