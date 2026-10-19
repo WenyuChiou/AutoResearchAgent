@@ -1094,7 +1094,12 @@ def _actual_runtime(context, workspace):
 
 
 def inspect_preflight(
-    capture_dir, record_sha256_receipt, probe_spec, *, inventory_receipt=None
+    capture_dir,
+    record_sha256_receipt,
+    probe_spec,
+    *,
+    inventory_receipt=None,
+    historical_binding=None,
 ):
     """Reconstruct functional capability evidence from one authentic capture."""
     if isinstance(probe_spec, dict) and probe_spec.get("schema_version") == "1.2.0":
@@ -1102,9 +1107,16 @@ def inspect_preflight(
 
         if inventory_receipt is not None:
             raise PreflightError("observed probe uses its own producer inventory")
-        return inspect_observed_preflight(
-            capture_dir, record_sha256_receipt, probe_spec
+        options = (
+            {"historical_binding": historical_binding}
+            if historical_binding is not None
+            else {}
         )
+        return inspect_observed_preflight(
+            capture_dir, record_sha256_receipt, probe_spec, **options
+        )
+    if historical_binding is not None:
+        raise PreflightError("historical observed binding requires probe 1.2.0")
     production = _validate_probe_spec(probe_spec)
     capture = Path(capture_dir).resolve()
     try:
@@ -1766,13 +1778,24 @@ def inspect_preflight(
 
 
 def verify_preflight(
-    report, capture_dir, receipt, probe_spec, *, inventory_receipt=None
+    report,
+    capture_dir,
+    receipt,
+    probe_spec,
+    *,
+    inventory_receipt=None,
+    historical_binding=None,
 ):
     """Recompute a preflight and require exact report equality."""
     if not isinstance(report, dict):
         raise PreflightError("preflight report must be an object")
+    options = (
+        {"historical_binding": historical_binding}
+        if historical_binding is not None
+        else {}
+    )
     recomputed = inspect_preflight(
-        capture_dir, receipt, probe_spec, inventory_receipt=inventory_receipt
+        capture_dir, receipt, probe_spec, inventory_receipt=inventory_receipt, **options
     )
     require_matching_preflight_contract(recomputed, probe_spec)
     if report != recomputed:

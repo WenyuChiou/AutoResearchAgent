@@ -305,21 +305,38 @@ def _read(bundle, receipt):
     return value
 
 
-def _verify(args, root, receipt, *, allow_synthetic, workspace_mode="current"):
+def _verify(
+    args,
+    root,
+    receipt,
+    *,
+    allow_synthetic,
+    workspace_mode="current",
+    historical_binding=None,
+):
     # Historical verification is read-only. The capture/resume entrypoint never
     # supplies this mode: resuming still requires the unchanged live workspace.
     _require(
         workspace_mode in {"current", "archived"},
         "producer-workspace-verification-mode-invalid",
     )
+    source_sha = _source_sha()
+    if historical_binding is not None:
+        _require(workspace_mode == "archived", "producer-historical-binding-read-only")
+        from .historical_verifier import resolve_historical_binding
+
+        build = resolve_historical_binding(historical_binding)
+        _require(
+            build.observed_producer_source_sha256 is not None,
+            "producer-historical-observed-binding-required",
+        )
+        source_sha = build.observed_producer_source_sha256
     bundle = root / "bundle"
     record = _read(bundle, receipt)
     _require(
         record["telemetry_root"] == str(root), "producer-telemetry-record-mismatch"
     )
-    _require(
-        record["producer_source_sha256"] == _source_sha(), "producer-source-changed"
-    )
+    _require(record["producer_source_sha256"] == source_sha, "producer-source-changed")
     _require(
         record["evidence_class"] in {"synthetic-test-only", "host-observed-producer"},
         "producer-evidence-class-invalid",

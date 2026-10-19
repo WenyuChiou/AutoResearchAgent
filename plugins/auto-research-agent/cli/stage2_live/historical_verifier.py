@@ -190,6 +190,7 @@ class HistoricalBuild:
     controller_sha256: str
     extraction_adapter_sha256: str
     receipt: dict
+    observed_producer_source_sha256: str | None = None
 
 
 def resolve_historical_binding(binding):
@@ -197,12 +198,16 @@ def resolve_historical_binding(binding):
     import json
 
     try:
+        version = binding.get("schema_version") if isinstance(binding, dict) else None
+        keys = (
+            _KEYS | {"observed_producer_source_sha256"} if version == "1.1.0" else _KEYS
+        )
         if (
             not isinstance(binding, dict)
-            or set(binding) != _KEYS
+            or set(binding) != keys
             or (
                 binding["kind"] != "Stage2HistoricalVerifierBinding"
-                or binding["schema_version"] != "1.0.0"
+                or version not in {"1.0.0", "1.1.0"}
             )
         ):
             raise Stage2Error("historical-verifier-binding-invalid")
@@ -247,12 +252,20 @@ def resolve_historical_binding(binding):
             or adapter_sha != supported["extraction_adapter_sha256"][convention]
         ):
             raise Stage2Error("historical-verifier-supported-build-mismatch")
+        observed_pin = None
+        if version == "1.1.0":
+            observed_pin = rows.get("stage2_live/trace_producer.py")
+            if (
+                observed_pin is None
+                or binding["observed_producer_source_sha256"] != observed_pin
+            ):
+                raise Stage2Error("historical-verifier-observed-producer-pin-invalid")
         return HistoricalBuild(
             controller_sha,
             adapter_sha,
             {
                 "kind": "Stage2HistoricalVerification",
-                "schema_version": "1.0.0",
+                "schema_version": version,
                 "producer_cli_sha256": producer_sha,
                 "producer_path_convention": convention,
                 **host,
@@ -261,7 +274,13 @@ def resolve_historical_binding(binding):
                 "read_only": True,
                 "subject_upgraded": False,
                 "formal_ready": False,
+                **(
+                    {"observed_producer_source_sha256": observed_pin}
+                    if observed_pin
+                    else {}
+                ),
             },
+            observed_pin,
         )
     except (
         OSError,
@@ -280,8 +299,14 @@ def verify_historical_environment_capture(
     from .environment import verify_environment_capture
 
     build = resolve_historical_binding(historical_binding)
+    options = {}
+    if build.observed_producer_source_sha256 is not None:
+        probe = preflight.get("probe_spec") if isinstance(preflight, dict) else None
+        if not isinstance(probe, dict) or probe.get("schema_version") != "1.2.0":
+            raise Stage2Error("historical-verifier-observed-preflight-required")
+        options["historical_binding"] = historical_binding
     result = verify_environment_capture(
-        capture_dir, receipt, preflight, inventory_receipt
+        capture_dir, receipt, preflight, inventory_receipt, **options
     )
     # Recheck pins after the read-only operation; never rewrite the old receipt.
     if resolve_historical_binding(historical_binding) != build:
