@@ -498,7 +498,8 @@ class StrictLegacyWorkflowTest(unittest.TestCase):
             ],
             "structured-seed",
         )
-        delivery = fixture.root / "structured-delivery"
+        # Stage2 fixtures may use macOS's /var alias; Stage3 needs canonical paths.
+        delivery = (fixture.root / "structured-delivery").resolve()
         reviews, resolutions = fixture._complete_inputs()
         evidence_id = fixture.packet["evidence"][0]["evidence_id"]
         for row in reviews:
@@ -515,7 +516,7 @@ class StrictLegacyWorkflowTest(unittest.TestCase):
         interaction, _, interaction_hash = Stage2PlanningHandoffTests._record_choice(
             fixture.root, fixture.workflow, delivery, manifest, fixture.state, candidate
         )
-        package = fixture.root / "structured-package"
+        package = (fixture.root / "structured-package").resolve()
         prepared = prepare_planning_handoff(
             delivery,
             interaction,
@@ -523,7 +524,7 @@ class StrictLegacyWorkflowTest(unittest.TestCase):
             expected_interaction_file_sha256=interaction_hash,
             output_dir=package,
         )
-        output = fixture.root / "structured-workflow.json"
+        output = (fixture.root / "structured-workflow.json").resolve()
         saved = start_workflow(
             package,
             delivery,
@@ -553,10 +554,10 @@ class StrictLegacyWorkflowTest(unittest.TestCase):
         self.addCleanup(fixture.doCleanups)
         prepared = fixture.prepare()
         saved = start_workflow(
-            fixture.output,
-            fixture.delivery,
+            fixture.output.resolve(),
+            fixture.delivery.resolve(),
             expected_source_manifest_sha256=prepared["manifest"]["manifest_sha256"],
-            output=fixture.fixture.root / "workflow.json",
+            output=(fixture.fixture.root / "workflow.json").resolve(),
             workflow_id="strict-synthetic-delivery",
         )
         self.assertEqual(
