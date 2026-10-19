@@ -18,7 +18,36 @@ After a human selects the current candidate version(s), `stage3_plan` reuses the
 existing strict planning-handoff inspector with an externally retained manifest
 hash and its required delivery. Checker recommendations, UI selections, advice,
 manual-v1 packages and transport ZIP manifests cannot substitute for that chain.
-The current historical manual-v1 receiver gap remains unresolved by this code.
+The current historical manual-v1 selected receiver gap remains unresolved.
+The separate `prepare-legacy-mapping` and `inspect-legacy-mapping` commands can
+prepare a byte-bound, read-only question mapping from an original v1 packet and
+its source files. The supplied packet SHA-256 must be retained externally. The
+mapping copies each current candidate's existing question, opportunity, value,
+approach, requirements and limitations; original candidate history stays in the
+unchanged packet. It does not generate new scientific claims or change versions.
+Its own manifest keeps `origin=legacy-manual-v1`; it is never a strict delivery,
+selection receipt, native role review or Stage 1 lineage record. All resource
+availability remains unknown, recommendation eligibility is null, and human
+selection is absent. Inspection rejects changed projections even after transport
+hashes are recomputed. The UI may display this preparation and its blockers;
+current independent candidate review and actual human selection are still
+required before selected handoff. These commands never invoke a model or advance
+the workflow. They do not themselves make a legacy package admissible to `draft`.
+The library APIs `draft_plan` and `record_plan_decision` may receive an explicit
+`scientific_mapping`, its externally retained `expected_mapping_manifest_sha256`,
+and a trusted-host `verify_mapping_choice` callback. Admission first inspects the
+real strict delivery/interaction/planning chain. The mapping must describe that
+same packet (only already validated source storage paths may differ), and must
+contain the selected candidate versions. The host must verify that the actual
+person saw and selected this mapping/version, binding the planning manifest,
+mapping manifest, selected candidates and original decision. Missing or rejected
+host verification stops admission before generation. The original manual origin
+stays visible; this does not create historical native reviews or a Stage 1 chain.
+The legacy packet can be registered as a new workflow through the existing v1
+initializer, but it starts with pending checks. It needs its genuine current
+candidate reviews, eligible selection and actual interaction before strict
+delivery. Neither transport integrity, the mapping, author assessments nor A/B
+judge scores supply those checks. The CLI exposes no host-verification override.
 Human origin and semantic intent still require verification by the native host;
 a stored message shape or hash alone does not authenticate a person.
 
@@ -42,6 +71,10 @@ error events. Original primitive archive identities and receipts are retained;
 they are not renamed Stage2 proofs or an independent review chain. Native
 execution and tool isolation of this adapter have **not** been live-validated in
 this implementation. Callback fixtures establish mechanics only.
+
+Legacy mapping validates quotes against bounded private source snapshots. Its admitted
+planning context retains the original approach, limitations and packet unknowns,
+separately from the human decision's unresolved conditions.
 
 Private write-once packages retain the admitted input, prompt, schema, producer
 and runtime hashes, raw response, generation provenance, validation and failures.
@@ -89,3 +122,46 @@ importing the package or reading help.
 Generic capability/rubric/submetric/invariant extensions are discoverable by the
 PR validator. Historical v1 capability/rubric files remain unchanged. Readiness
 is limited to implementation-only, and improvement is not yet demonstrated.
+
+## Offline workflow harness
+
+`python -m stage3_plan workflow-start` admits the existing strict selected
+handoff and writes a private `Stage3WorkflowCheckpoint`. It records the selected
+candidate versions and scientific question references; it never infers a choice.
+Keep its returned `checkpoint_sha256` externally. Every subsequent command takes
+that hash and re-admits the source; inspection reconstructs the saved status from
+its actual dependencies. A forged status still fails after internal rehashing.
+
+The explicit transitions are `workflow-attach-plan`, `workflow-attach-review`,
+`workflow-prepare-ab` and `workflow-revise-source`. Each writes a new checkpoint
+file with a bound previous version; existing checkpoints cannot be overwritten.
+Every inspection verifies the complete checkpoint hash chain, legal action
+transitions, reconstructed historical statuses and source-revision impact. One
+inspection admits at most 64 checkpoint revisions; exceeding this visible
+artifact bound requires an explicit archival/migration design, never automatic
+history truncation or a reset of research evidence.
+`workflow-inspect` resumes without model or research calls. Checkpoints and their
+direct dependencies remain private, bounded and retained; do not prune history
+or change its absolute paths. Each command's `--help` lists the required bindings.
+
+Attach-plan accepts an existing strict-selected plan package, including an
+original failed attempt. Explicit synthetic-intake packages are rejected. A plan
+needs its separate externally pinned semantic review before it can be ready for
+human plan review. These commands never emit `plan-confirmed`: use the existing
+version-bound decision API and trusted native-host verification separately.
+Native human authentication is still unverified. Changing the source explicitly
+records revision impact and clears the active plan, review and A/B preparation;
+the previous files remain evidence. Attach a newly bound plan before proceeding.
+
+A/B preparation takes an externally pinned JSON definition with kind
+`Stage3ABPreparationDefinition`, schema `1.0.0`, case ID, exact intake digest,
+common prompt, shared no-tool runtime (model, reasoning, positive timeout),
+A/B build SHA-256 values and protocols, an absolute generic-rubric path and hash,
+R1/R2/ADJ model/reasoning settings, proposed decision rule and audit triggers.
+The field names are the closed contract in `stage3_plan/preparation.py`.
+This records three alternating pairs with separate null P7/P8/P9 slots, all
+`not-run`. It neither runs subjects/judges nor authenticates reviewer independence,
+blinding, builds or formal authority. Its decision and audit rules still need
+review before a separate formal protocol can be admitted. Preparation status
+does not affect plan readiness. No historical Stage2 scores or denominators are
+reused, and scientific execution and formal A/B both remain disabled.

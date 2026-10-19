@@ -11,7 +11,7 @@
       "metric_role": "enabler",
       "owner_path": "plugins/auto-research-agent/cli/stage3_plan",
       "problem": "Stage2 selection handoffs lacked actual generic question-specific planning, traceability, semantic review and version-bound plan confirmation.",
-      "mechanism": "Admit the strict externally pinned selected handoff; invoke one no-tool planning callback, preserve exact inputs/failures and replay; validate many-to-many question/evidence/design/analysis/result links, retain unknowns and require separate bound semantic review and human plan decision.",
+      "mechanism": "Admit the strict externally pinned selected handoff; invoke one explicit no-tool planning callback, preserve exact inputs/failures and replay; validate many-to-many question/evidence/design/analysis/result links, retain unknowns and require separate bound semantic review and human plan decision. Offline workflow commands attach existing evidence to immutable externally pinned checkpoints, reconstruct status on resume and prepare unrun paired slots without dispatch.",
       "metric_effects": [
         {
           "metric_id": "P7",
@@ -51,16 +51,20 @@
         "Topic-independent input and methods; no fixed research duration or hypothesis quota",
         "All result slots not-run/null; execution_authorized remains false",
         "No manual transport renamed as strict delivery; no generated review called independent human verification",
+        "Workflow preparation never launches subjects/judges, authenticates a person or confirms a plan; source revision clears active downstream bindings and preserves previous checkpoints",
         "Synthetic tests establish mechanics only; live planning/scientific quality remain unverified"
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage3_plan_contracts.py",
         "plugins/auto-research-agent/tests/test_stage3_plan_generation.py",
         "plugins/auto-research-agent/tests/test_stage3_plan_traceability.py",
-        "plugins/auto-research-agent/tests/test_stage3_plan_decision.py"
+        "plugins/auto-research-agent/tests/test_stage3_plan_decision.py",
+        "plugins/auto-research-agent/tests/test_stage3_legacy_mapping.py",
+        "plugins/auto-research-agent/tests/test_stage3_workflow.py"
       ],
       "live_ab_required_at": "separately-authorized-stage3-generic-milestone",
-      "quality_improvement_claimed": false
+      "quality_improvement_claimed": false,
+      "legacy_mapping_contract": "Explicit v1 packet/source-byte checked read-only question mapping retains manual origin, current versions, full original history, unknown resource status and missing review/human-choice blockers. It is not a strict delivery or a generation admission. Optional mapping enrichment still requires strict current delivery/interaction admission, exact logical packet equivalence, selected-version closure and trusted-host verification of the displayed mapping choice; no CLI override or fabricated old review. Bounded source capture precedes semantic validation; selected original approaches/limitations and packet unresolved context survive into hashed planning requests independently of decision conditions."
     }
   ],
   "capability_extensions": [

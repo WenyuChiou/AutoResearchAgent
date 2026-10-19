@@ -4,7 +4,7 @@ import copy
 
 from stage2_workflow.planning_handoff import inspect_planning_handoff
 
-from .contracts import Stage3Error
+from .contracts import Stage3Error, digest
 
 
 def project_intake(handoff, manifest_sha256):
@@ -92,9 +92,119 @@ def project_intake(handoff, manifest_sha256):
     }
 
 
-def admit_intake(package_dir, delivery_dir, *, expected_manifest_sha256):
+def admit_intake(
+    package_dir,
+    delivery_dir,
+    *,
+    expected_manifest_sha256,
+    scientific_mapping=None,
+    expected_mapping_manifest_sha256=None,
+    verify_mapping_choice=None,
+):
     """No manual ZIP, recommendation, UI draft or self-computed trust substitute."""
     verified = inspect_planning_handoff(
         package_dir, delivery_dir, expected_manifest_sha256=expected_manifest_sha256
     )
-    return project_intake(verified["handoff"], expected_manifest_sha256)
+    intake = project_intake(verified["handoff"], expected_manifest_sha256)
+    if scientific_mapping is None:
+        if (
+            expected_mapping_manifest_sha256 is not None
+            or verify_mapping_choice is not None
+        ):
+            raise Stage3Error("mapping configuration requires its explicit package")
+        return intake
+    from .legacy_mapping import inspect_legacy_mapping
+
+    mapped = inspect_legacy_mapping(
+        scientific_mapping, expected_manifest_sha256=expected_mapping_manifest_sha256
+    )
+
+    # Both inspectors validate physical source bytes. Only their storage paths
+    # may differ; every scientific field and source identity/hash must match.
+    def logical_packet(packet):
+        value = copy.deepcopy(packet)
+        for row in value["sources"]:
+            del row["path"]
+        return value
+
+    if logical_packet(mapped["packet"]) != logical_packet(
+        verified["handoff"]["evaluation_packet"]
+    ):
+        raise Stage3Error("legacy mapping is not the current strict delivery packet")
+    selected = {
+        (r["candidate_id"], r["candidate_version"])
+        for r in intake["selected_candidates"]
+    }
+    entries = {
+        (r["candidate_id"], r["candidate_version"]): r
+        for r in mapped["mapping"]["candidates"]
+    }
+    if not selected or not selected.issubset(entries):
+        raise Stage3Error(
+            "mapping does not contain current selected candidate versions"
+        )
+    binding = dict(
+        planning_manifest_sha256=expected_manifest_sha256,
+        mapping_manifest_sha256=expected_mapping_manifest_sha256,
+        selected_candidates=intake["selected_candidates"],
+        decision=verified["handoff"]["decision"],
+    )
+    if not callable(verify_mapping_choice):
+        raise Stage3Error(
+            "trusted host must verify human saw and selected this mapping/version"
+        )
+    result = verify_mapping_choice(copy.deepcopy(binding))
+    if (
+        not isinstance(result, dict)
+        or set(result) != {"kind", "binding_sha256", "verified", "evidence_ref"}
+        or result["kind"] != "Stage2MappedSelectionVerification"
+        or result["binding_sha256"] != digest(binding)
+        or result["verified"] is not True
+        or not isinstance(result["evidence_ref"], str)
+        or not result["evidence_ref"].strip()
+    ):
+        raise Stage3Error("mapped selection host verification rejected or mismatched")
+    if not intake["legacy_candidates"]:
+        raise Stage3Error("an already structured packet must not use a legacy mapping")
+    intake["scientific_arguments"] = []
+    intake["questions"] = []
+    intake["resources"] = []
+    for key in sorted(selected):
+        row = entries[key]
+        intake["scientific_arguments"].append(
+            dict(
+                candidate_id=key[0],
+                candidate_version=key[1],
+                argument=copy.deepcopy(row["scientific_argument"]),
+                original_approach=row["original_approach"],
+                limitations=copy.deepcopy(row["limitations"]),
+            )
+        )
+        for question in row["scientific_argument"]["questions"]:
+            intake["questions"].append(
+                dict(
+                    candidate_id=key[0],
+                    candidate_version=key[1],
+                    question_ref=f"{key[0]}@{key[1]}/{question['question_id']}",
+                    **{
+                        field: copy.deepcopy(question[field])
+                        for field in (
+                            "question_id",
+                            "text",
+                            "priority",
+                            "gap_ids",
+                            "intended_claim",
+                        )
+                    },
+                )
+            )
+        intake["resources"].extend(copy.deepcopy(row["resources"]))
+    intake["legacy_candidates"] = []
+    intake["legacy_mapping"] = dict(
+        origin="legacy-manual-v1",
+        mapping_version=mapped["mapping"]["mapping_version"],
+        manifest_sha256=expected_mapping_manifest_sha256,
+        host_selection_verification=result,
+        packet_unresolved=copy.deepcopy(mapped["mapping"]["unresolved"]),
+    )
+    return intake
