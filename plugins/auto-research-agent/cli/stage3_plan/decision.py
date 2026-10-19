@@ -24,6 +24,9 @@ def record_plan_decision(
     delivery_dir,
     expected_source_manifest_sha256,
     verify_decision=None,
+    scientific_mapping=None,
+    expected_mapping_manifest_sha256=None,
+    verify_mapping_choice=None,
 ):
     saved = inspect_package(package_dir, expected_manifest_sha256)
     plan = saved["artifacts"].get("plan.json")
@@ -36,6 +39,9 @@ def record_plan_decision(
         planning_package,
         delivery_dir,
         expected_manifest_sha256=expected_source_manifest_sha256,
+        scientific_mapping=scientific_mapping,
+        expected_mapping_manifest_sha256=expected_mapping_manifest_sha256,
+        verify_mapping_choice=verify_mapping_choice,
     )
     if current_intake != intake:
         raise Stage3Error(
