@@ -30,6 +30,8 @@ def main():
         "--expected-whole-source-review-acceptance-sha256", action="append"
     )
     parser.add_argument("--stage2-delivery")
+    parser.add_argument("--original-records-root")
+    parser.add_argument("--expected-original-records-manifest-sha256")
     parser.add_argument("--stage2-bridge")
     parser.add_argument("--expected-stage2-bridge-sha256")
     args = parser.parse_args()
@@ -42,7 +44,11 @@ def main():
             expected_repair_manifest_sha256=args.expected_repair_manifest_sha256,
             expected_repair_review_sha256=args.expected_repair_review_sha256,
         )
-        options = {"atlas": args.atlas}
+        options = {
+            "atlas": args.atlas,
+            "original_records_root": args.original_records_root,
+            "expected_original_records_manifest_sha256": args.expected_original_records_manifest_sha256,
+        }
         rerun_supplied = (
             args.source_rerun_root,
             args.expected_source_rerun_manifest_sha256,
