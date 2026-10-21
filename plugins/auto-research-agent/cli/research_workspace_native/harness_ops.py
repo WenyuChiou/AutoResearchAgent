@@ -19,6 +19,10 @@ from research_workspace.literature_selection import (
     derive_literature_selection,
     selection_files,
 )
+from research_workspace.delivery_review import (
+    FILES as REVIEW_FILES,
+    delivery_review_files,
+)
 from research_workspace.projection import validate_index
 from stage1_deliverable.common import canonical, private_output, safe_path, sha
 from research_workspace_native.store import ProjectStore
@@ -40,6 +44,7 @@ EXPORT_FILES = frozenset(
 REF = re.compile(r"[A-Za-z0-9_-]{1,64}")
 KEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,119}")
 HASH = re.compile(r"[0-9a-f]{64}")
+EXPORT_FILES = EXPORT_FILES | REVIEW_FILES
 MAX_FILE = 32 * 1024 * 1024
 MAX_OUTPUT = 128 * 1024 * 1024
 MAX_ACTIONS, HISTORY_LIMIT = 128, 64
@@ -390,7 +395,7 @@ class HarnessOps:
             )
             files = {"literature/selection.json": canonical(selection)}
         else:
-            files = selection_files(index)
+            files = {**selection_files(index), **delivery_review_files(index)}
             _check(set(files) == EXPORT_FILES, "producer-file-allowlist-differs")
             selection = decode_json(files["literature/selection.json"])
             result = dict(

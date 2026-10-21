@@ -226,7 +226,9 @@ class Journal:
         sequence = len(events) + 1
         payload = {
             **payload,
-            "schema_version": "1.0.0",
+            "schema_version": "1.1.0"
+            if payload["kind"] == "ClaimEvidence" and "assessment" in payload
+            else "1.0.0",
             "event_id": f"e{sequence:06d}",
             "created_at": self.clock(),
         }

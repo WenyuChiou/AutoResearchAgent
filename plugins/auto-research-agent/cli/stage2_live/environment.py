@@ -113,7 +113,9 @@ def verify_environment_start(preflight, native, home, workspace):
     return record, report
 
 
-def verify_environment_capture(capture_dir, receipt, preflight, inventory_receipt):
+def verify_environment_capture(
+    capture_dir, receipt, preflight, inventory_receipt, *, historical_binding=None
+):
     """Require actual turn permissions and the inventory appropriate to scope.
 
     RPC bytes must be in the authenticated subject archive, not copied from a
@@ -122,12 +124,18 @@ def verify_environment_capture(capture_dir, receipt, preflight, inventory_receip
     """
     record, _ = verify_capture(capture_dir, receipt)
     stable = record["stable_request_binding"]
+    options = (
+        {"historical_binding": historical_binding}
+        if historical_binding is not None
+        else {}
+    )
     report = verify_preflight(
         preflight["report"],
         preflight["capture_dir"],
         preflight["receipt"],
         preflight["probe_spec"],
         inventory_receipt=preflight["inventory_receipt"],
+        **options,
     )
     require_matching_preflight_contract(report, preflight["probe_spec"])
     if report.get("runtime_gate") is not True:

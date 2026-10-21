@@ -207,6 +207,7 @@ def project_canonical_atlas(
     """
     from .atlas import atlas_files
     from .literature_selection import derive_literature_selection, selection_files
+    from .delivery_review import delivery_review_files
     from .wiki import wiki_files
 
     index = project_canonical_delivery(
@@ -235,6 +236,7 @@ def project_canonical_atlas(
         **notes,
         **atlas_files(payload),
         **selection_files(index),
+        **delivery_review_files(index),
         "workspace-index.json": canonical(index),
         "references.bib": index["bibliography"]["all_bibtex"].encode("utf-8"),
     }

@@ -156,7 +156,22 @@ class HarnessHostTests(unittest.TestCase):
         status, _, raw = self.post(self.request("export-selection"))
         self.assertEqual(status, 200)
         row = json.loads(raw)
-        self.assertEqual(len(row["artifacts"]), 7)
+        self.assertEqual(len(row["artifacts"]), 15)
+        review = next(
+            f
+            for f in row["artifacts"]
+            if f["name"] == "literature/claim_verification.json"
+        )
+        review_path = (
+            "/api/harness/projects/alpha/artifacts/one/"
+            + review["name"]
+            + "?sha256="
+            + review["sha256"]
+        )
+        review_status, _, review_raw = self.call(review_path)
+        self.assertEqual(review_status, 200)
+        self.assertEqual(sha(review_raw), review["sha256"])
+        self.assertIn("rows", json.loads(review_raw))
         item = next(
             f for f in row["artifacts"] if f["name"] == "literature/screening.bib"
         )

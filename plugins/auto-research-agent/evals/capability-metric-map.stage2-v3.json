@@ -142,6 +142,10 @@
         "plugins/auto-research-agent/tests/test_stage2_content_revision.py"
       ],
       "historical_verifier_contract": "Opt-in binding1.0 validates an externally pinned supported producer Python tree, separately pinned current host code/compatibility registry and Python/dependency bytes. Read-only controller, extraction and environment verification preserves original receipts, source/policy checks, unknown inventory and completion gates; no archive code executes. Namespaced controller replay uses the existing request-config builder, including exact effective cwd and dispatcher binding. Default current-code verification, execution and resume remain strict.",
+      "historical_observed_producer_contract": "Opt-in historical binding1.1 adds the exact observed-producer module SHA from the already registered immutable original CLI tree. Separately pinned current HOST replay can authenticate an observed1.2 preflight against that original module without importing or executing old code. Only archived read-only verification accepts the binding; default binding1.0, current execution/resume, capture/source/policy/witness checks, unknown inventory and formal readiness remain unchanged.",
+      "historical_observed_producer_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_historical_observed_producer.py"
+      ],
       "historical_verifier_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller_host_verification.py",
         "plugins/auto-research-agent/tests/test_stage2_controller.py",

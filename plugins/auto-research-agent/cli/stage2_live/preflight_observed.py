@@ -76,7 +76,9 @@ def _verify_child_session(sessions, child_id, stable, expected, raw):
     return {**contexts[ordered[-1]], "native_turn_ids": ordered}
 
 
-def inspect_observed_preflight(capture_dir, receipt, probe_spec):
+def inspect_observed_preflight(
+    capture_dir, receipt, probe_spec, *, historical_binding=None
+):
     """Recompute an ordinary production gate from actual archived evidence."""
     _require(
         isinstance(probe_spec, dict)
@@ -112,12 +114,18 @@ def inspect_observed_preflight(capture_dir, receipt, probe_spec):
     )
     root = Path(observation["telemetry_root"])
     try:
+        options = (
+            {"historical_binding": historical_binding}
+            if historical_binding is not None
+            else {}
+        )
         producer = trace_producer._verify(
             request,
             root,
             observation["producer_receipt"],
             allow_synthetic=False,
             workspace_mode="archived",
+            **options,
         )
         _require(
             producer["native_capture_receipt"] == receipt,

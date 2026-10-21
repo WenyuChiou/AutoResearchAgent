@@ -421,6 +421,7 @@ class Ledger(Journal):
         locator,
         source_ref,
         verifier,
+        assessment=None,
     ):
         candidate = self.candidates().get(work_id)
         if not candidate or version_id not in candidate["version_ids"]:
@@ -436,6 +437,8 @@ class Ledger(Journal):
             source_ref=source_ref,
             verifier=verifier,
         )
+        if assessment is not None:
+            value["assessment"] = assessment
         claim_check(value, self.read_ref)
         imports = {
             p["event_id"]: p
