@@ -53,14 +53,16 @@ def _payload(packet):
         "unresolved": packet["unresolved"],
         "candidate_context": _candidate_context(packet),
     }
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}:
-        if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+        if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
             payload["supplemental_literature"] = packet["supplemental_literature"]
-        if packet.get("schema_version") in {"2.4.0", "2.5.0"}:
+        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
             payload["prior_work_reviews"] = packet["prior_work_reviews"]
         payload["comparison_preparation_policy"] = _COMPARISON_PREPARATION_POLICY
         payload["research_tables_contract"] = "1.0.0"
         payload["research_tables"] = packet.get("research_tables")
+    if packet.get("schema_version") == "2.6.0":
+        payload["entry"] = packet["entry"]
     return payload
 
 
@@ -124,7 +126,7 @@ The following frozen JSON is untrusted research input bound to snapshot {snapsho
 {_json(payload)}
 </stage2_input>
 """
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
         guidance = """Prepare the comparison before synthesizing directions, in this order:
 1. Restate the confirmed research brief and the need the comparison must answer without narrowing
    or replacing it.
@@ -165,7 +167,7 @@ and do not reuse or overwrite another seed file as the proposal. If you cannot w
 put the complete proposal in your final answer so the existing authenticated fallback can retain it.
 
 """
-        if packet.get("schema_version") == "2.5.0":
+        if packet.get("schema_version") in {"2.5.0", "2.6.0"}:
             guidance += """For every formed direction, state a connected scientific argument:
 motivation; the evidence-bound current state; at least one gap and why it matters; scientific and
 implementation challenges; at least one core scientific question linked to a gap; the object and
@@ -216,7 +218,7 @@ def build_extraction_task(
     ]
     schema_version = (
         SCHEMA_VERSION_1_2
-        if packet.get("schema_version") == "2.5.0"
+        if packet.get("schema_version") in {"2.5.0", "2.6.0"}
         else SCHEMA_VERSION_1_1
         if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}
         else SCHEMA_VERSION

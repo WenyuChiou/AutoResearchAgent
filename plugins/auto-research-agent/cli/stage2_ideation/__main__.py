@@ -90,6 +90,11 @@ def _enable_tables(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stage2_ideation")
     commands = parser.add_subparsers(dest="command", required=True)
+    direct = commands.add_parser(
+        "direct-request", help="prepare a rich seed without Stage 1 lineage"
+    )
+    for name in ("request", "expected-request-sha256", "output"):
+        direct.add_argument("--" + name, required=True)
     enable = commands.add_parser(
         "enable-tables", help="prepare a new topic-table workflow seed"
     )
@@ -124,6 +129,19 @@ def main(argv=None):
     report.add_argument("--expected-completeness-sha256")
     args = parser.parse_args(argv)
     try:
+        if args.command == "direct-request":
+            from .direct_request import prepare_direct_request
+
+            print(
+                json.dumps(
+                    prepare_direct_request(
+                        args.request,
+                        args.output,
+                        expected_request_sha256=args.expected_request_sha256,
+                    )
+                )
+            )
+            return 0
         if args.command == "enable-tables":
             _enable_tables(args)
             return 0

@@ -52,7 +52,8 @@
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
         "plugins/auto-research-agent/tests/test_stage2_source_context_multispan.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
-        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py"
+        "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ],
       "source_context_calibration_contract": "12 context cases/24 judgments combined with72/144 via recomputation; mechanics-only until authentic independent native calls exist",
       "source_context_calibration_tests": [
@@ -79,6 +80,10 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
+      "direct_request_entry_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ]
     },
     {
@@ -133,6 +138,13 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
+      "direct_request_entry_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ]
     },
     {
@@ -227,7 +239,8 @@
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_replays_frozen_v1_prompt_without_mutation",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_new_resolution_binds_v1_1_prompt_and_rejects_version_tampering",
-        "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_cannot_be_relabelled_as_new_contract"
+        "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_cannot_be_relabelled_as_new_contract",
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ],
       "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
       "research_followup_test_refs": [
@@ -427,6 +440,10 @@
       "plain_native_policy_contract": "Opt-in named-policy1.2 preserves restrictive capture-root permissions and archived runtime verification while binding an explicit positive native child-thread limit, disabled apps/plugins/remote_plugin/memories and an empty MCP table. Exact config hashes, denied directories, managed network proxy, ancestor-layer rejection and completed resume remain strict. Existing1.0/1.1 profiles retain their behavior. These requested settings neither increase authorized budgets nor establish actual inventory, isolation, formal admission or quality.",
       "plain_native_policy_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_plain_native_policy.py"
+      ],
+      "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
+      "direct_request_entry_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ]
     },
     {
@@ -536,7 +553,8 @@
         "plugins/auto-research-agent/tests/test_stage2_exploratory_contract.py",
         "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py",
         "plugins/auto-research-agent/tests/test_stage2_prerequisites.py",
-        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py",
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ],
       "completion_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
@@ -547,6 +565,10 @@
       "advisory_planning_context_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_advisory_handoff.py",
         "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
+      ],
+      "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
+      "direct_request_entry_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ]
     },
     {
@@ -732,6 +754,13 @@
       "full_proposal_artifact_contract": "Native research tasks request the complete prose, comparison matrix and references in stage2_proposal.md in the assigned workspace. A brief final link is not the extraction input; when writing is unavailable the full final answer remains the compatibility fallback. No topic, candidate, resource or scientific quota is introduced.",
       "full_proposal_artifact_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_native_proposal.py"
+      ],
+      "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
+      "direct_request_entry_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ]
     },
     {
@@ -850,7 +879,8 @@
       "mechanism": "Shared packet validation dispatches opt-in topic/resource validation without changing legacy schemas, scientific anchors or human authority.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_topic_tables.py",
-        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py"
+        "plugins/auto-research-agent/tests/test_stage2_topic_tables_integration.py",
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ],
       "supplemental_source_version_mechanism": "Opt-in packet2.3 retains immutable one-row-per-work primary literature and source-closed supplemental work/version rows without paper-count inflation; new sources remain level-bound and reopen affected checks; topic matrices, bibliography, reports, external content views and Wiki resolve exact versions. New packet versions require a fresh run; old scores and source levels are not promoted. Default2.2 behavior and frozen rubric3 remain unchanged. Record completeness is not scientific truth, native live admission or A/B improvement.",
       "supplemental_source_version_test_refs": [
@@ -861,6 +891,10 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
+      "direct_request_entry_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ]
     },
     {

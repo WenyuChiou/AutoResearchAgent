@@ -316,9 +316,14 @@ def run_parallel(suite, directory, workers):
         with ProcessPoolExecutor(
             max_workers=len(groups), mp_context=multiprocessing.get_context("spawn")
         ) as executor:
-            futures = [
-                executor.submit(run_partition, group, directory) for group in groups
-            ]
+            futures = []
+            for index, group in enumerate(groups):
+                try:
+                    futures.append(executor.submit(run_partition, group, directory))
+                except (Exception, SystemExit):
+                    incomplete += len(groups) - index
+                    traceback.print_exc()
+                    break
             for future in as_completed(futures):
                 try:
                     results.append(future.result())

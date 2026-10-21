@@ -166,7 +166,7 @@ def _project_handoff(delivery, record, interaction_sha256, message_sha256):
             "status": "recorded",
             "rows": [copy.deepcopy(reviews[row["candidate_id"]]) for row in selected],
         }
-        if packet.get("schema_version") in {"2.4.0", "2.5.0"}
+        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}
         else {"status": "unknown-not-recorded", "rows": []}
     )
     inventory = {row["path"] for row in delivery["manifest"]["files"]}

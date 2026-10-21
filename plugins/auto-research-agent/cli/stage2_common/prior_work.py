@@ -75,7 +75,7 @@ def source_set_hash(packet, canonical_hash):
 def validate_prior_work_reviews(packet, root, *, canonical_hash, error_type):
     """Validate current review identities, receipt bytes, and evidence bindings."""
 
-    if packet.get("schema_version") not in {"2.4.0", "2.5.0"}:
+    if packet.get("schema_version") not in {"2.4.0", "2.5.0", "2.6.0"}:
         return []
     reviews = packet["prior_work_reviews"]
     latest = {}
@@ -233,7 +233,7 @@ def validate_prior_work_reviews(packet, root, *, canonical_hash, error_type):
 def current_prior_work_reviews(packet):
     """Return candidate-indexed reviews after all non-I/O bindings are rechecked."""
 
-    if packet.get("schema_version") not in {"2.4.0", "2.5.0"}:
+    if packet.get("schema_version") not in {"2.4.0", "2.5.0", "2.6.0"}:
         return {}
     from .contract import Stage2Error, canonical_hash
 

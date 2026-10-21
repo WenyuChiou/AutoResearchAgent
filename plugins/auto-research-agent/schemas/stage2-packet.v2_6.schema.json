@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage2-packet.v2_6.schema.json",
+  "title": "Stage 2 direct-request scientific packet v2.6 without Stage 1 lineage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "packet_id",
+    "brief",
+    "resources",
+    "comparison",
+    "literature",
+    "supplemental_literature",
+    "evidence",
+    "sources",
+    "candidates",
+    "unresolved",
+    "research_tables",
+    "prior_work_reviews",
+    "entry"
+  ],
+  "properties": {
+    "kind": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/kind"
+    },
+    "schema_version": {
+      "const": "2.6.0"
+    },
+    "packet_id": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/packet_id"
+    },
+    "brief": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/brief"
+    },
+    "resources": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/resources"
+    },
+    "comparison": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/comparison"
+    },
+    "literature": {
+      "type": "array",
+      "items": {
+        "$ref": "stage2-packet.v2.schema.json#/$defs/literature"
+      }
+    },
+    "supplemental_literature": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/supplemental_literature"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "stage2-packet.v2.schema.json#/$defs/source"
+      }
+    },
+    "evidence": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/evidence"
+    },
+    "candidates": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/candidates"
+    },
+    "unresolved": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/unresolved"
+    },
+    "research_tables": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/research_tables"
+    },
+    "prior_work_reviews": {
+      "$ref": "stage2-packet.v2_5.schema.json#/properties/prior_work_reviews"
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "request_text",
+        "request_sha256",
+        "stage1_lineage",
+        "binding_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "Stage2DirectRequestOrigin"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_sha256": {
+          "$ref": "stage2-packet.v2.schema.json#/$defs/sha"
+        },
+        "stage1_lineage": {
+          "const": false
+        },
+        "binding_sha256": {
+          "$ref": "stage2-packet.v2.schema.json#/$defs/sha"
+        }
+      }
+    }
+  }
+}

@@ -216,7 +216,7 @@ class StagePipeline:
         return next(iter(latest.values()))
 
     def _view_version(self):
-        if self.packet["schema_version"] in {"2.4.0", "2.5.0"}:
+        if self.packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}:
             return "1.2.0"
         return (
             "1.1.0" if self.packet["schema_version"] in {"2.2.0", "2.3.0"} else "1.0.0"

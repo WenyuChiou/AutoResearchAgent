@@ -113,9 +113,9 @@ def _validate_span_index(raw_proposal, spans):
 def generation_schema(span_index, packet=None):
     """Request span selections and leave candidate identity to the host."""
     packet_version = (packet or {}).get("schema_version")
-    table_mode = packet_version in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}
+    table_mode = packet_version in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}
     schema = (
-        extraction_schema("1.2.0" if packet_version == "2.5.0" else "1.1.0")
+        extraction_schema("1.2.0" if packet_version in {"2.5.0", "2.6.0"} else "1.1.0")
         if table_mode
         else extraction_schema()
     )
@@ -134,7 +134,7 @@ def generation_schema(span_index, packet=None):
         "required": ["span_id"],
         "properties": {"span_id": {"type": "string", "enum": selectable_ids}},
     }
-    if packet_version == "2.5.0":
+    if packet_version in {"2.5.0", "2.6.0"}:
         schema["$defs"]["proposal_span"] = copy.deepcopy(schema["$defs"]["span"])
     candidate = schema["$defs"]["candidate"]
     for name in ("candidate_id", "version", "parent_version"):
@@ -329,7 +329,7 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
         else "The extracted comparison and unresolved items append to the current packet. "
     )
     table_contract = ""
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
         table_contract = (
             "Research-table cell contract: for a text dimension, described or partial "
             "requires a nonempty string value; for a quantity dimension, described or "
@@ -358,7 +358,7 @@ def _prompt(task, packet, span_index, schema, update_mode="append"):
             "it unknown. Preserve supported restrictions and explain the unresolved check. "
         )
     argument_contract = ""
-    if packet.get("schema_version") == "2.5.0":
+    if packet.get("schema_version") in {"2.5.0", "2.6.0"}:
         argument_contract = (
             "Every formed candidate must include a scientific_argument with at least one "
             "current-state claim, gap, question, and core question. Keep fact, inference, "

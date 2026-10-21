@@ -94,7 +94,7 @@ def build_proposal_view(packet, source_root, raw_proposal, extraction, snapshot_
             ),
         },
     }
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0"}:
+    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
         table_packet = build_next_packet(
             packet, source_root, raw_proposal, extraction, snapshot_sha256
         )["packet"]

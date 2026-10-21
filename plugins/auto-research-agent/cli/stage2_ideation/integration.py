@@ -151,7 +151,7 @@ def build_next_packet(
         for unknown in result["unresolved"]:
             if unknown not in next_packet["unresolved"]:
                 next_packet["unresolved"].append(unknown)
-    if packet.get("schema_version") in {"2.4.0", "2.5.0"} and affected:
+    if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"} and affected:
         affected_ids = set(affected)
         next_packet["prior_work_reviews"] = [
             row
