@@ -17,11 +17,19 @@ def rectangular_rows(rows):
 
 
 def derive_academic_screening(
-    index, *, include_original_records=True, include_new_reviews=True
+    index,
+    *,
+    include_original_records=True,
+    include_new_reviews=True,
+    include_retrieval_trace=False,
 ):
     """Preserve recorded decisions without assessing their scientific adequacy."""
     from .projection import validate_index
 
+    if include_retrieval_trace and not (
+        include_original_records and include_new_reviews
+    ):
+        raise ValueError("retrieval trace requires the current review contract")
     validate_index(index)
     library = (
         index.get("screening_library") if index["schema_version"] == "1.2.0" else None
@@ -203,7 +211,13 @@ def derive_academic_screening(
         kind="WorkspaceAcademicScreening",
         schema_version="1.0.0",
         contract_version=(
-            CONTRACT_VERSION if include_new_reviews else "S1-SCREENING-READMODEL-1.2.0"
+            (
+                "S1-SCREENING-READMODEL-1.4.0"
+                if include_retrieval_trace
+                else CONTRACT_VERSION
+            )
+            if include_new_reviews
+            else "S1-SCREENING-READMODEL-1.2.0"
         )
         if include_original_records
         else "S1-SCREENING-READMODEL-1.1.0",
@@ -247,11 +261,20 @@ def derive_academic_screening(
         )
         if cohort:
             result["new_candidate_screening"] = deepcopy(cohort)
+    if include_retrieval_trace:
+        from .retrieval_trace import work_trace
+
+        for row in rows:
+            row["retrieval_trace"] = work_trace(index, row["work_id"])
     return result
 
 
 def academic_screening_files(
-    index, *, include_original_records=True, include_new_reviews=True
+    index,
+    *,
+    include_original_records=True,
+    include_new_reviews=True,
+    include_retrieval_trace=False,
 ):
     """Export additive sidecars; legacy selection files and HTTP contracts stay intact."""
     from .literature_selection import _HeaderOnly
@@ -260,6 +283,7 @@ def academic_screening_files(
         index,
         include_original_records=include_original_records,
         include_new_reviews=include_new_reviews,
+        include_retrieval_trace=include_retrieval_trace,
     )
     raw = canonical(result)
     digest = sha(raw)
@@ -339,6 +363,16 @@ def academic_screening_files(
                 + html.escape(
                     json.dumps(
                         row["recorded_context"], ensure_ascii=False, sort_keys=True
+                    )
+                )
+                + "</pre>"
+            )
+        if include_retrieval_trace:
+            markdown.append(
+                "<pre>"
+                + html.escape(
+                    json.dumps(
+                        row["retrieval_trace"], ensure_ascii=False, sort_keys=True
                     )
                 )
                 + "</pre>"
