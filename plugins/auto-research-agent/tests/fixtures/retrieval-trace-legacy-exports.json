@@ -1,0 +1,47 @@
+{
+  "S1-DELIVERY-REVIEW-1.0.0": {
+    "literature/academic_screening.csv": "59f71893b5340719bf2c47214498cac0cf987c3efc8d7c4e497fb5c22f3ff9e1",
+    "literature/academic_screening.json": "ae73d0835ed377d035e874ec9a000118dc2d95f76167a6d27f98013ab8add3ff",
+    "literature/academic_screening.md": "8df5bd57f80d78b699e9810bee036ac0a7b031bdf9fa4b59624721cd43b6d8e0",
+    "literature/academic_screening.xlsx": "91eaef2c7a3fbf447ebb2ee39fce00a030d6636f82a6b0db7091348d254bfc98",
+    "literature/academic_screening_history.csv": "861c90acb29ec613235ea4b029e459f1f101daed44187e9e56b931985ca31cbb",
+    "literature/claim_verification.json": "bea41d1e6d589937d0f881066d798270a4efa4872d98462283112922155ae827",
+    "literature/delivery_review.json": "bd26155295e23644186168aafd81c556d59354cc5234d96d17a9837df5a10397"
+  },
+  "S1-DELIVERY-REVIEW-1.1.0": {
+    "literature/academic_screening.csv": "acbdca6fa5d5f4f278421ce14ddf241ee2544315cf87b06bde02852f530da6b1",
+    "literature/academic_screening.json": "e0e9449b855d3ccb95ac7fe2529fef5196b12fed67be81c2eb5162e5eda32161",
+    "literature/academic_screening.md": "8efd22affc7f65fe2be2f7f268d032407da9c2241fa51d12db1c297e932eb720",
+    "literature/academic_screening.xlsx": "c4b9db7b24f8d41a20118eba3b2660b431dd502e9c9a5ad953d856e99e6d4ed5",
+    "literature/academic_screening_history.csv": "861c90acb29ec613235ea4b029e459f1f101daed44187e9e56b931985ca31cbb",
+    "literature/claim_verification.json": "19a3816b3da947cafb7f1f4260e005feafc4cee86509a1206364a23b0a9bf394",
+    "literature/delivery_review.json": "b5a72daa9eff22b1be855e92c2c728e477f7549c213a0f440ec8f971483c0ed0",
+    "literature/original_record_recovery.json": "4d25225e52e0591cab375a3f46b46d818e841fe7ef8aebbb5ef97fa53fac9be9"
+  },
+  "S1-DELIVERY-REVIEW-1.2.0": {
+    "literature/academic_screening.csv": "ef9093af07b8d6f5ddb2a250329c8335f3839ea97d85e4882abb935bcd5256b3",
+    "literature/academic_screening.json": "ef1687c548b1451cd5f5a4a627ca8d55c1a916843aebf56df4384a86050eee71",
+    "literature/academic_screening.md": "ca483c0dba58c964e526327d406a136f47da1846eacae1b98d5da22946fe8bf4",
+    "literature/academic_screening.xlsx": "35a832b6d32adc49f1e373b72f35b270e749401538e6b98533cef3d872106a61",
+    "literature/academic_screening_history.csv": "2c58632844e87537ed67b43c846439e5d30a145689443e5ac5ff411b56163da8",
+    "literature/candidate_screening.csv": "e65f784a79d5adf7263b5bac95a76544f9e9508e473d9d7f57fc5de9ce09abce",
+    "literature/claim_assessments.csv": "0ccc1979c571ae75b48e933dbc5cbabe16f32c58b6a8d49d12b4e65f17601bd8",
+    "literature/claim_verification.json": "a0bc741e91e472e6d936be68c0e66bdbcfc333609dda9fbd80038d2a6c771a91",
+    "literature/delivery_review.json": "79f9525ef24da4c0ccde7643f020eb411f72c972c0747291c4507f38b73ed311",
+    "literature/original_record_recovery.json": "4d25225e52e0591cab375a3f46b46d818e841fe7ef8aebbb5ef97fa53fac9be9"
+  },
+  "S1-DELIVERY-REVIEW-1.3.0": {
+    "literature/academic_screening.csv": "ef9093af07b8d6f5ddb2a250329c8335f3839ea97d85e4882abb935bcd5256b3",
+    "literature/academic_screening.json": "ef1687c548b1451cd5f5a4a627ca8d55c1a916843aebf56df4384a86050eee71",
+    "literature/academic_screening.md": "ca483c0dba58c964e526327d406a136f47da1846eacae1b98d5da22946fe8bf4",
+    "literature/academic_screening.xlsx": "35a832b6d32adc49f1e373b72f35b270e749401538e6b98533cef3d872106a61",
+    "literature/academic_screening_history.csv": "2c58632844e87537ed67b43c846439e5d30a145689443e5ac5ff411b56163da8",
+    "literature/candidate_screening.csv": "e65f784a79d5adf7263b5bac95a76544f9e9508e473d9d7f57fc5de9ce09abce",
+    "literature/claim_assessments.csv": "ef9d72eec72b70f15fe181d06a3c60595efe71d122d4ceb0d4b7d728eec66a6b",
+    "literature/claim_assessments.md": "cd4cfde224d83eb4800666c4adb0bc24c73b6ef1842b75a4db1d2e749e585f8c",
+    "literature/claim_assessments.xlsx": "c9a3628d70cfe4b9d9976fe27e26b8091ec72209213f46b5c7ed542812da4e86",
+    "literature/claim_verification.json": "e3135bbba6bbc087277e01988bb508f6e459cf9b55fddadc24299a16b1e4156b",
+    "literature/delivery_review.json": "c90fd1406ab9bbe4c2f3952ea352ff744f841a35d27969992270f268dd52c621",
+    "literature/original_record_recovery.json": "4d25225e52e0591cab375a3f46b46d818e841fe7ef8aebbb5ef97fa53fac9be9"
+  }
+}
