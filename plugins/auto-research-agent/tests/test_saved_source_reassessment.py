@@ -161,7 +161,9 @@ class SavedSourceReassessmentTests(unittest.TestCase):
                 )
 
     def test_complete_bundle_preserves_old_and_new_and_export_replays(self):
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             index, pin = review_case(Path(folder))
             original = deepcopy(index)
             attached = attach_original_records(index, folder, pin)
@@ -202,7 +204,9 @@ class SavedSourceReassessmentTests(unittest.TestCase):
         ):
             with (
                 self.subTest(mutation=mutation),
-                tempfile.TemporaryDirectory() as folder,
+                tempfile.TemporaryDirectory(
+                    dir=Path(tempfile.gettempdir()).resolve()
+                ) as folder,
             ):
                 index, pin = review_case(Path(folder), mutation)
                 with self.assertRaises(DeliverableError):
