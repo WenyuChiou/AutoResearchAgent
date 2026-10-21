@@ -372,7 +372,7 @@ def _selection_workbook_tables(selection):
     return tables
 
 
-def selection_files(index):
+def selection_files(index, *, include_academic_screening=False):
     """Render deterministic bytes for the formal literature selection view."""
     index = json.loads(canonical(index))
     selection = derive_literature_selection(index)
@@ -449,7 +449,7 @@ def selection_files(index):
     markdown.append("")
     workbook_tables = _selection_workbook_tables(selection)
     workbook_tables["Selection"] = workbook_tables["Selection"] or selection_table
-    return {
+    exported = {
         "literature/selection.json": canonical(selection),
         "literature/selection.csv": csv_bytes("Selection", selection_table),
         "literature/included.bib": included_bib.encode("utf-8"),
@@ -463,3 +463,8 @@ def selection_files(index):
             }
         ),
     }
+    if include_academic_screening:
+        from .academic_screening import academic_screening_files
+
+        exported.update(academic_screening_files(index))
+    return exported

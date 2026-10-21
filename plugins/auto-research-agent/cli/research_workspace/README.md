@@ -143,6 +143,33 @@ it does not attest the separately required visual/native acceptance. Coverage,
 scientific assessments, full-record exports and official Stage 2 eligibility
 remain unchanged. Rebuilding these exports performs no new research or reading.
 
+### Separate recorded academic screening
+
+`academic_screening.derive_academic_screening(index)` and
+`academic_screening.academic_screening_files(index)` implement the additive
+`S1-SCREENING-READMODEL-1.0.0` contract. Use
+`selection_files(index, include_academic_screening=True)` to add these sidecars;
+the default six selection files, technical statuses/reasons/eligibility, existing
+catalog sheets, claims and HTTP interfaces retain their previous behavior.
+The new `literature/academic_screening.json`, `.csv`, `.md`, `.xlsx` and
+`academic_screening_history.csv` preserve recorded include/exclude/pending reasons.
+The independent workbook contains AcademicScreening and ScreeningHistory sheets.
+History uses one event per row; oversized individual Excel cells reference the
+complete JSON field by pointer and SHA-256. JSON/CSV keep complete original values.
+
+Counts describe only this index's paper/version rows; the historical candidate
+total remains Unknown. Canonical 1.2 uses the complete bound library history,
+including unread candidates and not-screened rows. Its original decisions are
+work-level and do not declare a version: current display versions and separately
+bound current reviews never rewrite original events. Older records preserve their
+saved order/reasons, but absent history and history completeness remain Unknown.
+Original reasons may be shared development templates. `reason_shared_work_count`
+counts distinct works sharing each exact nonempty current reason, while
+`counts.distinct_current_reasons` counts distinct nonempty reasons. These counts
+make reuse visible without judging it. Recorded/nonempty fields
+do not establish scientific adequacy; `scientific_assessment=false`, source
+qualification, claim Unknowns and Stage 2 authority remain independent.
+
 ### Final-delivery prerequisites and phase timing
 
 The opt-in [current saved-source admission](../../references/stage1-saved-admission.md)
