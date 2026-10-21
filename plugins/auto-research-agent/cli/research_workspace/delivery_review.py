@@ -6,7 +6,8 @@ from stage1_deliverable.common import canonical, sha
 
 from .academic_screening import academic_screening_files, derive_academic_screening
 
-CONTRACT = "S1-DELIVERY-REVIEW-1.0.0"
+CONTRACT = "S1-DELIVERY-REVIEW-1.1.0"
+LEGACY_CONTRACT = "S1-DELIVERY-REVIEW-1.0.0"
 FILES = frozenset(
     "literature/" + name
     for name in (
@@ -17,12 +18,18 @@ FILES = frozenset(
         "academic_screening_history.csv",
         "claim_verification.json",
         "delivery_review.json",
+        "original_record_recovery.json",
     )
 )
 
 
-def derive_delivery_review(index):
-    screening = derive_academic_screening(index)
+def derive_delivery_review(index, *, contract=CONTRACT):
+    modern = contract == CONTRACT
+    if contract not in {CONTRACT, LEGACY_CONTRACT}:
+        raise ValueError("unknown delivery review contract")
+    screening = derive_academic_screening(index, include_original_records=modern)
+    recovery = index.get("original_record_recovery", {}).get("payload", {})
+    recovered_claims = {r["claim_id"]: r for r in recovery.get("claims", [])}
     claims = []
     for position, claim in enumerate(index["claims"]):
         event = (claim.get("core_event") or {}).get("payload", {})
@@ -60,6 +67,24 @@ def derive_delivery_review(index):
                 source_observation_is_not_assessment_reason=True,
             )
         )
+        if modern:
+            row = claims[-1]
+            original_recovery = recovered_claims.get(claim.get("claim_id"))
+            row.update(
+                original_claim=deepcopy(claim),
+                original_claim_pointer=f"/claims/{position}",
+                historical_recovery=deepcopy(original_recovery),
+            )
+            if (
+                not assessment
+                and original_recovery
+                and original_recovery["historical_reason"]
+            ):
+                row.update(
+                    reason_state="recovered-record",
+                    reason_code="saved-prior-assessment-reason",
+                    explanation=original_recovery["historical_reason"]["value"],
+                )
     issues = []
     if screening["count_scope"] != "bound-run":
         issues.append("complete-candidate-history-not-bound")
@@ -67,10 +92,16 @@ def derive_delivery_review(index):
         issues.append("per-work-screening-reason-review-required")
     if any(r["reason_state"] == "not-recorded" for r in claims):
         issues.append("claim-assessment-reasons-missing")
+    if modern and any(
+        s["state"] in {"ambiguous", "quote-not-found"}
+        for r in recovery.get("claims", [])
+        for s in r["span_checks"]
+    ):
+        issues.append("saved-note-spans-unresolved")
     return dict(
         kind="Stage1DeliveryReview",
-        schema_version="1.0.0",
-        contract_version=CONTRACT,
+        schema_version="1.1.0" if modern else "1.0.0",
+        contract_version=contract,
         input_canonical_sha256=sha(canonical(index)),
         records_sha256=index["provenance"]["records_sha256"],
         screening=screening,
@@ -83,8 +114,8 @@ def derive_delivery_review(index):
     )
 
 
-def delivery_review_files(index):
-    result = derive_delivery_review(index)
+def delivery_review_files(index, *, contract=CONTRACT):
+    result = derive_delivery_review(index, contract=contract)
     summary = {k: v for k, v in result.items() if k not in {"screening", "claims"}}
     summary.update(
         screening_counts=result["screening"]["counts"],
@@ -95,14 +126,24 @@ def delivery_review_files(index):
             r["reason_state"] == "not-recorded" for r in result["claims"]
         ),
     )
-    return {
-        **academic_screening_files(index),
+    files = {
+        **academic_screening_files(
+            index, include_original_records=contract == CONTRACT
+        ),
         "literature/claim_verification.json": canonical(
             dict(
-                contract_version=CONTRACT,
+                contract_version=contract,
                 input_canonical_sha256=result["input_canonical_sha256"],
                 rows=result["claims"],
             )
         ),
         "literature/delivery_review.json": canonical(summary),
     }
+    if contract == CONTRACT:
+        files["literature/original_record_recovery.json"] = canonical(
+            index.get(
+                "original_record_recovery",
+                dict(status="not-provided", scientific_assessment=False),
+            )
+        )
+    return files

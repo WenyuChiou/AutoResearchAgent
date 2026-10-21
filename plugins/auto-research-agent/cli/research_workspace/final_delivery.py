@@ -18,6 +18,7 @@ from stage1_ledger.journal import LedgerError
 
 from .delivery_review import (
     CONTRACT,
+    LEGACY_CONTRACT,
     FILES,
     derive_delivery_review,
     delivery_review_files,
@@ -74,11 +75,16 @@ def _view(root, expected):
     expected_files = selection_files(index)
     marker = manifest.get("delivery_review_contract")
     _require(
-        marker == CONTRACT or (marker is None and not FILES.intersection(files)),
+        marker in {CONTRACT, LEGACY_CONTRACT}
+        or (marker is None and not FILES.intersection(files)),
         "unknown or missing delivery review contract",
     )
-    if manifest.get("delivery_review_contract") == CONTRACT:
-        expected_files.update(delivery_review_files(index))
+    if marker in {CONTRACT, LEGACY_CONTRACT}:
+        _require(
+            marker != LEGACY_CONTRACT or "original_record_recovery" not in index,
+            "recovery cannot use legacy contract",
+        )
+        expected_files.update(delivery_review_files(index, contract=marker))
     for name, data in expected_files.items():
         _require(
             safe_path(root, name).read_bytes() == data,
@@ -215,6 +221,7 @@ def inspect_final_delivery(
                     "run_timing.py",
                     "literature_selection.py",
                     "delivery_review.py",
+                    "original_record_recovery.py",
                     "academic_screening.py",
                     "body_completeness.py",
                     "body_review.py",
