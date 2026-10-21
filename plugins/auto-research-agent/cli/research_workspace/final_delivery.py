@@ -20,6 +20,7 @@ from .delivery_review import (
     CONTRACT,
     LEGACY_CONTRACT,
     PREVIOUS_CONTRACT,
+    RECOVERY_CONTRACT,
     FILES,
     derive_delivery_review,
     delivery_review_files,
@@ -76,18 +77,18 @@ def _view(root, expected):
     expected_files = selection_files(index)
     marker = manifest.get("delivery_review_contract")
     _require(
-        marker in {CONTRACT, PREVIOUS_CONTRACT, LEGACY_CONTRACT}
+        marker in {CONTRACT, PREVIOUS_CONTRACT, RECOVERY_CONTRACT, LEGACY_CONTRACT}
         or (marker is None and not FILES.intersection(files)),
         "unknown or missing delivery review contract",
     )
-    if marker in {CONTRACT, PREVIOUS_CONTRACT, LEGACY_CONTRACT}:
+    if marker in {CONTRACT, PREVIOUS_CONTRACT, RECOVERY_CONTRACT, LEGACY_CONTRACT}:
         _require(
             marker != LEGACY_CONTRACT or "original_record_recovery" not in index,
             "recovery cannot use legacy contract",
         )
         expected_files.update(delivery_review_files(index, contract=marker))
         _require(
-            marker == CONTRACT
+            marker in {CONTRACT, PREVIOUS_CONTRACT}
             or not any(
                 key in row
                 for collection, key in (
@@ -243,6 +244,7 @@ def inspect_final_delivery(
                     "literal_revisions.py",
                     "source_reassessment.py",
                     "candidate_reassessment.py",
+                    "reassessment_exports.py",
                     "academic_screening.py",
                     "body_completeness.py",
                     "body_review.py",
