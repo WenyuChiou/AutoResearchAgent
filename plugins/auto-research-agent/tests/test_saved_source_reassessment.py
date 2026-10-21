@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+from io import BytesIO
+import zipfile
 
 from test_original_record_recovery import recovery_case
 from research_workspace.delivery_review import delivery_review_files
@@ -83,6 +86,65 @@ def review_case(root, mutation=None):
 
 
 class SavedSourceReassessmentTests(unittest.TestCase):
+    def test_prior_review_cannot_reuse_same_id_from_another_source(self):
+        for mutation in (
+            {},
+            {"source_id": "other-source"},
+            {"original_claim_sha256": "b" * 64},
+            {"relation": "context"},
+        ):
+            with (
+                self.subTest(mutation=mutation),
+                tempfile.TemporaryDirectory(
+                    dir=Path(tempfile.gettempdir()).resolve()
+                ) as folder,
+            ):
+                root = Path(folder)
+                index, _ = review_case(root)
+                new = json.loads((root / "new.json").read_bytes())
+                prior = dict(new["claim"], **mutation)
+                prior_raw = canonical(dict(claim=prior))
+                (root / "previous-review.json").write_bytes(prior_raw)
+                new["claim"]["prior_review"] = dict(
+                    portable_path="previous-review.json",
+                    pointer="/claim",
+                    sha256=sha(prior_raw),
+                    relation="partial",
+                )
+                (root / "new.json").write_bytes(canonical(new))
+                spec = json.loads((root / "recovery.json").read_bytes())
+                spec["new_review_projection_version"] = "1.1.0"
+                (root / "recovery.json").write_bytes(canonical(spec))
+                manifest = json.loads((root / "manifest.json").read_bytes())
+                for name in ("previous-review.json", "new.json", "recovery.json"):
+                    manifest["files"][name] = sha((root / name).read_bytes())
+                raw = canonical(manifest)
+                (root / "manifest.json").write_bytes(raw)
+                if mutation:
+                    with self.assertRaisesRegex(
+                        DeliverableError, "prior review binding differs"
+                    ):
+                        attach_original_records(index, folder, sha(raw))
+                else:
+                    attached = attach_original_records(index, folder, sha(raw))
+                    self.assertEqual(
+                        attached["original_record_recovery"]["payload"]["claims"][0][
+                            "new_assessment"
+                        ]["previous_review"]["value"],
+                        prior,
+                    )
+
+    def test_claim_report_heading_cannot_inject_html_or_new_heading(self):
+        from research_workspace.reassessment_exports import claim_reports
+
+        files = claim_reports(
+            [dict(claim_id="<img src=x onerror=alert(1)>\n# injected")], b"{}"
+        ).copy()
+        report = files["literature/claim_assessments.md"].decode()
+        self.assertIn("## &lt;img src=x onerror=alert(1)&gt; # injected", report)
+        self.assertNotIn("<img", report)
+        self.assertNotIn("\n# injected", report)
+
     def test_candidate_block_work_and_original_receipt_cannot_be_swapped(self):
         from research_workspace.candidate_reassessment import validate_candidates
 
@@ -181,6 +243,15 @@ class SavedSourceReassessmentTests(unittest.TestCase):
             self.assertIn(
                 b"Broader generalization", files["literature/claim_assessments.csv"]
             )
+            self.assertIn(
+                b"Broader generalization", files["literature/claim_assessments.md"]
+            )
+            with zipfile.ZipFile(
+                BytesIO(files["literature/claim_assessments.xlsx"])
+            ) as workbook:
+                self.assertIn(
+                    b"Broader generalization", workbook.read("xl/worksheets/sheet1.xml")
+                )
             screening = json.loads(files["literature/academic_screening.json"])
             self.assertEqual(
                 screening["rows"][0]["decision_scope"], "new-saved-source-review"
@@ -211,3 +282,44 @@ class SavedSourceReassessmentTests(unittest.TestCase):
                 index, pin = review_case(Path(folder), mutation)
                 with self.assertRaises(DeliverableError):
                     attach_original_records(index, folder, pin)
+
+    def test_existing_authenticated_http_exports_new_review_and_csv(self):
+        from test_research_workspace_harness_host import HarnessHostTests
+
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
+            index, pin = review_case(Path(folder))
+            attached = attach_original_records(index, folder, pin)
+            payload = dict(
+                index=attached, index_sha256=sha(canonical(attached)), note_paths=[]
+            )
+            case = HarnessHostTests(
+                "test_exports_bearer_fixed_names_exact_hash_and_changed_file_rejected"
+            )
+            with patch(
+                "test_research_workspace_harness_host.payload", return_value=payload
+            ):
+                case.setUp()
+            try:
+                status, _, raw = case.post(case.request("export-selection"))
+                self.assertEqual(status, 200)
+                exported = json.loads(raw)
+                self.assertEqual(exported["outcome"], "succeeded", exported)
+                item = next(
+                    a
+                    for a in exported["artifacts"]
+                    if a["name"] == "literature/claim_assessments.csv"
+                )
+                path = (
+                    "/api/harness/projects/alpha/artifacts/one/"
+                    + item["name"]
+                    + "?sha256="
+                    + item["sha256"]
+                )
+                status, _, raw = case.call(path)
+                self.assertEqual(status, 200)
+                self.assertEqual(sha(raw), item["sha256"])
+                self.assertIn(b"new-source-review", raw)
+            finally:
+                case.doCleanups()

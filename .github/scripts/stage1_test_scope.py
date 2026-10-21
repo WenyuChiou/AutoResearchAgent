@@ -201,6 +201,15 @@ def plan(paths, repo=REPO, records=None, event_name=None):
         ):
             return {**full, "reason": f"Shared, deleted, or unclassified input: {path}"}
         modules.add(relative.stem)
+    # Docs jobs deliberately omit the Codex CLI on every platform. Match the
+    # workflow's docs scope only after all changed inputs passed validation.
+    if plugin_test_scope(paths) == "docs":
+        return {
+            "mode": "selected",
+            "modules": ["test_stage_contracts"],
+            "changed_paths": sorted(set(paths)),
+            "reason": "Documentation-only change; stage contracts without CLI loading",
+        }
     # Include test modules that refer to another selected module, including
     # literal dynamic imports. Extra matches only increase coverage. Shared
     # fixtures/resources are deliberately not eligible for this narrow path.

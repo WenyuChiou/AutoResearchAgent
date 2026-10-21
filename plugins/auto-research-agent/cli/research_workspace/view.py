@@ -424,7 +424,7 @@ def _write_view(
         )
     manifest = {
         "kind": "WorkspaceReadOnlyView",
-        "delivery_review_contract": "S1-DELIVERY-REVIEW-1.2.0",
+        "delivery_review_contract": "S1-DELIVERY-REVIEW-1.3.0",
         "index_sha256": expected_index_sha256,
         "reference_commit": REFERENCE_COMMIT,
         "reference_assets": REFERENCE_HASHES,
@@ -482,6 +482,7 @@ def _write_view(
                     "academic_screening.py",
                     "source_reassessment.py",
                     "candidate_reassessment.py",
+                    "reassessment_exports.py",
                 )
             }
         )

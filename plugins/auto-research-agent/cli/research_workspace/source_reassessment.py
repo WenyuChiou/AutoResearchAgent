@@ -75,6 +75,13 @@ def validate_review(reference, original, source, text, input_sha256, *, claim):
         "specific reason required",
     )
     evidence = value["evidence"]
+    for visual in value.get("visual_evidence", []):
+        _require(
+            visual.get("raw_pdf_sha256") == value["raw_source_sha256"]
+            and type(visual.get("pdf_pages")) is list
+            and all(type(p) is int and p > 0 for p in visual["pdf_pages"]),
+            "visual source identity differs",
+        )
     _require(
         type(evidence) is list and 0 < len(evidence) <= 64, "bounded evidence required"
     )

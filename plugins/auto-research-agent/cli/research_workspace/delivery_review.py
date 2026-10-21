@@ -10,8 +10,9 @@ from .academic_screening import (
     rectangular_rows,
 )
 
-CONTRACT = "S1-DELIVERY-REVIEW-1.2.0"
-PREVIOUS_CONTRACT = "S1-DELIVERY-REVIEW-1.1.0"
+CONTRACT = "S1-DELIVERY-REVIEW-1.3.0"
+PREVIOUS_CONTRACT = "S1-DELIVERY-REVIEW-1.2.0"
+RECOVERY_CONTRACT = "S1-DELIVERY-REVIEW-1.1.0"
 LEGACY_CONTRACT = "S1-DELIVERY-REVIEW-1.0.0"
 FILES = frozenset(
     "literature/" + name
@@ -26,14 +27,22 @@ FILES = frozenset(
         "original_record_recovery.json",
         "claim_assessments.csv",
         "candidate_screening.csv",
+        "claim_assessments.md",
+        "claim_assessments.xlsx",
     )
 )
 
 
 def derive_delivery_review(index, *, contract=CONTRACT):
     modern = contract != LEGACY_CONTRACT
-    current = contract == CONTRACT
-    if contract not in {CONTRACT, PREVIOUS_CONTRACT, LEGACY_CONTRACT}:
+    current = contract in {CONTRACT, PREVIOUS_CONTRACT}
+    complete = contract == CONTRACT
+    if contract not in {
+        CONTRACT,
+        PREVIOUS_CONTRACT,
+        RECOVERY_CONTRACT,
+        LEGACY_CONTRACT,
+    }:
         raise ValueError("unknown delivery review contract")
     screening = derive_academic_screening(
         index, include_original_records=modern, include_new_reviews=current
@@ -110,6 +119,10 @@ def derive_delivery_review(index, *, contract=CONTRACT):
                     reason_code=review["value"]["reason_code"],
                     explanation=review["value"]["rationale"],
                 )
+                if complete:
+                    row["current_assertion"] = (
+                        review["value"].get("revised_claim") or claim["text"]
+                    )
     issues = []
     if screening["count_scope"] != "bound-run":
         issues.append("complete-candidate-history-not-bound")
@@ -129,9 +142,30 @@ def derive_delivery_review(index, *, contract=CONTRACT):
         for s in r["span_checks"]
     ):
         issues.append("original-note-citation-purpose-not-reestablished")
+    historical_gaps = []
+    if complete and screening.get("new_candidate_screening"):
+        historical_gaps.append("complete-candidate-history-not-bound")
+    layout_claims = [
+        r
+        for r in recovery.get("claims", [])
+        if any(s["state"] == "layout-reviewed-literal" for s in r["span_checks"])
+    ]
+    if (
+        complete
+        and layout_claims
+        and all(r.get("new_assessment") for r in layout_claims)
+    ):
+        historical_gaps.append("original-note-citation-purpose-not-reestablished")
+    issues = [issue for issue in issues if issue not in historical_gaps]
     return dict(
         kind="Stage1DeliveryReview",
-        schema_version="1.2.0" if current else "1.1.0" if modern else "1.0.0",
+        schema_version="1.3.0"
+        if complete
+        else "1.2.0"
+        if current
+        else "1.1.0"
+        if modern
+        else "1.0.0",
         contract_version=contract,
         input_canonical_sha256=sha(canonical(index)),
         records_sha256=index["provenance"]["records_sha256"],
@@ -142,6 +176,26 @@ def derive_delivery_review(index, *, contract=CONTRACT):
         scientific_assessment=False,
         stage1_completed=False,
         official_stage2_import_eligible=False,
+        **(
+            dict(
+                historical_gaps=historical_gaps,
+                source_reassessment_complete=any("new_assessment" in c for c in claims)
+                and not any(c["reason_state"] == "not-recorded" for c in claims),
+                per_work_decisions_complete=bool(screening["rows"])
+                and all("new_screening_review" in r for r in screening["rows"]),
+                saved_observation_screening_complete=bool(
+                    screening.get("new_candidate_screening")
+                ),
+                partial_claim_ids=[
+                    c["claim_id"]
+                    for c in claims
+                    if c.get("current_relation") == "partial"
+                ],
+                independent_scientific_validation=False,
+            )
+            if complete
+            else {}
+        ),
         **(
             dict(
                 new_source_review_count=sum("new_assessment" in c for c in claims),
@@ -182,7 +236,7 @@ def delivery_review_files(index, *, contract=CONTRACT):
         **academic_screening_files(
             index,
             include_original_records=contract != LEGACY_CONTRACT,
-            include_new_reviews=contract == CONTRACT,
+            include_new_reviews=contract in {CONTRACT, PREVIOUS_CONTRACT},
         ),
         "literature/claim_verification.json": canonical(
             dict(
@@ -200,7 +254,7 @@ def delivery_review_files(index, *, contract=CONTRACT):
                 dict(status="not-provided", scientific_assessment=False),
             )
         )
-    if contract == CONTRACT:
+    if contract in {CONTRACT, PREVIOUS_CONTRACT}:
         from stage1_deliverable.views import csv_bytes
         from .literature_selection import _HeaderOnly
 
@@ -214,5 +268,11 @@ def delivery_review_files(index, *, contract=CONTRACT):
             "NewCandidateScreening",
             rectangular_rows(cohort.get("value", {}).get("rows", []))
             or _HeaderOnly(("observation_ref", "decision", "rationale")),
+        )
+    if contract == CONTRACT:
+        from .reassessment_exports import claim_reports
+
+        files.update(
+            claim_reports(result["claims"], files["literature/claim_verification.json"])
         )
     return files
