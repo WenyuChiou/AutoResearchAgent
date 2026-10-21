@@ -3,7 +3,9 @@
   "$id": "urn:auto-research-agent:stage1-ledger:1.0.0",
   "title": "Stage 1 observation ledger and optional public CLI execution receipts",
   "oneOf": [
-    {"$ref": "#/$defs/SourceImportStarted"},
+    {
+      "$ref": "#/$defs/SourceImportStarted"
+    },
     {
       "$ref": "#/$defs/Stage1Manifest"
     },
@@ -212,9 +214,17 @@
         "research_run": {
           "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ResearchRun"
         },
-        "mode": {"enum": ["offline-import", "research-hub-cli"]},
+        "mode": {
+          "enum": [
+            "offline-import",
+            "research-hub-cli"
+          ]
+        },
         "research_hub_pin": {
-          "type": ["null", "object"]
+          "type": [
+            "null",
+            "object"
+          ]
         },
         "max_artifact_bytes": {
           "type": "integer",
@@ -362,7 +372,8 @@
         "outcome": {
           "enum": [
             "success_nonempty",
-            "success_empty", "success_evidence",
+            "success_empty",
+            "success_evidence",
             "rate_limited",
             "not_found",
             "timeout",
@@ -456,7 +467,8 @@
         "outcome": {
           "enum": [
             "success_nonempty",
-            "success_empty", "success_evidence",
+            "success_empty",
+            "success_evidence",
             "partial_failure",
             "failed"
           ]
@@ -635,7 +647,10 @@
           "const": "ClaimEvidence"
         },
         "schema_version": {
-          "const": "1.0.0"
+          "enum": [
+            "1.0.0",
+            "1.1.0"
+          ]
         },
         "event_id": {
           "type": "string",
@@ -722,8 +737,52 @@
               "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
             }
           }
+        },
+        "assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason_code",
+            "rationale"
+          ],
+          "properties": {
+            "reason_code": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "maxLength": 80
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "pattern": "\\S"
+            }
+          }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": "1.1.0"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "assessment"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "assessment"
+              ]
+            }
+          }
+        }
+      ]
     },
     "Checkpoint": {
       "type": "object",
