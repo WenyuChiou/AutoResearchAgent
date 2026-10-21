@@ -19,6 +19,7 @@ from stage1_ledger.journal import LedgerError
 from .delivery_review import (
     CONTRACT,
     LEGACY_CONTRACT,
+    PREVIOUS_CONTRACT,
     FILES,
     derive_delivery_review,
     delivery_review_files,
@@ -75,16 +76,33 @@ def _view(root, expected):
     expected_files = selection_files(index)
     marker = manifest.get("delivery_review_contract")
     _require(
-        marker in {CONTRACT, LEGACY_CONTRACT}
+        marker in {CONTRACT, PREVIOUS_CONTRACT, LEGACY_CONTRACT}
         or (marker is None and not FILES.intersection(files)),
         "unknown or missing delivery review contract",
     )
-    if marker in {CONTRACT, LEGACY_CONTRACT}:
+    if marker in {CONTRACT, PREVIOUS_CONTRACT, LEGACY_CONTRACT}:
         _require(
             marker != LEGACY_CONTRACT or "original_record_recovery" not in index,
             "recovery cannot use legacy contract",
         )
         expected_files.update(delivery_review_files(index, contract=marker))
+        _require(
+            marker == CONTRACT
+            or not any(
+                key in row
+                for collection, key in (
+                    ("claims", "new_assessment"),
+                    ("works", "new_screening_review"),
+                )
+                for row in index.get("original_record_recovery", {})
+                .get("payload", {})
+                .get(collection, [])
+            )
+            and not index.get("original_record_recovery", {})
+            .get("payload", {})
+            .get("new_candidate_screening"),
+            "new source reviews require current delivery contract",
+        )
     for name, data in expected_files.items():
         _require(
             safe_path(root, name).read_bytes() == data,
@@ -223,6 +241,8 @@ def inspect_final_delivery(
                     "delivery_review.py",
                     "original_record_recovery.py",
                     "literal_revisions.py",
+                    "source_reassessment.py",
+                    "candidate_reassessment.py",
                     "academic_screening.py",
                     "body_completeness.py",
                     "body_review.py",

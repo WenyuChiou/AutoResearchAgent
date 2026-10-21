@@ -228,7 +228,7 @@ def _project_recovery(index, raw, data):
         )
 
     claims = {c["claim_id"]: c for c in index["claims"]}
-    rows = []
+    rows, bound_sources = [], {}
     for row in spec["claims"]:
         claim = claims.get(row["claim_id"])
         _require(
@@ -253,6 +253,7 @@ def _project_recovery(index, raw, data):
             "source text binding differs",
         )
         text = source.decode("utf-8")
+        bound_sources[source_row["source_id"]] = (source_row, text)
         _require(
             text[claim["start"] : claim["end"]] == claim["quote"],
             "original quote differs",
@@ -328,6 +329,17 @@ def _project_recovery(index, raw, data):
                 text,
                 source_row["receipt"].get("raw_sha256"),
             )
+        if row.get("new_assessment"):
+            from .source_reassessment import validate_review
+
+            rows[-1]["new_assessment"] = validate_review(
+                reference(row["new_assessment"]),
+                claim,
+                source_row,
+                text,
+                spec["input_canonical_sha256"],
+                claim=True,
+            )
     payload = {
         k: spec[k] for k in ("project_id", "input_canonical_sha256", "records_sha256")
     }
@@ -349,6 +361,31 @@ def _project_recovery(index, raw, data):
         missing_originals=deepcopy(spec["missing_originals"]),
         mapping_scope="Declared original references; existing identity fields checked; no independent scientific assessment.",
     )
+    for original, projected in zip(spec["works"], payload["works"]):
+        if original.get("new_screening_review"):
+            from .source_reassessment import validate_review
+
+            review = reference(original["new_screening_review"])
+            source_id = review["value"].get("source_id")
+            _require(source_id in bound_sources, "review source not bound")
+            source_row, text = bound_sources[source_id]
+            projected["new_screening_review"] = validate_review(
+                review,
+                original,
+                source_row,
+                text,
+                spec["input_canonical_sha256"],
+                claim=False,
+            )
+    if spec.get("new_candidate_screening"):
+        from .candidate_reassessment import validate_candidates
+
+        payload["new_candidate_screening"] = validate_candidates(
+            reference(spec["new_candidate_screening"]),
+            reference,
+            index,
+            spec["input_canonical_sha256"],
+        )
     return payload
 
 
