@@ -317,6 +317,17 @@ def _project_recovery(index, raw, data):
                 relation_changed=False,
             )
         )
+        if row.get("literal_revisions"):
+            from .literal_revisions import apply_literal_revisions
+
+            rows[-1]["span_checks"] = apply_literal_revisions(
+                claim,
+                rows[-1]["span_checks"],
+                [reference(r) for r in row["literal_revisions"]],
+                {n["path"]: n["source_sha256"] for n in notes},
+                text,
+                source_row["receipt"].get("raw_sha256"),
+            )
     payload = {
         k: spec[k] for k in ("project_id", "input_canonical_sha256", "records_sha256")
     }

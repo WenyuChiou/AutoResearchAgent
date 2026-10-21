@@ -98,6 +98,12 @@ def derive_delivery_review(index, *, contract=CONTRACT):
         for s in r["span_checks"]
     ):
         issues.append("saved-note-spans-unresolved")
+    if modern and any(
+        s["state"] == "layout-reviewed-literal"
+        for r in recovery.get("claims", [])
+        for s in r["span_checks"]
+    ):
+        issues.append("original-note-citation-purpose-not-reestablished")
     return dict(
         kind="Stage1DeliveryReview",
         schema_version="1.1.0" if modern else "1.0.0",

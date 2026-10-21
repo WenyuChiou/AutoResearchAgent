@@ -471,6 +471,18 @@ def _write_view(
         },
     }
     canonical_rebuild = _canonical_rebuild(index)
+    if "original_record_recovery" in index:
+        manifest["adapter_sources"].update(
+            {
+                name: sha(Path(__file__).with_name(name).read_bytes())
+                for name in (
+                    "original_record_recovery.py",
+                    "literal_revisions.py",
+                    "delivery_review.py",
+                    "academic_screening.py",
+                )
+            }
+        )
     if canonical_rebuild is not None:
         manifest["rebuild"].update(canonical_rebuild)
         manifest["adapter_sources"]["canonical_delivery.py"] = sha(
