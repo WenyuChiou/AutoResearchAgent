@@ -8,10 +8,17 @@ from stage1_deliverable.common import canonical, sha
 from stage1_deliverable.views import csv_bytes, workbook_bytes
 
 JSON_PATH = "literature/academic_screening.json"
-CONTRACT_VERSION = "S1-SCREENING-READMODEL-1.2.0"
+CONTRACT_VERSION = "S1-SCREENING-READMODEL-1.3.0"
 
 
-def derive_academic_screening(index, *, include_original_records=True):
+def rectangular_rows(rows):
+    keys = list(dict.fromkeys(k for row in rows for k in row))
+    return [{key: row.get(key) for key in keys} for row in rows]
+
+
+def derive_academic_screening(
+    index, *, include_original_records=True, include_new_reviews=True
+):
     """Preserve recorded decisions without assessing their scientific adequacy."""
     from .projection import validate_index
 
@@ -92,6 +99,10 @@ def derive_academic_screening(index, *, include_original_records=True):
                     scientific_assessment=False,
                 )
             )
+    if include_original_records and include_new_reviews:
+        from .source_reassessment import apply_screening_reviews
+
+        apply_screening_reviews(index, rows, events)
     reason_works = {}
     for row in rows:
         if row["reason_nonempty"]:
@@ -188,10 +199,12 @@ def derive_academic_screening(index, *, include_original_records=True):
         ),
         distinct_current_reasons=len(reason_works),
     )
-    return dict(
+    result = dict(
         kind="WorkspaceAcademicScreening",
         schema_version="1.0.0",
-        contract_version=CONTRACT_VERSION
+        contract_version=(
+            CONTRACT_VERSION if include_new_reviews else "S1-SCREENING-READMODEL-1.2.0"
+        )
         if include_original_records
         else "S1-SCREENING-READMODEL-1.1.0",
         input_canonical_sha256=sha(canonical(index)),
@@ -226,18 +239,34 @@ def derive_academic_screening(index, *, include_original_records=True):
         official_stage2_import_eligible=False,
         research_execution=False,
     )
+    if include_original_records and include_new_reviews:
+        cohort = (
+            index.get("original_record_recovery", {})
+            .get("payload", {})
+            .get("new_candidate_screening")
+        )
+        if cohort:
+            result["new_candidate_screening"] = deepcopy(cohort)
+    return result
 
 
-def academic_screening_files(index, *, include_original_records=True):
+def academic_screening_files(
+    index, *, include_original_records=True, include_new_reviews=True
+):
     """Export additive sidecars; legacy selection files and HTTP contracts stay intact."""
     from .literature_selection import _HeaderOnly
 
     result = derive_academic_screening(
-        index, include_original_records=include_original_records
+        index,
+        include_original_records=include_original_records,
+        include_new_reviews=include_new_reviews,
     )
     raw = canonical(result)
     digest = sha(raw)
     tables = {"AcademicScreening": result["rows"], "ScreeningHistory": result["events"]}
+    cohort = result.get("new_candidate_screening", {})
+    if cohort:
+        tables["NewCandidateScreening"] = cohort["value"]["rows"]
     headers = {
         "AcademicScreening": (
             "work_id",
@@ -258,7 +287,14 @@ def academic_screening_files(index, *, include_original_records=True):
     workbook = {}
     for name, table in tables.items():
         formatted = []
-        key = "rows" if name == "AcademicScreening" else "events"
+        key = (
+            "rows"
+            if name == "AcademicScreening"
+            else "events"
+            if name == "ScreeningHistory"
+            else "new_candidate_screening/value/rows"
+        )
+        table = rectangular_rows(table)
         for position, original in enumerate(table):
             row = {}
             for field, value in original.items():
@@ -319,15 +355,32 @@ def academic_screening_files(index, *, include_original_records=True):
                 "<pre>" + html.escape(str(event["reason"])) + "</pre>",
             ]
         )
+    if cohort:
+        markdown.extend(
+            [
+                "",
+                "## Newly reviewed saved observations",
+                "",
+                "This cohort is a newly dated review, not reconstructed historical screening.",
+            ]
+        )
+        for row in cohort["value"]["rows"]:
+            markdown.append(
+                "<pre>"
+                + html.escape(json.dumps(row, ensure_ascii=False, sort_keys=True))
+                + "</pre>"
+            )
     return {
         JSON_PATH: raw,
         "literature/academic_screening.csv": csv_bytes(
             "AcademicScreening",
-            result["rows"] or _HeaderOnly(headers["AcademicScreening"]),
+            rectangular_rows(result["rows"])
+            or _HeaderOnly(headers["AcademicScreening"]),
         ),
         "literature/academic_screening_history.csv": csv_bytes(
             "ScreeningHistory",
-            result["events"] or _HeaderOnly(headers["ScreeningHistory"]),
+            rectangular_rows(result["events"])
+            or _HeaderOnly(headers["ScreeningHistory"]),
         ),
         "literature/academic_screening.md": ("\n".join(markdown) + "\n").encode(
             "utf-8"

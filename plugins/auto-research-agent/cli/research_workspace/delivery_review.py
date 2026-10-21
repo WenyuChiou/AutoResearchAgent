@@ -4,9 +4,14 @@ from copy import deepcopy
 
 from stage1_deliverable.common import canonical, sha
 
-from .academic_screening import academic_screening_files, derive_academic_screening
+from .academic_screening import (
+    academic_screening_files,
+    derive_academic_screening,
+    rectangular_rows,
+)
 
-CONTRACT = "S1-DELIVERY-REVIEW-1.1.0"
+CONTRACT = "S1-DELIVERY-REVIEW-1.2.0"
+PREVIOUS_CONTRACT = "S1-DELIVERY-REVIEW-1.1.0"
 LEGACY_CONTRACT = "S1-DELIVERY-REVIEW-1.0.0"
 FILES = frozenset(
     "literature/" + name
@@ -19,15 +24,20 @@ FILES = frozenset(
         "claim_verification.json",
         "delivery_review.json",
         "original_record_recovery.json",
+        "claim_assessments.csv",
+        "candidate_screening.csv",
     )
 )
 
 
 def derive_delivery_review(index, *, contract=CONTRACT):
-    modern = contract == CONTRACT
-    if contract not in {CONTRACT, LEGACY_CONTRACT}:
+    modern = contract != LEGACY_CONTRACT
+    current = contract == CONTRACT
+    if contract not in {CONTRACT, PREVIOUS_CONTRACT, LEGACY_CONTRACT}:
         raise ValueError("unknown delivery review contract")
-    screening = derive_academic_screening(index, include_original_records=modern)
+    screening = derive_academic_screening(
+        index, include_original_records=modern, include_new_reviews=current
+    )
     recovery = index.get("original_record_recovery", {}).get("payload", {})
     recovered_claims = {r["claim_id"]: r for r in recovery.get("claims", [])}
     claims = []
@@ -85,6 +95,21 @@ def derive_delivery_review(index, *, contract=CONTRACT):
                     reason_code="saved-prior-assessment-reason",
                     explanation=original_recovery["historical_reason"]["value"],
                 )
+            if (
+                current
+                and original_recovery
+                and original_recovery.get("new_assessment")
+            ):
+                review = deepcopy(original_recovery["new_assessment"])
+                row.update(
+                    new_assessment=review,
+                    current_relation=review["value"]["relation"],
+                    historical_reason_state=row["reason_state"],
+                    historical_explanation=row["explanation"],
+                    reason_state="new-source-review",
+                    reason_code=review["value"]["reason_code"],
+                    explanation=review["value"]["rationale"],
+                )
     issues = []
     if screening["count_scope"] != "bound-run":
         issues.append("complete-candidate-history-not-bound")
@@ -106,7 +131,7 @@ def derive_delivery_review(index, *, contract=CONTRACT):
         issues.append("original-note-citation-purpose-not-reestablished")
     return dict(
         kind="Stage1DeliveryReview",
-        schema_version="1.1.0" if modern else "1.0.0",
+        schema_version="1.2.0" if current else "1.1.0" if modern else "1.0.0",
         contract_version=contract,
         input_canonical_sha256=sha(canonical(index)),
         records_sha256=index["provenance"]["records_sha256"],
@@ -117,6 +142,27 @@ def derive_delivery_review(index, *, contract=CONTRACT):
         scientific_assessment=False,
         stage1_completed=False,
         official_stage2_import_eligible=False,
+        **(
+            dict(
+                new_source_review_count=sum("new_assessment" in c for c in claims),
+                current_relation_counts={
+                    r: sum(
+                        c.get("current_relation", c["relation"]) == r for c in claims
+                    )
+                    for r in (
+                        "supports",
+                        "partial",
+                        "contradicts",
+                        "context",
+                        "unverifiable",
+                        "unverified",
+                    )
+                },
+                new_reviews_are_historical=False,
+            )
+            if current
+            else {}
+        ),
     )
 
 
@@ -134,7 +180,9 @@ def delivery_review_files(index, *, contract=CONTRACT):
     )
     files = {
         **academic_screening_files(
-            index, include_original_records=contract == CONTRACT
+            index,
+            include_original_records=contract != LEGACY_CONTRACT,
+            include_new_reviews=contract == CONTRACT,
         ),
         "literature/claim_verification.json": canonical(
             dict(
@@ -145,11 +193,26 @@ def delivery_review_files(index, *, contract=CONTRACT):
         ),
         "literature/delivery_review.json": canonical(summary),
     }
-    if contract == CONTRACT:
+    if contract != LEGACY_CONTRACT:
         files["literature/original_record_recovery.json"] = canonical(
             index.get(
                 "original_record_recovery",
                 dict(status="not-provided", scientific_assessment=False),
             )
+        )
+    if contract == CONTRACT:
+        from stage1_deliverable.views import csv_bytes
+        from .literature_selection import _HeaderOnly
+
+        files["literature/claim_assessments.csv"] = csv_bytes(
+            "ClaimAssessments",
+            rectangular_rows(result["claims"])
+            or _HeaderOnly(("claim_id", "relation", "explanation")),
+        )
+        cohort = result["screening"].get("new_candidate_screening", {})
+        files["literature/candidate_screening.csv"] = csv_bytes(
+            "NewCandidateScreening",
+            rectangular_rows(cohort.get("value", {}).get("rows", []))
+            or _HeaderOnly(("observation_ref", "decision", "rationale")),
         )
     return files
