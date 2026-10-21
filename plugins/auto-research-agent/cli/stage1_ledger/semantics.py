@@ -71,8 +71,34 @@ def query_fields(query, children, finished):
     )
 
 
+def assessment_check(payload):
+    if "assessment" in payload:
+        assessment = payload["assessment"]
+        if (
+            type(assessment) is not dict
+            or set(assessment) != {"reason_code", "rationale"}
+            or not isinstance(assessment["rationale"], str)
+            or not assessment["rationale"].strip()
+            or assessment["rationale"].strip().casefold()
+            in {
+                "unknown",
+                "unverified",
+                "unverifiable",
+                "pending",
+                "unclear",
+                "supports",
+                "partial",
+                "contradicts",
+                "context",
+            }
+            or len(assessment["rationale"].encode("utf8")) > 1024
+        ):
+            raise LedgerError("claim-assessment-reason-invalid-or-too-large")
+
+
 def claim_check(payload, read_ref):
     # A locator is an auditable observation, not a proof that a claim is true.
+    assessment_check(payload)
     locator = payload["locator"]
     if payload["relation"] not in {"pending", "unclear", "unverifiable"} and (
         locator is None or payload["evidence_level"] in {"metadata", "unavailable"}

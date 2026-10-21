@@ -20,6 +20,30 @@ from test_research_workspace_literature_selection import attached_index, change_
 
 
 class FinalDeliveryTests(unittest.TestCase):
+    def test_legacy_view_replays_but_review_files_cannot_downgrade_contract(self):
+        from research_workspace.delivery_review import FILES
+
+        self.setup_view()
+        path = self.view / "view-manifest.json"
+        manifest = json.loads(path.read_bytes())
+        for marker in (None, "unsupported-review"):
+            changed = deepcopy(manifest)
+            if marker is None:
+                changed.pop("delivery_review_contract")
+            else:
+                changed["delivery_review_contract"] = marker
+            path.write_bytes(canonical(changed))
+            self.manifest_hash = sha(path.read_bytes())
+            with self.assertRaisesRegex(DeliverableError, "delivery review contract"):
+                self.inspect()
+        manifest.pop("delivery_review_contract")
+        for name in FILES:
+            (self.view / name).unlink()
+            del manifest["files"][name]
+        path.write_bytes(canonical(manifest))
+        self.manifest_hash = sha(path.read_bytes())
+        self.assertTrue(self.inspect()["saved_projection_reconciled"])
+
     def setup_view(self, change=None, base_change=None, target=30, confirmed=True):
         temporary, index = attached_index(change, base_change)
         self.addCleanup(temporary.cleanup)
@@ -127,8 +151,9 @@ class FinalDeliveryTests(unittest.TestCase):
 
         self.setup_view(base_change=qualified, target=1)
         report = self.inspect()
-        self.assertEqual(
-            report["status"], "ready-for-final-checks", report["formal_progress"]
+        self.assertEqual(report["status"], "partial", report["formal_progress"])
+        self.assertIn(
+            "complete-candidate-history-not-bound", report["final_checks_required"]
         )
         self.assertFalse(report["stage1_completed"])
         self.assertIn(

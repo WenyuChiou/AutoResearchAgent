@@ -310,6 +310,7 @@ def _write_view(
 
         payload["source_availability"] = derive_source_availability(index)
     from .literature_selection import derive_literature_selection, selection_files
+    from .delivery_review import delivery_review_files
 
     payload["literature_selection"] = derive_literature_selection(index)
     if stage2_attachment is not None:
@@ -361,6 +362,7 @@ def _write_view(
         **stage2_files,
     }
     files.update(selection_files(index))
+    files.update(delivery_review_files(index))
     if atlas:
         from .atlas import ATLAS_ASSETS, atlas_files
 
@@ -404,6 +406,7 @@ def _write_view(
         )
     manifest = {
         "kind": "WorkspaceReadOnlyView",
+        "delivery_review_contract": "S1-DELIVERY-REVIEW-1.0.0",
         "index_sha256": expected_index_sha256,
         "reference_commit": REFERENCE_COMMIT,
         "reference_assets": REFERENCE_HASHES,

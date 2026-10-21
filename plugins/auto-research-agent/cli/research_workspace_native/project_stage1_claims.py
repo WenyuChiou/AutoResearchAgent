@@ -220,7 +220,8 @@ class ProjectStage1ClaimService:
         review = body["review"]
         _check(
             type(review) is dict
-            and set(review) == {"claim_text", "relation", "evidence_level", "section"},
+            and set(review) - {"assessment"}
+            == {"claim_text", "relation", "evidence_level", "section"},
             "stage1-claim-review-fields",
             400,
         )
@@ -251,10 +252,13 @@ class ProjectStage1ClaimService:
             ),
         )
         payload = dict(kind="ClaimEvidence", **args)
+        if "assessment" in review:
+            args["assessment"] = deepcopy(review["assessment"])
+            payload["assessment"] = args["assessment"]
         check_payload(
             dict(
                 payload,
-                schema_version="1.0.0",
+                schema_version="1.1.0" if "assessment" in review else "1.0.0",
                 event_id="e000001",
                 created_at=ledger.clock(),
             )

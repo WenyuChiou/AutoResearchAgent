@@ -362,13 +362,69 @@ class SavedClaimTests(unittest.TestCase):
                 self.assertEqual(status, 409)
                 self.assertEqual(result["receipt"]["status"], "known-unsent")
                 good = request(service, f["ref"], work, "http-good")
-                self.assertEqual(http("source-claim", good)[1]["status"], "saved")
+                good["review"]["assessment"] = dict(
+                    reason_code="located-source-support",
+                    rationale="The authored passage explicitly states this assertion within the reviewed scope.",
+                )
+                saved = http("source-claim", good)[1]
+                self.assertEqual(saved["status"], "saved")
+                event = f["ledger"].event(saved["claim_event_id"])
+                self.assertEqual(event["schema_version"], "1.1.0")
+                self.assertEqual(event["assessment"], good["review"]["assessment"])
                 self.assertTrue(http("source-claim", good)[1]["replayed"])
             finally:
                 host.shutdown()
                 host.server_close()
                 worker.join(5)
                 self.assertFalse(worker.is_alive())
+            case.reopen()
+            self.assertEqual(f["ledger"].event(saved["claim_event_id"]), event)
+            from test_stage1_core_records import produced
+            from research_workspace.delivery_review import derive_delivery_review
+            from research_workspace.canonical_delivery import project_canonical_atlas
+            from research_workspace_native.project_stage1_delivery import _io_root
+            from stage1_deliverable.package import build
+            from stage1_deliverable.common import sha
+
+            f["checkpoint"] = f["ledger"].checkpoint()
+            for records, _ in f["pairs"]:
+                paper = records["papers"][0]
+                reading = case.producer.derive_reading_payload(
+                    f["ref"],
+                    paper["work_id"],
+                    classification=paper["classification"],
+                    findings=paper["findings"],
+                    roles=[],
+                    expected_ledger_state_sha256=f["ledger"].state_hash(),
+                )
+                case.producer.register_reading(
+                    f["ref"],
+                    reading=reading,
+                    expected_ledger_state_sha256=f["ledger"].state_hash(),
+                )
+            _, records_path, records = produced(case, f)
+            self.assertEqual(records["schema_version"], "1.2.0")
+            self.assertEqual(
+                records["screening_library"]["counts"]["total_candidates"],
+                len(f["ledger"].candidates()),
+            )
+            claim = next(
+                c for c in records["claims"] if c["claim_id"] == event["event_id"]
+            )
+            self.assertEqual(claim["core_event"]["payload"], event)
+            delivery_root = _io_root(case.fixture_root / "reason-package")
+            receipt = build(records_path, delivery_root, sha(records_path.read_bytes()))
+            index, files = project_canonical_atlas(
+                delivery_root, "authored", receipt["manifest_sha256"]
+            )
+            self.assertIn("literature/claim_verification.json", files)
+            row = next(
+                c
+                for c in derive_delivery_review(index)["claims"]
+                if c["claim_id"] == event["event_id"]
+            )
+            self.assertEqual(row["assessment"], event["assessment"])
+            case.runner.assert_not_called()
 
 
 if __name__ == "__main__":

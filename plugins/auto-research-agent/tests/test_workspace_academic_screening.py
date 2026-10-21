@@ -223,6 +223,12 @@ class AcademicScreeningTests(unittest.TestCase):
         self.assertTrue(all(e["decision_scope"] == "work" for e in result["events"]))
         self.assertTrue(all(e["decision_version_id"] is None for e in result["events"]))
         self.assertEqual(result["counts"]["not_screened"], 1)
+        self.assertEqual(result["count_scope"], "bound-run")
+        self.assertEqual(
+            result["library_counts"], records["screening_library"]["counts"]
+        )
+        self.assertEqual(result["library_counts"]["total_candidates"], 5)
+        self.assertTrue(any(r["saved_counts"]["reversals"] for r in result["rows"]))
         self.assertEqual(
             result["decision_history_completeness"], "complete-for-bound-library"
         )

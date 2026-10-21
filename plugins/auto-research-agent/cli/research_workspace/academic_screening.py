@@ -8,7 +8,7 @@ from stage1_deliverable.common import canonical, sha
 from stage1_deliverable.views import csv_bytes, workbook_bytes
 
 JSON_PATH = "literature/academic_screening.json"
-CONTRACT_VERSION = "S1-SCREENING-READMODEL-1.0.0"
+CONTRACT_VERSION = "S1-SCREENING-READMODEL-1.1.0"
 
 
 def derive_academic_screening(index):
@@ -100,6 +100,43 @@ def derive_academic_screening(index):
         row["reason_shared_work_count"] = (
             len(reason_works[row["reason"]]) if row["reason_nonempty"] else "Unknown"
         )
+        stated_unknown = row["reason_nonempty"] and row[
+            "reason"
+        ].strip().casefold().startswith(
+            ("unknown", "unverified", "not independently assessed")
+        )
+        status_only = row["reason_nonempty"] and row["reason"].strip().casefold() in {
+            "include",
+            "included",
+            "exclude",
+            "excluded",
+            "pending",
+            "not-screened",
+            "unverifiable",
+        }
+        row["reason_review_required"] = (
+            not row["reason_nonempty"]
+            or stated_unknown
+            or status_only
+            or row["reason_shared_work_count"] != 1
+        )
+        row["reason_issues"] = (
+            ["decision-reason-not-recorded"]
+            if not row["reason_nonempty"]
+            else ["decision-reason-stated-unknown"]
+            if stated_unknown
+            else ["decision-reason-is-status-only"]
+            if status_only
+            else ["shared-reason-needs-per-work-review"]
+            if row["reason_shared_work_count"] != 1
+            else []
+        )
+        row["reason_sufficiency"] = "not-scientifically-assessed"
+        if library:
+            bound = library_rows[row["work_id"]][1]
+            row["saved_counts"] = deepcopy(bound["counts"])
+            row["query_history"] = deepcopy(bound["query_history"])
+            row["discoveries"] = deepcopy(bound["discoveries"])
     counts = {
         name.replace("-", "_"): sum(r["academic_status"] == name for r in rows)
         for name in ("include", "exclude", "pending", "not-screened")
@@ -121,6 +158,9 @@ def derive_academic_screening(index):
         input_canonical_sha256=sha(canonical(index)),
         records_sha256=index["provenance"]["records_sha256"],
         scope="index-papers",
+        count_scope="bound-run" if library else "saved-index-only",
+        library_counts=deepcopy(library["counts"]) if library else None,
+        library_binding=deepcopy(library["binding"]) if library else None,
         historical_candidate_total="Unknown",
         scope_note="Counts describe only papers in this validated index, not all historical candidates.",
         decision_history_completeness="complete-for-bound-library"
