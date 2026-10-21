@@ -95,7 +95,9 @@ class SavedSourceReassessmentTests(unittest.TestCase):
         ):
             with (
                 self.subTest(mutation=mutation),
-                tempfile.TemporaryDirectory() as folder,
+                tempfile.TemporaryDirectory(
+                    dir=Path(tempfile.gettempdir()).resolve()
+                ) as folder,
             ):
                 root = Path(folder)
                 index, _ = review_case(root)
@@ -221,7 +223,9 @@ class SavedSourceReassessmentTests(unittest.TestCase):
                 )
 
     def test_complete_bundle_preserves_old_and_new_and_export_replays(self):
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             index, pin = review_case(Path(folder))
             original = deepcopy(index)
             attached = attach_original_records(index, folder, pin)
@@ -271,7 +275,9 @@ class SavedSourceReassessmentTests(unittest.TestCase):
         ):
             with (
                 self.subTest(mutation=mutation),
-                tempfile.TemporaryDirectory() as folder,
+                tempfile.TemporaryDirectory(
+                    dir=Path(tempfile.gettempdir()).resolve()
+                ) as folder,
             ):
                 index, pin = review_case(Path(folder), mutation)
                 with self.assertRaises(DeliverableError):
@@ -280,7 +286,9 @@ class SavedSourceReassessmentTests(unittest.TestCase):
     def test_existing_authenticated_http_exports_new_review_and_csv(self):
         from test_research_workspace_harness_host import HarnessHostTests
 
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             index, pin = review_case(Path(folder))
             attached = attach_original_records(index, folder, pin)
             payload = dict(
