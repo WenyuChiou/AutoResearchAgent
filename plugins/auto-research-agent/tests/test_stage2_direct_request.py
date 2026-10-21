@@ -28,7 +28,7 @@ class Stage2DirectRequestTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.request = self.root / "request.txt"
         self.raw = "請研究一個問題，保留未知。\r\n".encode()
         self.request.write_bytes(self.raw)
