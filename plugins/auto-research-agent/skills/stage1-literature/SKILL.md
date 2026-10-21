@@ -162,6 +162,20 @@ fill absent history from arithmetic. Hand the sealed version and hashes to the
 UI owner through the existing GitHub issue, then retain its actual readback and
 display acceptance separately from package validation.
 
+For historical recovery, inspect original notes, coverage decisions and saved
+captures, matching content hashes across renamed artifacts before declaring a
+file missing. Use `--original-records-root` with its independent
+`--expected-original-records-manifest-sha256` to attach a private, source-bound
+recovery bundle during Workspace delivery. Deliver full assertions, quotations,
+recovered reasons, per-work need context and separately scoped historical runs
+through the normal exports. Preserve original/current quote coordinates; only a
+unique exact match permits automatic relocation. An additional saved-source
+layout review must bind the original note span, exact source/raw bytes, new
+literal location and actual declared reviewer type. Never invent a human review.
+Keep its missing original citation purpose explicit; a corrected literal or
+recovered context does not verify a scientific assertion or recreate a past
+screening decision. Retain the UI owner's actual same-version display acceptance.
+
 This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations and an operational coverage gate based on source reviews.
 The experimental live adapter executes a pinned public research-hub CLI. It does not establish scientific truth. Read the [plugin status](../../README.md) and, before executing any
