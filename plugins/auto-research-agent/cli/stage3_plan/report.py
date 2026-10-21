@@ -73,6 +73,39 @@ def render_plan(package_dir, *, expected_manifest_sha256, review=None):
             )
             + " |"
         )
+    if plan["schema_version"] == "1.1.0":
+        from .planning_conditions import condition_diagnostics
+
+        diagnostics = condition_diagnostics(plan, intake=intake)
+        lines += [
+            "",
+            "## Conditions and unknown resolution timing",
+            "",
+            "These are planned dispositions and evidence needs, not verified resolutions or authority.",
+            "",
+            "```json",
+            json.dumps(plan["condition_dispositions"], ensure_ascii=False, indent=2),
+            "```",
+            "",
+            "| Unknown | Resolve before | Questions / resources | Needed evidence | Owner | Trigger / fallback |",
+            "|---|---|---|---|---|---|",
+        ]
+        for row in diagnostics["resolution_schedule"]:
+            lines.append(
+                "| "
+                + " | ".join(
+                    _text(value)
+                    for value in (
+                        row["unknown_id"],
+                        row["resolve_before"],
+                        ", ".join(row["question_refs"] + row["resource_ids"]),
+                        row["resolution_evidence_needed"],
+                        row["owner"] if row["owner"] is not None else "Unassigned",
+                        row["recheck_trigger"] + "; " + row["fallback"],
+                    )
+                )
+                + " |"
+            )
     for label, key in [
         ("Scientific questions", "questions"),
         ("Per-question plan and minimum output", "question_plans"),

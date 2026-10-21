@@ -618,9 +618,17 @@ def check_plan(plan, *, intake=None):
     for unknown in plan["unknowns"]:
         if unknown["blocking"]:
             blocked.update(unknown["question_refs"])
-    return {
+    from .planning_conditions import condition_diagnostics
+
+    conditions = condition_diagnostics(plan, intake=intake)
+    issues.extend(conditions["issues"])
+    blocked.update(conditions["blocked_questions"])
+    result = {
         "structural_valid": not issues,
         "issues": issues,
         "blocked_questions": sorted(blocked),
         "execution_authorized": False,
     }
+    if plan["schema_version"] == "1.1.0":
+        result["resolution_schedule"] = conditions["resolution_schedule"]
+    return result

@@ -46,6 +46,9 @@ def main(argv=None):
     ):
         draft.add_argument("--" + name, required=True)
     draft.add_argument("--version", type=int, default=1)
+    draft.add_argument(
+        "--plan-schema-version", choices=("1.0.0", "1.1.0"), default="1.0.0"
+    )
     draft.add_argument("--timeout-seconds", type=float, required=True)
     draft.add_argument("--resume-manifest-sha256")
     for command in ("inspect", "check", "render", "record-plan-decision"):
@@ -107,6 +110,7 @@ def main(argv=None):
                 configuration={"model": args.model, "reasoning": args.reasoning},
                 plan_id=args.plan_id,
                 version=args.version,
+                schema_version=args.plan_schema_version,
                 resume_manifest_sha256=args.resume_manifest_sha256,
             )
             result = result["manifest"]
