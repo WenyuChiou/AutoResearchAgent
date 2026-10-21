@@ -110,7 +110,9 @@ def recovery_case(root):
 
 class OriginalRecordRecoveryTests(unittest.TestCase):
     def test_layout_bundle_replays_and_exports_original_and_current_span(self):
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             root = Path(folder)
             index, _ = recovery_case(root)
             index["sources"][0]["receipt"]["raw_sha256"] = "a" * 64
@@ -174,7 +176,9 @@ class OriginalRecordRecoveryTests(unittest.TestCase):
 
         original, index = attached_index()
         self.addCleanup(original.cleanup)
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             root = Path(folder)
             recovery_case(root)
             spec = json.loads((root / "recovery.json").read_bytes())
@@ -254,7 +258,9 @@ class OriginalRecordRecoveryTests(unittest.TestCase):
     def test_authenticated_http_export_preserves_recovered_records(self):
         from test_research_workspace_harness_host import HarnessHostTests
 
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             index, pin = recovery_case(Path(folder))
             index = attach_original_records(index, folder, pin)
             value = dict(index=index, index_sha256=sha(canonical(index)), note_paths=[])
@@ -290,7 +296,9 @@ class OriginalRecordRecoveryTests(unittest.TestCase):
                 case.doCleanups()
 
     def test_selected_note_rejects_explicit_identity_conflict(self):
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             root = Path(folder)
             index, _ = recovery_case(root)
             note = json.loads((root / "note.json").read_bytes())
@@ -308,7 +316,9 @@ class OriginalRecordRecoveryTests(unittest.TestCase):
                 attach_original_records(index, root, sha(raw))
 
     def test_actual_export_preserves_claim_and_recovers_specific_reason_and_span(self):
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             index, pin = recovery_case(Path(folder))
             before = deepcopy(index)
             attached = attach_original_records(index, folder, pin)
@@ -351,7 +361,9 @@ class OriginalRecordRecoveryTests(unittest.TestCase):
                 validate_index(forged)
 
     def test_manifest_pin_file_tamper_wrong_input_and_reference_escape_rejected(self):
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
             root = Path(folder)
             index, pin = recovery_case(root)
             with self.assertRaises(DeliverableError):
