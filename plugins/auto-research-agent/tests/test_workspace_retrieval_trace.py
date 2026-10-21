@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import zipfile
 
 from openpyxl import load_workbook
 
@@ -216,7 +217,10 @@ class RetrievalTraceTests(unittest.TestCase):
         from test_research_workspace_view import fixture_index
         from stage1_deliverable.common import canonical
 
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
+            self.assertEqual(Path(folder), Path(folder).resolve())
             root = Path(folder) / "view"
             index = fixture_index()
             reference = Path(__file__).parents[1] / "references/research-workspace"
@@ -242,7 +246,10 @@ class RetrievalTraceTests(unittest.TestCase):
             _view(root, sha((root / "view-manifest.json").read_bytes()))
 
     def test_new_trace_exports_and_four_legacy_formatters_keep_exact_bytes(self):
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(
+            dir=Path(tempfile.gettempdir()).resolve()
+        ) as folder:
+            self.assertEqual(Path(folder), Path(folder).resolve())
             index, pin = review_case(Path(folder))
             index = attach_original_records(index, folder, pin)
             before = deepcopy(index)
@@ -252,7 +259,20 @@ class RetrievalTraceTests(unittest.TestCase):
                     / "fixtures/retrieval-trace-legacy-exports.json"
                 ).read_bytes()
             )
+            unix_profile = json.loads(
+                (
+                    Path(__file__).parent
+                    / "fixtures/retrieval-trace-legacy-unix-xlsx.json"
+                ).read_bytes()
+            )
+            # The unchanged legacy writer records the host ZIP creator OS.
+            # Preserve exact native bytes; never normalize the tested exports.
+            creator_system = zipfile.ZipInfo().create_system
+            self.assertIn(creator_system, (0, 3))
+            self.maxDiff = None
             for contract, expected in baseline.items():
+                if creator_system == 3:
+                    expected = {**expected, **unix_profile["overrides"][contract]}
                 self.assertEqual(
                     {
                         n: sha(v)
@@ -261,6 +281,7 @@ class RetrievalTraceTests(unittest.TestCase):
                         ).items()
                     },
                     expected,
+                    f"{contract}: native ZIP creator system {creator_system}",
                 )
             files = delivery_review_files(index)
             result = json.loads(files["literature/academic_screening.json"])
