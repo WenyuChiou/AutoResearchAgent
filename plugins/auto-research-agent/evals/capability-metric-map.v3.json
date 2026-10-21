@@ -445,7 +445,8 @@
             "textual relationship basis hides without a valid typed node selection, shows only its recorded memberships and incident labelled associations, and clears together with graph focus without changing canonical records",
             "bare canonical projection checks the supplied manifest and consumed artifact hashes, preserves Core history/nulls and explicit physical paths, and emits Python-API rebuild provenance while the legacy CLI receipt stays unchanged",
             "SDK saved-public-source receipts replay offline without fabricated HTTP success; malformed provenance, absent successful archives and changed receipt/raw bindings reject direct validation, attachment, view and export; persisted source URL, canonical request DOI and exact expected DOI/title aliases must match validated provenance even after complete hash rebinding",
-            "normalized-page comparison rejects forged hashes, equality, reordered or omitted differences and malformed offsets without granting body, identity or formal eligibility"
+            "normalized-page comparison rejects forged hashes, equality, reordered or omitted differences and malformed offsets without granting body, identity or formal eligibility",
+            "optional academic-screening sidecars retain raw include/exclude history and reasons separately from unchanged technical selection bytes, source eligibility and claims; legacy missing history and historical candidate totals remain Unknown, and canonical1.2 work-level decisions do not acquire invented version bindings"
           ],
           "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
         }
@@ -475,6 +476,7 @@
         "plugins/auto-research-agent/tests/test_research_workspace_source_rerun_exports.py",
         "plugins/auto-research-agent/tests/test_research_workspace_source_availability.py",
         "plugins/auto-research-agent/tests/test_research_workspace_literature_selection.py",
+        "plugins/auto-research-agent/tests/test_workspace_academic_screening.py",
         "plugins/auto-research-agent/tests/test_research_workspace_body_completeness.py",
         "plugins/auto-research-agent/tests/test_workspace_literature_selection_ui.py",
         "plugins/auto-research-agent/tests/test_research_workspace_body_review.py",
