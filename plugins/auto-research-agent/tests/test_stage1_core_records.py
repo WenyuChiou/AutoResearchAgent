@@ -180,7 +180,8 @@ class CoreRecordsTests(unittest.TestCase):
                     )
             # Construct a deliberately unsafe archive to exercise later admission.
             # Only this synthetic setup disables scanning; readers run unpatched.
-            unsafe = case.fixture_root / "credential-validation"
+            # Reach the credential guard even with Windows path limits.
+            unsafe = case.fixture_root / "cv"
             with patch("stage1_deliverable.sources.reject_secrets"):
                 receipt = build(poisoned_path, unsafe, sha(poisoned_path.read_bytes()))
             with self.subTest(admission="validator"):

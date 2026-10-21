@@ -424,7 +424,7 @@ def _write_view(
         )
     manifest = {
         "kind": "WorkspaceReadOnlyView",
-        "delivery_review_contract": "S1-DELIVERY-REVIEW-1.1.0",
+        "delivery_review_contract": "S1-DELIVERY-REVIEW-1.4.0",
         "index_sha256": expected_index_sha256,
         "reference_commit": REFERENCE_COMMIT,
         "reference_assets": REFERENCE_HASHES,
@@ -454,6 +454,9 @@ def _write_view(
                 "view.py",
                 "wiki.py",
                 "literature_selection.py",
+                "delivery_review.py",
+                "academic_screening.py",
+                "retrieval_trace.py",
                 "body_completeness.py",
                 "body_review.py",
                 "body_review_attachment.py",
@@ -471,6 +474,22 @@ def _write_view(
         },
     }
     canonical_rebuild = _canonical_rebuild(index)
+    if "original_record_recovery" in index:
+        manifest["adapter_sources"].update(
+            {
+                name: sha(Path(__file__).with_name(name).read_bytes())
+                for name in (
+                    "original_record_recovery.py",
+                    "literal_revisions.py",
+                    "delivery_review.py",
+                    "retrieval_trace.py",
+                    "academic_screening.py",
+                    "source_reassessment.py",
+                    "candidate_reassessment.py",
+                    "reassessment_exports.py",
+                )
+            }
+        )
     if canonical_rebuild is not None:
         manifest["rebuild"].update(canonical_rebuild)
         manifest["adapter_sources"]["canonical_delivery.py"] = sha(

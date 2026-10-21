@@ -97,6 +97,40 @@ class Stage1TestScopeTests(unittest.TestCase):
                 )
                 self.assertEqual(scope.plan(paths, self.repo)["mode"], "selected")
 
+    def test_pure_docs_select_only_stage_contracts_after_path_validation(self):
+        paths = [
+            "plugins/auto-research-agent/README.md",
+            "plugins/auto-research-agent/CONTRIBUTING.md",
+            "review-evidence/release/SEAL.md",
+        ]
+        self.write(paths[-1], "Release evidence\n")
+        for changed in ([path] for path in paths):
+            with self.subTest(paths=changed):
+                result = scope.plan(changed, self.repo)
+                self.assertEqual(result["mode"], "selected")
+                self.assertEqual(result["modules"], ["test_stage_contracts"])
+        self.assertEqual(
+            scope.plan(paths, self.repo)["modules"], ["test_stage_contracts"]
+        )
+        (self.repo / paths[-1]).unlink()
+        self.assertEqual(scope.plan(paths, self.repo)["mode"], "full")
+
+    def test_non_docs_changes_still_execute_cli_loading(self):
+        self.write(
+            TESTS + "test_plugin_loading.py",
+            "raise RuntimeError('required CLI loading failed')",
+        )
+        for path in (
+            ".github/pull_request_template.md",
+            TESTS + "test_changed.py",
+            "plugins/auto-research-agent/tools/shared.py",
+        ):
+            with self.subTest(path=path):
+                self.write(path, PASSING)
+                result = self.fixture(scope.plan([path], self.repo))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("required CLI loading failed", result.stderr)
+
     def slow_fixture(self):
         self.write(
             TESTS + "test_source_saved_pipeline.py",
@@ -208,7 +242,7 @@ class Stage1TestScopeTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertGreater(json.loads(result.stdout.splitlines()[-1])["errors"], 0)
 
-    def test_windows_docs_smoke_does_not_require_cli_loading(self):
+    def test_docs_smoke_does_not_require_cli_loading_on_any_platform(self):
         self.write(
             TESTS + "test_plugin_loading.py",
             "raise RuntimeError('CLI not installed for docs')",
@@ -224,19 +258,21 @@ class Stage1TestScopeTests(unittest.TestCase):
         self.git("add", readme)
         self.git("commit", "-m", "docs update")
         head = self.git("rev-parse", "HEAD")
-        result = self.fixture(
-            event={"pull_request": {"base": {"sha": base}, "head": {"sha": head}}},
-            kind="pull_request",
-            platform="Windows",
-        )
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        scope_row = next(
-            json.loads(line)
-            for line in result.stdout.splitlines()
-            if '"plugin_check_scope"' in line
-        )
-        self.assertEqual(scope_row["modules"], ["test_stage_contracts"])
-        self.assertEqual(json.loads(result.stdout.splitlines()[-1])["tests_run"], 1)
+        event = {"pull_request": {"base": {"sha": base}, "head": {"sha": head}}}
+        for platform in ("", "Linux", "macOS", "Windows"):
+            with self.subTest(platform=platform):
+                result = self.fixture(
+                    event=event, kind="pull_request", platform=platform
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                rows = [json.loads(line) for line in result.stdout.splitlines()]
+                self.assertEqual(rows[0]["modules"], ["test_stage_contracts"])
+                self.assertEqual(rows[-1]["tests_run"], 1)
+                self.assertEqual(rows[-1]["skips"], 0)
+        (self.repo / TESTS / "test_stage_contracts.py").unlink()
+        missing = self.fixture(event=event, kind="pull_request", platform="Linux")
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertGreater(json.loads(missing.stdout.splitlines()[-1])["errors"], 0)
 
     def test_windows_manual_full_and_other_platforms_keep_non_smoke_failures(self):
         selection = self.slow_fixture()

@@ -156,7 +156,7 @@ class HarnessHostTests(unittest.TestCase):
         status, _, raw = self.post(self.request("export-selection"))
         self.assertEqual(status, 200)
         row = json.loads(raw)
-        self.assertEqual(len(row["artifacts"]), 15)
+        self.assertEqual(len(row["artifacts"]), 19)
         review = next(
             f
             for f in row["artifacts"]
