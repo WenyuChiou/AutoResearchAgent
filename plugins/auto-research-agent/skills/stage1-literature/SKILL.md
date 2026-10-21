@@ -176,6 +176,20 @@ Keep its missing original citation purpose explicit; a corrected literal or
 recovered context does not verify a scientific assertion or recreate a past
 screening decision. Retain the UI owner's actual same-version display acceptance.
 
+When explicitly authorized to reassess saved evidence, append a newly dated
+source review instead of overwriting an unverified historical claim. Bind the
+original assertion hash, source/version and exact supporting and limiting spans.
+State the actual reviewer type, specific reason, supported/unsupported clauses,
+scope and a narrowed assertion where needed. Separate author-reported results,
+project-transfer inferences and extraction observations. Deliver the original
+relation alongside the new relation and rationale through claim verification and
+editable CSV. New per-work screening explains each actual need and limitation.
+Screen all saved observations with explicit individual decisions and repeated
+URL observations, retaining the original observation proof. A new bounded cohort
+does not reconstruct an unknown historical candidate total or query history.
+Seal a complete private, portable delivery with independent inventory hashes;
+hand its exact version and readback/display requirements through GitHub to UI.
+
 This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations and an operational coverage gate based on source reviews.
 The experimental live adapter executes a pinned public research-hub CLI. It does not establish scientific truth. Read the [plugin status](../../README.md) and, before executing any

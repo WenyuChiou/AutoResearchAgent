@@ -188,6 +188,10 @@ def _project_recovery(index, raw, data):
         )
     spec = json.loads(data["recovery.json"])
     _require(
+        spec.get("new_review_projection_version", "1.0.0") in {"1.0.0", "1.1.0"},
+        "unknown source review projection",
+    )
+    _require(
         len(spec["claims"]) <= 10000
         and len(spec["works"]) <= 10000
         and len(spec["historical_documents"]) <= 512,
@@ -340,6 +344,30 @@ def _project_recovery(index, raw, data):
                 spec["input_canonical_sha256"],
                 claim=True,
             )
+            prior = rows[-1]["new_assessment"]["value"].get("prior_review")
+            if prior and spec.get("new_review_projection_version") == "1.1.0":
+                previous = reference(
+                    dict(path=prior["portable_path"], pointer=prior["pointer"])
+                )
+                _require(
+                    previous["source_sha256"] == prior["sha256"]
+                    and previous["value"].get("relation") == prior.get("relation")
+                    and all(
+                        previous["value"].get(key)
+                        == rows[-1]["new_assessment"]["value"].get(key)
+                        for key in (
+                            "claim_id",
+                            "work_id",
+                            "version_id",
+                            "source_id",
+                            "original_claim_sha256",
+                            "source_sha256",
+                            "raw_source_sha256",
+                        )
+                    ),
+                    "prior review binding differs",
+                )
+                rows[-1]["new_assessment"]["previous_review"] = previous
     payload = {
         k: spec[k] for k in ("project_id", "input_canonical_sha256", "records_sha256")
     }
