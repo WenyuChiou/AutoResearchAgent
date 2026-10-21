@@ -1,12 +1,21 @@
 """Topic-independent scientific planning context, from admitted sources only."""
 
-from .contracts import Stage3Error, canonical_bytes
+from .contracts import Stage3Error, canonical_bytes, plan_schema_path
 
 MAX_CONTEXT_BYTES = 48_000
 
 
-def build_prompt(intake, *, plan_id, version):
-    context = canonical_bytes(intake)
+def build_prompt(intake, *, plan_id, version, schema_version="1.0.0"):
+    plan_schema_path(schema_version)
+    context_value = intake
+    if schema_version == "1.1.0":
+        from .planning_conditions import condition_sources
+
+        context_value = {
+            **intake,
+            "planning_condition_sources": condition_sources(intake),
+        }
+    context = canonical_bytes(context_value)
     if len(context) > MAX_CONTEXT_BYTES:
         raise Stage3Error(
             "planning context too large; explicitly narrow source context without dropping core questions"
@@ -34,6 +43,24 @@ def build_prompt(intake, *, plan_id, version):
         "LLM, hypothesis, statistical threshold, fixed question count or fixed duration. "
         "Derive minimum/standard resources, milestones, dependencies, stops and useful minimum output "
         "from the selected direction and brief. No budget question is needed to begin estimation. "
-        f"Use plan_id={plan_id!r}, version={version}. End of instructions.\nADMITTED_CONTEXT\n"
+        f"Use plan_id={plan_id!r}, version={version}. "
     )
-    return instructions + context.decode("utf-8")
+    if schema_version == "1.1.0":
+        instructions += (
+            "Plan schema_version must be 1.1.0. Cover every planning_condition_sources entry "
+            "exactly once in condition_dispositions using its original ref/hash. Interpretations "
+            "are design proposals, not authenticated human intent. Retain unresolved source entries "
+            "as linked blocking unknowns. Give each unknown its stable ID, affected questions and "
+            "resource IDs, kind, resolve_before deadline, needed evidence, nullable owner, recheck "
+            "trigger, fallback and scope_change_required. Use an earlier or equal planning deadline "
+            "for the unknown kind; do not defer an essential premise beyond its design dependency. "
+            "Planned, assumption, deferred and out-of-scope are not evidence of resolution and never "
+            "upgrade resource availability, human choice, strict admission or execution authority. "
+            "A required scope decision remains blocking. No pilot is needed merely to write a "
+            "conditional plan; describe future diagnostics and stopping conditions honestly.\n"
+        )
+    return (
+        instructions
+        + "End of instructions.\nADMITTED_CONTEXT\n"
+        + context.decode("utf-8")
+    )

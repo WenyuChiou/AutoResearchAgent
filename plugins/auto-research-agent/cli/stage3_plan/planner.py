@@ -5,7 +5,7 @@ import importlib.metadata
 from pathlib import Path
 import sys
 
-from .contracts import Stage3Error, digest
+from .contracts import Stage3Error, digest, plan_schema_path
 from .prompts import build_prompt
 from .storage import (
     inspect_package,
@@ -31,6 +31,7 @@ def _draft_from_intake(
     version=1,
     resume_manifest_sha256=None,
     admission_scope,
+    schema_version="1.0.0",
 ):
     """The callback is a trusted host seam, not proof of a native or human call."""
     if not callable(callback):
@@ -47,8 +48,11 @@ def _draft_from_intake(
         or version < 1
     ):
         raise Stage3Error("plan identity/version invalid")
-    prompt = build_prompt(intake, plan_id=plan_id, version=version)
-    schema = read_bytes(SCHEMA)
+    schema_path = plan_schema_path(schema_version)
+    prompt = build_prompt(
+        intake, plan_id=plan_id, version=version, schema_version=schema_version
+    )
+    schema = read_bytes(schema_path)
     cli_root = Path(__file__).resolve().parents[1]
     source_hashes = {
         p.relative_to(cli_root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
@@ -101,7 +105,7 @@ def _draft_from_intake(
     try:
         response = callback(
             prompt=prompt,
-            schema_path=SCHEMA,
+            schema_path=schema_path,
             output_dir=output,
             configuration=dict(configuration),
         )
@@ -128,6 +132,7 @@ def _draft_from_intake(
             not report["structural_valid"]
             or plan["plan_id"] != plan_id
             or plan["version"] != version
+            or plan["schema_version"] != schema_version
         ):
             write_new(output / "validation.json", report)
             names.append("validation.json")
@@ -171,6 +176,7 @@ def draft_plan(
     scientific_mapping=None,
     expected_mapping_manifest_sha256=None,
     verify_mapping_choice=None,
+    schema_version="1.0.0",
 ):
     """Public selected planning always replays strict external-hash admission."""
     from .intake import admit_intake
@@ -192,6 +198,7 @@ def draft_plan(
         version=version,
         resume_manifest_sha256=resume_manifest_sha256,
         admission_scope="strict-selected",
+        schema_version=schema_version,
     )
 
 
@@ -204,6 +211,7 @@ def draft_synthetic_plan(
     plan_id,
     version=1,
     resume_manifest_sha256=None,
+    schema_version="1.0.0",
 ):
     """Explicit test seam: projected dictionaries cannot become confirmed plans."""
     return _draft_from_intake(
@@ -215,4 +223,5 @@ def draft_synthetic_plan(
         version=version,
         resume_manifest_sha256=resume_manifest_sha256,
         admission_scope="synthetic-test",
+        schema_version=schema_version,
     )

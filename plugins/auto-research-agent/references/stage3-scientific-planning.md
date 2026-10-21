@@ -165,3 +165,36 @@ blinding, builds or formal authority. Its decision and audit rules still need
 review before a separate formal protocol can be admitted. Preparation status
 does not affect plan readiness. No historical Stage2 scores or denominators are
 reused, and scientific execution and formal A/B both remain disabled.
+
+
+## Opt-in conditions and unknown resolution timing (plan 1.1.0)
+
+The default plan 1.0.0 and its schema bytes remain unchanged. Explicitly pass
+`schema_version="1.1.0"` to the draft APIs, or `--plan-schema-version 1.1.0` to
+`draft`, to use `stage3-research-plan.v1_1.schema.json`. The saved request binds
+the selected schema and prompt; a mismatching callback version is a retained
+failure, and changing schema version on resume cannot regenerate an attempt.
+
+The admitted `selection_conditions`, `unresolved` and, when present, lawful
+legacy mapping `packet_unresolved` become source-bound condition references.
+Each source entry keeps its collection/index identity and canonical value hash.
+Every entry needs exactly one disposition linked to selected scientific questions;
+missing, changed, duplicated or fabricated references fail checking. Source
+unresolved entries must remain linked to blocking unknowns, not silently disappear.
+Interpretations and planned responses are proposals, not proof of human intent.
+
+Each unknown records its ID, kind, affected questions/resources, resolving evidence,
+latest planning step, nullable owner, recheck trigger, fallback and pending scope
+change. Question meaning, material fit, method assumptions, validation references,
+feasibility and product use conditions have dependency-specific deadlines; earlier
+checks are allowed. The resolution schedule is a deterministic planning report,
+not a clock, acquisition tool, resolver or execution transition. Conditional drafts
+may describe diagnostics that require a future authorized pilot without running it.
+
+Assumption, deferred and out-of-scope dispositions never clear existing blockers
+or promote an unknown resource to available. Unknown resource uses need their own
+linked blocking resolution records. Scope changes remain blocked until separately
+resolved in the applicable source/decision version. Markdown rendering displays
+conditions and the planned evidence/deadline table. Structure and metadata do not
+prove scientific sufficiency, rights, independent review or native authentication.
+All scientific results remain not-run/null and execution_authorized stays false.
