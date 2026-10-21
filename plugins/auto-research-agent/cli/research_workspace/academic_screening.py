@@ -8,10 +8,10 @@ from stage1_deliverable.common import canonical, sha
 from stage1_deliverable.views import csv_bytes, workbook_bytes
 
 JSON_PATH = "literature/academic_screening.json"
-CONTRACT_VERSION = "S1-SCREENING-READMODEL-1.0.0"
+CONTRACT_VERSION = "S1-SCREENING-READMODEL-1.2.0"
 
 
-def derive_academic_screening(index):
+def derive_academic_screening(index, *, include_original_records=True):
     """Preserve recorded decisions without assessing their scientific adequacy."""
     from .projection import validate_index
 
@@ -100,6 +100,80 @@ def derive_academic_screening(index):
         row["reason_shared_work_count"] = (
             len(reason_works[row["reason"]]) if row["reason_nonempty"] else "Unknown"
         )
+        stated_unknown = row["reason_nonempty"] and row[
+            "reason"
+        ].strip().casefold().startswith(
+            ("unknown", "unverified", "not independently assessed")
+        )
+        status_only = row["reason_nonempty"] and row["reason"].strip().casefold() in {
+            "include",
+            "included",
+            "exclude",
+            "excluded",
+            "pending",
+            "not-screened",
+            "unverifiable",
+        }
+        row["reason_review_required"] = (
+            not row["reason_nonempty"]
+            or stated_unknown
+            or status_only
+            or row["reason_shared_work_count"] != 1
+        )
+        row["reason_issues"] = (
+            ["decision-reason-not-recorded"]
+            if not row["reason_nonempty"]
+            else ["decision-reason-stated-unknown"]
+            if stated_unknown
+            else ["decision-reason-is-status-only"]
+            if status_only
+            else ["shared-reason-needs-per-work-review"]
+            if row["reason_shared_work_count"] != 1
+            else []
+        )
+        row["reason_sufficiency"] = "not-scientifically-assessed"
+        if library:
+            bound = library_rows[row["work_id"]][1]
+            row["saved_counts"] = deepcopy(bound["counts"])
+            row["query_history"] = deepcopy(bound["query_history"])
+            row["discoveries"] = deepcopy(bound["discoveries"])
+    if include_original_records:
+        recovery = index.get("original_record_recovery", {}).get("payload", {})
+        recovered_works = {
+            (r["work_id"], r["version_id"]): r for r in recovery.get("works", [])
+        }
+        for row, paper in zip(rows, index["papers"]):
+            row["recorded_context"] = dict(
+                findings=deepcopy(paper.get("findings", {})),
+                roles=deepcopy(paper.get("roles", [])),
+                recovery=deepcopy(
+                    recovered_works.get((paper["work_id"], paper["version_id"]))
+                ),
+                context_is_historical_decision=False,
+            )
+        for n, event in enumerate(index["screening"]):
+            if not any(
+                (event.get("work_id"), event.get("version_id"))
+                == (p["work_id"], p["version_id"])
+                for p in index["papers"]
+            ):
+                events.append(
+                    dict(
+                        work_id=event.get("work_id"),
+                        current_display_version_id=None,
+                        decision_scope="outside-current-index",
+                        decision_version_id=event.get("version_id"),
+                        order_in_work=None,
+                        decision_id=event.get("decision_id"),
+                        reason_code=event.get("reason_code"),
+                        observed_at=event.get("observed_at"),
+                        academic_status=event.get("status", "Unknown"),
+                        reason=event.get("reason"),
+                        pointer=f"/screening/{n}",
+                        original_event=deepcopy(event),
+                        scientific_assessment=False,
+                    )
+                )
     counts = {
         name.replace("-", "_"): sum(r["academic_status"] == name for r in rows)
         for name in ("include", "exclude", "pending", "not-screened")
@@ -117,10 +191,15 @@ def derive_academic_screening(index):
     return dict(
         kind="WorkspaceAcademicScreening",
         schema_version="1.0.0",
-        contract_version=CONTRACT_VERSION,
+        contract_version=CONTRACT_VERSION
+        if include_original_records
+        else "S1-SCREENING-READMODEL-1.1.0",
         input_canonical_sha256=sha(canonical(index)),
         records_sha256=index["provenance"]["records_sha256"],
         scope="index-papers",
+        count_scope="bound-run" if library else "saved-index-only",
+        library_counts=deepcopy(library["counts"]) if library else None,
+        library_binding=deepcopy(library["binding"]) if library else None,
         historical_candidate_total="Unknown",
         scope_note="Counts describe only papers in this validated index, not all historical candidates.",
         decision_history_completeness="complete-for-bound-library"
@@ -149,11 +228,13 @@ def derive_academic_screening(index):
     )
 
 
-def academic_screening_files(index):
+def academic_screening_files(index, *, include_original_records=True):
     """Export additive sidecars; legacy selection files and HTTP contracts stay intact."""
     from .literature_selection import _HeaderOnly
 
-    result = derive_academic_screening(index)
+    result = derive_academic_screening(
+        index, include_original_records=include_original_records
+    )
     raw = canonical(result)
     digest = sha(raw)
     tables = {"AcademicScreening": result["rows"], "ScreeningHistory": result["events"]}
@@ -216,6 +297,12 @@ def academic_screening_files(index):
             )
             + "</pre>"
         )
+        if include_original_records:
+            markdown.append(
+                "<pre>"
+                + html.escape(json.dumps(row["recorded_context"], ensure_ascii=False))
+                + "</pre>"
+            )
     for event in result["events"]:
         markdown.extend(
             [

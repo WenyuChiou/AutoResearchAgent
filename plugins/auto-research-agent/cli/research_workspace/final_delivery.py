@@ -16,6 +16,13 @@ from stage1_deliverable.common import (
 )
 from stage1_ledger.journal import LedgerError
 
+from .delivery_review import (
+    CONTRACT,
+    LEGACY_CONTRACT,
+    FILES,
+    derive_delivery_review,
+    delivery_review_files,
+)
 from .json_bytes import decode_json
 from .formal_readiness import derive_formal_readiness
 from .literature_selection import derive_literature_selection, selection_files
@@ -65,7 +72,20 @@ def _view(root, expected):
             == record["sha256"],
             "source rerun artifact differs",
         )
-    for name, data in selection_files(index).items():
+    expected_files = selection_files(index)
+    marker = manifest.get("delivery_review_contract")
+    _require(
+        marker in {CONTRACT, LEGACY_CONTRACT}
+        or (marker is None and not FILES.intersection(files)),
+        "unknown or missing delivery review contract",
+    )
+    if marker in {CONTRACT, LEGACY_CONTRACT}:
+        _require(
+            marker != LEGACY_CONTRACT or "original_record_recovery" not in index,
+            "recovery cannot use legacy contract",
+        )
+        expected_files.update(delivery_review_files(index, contract=marker))
+    for name, data in expected_files.items():
         _require(
             safe_path(root, name).read_bytes() == data,
             "selection export differs: " + name,
@@ -132,9 +152,11 @@ def inspect_final_delivery(
             index["readiness"]["formal_progress"] == progress,
             "displayed formal progress differs",
         )
+    delivery_review = derive_delivery_review(index)
     ready = (
         intake["necessary_clarification_complete"]
         and progress["decision"] == "stop-count-target-and-covered"
+        and not delivery_review["repair_required"]
     )
     timing = None
     if timing_path is not None or expected_timing_sha256 is not None:
@@ -157,7 +179,11 @@ def inspect_final_delivery(
         "accepted-stage1-to-stage2-handoff",
         "actual-html-operation-acceptance",
     ]
-    if not ready:
+    remaining[:0] = delivery_review["repair_required"]
+    if (
+        not intake["necessary_clarification_complete"]
+        or progress["decision"] != "stop-count-target-and-covered"
+    ):
         remaining.insert(0, "confirmed-intake-and-formal-work-target")
     return {
         "kind": "Stage1FinalDeliveryPrerequisites",
@@ -170,6 +196,9 @@ def inspect_final_delivery(
         "index_canonical_sha256": sha(canonical(index)),
         "selection_sha256": sha(canonical(selection)),
         "source_selection_counts": selection["counts"],
+        "delivery_review": {
+            k: v for k, v in delivery_review.items() if k not in {"screening", "claims"}
+        },
         "formal_progress": progress,
         "intake": intake,
         "saved_projection_reconciled": True,
@@ -191,6 +220,9 @@ def inspect_final_delivery(
                     "formal_readiness.py",
                     "run_timing.py",
                     "literature_selection.py",
+                    "delivery_review.py",
+                    "original_record_recovery.py",
+                    "academic_screening.py",
                     "body_completeness.py",
                     "body_review.py",
                     "body_review_attachment.py",

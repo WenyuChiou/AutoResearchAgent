@@ -104,6 +104,10 @@ def check_payload(value):
         raise LedgerError("unknown-event-kind")
     check_source_arguments(value)
     check(value, value["kind"])
+    if value["kind"] == "ClaimEvidence":
+        from .semantics import assessment_check
+
+        assessment_check(value)
 
 
 def check_record(value):

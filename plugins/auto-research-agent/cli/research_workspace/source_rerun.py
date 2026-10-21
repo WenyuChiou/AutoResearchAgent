@@ -703,13 +703,16 @@ def attach_rerun(
 
 
 def validate_rerun_index(index):
+    from .projection import validate_index
+
+    if "original_record_recovery" in index:
+        validate_index(index)
     base = deepcopy(index)
+    base.pop("original_record_recovery", None)
     extension = base.pop("source_rerun")
     base["schema_version"] = (
         "2.0.0" if base["supplement"]["status"] != "not-provided" else "1.0.0"
     )
-    from .projection import validate_index
-
     validate_index(base)
     data = extension["data"]
     require(

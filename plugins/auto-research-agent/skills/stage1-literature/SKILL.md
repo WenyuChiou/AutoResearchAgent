@@ -133,6 +133,35 @@ unavailable. Never count an Unknown as verified support. Material unresolved
 needs mean partial research completion, even if package validation passes.
 Keep evaluator technical failures separate from observed research deficiencies.
 
+For new claim records, supply ClaimEvidence 1.1 `assessment.reason_code` and
+`assessment.rationale` through `stage1_ledger claim` or the existing native
+review's optional `assessment` object. Explain which part of the assertion is
+supported, ambiguous, contradicted or still uncheckable, and why, using its exact
+source and scope. The rationale is at most 1024 UTF-8 bytes; overlong input is
+rejected, never clipped. A readable paper or matching quote alone is not a
+semantic reason; a status label alone is rejected as a claim rationale. A real
+explanation is required. Old 1.0 events remain replayable; missing historical reasons
+must stay missing until a real source review appends a new record.
+
+Before deciding include/exclude/pending, name the applicable confirmed research
+need or screening criterion, the work-specific observation and its saved source
+reference in the rationale. Explain why that observation meets or fails the
+criterion; for pending, state what is missing. Do not reuse a technical-access
+statement as the academic reason for every paper. Shared reasons trigger
+per-work review, not automatic scientific rejection. Preserve all discoveries,
+unscreened and excluded candidates and reversals. Report distinct works,
+versions, repeated discoveries, query attempts and decision events separately.
+
+Normal Workspace/Atlas delivery and the existing export-selection operation
+include the screening/history files plus `claim_verification.json` and
+`delivery_review.json`. Read their explicit repair list before final delivery.
+Missing claim reasons, incomplete candidate-history bindings and screening
+reasons requiring review keep final prerequisites partial. Repair the original
+production records and rebuild a new version; do not edit a frozen package or
+fill absent history from arithmetic. Hand the sealed version and hashes to the
+UI owner through the existing GitHub issue, then retain its actual readback and
+display acceptance separately from package validation.
+
 This release supplies plugin discovery, shared contracts and a local ledger
 for saved observations and an operational coverage gate based on source reviews.
 The experimental live adapter executes a pinned public research-hub CLI. It does not establish scientific truth. Read the [plugin status](../../README.md) and, before executing any

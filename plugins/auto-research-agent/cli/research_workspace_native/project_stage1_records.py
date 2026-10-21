@@ -780,6 +780,7 @@ class ProjectStage1RecordsService:
                     "relation",
                     "evidence_level",
                     "section",
+                    *(("assessment",) if "assessment" in signature["review"] else ()),
                 ),
                 "saved manual claim review",
             )
@@ -813,6 +814,7 @@ class ProjectStage1RecordsService:
                 == binding["brief_sha256"]
                 and signature["source_id"] == event["source_ref"]["producer"]
                 and signature["review"] == request["review"]
+                and signature["review"].get("assessment") == event.get("assessment")
                 and signature["quote"] == request["quote"] == event["locator"]["quote"]
                 and signature["start"] == request["start_byte"]
                 and signature["end"] == request["end_byte"]
@@ -1001,10 +1003,18 @@ class ProjectStage1RecordsService:
         ]
         events = {row["payload"]["event_id"]: row["payload"] for row in ledger.events()}
         journal = {row["payload"]["event_id"]: row for row in ledger.events()}
-        core = any(row.get("schema_version") == "1.1.0" for row in readings)
+        reasoned_claims = any(
+            event["kind"] == "ClaimEvidence" and "assessment" in event
+            for event in events.values()
+        )
+        core = (
+            any(row.get("schema_version") == "1.1.0" for row in readings)
+            or reasoned_claims
+        )
         candidates = ledger.candidates()
         matches_by_work = self._matching_readings(ledger, readings)
         discovery_records = any(not rows for rows in matches_by_work.values())
+        screening_records = discovery_records or reasoned_claims
         core = core or discovery_records
         papers, claims, source_rows = [], [], []
         _check(
@@ -1106,7 +1116,7 @@ class ProjectStage1RecordsService:
                     claim_ids=[span["claim_id"] for span in reading["claims"]],
                     **(
                         {"reading_status": "human-reviewed"}
-                        if discovery_records
+                        if screening_records
                         else {}
                     ),
                 )
@@ -1157,7 +1167,7 @@ class ProjectStage1RecordsService:
         records = dict(
             kind="Stage1ResearchRecords",
             schema_version="1.2.0"
-            if discovery_records
+            if screening_records
             else "1.1.0"
             if core
             else "1.0.0",
@@ -1169,8 +1179,8 @@ class ProjectStage1RecordsService:
             screening=screening,
             coverage=needs,
         )
-        library = _screening_library(context) if discovery_records else None
-        if discovery_records:
+        library = _screening_library(context) if screening_records else None
+        if screening_records:
             from stage1_deliverable.screening_records import artifacts
 
             records.update(

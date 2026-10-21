@@ -30,6 +30,14 @@ def _require(condition, message):
 
 def validate_index(index):
     """Validate the presentation contract, never scientific correctness."""
+    if "original_record_recovery" in index:
+        from .original_record_recovery import validate_attachment
+
+        original = deepcopy(index)
+        attachment = original.pop("original_record_recovery")
+        validate_index(original)
+        validate_attachment(original, attachment)
+        return index
     if extended(index):
         from stage1_deliverable.core_records import validate_extension
 
