@@ -300,7 +300,11 @@ def academic_screening_files(index, *, include_original_records=True):
         if include_original_records:
             markdown.append(
                 "<pre>"
-                + html.escape(json.dumps(row["recorded_context"], ensure_ascii=False))
+                + html.escape(
+                    json.dumps(
+                        row["recorded_context"], ensure_ascii=False, sort_keys=True
+                    )
+                )
                 + "</pre>"
             )
     for event in result["events"]:

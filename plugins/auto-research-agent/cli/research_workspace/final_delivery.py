@@ -222,6 +222,7 @@ def inspect_final_delivery(
                     "literature_selection.py",
                     "delivery_review.py",
                     "original_record_recovery.py",
+                    "literal_revisions.py",
                     "academic_screening.py",
                     "body_completeness.py",
                     "body_review.py",
