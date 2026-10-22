@@ -103,8 +103,71 @@ async function staleComparison(change, expectedError) {
   }
 }
 
+
+function savedResultLayout() {
+  const context = {
+    rt: {ref: 'view:synthetic', list: [{project_ref: 'view:synthetic', topic: 'Synthetic'}]},
+    apps: [{stage: 1, lang: 'en', previewResultsOpen: {1: true, 2: true}}],
+    document: {addEventListener() {}}, v7AfterRender() {}, m9Card() {},
+    liveRequest() { throw Error('Layout checks must not fetch'); },
+    liveRefresh() {}, livePaint() {}, livePost() {},
+    stage1() { return ''; }, stage2() { return ''; }, laterStage() { return '<main data-planned></main>'; },
+    otherPage() {}, realChromeStatus() {}, canonicalStage2Mount() {},
+    rows: () => [], liveGraph: () => '<div data-synthetic-graph></div>',
+    liveDetails: () => '', liveLibrary: () => '',
+    canonicalStage2Validate: () => ({ok: true}),
+    canonicalStage2Render: () => '<main data-synthetic-comparison></main>',
+    n2Render: () => '', liveTop: () => '', rl: (zh, en) => en,
+    rx: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'renderer/src/canonical-runs.js'), 'utf8'), context);
+  context.rt.savedRun = {payload: {index: {papers: [], claims: []}},
+    binding: {fixture: true}, entry: {label: 'Synthetic source'}};
+  const original = JSON.stringify(context.rt.savedRun);
+  for (const stage of [1, 2]) {
+    context.apps[0].stage = stage;
+    const html = context['stage' + stage](context.apps[0]);
+    assert.ok(html.includes('class="lp-results"'), 'saved result remains available');
+    assert.ok(html.indexOf('class="lp-results"') < html.indexOf('class="lp-operations'),
+      'saved results must precede saved operations');
+    assert.match(html, /<details[^>]*class="lp-operations[^>]*>/);
+    const operation = html.match(/<details[^>]*class="lp-operations[^>]*>/)[0];
+    assert.ok(!/\sopen(?:\s|>)/.test(operation), 'saved operations start collapsed');
+    assert.ok(html.includes('data-live-action="refresh"'), 'saved reload remains available');
+    for (const requestedOpen of [true, false, true]) {
+      context.apps[0].previewOps = {[stage]: requestedOpen};
+      const rerendered = context['stage' + stage](context.apps[0]);
+      const disclosure = rerendered.match(/<details[^>]*class="lp-operations[^>]*>/)[0];
+      assert.equal(/\sopen(?:\s|>)/.test(disclosure), requestedOpen,
+        'saved operations retain the requested state after render');
+    }
+    context.apps[0].previewOps = {};
+  }
+  assert.equal(JSON.stringify(context.rt.savedRun), original);
+  for (const file of ['v9-i18n.js', 'v9-workbench.js']) {
+    context.n2 = {meta: {}, model: null};
+    context.n2Gap = () => ''; context.n2Views = {}; context.n2Active = () => true;
+    vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), context);
+  }
+  context.n2Render = () => '<main class="lp-results" data-imported-result></main>';
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'v9-materials.js'), 'utf8'), context);
+  for (const stage of [1, 2]) {
+    context.apps[0].stage = stage;
+    const html = context['stage' + stage](context.apps[0]);
+    assert.ok(html.indexOf('class="lp-results"') < html.indexOf('data-n9-material-panel'),
+      'material registration follows the reading result');
+    assert.ok(html.includes('data-n9-upload'), 'upload remains available on demand');
+  }
+  context.apps[0].stage = 3;
+  const planned = context.laterStage(context.apps[0]);
+  assert.ok(planned.indexOf('data-planned') < planned.indexOf('data-n9-material-panel'),
+    'planned-stage purpose precedes material registration');
+}
+
 async function main() {
   const checks = [
+    ['saved-result hierarchy and on-demand operations/materials', savedResultLayout],
     ['save/revalidate/reload and project/material-scoped draft recovery', reviewDraftRecovery],
     ['restore exact current comparison', () => staleComparison(() => {}, null)],
     ['reject project switch during catalog read', () => staleComparison(env => {

@@ -48,9 +48,9 @@ document.addEventListener('click',async e=>{
  }catch(error){m9.error=error.message;}finally{m9.busy=false;livePaint();}
 });
 const m9Stage1=stage1,m9Stage2=stage2,m9Later=laterStage,m9After=v7AfterRender;
-stage1=function(app){let html=m9Stage1(app);const top=typeof a03Active==='function'&&a03Active()?a03Top():canonicalReadonly()?canonicalTop():liveTop(app);return html.includes(top)?html.replace(top,top+m9Stage1Bar()+n9OriginalNotice()+m9Panel(app)):m9Stage1Bar()+n9OriginalNotice()+m9Panel(app)+html;};
-stage2=function(app){let html=m9Stage2(app);const top=canonicalTop();return html.includes(top)?html.replace(top,top+m9Panel(app)):m9Panel(app)+html;};
-laterStage=app=>m9Panel(app)+m9Later(app);
+stage1=app=>m9Stage1(app)+m9Panel(app);
+stage2=app=>m9Stage2(app)+m9Panel(app);
+laterStage=app=>m9Later(app)+m9Panel(app);
 let m9Loaded=false;
 v7AfterRender=function(app){m9After(app);app.el.dataset.n9Stage=app.stage;if(app.stage===2&&n2Active()){const name=app.el.querySelector('.hs-project-name span');if(name)name.textContent=rl('Stage2 · 独立自然提问交付','Stage2 · Independent natural-request delivery','Stage2 · 獨立自然提問交付');const note=app.el.querySelector('.lp-topic>small');if(note)note.textContent=rl('本示例的Stage2是独立交付，尚未绑定为上方Stage1项目的下游。','This Stage2 example is an independent delivery, not a bound downstream result of the Stage1 project.','本示例Stage2為獨立交付，尚未綁定為上方Stage1專案的下游。');}const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent=rl('V9 · 本地联动','V9 · Local workbench','V9 · 本機聯動');const panel=app.el.querySelector('[data-n9-material-panel]');if(panel)panel.addEventListener('toggle',()=>{if(panel.isConnected)m9.open=panel.open;});if(!m9Loaded){m9Loaded=true;m9Load().then(()=>livePaint()).catch(e=>{m9.error=e.message;livePaint();});}};
 document.addEventListener('input',e=>{if(e.target.matches('[data-n9-field]'))m9[e.target.dataset.n9Field]=e.target.value;if(e.target.matches('[data-n9-note]'))m9.notes[e.target.dataset.n9Note]=e.target.value;});
