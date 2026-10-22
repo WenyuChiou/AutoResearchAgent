@@ -251,3 +251,33 @@ helper performs no acquisition, reading, research or scoring. Its comparison fac
 do not certify full-body coverage, identity, independent acceptance or eligibility.
 Source/runtime/dual-acceptance binding, whole-body verification and optional
 attachment/CLI/export integration remain separate pending work.
+
+
+## Per-work retrieval trace (delivery review 1.4)
+
+The current `S1-DELIVERY-REVIEW-1.4.0` exports add
+`academic_screening.json.rows[].retrieval_trace` in the JSON, CSV, Markdown and
+Excel views. They preserve the index and all scientific decisions.
+`first_discovery.round_number` comes from the earliest actual discovery in a
+bound canonical 1.2 run, including its original version/query/attempt and time.
+An unknown first round stays null even if a later discovery has a known round.
+The four counts remain separate: discoveries, distinct queries,
+discovery-producing backend attempts, and all attempts of those producing
+queries. Work query history excludes queries that never returned the work;
+these counts do not mean searches until first discovery.
+
+For recovered legacy observations, `saved_observation_count`,
+`distinct_saved_batch_count` and `first_saved_batch_by_inventory_order` describe
+only the saved observation inventory. They do not establish research rounds,
+API retries or chronological first discovery. Missing links use null, never zero.
+Only valid include work/version mappings contribute; duplicate observations
+follow the validated identical-URL chain to that include mapping. The trace
+keeps separate pointers to the observation, its review and the resolved mapping.
+Excluded/pending injected link fields cannot create discovery credit.
+
+Consumers should display current review reasons and keep old records in audit
+exports rather than a default legacy panel. Rationale folding and actual graph
+keyboard acceptance belong to the independently versioned UI consumer.
+Old delivery-review contracts 1.0 through 1.3 keep their exact formatter bytes
+and remain accepted by the final prerequisite checker. New views always bind
+the trace and exporter source hashes, including runs without recovery records.

@@ -27,6 +27,11 @@ def emit(value):
 def source_inventory(repo, loaded, host):
     rows = dict(loaded)
     plugin = repo / "plugins/auto-research-agent"
+    # Pin owned CLI code before serving: a legitimate lazy import must not grow
+    # the baseline, while edits/additions still change the final inventory.
+    for path in (plugin / "cli").rglob("*"):
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+            rows.setdefault(str(path), digest(path.read_bytes()))
     for folder in (
         plugin / "cli/research_workspace_native/web",
         plugin / "references/research-workspace/atlas",

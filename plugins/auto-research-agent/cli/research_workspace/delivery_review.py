@@ -10,7 +10,8 @@ from .academic_screening import (
     rectangular_rows,
 )
 
-CONTRACT = "S1-DELIVERY-REVIEW-1.3.0"
+CONTRACT = "S1-DELIVERY-REVIEW-1.4.0"
+COMPLETE_CONTRACT = "S1-DELIVERY-REVIEW-1.3.0"
 PREVIOUS_CONTRACT = "S1-DELIVERY-REVIEW-1.2.0"
 RECOVERY_CONTRACT = "S1-DELIVERY-REVIEW-1.1.0"
 LEGACY_CONTRACT = "S1-DELIVERY-REVIEW-1.0.0"
@@ -35,17 +36,21 @@ FILES = frozenset(
 
 def derive_delivery_review(index, *, contract=CONTRACT):
     modern = contract != LEGACY_CONTRACT
-    current = contract in {CONTRACT, PREVIOUS_CONTRACT}
-    complete = contract == CONTRACT
+    current = contract in {CONTRACT, COMPLETE_CONTRACT, PREVIOUS_CONTRACT}
+    complete = contract in {CONTRACT, COMPLETE_CONTRACT}
     if contract not in {
         CONTRACT,
+        COMPLETE_CONTRACT,
         PREVIOUS_CONTRACT,
         RECOVERY_CONTRACT,
         LEGACY_CONTRACT,
     }:
         raise ValueError("unknown delivery review contract")
     screening = derive_academic_screening(
-        index, include_original_records=modern, include_new_reviews=current
+        index,
+        include_original_records=modern,
+        include_new_reviews=current,
+        include_retrieval_trace=contract == CONTRACT,
     )
     recovery = index.get("original_record_recovery", {}).get("payload", {})
     recovered_claims = {r["claim_id"]: r for r in recovery.get("claims", [])}
@@ -159,7 +164,9 @@ def derive_delivery_review(index, *, contract=CONTRACT):
     issues = [issue for issue in issues if issue not in historical_gaps]
     return dict(
         kind="Stage1DeliveryReview",
-        schema_version="1.3.0"
+        schema_version="1.4.0"
+        if contract == CONTRACT
+        else "1.3.0"
         if complete
         else "1.2.0"
         if current
@@ -236,7 +243,9 @@ def delivery_review_files(index, *, contract=CONTRACT):
         **academic_screening_files(
             index,
             include_original_records=contract != LEGACY_CONTRACT,
-            include_new_reviews=contract in {CONTRACT, PREVIOUS_CONTRACT},
+            include_new_reviews=contract
+            in {CONTRACT, COMPLETE_CONTRACT, PREVIOUS_CONTRACT},
+            include_retrieval_trace=contract == CONTRACT,
         ),
         "literature/claim_verification.json": canonical(
             dict(
@@ -254,7 +263,7 @@ def delivery_review_files(index, *, contract=CONTRACT):
                 dict(status="not-provided", scientific_assessment=False),
             )
         )
-    if contract in {CONTRACT, PREVIOUS_CONTRACT}:
+    if contract in {CONTRACT, COMPLETE_CONTRACT, PREVIOUS_CONTRACT}:
         from stage1_deliverable.views import csv_bytes
         from .literature_selection import _HeaderOnly
 
@@ -269,7 +278,7 @@ def delivery_review_files(index, *, contract=CONTRACT):
             rectangular_rows(cohort.get("value", {}).get("rows", []))
             or _HeaderOnly(("observation_ref", "decision", "rationale")),
         )
-    if contract == CONTRACT:
+    if contract in {CONTRACT, COMPLETE_CONTRACT}:
         from .reassessment_exports import claim_reports
 
         files.update(
