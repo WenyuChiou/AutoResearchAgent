@@ -441,6 +441,10 @@
       "plain_native_policy_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_plain_native_policy.py"
       ],
+      "controller_action_identity_contract": "Controller replay compares the requested action kind as well as exact inputs, settings and snapshot before returning a completed result or a failed/interrupted recovery state. A changed operation fails before dispatch or journal mutation; identical complete requests reuse saved artifacts and identical incomplete requests preserve their original recovery state. This tightens action identity only and does not authorize retries, increase budgets, change source/runtime evidence or establish scientific or formal completion.",
+      "controller_action_identity_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_action_replay.py"
+      ],
       "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
       "direct_request_entry_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
