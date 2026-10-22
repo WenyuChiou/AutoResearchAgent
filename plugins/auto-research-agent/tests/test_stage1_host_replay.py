@@ -1,6 +1,7 @@
 """Host relocation is opt-in evidence, never runtime or acceptance bypass."""
 
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import shutil
@@ -333,6 +334,123 @@ class HostReplayTests(unittest.TestCase):
             ):
                 with self.assertRaises(ValueError):
                     self.load(trusted=sha(raw))
+
+    def test_other_synthetic_topic_migrates_to_unicode_space_root_with_stale_pin_rejected(
+        self,
+    ):
+        producer = self.root / "Producer 原始 space"
+        receiver = self.root / "Different receiver 接收 space"
+        producer.mkdir()
+        receiver.mkdir()
+        fixture = fixtures.ResearchDeliverableTests()
+        fixture.root = producer
+        fixture.inputs = producer / "input"
+        fixture.inputs.mkdir()
+        fixture.output = producer / "package"
+        title = "Synthetic coastal sensor battery calibration"
+        records = fixture.make_records(
+            raw=fixtures.HTML.replace(fixtures.TITLE.encode(), title.encode()),
+            title=title,
+        )
+        records["topic"] = "Authored coastal sensor fixture, not a research subject."
+        with patch.object(sources, "runtime_binding", return_value=self.runtime):
+            built = fixture.build(records)
+        shutil.copytree(fixture.output, receiver / "package")
+        old_manifest = read_json(fixture.output / "provenance_manifest.json")
+        old_observation = (fixture.output / "sources/src1/validation.json").read_bytes()
+        producer.rename(self.root / "Archived producer 封存 space")
+        self.assertFalse(producer.exists())
+        archive = receiver / "package/sources/src1"
+        before = inventory(receiver / "package")
+        started = datetime.now(timezone.utc).isoformat()
+        _, _, fresh = sources.validate_archive(archive)
+        ended = datetime.now(timezone.utc).isoformat()
+        snapshot = {
+            "project_id": "synthetic-sensor-portability",
+            "input_version": "sensor-fixture-1",
+            "bindings": {
+                "deliverable": {
+                    "path": "package/provenance_manifest.json",
+                    "bytes": (receiver / "package/provenance_manifest.json")
+                    .stat()
+                    .st_size,
+                    "sha256": built["manifest_sha256"],
+                }
+            },
+        }
+        write_json(receiver / "snapshot.json", snapshot)
+        snapshot_ref = {
+            "path": "snapshot.json",
+            "bytes": (receiver / "snapshot.json").stat().st_size,
+            "sha256": sha((receiver / "snapshot.json").read_bytes()),
+        }
+        code_root = Path(sources.__file__).parent
+        producer_binding = {
+            "runtime": old_manifest["runtime"],
+            "executable": sys.executable,
+            "exporter_files": host_replay.exporter_files(code_root),
+        }
+        receipt = {
+            "kind": "HostReplayReceipt",
+            "schema_version": "1.0.0",
+            "project_id": snapshot["project_id"],
+            "input_version": snapshot["input_version"],
+            "snapshot_ref": snapshot_ref,
+            "canonical_manifest_sha256": built["manifest_sha256"],
+            "historical_producer": producer_binding,
+            "replayer": deepcopy(producer_binding),
+            "validator": {
+                "runtime": self.runtime,
+                "files": host_replay.validator_files(),
+            },
+            "sources": [
+                {
+                    "source_id": "src1",
+                    "work_id": "work1",
+                    "version_id": "v1",
+                    "files": inventory(archive),
+                    "historical_observation_sha256": sha(old_observation),
+                    "observation": fresh,
+                    "started_at": started,
+                    "ended_at": ended,
+                }
+            ],
+        }
+        path = receiver / "host-replay.json"
+        write_json(path, receipt)
+        with (
+            patch.object(sources, "runtime_binding", return_value=self.runtime),
+            patch.object(
+                sources, "validate_archive", side_effect=AssertionError("no repeat")
+            ),
+        ):
+            with self.assertRaisesRegex(DeliverableError, "trusted external SHA"):
+                host_replay.load_host_replay(
+                    path,
+                    "0" * 64,
+                    receiver,
+                    snapshot_ref,
+                    historical_exporter_root=code_root,
+                    replayer_exporter_root=code_root,
+                )
+            context = host_replay.load_host_replay(
+                path,
+                sha(path.read_bytes()),
+                receiver,
+                snapshot_ref,
+                historical_exporter_root=code_root,
+                replayer_exporter_root=code_root,
+            )
+            checked = package.validate(
+                receiver / "package", built["manifest_sha256"], host_replay=context
+            )
+        self.assertEqual(checked["status"], "passed")
+        self.assertFalse(checked["scientific_quality_scored"])
+        self.assertEqual(before, inventory(receiver / "package"))
+        self.assertEqual((archive / "validation.json").read_bytes(), old_observation)
+        self.assertEqual(
+            read_json(receiver / "package/provenance_manifest.json"), old_manifest
+        )
 
 
 if __name__ == "__main__":
