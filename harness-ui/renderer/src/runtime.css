@@ -54,3 +54,15 @@
  #harness-trace-workbench-v6 [data-public-coverage] .hs-bubble{width:calc(var(--bubble-size)*.5);height:calc(var(--bubble-size)*.5)}
  #harness-trace-workbench-v6 [data-public-coverage] .hs-bubble-unit{width:13px;height:13px}
 }
+
+/* Keep project selection visible without repeating the saved-view status card. */
+.canonical-project-switch{margin:0 0 16px;max-width:100%}
+.canonical-project-switch label{display:flex;align-items:center;gap:12px;font-size:14px;min-width:0}
+.canonical-project-switch label>span{flex-shrink:0}
+.canonical-project-switch select{min-width:0;max-width:100%;font:inherit;padding:8px 10px;border:1px solid #cad8df;border-radius:6px;background:#fff;color:#214355}
+@media(max-width:650px){.canonical-project-switch label{align-items:stretch;flex-direction:column;gap:6px}.canonical-project-switch select{width:100%;box-sizing:border-box}}
+@media(max-width:650px){
+ #harness-trace-workbench-v6 .hs-heading{flex-direction:column;align-items:flex-start;gap:8px}
+ #harness-trace-workbench-v6 .hs-heading>div{width:100%;min-width:0}
+ #harness-trace-workbench-v6 .hs-heading>.hs-status{max-width:100%;white-space:normal}
+}
