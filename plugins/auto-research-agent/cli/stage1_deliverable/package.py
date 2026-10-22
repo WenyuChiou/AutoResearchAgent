@@ -81,7 +81,7 @@ def _scan_journal(records, raw):
     sources.reject_secrets(canonical(scanning))
 
 
-def derive(records, root, runtime):
+def derive(records, root, runtime, *, host_replay=None):
     """Reconstruct sources and claims from canonical records plus raw archives."""
     paper_by_id = {p["work_id"]: p for p in records["papers"]}
     source_by_id, manifests, paper_files = {}, [], {}
@@ -93,7 +93,11 @@ def derive(records, root, runtime):
                 "source archive differs from canonical input binding"
             )
         rows, result, mapping = sources.source_records(
-            source, paper_by_id[source["work_id"]], archive, runtime
+            source,
+            paper_by_id[source["work_id"]],
+            archive,
+            runtime,
+            **({"host_replay": host_replay} if host_replay is not None else {}),
         )
         source_by_id[source["source_id"]] = (source, result, archive, mapping)
         manifests.extend(rows)
@@ -250,7 +254,7 @@ def build(records_path, output, expected_records_sha256):
     }
 
 
-def validate(root, expected_sha256):
+def validate(root, expected_sha256, *, host_replay=None):
     reject_links(root)
     root = Path(root).resolve()
     manifest_path = root / "provenance_manifest.json"
@@ -291,11 +295,21 @@ def validate(root, expected_sha256):
     ):
         raise DeliverableError("canonical records differ from original input artifact")
     runtime = sources.runtime_binding()
-    if manifest["runtime"] != runtime:
+    if host_replay is not None:
+        host_replay.package(root, expected_sha256, manifest, runtime)
+        # Historical metadata is only used to reconstruct historical view bytes.
+        # The receipt separately verifies the complete current validator runtime.
+        runtime = manifest["runtime"]
+    elif manifest["runtime"] != runtime:
         raise DeliverableError("exporter or dependency runtime bytes changed")
     if inventory(root) != manifest["files"]:
         raise DeliverableError("package file inventory or bytes differ")
-    manifests, paper_files = derive(records, root, runtime)
+    manifests, paper_files = derive(
+        records,
+        root,
+        runtime,
+        **({"host_replay": host_replay} if host_replay is not None else {}),
+    )
     generated = views.render(records, manifests)
     generated.update(paper_files)
     generated["papers.jsonl"] = _jsonl(records["papers"])
