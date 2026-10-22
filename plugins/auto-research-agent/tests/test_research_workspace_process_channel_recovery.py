@@ -101,7 +101,9 @@ class ObservationTests(OwnedProcessCase):
             self.assertEqual(len(processes), 1, "must reach the post-spawn boundary")
             self.assertEqual(len(startup_deadlines), 1)
             self.assertLess(time.monotonic() - blocked_at[0], 0.8)
-            until = time.monotonic() + 1
+            # Physical Windows tree cleanup permits taskkill(3s), waits and fallback.
+            # Keep the database deadline assertion above and the blocker held.
+            until = time.monotonic() + 10
             while processes[0].poll() is None and time.monotonic() < until:
                 time.sleep(0.01)
             self.assertIsNotNone(processes[0].poll())

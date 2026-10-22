@@ -136,25 +136,30 @@ def _validate_stage_input_refs(packet, manifest):
         if refs:
             raise Stage2Error("legacy-stage-run-input-refs-must-be-empty")
         return
+    origin = (
+        "stage2-direct-request"
+        if packet["schema_version"] == "2.6.0"
+        else "stage1-stage2"
+    )
     expected = [
         {
             "kind": "ArtifactRef",
             "schema_version": VERSION,
-            "artifact_id": f"stage1-stage2-source-{manifest['packet_sha256'][:16]}",
-            "artifact_type": "stage1-stage2-source-packet",
+            "artifact_id": f"{origin}-source-{manifest['packet_sha256'][:16]}",
+            "artifact_type": f"{origin}-source-packet",
             "path": "input_packet.json",
             "sha256": manifest["packet_sha256"],
-            "producer": "stage1-stage2-handoff",
+            "producer": f"{origin}-handoff",
             "created_at": manifest["created_at"],
         },
         {
             "kind": "ArtifactRef",
             "schema_version": VERSION,
-            "artifact_id": f"stage1-stage2-stored-{manifest['stored_packet_sha256'][:16]}",
-            "artifact_type": "stage1-stage2-stored-packet",
+            "artifact_id": f"{origin}-stored-{manifest['stored_packet_sha256'][:16]}",
+            "artifact_type": f"{origin}-stored-packet",
             "path": "packet.json",
             "sha256": manifest["stored_packet_sha256"],
-            "producer": "stage1-stage2-handoff",
+            "producer": f"{origin}-handoff",
             "created_at": manifest["created_at"],
         },
     ]
@@ -314,6 +319,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
         "2.3.0",
         "2.4.0",
         "2.5.0",
+        "2.6.0",
     }:
         try:
             root = private_output(root)
@@ -330,6 +336,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
         "2.3.0",
         "2.4.0",
         "2.5.0",
+        "2.6.0",
     }:
         input_packet_path = root / "input_packet.json"
         try:
@@ -441,6 +448,7 @@ def initialize_run(
         "2.3.0",
         "2.4.0",
         "2.5.0",
+        "2.6.0",
     }:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
@@ -452,7 +460,7 @@ def initialize_run(
         output = (
             private_output(Path(output_dir).absolute())
             if source_packet.get("schema_version")
-            in {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0"}
+            in {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}
             else Path(output_dir).resolve()
         )
     except DeliverableError as error:
@@ -549,6 +557,11 @@ def initialize_run(
         _write_new(output / "packet.json", _canonical_bytes(stored_packet))
         created_at = clock()
         input_refs = []
+        origin = (
+            "stage2-direct-request"
+            if source_packet["schema_version"] == "2.6.0"
+            else "stage1-stage2"
+        )
         if source_packet["schema_version"] in {
             "2.0.0",
             "2.1.0",
@@ -556,6 +569,7 @@ def initialize_run(
             "2.3.0",
             "2.4.0",
             "2.5.0",
+            "2.6.0",
         }:
             _write_new(output / "input_packet.json", _canonical_bytes(source_packet))
             stored_packet_sha256 = canonical_hash(stored_packet)
@@ -563,21 +577,21 @@ def initialize_run(
                 {
                     "kind": "ArtifactRef",
                     "schema_version": VERSION,
-                    "artifact_id": f"stage1-stage2-source-{packet_sha256[:16]}",
-                    "artifact_type": "stage1-stage2-source-packet",
+                    "artifact_id": f"{origin}-source-{packet_sha256[:16]}",
+                    "artifact_type": f"{origin}-source-packet",
                     "path": "input_packet.json",
                     "sha256": packet_sha256,
-                    "producer": "stage1-stage2-handoff",
+                    "producer": f"{origin}-handoff",
                     "created_at": created_at,
                 },
                 {
                     "kind": "ArtifactRef",
                     "schema_version": VERSION,
-                    "artifact_id": f"stage1-stage2-stored-{stored_packet_sha256[:16]}",
-                    "artifact_type": "stage1-stage2-stored-packet",
+                    "artifact_id": f"{origin}-stored-{stored_packet_sha256[:16]}",
+                    "artifact_type": f"{origin}-stored-packet",
                     "path": "packet.json",
                     "sha256": stored_packet_sha256,
-                    "producer": "stage1-stage2-handoff",
+                    "producer": f"{origin}-handoff",
                     "created_at": created_at,
                 },
             ]
@@ -604,7 +618,7 @@ def initialize_run(
                 "input_refs": input_refs,
             },
         }
-        if source_packet["schema_version"] in {"2.4.0", "2.5.0"}:
+        if source_packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}:
             manifest["prior_work_receipts"] = receipt_snapshots
         manifest["manifest_sha256"] = _manifest_hash(manifest)
         _write_new(output / "run_manifest.json", manifest)

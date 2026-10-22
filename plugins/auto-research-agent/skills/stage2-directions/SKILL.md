@@ -5,6 +5,13 @@ description: This skill applies when the user asks to improve an existing resear
 
 # Stage 2 direction checking
 
+When only a research request is supplied, use the explicit opt-in
+[direct-request entry](../../references/stage2-direct-request.md). Packet2.6
+starts without Stage1 literature or lineage and retains the rich argument,
+table, prior-work, review and delivery contracts. Do not fabricate a Stage1
+acceptance, scope decision or user selection to enter them. Manual-v1 remains
+a historical reduced route, not an equivalent complete rich workflow.
+
 For opt-in packet 2.4, read the [prior-work positioning contract](../../references/stage2-prior-work.zh-TW.md).
 Decompose the candidate's proposed increment before searching question, mechanism,
 method, population and validation synonyms, citation chains and contrary work.

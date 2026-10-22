@@ -542,7 +542,7 @@ def render_proposal(
     for option in selection["current_options"]:
         candidate = option["candidate"]
         _candidate_details(lines, candidate, evidence)
-        if packet.get("schema_version") in {"2.4.0", "2.5.0"}:
+        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
             review = prior_reviews.get(
                 (candidate["candidate_id"], candidate["version"])
             )

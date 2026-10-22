@@ -292,7 +292,7 @@ def _current_options(selection, evidence, snapshots, receipt_base):
     for option in selection["current_options"]:
         candidate = option["candidate"]
         cards.append(_candidate(candidate, evidence))
-        if packet.get("schema_version") in {"2.4.0", "2.5.0"}:
+        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
             review = prior_reviews.get(
                 (candidate["candidate_id"], candidate["version"])
             )

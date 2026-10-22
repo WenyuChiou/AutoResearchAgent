@@ -180,7 +180,7 @@ def validate_extraction(
     )
     expected_version = (
         SCHEMA_VERSION_1_2
-        if packet.get("schema_version") == "2.5.0"
+        if packet.get("schema_version") in {"2.5.0", "2.6.0"}
         else SCHEMA_VERSION_1_1
         if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0"}
         else SCHEMA_VERSION

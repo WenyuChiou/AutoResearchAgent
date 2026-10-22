@@ -18,6 +18,7 @@ def build_bibliography(packet, snapshots, evidence):
         "2.3.0",
         "2.4.0",
         "2.5.0",
+        "2.6.0",
     }:
         return {
             "available": False,
@@ -46,9 +47,13 @@ def build_bibliography(packet, snapshots, evidence):
             raise Stage2Error(f"report-literature-schema: {error.message}")
     upstream = packet.get("upstream")
     stage1_rows = [row for row in rows if row.get("origin") == "stage1"]
-    if not isinstance(upstream, dict) or upstream.get(
-        "stage1_literature_sha256"
-    ) != stage1_projection_hash(stage1_rows):
+    if packet.get("schema_version") == "2.6.0" and stage1_rows:
+        raise Stage2Error("report-direct-request-cannot-claim-stage1-literature")
+    if packet.get("schema_version") != "2.6.0" and (
+        not isinstance(upstream, dict)
+        or upstream.get("stage1_literature_sha256")
+        != stage1_projection_hash(stage1_rows)
+    ):
         raise Stage2Error("report-stage1-literature-binding-mismatch")
 
     seen_works = set()
@@ -162,7 +167,7 @@ def build_bibliography(packet, snapshots, evidence):
             item["support_scope"] = "supplemental-source-version-of-same-work"
             primary["supplemental_versions"].append(item)
         else:
-            if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0"}:
+            if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
                 item["supplemental_versions"] = []
             projected.append(item)
             projected_by_work[work_id] = item

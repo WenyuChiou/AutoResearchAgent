@@ -1,6 +1,9 @@
 """Behavioral checks for affected tests and the fail-closed CI runner."""
 
+import contextlib
+import io
 import json
+from concurrent.futures import Future
 import os
 from pathlib import Path
 import shutil
@@ -788,6 +791,49 @@ class SourceWriter(unittest.TestCase):
                 result = self.fixture(workers=3)
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn(marker, result.stdout + result.stderr)
+
+    def test_submit_failure_preserves_observed_results_and_incomplete_inventory(self):
+        class Named(unittest.TestCase):
+            def __init__(self, name):
+                super().__init__("runTest")
+                self.name = name
+
+            def id(self):
+                return self.name
+
+        for first_completed in (False, True):
+            with self.subTest(first_completed=first_completed):
+                suite = unittest.TestSuite(
+                    Named("test_" + name + ".Case.test_value")
+                    for name in ("alpha", "beta", "gamma")
+                )
+                output, errors = io.StringIO(), io.StringIO()
+                with patch.object(scope, "ProcessPoolExecutor") as factory:
+                    executor = factory.return_value.__enter__.return_value
+                    completed = Future()
+                    completed.set_result(
+                        dict(tests_run=1, failures=0, errors=0, skips=0, passed=True)
+                    )
+                    executor.submit.side_effect = (
+                        [completed, OSError("handle is closed")]
+                        if first_completed
+                        else OSError("handle is closed")
+                    )
+                    with (
+                        contextlib.redirect_stdout(output),
+                        contextlib.redirect_stderr(errors),
+                    ):
+                        code = scope.run_parallel(suite, Path("."), 3)
+                self.assertEqual(code, 1)
+                summary = json.loads(output.getvalue().splitlines()[-1])
+                self.assertEqual(summary["planned_tests"], 3)
+                self.assertEqual(summary["tests_run"], int(first_completed))
+                self.assertEqual(
+                    summary["incomplete_partitions"], 3 - int(first_completed)
+                )
+                self.assertFalse(summary["passed"])
+                self.assertIn("handle is closed", errors.getvalue())
+                self.assertEqual(executor.submit.call_count, 1 + int(first_completed))
 
     def test_parallel_worker_refuses_missing_selector_and_invalid_worker_count(self):
         sys.path.insert(0, str(self.repo / scope.TEST_DIR))
