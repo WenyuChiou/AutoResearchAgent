@@ -18,7 +18,8 @@ function canonicalStage2Validate(payload,binding){
  if(bridge.original_stage1_lineage_attested!==false||bridge.human_selection!=='pending'||bridge.stage3_authorized!==false||bridge.formal_ready!==false||bridge.improvement_demonstrated!==false)return fail('canonical-stage2-non-authority-flags-differ');
  if(binding.stage2_manifest_sha256!==undefined&&binding.stage2_manifest_sha256!==bridge.stage2_manifest_sha256)return fail('canonical-stage2-delivery-manifest-differs');
  const packet=selection?.evaluation_packet;
- if(!object(selection)||!Array.isArray(selection.current_options)||!object(packet)||!['1.0.0','2.0.0','2.1.0','2.2.0','2.3.0','2.4.0'].includes(packet.schema_version)||!object(attachment.evaluation))return fail('canonical-stage2-selection-shape-invalid');
+ if(!object(selection)||!Array.isArray(selection.current_options)||!object(packet)||!['1.0.0','2.0.0','2.1.0','2.2.0','2.3.0','2.4.0','2.5.0','2.6.0'].includes(packet.schema_version)||!object(attachment.evaluation))return fail('canonical-stage2-selection-shape-invalid');
+ if(packet.schema_version==='2.6.0'&&(!object(packet.entry)||packet.entry.kind!=='Stage2DirectRequestOrigin'||packet.entry.schema_version!=='1.0.0'||!text(packet.entry.request_text)||!hash(packet.entry.request_sha256)||!hash(packet.entry.binding_sha256)||packet.entry.stage1_lineage!==false))return fail('canonical-stage2-direct-origin-invalid');
  if(!object(comparison)||comparison.schema_version!=='1.0.0'||!['literature','directions','evidence'].every(k=>Array.isArray(comparison[k])))return fail('canonical-stage2-comparison-shape-invalid');
  const pair=(id,version)=>JSON.stringify([id,version]);
  const options=selection.current_options.map(row=>row?.candidate);

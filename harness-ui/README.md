@@ -55,6 +55,23 @@ Old V7 filenames and contract markers remain internally for compatibility.
 
 ## Connected and remaining
 
+### Optional original review reader
+
+An operator may supply `--review-sources FILE --review-sources-sha256 SHA256`.
+The pinned JSON has `schema_version: 1` and an `entries` list. Each entry contains
+`project_ref`, the exact `packet_file_sha256`, an absolute `delivery_root` under
+the existing incoming directory, and the canonical `delivery_manifest_sha256`.
+The GET projection reuses `inspect_delivery` and rechecks the original packet and
+`review_results.json`; it does not infer a review file from a nearby filename.
+Changed bytes or a different project, candidate version, or manifest are refused.
+
+The result page offers one collapsed **Original independent reviews** entry.
+Original roles, reasons, checks, next steps, failed records and complete JSON stay
+available on demand. These are reading records, not new scientific scores or a
+formal choice. A draft remains a draft; formal selection and Stage3 stay disabled.
+Packet2.6 requires the corresponding merged Harness validator/runtime. Existing
+canonical delivery HTML and frozen package files are not modified by this reader.
+
 | Area | Available here | Still required |
 |---|---|---|
 | Stage1 operations | Existing project/scope, progress, screening/reading views and checkpoint entry; closed operation panel stays clickable | A trusted current run is required to exercise live review. Pause/revise/resume of an unfinished loop is not implemented by this adapter |
