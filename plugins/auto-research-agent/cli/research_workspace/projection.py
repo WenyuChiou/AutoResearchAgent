@@ -197,7 +197,9 @@ def _package(root, expected):
     return outer, manifest, records
 
 
-def _source_records(package_root, bound_read, records, *, semantic_replay=True):
+def _source_records(
+    package_root, bound_read, records, *, semantic_replay=True, host_replay=None
+):
     attempts = _jsonl(bound_read("deliverable/paper_manifest.jsonl"))
     _require(
         len({(row["source_id"], row["attempt"]) for row in attempts}) == len(attempts),
@@ -249,15 +251,23 @@ def _source_records(package_root, bound_read, records, *, semantic_replay=True):
                 isinstance(observation, dict),
                 "source validation observation must be an object",
             )
-            replayed, replay_mapping, replay = sources.validate_archive(archive_root)
+            if host_replay is None:
+                replayed, replay_mapping, replay = sources.validate_archive(
+                    archive_root
+                )
+            else:
+                replayed, replay_mapping, replay = host_replay.source(
+                    archive_root, source
+                )
             _require(replayed == receipt, "source replay receipt binding mismatch")
-            sources.validate_observation(
-                archive_root,
-                replayed,
-                replay_mapping,
-                replay,
-                saved_observation=observation,
-            )
+            if host_replay is None:
+                sources.validate_observation(
+                    archive_root,
+                    replayed,
+                    replay_mapping,
+                    replay,
+                    saved_observation=observation,
+                )
             sources.validate_paper_identity(paper, replayed)
         rows = [row for row in attempts if row["source_id"] == source["source_id"]]
         _require(
@@ -504,6 +514,7 @@ def project_package(
     repair_root=None,
     expected_repair_manifest_sha256=None,
     expected_repair_review_sha256=None,
+    host_replay=None,
 ):
     """Return deterministic records; byte checks are not exporter semantic replay."""
     identifier(project_id)
@@ -511,7 +522,19 @@ def project_package(
     root = private_output(package_root)
     outer, manifest, records = _package(root, expected_manifest_sha256)
     bound_read = _bound_reader(root, outer["files"])
-    source_rows = _source_records(root, bound_read, records)
+    if host_replay is not None:
+        host_replay.package(
+            root / "deliverable",
+            outer["files"]["deliverable/provenance_manifest.json"]["sha256"],
+            manifest,
+            sources.runtime_binding(),
+        )
+    source_rows = _source_records(
+        root,
+        bound_read,
+        records,
+        **({"host_replay": host_replay} if host_replay is not None else {}),
+    )
     readiness_raw = bound_read("stage2_readiness.json")
     _require(
         outer["stage2_readiness_sha256"] == sha(readiness_raw),

@@ -1,5 +1,9 @@
 # Read-only research workspace
 
+Saved admission can explicitly verify a [HostReplayReceipt v1](../../references/stage1-host-replay.md)
+after a host relocation. The separate trusted receipt preserves historical commands
+and full dependency checks; Core and actual HTML acceptance remain required.
+
 This first #80/#82 slice projects an existing Stage 1 package into an English
 HTML workspace, notes, a graph, a complete catalog and bibliography. It does not
 change canonical research records or rebuild the original deliverable. English
