@@ -8,7 +8,8 @@ function p9State(view){
   model,comparison:{},named:null,papers:model.sources.slice(0,2).map(s=>s.source_id),
   routes:model.routes.slice(0,2).map(r=>r.candidate.candidate_id),view:'routes',evidence:null,
   records:new Map(),raw:null,document:null,documents:new Map(),pending:new Set(),errors:new Map(),
-  filePage:0,search:'',draft:null,note:'',draftStatus:'not-saved',loading:false,error:null};
+  filePage:0,search:'',draft:null,note:'',draftStatus:'not-saved',loading:false,error:null,
+  reviewReading:null,reviewDisclosures:{}};
 }
 function p9Apply(){
  const target=p9.views.get(rt.ref);
@@ -16,7 +17,7 @@ function p9Apply(){
   if(p9.shown)Object.assign(p9.shown.state,n2);else p9.original={...n2};
   Object.assign(n2,target.state);p9.shown=target;
  }else if(!target&&p9.shown){
-  Object.assign(p9.shown.state,n2);Object.assign(n2,p9.original);p9.shown=null;
+  Object.assign(p9.shown.state,n2);Object.assign(n2,p9.original,{reviewReading:null,reviewDisclosures:{}});p9.shown=null;
  }
 }
 async function p9Open(id){
@@ -29,7 +30,9 @@ async function p9Open(id){
     await canonicalHash(view.packet_text)!==view.packet_file_sha256||view.execution_authorized!==false)
   throw Error('packet-display-binding-differs');
  for(const card of view.cards){if(await canonicalHash(card.saved_text)!==card.artifact.sha256)throw Error('source-display-binding-differs');}
+ const reviewReading=view.independent_reviews===undefined?null:await n9ReadReviews(view);
  const state=p9State(view);
+ state.reviewReading=reviewReading;
  if(ref!==rt.ref||epoch!==p9.epoch)throw Error('project-changed-during-display-read');
  p9.views.set(ref,{id,view,state});p9Apply();n2RestoreDraft();
  // This preference only causes a verified GET after reload, never a POST.
@@ -44,12 +47,12 @@ const p9Stage2=stage2;
 stage2=function(app){p9Apply();return p9Stage2(app);};
 const p9Files=n2Files,p9Feedback=n2Feedback,p9Metrics=n2ReviewMetrics,p9Render=n2Render;
 n2Files=function(){return p9.shown?`<details class="hs-panel"><summary>${rl('当前导入原文与身份','Imported originals & identity','目前匯入原文與身分')}</summary>${n2Record('Stage2Packet',n2.model.packet)}${n2Record('SHA-256',p9.shown.view.packet_file_sha256)}<p>${rl('逐篇原卡在“文献比较”展开；原件和缺失字段保持不变。','Open each source card under literature comparison. Originals and missing fields are retained.','逐篇原卡於「文獻比較」展開；原件及缺失欄位保持不變。')}</p></details>`:p9Files();};
-n2ReviewMetrics=function(){return p9.shown?`<p>${rl('本次导入没有附带经绑定核验的独立评审结果，评分保持未提供。','This import has no bound independent review receipt; scores remain unavailable.','本次匯入沒有附帶經綁定核驗的獨立評審結果，評分保持未提供。')}</p>`:p9Metrics();};
+n2ReviewMetrics=function(){return p9.shown?`<p>${n2.reviewReading?rl('原始独立评语可读取；科学品质评分尚未提供。','Original independent reviews are available; scientific quality scores are not supplied.','原始獨立評語可讀取；科學品質評分尚未提供。'):rl('本次导入没有附带经绑定核验的独立评审结果，评分保持未提供。','This import has no bound independent review receipt; scores remain unavailable.','本次匯入沒有附帶經綁定核驗的獨立評審結果，評分保持未提供。')}</p>`:p9Metrics();};
 n2Feedback=function(){if(!p9.shown)return p9Feedback().replace('本地展示仅GET读取；没有调用研究模型，没有提交选案、审批或下一阶段。','交付读取采用GET；手动材料与草稿可保存。没有调用研究模型或提交正式选案。').replace('Local display uses GET reads only; no research model, selection, approval or next stage was submitted.','Delivery reads use GET; manual inputs and drafts can be saved. No research model or formal selection was submitted.');
  const view=p9.shown.view;
  return `<details class="hs-panel" data-n2-feedback><summary>Stage2 · ${rl('接续状态与缺口','Continuation & missing interfaces','接續狀態與缺口')}</summary><p>${rl('已导入并重新校验原材料。下方结果是输入投影，尚无新研究产物。','Imported original inputs revalidated. The displayed result is an input projection, not a newly generated research artifact.','已匯入並重新校驗原材料。下方結果為輸入投影，尚無新研究產物。')}</p><p>SHA-256: ${rx(view.packet_file_sha256)}</p><p>${rl('正式选案尚不可提交：需要同一workflow的可信交付登记、当前事件head、独立评审回执与原生用户消息。','Formal selection is unavailable: requires trusted delivery registration, current workflow head, independent review receipts and native user-message provenance.','正式選案尚不可提交：需要同一workflow的可信交付登記、目前事件head、獨立評審回執及原生使用者訊息。')}</p>${n2Record(rl('完整缺口与血缘','Missing inputs & lineage','完整缺口與血緣'),{formal_selection:view.formal_selection,upstream:view.stage1_lineage})}<button class="hs-button" data-n9-open-packet="${rx(p9.shown.id)}">${rl('重新核验并更新结果','Revalidate & refresh results','重新核驗並更新結果')}</button><button class="hs-button" data-n9-original>${rl('返回原保存交付','Return to original delivery','返回原保存交付')}</button></details>`;
 };
-n2Render=function(app){let html=p9Render(app);if(p9.shown){html=html.replace(rl('独立自然提问交付；未绑定为当前Stage1的下游。','Independent natural-request delivery; not bound as a downstream result of current Stage1.','獨立自然提問交付；未綁定為目前Stage1的下游。'),rl('当前手动导入材料；来源血缘按原packet保留，尚未取得接续执行许可。','Current manual input; lineage is retained from its packet and continuation admission is still required.','目前手動匯入材料；來源血緣依原packet保留，尚未取得接續執行許可。'));}return html;};
+n2Render=function(app){let html=p9Render(app);if(p9.shown){html=html.replace(rl('独立自然提问交付；未绑定为当前Stage1的下游。','Independent natural-request delivery; not bound as a downstream result of current Stage1.','獨立自然提問交付；未綁定為目前Stage1的下游。'),rl('当前手动导入材料；来源血缘按原packet保留，尚未取得接续执行许可。','Current manual input; lineage is retained from its packet and continuation admission is still required.','目前手動匯入材料；來源血緣依原packet保留，尚未取得接續執行許可。'));}if(p9.shown&&n2.reviewReading){const marker='<section class="hs-panel n2-workbench';if(!html.includes(marker))throw Error('review-reader-placement-unavailable');html=html.replace(marker,n9ReviewReader(app,n2.reviewReading,n2.reviewDisclosures)+marker);}if(typeof n9ReviewBodies!=='undefined'&&(!p9.shown||!n2.reviewReading))n9ReviewBodies.clear();return html;};
 function p9Loop(){
  const p=rt.overview?.project,s=rt.overview?.stage1;
  const bound=p?.project_ref===rt.ref&&!canonicalReadonly();

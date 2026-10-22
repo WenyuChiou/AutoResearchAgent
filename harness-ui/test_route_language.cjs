@@ -1,5 +1,7 @@
 const assert=require('node:assert/strict');
 require('./test_state_recovery.cjs');
+require('./test_stage2_reader.cjs');
+require('./test_source_metadata.cjs');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');

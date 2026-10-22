@@ -36,7 +36,7 @@ def require(ok, reason):
 
 
 class Materials:
-    def __init__(self, root, incoming, builtins):
+    def __init__(self, root, incoming, builtins, review_sources=()):
         self.root, self.incoming = Path(root).resolve(), Path(incoming).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         (self.root / 'files').mkdir(exist_ok=True)
@@ -44,6 +44,7 @@ class Materials:
         self.db = self.root / 'materials.sqlite3'
         self.lock = threading.RLock()
         self.builtins = builtins
+        self.review_sources = list(review_sources)
         with self.connect() as db:
             db.executescript('''CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY, body TEXT NOT NULL);
               CREATE TABLE IF NOT EXISTS chunks(id TEXT, offset INTEGER, data BLOB NOT NULL, PRIMARY KEY(id,offset));
@@ -228,7 +229,7 @@ class Materials:
             cards.append(dict(source_id=source['source_id'], work_id=source['work_id'],
                 version_id=source['version_id'], evidence_level=source['evidence_level'],
                 artifact={'sha256': source['sha256']}, saved_text=content.decode('utf-8')))
-        return dict(kind='V9ValidatedPacketView', material_id=item['id'], project_ref=item['project_ref'],
+        view = dict(kind='V9ValidatedPacketView', material_id=item['id'], project_ref=item['project_ref'],
             packet_text=data.decode('utf-8'), packet_file_sha256=pin,
             packet_sha256=canonical_hash(packet), cards=cards, execution_authorized=False,
             projection='validated-input-not-new-research-output',
@@ -236,6 +237,11 @@ class Materials:
                 'trusted-workflow-delivery-registration', 'current-delivery-manifest-and-event-head',
                 'independent-review-receipts', 'native-user-message-provenance']),
             stage1_lineage=packet.get('upstream'), research_generated=False)
+        from review_reading import project_reviews
+        reading = project_reviews(self, item, packet, pin)
+        if reading is not None:
+            view['independent_reviews'] = reading
+        return view
 
     def workflow(self, body):
         from stage2_common import validate_packet, canonical_hash
