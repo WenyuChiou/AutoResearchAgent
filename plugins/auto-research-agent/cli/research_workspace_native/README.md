@@ -586,3 +586,13 @@ Actual Stage2 result display still needs the project service to register a
 trusted final delivery root and manifest hashes bound to its activation/input
 version. A workflow activation or input review alone supplies neither. The UI
 does not discover directories, rebuild packages, or treat the example as output.
+
+## Saved package review without an active project
+
+The [saved-package review adapter](SAVED_PACKAGE_REVIEW.md) extends the private
+maintenance inbox with trusted snapshot registrations and durable original-text
+review, correction and Stage2 handoff-request receipts. Exact work/version/source
+offers, revision CAS and same-key replay retain old evidence without constructing
+an active project or historical ledger. This local Python API/CLI grants no
+research execution or Core acceptance; UI/Core HTTP wiring and actual acceptance
+remain separate.
