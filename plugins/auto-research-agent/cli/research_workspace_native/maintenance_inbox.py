@@ -222,55 +222,65 @@ class MaintenanceInbox:
                 message=message,
                 key=key,
             )
-            raw = canonical(request)
-            digest = sha(raw)
-            self.db.execute("BEGIN IMMEDIATE")
-            try:
-                old = self.db.execute(
+            return self._append(request, before_commit=before_commit)
+
+    def _append(self, request, *, before_commit=None, validate_current=None):
+        """Shared append transaction; callers hold _lock and validate envelopes.
+
+        Saved-package review extends the same inbox journal. Its current-state
+        guard runs only for a new key, inside BEGIN IMMEDIATE; replay is passive.
+        """
+        case_ref, key = request["case_ref"], request["key"]
+        raw = canonical(request)
+        digest = sha(raw)
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            old = self.db.execute(
+                "SELECT * FROM maintenance_feedback WHERE case_ref=? AND client_key=?",
+                (case_ref, key),
+            ).fetchone()
+            if old is not None:
+                _require(
+                    old["request_sha256"] == digest and old["request"].encode() == raw,
+                    "idempotency-payload-differs",
+                )
+                result = self._public(old, replayed=True)
+            else:
+                count = self.db.execute(
+                    "SELECT COUNT(*) FROM maintenance_feedback WHERE case_ref=?",
+                    (case_ref,),
+                ).fetchone()[0]
+                _require(count < MAX_CASE_RECORDS, "case-feedback-bound-exceeded")
+                if validate_current is not None:
+                    validate_current()
+                if before_commit is not None:
+                    before_commit()
+                self.db.execute(
+                    "INSERT INTO maintenance_feedback "
+                    "(case_ref,client_key,feedback_ref,request,request_sha256,created_at,status) "
+                    "VALUES(?,?,?,?,?,?,?)",
+                    (
+                        case_ref,
+                        key,
+                        sha(canonical([case_ref, key])),
+                        raw.decode(),
+                        digest,
+                        datetime.now(timezone.utc).isoformat(),
+                        STATUS,
+                    ),
+                )
+                row = self.db.execute(
                     "SELECT * FROM maintenance_feedback WHERE case_ref=? AND client_key=?",
                     (case_ref, key),
                 ).fetchone()
-                if old is not None:
-                    _require(
-                        old["request_sha256"] == digest
-                        and old["request"].encode() == raw,
-                        "idempotency-payload-differs",
-                    )
-                    result = self._public(old, replayed=True)
-                else:
-                    count = self.db.execute(
-                        "SELECT COUNT(*) FROM maintenance_feedback WHERE case_ref=?",
-                        (case_ref,),
-                    ).fetchone()[0]
-                    _require(count < MAX_CASE_RECORDS, "case-feedback-bound-exceeded")
-                    if before_commit is not None:
-                        before_commit()
-                    self.db.execute(
-                        "INSERT INTO maintenance_feedback "
-                        "(case_ref,client_key,feedback_ref,request,request_sha256,created_at,status) "
-                        "VALUES(?,?,?,?,?,?,?)",
-                        (
-                            case_ref,
-                            key,
-                            sha(canonical([case_ref, key])),
-                            raw.decode(),
-                            digest,
-                            datetime.now(timezone.utc).isoformat(),
-                            STATUS,
-                        ),
-                    )
-                    row = self.db.execute(
-                        "SELECT * FROM maintenance_feedback WHERE case_ref=? AND client_key=?",
-                        (case_ref, key),
-                    ).fetchone()
-                    result = self._public(row)
-                    if before_commit is not None:
-                        before_commit()
-                self.db.commit()
-                return result
-            except BaseException:
-                self.db.rollback()
-                raise
+                result = self._public(row)
+                if before_commit is not None:
+                    before_commit()
+            self.db.commit()
+            return result
+        except BaseException:
+            self.db.rollback()
+            raise
 
     def get(self, case_ref, key):
         with self._lock:
