@@ -8,7 +8,21 @@ function n2CardFields(text){const lines=String(text||'').split(/\r?\n/),fields={
 function n2BuildModel(packet,selection,cards){
  if(packet?.kind!=='Stage2Packet'||!Array.isArray(packet.sources)||!Array.isArray(packet.candidates)||!Array.isArray(packet.evidence)||(selection&&(!Array.isArray(selection.current_options)||!n2Same(packet,selection.evaluation_packet))))throw Error('natural-stage2-selection-packet-differs');
  if(new Set(packet.sources.map(s=>s.source_id)).size!==packet.sources.length||cards.length!==packet.sources.length||new Set(cards.map(s=>s.source_id)).size!==cards.length)throw Error('natural-stage2-source-membership-differs');
- const sources=packet.sources.map(source=>{const card=cards.find(c=>c.source_id===source.source_id);if(!card||card.work_id!==source.work_id||card.version_id!==source.version_id||card.evidence_level!==source.evidence_level||card.artifact?.sha256!==source.sha256)throw Error('natural-stage2-source-version-differs');const parsed=n2CardFields(card.saved_text);return {...source,card,parsed,title:card.title||parsed.fields.title||source.source_id,authors:card.authors||parsed.fields.authors||parsed.fields.author||parsed.fields['author/issuer']||null};});
+ const sources=packet.sources.map(source=>{
+  const card=cards.find(c=>c.source_id===source.source_id);
+  if(!card||card.work_id!==source.work_id||card.version_id!==source.version_id||card.evidence_level!==source.evidence_level||card.artifact?.sha256!==source.sha256)throw Error('natural-stage2-source-version-differs');
+  const parsed=n2CardFields(card.saved_text),fields=parsed.fields;
+  // Plain excerpts need not repeat the packet's structured bibliography.
+  // Use it only when one record matches the exact work, version and source.
+  const matches=n2Array(packet.literature).filter(work=>work?.work_id===source.work_id&&work?.version_id===source.version_id&&n2Array(work?.source_ids).includes(source.source_id));
+  const work=matches.length===1?matches[0]:{};
+  const supplied=value=>typeof value==='string'&&value.trim().length>0||Array.isArray(value)&&value.length>0&&value.every(item=>typeof item==='string'&&item.trim().length>0);
+  if(!supplied(fields.url))fields.url=[card.url,source.final_url,source.source_url,work.url].find(supplied)||null;
+  if(!supplied(fields.doi)&&supplied(work.doi))fields.doi=work.doi;
+  const title=[card.title!==source.source_id?card.title:null,fields.title,work.title].find(supplied)||source.source_id;
+  const authors=[card.authors,fields.authors,fields.author,fields['author/issuer'],work.authors].find(supplied)||null;
+  return {...source,card,parsed,title,authors};
+ });
  const sourceById=new Map(sources.map(s=>[s.source_id,s])),evidenceById=new Map(packet.evidence.map(e=>[e.evidence_id,e]));if(evidenceById.size!==packet.evidence.length)throw Error('natural-stage2-evidence-duplicate');
  const exact=e=>e&&sourceById.get(e.source_id)?.work_id===e.work_id&&sourceById.get(e.source_id)?.version_id===e.version_id;
  const options=selection?.current_options||packet.candidates.map(candidate=>({candidate,assessment:null}));
