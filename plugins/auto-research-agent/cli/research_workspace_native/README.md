@@ -586,3 +586,9 @@ Actual Stage2 result display still needs the project service to register a
 trusted final delivery root and manifest hashes bound to its activation/input
 version. A workflow activation or input review alone supplies neither. The UI
 does not discover directories, rebuild packages, or treat the example as output.
+
+
+New saved Stage1 deliveries bind a [portable run context](RUN_CONTEXT.md) beside
+the unchanged canonical package. Its external hash, exact input/run/source
+records and resource-event prefix stay bound to the durable delivery result.
+The receiving CLI checks saved bytes only; research/Core/Stage2 gates stay separate.

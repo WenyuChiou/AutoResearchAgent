@@ -646,7 +646,11 @@ class ProjectStage1DeliveryService:
             stored == dict(artifact, path=relative),
             "stage1-delivery-stored-artifact-differs",
         )
-        return _io_root(self.intake._path(project_ref, relative))
+        root = _io_root(self.intake._path(project_ref, relative))
+        from .project_run_context import check_saved_context
+
+        check_saved_context(root, artifact)
+        return root
 
     def read(self, credential, project_ref):
         principal = self.intake._principal(credential)
@@ -712,6 +716,13 @@ class ProjectStage1DeliveryService:
                 acquisition_connected=False,
                 automatic_resend=False,
                 passive_read="hashes-only-no-source-replay",
+                run_context_status="unavailable-or-stale"
+                if saved and saved["status"] != "saved-evidence-validated"
+                else "bound-context"
+                if saved and "run_context" in saved
+                else "legacy-no-run-context"
+                if saved
+                else "not-produced",
             )
 
     def deliver(self, credential, project_ref, body, *, check_deadline=None):
@@ -764,6 +775,11 @@ class ProjectStage1DeliveryService:
                 status="saved-evidence-validated",
                 stage1_complete=False,
                 scientific_quality_scored=False,
+            )
+            from .project_run_context import build_run_context
+
+            artifact["run_context"] = build_run_context(
+                self, project_ref, artifact, output, context
             )
             state.setdefault("stage1_canonical_packages", {})[
                 artifact["artifact_ref"]
