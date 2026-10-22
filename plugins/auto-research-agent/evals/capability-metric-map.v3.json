@@ -78,7 +78,8 @@
             "Closest-work references and cited-by attempts use independent immutable single-attempt grants bound to the existing query owner, exact reviewed work/version, active round, source/runtime/registration pins and saved frontier. Search permission alone does not grant citation execution. The same durable query/project counters reserve the attempt and probe time before dispatch; expired, stale, consumed, unknown and unsupported citation states remain explicit. New runtime initialization declares the existing Core citation backend without granting execution; legacy saved plans are not rewritten. Offline Core/SQLite and fake-backend tests do not establish real citation discovery or Stage 1 completion.",
             "Offline real Core/SQLite revision cases retain both version ledgers and lifetime charges, block unknown/bootstrap/parser gaps, recover close-before-brief-write failure without resend, and require explicit old-owner restoration after reopen. Installed Chrome renders three-language current/lifetime/archive labels using synthetic API observations; no actual search, model or scientific acceptance is demonstrated.",
             "Same-page browser cases use two distinct saved repository deliveries, an empty project and a revised input without a result; switching, refresh and trilingual navigation perform zero POSTs and leave SQLite/ledger bytes unchanged. These cases test UI binding, not native research completion or quality.",
-            "Saved package reviews preserve original UTF-8 text and opinions in the existing SQLite feedback journal; wrong project/work/version/source/offer/principal and stale revisions refuse. Two handles deduplicate identical keys, serialize distinct keys by review revision, and retain passive history/replay after source drift; source changes or deadline failure around insertion roll back new writes."
+            "Saved package reviews preserve original UTF-8 text and opinions in the existing SQLite feedback journal; wrong project/work/version/source/offer/principal and stale revisions refuse. Two handles deduplicate identical keys, serialize distinct keys by review revision, and retain passive history/replay after source drift; source changes or deadline failure around insertion roll back new writes.",
+            "Saved-review queue tests use real SQLite reopen and concurrent handles to verify source-request key/hash/revision binding, queue CAS and deduplication, fixed receiving-owner authorization, deadline/source/result rollback and exact result pins. A later opinion does not invalidate an older request; no worker or model is launched."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         },
@@ -215,7 +216,8 @@
         "Topic revision grants no new search/model/source authority or budget refund. Source transport-to-parser gaps, unknown actions and missing saved owners hold revision; legacy already-revised used seals remain held rather than silently migrated.",
         "Project switching and source-version changes clear the prior inline renderer before GET. The same-origin child receives saved data and one memory MessagePort only; credentials, permits and action identities remain in the owning broker. A failed binding never displays an unrelated historical package as the current result.",
         "verified Stage2 report reader permits only its registered same-view selection.html frame; source response remains opaque sandboxed with scripts/connect/forms/nested frames denied, while unrelated routes retain default frame denial",
-        "Saved review registration is trusted local bootstrap only with independent external pins and private fixed paths. Browser callers cannot supply registration roots or trusted principal identities. A new saved_review_ref never substitutes for an active project, original run or CoverageLedger; recorded review/correction/handoff intent cannot accept Stage1 or dispatch Stage2. HTTP authentication/wiring and independent Core acceptance remain external."
+        "Saved review registration is trusted local bootstrap only with independent external pins and private fixed paths. Browser callers cannot supply registration roots or trusted principal identities. A new saved_review_ref never substitutes for an active project, original run or CoverageLedger; recorded review/correction/handoff intent cannot accept Stage1 or dispatch Stage2. HTTP authentication/wiring and independent Core acceptance remain external.",
+        "Saved-review maintenance admission is explicit and uses fixed trusted operation-to-owner/principal routing. Original recorded-not-dispatched opinions are immutable; queued, owner-claimed and owner-reported results never grant native/research execution, scientific certification, Core acceptance or Stage2 import. New writes recheck independent registration and exact source pins; passive recovery never redispatches. Owner reports bind real result bytes under a private fixed result root and are not independent acceptance."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
@@ -412,7 +414,8 @@
         "plugins/auto-research-agent/tests/browser/project-stage-slots-test.cjs",
         "plugins/auto-research-agent/tests/test_project_stage2_example_view.py",
         "plugins/auto-research-agent/tests/test_stage1_delivery_reasons.py",
-        "plugins/auto-research-agent/tests/test_saved_package_review.py"
+        "plugins/auto-research-agent/tests/test_saved_package_review.py",
+        "plugins/auto-research-agent/tests/test_saved_review_queue.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

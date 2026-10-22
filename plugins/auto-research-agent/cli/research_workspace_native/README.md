@@ -596,3 +596,7 @@ offers, revision CAS and same-key replay retain old evidence without constructin
 an active project or historical ledger. This local Python API/CLI grants no
 research execution or Core acceptance; UI/Core HTTP wiring and actual acceptance
 remain separate.
+
+## Explicit saved-request maintenance queue
+
+The [saved review queue](SAVED_REVIEW_QUEUE.md) adds explicit authorized admission, receiving-owner claims, source-bound result reports and passive recovery using the existing private inbox. Original opinions remain recorded-not-dispatched. It adds no automatic worker, model/research execution, scientific certification, Core acceptance or Stage2 import.
