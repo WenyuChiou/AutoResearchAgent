@@ -20,4 +20,4 @@ const n9UiLabels = {
 };
 function n9UiLabel(value){return n9UiLabels[value]?rl(...n9UiLabels[value]):value;}
 function n9Message(value){return typeof value==='function'?value():value;}
-function n9OriginalNotice(){return `<p class="n2-hint n9-original-language" role="note">${rl('路线译文随界面语言切换，仅用于阅读；可展开交付原文核对。论文标题、直接引文和自填笔记保留原语言；缺少译文的字段会明确标注。','Route translations follow the selected language for reading. Expand the delivery original to verify. Paper titles, direct quotations and your notes retain their original language; unavailable translations are labeled.','路線譯文隨介面語言切換，僅供閱讀；可展開交付原文核對。論文標題、直接引文及自填筆記保留原語言；缺少譯文的欄位會明確標註。')}</p>`;}
+function n9OriginalNotice(){return '';}
