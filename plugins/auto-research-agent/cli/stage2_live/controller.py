@@ -705,7 +705,8 @@ def _execute_unit(
     if existing is not None:
         request = existing["request"]
         if (
-            request["inputs"] != inputs
+            request["action_kind"] != action_kind
+            or request["inputs"] != inputs
             or request["settings"] != settings
             or request["snapshot_sha256"] != snapshot_sha256
         ):
