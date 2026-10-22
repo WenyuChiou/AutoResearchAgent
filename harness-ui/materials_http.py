@@ -4,9 +4,9 @@ import re
 from urllib.parse import quote
 from manual_materials import Materials
 
-def install_materials(host, projects, root, incoming, entries=()):
+def install_materials(host, projects, root, incoming, entries=(), review_sources=()):
     from research_workspace_native.session_api import SessionApiError
-    store=Materials(root,incoming,list(entries))
+    store=Materials(root,incoming,list(entries),review_sources)
     host.materials=store
     inherited=host.RequestHandlerClass
 
