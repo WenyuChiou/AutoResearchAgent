@@ -246,7 +246,7 @@ class SelectionCliTests(unittest.TestCase):
                         host_module.main(
                             [
                                 "--projects-root",
-                                str(Path(temporary) / "projects"),
+                                str(Path(temporary).resolve() / "projects"),
                                 "--selection-config",
                                 str(config),
                                 "--selection-sha256",
@@ -280,7 +280,7 @@ class SelectionCliTests(unittest.TestCase):
                     host_module.main(
                         [
                             "--projects-root",
-                            str(Path(temporary) / "projects"),
+                            str(Path(temporary).resolve() / "projects"),
                             "--selection-config",
                             str(config),
                             "--selection-sha256",
