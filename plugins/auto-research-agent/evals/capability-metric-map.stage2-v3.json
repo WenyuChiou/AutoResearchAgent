@@ -576,7 +576,13 @@
         "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py",
         "plugins/auto-research-agent/tests/test_stage2_prerequisites.py",
         "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py",
-        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_frontier.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_http.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_requests.cjs",
+        "plugins/auto-research-agent/tests/test_stage2_ui_submission.py"
       ],
       "completion_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
@@ -605,6 +611,21 @@
       "projecthost_selection_view_contract": "Read-only host-bound current direction/material cards verify actual delivery, workflow, project/input version and active project root. Unknowns, eligibility, human selection and Stage3 planning/execution states remain distinct. Browser input cannot choose filesystem paths; view creation does not make a choice, rerun models or authorize execution. Actual HTTP/browser and selection writes remain separate acceptance.",
       "projecthost_selection_view_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_selection_view.py"
+      ],
+      "projecthost_selection_registration_contract": "Confirmed ProjectHost UI selection composes the existing externally hash-bound interaction, planning handoff and Stage3 intake. Current project/input/source/recommendation and user message bytes are verified without new research. Same-key replay validates canonical event identity. Only complete post-work-before-commit metadata can recover; unobserved Core outcomes remain held. Activation, original receipt, duplicate events and changed bytes fail closed. Conditions and unknowns are preserved; selection grants no scientific or execution authority. HTTP and real user acceptance remain separate.",
+      "projecthost_selection_registration_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_frontier.py"
+      ],
+      "projecthost_selection_http_contract": "Explicit local ProjectHost selection bindings require their external config hash and same trusted principal. The six-stage current-project entry opens a literal-text direction/material comparison and records only an explicitly confirmed current eligible version with actual user text. Existing Host, Origin, bearer, CSP, bounds and idempotency guards remain unchanged; same-key completed-registration recovery does not repeat Core work. Zero recommendations remain readable without choice controls. Synthetic browser/HTTP tests establish engineering behavior only, not real selection, source availability or experiment authority. Async reads and post-submit refresh bind the captured project and request generation; stale successes/errors cannot publish under a changed project. CLI external-hash refusal precedes listener allocation; matching explicit config startup closes its actual local listener.",
+      "projecthost_selection_http_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_http.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_requests.cjs"
+      ],
+      "projecthost_typed_submission_contract": "New raw UI submission1.1 accepts typed bounded string versions;1.0 keeps integer-only verification. Exact independent project/version/hash context is mandatory; bool/float aliases and stale types refuse. Full interaction/planning/receiver origin stays projecthost-ui-submission, human_identity not-established and execution false.",
+      "projecthost_typed_submission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_ui_submission.py"
       ]
     },
     {

@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 import shutil
 import sys
+import unittest
 
 sys.path[:0] = [
     str(Path(__file__).resolve().parents[1] / "cli"),
@@ -47,6 +48,10 @@ class Stage2SelectionViewTests(Stage2SelectionFixture):
         view.bindings[self.ref]["input_version"] += 1
         with self.assertRaisesRegex(SessionApiError, "project-stale"):
             view.read("own", self.ref)
+        view.bindings[self.ref] = deepcopy(binding)
+        view.bindings[self.ref]["input_version"] = True
+        with self.assertRaisesRegex(SessionApiError, "project-stale"):
+            view.read("own", self.ref)
         self.assertEqual(inspect_workflow(workflow), before)
 
     def test_identical_foreign_workflow_and_foreign_principal_reject(self):
@@ -85,3 +90,25 @@ class Stage2SelectionViewTests(Stage2SelectionFixture):
         with self.assertRaisesRegex(SessionApiError, "stage2-not-activated"):
             view.read("own", self.ref)
         self.assertEqual(inspect_workflow(workflow), before)
+
+
+class SelectionBindingVersionTests(unittest.TestCase):
+    def test_typed_string_binding_and_noninteger_aliases(self):
+        from research_workspace_native.project_stage2_selection_view import (
+            ProjectStage2SelectionView,
+        )
+
+        binding = dict(
+            input_version="20261009-A03",
+            brief_sha256="a" * 64,
+            workflow_root="unused-workflow",
+            delivery_root="unused-delivery",
+            delivery_manifest_sha256="b" * 64,
+        )
+        view = ProjectStage2SelectionView(object(), {"project-test": binding})
+        self.assertIs(type(view.bindings["project-test"]["input_version"]), str)
+        for value in (True, 1.0, "", "x" * 129):
+            with self.subTest(version=repr(value)), self.assertRaises(SessionApiError):
+                ProjectStage2SelectionView(
+                    object(), {"project-test": dict(binding, input_version=value)}
+                )
