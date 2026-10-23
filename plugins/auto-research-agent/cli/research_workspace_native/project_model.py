@@ -33,13 +33,20 @@ from .project_resource_budget import reserve_resource, resource_view
 from .project_model_recovery import public_retirement, retired, retire
 from .project_model_reading import (
     READ_OPERATION,
-    READ_SCOPE,
-    reading_prompt,
     saved_reading_snapshot,
-    validate_reading_draft,
 )
 
-OPERATIONS = {"suggest-topic", "plan-search", READ_OPERATION}
+from .project_full_reading import (
+    FULL_READ_OPERATION,
+    READING_OPERATIONS,
+    reading_scope,
+    saved_full_reading_snapshot,
+    model_reading_prompt,
+    model_reading_draft,
+)
+from .model_input_profile import FULL_SOURCE_PROFILE, turn_input
+
+OPERATIONS = {"suggest-topic", "plan-search", *READING_OPERATIONS}
 PERMIT_FIELDS = {
     "kind",
     "schema_version",
@@ -187,8 +194,8 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
         .isoformat()
     )
     prompt = (
-        reading_prompt(snapshot)
-        if permit["operation"] == READ_OPERATION
+        model_reading_prompt(snapshot)
+        if permit["operation"] in READING_OPERATIONS
         else _prompt(permit["operation"], binding, as_of)
     )
     context = {
@@ -215,6 +222,8 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
             snapshot_sha256=sha(canonical(snapshot)),
             work_ref=permit["work_ref"],
         )
+    if permit["operation"] == FULL_READ_OPERATION:
+        context["input_profile"] = FULL_SOURCE_PROFILE
     context["source_sha256"] = sha(canonical(context))
     offer_hash = sha(canonical(context))
     return dict(
@@ -292,6 +301,79 @@ class ProjectModelService:
             self.reading_records, ref, work_ref, check_deadline=check_deadline
         )
 
+    def _operation_reading_snapshot(
+        self, operation, ref, work_ref, check_deadline=None
+    ):
+        if operation == FULL_READ_OPERATION:
+            return saved_full_reading_snapshot(
+                self.reading_records, ref, work_ref, check_deadline=check_deadline
+            )
+        return self._reading_snapshot(ref, work_ref, check_deadline)
+
+    def full_reading_offer(
+        self,
+        credential,
+        project_ref,
+        work_ref,
+        *,
+        expected_input_version,
+        expected_ledger_state_sha256,
+        check_deadline=None,
+    ):
+        """Passive full-source eligibility; no permit, reservation or model call."""
+        principal = self.intake._principal(credential)
+        with self.intake._lock:
+            self.intake._load(principal, project_ref)
+            result = dict(
+                kind="Stage1FullSourceReadingOfferPreview",
+                schema_version="1.0.0",
+                project_ref=project_ref,
+                work_ref=work_ref,
+                operation=FULL_READ_OPERATION,
+                available=False,
+                snapshot_sha256=None,
+                blocked_reason=None,
+                authorization_required=True,
+                execution_authorized=False,
+                scientific_acceptance=False,
+            )
+            if (
+                self.factory is None
+                or self.model is None
+                or self.reading_records is None
+            ):
+                return dict(
+                    result, blocked_reason="reading-model-or-records-unconnected"
+                )
+            try:
+                snapshot = self._operation_reading_snapshot(
+                    FULL_READ_OPERATION, project_ref, work_ref, check_deadline
+                )
+                meta = snapshot["saved_reading"]
+                _check(
+                    type(expected_input_version) is int
+                    and meta["input_version"] == expected_input_version
+                    and meta["ledger_state_sha256"] == expected_ledger_state_sha256,
+                    "reading-library-snapshot-stale",
+                )
+                model_reading_prompt(snapshot)
+                result.update(
+                    available=True,
+                    snapshot_sha256=sha(canonical(snapshot)),
+                    source_count=len(meta["sources"]),
+                    source_failures_count=len(meta["source_failures"]),
+                    identity_statuses=sorted(
+                        {s["identity_status"] for s in meta["sources"]}
+                    ),
+                    saved_text_bytes=sum(s["text_bytes"] for s in meta["sources"]),
+                    entire_saved_text_shown=True,
+                )
+            except SessionApiError as error:
+                result["blocked_reason"] = error.code
+            except (ValueError, OSError, KeyError, TypeError, UnicodeError):
+                result["blocked_reason"] = "reading-saved-source-verification-failed"
+            return result
+
     def reading_offer(
         self,
         credential,
@@ -334,7 +416,7 @@ class ProjectModelService:
                     and snapshot["ledger_state_sha256"] == expected_ledger_state_sha256,
                     "reading-library-snapshot-stale",
                 )
-                reading_prompt(snapshot)
+                model_reading_prompt(snapshot)
                 result.update(
                     available=True,
                     snapshot_sha256=sha(canonical(snapshot)),
@@ -516,7 +598,7 @@ class ProjectModelService:
             == PERMIT_FIELDS
             | (
                 {"work_ref", "snapshot_sha256"}
-                if operation == READ_OPERATION
+                if operation in READING_OPERATIONS
                 else set()
             )
             and permit["kind"] == "ProjectModelOperationPermit"
@@ -540,8 +622,8 @@ class ProjectModelService:
             permit["allow_model_calls"] is True
             and permit["execution_scope"]
             == (
-                READ_SCOPE
-                if operation == READ_OPERATION
+                reading_scope(operation)
+                if operation in READING_OPERATIONS
                 else "project-content-planning-only"
             )
             and permit["external_search"] is False
@@ -571,8 +653,10 @@ class ProjectModelService:
         with self.intake._lock:
             self.intake._load(principal, project_ref)
         snapshot = None
-        if operation == READ_OPERATION:
-            snapshot = self._reading_snapshot(project_ref, permit["work_ref"])
+        if operation in READING_OPERATIONS:
+            snapshot = self._operation_reading_snapshot(
+                operation, project_ref, permit["work_ref"]
+            )
             _check(
                 permit["snapshot_sha256"] == sha(canonical(snapshot)),
                 "reading-permit-snapshot-differs",
@@ -625,7 +709,11 @@ class ProjectModelService:
             "confirmed",
             "user_input",
         }
-        if type(body) is dict and body.get("operation") == READ_OPERATION:
+        if (
+            type(body) is dict
+            and type(body.get("operation")) is str
+            and body.get("operation") in READING_OPERATIONS
+        ):
             fields.update({"work_ref", "snapshot_sha256"})
         _check(
             type(body) is dict
@@ -664,8 +752,10 @@ class ProjectModelService:
             )
             digest = budget_digest(binding)
             snapshot = (
-                self._reading_snapshot(project_ref, body["work_ref"], check_deadline)
-                if body["operation"] == READ_OPERATION
+                self._operation_reading_snapshot(
+                    body["operation"], project_ref, body["work_ref"], check_deadline
+                )
+                if body["operation"] in READING_OPERATIONS
                 else None
             )
             if snapshot is not None:
@@ -725,7 +815,7 @@ class ProjectModelService:
                     self.clock() + seconds, timezone.utc
                 ).isoformat(),
                 allow_model_calls=True,
-                execution_scope=READ_SCOPE
+                execution_scope=reading_scope(body["operation"])
                 if snapshot is not None
                 else "project-content-planning-only",
                 external_search=False,
@@ -835,11 +925,11 @@ class ProjectModelService:
             "scope": "content-only; no search or source acquisition",
             "confirmation_required": True,
         }
-        if context["operation"] == READ_OPERATION:
+        if context["operation"] in READING_OPERATIONS:
             result.update(
                 work_ref=context["work_ref"],
                 snapshot_sha256=context["snapshot_sha256"],
-                scope=READ_SCOPE,
+                scope=reading_scope(context["operation"]),
                 core_claims_created=False,
             )
         return result
@@ -878,8 +968,10 @@ class ProjectModelService:
             and binding["settings"] == offer["context"]["settings"],
             "model-source-version-differs",
         )
-        if offer["context"]["operation"] == READ_OPERATION:
-            snapshot = self._reading_snapshot(ref, offer["context"]["work_ref"])
+        if offer["context"]["operation"] in READING_OPERATIONS:
+            snapshot = self._operation_reading_snapshot(
+                offer["context"]["operation"], ref, offer["context"]["work_ref"]
+            )
             _check(
                 snapshot == offer["context"]["saved_reading"]
                 and sha(canonical(snapshot)) == offer["context"]["snapshot_sha256"],
@@ -1562,7 +1654,7 @@ class ProjectModelService:
                 owner=self._tokens[project_ref],
             )
             job = row["jobs"][key]
-            if offer["context"]["operation"] == READ_OPERATION:
+            if offer["context"]["operation"] in READING_OPERATIONS:
                 job.update(
                     work_ref=offer["context"]["work_ref"],
                     snapshot_sha256=offer["context"]["snapshot_sha256"],
@@ -1659,16 +1751,14 @@ class ProjectModelService:
                     "model-native-action-refused",
                 )
                 if method == "turn/start":
+                    expected = turn_input(
+                        offer["prompt"], offer["context"].get("input_profile")
+                    )
                     _check(
                         payload.get("model") == offer["context"]["model"]
-                        and payload.get("input")
-                        == [
-                            {
-                                "type": "text",
-                                "text": offer["prompt"],
-                                "text_elements": [],
-                            }
-                        ],
+                        and payload.get("input") == expected["input"]
+                        and payload.get("additionalContext")
+                        == expected.get("additionalContext"),
                         "model-native-prompt-differs",
                     )
                 elif method.endswith("requestApproval"):
@@ -1749,11 +1839,9 @@ class ProjectModelService:
                 "status": "content-review-pending",
                 "finished_at": self.clock(),
             }
-            if offer["context"]["operation"] == READ_OPERATION:
+            if offer["context"]["operation"] in READING_OPERATIONS:
                 try:
-                    draft = validate_reading_draft(
-                        raw, offer["context"]["saved_reading"]
-                    )
+                    draft = model_reading_draft(raw, offer["context"]["saved_reading"])
                     artifact = _write_new(
                         folder / "reading-draft.json", canonical(draft) + b"\n"
                     )
