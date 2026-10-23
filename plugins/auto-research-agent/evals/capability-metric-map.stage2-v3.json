@@ -145,6 +145,10 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "projection_resume_contract": "Optional strict projection resume compares exact deterministic existing JSON/Markdown/decision/validator/stage-result bytes and writes only missing projections. Differing or linked evidence is retained and rejected; default explicit export still rebuilds projections. No model, assessment event, authority or rubric changes.",
+      "projection_resume_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_atomic_delivery.py"
       ]
     },
     {
@@ -453,6 +457,11 @@
       "action_outcome_recovery_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller_registration.py",
         "plugins/auto-research-agent/tests/test_stage2_failure_state.py"
+      ],
+      "ordinary_atomic_publication_contract": "Ordinary delivery builds in a private sibling staging directory, validates current workflow/snapshot/review inputs and saves a separate immutable request-bound manifest seal before exclusive native rename. Same-request recovery compares existing payload and checker projection bytes, including completed-but-unsealed deterministic reconstruction, without model redispatch; missing seals, changed inputs, tampering, unbound destinations and uninspected locks fail closed. Unsupported exclusive rename refuses publication. Default ordinary-output behavior and human/execution authority remain unchanged.",
+      "ordinary_atomic_publication_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_atomic_delivery.py",
+        "plugins/auto-research-agent/tests/test_stage2_controller_publication.py"
       ]
     },
     {

@@ -25,7 +25,8 @@ from stage2_common import (
 from stage2_ideation import build_research_task
 from stage2_ideation.integration import build_next_packet
 from stage2_workflow.completion import inspect_completion
-from stage2_workflow.delivery import build_delivery, inspect_delivery
+from stage2_workflow.atomic_delivery import build_atomic_delivery
+from stage2_workflow.delivery import inspect_delivery
 from stage2_workflow.orchestration import prepare_review_batch, reconcile_batch
 from stage2_workflow.reviews import REVIEW_VIEW_VERSION_CURRENT
 from stage2_workflow.store import (
@@ -1515,7 +1516,7 @@ def _run_controller_impl(
         ):
             raise Stage2Error("controller-delivery-binding-changed")
     else:
-        manifest = build_delivery(
+        manifest = build_atomic_delivery(
             run_dir,
             batch,
             reviews,
