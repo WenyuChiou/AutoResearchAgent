@@ -19,6 +19,7 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+            "A compiled-run grant records explicit authenticated user consent separately from budgets, binds principal/project/input/brief/plan/settings and trusted runtime, and derives bounded once-only agent action tokens. Expiry, revocation, clock regression, source/runtime changes and altered consent refuse; grants neither create lane permits nor reset reservations, dispatch providers, accept content or start Stage2. Seven real intake/SQLite cases establish mechanics only; public routes, downstream derivation and full automatic orchestration remain unconnected.",
             "A pure Stage1FullSourceAnalysisProposal contract adds confirmed-need-bound screening and semantic claim proposals to the complete saved-source reading draft. Strict duplicate/nonfinite/raw-byte, field, needs, relation, evidence-index and UTF8 text guards reject malformed input. Exact quote checks remain mechanical; actor identity, evidence level, canonical claim IDs, adoption, human/Core/scientific acceptance and execution authority are not created. Ten synthetic pure cases are implementation evidence only; no model or research call is made.",
             "The separately selected read-full-paper operation reuses current saved-source SDK/ledger guards and the confirmed brief, then supplies every pinned saved text byte through the versioned full-source input profile. Existing read-paper remains bounded by its legacy prompt guard. A full-source preview creates no permit or call; explicit project/version/source/snapshot/prompt/profile authorization, a once-only shared queue and frozen-input rechecks precede the deny-only model seam. Output remains a mechanically verified draft with no canonical claims, researcher or scientific acceptance; synthetic long-tail/negative/replay/factory tests are implementation evidence only.",
             "The separately selected analyze-full-paper operation returns a strict confirmed-need-linked reading/screening/claim proposal over the same complete saved-source wrapper. Explicit once-only authorization, source/profile/prompt/factory checks and durable no-resend history remain required. Analysis artifacts are separately projected from legacy reading drafts and confer no canonical, human, Core or scientific acceptance; bounded synthetic wrapper/dispatch/real-queue tests do not prove a live model read.",
@@ -443,7 +444,9 @@
         "plugins/auto-research-agent/tests/test_project_saved_views_browser.py",
         "plugins/auto-research-agent/tests/test_full_source_transport.py",
         "plugins/auto-research-agent/tests/test_project_stage1_identity_import.py",
-        "plugins/auto-research-agent/tests/browser/project-imported-overview-test.cjs"
+        "plugins/auto-research-agent/tests/browser/project-imported-overview-test.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_grant.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_grant_boundary.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
