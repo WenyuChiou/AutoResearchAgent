@@ -79,7 +79,8 @@
             "Offline real Core/SQLite revision cases retain both version ledgers and lifetime charges, block unknown/bootstrap/parser gaps, recover close-before-brief-write failure without resend, and require explicit old-owner restoration after reopen. Installed Chrome renders three-language current/lifetime/archive labels using synthetic API observations; no actual search, model or scientific acceptance is demonstrated.",
             "Same-page browser cases use two distinct saved repository deliveries, an empty project and a revised input without a result; switching, refresh and trilingual navigation perform zero POSTs and leave SQLite/ledger bytes unchanged. These cases test UI binding, not native research completion or quality.",
             "Saved package reviews preserve original UTF-8 text and opinions in the existing SQLite feedback journal; wrong project/work/version/source/offer/principal and stale revisions refuse. Two handles deduplicate identical keys, serialize distinct keys by review revision, and retain passive history/replay after source drift; source changes or deadline failure around insertion roll back new writes.",
-            "Saved-review queue tests use real SQLite reopen and concurrent handles to verify source-request key/hash/revision binding, queue CAS and deduplication, fixed receiving-owner authorization, deadline/source/result rollback and exact result pins. A later opinion does not invalidate an older request; no worker or model is launched."
+            "Saved-review queue tests use real SQLite reopen and concurrent handles to verify source-request key/hash/revision binding, queue CAS and deduplication, fixed receiving-owner authorization, deadline/source/result rollback and exact result pins. A later opinion does not invalidate an older request; no worker or model is launched.",
+            "Read-only Stage2 selection views reopen the externally hashed package and current workflow, bind the exact host project/input/brief and active workflow root, preserve material/source unknowns, and recheck deadlines after verification. Real offline Core/SQLite fixtures refuse wrong hashes, versions, foreign roots and principals without changing workflow or project state; browser/selection/Stage3 acceptance is separate."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         },
@@ -219,7 +220,8 @@
         "Run-context capture preserves the fixed durable-intent prefix before its own successful delivery event, rejects source/CAS or resource drift, keeps partial failures and original idempotent receipts, and never upgrades legacy packages, scientific acceptance or Stage2 authority.",
         "Saved review registration is trusted local bootstrap only with independent external pins and private fixed paths. Browser callers cannot supply registration roots or trusted principal identities. A new saved_review_ref never substitutes for an active project, original run or CoverageLedger; recorded review/correction/handoff intent cannot accept Stage1 or dispatch Stage2. HTTP authentication/wiring and independent Core acceptance remain external.",
         "Saved-review maintenance admission is explicit and uses fixed trusted operation-to-owner/principal routing. Original recorded-not-dispatched opinions are immutable; queued, owner-claimed and owner-reported results never grant native/research execution, scientific certification, Core acceptance or Stage2 import. New writes recheck independent registration and exact source pins; passive recovery never redispatches. Owner reports bind real result bytes under a private fixed result root and are not independent acceptance.",
-        "Neither a callback nor a typed progress projection grants model/search/source authority, Core acceptance, Wiki acceptance or Stage2 research. Automatic continuation requires reopened existing receipts and halts at unknown/unconnected phases, changed bindings, missing handlers, deadlines, administrative bounds or review barriers."
+        "Neither a callback nor a typed progress projection grants model/search/source authority, Core acceptance, Wiki acceptance or Stage2 research. Automatic continuation requires reopened existing receipts and halts at unknown/unconnected phases, changed bindings, missing handlers, deadlines, administrative bounds or review barriers.",
+        "ProjectStage2SelectionView is read-only trusted host composition: no browser-selected filesystem paths, user selection, native/model/research calls or execution authority. Candidate materials and recommendations retain their original evidence and unknowns."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
@@ -425,7 +427,8 @@
         "plugins/auto-research-agent/tests/test_project_stage1_continuation.py",
         "plugins/auto-research-agent/tests/test_project_stage1_auto.py",
         "plugins/auto-research-agent/tests/project_stage1_auto_cases.py",
-        "plugins/auto-research-agent/tests/test_saved_admission_input_versions.py"
+        "plugins/auto-research-agent/tests/test_saved_admission_input_versions.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_view.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
