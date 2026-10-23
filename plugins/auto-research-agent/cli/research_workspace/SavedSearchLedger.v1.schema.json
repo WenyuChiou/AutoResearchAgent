@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pinned saved search ledger attachment specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "input_version", "ledger", "snapshot", "receipts"],
+  "properties": {
+    "contract_version": {"const": "S1-SAVED-SEARCH-LEDGER-1.0.0"},
+    "input_version": {"type": "string", "minLength": 1, "maxLength": 160},
+    "ledger": {"$ref": "#/$defs/document"},
+    "snapshot": {"$ref": "#/$defs/document"},
+    "receipts": {
+      "type": "object", "minProperties": 1, "maxProperties": 512,
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["receipt"],
+        "properties": {
+          "receipt": {"$ref": "#/$defs/document"},
+          "query_parameters": {"$ref": "#/$defs/reference"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "reference": {
+      "type": "object", "additionalProperties": false, "required": ["path", "pointer"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 512},
+        "pointer": {"type": "string", "pattern": "^(|/.*)$", "maxLength": 512}
+      }
+    },
+    "document": {
+      "allOf": [{"$ref": "#/$defs/reference"}, {"properties": {"pointer": {"const": ""}}}]
+    }
+  }
+}

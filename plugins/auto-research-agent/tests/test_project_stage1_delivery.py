@@ -1289,9 +1289,20 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
             with self.assertRaises(SessionApiError) as error:
                 self.delivery.deliver("alice-token", fixture["ref"], body)
         self.assertEqual(error.exception.receipt["status"], "execution-unknown")
-        manifests = list(self.intake_root.rglob("provenance_manifest.json"))
+        manifests = [
+            path
+            for path in self.intake_root.rglob("provenance_manifest.json")
+            if path.parent.name != "canonical"
+        ]
         self.assertEqual(len(manifests), 1)
         original = manifests[0].read_bytes()
+        contexts = list(self.intake_root.rglob("run-context.json"))
+        self.assertEqual(len(contexts), 1)
+        copied = contexts[0].parent / "canonical/provenance_manifest.json"
+        self.assertEqual(copied.read_bytes(), original)
+        retained = {
+            path: path.read_bytes() for path in [manifests[0], copied, contexts[0]]
+        }
         self.reopen()
         with patch(
             "research_workspace_native.project_stage1_delivery.package.build"
@@ -1300,7 +1311,7 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
             self.assertTrue(replay["replayed"])
             self.assertEqual(replay["status"], "execution-unknown")
             build.assert_not_called()
-        self.assertEqual(manifests[0].read_bytes(), original)
+        self.assertEqual({path: path.read_bytes() for path in retained}, retained)
         self.assertIsNone(
             self.delivery.read("alice-token", fixture["ref"])["canonical_package"]
         )

@@ -448,6 +448,11 @@
       "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
       "direct_request_entry_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "action_outcome_recovery_contract": "Retain completed invocation output separately from failed finalization. Observed authentication, rate limits, JSON format, real subprocess deadlines and cleanup are distinct; preserve primary failure, cleanup status and capture receipt, and replay verified failed metadata without dispatch. Failure classification grants no retry or budget authority. Unknown remains unknown.",
+      "action_outcome_recovery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_registration.py",
+        "plugins/auto-research-agent/tests/test_stage2_failure_state.py"
       ]
     },
     {
@@ -577,6 +582,10 @@
       "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
       "direct_request_entry_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "decision_card_rendering_contract": "Pure deterministic Markdown and script-free escaped HTML views render the same current-version decision-card questions, proposed methods, requirements, resource mappings, unmapped resources, unknowns, evidence bindings, limitations, alternatives and next checks. Rendering does not declare any resource available or adequate, make a human selection, authorize or execute Stage3, rerun models, or claim scientific improvement.",
+      "decision_card_rendering_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_decision_card_views.py"
       ]
     },
     {
