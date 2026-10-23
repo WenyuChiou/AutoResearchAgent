@@ -30,6 +30,19 @@ def main(argv=None):
     legacy_inspect = commands.add_parser("inspect-legacy-mapping")
     legacy_inspect.add_argument("--package", required=True)
     legacy_inspect.add_argument("--expected-manifest-sha256", required=True)
+    evaluation_prepare = commands.add_parser("evaluation-prepare")
+    evaluation_prepare.add_argument("--package", required=True)
+    evaluation_prepare.add_argument("--expected-manifest-sha256", required=True)
+    evaluation_prepare.add_argument("--output", required=True)
+    evaluation_record = commands.add_parser("evaluation-record")
+    for name in (
+        "request",
+        "expected-request-sha256",
+        "judgment",
+        "expected-judgment-sha256",
+        "output",
+    ):
+        evaluation_record.add_argument("--" + name, required=True)
     from .workflow_cli import add_commands
 
     add_commands(commands)
@@ -88,6 +101,24 @@ def main(argv=None):
             result = inspect_legacy_mapping(
                 args.package,
                 expected_manifest_sha256=args.expected_manifest_sha256,
+            )
+        elif args.command == "evaluation-prepare":
+            from .evaluation import prepare_evaluation
+
+            result = prepare_evaluation(
+                args.package,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+                output=args.output,
+            )
+        elif args.command == "evaluation-record":
+            from .evaluation import record_evaluation
+
+            result = record_evaluation(
+                args.request,
+                expected_request_sha256=args.expected_request_sha256,
+                judgment=args.judgment,
+                expected_judgment_sha256=args.expected_judgment_sha256,
+                output=args.output,
             )
         elif args.command.startswith("workflow-"):
             from .workflow_cli import run
@@ -163,15 +194,17 @@ def main(argv=None):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except (Stage3Error, OSError, ValueError) as error:
+        failure = {
+            "status": "failed",
+            "error": str(error),
+            "execution_authorized": False,
+        }
+        if args.command.startswith("evaluation-"):
+            failure["evaluation_calls_authorized"] = False
+            failure["formal_execution_enabled"] = False
+            failure["external_claim_ready"] = False
         print(
-            json.dumps(
-                {
-                    "status": "failed",
-                    "error": str(error),
-                    "execution_authorized": False,
-                },
-                ensure_ascii=False,
-            ),
+            json.dumps(failure, ensure_ascii=False),
             file=sys.stderr,
         )
         return 1
