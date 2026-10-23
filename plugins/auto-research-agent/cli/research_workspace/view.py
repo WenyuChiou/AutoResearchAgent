@@ -490,6 +490,20 @@ def _write_view(
                 )
             }
         )
+    if (
+        index.get("original_record_recovery", {})
+        .get("payload", {})
+        .get("saved_search_ledger")
+    ):
+        manifest["adapter_sources"].update(
+            {
+                name: sha(Path(__file__).with_name(name).read_bytes())
+                for name in (
+                    "saved_search_ledger.py",
+                    "SavedSearchLedger.v1.schema.json",
+                )
+            }
+        )
     if canonical_rebuild is not None:
         manifest["rebuild"].update(canonical_rebuild)
         manifest["adapter_sources"]["canonical_delivery.py"] = sha(
