@@ -690,6 +690,29 @@ class ProjectStage2Service:
         )
         return verified
 
+    def recover_frontier(
+        self,
+        project_ref,
+        *,
+        key,
+        expected_activation_sha256,
+        expected_previous_head_sha256,
+        new_workflow_head_sha256,
+        check_deadline=None,
+    ):
+        """Revalidate completed metadata after a failed commit; never run a producer."""
+        from .project_stage2_frontier_recovery import recover_completed_frontier
+
+        return recover_completed_frontier(
+            self,
+            project_ref,
+            key=key,
+            expected_activation_sha256=expected_activation_sha256,
+            expected_previous_head_sha256=expected_previous_head_sha256,
+            new_workflow_head_sha256=new_workflow_head_sha256,
+            check_deadline=check_deadline,
+        )
+
     def advance_frontier(
         self,
         project_ref,

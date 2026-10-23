@@ -428,7 +428,11 @@
         "plugins/auto-research-agent/tests/test_saved_admission_input_versions.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
-      "quality_improvement_claimed": false
+      "quality_improvement_claimed": false,
+      "stage2_frontier_recovery_contract": "Explicit trusted metadata-only recovery retains the same action key and independently reopens current project/source/activation and saved workflow event bindings. Only a post-work-before-commit execution-unknown receipt whose exact observation matches fresh journal reconstruction can be saved. Failures, unknown work, tampering and changed requests remain held; repeated recovery validates the saved receipt against journal history. No producer, browser route, research, user selection or execution authority is added.",
+      "stage2_frontier_recovery_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_frontier.py"
+      ]
     },
     {
       "capability_id": "cli:research-workspace",

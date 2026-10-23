@@ -119,7 +119,7 @@ def _validate_decision(decision, text):
         _require(not keys, "nonselection-cannot-select")
 
 
-def _record(state, delivery, decision, raw, message_index):
+def _record(state, delivery, decision, raw, message_index, *, input_origin=None):
     manifest = delivery["manifest"]
     snapshot_hash = state["latest_snapshot"]["event"]["payload"]["snapshot_sha256"]
     _require(
@@ -197,6 +197,12 @@ def _record(state, delivery, decision, raw, message_index):
         "execution_authorized": False,
         "authority_boundary": "Native message role/text and file bytes are checked; the host must establish actual human origin and interpretation. This record grants no tool permissions.",
     }
+    if input_origin is not None:
+        result.update(
+            schema_version="1.1.0",
+            input_origin=copy.deepcopy(input_origin),
+            authority_boundary="ProjectHost retained a confirmed UI request. Request bytes, project and report bindings are checked; actual human identity and semantic interpretation are not established. This record grants no execution permissions.",
+        )
     result["record_sha256"] = canonical_hash(result)
     return result
 
@@ -211,12 +217,61 @@ def record_interaction(
     action_id,
     output_dir,
     expected_head,
+    *,
+    input_origin="native-codex",
+    expected_message_sha256=None,
+    expected_project_ref=None,
+    expected_input_version=None,
 ):
     """Append one user decision through existing action records, retaining its source."""
     state = inspect_workflow(run_dir, expected_head)
     delivery = inspect_delivery(delivery_dir, manifest_sha256)
     raw = Path(message_path).read_bytes()
-    text = _user_text(raw, message_index)
+    origin = None
+    message_file = "native-user-message.jsonl"
+    settings = SETTINGS
+    if input_origin == "projecthost-ui-submission":
+        from .ui_submission import (
+            read_ui_submission,
+            submission_origin,
+            UI_MESSAGE_FILE,
+        )
+
+        _require(
+            hashlib.sha256(raw).hexdigest() == expected_message_sha256,
+            "projecthost-submission-receipt-mismatch",
+        )
+        _require(message_index == 0, "projecthost-submission-index")
+        _require(
+            isinstance(expected_project_ref, str)
+            and bool(expected_project_ref.strip())
+            and type(expected_input_version) is int
+            and expected_input_version > 0,
+            "projecthost-submission-trusted-context-required",
+        )
+        submission = read_ui_submission(
+            raw,
+            expected={
+                "project_ref": expected_project_ref,
+                "input_version": expected_input_version,
+                "workflow_manifest_sha256": state["manifest"]["manifest_sha256"],
+                "workflow_head_sha256": delivery["manifest"]["workflow_head_sha256"],
+                "snapshot_sha256": delivery["manifest"]["snapshot_sha256"],
+                "delivery_manifest_sha256": manifest_sha256,
+                "decision": decision,
+            },
+        )
+        origin = submission_origin(submission)
+        text = submission["decision"]["user_text"]
+        message_file = UI_MESSAGE_FILE
+        settings = {
+            "contract": "stage2-human-interaction",
+            "version": "1.1.0",
+            "input_origin": input_origin,
+        }
+    else:
+        _require(input_origin == "native-codex", "human-input-origin-unsupported")
+        text = _user_text(raw, message_index)
     _validate_decision(decision, text)
     inputs = {
         "delivery_manifest_sha256": manifest_sha256,
@@ -224,30 +279,32 @@ def record_interaction(
         "message_sha256": hashlib.sha256(raw).hexdigest(),
         "message_index": message_index,
     }
+    if origin is not None:
+        inputs["input_origin"] = origin
     if action_id in state["actions"]:
         reused = start_action(
-            run_dir, action_id, "human-interaction", inputs, SETTINGS, expected_head
+            run_dir, action_id, "human-interaction", inputs, settings, expected_head
         )
         ref = reused["result"]["artifacts"]["interaction.json"]
         saved = decode_json(
             (state["root"] / ref["stored_path"]).read_bytes(), "saved interaction"
         )
         return {"reuse": True, "record": saved, "head_sha256": state["head_sha256"]}
-    record = _record(state, delivery, decision, raw, message_index)
+    record = _record(state, delivery, decision, raw, message_index, input_origin=origin)
     output = Path(output_dir).resolve()
     _require(not output.exists(), "human-output-exists")
     output.mkdir(parents=False)
     # Preserve complete user evidence before recording success; a partial
     # publication remains incomplete and is never silently retried.
     intent = start_action(
-        run_dir, action_id, "human-interaction", inputs, SETTINGS, expected_head
+        run_dir, action_id, "human-interaction", inputs, settings, expected_head
     )
     artifacts = {}
     values = {
         "interaction.json": json.dumps(
             record, ensure_ascii=False, sort_keys=True, allow_nan=False
         ).encode("utf-8"),
-        "native-user-message.jsonl": raw,
+        message_file: raw,
         "delivery_manifest.json": (
             delivery["root"] / "delivery_manifest.json"
         ).read_bytes(),
