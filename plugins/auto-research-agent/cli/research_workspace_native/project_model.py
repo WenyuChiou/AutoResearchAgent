@@ -26,6 +26,7 @@ from stage1_deliverable.common import (
     sha,
 )
 from stage1_ledger.journal import decode
+from . import project_model_run as run_adapter
 from .session_api import MAX_MODEL_INPUT_BYTES, SessionApiError, _check
 from .stage_run_service import StageUnitProvider
 from .transport import validate_answer
@@ -226,6 +227,8 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
         )
     if permit["operation"] in FULL_SOURCE_OPERATIONS:
         context["input_profile"] = FULL_SOURCE_PROFILE
+    if "run_request" in permit:
+        context["run_request"] = deepcopy(permit["run_request"])
     context["source_sha256"] = sha(canonical(context))
     offer_hash = sha(canonical(context))
     return dict(
@@ -256,12 +259,14 @@ class ProjectModelService:
         model=None,
         local_cap_seconds=600,
         reading_records=None,
+        run_grants=None,
     ):
         _check(
             provider_factory is None or callable(provider_factory),
             "model-provider-factory-invalid",
         )
         self.intake, self.factory = intake, provider_factory
+        self.run_grants = run_adapter.configured(intake, run_grants)
         self.clock, self.monotonic = clock, monotonic
         _check(
             model is None
@@ -623,8 +628,10 @@ class ProjectModelService:
                 if operation in READING_OPERATIONS
                 else set()
             )
+            | ({"run_request"} if permit.get("schema_version") == "1.1.0" else set())
             and permit["kind"] == "ProjectModelOperationPermit"
-            and permit["schema_version"] == "1.0.0",
+            and type(permit["schema_version"]) is str
+            and permit["schema_version"] in {"1.0.0", "1.1.0"},
             "model-permit-fields",
         )
         binding = self.intake.brief_binding(
@@ -674,6 +681,7 @@ class ProjectModelService:
         principal = permit["principal"]
         with self.intake._lock:
             self.intake._load(principal, project_ref)
+        run_adapter.check_permit(self, project_ref, permit, permit_sha256)
         snapshot = None
         if operation in READING_OPERATIONS:
             snapshot = self._operation_reading_snapshot(
@@ -714,7 +722,15 @@ class ProjectModelService:
         )
         return self._public_offer(record)
 
-    def authorize(self, credential, project_ref, body, *, check_deadline=None):
+    def authorize(
+        self,
+        credential,
+        project_ref,
+        body,
+        *,
+        check_deadline=None,
+        run_authorization=None,
+    ):
         """Explicit local researcher authorization; never starts a model unit.
 
         A draft resource request alone supplies no authority. This action binds
@@ -744,11 +760,26 @@ class ProjectModelService:
             "model-authorization-fields",
             400,
         )
+        guard = run_adapter.request(
+            self,
+            credential,
+            project_ref,
+            body,
+            run_authorization,
+            action="model-authorize",
+            operation=body["operation"],
+        )
+        if guard is not None:
+            check_deadline = guard.deadline_check(check_deadline)
         identifier(body["key"])
         _check(
             type(body["operation"]) is str
             and body["operation"] in OPERATIONS
-            and body["confirmed"] is True
+            and (
+                body["confirmed"] is True
+                if guard is None
+                else body["confirmed"] is False
+            )
             and type(body["user_input"]) is str
             and body["user_input"].strip()
             and len(body["user_input"].encode("utf8")) <= 8192,
@@ -819,6 +850,8 @@ class ProjectModelService:
                     scope["calls"] < budgets["model_calls"], "model-budget-exhausted"
                 )
                 seconds = min(seconds, math.floor(scope["deadline_at"] - self.clock()))
+            if guard is not None:
+                seconds = min(seconds, guard.remaining_seconds())
             _check(seconds > 0, "model-budget-exhausted")
             permit = dict(
                 kind="ProjectModelOperationPermit",
@@ -847,6 +880,7 @@ class ProjectModelService:
                 permit.update(
                     work_ref=body["work_ref"], snapshot_sha256=sha(canonical(snapshot))
                 )
+            permit.update(run_adapter.permit_fields(guard))
             raw = canonical(permit) + b"\n"
             name = "content-permit-" + request_hash + ".json"
             record = _offer_record(binding, permit, sha(raw), project_ref, snapshot)
@@ -881,7 +915,7 @@ class ProjectModelService:
             principal,
             project_ref,
             "model-authorization",
-            deepcopy(body),
+            deepcopy(body) if guard is None else deepcopy(guard.request),
             work,
             check_deadline=check_deadline,
         )
@@ -976,6 +1010,9 @@ class ProjectModelService:
         _check(
             sha(registration["path"].read_bytes()) == registration["permit_sha256"],
             "model-permit-changed",
+        )
+        run_adapter.check_permit(
+            self, ref, registration["permit"], registration["permit_sha256"]
         )
         if not allow_expired:
             _check(self.clock() < registration["expires"], "model-permit-expired")
@@ -1534,7 +1571,15 @@ class ProjectModelService:
             credential, project_ref, "interrupt", body, check_deadline
         )
 
-    def execute(self, credential, project_ref, body, *, check_deadline=None):
+    def execute(
+        self,
+        credential,
+        project_ref,
+        body,
+        *,
+        check_deadline=None,
+        run_authorization=None,
+    ):
         _check(
             type(body) is dict
             and set(body) == BODY_FIELDS
@@ -1552,8 +1597,8 @@ class ProjectModelService:
             "model-action-binding-invalid",
             400,
         )
-        _check(body["confirmed"] is True, "model-explicit-confirmation-required", 400)
         principal = self.intake._principal(credential)
+        guard = None
         with self.intake._lock:
             state = self.intake._load(principal, project_ref)
             offer = deepcopy(
@@ -1570,6 +1615,30 @@ class ProjectModelService:
             and body["brief_sha256"] == offer["context"]["brief_sha256"],
             "model-action-input-differs",
         )
+        guard = run_adapter.request(
+            self,
+            credential,
+            project_ref,
+            body,
+            run_authorization,
+            action="model-execute",
+            operation=offer["context"]["operation"],
+        )
+        _check(
+            body["confirmed"] is True if guard is None else body["confirmed"] is False,
+            "model-explicit-confirmation-required",
+            400,
+        )
+        if guard is not None:
+            _check(
+                offer["context"]
+                .get("run_request", {})
+                .get("run_authority", {})
+                .get("grant_sha256")
+                == guard.token.grant_sha256,
+                "model-run-offer-grant-differs",
+            )
+            check_deadline = guard.deadline_check(check_deadline)
         key = body["key"]
 
         def reserve(state, request_hash, actor):
@@ -1632,6 +1701,8 @@ class ProjectModelService:
                 and scope["calls"] < budgets["model_calls"],
                 "model-budget-exhausted",
             )
+            if guard is not None:
+                deadline = min(deadline, self.clock() + guard.remaining_seconds())
             started_at = self.clock()
             reserve_resource(
                 self.intake,
@@ -1677,6 +1748,8 @@ class ProjectModelService:
                 owner=self._tokens[project_ref],
             )
             job = row["jobs"][key]
+            if guard is not None:
+                job["run_request"] = deepcopy(guard.request)
             if offer["context"]["operation"] in READING_OPERATIONS:
                 job.update(
                     work_ref=offer["context"]["work_ref"],
@@ -1698,7 +1771,7 @@ class ProjectModelService:
             principal,
             project_ref,
             "model-operation",
-            deepcopy(body),
+            deepcopy(body) if guard is None else deepcopy(guard.request),
             queued,
             reserve=reserve,
             check_deadline=check_deadline,
@@ -1740,6 +1813,7 @@ class ProjectModelService:
             "model-admission-binding-differs",
         )
         self._guard(ref, offer)
+        run_adapter.check_job(self, principal, ref, key)
 
         def admit(state):
             resource_view(self.intake, state, principal)
@@ -1797,6 +1871,7 @@ class ProjectModelService:
     def _run(self, principal, ref, key, offer):
         provider: StageUnitProvider | None = None
         try:
+            run_adapter.check_job(self, principal, ref, key)
             self._guard(ref, offer)
 
             def running(state):
@@ -1814,6 +1889,7 @@ class ProjectModelService:
                 principal, ref, self._job(principal, ref, key), create=True
             )
             self._guard(ref, offer)
+            run_adapter.check_job(self, principal, ref, key)
             provider = self.factory(
                 context=context,
                 admit=lambda event: self._admit(principal, ref, key, offer, event),
