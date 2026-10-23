@@ -592,3 +592,17 @@ New saved Stage1 deliveries bind a [portable run context](RUN_CONTEXT.md) beside
 the unchanged canonical package. Its external hash, exact input/run/source
 records and resource-event prefix stay bound to the durable delivery result.
 The receiving CLI checks saved bytes only; research/Core/Stage2 gates stay separate.
+
+## Saved package review without an active project
+
+The [saved-package review adapter](SAVED_PACKAGE_REVIEW.md) extends the private
+maintenance inbox with trusted snapshot registrations and durable original-text
+review, correction and Stage2 handoff-request receipts. Exact work/version/source
+offers, revision CAS and same-key replay retain old evidence without constructing
+an active project or historical ledger. This local Python API/CLI grants no
+research execution or Core acceptance; UI/Core HTTP wiring and actual acceptance
+remain separate.
+
+## Explicit saved-request maintenance queue
+
+The [saved review queue](SAVED_REVIEW_QUEUE.md) adds explicit authorized admission, receiving-owner claims, source-bound result reports and passive recovery using the existing private inbox. Original opinions remain recorded-not-dispatched. It adds no automatic worker, model/research execution, scientific certification, Core acceptance or Stage2 import.
