@@ -457,6 +457,10 @@
     },
     {
       "capability_id": "cli:stage2-workflow",
+      "decision_card_material_mapping_contract": "Pure current-version decision-card JSON preserves scientific questions, closest precedent, proposed difference, methods, requirements and exact resource rows. Per-question mappings and unmapped resources remain distinct; mapped does not attest adequacy or availability. Missing legacy scientific arguments, unknowns, limitations, alternatives and next checks remain visible without mutating selection bytes, granting selection or Stage3 execution, rerunning models, or claiming scientific improvement.",
+      "decision_card_material_mapping_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_decision_cards.py"
+      ],
       "prior_work_delivery_input_mechanism": "Ordinary delivery validates the authenticated checker storage projection against its root and requires exact restored original packet binding. A temporary, hash-checked original-path namespace combines retained source and prior-work receipt snapshots for the separate delivery checker, without rewriting the workflow, sources or captures. Portable inspection retains receipt identity and hash checks; unknowns, missing independent reviews, human selection and Stage3 execution gates remain unchanged. Mechanical delivery repair does not establish research acceptance or scientific improvement.",
       "prior_work_delivery_input_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py",
