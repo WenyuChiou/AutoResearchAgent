@@ -448,10 +448,19 @@
       "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
       "direct_request_entry_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "action_outcome_recovery_contract": "Retain completed invocation output separately from failed finalization. Observed authentication, rate limits, JSON format, real subprocess deadlines and cleanup are distinct; preserve primary failure, cleanup status and capture receipt, and replay verified failed metadata without dispatch. Failure classification grants no retry or budget authority. Unknown remains unknown.",
+      "action_outcome_recovery_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_registration.py",
+        "plugins/auto-research-agent/tests/test_stage2_failure_state.py"
       ]
     },
     {
       "capability_id": "cli:stage2-workflow",
+      "decision_card_material_mapping_contract": "Pure current-version decision-card JSON preserves scientific questions, closest precedent, proposed difference, methods, requirements and exact resource rows. Per-question mappings and unmapped resources remain distinct; mapped does not attest adequacy or availability. Missing legacy scientific arguments, unknowns, limitations, alternatives and next checks remain visible without mutating selection bytes, granting selection or Stage3 execution, rerunning models, or claiming scientific improvement.",
+      "decision_card_material_mapping_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_decision_cards.py"
+      ],
       "prior_work_delivery_input_mechanism": "Ordinary delivery validates the authenticated checker storage projection against its root and requires exact restored original packet binding. A temporary, hash-checked original-path namespace combines retained source and prior-work receipt snapshots for the separate delivery checker, without rewriting the workflow, sources or captures. Portable inspection retains receipt identity and hash checks; unknowns, missing independent reviews, human selection and Stage3 execution gates remain unchanged. Mechanical delivery repair does not establish research acceptance or scientific improvement.",
       "prior_work_delivery_input_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py",
