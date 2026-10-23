@@ -207,11 +207,16 @@ class ProjectIntakeService:
                     )
                     row, _, _ = self._brief(state)
                     _check(
-                        type(body["input_version"]) is int
+                        type(body["input_version"]) is type(state["input_version"])
                         and body["input_version"] == state["input_version"]
                         and body["brief_sha256"] == row["sha256"],
                         "intake-source-version-differs",
                     )
+                _check(
+                    "stage1_import" not in state
+                    or kind.startswith(("stage2-", "stage3-")),
+                    "imported-intake-is-read-only",
+                )
                 if check_deadline is not None:
                     check_deadline()
                 if reserve is not None:
@@ -706,6 +711,10 @@ class ProjectIntakeService:
                     "execution_authorized": False,
                 }
             row, path, brief = self._brief(state)
+            if "stage1_import" in state:
+                from .project_stage1_import import imported_binding
+
+                imported_binding(self, state)
             report = validate_brief(brief)
             if state["plan"] is not None:
                 validate_bound_plan(
@@ -719,7 +728,9 @@ class ProjectIntakeService:
                 "brief_sha256": row["sha256"],
                 "brief": brief,
                 "intake_report": report,
-                "formal_question": formal_question(brief),
+                "formal_question": None
+                if "stage1_import" in state
+                else formal_question(brief),
                 "suggested_priority_target": 30,
                 "settings": deepcopy(state["settings"]),
                 "plan": None
@@ -729,7 +740,9 @@ class ProjectIntakeService:
                 },
                 "stage1_intake_ready": report["necessary_clarification_complete"]
                 and state["plan"] is not None,
-                "stage1_status": "not-started",
+                "stage1_status": "imported-verified-delivery"
+                if "stage1_import" in state
+                else "not-started",
                 "stage2_status": "not-started",
                 "later_stages": {
                     str(i): {"status": "planned", "connected": False}
@@ -833,6 +846,10 @@ class ProjectIntakeService:
             ).fetchone()
             _check(row is not None, "project-unavailable", 404)
             state = self._load(row[0], project_ref)
+            if "stage1_import" in state:
+                from .project_stage1_import import imported_binding
+
+                return imported_binding(self, state)
             brief, path, value = self._brief(state)
             validate_brief(value, require_confirmed=True)
             _check(

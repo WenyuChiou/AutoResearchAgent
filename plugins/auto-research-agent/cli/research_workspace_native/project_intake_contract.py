@@ -181,8 +181,15 @@ def refusal_shape(kind, body, key, project_ref):
         return (
             type(body["revision"]) is int
             and body["revision"] >= 0
-            and type(body["input_version"]) is int
-            and body["input_version"] > 0
+            and (
+                (type(body["input_version"]) is int and body["input_version"] > 0)
+                or (
+                    kind.startswith(("stage2-", "stage3-"))
+                    and type(body["input_version"]) is str
+                    and 0 < len(body["input_version"].encode("utf-8")) <= 128
+                    and bool(body["input_version"].strip())
+                )
+            )
             and type(body["brief_sha256"]) is str
             and re.fullmatch("[0-9a-f]{64}", body["brief_sha256"]) is not None
         )
