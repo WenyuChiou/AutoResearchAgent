@@ -276,6 +276,23 @@ class HostReplay:
             "core_acceptance": False,
         }
 
+    def snapshot(self, root, snapshot_ref):
+        """Recheck a shared context before another consumer uses its snapshot."""
+        require(
+            snapshot_ref == self._receipt["snapshot_ref"], "snapshot reference differs"
+        )
+        snapshot = read_bound_json(root, snapshot_ref)
+        ref = snapshot["bindings"]["deliverable"]
+        require(
+            (snapshot["project_id"], snapshot["input_version"])
+            == (self._receipt["project_id"], self._receipt["input_version"])
+            and type(snapshot["input_version"]) is type(self._receipt["input_version"])
+            and ref["sha256"] == self._receipt["canonical_manifest_sha256"]
+            and safe_path(root, ref["path"]).parent == self._root,
+            "snapshot package or project/input differs",
+        )
+        return snapshot
+
 
 def load_host_replay(
     receipt_path,
@@ -299,7 +316,8 @@ def load_host_replay(
     snapshot = read_bound_json(evidence_root, snapshot_ref)
     require(
         (receipt["project_id"], receipt["input_version"])
-        == (snapshot["project_id"], snapshot["input_version"]),
+        == (snapshot["project_id"], snapshot["input_version"])
+        and type(receipt["input_version"]) is type(snapshot["input_version"]),
         "project/input differs",
     )
     ref = snapshot["bindings"]["deliverable"]

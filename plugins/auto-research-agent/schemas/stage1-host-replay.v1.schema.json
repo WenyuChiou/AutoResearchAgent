@@ -8,7 +8,7 @@
     "kind": {"const": "HostReplayReceipt"},
     "schema_version": {"const": "1.0.0"},
     "project_id": {"type": "string", "minLength": 1},
-    "input_version": {"type": "string", "minLength": 1},
+    "input_version": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer", "minimum": 1}]},
     "snapshot_ref": {"$ref": "#/$defs/ref"},
     "canonical_manifest_sha256": {"$ref": "#/$defs/hash"},
     "historical_producer": {"$ref": "#/$defs/producer"},

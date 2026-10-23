@@ -415,6 +415,7 @@ def inspect_saved_admission(
     trusted_host_replay_sha256=None,
     historical_exporter_root=None,
     replayer_exporter_root=None,
+    host_replay=None,
 ):
     """Recompute prerequisites and bound external acceptance without minting approval.
 
@@ -434,7 +435,18 @@ def inspect_saved_admission(
         or all(value is not None for value in replay_args),
         "all host replay inputs required",
     )
-    host_replay = None
+    require(
+        host_replay is None or all(value is None for value in replay_args),
+        "supply one verified host replay context or its raw inputs",
+    )
+    if host_replay is not None:
+        from .host_replay import HostReplay
+
+        require(isinstance(host_replay, HostReplay), "verified host replay required")
+        require(
+            host_replay.snapshot(root, snapshot_ref) == snapshot,
+            "host replay snapshot changed",
+        )
     if host_replay_receipt is not None:
         from .host_replay import load_host_replay
 
@@ -453,13 +465,15 @@ def inspect_saved_admission(
     validate_brief(brief, require_confirmed=True)
     require(
         (brief["project_id"], brief["input_version"])
-        == (snapshot["project_id"], snapshot["input_version"]),
+        == (snapshot["project_id"], snapshot["input_version"])
+        and type(brief["input_version"]) is type(snapshot["input_version"]),
         "brief identity mismatch",
     )
     control = read_bound_json(root, bindings["resources"])
     require(
         (control.get("project_id"), control.get("input_version"))
-        == (snapshot["project_id"], snapshot["input_version"]),
+        == (snapshot["project_id"], snapshot["input_version"])
+        and type(control.get("input_version")) is type(snapshot["input_version"]),
         "resource identity mismatch",
     )
     resources = resource_totals(control)

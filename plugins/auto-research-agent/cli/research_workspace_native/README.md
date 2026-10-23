@@ -606,3 +606,14 @@ remain separate.
 ## Explicit saved-request maintenance queue
 
 The [saved review queue](SAVED_REVIEW_QUEUE.md) adds explicit authorized admission, receiving-owner claims, source-bound result reports and passive recovery using the existing private inbox. Original opinions remain recorded-not-dispatched. It adds no automatic worker, model/research execution, scientific certification, Core acceptance or Stage2 import.
+
+The existing project Stage2 service can separately register an independently
+accepted saved-source handoff v2. Trusted bootstrap supplies the original evidence
+root, external Core acceptance hash and optional complete host replay inputs;
+browser actions retain opaque references only. The offer binds those trust pins,
+activation retains the actual import receipt, and reopen verifies every projected
+note as well as the original admission and workflow frontier. Same-key recovery
+does not repeat import or initialization. Legacy offers keep their existing shape.
+See [saved-source Stage2 intake](../../references/stage2-saved-source-intake.md)
+for same-version prerequisites, the CLI sequence and the initialized/not-started
+boundary. This interface does not supply the missing independent acceptance.

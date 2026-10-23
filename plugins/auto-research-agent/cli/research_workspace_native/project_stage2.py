@@ -18,10 +18,10 @@ from stage1_deliverable.common import (
     safe_path,
     sha,
 )
-from stage1_ledger.contracts import check as check_contract
 from stage1_ledger.journal import canonical, decode
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_workflow import build_stage2_seed, initialize_workflow, inspect_workflow
+from stage2_workflow.import_stage1 import verify_stage1_handoff
 from .project_intake import ProjectIntakeService, _fields
 from .session_api import SessionApiError, _check, _hash
 
@@ -36,6 +36,27 @@ RECEIPT_FIELDS = {
     "status",
     "recorded_at",
 }
+SAVED_INPUTS = (
+    "saved_source_root",
+    "saved_source_acceptance_sha256",
+    "host_replay_receipt",
+    "trusted_host_replay_sha256",
+    "historical_exporter_root",
+    "replayer_exporter_root",
+)
+
+
+def _saved_inputs(inputs):
+    return {name: inputs[name] for name in SAVED_INPUTS if name in inputs}
+
+
+def _admission_pins(inputs):
+    """Only independent trust hashes enter the public offer; paths stay private."""
+    return {
+        name: inputs[name]
+        for name in ("saved_source_acceptance_sha256", "trusted_host_replay_sha256")
+        if name in inputs
+    }
 
 
 def _raw(path, expected, *, maximum=MAX_INPUT):
@@ -72,7 +93,19 @@ def _verified_inputs(binding, inputs):
     handoff = decode(
         _raw(inputs["handoff_path"], inputs["handoff_sha256"]), "stage1 handoff"
     )
-    check_contract(handoff, "Stage1Handoff")
+    saved_snapshot, _ = verify_stage1_handoff(
+        handoff,
+        inputs["manifest_sha256"],
+        binding["brief_sha256"],
+        **_saved_inputs(inputs),
+    )
+    if saved_snapshot is not None:
+        _check(
+            (handoff["project_id"], handoff["input_version"])
+            == (binding["project_id"], binding["input_version"])
+            and type(handoff["input_version"]) is type(binding["input_version"]),
+            "stage2-saved-source-project-input-differs",
+        )
     _check(handoff["eligible_for_stage2"] is True, "stage1-not-eligible-for-stage2")
     _check(
         handoff["stage2"] == {"status": "not-started", "execution_authorized": False},
@@ -107,7 +140,7 @@ def _verified_inputs(binding, inputs):
 
 
 def _public(offer):
-    return {
+    value = {
         key: deepcopy(offer[key])
         for key in (
             "offer_ref",
@@ -121,6 +154,52 @@ def _public(offer):
             "status",
         )
     }
+    if "admission_pins" in offer:
+        value["admission_pins"] = deepcopy(offer["admission_pins"])
+    return value
+
+
+def _verify_import_receipt(receipt, inputs, handoff, root):
+    """Reopen every projected full note against the admitted snapshot and journal."""
+    from research_workspace.saved_admission_evidence import read_bound_json
+
+    snapshot = read_bound_json(inputs["saved_source_root"], handoff["snapshot_ref"])
+    notes = receipt["note_inventory"]
+    _check(
+        receipt["kind"] == "Stage1Stage2ImportReceipt"
+        and receipt["schema_version"] == "2.0.0"
+        and receipt["status"] == "ready-for-explicit-stage2-start"
+        and receipt["source_mode"] == "saved-source-current-admission"
+        and receipt["saved_snapshot_sha256"] == handoff["snapshot_ref"]["sha256"]
+        and receipt["Core_acceptance_sha256"]
+        == inputs["saved_source_acceptance_sha256"]
+        and receipt["resources_preserved"] == handoff["resources_preserved"]
+        and receipt["note_inventory_sha256"] == canonical_hash(notes)
+        and set(notes) == {row["work_id"] for row in snapshot["rows"]}
+        and receipt["candidate_count"] == 0
+        and receipt["stage2_execution_authorized"] is False,
+        "stage2-import-receipt-differs",
+    )
+    replay = receipt.get("host_replay")
+    _check(
+        (replay is None and "trusted_host_replay_sha256" not in inputs)
+        or (
+            replay is not None
+            and replay.get("sha256") == inputs.get("trusted_host_replay_sha256")
+            and replay.get("mode") == "saved-offline-replay"
+            and replay.get("new_source_execution") is False
+            and replay.get("core_acceptance") is False
+        ),
+        "stage2-import-host-replay-differs",
+    )
+    for row in snapshot["rows"]:
+        note = notes[row["work_id"]]
+        _check(
+            note["version_id"] == row["version_id"]
+            and note["sha256"] == row["full_note"]["sha256"],
+            "stage2-import-note-binding-differs",
+        )
+        _raw(safe_path(root, note["path"]), note["sha256"])
 
 
 class ProjectStage2Service:
@@ -160,6 +239,12 @@ class ProjectStage2Service:
         resources_path,
         expected_resources_sha256,
         policy_ref,
+        saved_source_root=None,
+        saved_source_acceptance_sha256=None,
+        host_replay_receipt=None,
+        trusted_host_replay_sha256=None,
+        historical_exporter_root=None,
+        replayer_exporter_root=None,
     ):
         """Trusted bootstrap only. Browser requests cannot supply these paths."""
         _check(
@@ -176,6 +261,19 @@ class ProjectStage2Service:
             resources_path=str(Path(resources_path).absolute()),
             resources_sha256=expected_resources_sha256,
         )
+        saved = dict(
+            saved_source_root=saved_source_root,
+            saved_source_acceptance_sha256=saved_source_acceptance_sha256,
+            host_replay_receipt=host_replay_receipt,
+            trusted_host_replay_sha256=trusted_host_replay_sha256,
+            historical_exporter_root=historical_exporter_root,
+            replayer_exporter_root=replayer_exporter_root,
+        )
+        for name, value in saved.items():
+            if value is not None:
+                inputs[name] = (
+                    value if name.endswith("sha256") else str(Path(value).absolute())
+                )
         with self.intake._lock:
             binding = self.intake.binding(project_ref)
             handoff, _ = _verified_inputs(binding, inputs)
@@ -195,6 +293,8 @@ class ProjectStage2Service:
                 settings_sha256=canonical_hash(binding["settings"]),
                 policy_ref=deepcopy(policy_ref),
             )
+            if _admission_pins(inputs):
+                basis["admission_pins"] = _admission_pins(inputs)
             offer_hash = sha(canonical(basis))
             offer = dict(
                 basis,
@@ -320,6 +420,10 @@ class ProjectStage2Service:
                 canonical_hash(binding["settings"]) == offer["settings_sha256"],
                 "stage2-settings-differ",
             )
+            _check(
+                offer.get("admission_pins", {}) == _admission_pins(offer["inputs"]),
+                "stage2-offer-admission-pins-differ",
+            )
             _verified_inputs(binding, offer["inputs"])
             active = state.get("stage2_activation")
             _check(active is None, "stage2-already-activated")
@@ -338,6 +442,7 @@ class ProjectStage2Service:
                 binding["brief_path"],
                 inputs["resources_path"],
                 output / "seed",
+                **_saved_inputs(inputs),
             )
             if check_deadline is not None:
                 check_deadline()
@@ -350,7 +455,9 @@ class ProjectStage2Service:
                 receipt["packet_sha256"],
             )
             verified = inspect_workflow(output / "workflow")
-            _verified_inputs(binding, inputs)
+            handoff, _ = _verified_inputs(binding, inputs)
+            if "saved_source_root" in inputs:
+                _verify_import_receipt(receipt, inputs, handoff, output / "seed")
             if check_deadline is not None:
                 check_deadline()
             result = dict(
@@ -369,6 +476,8 @@ class ProjectStage2Service:
                 stage2_complete=False,
                 execution_authorized=False,
             )
+            if "saved_source_root" in inputs:
+                result["import_receipt"] = deepcopy(receipt)
             state["stage2_activation"] = result
             state["stage2_frontier"] = self._initial_frontier(
                 project_ref, binding, offer, result
@@ -461,6 +570,8 @@ class ProjectStage2Service:
                 "policy_ref",
             )
         }
+        if "admission_pins" in offer:
+            basis["admission_pins"] = offer["admission_pins"]
         _check(
             registered == [_public(offer)]
             and sha(canonical(basis))
@@ -468,13 +579,17 @@ class ProjectStage2Service:
             == offer["offer_sha256"],
             "stage2-offer-journal-differs",
         )
+        _check(
+            offer.get("admission_pins", {}) == _admission_pins(offer["inputs"]),
+            "stage2-offer-admission-pins-differ",
+        )
         current = self.intake.binding(project_ref)
         self._matches(current, offer)
         _check(
             canonical_hash(current["settings"]) == offer["settings_sha256"],
             "stage2-settings-differ",
         )
-        _verified_inputs(current, offer["inputs"])
+        handoff, _ = _verified_inputs(current, offer["inputs"])
         artifact = state["stage2_artifacts"][activation["artifact_ref"]]
         relative = "stage2-" + saved[0]["request_sha256"]
         _check(
@@ -494,6 +609,14 @@ class ProjectStage2Service:
         for source in packet["sources"]:
             safe_path(root / "seed", source["path"])
         validate_packet(packet, root / "seed")
+        if "saved_source_root" in offer["inputs"]:
+            receipt = activation["import_receipt"]
+            _check(
+                receipt["packet_sha256"] == activation["packet_sha256"]
+                and receipt["binding_sha256"] == activation["binding_sha256"],
+                "stage2-import-receipt-packet-differs",
+            )
+            _verify_import_receipt(receipt, offer["inputs"], handoff, root / "seed")
         return current, activation, offer, root
 
     def _frontier(self, project_ref, state, current, offer, activation):
