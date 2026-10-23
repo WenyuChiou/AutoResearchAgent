@@ -415,6 +415,7 @@ def inspect_saved_admission(
     trusted_host_replay_sha256=None,
     historical_exporter_root=None,
     replayer_exporter_root=None,
+    verified_host_replay=None,
 ):
     """Recompute prerequisites and bound external acceptance without minting approval.
 
@@ -435,16 +436,17 @@ def inspect_saved_admission(
         "all host replay inputs required",
     )
     host_replay = None
-    if host_replay_receipt is not None:
-        from .host_replay import load_host_replay
+    if host_replay_receipt is not None or verified_host_replay is not None:
+        from .host_replay import resolve_host_replay
 
-        host_replay = load_host_replay(
-            host_replay_receipt,
-            trusted_host_replay_sha256,
+        host_replay = resolve_host_replay(
             root,
             snapshot_ref,
+            host_replay_receipt=host_replay_receipt,
+            trusted_host_replay_sha256=trusted_host_replay_sha256,
             historical_exporter_root=historical_exporter_root,
             replayer_exporter_root=replayer_exporter_root,
+            verified_host_replay=verified_host_replay,
         )
     bindings = snapshot["bindings"]
     for ref in bindings.values():

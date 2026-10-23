@@ -10,6 +10,7 @@ import copy
 import hashlib
 import json
 import shutil
+import subprocess
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from stage1_eval.common import EvaluationError
@@ -44,6 +45,11 @@ from stage2_live.environment import (
     verify_environment_start,
 )
 from stage2_live.extraction import run_live_extraction
+from stage2_live.failure_state import (
+    ControllerNativeFailure,
+    classify_controller_failure,
+    describe_controller_failure,
+)
 from stage2_live.judges import _execution_policy
 from stage2_live.native import (
     CaptureError,
@@ -705,7 +711,8 @@ def _execute_unit(
     if existing is not None:
         request = existing["request"]
         if (
-            request["inputs"] != inputs
+            request["action_kind"] != action_kind
+            or request["inputs"] != inputs
             or request["settings"] != settings
             or request["snapshot_sha256"] != snapshot_sha256
         ):
@@ -714,11 +721,18 @@ def _execute_unit(
         if result is None:
             return {"state": "needs-recovery", "action_id": action_id}
         if result["status"] != "complete":
+            saved_failure = (
+                _artifact_value(state, result)
+                if "summary.json" in result.get("artifacts", {})
+                else {}
+            )
             return {
                 "state": "needs-recovery",
                 "action_id": action_id,
                 "terminal_status": result["status"],
                 "error": result["error"],
+                "failure_class": saved_failure.get("failure_class", "unknown"),
+                "failure_observation": saved_failure.get("failure_observation"),
             }
         return {
             "state": "complete",
@@ -742,25 +756,19 @@ def _execute_unit(
     head = started["event"]["event_sha256"]
     try:
         value = invoke()
-        _write_new(summary, value)
-        event = finish_action(
-            run_dir,
-            action_id,
-            "complete",
-            {"summary.json": {"path": str(summary), "sha256": _file_sha(summary)}},
-            value.get("cost") if isinstance(value, dict) else None,
-            None,
-            head,
-        )
-        return {
-            "state": "complete",
-            "action_id": action_id,
-            "replayed": False,
-            "value": value,
-            "head_sha256": event["event_sha256"],
+    except (
+        Stage2Error,
+        OSError,
+        RuntimeError,
+        ValueError,
+        subprocess.SubprocessError,
+    ) as error:
+        failure = {
+            "error_type": type(error).__name__,
+            "error": str(error),
+            "failure_class": classify_controller_failure(error),
+            "failure_observation": describe_controller_failure(error),
         }
-    except (Stage2Error, OSError, RuntimeError, ValueError) as error:
-        failure = {"error_type": type(error).__name__, "error": str(error)}
         _write_new(summary, failure)
         finish_action(
             run_dir,
@@ -776,7 +784,46 @@ def _execute_unit(
             "action_id": action_id,
             "terminal_status": "failed",
             "error": str(error),
+            "failure_class": failure["failure_class"],
+            "failure_observation": failure["failure_observation"],
         }
+    # Once execution returned, never replace its output with a registration
+    # failure. The unfinished journal intent blocks a second dispatch.
+    _write_new(summary, value)
+    try:
+        event = finish_action(
+            run_dir,
+            action_id,
+            "complete",
+            {"summary.json": {"path": str(summary), "sha256": _file_sha(summary)}},
+            value.get("cost") if isinstance(value, dict) else None,
+            None,
+            head,
+        )
+    except (Stage2Error, OSError, RuntimeError, ValueError) as error:
+        failure = {
+            "error_type": type(error).__name__,
+            "error": str(error),
+            "failure_class": classify_controller_failure(error),
+            "failure_observation": describe_controller_failure(error),
+            "summary_sha256": _file_sha(summary),
+            "request_sha256": started["request"]["request_sha256"],
+        }
+        _write_new(summary.with_suffix(".registration-failure.json"), failure)
+        return {
+            "state": "needs-recovery",
+            "action_id": action_id,
+            "recovery_boundary": "registration",
+            "error": str(error),
+            "failure_class": failure["failure_class"],
+        }
+    return {
+        "state": "complete",
+        "action_id": action_id,
+        "replayed": False,
+        "value": value,
+        "head_sha256": event["event_sha256"],
+    }
 
 
 def _isolated_paths(spec, key):
@@ -871,10 +918,7 @@ class _ProductionAdapter:
             **deadline,
         )
         if capture.get("status") != "complete":
-            raise Stage2Error(
-                "controller-native-capture-incomplete: "
-                + str(capture.get("status", "unknown"))
-            )
+            raise ControllerNativeFailure(capture, output)
         verify_environment_capture(
             output,
             capture["record_sha256_receipt"],
@@ -1162,7 +1206,7 @@ def _run_controller_impl(
     if research["state"] != "complete":
         return _terminal(
             "needs-recovery" if research["state"] == "needs-recovery" else "failed",
-            state,
+            inspect_workflow(run_dir),
             adapter,
             [research],
         )

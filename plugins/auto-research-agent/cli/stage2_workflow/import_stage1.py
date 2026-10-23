@@ -83,10 +83,16 @@ def _metadata_snapshot(paper, source, result):
     return _canonical_bytes(value) + b"\n"
 
 
-def _source_bytes(root, source, paper):
+def _source_bytes(root, source, paper, *, host_replay=None):
     archive = safe_path(root, "sources/" + source["source_id"])
-    result, mapping, replay = deliverable_sources.validate_archive(archive)
-    deliverable_sources.validate_observation(archive, result, mapping, replay)
+    if host_replay is None:
+        result, mapping, replay = deliverable_sources.validate_archive(archive)
+        deliverable_sources.validate_observation(archive, result, mapping, replay)
+    else:
+        result, mapping, replay = host_replay.source(archive, source)
+        deliverable_sources.validate_observation(
+            archive, result, mapping, replay, saved_observation=replay
+        )
     extracted = result.get("extracted_text_path")
     if result["status"] == "available" and extracted:
         relative = mapping.get(extracted)
@@ -155,7 +161,7 @@ def _unresolved(records, unavailable, included):
     return rows
 
 
-def _project_stage1(deliverable_root, output, records, included):
+def _project_stage1(deliverable_root, output, records, included, *, host_replay=None):
     """Copy the selected immutable Stage 1 projection into a Stage 2 seed."""
 
     papers = {row["work_id"]: row for row in records["papers"]}
@@ -168,7 +174,12 @@ def _project_stage1(deliverable_root, output, records, included):
         paper = papers[work_id]
         for source_id in paper["source_ids"]:
             source = source_by_id[source_id]
-            raw, result = _source_bytes(deliverable_root, source, paper)
+            raw, result = _source_bytes(
+                deliverable_root,
+                source,
+                paper,
+                **({"host_replay": host_replay} if host_replay is not None else {}),
+            )
             relative = f"sources/{source_id}.txt"
             (output / relative).write_bytes(raw)
             stage2_sources.append(
@@ -210,10 +221,16 @@ def _project_stage1(deliverable_root, output, records, included):
     return literature, stage2_sources, evidence, unavailable
 
 
-def _revalidate_deliverable(deliverable_root, deliverable_manifest_sha256, manifest):
+def _revalidate_deliverable(
+    deliverable_root, deliverable_manifest_sha256, manifest, *, host_replay=None
+):
     """Reject a deliverable that changed while source bytes were projected."""
 
-    deliverable_package.validate(deliverable_root, deliverable_manifest_sha256)
+    deliverable_package.validate(
+        deliverable_root,
+        deliverable_manifest_sha256,
+        **({"host_replay": host_replay} if host_replay is not None else {}),
+    )
     final_manifest = _read_bound_json(
         deliverable_root / "provenance_manifest.json",
         deliverable_manifest_sha256,
@@ -234,6 +251,11 @@ def build_stage2_seed(
     *,
     saved_source_root=None,
     saved_source_acceptance_sha256=None,
+    host_replay_receipt=None,
+    trusted_host_replay_sha256=None,
+    historical_exporter_root=None,
+    replayer_exporter_root=None,
+    verified_host_replay=None,
 ):
     """Validate Stage 1, then create an unstarted Stage 2 v2 packet."""
 
@@ -244,7 +266,45 @@ def build_stage2_seed(
         output = private_output(output)
         if output.exists():
             raise Stage2Error(f"stage1-stage2-output-exists: {output}")
-        deliverable_package.validate(deliverable_root, deliverable_manifest_sha256)
+        handoff = None
+        host_replay = None
+        if any(
+            value is not None
+            for value in (
+                host_replay_receipt,
+                trusted_host_replay_sha256,
+                historical_exporter_root,
+                replayer_exporter_root,
+                verified_host_replay,
+            )
+        ):
+            handoff = _read_bound_json(handoff_path, handoff_sha256, "stage1-handoff")
+            if (
+                not isinstance(handoff, dict)
+                or handoff.get("schema_version") != "2.0.0"
+            ):
+                raise Stage2Error(
+                    "host-replay-arguments-require-saved-source-handoff-v2"
+                )
+            if saved_source_root is None or saved_source_acceptance_sha256 is None:
+                raise Stage2Error("saved-source-handoff-needs-external-Core-acceptance")
+            from research_workspace.host_replay import resolve_host_replay
+            from research_workspace.saved_admission import check_handoff
+
+            check_handoff(handoff)
+            host_replay = resolve_host_replay(
+                saved_source_root,
+                handoff["snapshot_ref"],
+                host_replay_receipt=host_replay_receipt,
+                trusted_host_replay_sha256=trusted_host_replay_sha256,
+                historical_exporter_root=historical_exporter_root,
+                replayer_exporter_root=replayer_exporter_root,
+                verified_host_replay=verified_host_replay,
+            )
+        replay_args = {"host_replay": host_replay} if host_replay is not None else {}
+        deliverable_package.validate(
+            deliverable_root, deliverable_manifest_sha256, **replay_args
+        )
         manifest = _read_bound_json(
             deliverable_root / "provenance_manifest.json",
             deliverable_manifest_sha256,
@@ -256,7 +316,8 @@ def build_stage2_seed(
                 "stage2-canonical-records-consumer-unconnected: "
                 + records["schema_version"]
             )
-        handoff = _read_bound_json(handoff_path, handoff_sha256, "stage1-handoff")
+        if handoff is None:
+            handoff = _read_bound_json(handoff_path, handoff_sha256, "stage1-handoff")
         saved_snapshot = None
         if isinstance(handoff, dict) and handoff.get("schema_version") == "2.0.0":
             if saved_source_root is None or saved_source_acceptance_sha256 is None:
@@ -273,6 +334,11 @@ def build_stage2_seed(
                 handoff["snapshot_ref"],
                 acceptance_ref=handoff["acceptance_ref"],
                 trusted_acceptance_sha256=saved_source_acceptance_sha256,
+                **(
+                    {"verified_host_replay": host_replay}
+                    if host_replay is not None
+                    else {}
+                ),
             )
             if (
                 replay != handoff
@@ -324,7 +390,7 @@ def build_stage2_seed(
         reject_links(output)
         included = set(handoff_papers)
         literature, stage2_sources, evidence, unavailable = _project_stage1(
-            deliverable_root, output, records, included
+            deliverable_root, output, records, included, **replay_args
         )
         note_inventory = {}
         if saved_snapshot is not None:
@@ -385,7 +451,9 @@ def build_stage2_seed(
         }
         # Revalidate after source reads so the imported projection cannot mix
         # bytes from two deliverable states changed during this operation.
-        _revalidate_deliverable(deliverable_root, deliverable_manifest_sha256, manifest)
+        _revalidate_deliverable(
+            deliverable_root, deliverable_manifest_sha256, manifest, **replay_args
+        )
         validate_packet(packet, output)
         (output / "packet.json").write_bytes(_canonical_bytes(packet))
         receipt = {
@@ -411,6 +479,14 @@ def build_stage2_seed(
                     "note_inventory_sha256": canonical_hash(note_inventory),
                     "resources_preserved": handoff["resources_preserved"],
                     "historical_discovery_trace": "missing",
+                }
+            )
+        if host_replay is not None:
+            receipt.update(
+                {
+                    "schema_version": "2.1.0",
+                    "host_replay": host_replay.evidence(),
+                    "source_canonical_records_version": records["schema_version"],
                 }
             )
         return receipt

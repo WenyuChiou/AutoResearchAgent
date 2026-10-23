@@ -285,3 +285,67 @@ keyboard acceptance belong to the independently versioned UI consumer.
 Old delivery-review contracts 1.0 through 1.3 keep their exact formatter bytes
 and remain accepted by the final prerequisite checker. New views always bind
 the trace and exporter source hashes, including runs without recovery records.
+
+### Pinned saved search ledger (optional)
+
+An original-record recovery bundle may add `saved_search_ledger` to its
+`recovery.json`. The opt-in specification is validated by
+`SavedSearchLedger.v1.schema.json`; bundles without it retain their existing
+projections and all four legacy formatter contracts. Every referenced original
+file must be present in the recovery manifest with its exact SHA-256. Reuse the
+existing `attach_original_records` API and new outside-Git output directory;
+never edit an already frozen delivery.
+
+```json
+{
+  "contract_version": "S1-SAVED-SEARCH-LEDGER-1.0.0",
+  "input_version": "synthetic-input",
+  "ledger": {"path": "run-control.json", "pointer": ""},
+  "snapshot": {"path": "snapshot.json", "pointer": ""},
+  "receipts": {
+    "saved-batch": {
+      "receipt": {"path": "saved-result.json", "pointer": ""},
+      "query_parameters": {"path": "saved-result.json", "pointer": "/query"}
+    }
+  }
+}
+```
+
+The original ledger and `SavedSourceCandidateSnapshot` must agree on the
+project and input version. The snapshot's resources binding must match the
+ledger bytes and SHA-256, and its deliverable binding must match the canonical
+manifest already bound by the index. Each ledger reservation maps once to a
+receipt with the original SHA-256; duplicate batches, omitted/extra mappings,
+wrong observation receipt hashes or lengths, and mismatched inputs fail closed.
+This establishes saved-byte binding, not trusted Core acceptance or Stage 2
+admission. Original cumulative budgets, usage and other resource fields remain
+in the attached original file; this projection does not change resource state.
+
+`query_parameters` is optional. It can point to `/query`, `/queries` or
+`/query_texts` in that batch's receipt, or to the exact ledger reservation's
+`/search_reservations/<index>/query_texts`. An array contains strings or original
+objects with a nonempty `q`/`query` field, including additional saved fields such
+as `need`. Preserve these original objects. Its length must equal that batch's
+reserved query count. Planned query IDs remain separately labeled. None of
+these arrays maps a query or a backend attempt to an individual work.
+
+The resulting additive attachment is
+`original_record_recovery.payload.saved_search_ledger`. Its `batches` preserve
+ledger pointers, source hashes, receipt bindings and distinct timestamps:
+`reserved_at`, `started_at`, `receipt_persisted_at`, `tool_completion_time`, and
+the separate receipt wrapper's `receipt_started_at`. Missing values stay null;
+`not-separately-captured` remains explicit. Reservation or receipt persistence
+times never become starts or per-work discovery times. A wrapper start does not
+overwrite a missing ledger start. Known ledger timestamps must be timezone
+aware and chronological within the batch.
+
+Each already linked `academic_screening.json.rows[].retrieval_trace.observations[]`
+adds a separate `batch_context` with the same projected batch. JSON, CSV,
+Markdown and Excel carry it through the existing trace export. Original
+observations, their hashes and screening reviews are byte-preserved. Per-work
+`first_discovery`, actual rounds, backend counts and query attribution remain
+unknown where the original evidence does not establish them. Batch parameters
+are not searches until first discovery. New views and final prerequisite
+checker receipts bind the optional producer module and schema hashes. Actual
+UI adaptation, independent content acceptance and formal Stage 2 import remain
+separate steps.

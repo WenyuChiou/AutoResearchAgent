@@ -74,15 +74,28 @@ independently trusted Core aggregate and actual HTML operation receipts pass. It
 creates neither receipt. Historical claims and missing discovery history remain
 unchanged. No candidate is selected, material ID invented or Stage 2 started.
 
-The existing Stage 2 importer and project HTTP routes do not yet consume this new
-receipt. Core must add the same four explicit options and the bound snapshot-ref
-input; call `load_host_replay` with independently approved values; compare its
-canonical manifest SHA with the accepted handoff's SHA; and forward that context
-to its existing `package.validate`. Preserve all other handoff/acceptance/brief/
-resource and private-output checks. Bind the receipt hash and scope in a versioned
-import receipt. Do not infer trust from an embedded hash, suppress the package
-validator, promote import to execution or silently relax old inputs. This is the
-smallest downstream integration; no Core-owned HTTP/importer file changes here.
+The existing formal CLI importer now accepts the same four explicit options on
+`stage2_workflow import-stage1`: `--host-replay-receipt`,
+`--trusted-host-replay-sha256`, `--historical-exporter-root`, and
+`--replayer-exporter-root`. They require a saved-source v2 handoff,
+`--saved-source-root`, and the independent Core acceptance digest. Its bound
+snapshot reference comes from that hash-verified handoff. One resolved context
+reaches initial package validation, saved admission, source projection, and final
+package validation. A Python-only verified context must retain the same snapshot,
+project/input, canonical manifest, and receiving package root; it cannot be mixed
+with explicit trust arguments or supplied as browser JSON.
+
+Context-enabled imports return ImportReceipt 2.1.0 with host receipt evidence and
+`source_canonical_records_version`. The saved-source path without a host context
+retains its 2.0.0 receipt. Neither path grants research execution or creates Core
+or HTML acceptance. All existing brief, resource, selection, and output checks
+remain active.
+
+Canonical records 1.1/1.2 and the native ProjectStage2Service trusted-offer/HTTP
+adapter remain unconnected. The saved snapshot/handoff uses a string input
+version; the current native intake uses an integer. This increment does not
+coerce identities or change either contract. Formal native receiving requires an
+explicit versioned compatibility design and its own actual regressions.
 
 ## Verification
 

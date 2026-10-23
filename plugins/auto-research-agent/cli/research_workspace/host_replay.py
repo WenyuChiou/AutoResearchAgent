@@ -265,6 +265,24 @@ class HostReplay:
         )
         return result, mapping, deepcopy(fresh)
 
+    def check_snapshot(self, root, snapshot_ref):
+        """Rebind a verified context to the same immutable receiving inputs."""
+        require(
+            self._receipt["snapshot_ref"] == snapshot_ref, "snapshot reference differs"
+        )
+        snapshot = read_bound_json(root, snapshot_ref)
+        require(
+            (self._receipt["project_id"], self._receipt["input_version"])
+            == (snapshot["project_id"], snapshot["input_version"]),
+            "project/input differs",
+        )
+        ref = snapshot["bindings"]["deliverable"]
+        require(
+            self._receipt["canonical_manifest_sha256"] == ref["sha256"]
+            and safe_path(root, ref["path"]).parent.resolve() == self._root,
+            "snapshot package differs",
+        )
+
     def evidence(self):
         return {
             "kind": "HostReplayReceipt",
@@ -275,6 +293,48 @@ class HostReplay:
             "new_source_execution": False,
             "core_acceptance": False,
         }
+
+
+def resolve_host_replay(
+    root,
+    snapshot_ref,
+    *,
+    host_replay_receipt=None,
+    trusted_host_replay_sha256=None,
+    historical_exporter_root=None,
+    replayer_exporter_root=None,
+    verified_host_replay=None,
+):
+    """Resolve explicit host trust once; never accept a context from browser JSON."""
+    inputs = (
+        host_replay_receipt,
+        trusted_host_replay_sha256,
+        historical_exporter_root,
+        replayer_exporter_root,
+    )
+    require(
+        all(value is None for value in inputs)
+        or all(value is not None for value in inputs),
+        "all host replay inputs required",
+    )
+    if verified_host_replay is not None:
+        require(
+            type(verified_host_replay) is HostReplay
+            and all(value is None for value in inputs),
+            "verified context conflicts with explicit host trust inputs",
+        )
+        verified_host_replay.check_snapshot(root, snapshot_ref)
+        return verified_host_replay
+    if host_replay_receipt is None:
+        return None
+    return load_host_replay(
+        host_replay_receipt,
+        trusted_host_replay_sha256,
+        root,
+        snapshot_ref,
+        historical_exporter_root=historical_exporter_root,
+        replayer_exporter_root=replayer_exporter_root,
+    )
 
 
 def load_host_replay(
