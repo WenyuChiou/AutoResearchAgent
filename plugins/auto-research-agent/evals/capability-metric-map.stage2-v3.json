@@ -576,7 +576,8 @@
         "plugins/auto-research-agent/tests/test_stage2_exploratory_import.py",
         "plugins/auto-research-agent/tests/test_stage2_prerequisites.py",
         "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py",
-        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_frontier.py"
       ],
       "completion_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
@@ -605,6 +606,10 @@
       "projecthost_selection_view_contract": "Read-only host-bound current direction/material cards verify actual delivery, workflow, project/input version and active project root. Unknowns, eligibility, human selection and Stage3 planning/execution states remain distinct. Browser input cannot choose filesystem paths; view creation does not make a choice, rerun models or authorize execution. Actual HTTP/browser and selection writes remain separate acceptance.",
       "projecthost_selection_view_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_selection_view.py"
+      ],
+      "projecthost_selection_registration_contract": "Confirmed ProjectHost UI selection composes the existing externally hash-bound interaction, planning handoff and Stage3 intake. Current project/input/source/recommendation and user message bytes are verified without new research. Same-key replay validates canonical event identity. Only complete post-work-before-commit metadata can recover; unobserved Core outcomes remain held. Activation, original receipt, duplicate events and changed bytes fail closed. Conditions and unknowns are preserved; selection grants no scientific or execution authority. HTTP and real user acceptance remain separate.",
+      "projecthost_selection_registration_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_frontier.py"
       ]
     },
     {
