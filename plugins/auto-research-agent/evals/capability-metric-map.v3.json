@@ -19,6 +19,7 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+            "Pure full-source input and draft helpers preserve every admitted saved UTF-8 byte, work/version/brief binding, parser identity uncertainty and exact quote byte spans. Bounds, duplicate/nonfinite JSON, hash/offset mismatches and invented claim IDs refuse. Drafts remain unaccepted and create no canonical claim, model call, scientific completion or execution authority.",
             "Manual saved-source claim context uses zero excerpts and retains the 48000-byte saved-input limit, complete source identities and existing claims. It grants no model call; model snapshot fitting and the complete serialized 10000-byte reading-prompt guard remain independently enforced.",
             "Explicit native local hosting inherits the exact pinned request timeout of at most thirty seconds; default hosting retains five seconds, absolute accept-time deadlines and pre-admission expiry remain enforced. Synthetic forwarding and timeout-bound tests do not demonstrate model completion.",
             "An explicitly spec-pinned optional handshake total of at most 120 seconds stays within the existing process lease; each RPC remains at most 30 seconds and omitted fields retain the legacy total. Late cached replies cannot upgrade an expired handshake.",
@@ -224,6 +225,7 @@
         "ProjectStage2SelectionView is read-only trusted host composition: no browser-selected filesystem paths, user selection, native/model/research calls or execution authority. Candidate materials and recommendations retain their original evidence and unknowns."
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/test_project_semantic_drafts.py",
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
         "plugins/auto-research-agent/tests/test_atlas_runtime_spec.py",
         "plugins/auto-research-agent/tests/test-stage-run-read-recovery.cjs",
