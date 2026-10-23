@@ -219,9 +219,10 @@
   function buttons() {
     const blocked = state.busy || state.loading;
     $("create-form").querySelector("button").disabled = blocked || pending.some((row) => !row.project_ref);
+    const imported = state.project?.stage1_status === "imported-verified-delivery";
     const projectBlocked = blocked || !state.project || !state.project.brief || (bootstrap.models && !state.modelStatus) || state.activeJob || pending.some((row) => state.project && row.project_ref === state.project.project_ref);
-    $("confirm-form").querySelectorAll("button").forEach((button) => { button.disabled = projectBlocked; });
-    $("revise-form").querySelector("button").disabled = projectBlocked;
+    $("confirm-form").querySelectorAll("button").forEach((button) => { button.disabled = projectBlocked || imported; });
+    $("revise-form").querySelector("button").disabled = projectBlocked || imported;
     for (const [id, operation] of [["suggest-topic", "suggest-topic"], ["plan-search", "plan-search"]]) {
       $(id).disabled = projectBlocked || !state.modelOffers.some((row) => row.operation === operation && row.available === true);
     }
@@ -586,12 +587,14 @@
       if (!project || project.project_ref !== ref) throw new Error("project-overview-binding-differs");
       state.project = project;
       $("confirm-form").reset(); $("revised-topic").value = project.brief ? project.brief.original_description : "";
-      const settings = project.settings;
-      if (settings) {
-        $("resources").value = settings.resource_envelope; $("confirmation").value = settings.user_input;
-        for (const [name, id] of Object.entries(budgetIds)) $(id).value = settings.budgets[name];
-        $("search-consent").checked = settings.consent.external_search; $("read-consent").checked = settings.consent.public_source_read;
-      }
+      const imported = project.stage1_status === "imported-verified-delivery";
+      $("confirm-form").hidden = imported; $("revise-form").hidden = imported;
+      const settings = project.settings || {};
+      $("resources").value = settings.resource_envelope ?? "";
+      $("confirmation").value = imported ? "" : settings.user_input ?? "";
+      for (const [name, id] of Object.entries(budgetIds)) $(id).value = imported ? "" : settings.budgets?.[name] ?? "";
+      $("search-consent").checked = !imported && settings.consent?.external_search === true;
+      $("read-consent").checked = !imported && settings.consent?.public_source_read === true;
       state.modelOffers = rows(snapshot.model_offers, "offers"); state.stage2 = snapshot.stage2;
       state.modelStatus = snapshot.models; state.stage1 = snapshot.stage1;
       renderProject();

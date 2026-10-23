@@ -425,13 +425,20 @@
         "plugins/auto-research-agent/tests/test_project_stage1_continuation.py",
         "plugins/auto-research-agent/tests/test_project_stage1_auto.py",
         "plugins/auto-research-agent/tests/project_stage1_auto_cases.py",
-        "plugins/auto-research-agent/tests/test_saved_admission_input_versions.py"
+        "plugins/auto-research-agent/tests/test_saved_admission_input_versions.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_identity_import.py",
+        "plugins/auto-research-agent/tests/browser/project-imported-overview-test.cjs"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
       "stage2_frontier_recovery_contract": "Explicit trusted metadata-only recovery retains the same action key and independently reopens current project/source/activation and saved workflow event bindings. Only a post-work-before-commit execution-unknown receipt whose exact observation matches fresh journal reconstruction can be saved. Failures, unknown work, tampering and changed requests remain held; repeated recovery validates the saved receipt against journal history. No producer, browser route, research, user selection or execution authority is added.",
       "stage2_frontier_recovery_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_frontier.py"
+      ],
+      "stage1_imported_identity_contract": "Trusted saved-source import reopens external Stage1 admission and HostReplay pins, preserves original project ID, typed input version and confirmed brief bytes, and records imported origin rather than fabricating a native user submission or compiled search plan. Stage2/3 actions retain exact type/value/hash matching; imported brief changes are read-only, principal-scoped bootstrap is idempotent, partial file recovery requires identical bytes, and no research or execution authority is granted. Imported overviews open in the existing trilingual UI with Stage1 mutation forms hidden and no invented budgets or search/read consent; the same verified Stage2 activation offer remains usable.",
+      "stage1_imported_identity_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage1_identity_import.py",
+        "plugins/auto-research-agent/tests/browser/project-imported-overview-test.cjs"
       ]
     },
     {
