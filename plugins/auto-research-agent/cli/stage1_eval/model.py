@@ -90,6 +90,13 @@ def _api_schema(value, *, preserve_constraints=False):
         "minimum",
         "maximum",
         "format",
+        "allOf",
+        "not",
+        "if",
+        "then",
+        "else",
+        "dependentRequired",
+        "dependentSchemas",
     }
     if isinstance(value, list):
         return [

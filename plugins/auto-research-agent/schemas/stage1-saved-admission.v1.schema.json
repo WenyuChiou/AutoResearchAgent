@@ -34,7 +34,7 @@
         "admission_id": {"type": "string", "minLength": 1},
         "recorded_at": {"type": "string", "format": "date-time"},
         "project_id": {"type": "string", "minLength": 1},
-        "input_version": {"type": "string", "minLength": 1},
+        "input_version": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer", "minimum": 1}]},
         "source_mode": {"const": "saved-source-current-admission"},
         "historical_discovery_events": {"type": "null"},
         "historical_trace_status": {"const": "missing"},

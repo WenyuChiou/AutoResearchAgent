@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HostReplayReceipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "project_id", "input_version", "snapshot_ref", "canonical_manifest_sha256", "historical_producer", "replayer", "validator", "sources"],
+  "properties": {
+    "kind": {"const": "HostReplayReceipt"},
+    "schema_version": {"const": "1.0.0"},
+    "project_id": {"type": "string", "minLength": 1},
+    "input_version": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer", "minimum": 1}]},
+    "snapshot_ref": {"$ref": "#/$defs/ref"},
+    "canonical_manifest_sha256": {"$ref": "#/$defs/hash"},
+    "historical_producer": {"$ref": "#/$defs/producer"},
+    "replayer": {"$ref": "#/$defs/producer"},
+    "validator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runtime", "files"],
+      "properties": {"runtime": {"type": "object"}, "files": {"$ref": "#/$defs/files"}}
+    },
+    "sources": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["source_id", "work_id", "version_id", "files", "historical_observation_sha256", "observation", "started_at", "ended_at"],
+        "properties": {
+          "source_id": {"type": "string", "minLength": 1},
+          "work_id": {"type": "string", "minLength": 1},
+          "version_id": {"type": "string", "minLength": 1},
+          "files": {"$ref": "#/$defs/files"},
+          "historical_observation_sha256": {"$ref": "#/$defs/hash"},
+          "observation": {"type": "object"},
+          "started_at": {"type": "string", "minLength": 1},
+          "ended_at": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "files": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/hash"}},
+    "ref": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/hash"}, "bytes": {"type": "integer", "minimum": 1}}
+    },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runtime", "executable", "exporter_files"],
+      "properties": {"runtime": {"type": "object"}, "executable": {"type": "string", "minLength": 1}, "exporter_files": {"$ref": "#/$defs/files"}}
+    }
+  }
+}

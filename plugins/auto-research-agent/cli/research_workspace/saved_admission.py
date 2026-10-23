@@ -13,7 +13,7 @@ from stage1_deliverable import package as deliverable_package
 from stage1_ledger.handoff import DIMENSIONS
 from .final_delivery import _view
 from .formal_readiness import derive_formal_readiness
-from .saved_admission_evidence import read_bound, read_bound_json
+from .saved_admission_evidence import read_bound, read_bound_json, valid_input_version
 
 
 SCHEMA = (
@@ -82,6 +82,9 @@ def check_snapshot(snapshot):
         )
     )
     require(not errors, "snapshot contract invalid")
+    require(
+        valid_input_version(snapshot["input_version"]), "typed input version required"
+    )
 
 
 def check_handoff(handoff):
@@ -90,6 +93,9 @@ def check_handoff(handoff):
     )
     errors = list(Draft202012Validator(schema).iter_errors(handoff))
     require(not errors, "handoff v2 contract invalid")
+    require(
+        valid_input_version(handoff["input_version"]), "typed input version required"
+    )
 
 
 def reconcile_rows(rows, papers, target):
@@ -406,7 +412,16 @@ def _check_acceptance(
 
 
 def inspect_saved_admission(
-    root, snapshot_ref, *, acceptance_ref=None, trusted_acceptance_sha256=None
+    root,
+    snapshot_ref,
+    *,
+    acceptance_ref=None,
+    trusted_acceptance_sha256=None,
+    host_replay_receipt=None,
+    trusted_host_replay_sha256=None,
+    historical_exporter_root=None,
+    replayer_exporter_root=None,
+    verified_host_replay=None,
 ):
     """Recompute prerequisites and bound external acceptance without minting approval.
 
@@ -415,6 +430,30 @@ def inspect_saved_admission(
     """
     snapshot = read_bound_json(root, snapshot_ref)
     check_snapshot(snapshot)
+    replay_args = (
+        host_replay_receipt,
+        trusted_host_replay_sha256,
+        historical_exporter_root,
+        replayer_exporter_root,
+    )
+    require(
+        all(value is None for value in replay_args)
+        or all(value is not None for value in replay_args),
+        "all host replay inputs required",
+    )
+    host_replay = None
+    if host_replay_receipt is not None or verified_host_replay is not None:
+        from .host_replay import resolve_host_replay
+
+        host_replay = resolve_host_replay(
+            root,
+            snapshot_ref,
+            host_replay_receipt=host_replay_receipt,
+            trusted_host_replay_sha256=trusted_host_replay_sha256,
+            historical_exporter_root=historical_exporter_root,
+            replayer_exporter_root=replayer_exporter_root,
+            verified_host_replay=verified_host_replay,
+        )
     bindings = snapshot["bindings"]
     for ref in bindings.values():
         read_bound(root, ref)
@@ -441,7 +480,11 @@ def inspect_saved_admission(
     )
     require(progress["note_pending_versions"] == 0, "notes incomplete")
     deliverable_root = (Path(root) / bindings["deliverable"]["path"]).parent
-    deliverable_package.validate(deliverable_root, bindings["deliverable"]["sha256"])
+    deliverable_package.validate(
+        deliverable_root,
+        bindings["deliverable"]["sha256"],
+        **({"host_replay": host_replay} if host_replay is not None else {}),
+    )
     manifest = read_bound_json(root, bindings["deliverable"])
     require(
         index["provenance"]["deliverable_manifest_sha256"]
@@ -566,6 +609,10 @@ def main(argv=None):
     )
     parser.add_argument("--acceptance-ref")
     parser.add_argument("--trusted-acceptance-sha256")
+    parser.add_argument("--host-replay-receipt")
+    parser.add_argument("--trusted-host-replay-sha256")
+    parser.add_argument("--historical-exporter-root")
+    parser.add_argument("--replayer-exporter-root")
     args = parser.parse_args(argv)
     try:
         snapshot_ref = json.loads(Path(args.snapshot_ref).read_text(encoding="utf-8"))
@@ -579,6 +626,10 @@ def main(argv=None):
             snapshot_ref,
             acceptance_ref=acceptance_ref,
             trusted_acceptance_sha256=args.trusted_acceptance_sha256,
+            host_replay_receipt=args.host_replay_receipt,
+            trusted_host_replay_sha256=args.trusted_host_replay_sha256,
+            historical_exporter_root=args.historical_exporter_root,
+            replayer_exporter_root=args.replayer_exporter_root,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
     except (OSError, ValueError, KeyError, TypeError) as error:

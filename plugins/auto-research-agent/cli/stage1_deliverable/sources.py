@@ -378,6 +378,20 @@ def stage_source(source, input_root, archive):
 
 def validate_observation(archive, result, mapping, replay, *, saved_observation=None):
     """Check saved validator evidence against the original and fresh replay."""
+    _validate_observation(
+        archive,
+        result,
+        mapping,
+        replay,
+        sys.executable,
+        saved_observation=saved_observation,
+    )
+
+
+def _validate_observation(
+    archive, result, mapping, replay, interpreter, *, saved_observation=None
+):
+    """Shared comparison; a host receipt must authenticate a different interpreter."""
     saved = (
         read_json(archive / "validation.json")
         if saved_observation is None
@@ -389,7 +403,7 @@ def validate_observation(archive, result, mapping, replay, *, saved_observation=
         not isinstance(command, list)
         or len(command) != 9
         or command[:7]
-        != [sys.executable, "-I", "-B", "-m", "research_hub", "source", "validate"]
+        != [interpreter, "-I", "-B", "-m", "research_hub", "source", "validate"]
         or command[-1] != "--json"
         or saved["returncode"] != 0
         or saved["stderr"] != replay["stderr"]
@@ -532,9 +546,12 @@ def validate_paper_identity(paper, result):
     raise DeliverableError("source expected identity differs from canonical work")
 
 
-def source_records(source, paper, archive, runtime):
-    result, mapping, replay = validate_archive(archive)
-    validate_observation(archive, result, mapping, replay)
+def source_records(source, paper, archive, runtime, *, host_replay=None):
+    if host_replay is None:
+        result, mapping, replay = validate_archive(archive)
+        validate_observation(archive, result, mapping, replay)
+    else:
+        result, mapping, _ = host_replay.source(archive, source)
     validate_paper_identity(paper, result)
     rows = []
     for attempt in result["attempts"]:
