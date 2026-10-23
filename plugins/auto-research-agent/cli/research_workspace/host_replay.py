@@ -21,7 +21,7 @@ from stage1_deliverable.common import (
     sha,
 )
 from stage1_deliverable.records import timestamp
-from .saved_admission_evidence import read_bound_json
+from .saved_admission_evidence import read_bound_json, valid_input_version
 from .json_bytes import decode_json
 
 SCHEMA = (
@@ -272,8 +272,14 @@ class HostReplay:
         )
         snapshot = read_bound_json(root, snapshot_ref)
         require(
+            valid_input_version(self._receipt["input_version"])
+            and valid_input_version(snapshot["input_version"]),
+            "typed input version required",
+        )
+        require(
             (self._receipt["project_id"], self._receipt["input_version"])
-            == (snapshot["project_id"], snapshot["input_version"]),
+            == (snapshot["project_id"], snapshot["input_version"])
+            and type(self._receipt["input_version"]) is type(snapshot["input_version"]),
             "project/input differs",
         )
         ref = snapshot["bindings"]["deliverable"]
@@ -355,11 +361,18 @@ def load_host_replay(
     )
     errors = list(Draft202012Validator(schema).iter_errors(receipt))
     require(not errors, "receipt schema invalid")
+    require(
+        valid_input_version(receipt["input_version"]), "typed input version required"
+    )
     require(receipt["snapshot_ref"] == snapshot_ref, "snapshot reference differs")
     snapshot = read_bound_json(evidence_root, snapshot_ref)
     require(
+        valid_input_version(snapshot["input_version"]), "typed input version required"
+    )
+    require(
         (receipt["project_id"], receipt["input_version"])
-        == (snapshot["project_id"], snapshot["input_version"]),
+        == (snapshot["project_id"], snapshot["input_version"])
+        and type(receipt["input_version"]) is type(snapshot["input_version"]),
         "project/input differs",
     )
     ref = snapshot["bindings"]["deliverable"]

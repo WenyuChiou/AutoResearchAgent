@@ -12,6 +12,11 @@ _SHA256 = re.compile(r"[0-9a-f]{64}")
 _REFERENCE_KEYS = {"path", "sha256", "bytes"}
 
 
+def valid_input_version(value):
+    """Keep original strings and positive Python integers distinct from aliases."""
+    return (type(value) is str and bool(value)) or (type(value) is int and value > 0)
+
+
 def _reference(ref):
     if not isinstance(ref, dict) or set(ref) != _REFERENCE_KEYS:
         raise DeliverableError("invalid evidence reference")

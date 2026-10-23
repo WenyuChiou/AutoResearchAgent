@@ -13,7 +13,7 @@ from stage1_deliverable import package as deliverable_package
 from stage1_ledger.handoff import DIMENSIONS
 from .final_delivery import _view
 from .formal_readiness import derive_formal_readiness
-from .saved_admission_evidence import read_bound, read_bound_json
+from .saved_admission_evidence import read_bound, read_bound_json, valid_input_version
 
 
 SCHEMA = (
@@ -82,6 +82,9 @@ def check_snapshot(snapshot):
         )
     )
     require(not errors, "snapshot contract invalid")
+    require(
+        valid_input_version(snapshot["input_version"]), "typed input version required"
+    )
 
 
 def check_handoff(handoff):
@@ -90,6 +93,9 @@ def check_handoff(handoff):
     )
     errors = list(Draft202012Validator(schema).iter_errors(handoff))
     require(not errors, "handoff v2 contract invalid")
+    require(
+        valid_input_version(handoff["input_version"]), "typed input version required"
+    )
 
 
 def reconcile_rows(rows, papers, target):
