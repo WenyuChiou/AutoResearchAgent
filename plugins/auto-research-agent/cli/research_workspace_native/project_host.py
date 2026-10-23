@@ -21,6 +21,7 @@ from .project_stage1_progress import project_progress
 from .project_stage1_records import reading_registration_view
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
+from .project_stage2_selection import ProjectStage2SelectionService
 from .project_atlas_shell import shell_assets
 from .project_ui_overlay import (
     PANEL,
@@ -47,7 +48,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -83,6 +84,7 @@ class ProjectHost(AtlasHost):
         models=None,
         stage1=None,
         stage2=None,
+        stage2_selection=None,
         stage1_materials_root=None,
         stage1_sources=None,
         stage1_source_dispatcher=None,
@@ -92,6 +94,11 @@ class ProjectHost(AtlasHost):
             raise ValueError("trusted project intake service required")
         if projects.authenticate(credential) != "local-viewer":
             raise ValueError("same local principal required")
+        if stage2_selection is not None and (
+            type(stage2_selection) is not ProjectStage2SelectionService
+            or stage2_selection.intake is not projects
+        ):
+            raise ValueError("same trusted Stage2 selection service required")
         if stage1_sources is not None and (
             not isinstance(stage1_sources, ProjectStage1SourceService)
             or stage1_sources.stage1 is not stage1
@@ -132,6 +139,9 @@ class ProjectHost(AtlasHost):
                 "project-operations.js",
                 "project-operations.css",
                 "project-saved-views.js",
+                "project-stage2-selection.html",
+                "project-stage2-selection.js",
+                "project-stage2-selection.css",
             )
         }
         atlas_shell = shell_assets(ASSETS)
@@ -152,6 +162,7 @@ class ProjectHost(AtlasHost):
             stage2,
         )
         self.project_stage1 = stage1
+        self.project_stage2_selection = stage2_selection
         self.project_expansions = None
         queries = getattr(stage1, "query_service", None)
         if queries is not None:
@@ -538,7 +549,16 @@ class ProjectHandler(AtlasHandler):
                     action or resolution
                 ):
                     raise SessionApiError("invalid-project-read", 400)
-                if operation in {"models", "stage1", "stage2"}:
+                if (
+                    operation == "stage2"
+                    and action == "selection"
+                    and resolution is None
+                ):
+                    extension = self.server.project_stage2_selection
+                    if extension is None:
+                        raise SessionApiError("stage2-selection-unconnected", 409)
+                    result = extension.read(token, ref, check_deadline=self._remaining)
+                elif operation in {"models", "stage1", "stage2"}:
                     extension = (
                         self.server.project_models
                         if operation == "models"
@@ -706,6 +726,16 @@ class ProjectHandler(AtlasHandler):
                     result = getattr(extension, action.replace("-", "_"))(
                         token, ref, body, check_deadline=self._remaining
                     )
+                elif (
+                    operation == "stage2" and action == "select" and resolution is None
+                ):
+                    extension = self.server.project_stage2_selection
+                    if extension is None:
+                        raise SessionApiError("stage2-selection-unconnected", 409)
+                    called = ("stage2-select", ref, body)
+                    result = extension.select(
+                        token, ref, body, check_deadline=self._remaining
+                    )
                 elif operation in {"models", "stage2"} and action in {
                     "actions",
                     "authorize",
@@ -843,6 +873,11 @@ class ProjectHandler(AtlasHandler):
                         stage2_examples=self.server.stage2_examples,
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
+                        stage2_selection_projects=(
+                            list(self.server.project_stage2_selection.bindings)
+                            if self.server.project_stage2_selection is not None
+                            else []
+                        ),
                         stage1=self.server.project_stage1 is not None,
                     ),
                     ensure_ascii=True,
@@ -868,6 +903,8 @@ def main(argv=None):
     parser.add_argument("--views-sha256")
     parser.add_argument("--stage1-import-config", type=Path)
     parser.add_argument("--stage1-import-sha256")
+    parser.add_argument("--selection-config", type=Path)
+    parser.add_argument("--selection-sha256")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args(argv)
@@ -875,6 +912,8 @@ def main(argv=None):
         parser.error("saved views require their external configuration SHA256")
     if bool(args.stage1_import_config) != bool(args.stage1_import_sha256):
         parser.error("Stage1 imports require their external configuration SHA256")
+    if bool(args.selection_config) != bool(args.selection_sha256):
+        parser.error("selection bindings require their external configuration SHA256")
     files, views = (
         load_views(args.views_config, args.views_sha256)
         if args.views_config
@@ -893,11 +932,25 @@ def main(argv=None):
             load_stage1_imports(
                 stage2, token, args.stage1_import_config, args.stage1_import_sha256
             )
+        selection = None
+        if args.selection_config:
+            raw = args.selection_config.read_bytes()
+            if args.selection_config.is_symlink() or sha(raw) != args.selection_sha256:
+                parser.error("selection configuration receipt differs")
+            config = _decode(raw.decode("utf-8"))
+            if (
+                not isinstance(config, dict)
+                or set(config) != {"schema_version", "bindings"}
+                or config["schema_version"] != "1.0.0"
+            ):
+                parser.error("selection configuration shape differs")
+            selection = ProjectStage2SelectionService(projects, config["bindings"])
         host = ProjectHost(
             projects=projects,
             credential=token,
             stage1=ProjectStage1Service(projects),
             stage2=stage2,
+            stage2_selection=selection,
             files=files,
             views=views,
             port=args.port,

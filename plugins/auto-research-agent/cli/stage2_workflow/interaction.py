@@ -233,6 +233,7 @@ def record_interaction(
     if input_origin == "projecthost-ui-submission":
         from .ui_submission import (
             read_ui_submission,
+            valid_input_version,
             submission_origin,
             UI_MESSAGE_FILE,
         )
@@ -245,8 +246,7 @@ def record_interaction(
         _require(
             isinstance(expected_project_ref, str)
             and bool(expected_project_ref.strip())
-            and type(expected_input_version) is int
-            and expected_input_version > 0,
+            and valid_input_version(expected_input_version, allow_string=True),
             "projecthost-submission-trusted-context-required",
         )
         submission = read_ui_submission(
