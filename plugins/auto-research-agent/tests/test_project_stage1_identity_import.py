@@ -31,7 +31,7 @@ class ImportedStage1ProjectTests(unittest.TestCase):
         self.f = fixture
         temporary = tempfile.TemporaryDirectory(prefix="stage1-project-import-")
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.auth = lambda token: "alice" if token == "own" else "bob"
         self.intake = ProjectIntakeService(self.root, authenticate=self.auth)
         self.addCleanup(lambda: self.intake.close())
