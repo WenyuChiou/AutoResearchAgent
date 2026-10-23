@@ -38,8 +38,13 @@ from .project_model_reading import (
     saved_reading_snapshot,
     validate_reading_draft,
 )
+from .project_stage1_review_units import (
+    OPERATION as AUTO_REVIEW,
+    SCOPE as AUTO_SCOPE,
+    prompt as automatic_review_prompt,
+)
 
-OPERATIONS = {"suggest-topic", "plan-search", READ_OPERATION}
+OPERATIONS = {"suggest-topic", "plan-search", READ_OPERATION, AUTO_REVIEW}
 PERMIT_FIELDS = {
     "kind",
     "schema_version",
@@ -187,7 +192,9 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
         .isoformat()
     )
     prompt = (
-        reading_prompt(snapshot)
+        automatic_review_prompt(snapshot)
+        if permit["operation"] == AUTO_REVIEW
+        else reading_prompt(snapshot)
         if permit["operation"] == READ_OPERATION
         else _prompt(permit["operation"], binding, as_of)
     )
@@ -213,8 +220,13 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
         context.update(
             saved_reading=deepcopy(snapshot),
             snapshot_sha256=sha(canonical(snapshot)),
-            work_ref=permit["work_ref"],
+            work_ref=snapshot["work_id"],
         )
+        if permit["operation"] == AUTO_REVIEW:
+            context.update(
+                task_ref=permit["task_ref"],
+                automatic_parent_sha256=permit["automatic_parent_sha256"],
+            )
     context["source_sha256"] = sha(canonical(context))
     offer_hash = sha(canonical(context))
     return dict(
@@ -517,6 +529,8 @@ class ProjectModelService:
             | (
                 {"work_ref", "snapshot_sha256"}
                 if operation == READ_OPERATION
+                else {"task_ref", "snapshot_sha256", "automatic_parent_sha256"}
+                if operation == AUTO_REVIEW
                 else set()
             )
             and permit["kind"] == "ProjectModelOperationPermit"
@@ -542,6 +556,8 @@ class ProjectModelService:
             == (
                 READ_SCOPE
                 if operation == READ_OPERATION
+                else AUTO_SCOPE
+                if operation == AUTO_REVIEW
                 else "project-content-planning-only"
             )
             and permit["external_search"] is False
@@ -576,6 +592,15 @@ class ProjectModelService:
             _check(
                 permit["snapshot_sha256"] == sha(canonical(snapshot)),
                 "reading-permit-snapshot-differs",
+            )
+        elif operation == AUTO_REVIEW:
+            owner = getattr(self, "automatic_stage1", None)
+            _check(owner is not None, "automatic-stage1-owner-unconnected")
+            snapshot = owner.snapshot(project_ref, permit["task_ref"])
+            _check(
+                permit["snapshot_sha256"] == sha(canonical(snapshot))
+                and permit["automatic_parent_sha256"] == owner.permit_sha256,
+                "automatic-stage1-permit-snapshot-differs",
             )
         self._owner(principal, project_ref)
         record = _offer_record(binding, permit, permit_sha256, project_ref, snapshot)
@@ -616,6 +641,11 @@ class ProjectModelService:
         expiry. The permit and opaque offer are saved together after a durable
         intent. A post-write crash/timeout remains unknown and is never re-minted.
         """
+        _check(
+            not (type(body) is dict and body.get("operation") == AUTO_REVIEW),
+            "automatic-stage1-trusted-delegation-required",
+            400,
+        )
         fields = {
             "key",
             "revision",
@@ -842,6 +872,13 @@ class ProjectModelService:
                 scope=READ_SCOPE,
                 core_claims_created=False,
             )
+        elif context["operation"] == AUTO_REVIEW:
+            result.update(
+                task_ref=context["task_ref"],
+                work_ref=context["work_ref"],
+                snapshot_sha256=context["snapshot_sha256"],
+                scope=AUTO_SCOPE,
+            )
         return result
 
     def _guard(self, ref, offer, *, allow_expired=False):
@@ -885,6 +922,10 @@ class ProjectModelService:
                 and sha(canonical(snapshot)) == offer["context"]["snapshot_sha256"],
                 "reading-source-snapshot-differs",
             )
+        elif offer["context"]["operation"] == AUTO_REVIEW:
+            owner = getattr(self, "automatic_stage1", None)
+            _check(owner is not None, "automatic-stage1-owner-unconnected")
+            owner.guard(ref, offer["context"])
         with self.intake._lock:
             resource_view(
                 self.intake,
@@ -1009,6 +1050,8 @@ class ProjectModelService:
                 "work_ref",
                 "snapshot_sha256",
                 "reading_draft",
+                "automatic_review",
+                "task_ref",
             )
             if k in job
         }
@@ -1459,6 +1502,8 @@ class ProjectModelService:
 
         def reserve(state, request_hash, actor):
             registration = self._guard(project_ref, offer)
+            if offer["context"]["operation"] == AUTO_REVIEW:
+                self.automatic_stage1.check_reservation(project_ref)
             _check(self.factory is not None, "model-provider-unconnected")
             row = self._row(state)
             _check(
@@ -1518,6 +1563,10 @@ class ProjectModelService:
                 "model-budget-exhausted",
             )
             started_at = self.clock()
+            if offer["context"]["operation"] == AUTO_REVIEW:
+                self.automatic_stage1.check_reservation(
+                    project_ref, seconds=deadline - started_at
+                )
             reserve_resource(
                 self.intake,
                 state,
@@ -1565,6 +1614,12 @@ class ProjectModelService:
             if offer["context"]["operation"] == READ_OPERATION:
                 job.update(
                     work_ref=offer["context"]["work_ref"],
+                    snapshot_sha256=offer["context"]["snapshot_sha256"],
+                )
+            elif offer["context"]["operation"] == AUTO_REVIEW:
+                job.update(
+                    work_ref=offer["context"]["work_ref"],
+                    task_ref=offer["context"]["task_ref"],
                     snapshot_sha256=offer["context"]["snapshot_sha256"],
                 )
             job["runtime_binding"] = self._runtime_identity(principal, project_ref, job)
@@ -1767,6 +1822,16 @@ class ProjectModelService:
                         "researcher_acceptance": False,
                         "core_claims_created": False,
                     }
+                except (ValueError, KeyError, TypeError, UnicodeError) as error:
+                    result.update(status="validation-failed", failure=str(error)[:512])
+            if offer["context"]["operation"] == AUTO_REVIEW:
+                from .project_stage1_review_units import validate_result
+
+                try:
+                    reviewed = validate_result(raw, offer["context"]["saved_reading"])
+                    result["automatic_review"] = _write_new(
+                        folder / "automatic-review.json", canonical(reviewed) + b"\n"
+                    )
                 except (ValueError, KeyError, TypeError, UnicodeError) as error:
                     result.update(status="validation-failed", failure=str(error)[:512])
             if offer["context"]["operation"] == "plan-search":

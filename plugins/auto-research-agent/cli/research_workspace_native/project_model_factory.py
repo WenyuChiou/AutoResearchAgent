@@ -23,6 +23,10 @@ from .runtime_spec import DENIED_THREAD_CONFIG, _thread_config
 from .stage_inputs import snapshot_inputs, source_digest
 from .stage_model import StageModel
 from .project_model_reading import READ_OPERATION, reading_prompt
+from .project_stage1_review_units import (
+    OPERATION as AUTO_REVIEW,
+    prompt as automatic_review_prompt,
+)
 
 MAX_CONTEXT = 65536
 HASH = re.compile(r"[0-9a-f]{64}")
@@ -291,7 +295,7 @@ class OwnAccountProjectModelFactory:
         )
         source.require(
             context.get("operation")
-            in {"suggest-topic", "plan-search", READ_OPERATION},
+            in {"suggest-topic", "plan-search", READ_OPERATION, AUTO_REVIEW},
             "bounded project content operation required",
         )
         validate_brief(
@@ -338,6 +342,31 @@ class OwnAccountProjectModelFactory:
                 and source.digest(reading_prompt(snapshot).encode("utf8"))
                 == context.get("prompt_sha256"),
                 "saved reading source or prompt binding differs",
+            )
+        elif context["operation"] == AUTO_REVIEW:
+            snapshot = context.get("saved_reading")
+            source.require(
+                type(snapshot) is dict
+                and snapshot.get("kind") == "Stage1AutomaticReviewInput"
+                and snapshot.get("schema_version") == "1.0.0"
+                and snapshot.get("scientific_acceptance") is False
+                and snapshot.get("human_acceptance") is False
+                and snapshot.get("task_ref") == context.get("task_ref")
+                and snapshot.get("work_id") == context.get("work_ref")
+                and all(
+                    snapshot.get(name) == context[name]
+                    for name in (
+                        "project_ref",
+                        "project_id",
+                        "input_version",
+                        "brief_sha256",
+                    )
+                )
+                and source.digest(source.canonical(snapshot))
+                == context.get("snapshot_sha256")
+                and source.digest(automatic_review_prompt(snapshot).encode("utf8"))
+                == context.get("prompt_sha256"),
+                "automatic reading source or prompt binding differs",
             )
         output = private_output(source.unlinked(output_root).resolve())
         source.require(

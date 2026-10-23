@@ -286,6 +286,42 @@ class ProjectHost(AtlasHost):
             run_id=run_id, deadline=deadline, max_actions=max_actions
         )
 
+    def register_stage1_execution(
+        self, ref, *, permit_path, permit_sha256, output_root
+    ):
+        """Trusted bootstrap only; register a delegated producer without running it."""
+        from .project_stage1_execution import ProjectStage1ExecutionService
+
+        if getattr(self, "project_stage1_execution", None) is not None:
+            raise ValueError("automatic Stage1 producer already registered")
+        producer = ProjectStage1ExecutionService(
+            self.project_stage1,
+            self.project_models,
+            self.project_stage1_records,
+            permit_path=permit_path,
+            permit_sha256=permit_sha256,
+            output_root=output_root,
+        )
+        try:
+            producer._permit(ref)
+        except BaseException:
+            self.project_models.automatic_stage1 = None
+            raise
+        self.project_stage1_execution = producer
+        self.host_binding.update(
+            project_stage1_automatic_reading=True,
+            project_stage1_automatic_parent_sha256=permit_sha256,
+            project_stage1_automatic_stage2_execution=False,
+        )
+        self._assets["/host-binding.json"] = canonical(self.host_binding)
+        return dict(
+            registered=True,
+            project_ref=ref,
+            permit_sha256=permit_sha256,
+            model_or_source_started=False,
+            stage2_started=False,
+        )
+
     def overview(self, credential, ref):
         # One store lock joins matching saved revisions. Workers cannot commit
         # another input/version between the UI brief and its action offers.

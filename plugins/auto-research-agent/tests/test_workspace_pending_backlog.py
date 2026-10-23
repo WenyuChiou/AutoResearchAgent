@@ -11,7 +11,11 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
-from research_workspace.pending_backlog import inspect_backlog, main
+from research_workspace.pending_backlog import (
+    inspect_backlog,
+    main,
+    prepare_execution_queue,
+)
 from stage1_deliverable.common import DeliverableError, canonical, sha
 
 
@@ -144,6 +148,43 @@ def inspect(index, **changes):
 
 
 class PendingBacklogTests(unittest.TestCase):
+    def test_execution_queue_preserves_each_original_observation_and_string_input(self):
+        original = inspect(
+            fixture(urls=["https://example.org/a", "https://example.org/a"])
+        )
+        raw = canonical(original)
+        queue = prepare_execution_queue(raw, expected_companion_sha256=sha(raw))
+        self.assertEqual(queue["item_count"], 2)
+        self.assertEqual(queue["task_count"], 12)
+        self.assertEqual(queue["binding"]["input_version"], "input-1")
+        self.assertEqual(len({item["item_id"] for item in queue["items"]}), 2)
+        self.assertEqual(canonical(original), raw)
+        self.assertFalse(queue["execution_authorized"])
+        self.assertEqual(queue["calls"], dict(query=0, acquisition=0, model=0))
+        for item in queue["items"]:
+            self.assertIsNone(item["academic_decision"])
+            self.assertEqual(item["researcher_questions"], [])
+            self.assertTrue(
+                all(t["status"] == "automatic-pending" for t in item["tasks"])
+            )
+            self.assertEqual(item["tasks"][0]["dependency"], None)
+            self.assertEqual(
+                item["tasks"][1]["dependency"], item["tasks"][0]["task_id"]
+            )
+        self.assertEqual(
+            queue, prepare_execution_queue(raw, expected_companion_sha256=sha(raw))
+        )
+
+    def test_execution_queue_rejects_untrusted_or_partial_cohort(self):
+        original = inspect(fixture())
+        raw = canonical(original)
+        with self.assertRaises(DeliverableError):
+            prepare_execution_queue(raw, expected_companion_sha256="0" * 64)
+        original["rows"] = []
+        raw = canonical(original)
+        with self.assertRaises(DeliverableError):
+            prepare_execution_queue(raw, expected_companion_sha256=sha(raw))
+
     def test_original_refs_without_redundant_hash_use_pinned_manifest(self):
         index = fixture()
         recovery = index["original_record_recovery"]

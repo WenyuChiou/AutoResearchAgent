@@ -362,6 +362,132 @@ def inspect_backlog(raw, *, expected_index_sha256, project_id, input_version):
     }
 
 
+def prepare_execution_queue(raw, *, expected_companion_sha256):
+    """Turn verified local triage into stable automatic work, preserving identity.
+
+    This queue is consumed by the original run's admitted source/review owner.
+    Creating it neither obtains another budget nor converts a legacy string
+    input into a native integer. Unexecuted work remains automatic work.
+    """
+    _require(
+        type(raw) is bytes
+        and len(raw) <= MAX_INDEX_BYTES
+        and _hash(expected_companion_sha256)
+        and sha(raw) == expected_companion_sha256,
+        "companion external bytes differ",
+    )
+    companion = _json(raw)
+    _require(
+        companion.get("contract") == CONTRACT
+        and companion.get("kind") == "Stage1AutomaticBacklogCompanion",
+        "triage companion required",
+    )
+    binding = companion["binding"]
+    _require(
+        type(binding) is dict
+        and set(binding) == {"project_id", "input_version", "index_sha256"}
+        and type(binding["project_id"]) is str
+        and binding["project_id"]
+        and type(binding["input_version"]) in {int, str}
+        and type(binding["input_version"]) is not bool
+        and _hash(binding["index_sha256"]),
+        "original typed binding required",
+    )
+    rows = companion["rows"]
+    _require(
+        type(rows) is list
+        and len(rows) <= 10000
+        and companion["counts"]["original_pending"] == len(rows)
+        and len({row["observation_ref"] for row in rows}) == len(rows),
+        "complete pending cohort required",
+    )
+    phases = (
+        "resolve-source-identity",
+        "lawful-source-acquisition",
+        "complete-extracted-text-review",
+        "academic-rescreening",
+        "full-notes-and-provenance",
+        "coverage-and-package",
+    )
+    items = []
+    for row in rows:
+        basis = dict(
+            binding=deepcopy(binding),
+            observation_ref=row["observation_ref"],
+            original_observation_sha256=row["original_observation_sha256"],
+            original_decision_sha256=row["original_decision_sha256"],
+        )
+        _require(
+            all(
+                _hash(basis[k])
+                for k in ("original_observation_sha256", "original_decision_sha256")
+            ),
+            "original observation and decision hashes required",
+        )
+        item_id = "stage1-auto-observation-" + sha(canonical(basis))
+        previous = None
+        tasks = []
+        for phase in phases:
+            task = dict(
+                item_id=item_id,
+                phase=phase,
+                binding=deepcopy(binding),
+                dependency=previous,
+            )
+            task_id = "stage1-auto-task-" + sha(canonical(task))
+            tasks.append(
+                dict(
+                    task_id=task_id,
+                    phase=phase,
+                    dependency=previous,
+                    status="automatic-pending",
+                    attempts=[],
+                    result=None,
+                    failure=None,
+                    researcher_decision_required=False,
+                )
+            )
+            previous = task_id
+        items.append(
+            dict(
+                item_id=item_id,
+                **basis,
+                status="automatic-pending",
+                tasks=tasks,
+                executed_local_steps=deepcopy(row["executed_steps"]),
+                observed_url=row["url_observed"],
+                need_ids=deepcopy(row["need_ids"]),
+                candidate_work_versions=deepcopy(row["saved_work_matches"]),
+                duplicate_observation_ref=row["same_url_prior_observation"],
+                academic_decision=None,
+                complete_source_read=False,
+                researcher_questions=[],
+            )
+        )
+    return dict(
+        kind="Stage1AutomaticExecutionQueue",
+        schema_version="1.0.0",
+        binding=deepcopy(binding),
+        source_companion_sha256=expected_companion_sha256,
+        source_cohort_sha256=companion["cohort_sha256"],
+        items=items,
+        item_count=len(items),
+        task_count=len(items) * len(phases),
+        next_task_ids=[item["tasks"][0]["task_id"] for item in items],
+        original_records_changed=False,
+        execution_authorized=False,
+        model_or_source_permit_inferred=False,
+        scientific_acceptance=False,
+        eligible_for_stage2=False,
+        calls=dict(query=0, acquisition=0, model=0),
+        stop=dict(
+            reason="automatic-work-prepared-not-executed",
+            sufficient=False,
+            original=deepcopy(companion["recorded_stop"]),
+        ),
+    )
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--index", required=True)

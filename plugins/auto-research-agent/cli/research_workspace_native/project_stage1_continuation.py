@@ -410,10 +410,14 @@ def continue_stage1(
         frontiers.add(current.frontier_sha256)
         count += 1
         error = None
+        error_code = None
         try:
             handlers[action.kind](action, key, deadline)
         except Exception as failure:
             error = type(failure).__name__
+            code = getattr(failure, "code", None)
+            if type(code) is str and re.fullmatch(r"[A-Za-z0-9_-]{1,128}", code):
+                error_code = code
         current = read()
         receipt = next((a for a in current.actions if a.key == key), None)
         records.append(
@@ -426,6 +430,8 @@ def continue_stage1(
                 reason=error,
             )
         )
+        if error_code is not None:
+            records[-1]["error_code"] = error_code
         if error:
             return finish("held", "handler-failed")
         if receipt is None:
