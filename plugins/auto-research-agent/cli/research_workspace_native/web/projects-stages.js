@@ -18,9 +18,11 @@
   };
   let active = 1, current = null, language = "en";
   const same = (left, right) => left && right && identityKeys.every(key => left[key] === right[key]);
-  const identity = project => project && /^[A-Za-z0-9_-]{1,64}$/.test(project.project_ref || "") && Number.isSafeInteger(project.input_version) && project.input_version > 0 && Number.isSafeInteger(project.revision) && project.revision >= 0 && /^[0-9a-f]{64}$/.test(project.brief_sha256 || "");
+  // Preserve the type and bounds used by ui_submission.valid_input_version.
+  const inputVersion = value => Number.isSafeInteger(value) && value > 0 || typeof value === "string" && [...value].length > 0 && [...value].length <= 128 && !/[\u0000-\u001f\u007f]/u.test(value) && !/^\p{White_Space}|\p{White_Space}$/u.test(value);
+  const identity = project => project && /^[A-Za-z0-9_-]{1,64}$/.test(project.project_ref || "") && inputVersion(project.input_version) && Number.isSafeInteger(project.revision) && project.revision >= 0 && /^[0-9a-f]{64}$/.test(project.brief_sha256 || "");
   function bound(contract, project) {
-    return identity(project) && contract && contract.kind === "HarnessUiProjectView" && contract.schema_version === "1.0.0" && same(contract.identity, project)
+    return identity(project) && contract && contract.kind === "HarnessUiProjectView" && contract.schema_version === (typeof project.input_version === "string" ? "1.1.0" : "1.0.0") && same(contract.identity, project)
       && contract.stages && stages.every(number => {
         const stage = contract.stages[String(number)];
         return stage && stage.stage === String(number) && same(stage.input, project) && typeof stage.status === "string" && stage.status.length > 0 && stage.status.length <= 128
