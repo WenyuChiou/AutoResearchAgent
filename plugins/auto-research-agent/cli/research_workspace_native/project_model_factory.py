@@ -23,10 +23,12 @@ from .runtime_spec import DENIED_THREAD_CONFIG, _thread_config
 from .stage_inputs import snapshot_inputs, source_digest
 from .stage_model import StageModel
 from .project_model_reading import READ_OPERATION, reading_prompt
-from .project_full_reading import (
-    FULL_READ_OPERATION,
+from .project_full_analysis import ANALYZE_OPERATION
+from .project_reading_dispatch import (
     READING_OPERATIONS,
-    full_reading_prompt,
+    FULL_SOURCE_OPERATIONS,
+    model_reading_prompt,
+    reading_metadata,
 )
 from .model_input_profile import FULL_SOURCE_PROFILE, record_limit
 
@@ -265,7 +267,7 @@ class OwnAccountProjectModelFactory:
             len(source.canonical(context))
             <= (
                 record_limit(FULL_SOURCE_PROFILE)
-                if context.get("operation") == FULL_READ_OPERATION
+                if context.get("operation") in FULL_SOURCE_OPERATIONS
                 else MAX_CONTEXT
             ),
             "model context bound exceeded",
@@ -307,7 +309,7 @@ class OwnAccountProjectModelFactory:
         )
         source.require(
             context.get("input_profile") == FULL_SOURCE_PROFILE
-            if context["operation"] == FULL_READ_OPERATION
+            if context["operation"] in FULL_SOURCE_OPERATIONS
             else "input_profile" not in context,
             "model input profile differs",
         )
@@ -356,10 +358,19 @@ class OwnAccountProjectModelFactory:
                 == context.get("prompt_sha256"),
                 "saved reading source or prompt binding differs",
             )
-        elif context["operation"] == FULL_READ_OPERATION:
+        elif context["operation"] in FULL_SOURCE_OPERATIONS:
             snapshot = context.get("saved_reading")
             source.require(type(snapshot) is dict, "full reading snapshot required")
-            meta = snapshot.get("saved_reading")
+            expected_kind = (
+                "Stage1SavedFullSourceAnalysisInput"
+                if context["operation"] == ANALYZE_OPERATION
+                else "Stage1SavedFullSourceReadingInput"
+            )
+            source.require(
+                snapshot.get("kind") == expected_kind,
+                "reading operation snapshot differs",
+            )
+            meta = reading_metadata(snapshot)
             source.require(
                 type(meta) is dict
                 and meta.get("work_id") == context.get("work_ref")
@@ -374,7 +385,7 @@ class OwnAccountProjectModelFactory:
                 )
                 and source.digest(source.canonical(snapshot))
                 == context.get("snapshot_sha256")
-                and source.digest(full_reading_prompt(snapshot).encode("utf8"))
+                and source.digest(model_reading_prompt(snapshot).encode("utf8"))
                 == context.get("prompt_sha256"),
                 "full reading source or prompt binding differs",
             )
@@ -488,7 +499,7 @@ class OwnAccountProjectModelFactory:
             trusted_stage_unit=True,
             **(
                 {"input_profile": FULL_SOURCE_PROFILE}
-                if context["operation"] == FULL_READ_OPERATION
+                if context["operation"] in FULL_SOURCE_OPERATIONS
                 else {}
             ),
         )

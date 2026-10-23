@@ -36,13 +36,15 @@ from .project_model_reading import (
     saved_reading_snapshot,
 )
 
-from .project_full_reading import (
-    FULL_READ_OPERATION,
+from .project_full_reading import FULL_READ_OPERATION, saved_full_reading_snapshot
+from .project_full_analysis import ANALYZE_OPERATION, saved_full_analysis_snapshot
+from .project_reading_dispatch import (
     READING_OPERATIONS,
+    FULL_SOURCE_OPERATIONS,
     reading_scope,
-    saved_full_reading_snapshot,
     model_reading_prompt,
     model_reading_draft,
+    reading_metadata,
 )
 from .model_input_profile import FULL_SOURCE_PROFILE, turn_input
 
@@ -222,7 +224,7 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
             snapshot_sha256=sha(canonical(snapshot)),
             work_ref=permit["work_ref"],
         )
-    if permit["operation"] == FULL_READ_OPERATION:
+    if permit["operation"] in FULL_SOURCE_OPERATIONS:
         context["input_profile"] = FULL_SOURCE_PROFILE
     context["source_sha256"] = sha(canonical(context))
     offer_hash = sha(canonical(context))
@@ -304,17 +306,33 @@ class ProjectModelService:
     def _operation_reading_snapshot(
         self, operation, ref, work_ref, check_deadline=None
     ):
+        if operation == ANALYZE_OPERATION:
+            return saved_full_analysis_snapshot(
+                self.reading_records, ref, work_ref, check_deadline=check_deadline
+            )
         if operation == FULL_READ_OPERATION:
             return saved_full_reading_snapshot(
                 self.reading_records, ref, work_ref, check_deadline=check_deadline
             )
         return self._reading_snapshot(ref, work_ref, check_deadline)
 
-    def full_reading_offer(
+    def full_reading_offer(self, credential, project_ref, work_ref, **expected):
+        return self._full_source_offer(
+            credential, project_ref, work_ref, FULL_READ_OPERATION, **expected
+        )
+
+    def full_analysis_offer(self, credential, project_ref, work_ref, **expected):
+        """Passive proposal eligibility; no operation permission is created."""
+        return self._full_source_offer(
+            credential, project_ref, work_ref, ANALYZE_OPERATION, **expected
+        )
+
+    def _full_source_offer(
         self,
         credential,
         project_ref,
         work_ref,
+        operation,
         *,
         expected_input_version,
         expected_ledger_state_sha256,
@@ -325,11 +343,15 @@ class ProjectModelService:
         with self.intake._lock:
             self.intake._load(principal, project_ref)
             result = dict(
-                kind="Stage1FullSourceReadingOfferPreview",
+                kind=(
+                    "Stage1FullSourceAnalysisOfferPreview"
+                    if operation == ANALYZE_OPERATION
+                    else "Stage1FullSourceReadingOfferPreview"
+                ),
                 schema_version="1.0.0",
                 project_ref=project_ref,
                 work_ref=work_ref,
-                operation=FULL_READ_OPERATION,
+                operation=operation,
                 available=False,
                 snapshot_sha256=None,
                 blocked_reason=None,
@@ -347,9 +369,9 @@ class ProjectModelService:
                 )
             try:
                 snapshot = self._operation_reading_snapshot(
-                    FULL_READ_OPERATION, project_ref, work_ref, check_deadline
+                    operation, project_ref, work_ref, check_deadline
                 )
-                meta = snapshot["saved_reading"]
+                meta = reading_metadata(snapshot)
                 _check(
                     type(expected_input_version) is int
                     and meta["input_version"] == expected_input_version
@@ -1101,6 +1123,7 @@ class ProjectModelService:
                 "work_ref",
                 "snapshot_sha256",
                 "reading_draft",
+                "analysis_draft",
             )
             if k in job
         }
@@ -1842,16 +1865,27 @@ class ProjectModelService:
             if offer["context"]["operation"] in READING_OPERATIONS:
                 try:
                     draft = model_reading_draft(raw, offer["context"]["saved_reading"])
+                    analysis = offer["context"]["operation"] == ANALYZE_OPERATION
                     artifact = _write_new(
-                        folder / "reading-draft.json", canonical(draft) + b"\n"
+                        folder
+                        / ("analysis-draft.json" if analysis else "reading-draft.json"),
+                        canonical(draft) + b"\n",
                     )
-                    result["reading_draft"] = {
+                    result["analysis_draft" if analysis else "reading_draft"] = {
                         **artifact,
                         "snapshot_sha256": draft["snapshot_sha256"],
                         "work_id": draft["work_id"],
                         "version_id": draft["version_id"],
-                        "evidence_count": len(draft["draft"]["evidence"]),
-                        "evidence_validation": draft["evidence_validation"],
+                        "evidence_count": len(
+                            draft["reading"]["evidence"]
+                            if analysis
+                            else draft["draft"]["evidence"]
+                        ),
+                        "evidence_validation": (
+                            "exact-complete-source-UTF8-spans-only"
+                            if analysis
+                            else draft["evidence_validation"]
+                        ),
                         "researcher_acceptance": False,
                         "core_claims_created": False,
                     }
