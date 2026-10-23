@@ -105,6 +105,7 @@ def recover_completed_selection(
             state = intake._load(principal, project_ref)
             _check(
                 state["revision"] == body["revision"] + 1
+                and type(state["input_version"]) is type(body["input_version"])
                 and state["input_version"] == body["input_version"],
                 "stage2-selection-recovery-stale",
             )
@@ -112,6 +113,7 @@ def recover_completed_selection(
             binding = service.bindings.get(project_ref)
             _check(
                 binding is not None
+                and type(binding["input_version"]) is type(state["input_version"])
                 and binding["input_version"] == state["input_version"]
                 and binding["brief_sha256"]
                 == brief_row["sha256"]
@@ -176,6 +178,7 @@ def recover_completed_selection(
             _check(
                 submission["project_ref"] == project_ref
                 and submission["principal"] == principal
+                and type(submission["input_version"]) is type(body["input_version"])
                 and submission["input_version"] == body["input_version"]
                 and submission["request_sha256"] == expected
                 and submission["decision"] == body["decision"]

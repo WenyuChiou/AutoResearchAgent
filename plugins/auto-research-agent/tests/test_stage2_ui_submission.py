@@ -276,6 +276,65 @@ class UISubmissionTests(unittest.TestCase):
             ):
                 read_ui_submission(raw)
 
+    def test_string_version_submission_roundtrip_preserves_typed_origin(self):
+        self.submission.update(schema_version="1.1.0", input_version="20261009-A03")
+        self.record(input_version="20261009-A03")
+        result = prepare_planning_handoff(
+            self.delivery,
+            self.interaction,
+            expected_delivery_manifest_sha256=self.manifest["manifest_sha256"],
+            expected_interaction_file_sha256=hashlib.sha256(
+                (self.interaction / "interaction.json").read_bytes()
+            ).hexdigest(),
+            output_dir=self.package,
+        )
+        checked = self.inspect(result["manifest"]["manifest_sha256"])
+        self.assertEqual(
+            checked["handoff"]["input_origin"]["input_version"], "20261009-A03"
+        )
+        self.assertEqual(
+            checked["handoff"]["input_origin"]["human_identity"], "not-established"
+        )
+        self.assertFalse(checked["handoff"]["execution_authorized"])
+        from stage3_plan.intake import admit_intake
+
+        admitted = admit_intake(
+            self.package,
+            self.delivery,
+            expected_manifest_sha256=result["manifest"]["manifest_sha256"],
+        )
+        self.assertEqual(admitted["input_origin"], checked["handoff"]["input_origin"])
+        self.assertFalse(admitted["execution_authorized"])
+        self.assertEqual(
+            (self.package / UI_MESSAGE_FILE).read_bytes(), self.message.read_bytes()
+        )
+
+    def test_legacy_submission_does_not_silently_accept_string_version(self):
+        self.submission["input_version"] = "20261009-A03"
+        with self.assertRaises(Stage2Error):
+            read_ui_submission(json.dumps(self.submission).encode())
+        self.submission["schema_version"] = "1.1.0"
+        for version in (True, 1.0, "", " ", "x" * 201, "a\0b", None):
+            self.submission["input_version"] = version
+            with self.subTest(version=repr(version)), self.assertRaises(Stage2Error):
+                read_ui_submission(json.dumps(self.submission).encode())
+
+    def test_expected_version_binding_requires_exact_type_and_value(self):
+        raw = json.dumps(self.submission).encode()
+        for expected in (True, 1.0, "1", 2):
+            with self.subTest(expected=repr(expected)), self.assertRaises(Stage2Error):
+                read_ui_submission(raw, expected={"input_version": expected})
+        self.submission.update(schema_version="1.1.0", input_version="20261009-A03")
+        raw = json.dumps(self.submission).encode()
+        self.assertEqual(
+            read_ui_submission(raw, expected={"input_version": "20261009-A03"})[
+                "input_version"
+            ],
+            "20261009-A03",
+        )
+        with self.assertRaises(Stage2Error):
+            read_ui_submission(raw, expected={"input_version": "20261009-A04"})
+
 
 if __name__ == "__main__":
     unittest.main()

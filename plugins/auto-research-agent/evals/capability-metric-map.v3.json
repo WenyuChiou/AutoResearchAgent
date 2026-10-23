@@ -426,7 +426,8 @@
         "plugins/auto-research-agent/tests/test_project_stage2_selection_http.py",
         "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.py",
         "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.cjs",
-        "plugins/auto-research-agent/tests/test_project_stage2_selection_requests.cjs"
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_requests.cjs",
+        "plugins/auto-research-agent/tests/test_stage2_ui_submission.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -444,6 +445,10 @@
         "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.py",
         "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.cjs",
         "plugins/auto-research-agent/tests/test_project_stage2_selection_requests.cjs"
+      ],
+      "projecthost_typed_selection_contract": "Formal UI submissions retain the exact integer or bounded string input version. Legacy submission1.0 remains integer-only; string1.1 preserves imported identity. Repeated intent and registration recovery compare value and type, without granting execution or human identity.",
+      "projecthost_typed_selection_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_ui_submission.py"
       ]
     },
     {

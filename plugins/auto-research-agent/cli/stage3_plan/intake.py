@@ -71,7 +71,7 @@ def project_intake(handoff, manifest_sha256):
     collect_evidence(handoff["selected_prior_work_reviews"])
     evidence = [row for row in packet["evidence"] if row["evidence_id"] in evidence_ids]
     source_ids = {row["source_id"] for row in evidence}
-    return {
+    intake = {
         "source_manifest_sha256": manifest_sha256,
         "selected_candidates": copy.deepcopy(selected["selected"]),
         "questions": questions,
@@ -90,6 +90,9 @@ def project_intake(handoff, manifest_sha256):
         "unresolved": copy.deepcopy(selected.get("unresolved", [])),
         "execution_authorized": False,
     }
+    if "input_origin" in handoff:
+        intake["input_origin"] = copy.deepcopy(handoff["input_origin"])
+    return intake
 
 
 def admit_intake(

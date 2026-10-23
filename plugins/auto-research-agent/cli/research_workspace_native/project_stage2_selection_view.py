@@ -9,6 +9,7 @@ from stage2_common import Stage2Error
 from stage2_workflow.decision_cards import derive_decision_cards
 from stage2_workflow.delivery import inspect_delivery
 from stage2_workflow.store import inspect_workflow
+from stage2_workflow.ui_submission import valid_input_version
 from stage3_plan.intake import admit_intake
 from .project_stage2 import ProjectStage2Service
 from .session_api import SessionApiError, _check, _hash
@@ -37,7 +38,7 @@ class ProjectStage2SelectionView:
                 "selection-binding-shape",
             )
             _check(
-                type(binding["input_version"]) is int and binding["input_version"] > 0,
+                valid_input_version(binding["input_version"], allow_string=True),
                 "selection-binding-version",
             )
             _check(
@@ -60,7 +61,8 @@ class ProjectStage2SelectionView:
         binding = self.bindings.get(project_ref)
         _check(binding is not None, "stage2-selection-unconnected", 409)
         _check(
-            project.get("input_version") == binding["input_version"]
+            type(project.get("input_version")) is type(binding["input_version"])
+            and project.get("input_version") == binding["input_version"]
             and project.get("brief_sha256") == binding["brief_sha256"],
             "stage2-selection-project-stale",
         )

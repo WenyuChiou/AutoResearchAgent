@@ -9,6 +9,7 @@ from stage2_common import Stage2Error, canonical_hash
 from stage1_deliverable.common import canonical
 from stage2_workflow.interaction import record_interaction
 from stage2_workflow.planning_handoff import prepare_planning_handoff
+from stage2_workflow.ui_submission import valid_input_version
 from stage3_plan.intake import admit_intake
 from .project_intake_contract import BOUND_FIELDS, _fields
 from .project_stage2_selection_view import ProjectStage2SelectionView
@@ -97,7 +98,7 @@ class ProjectStage2SelectionService(ProjectStage2SelectionView):
                 if prior.get("kind") == "stage2-select":
                     version = prior["request"].get("input_version")
                     _check(
-                        type(version) is int and version > 0,
+                        valid_input_version(version, allow_string=True),
                         "stage2-selection-prior-intent-invalid",
                     )
                     events = self.intake.db.execute(
@@ -144,7 +145,9 @@ class ProjectStage2SelectionService(ProjectStage2SelectionView):
             output.mkdir()
             submission = dict(
                 kind="Stage2ProjectHostUserSubmission",
-                schema_version="1.0.0",
+                schema_version="1.0.0"
+                if type(state["input_version"]) is int
+                else "1.1.0",
                 project_ref=project_ref,
                 input_version=state["input_version"],
                 principal=actor,
