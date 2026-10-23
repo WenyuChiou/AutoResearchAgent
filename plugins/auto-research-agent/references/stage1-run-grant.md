@@ -12,7 +12,11 @@ scientific acceptance, frozen experiments and Stage2 execution stay excluded.
 
 The absolute expiry is at most the saved seconds budget and10800seconds.
 An administrative maximum of512 derived actions is separate from research caps.
-The existing intake action-history cap also applies. A new key cannot renew the
+Legacy consent retains the existing256-row intake history cap. Explicit
+max_history_actions opts into grant schema1.1.0 with256..2048 audit rows,
+validated against the original durable consent and document hash on overflow.
+It changes no model/query/source/time/round budgets or execution authority.
+Expiry and revocation do not erase that audit capacity or any old receipt. A new key cannot renew the
 same binding. Resource limits and reservations remain owned by their existing
 query/model/source services; this component never creates or refunds them.
 

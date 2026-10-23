@@ -174,7 +174,15 @@ class ProjectIntakeService:
                     "SELECT COUNT(*) FROM intake_actions WHERE principal=? AND project=?",
                     (principal, project_ref),
                 ).fetchone()[0]
-                _check(count < MAX_ACTIONS, "intake-action-bound-exceeded")
+                if count >= MAX_ACTIONS:
+                    from .project_stage1_run_grant import saved_history_limit
+
+                    limit = (
+                        MAX_ACTIONS
+                        if create
+                        else saved_history_limit(self, principal, project_ref)
+                    )
+                    _check(count < limit, "intake-action-bound-exceeded")
                 if create:
                     _check(
                         self.db.execute(

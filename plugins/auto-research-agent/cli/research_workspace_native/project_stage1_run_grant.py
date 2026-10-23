@@ -152,7 +152,15 @@ class ProjectStage1RunGrantService:
         }
 
     def authorize(self, credential, ref, body):
-        _bound(body, AUTHORIZE)
+        extended = type(body) is dict and "max_history_actions" in body
+        _bound(body, AUTHORIZE | ({"max_history_actions"} if extended else set()))
+        if extended:
+            _check(
+                type(body["max_history_actions"]) is int
+                and 256 <= body["max_history_actions"] <= 2048,
+                "stage1-run-history-capacity-invalid",
+                400,
+            )
         _check(
             body["confirmed"] is True
             and body["scope"] == SCOPE
@@ -210,7 +218,7 @@ class ProjectStage1RunGrantService:
             issued = self._now()
             document = dict(
                 kind="Stage1RunGrant",
-                schema_version="1.0.0",
+                schema_version="1.1.0" if extended else "1.0.0",
                 scope=SCOPE,
                 principal=actor,
                 project_ref=ref,
@@ -232,6 +240,8 @@ class ProjectStage1RunGrantService:
                 stage2_execution=False,
                 automatic_resend=False,
             )
+            if extended:
+                document["max_history_actions"] = body["max_history_actions"]
             grant_ref = "stage1-run-grant-" + digest[:32]
             pin = sha(canonical(document))
             RunLease(self.intake, ref, document, pin).create()
@@ -278,6 +288,26 @@ class ProjectStage1RunGrantService:
         )
         receipt = decode(action[1].encode(), "Stage1 user run consent")
         request = receipt["request"]
+        extended = "max_history_actions" in document
+        _check(
+            type(request) is dict
+            and set(request)
+            == (AUTHORIZE - {"revision"})
+            | ({"max_history_actions"} if extended else set())
+            and document.get("kind") == "Stage1RunGrant"
+            and document.get("schema_version") == ("1.1.0" if extended else "1.0.0")
+            and (
+                not extended
+                or (
+                    type(document["max_history_actions"]) is int
+                    and 256 <= document["max_history_actions"] <= 2048
+                    and type(request["max_history_actions"]) is int
+                    and request["max_history_actions"]
+                    == document["max_history_actions"]
+                )
+            ),
+            "stage1-run-history-consent-differs",
+        )
         _check(
             receipt["kind"] == "stage1-run-authorize"
             and receipt["status"] == "saved"
@@ -401,3 +431,33 @@ class ProjectStage1RunGrantService:
             return RunLease(self.intake, ref, document, body["grant_sha256"]).revoke(
                 deepcopy(body)
             )
+
+
+def saved_history_limit(intake, principal, ref):
+    """Audit capacity only; no clock, execution, resource or acceptance authority."""
+    state = intake._load(principal, ref)
+    grants = state.get(STORE, {})
+    _check(type(grants) is dict, "stage1-run-history-consent-invalid")
+    limit = 256
+    for grant_ref, row in grants.items():
+        _check(
+            type(row) is dict and type(row.get("document")) is dict,
+            "stage1-run-history-consent-invalid",
+        )
+        document = row["document"]
+        if (
+            "max_history_actions" not in document
+            and document.get("schema_version") != "1.1.0"
+        ):
+            continue
+        binding = document.get("binding")
+        _check(
+            type(binding) is dict and _hash(binding.get("runtime_sha256")),
+            "stage1-run-history-consent-invalid",
+        )
+        service = ProjectStage1RunGrantService(
+            intake, runtime_sha256=binding["runtime_sha256"]
+        )
+        _, verified = service._document(principal, ref, grant_ref, row.get("sha256"))
+        limit = max(limit, verified["max_history_actions"])
+    return limit
