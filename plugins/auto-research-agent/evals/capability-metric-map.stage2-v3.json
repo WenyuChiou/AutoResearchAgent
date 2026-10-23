@@ -582,6 +582,12 @@
       "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
       "direct_request_entry_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "projecthost_user_submission_contract": "Opt-in interaction/planning1.1 retains externally hashed confirmed ProjectHost UI submission bytes under an honest distinct filename and source kind. Displayed workflow/snapshot/delivery/current candidate pins, conditions and unknowns revalidate; source rehash or native-origin relabelling rejects. Credential principal is not authenticated human identity. Legacy native-message1.0 remains strict. No human choice is fabricated, no execution authority is granted, and UI/host transport acceptance remains separate.",
+      "projecthost_user_submission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_ui_submission.py",
+        "plugins/auto-research-agent/tests/test_stage2_interaction.py",
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
       ]
     },
     {
