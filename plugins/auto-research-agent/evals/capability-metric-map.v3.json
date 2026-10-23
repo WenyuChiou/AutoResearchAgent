@@ -471,7 +471,14 @@
         "source_and_runtime_mismatch": "refused; retained historical HostReplay is never silently rebound",
         "http_deadline_unchanged": true,
         "execution_authorized": false
-      }
+      },
+      "stage2_trusted_controller_contract": "Server-owned local configuration binds exact project, spec and prerequisite bytes to the existing Stage2 controller. Explicit foreground continuation authenticates the current source/version/activation, then preserves one durable intent and outcome. Saved current core return seals may be reverified and registered after interruption without entering the engine again. Browser input cannot install paths, policies, deadlines or handlers. Research delivery, independent assessment/audit, actual human choice and Stage3 intake remain distinct; execution stays false.",
+      "stage2_trusted_controller_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_controller.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_host_controller.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_preparation_cli.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ]
     },
     {
       "capability_id": "cli:research-workspace",

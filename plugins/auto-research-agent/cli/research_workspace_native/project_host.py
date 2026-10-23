@@ -83,6 +83,7 @@ class ProjectHost(AtlasHost):
         stage1=None,
         stage2=None,
         stage2_selection=None,
+        stage2_controllers=None,
         stage1_materials_root=None,
         stage1_sources=None,
         stage1_source_dispatcher=None,
@@ -97,6 +98,20 @@ class ProjectHost(AtlasHost):
             or stage2_selection.intake is not projects
         ):
             raise ValueError("same trusted Stage2 selection service required")
+        controllers = {} if stage2_controllers is None else dict(stage2_controllers)
+        if controllers:
+            from .project_stage2_controller import ProjectStage2ControllerDriver
+
+            if any(
+                not isinstance(ref, str)
+                or type(driver) is not ProjectStage2ControllerDriver
+                or driver.service is not stage2
+                or driver.service.intake is not projects
+                for ref, driver in controllers.items()
+            ):
+                raise ValueError("same trusted Stage2 controller owner required")
+            for ref in controllers:
+                projects.read(credential, ref)
         if stage1_sources is not None and (
             not isinstance(stage1_sources, ProjectStage1SourceService)
             or stage1_sources.stage1 is not stage1
@@ -152,6 +167,7 @@ class ProjectHost(AtlasHost):
         )
         self.project_stage1 = stage1
         self.project_stage2_selection = stage2_selection
+        self.project_stage2_controllers = controllers
         self.project_expansions = None
         queries = getattr(stage1, "query_service", None)
         if queries is not None:
@@ -267,6 +283,7 @@ class ProjectHost(AtlasHost):
             project_stage1_saved_text_reading=models is not None
             and getattr(models, "reading_records", None) is not None,
             project_stage2_import=stage2 is not None,
+            project_stage2_operator_continuation=bool(controllers),
             project_execution_authority=False,
             project_operations_presentation="additive-v6-drawer",
             project_home_route=self.views[0]["url"] if self.views else "/projects.html",
@@ -296,6 +313,18 @@ class ProjectHost(AtlasHost):
         return ProjectStage1AutoDriver(self, credential, ref).run(
             run_id=run_id, deadline=deadline, max_actions=max_actions
         )
+
+    def continue_stage2(self, credential, ref, *, key):
+        """Trusted operator continuation under its original admitted run budget.
+
+        Browser input cannot install a controller or change native policy, paths
+        or deadlines. Research completion is distinct from selection/intake.
+        """
+        self.projects.read(credential, ref)
+        driver = self.project_stage2_controllers.get(ref)
+        if driver is None:
+            raise SessionApiError("stage2-controller-not-connected", 409)
+        return driver.run(credential, ref, key=key)
 
     def overview(self, credential, ref):
         # One store lock joins matching saved revisions. Workers cannot commit
@@ -885,6 +914,10 @@ def main(argv=None):
     parser.add_argument("--views-sha256")
     parser.add_argument("--stage1-import-config", type=Path)
     parser.add_argument("--stage1-import-sha256")
+    parser.add_argument("--controller-config", type=Path)
+    parser.add_argument("--controller-sha256")
+    parser.add_argument("--continue-stage2", metavar="PROJECT_REF")
+    parser.add_argument("--controller-key")
     parser.add_argument("--selection-config", type=Path)
     parser.add_argument("--selection-sha256")
     parser.add_argument("--port", type=int, default=0)
@@ -896,6 +929,14 @@ def main(argv=None):
         parser.error("Stage1 imports require their external configuration SHA256")
     if bool(args.selection_config) != bool(args.selection_sha256):
         parser.error("selection bindings require their external configuration SHA256")
+    if bool(args.controller_config) != bool(args.controller_sha256):
+        parser.error("Stage2 controllers require their external configuration SHA256")
+    if bool(args.continue_stage2) != bool(args.controller_key) or (
+        args.continue_stage2 and not args.controller_config
+    ):
+        parser.error(
+            "Stage2 continuation requires a configured project and original request key"
+        )
     files, views = (
         load_views(args.views_config, args.views_sha256)
         if args.views_config
@@ -913,6 +954,13 @@ def main(argv=None):
 
             load_stage1_imports(
                 stage2, token, args.stage1_import_config, args.stage1_import_sha256
+            )
+        controllers = {}
+        if args.controller_config:
+            from .project_stage2_controller_config import load_stage2_controllers
+
+            controllers = load_stage2_controllers(
+                stage2, token, args.controller_config, args.controller_sha256
             )
         selection = None
         if args.selection_config:
@@ -933,10 +981,19 @@ def main(argv=None):
             stage1=ProjectStage1Service(projects),
             stage2=stage2,
             stage2_selection=selection,
+            stage2_controllers=controllers,
             files=files,
             views=views,
             port=args.port,
         )
+        if args.continue_stage2:
+            outcome = host.continue_stage2(
+                token, args.continue_stage2, key=args.controller_key
+            )
+            print(
+                json.dumps({"stage2_controller": outcome}, ensure_ascii=False),
+                flush=True,
+            )
         url = host.expected_origin + "/"
         print(
             json.dumps(
