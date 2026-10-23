@@ -942,9 +942,16 @@ def build_selection(state):
     return selection
 
 
-def export_selection(run_dir, *, expected_event_head=None):
+def export_selection(run_dir, *, expected_event_head=None, preserve_existing=False):
     """Rebuild deterministic JSON, Markdown, validator, and StageResult views."""
 
+    if type(preserve_existing) is not bool:
+        raise Stage2Error("checker-projection-preserve-option-invalid")
+    write = _write_projection
+    if preserve_existing:
+        from .projection_resume import write_projection
+
+        write = write_projection
     state = inspect_run(run_dir, expected_event_head=expected_event_head)
     selection = build_selection(state)
     recommendations = selection["recommendations"]
@@ -953,8 +960,8 @@ def export_selection(run_dir, *, expected_event_head=None):
     root = state["root"]
     selection_path = root / "selection.json"
     markdown_path = root / "selection.md"
-    _write_projection(selection_path, selection)
-    _write_projection(
+    write(selection_path, selection)
+    write(
         markdown_path,
         render_proposal(
             selection,
@@ -983,7 +990,7 @@ def export_selection(run_dir, *, expected_event_head=None):
         "meaning": "structural and source-binding validation only",
     }
     report_path = root / "validator_report.json"
-    _write_projection(report_path, report)
+    write(report_path, report)
     decisions = []
     previous_by_candidate = {}
     for event in state["events"]:
@@ -1023,9 +1030,7 @@ def export_selection(run_dir, *, expected_event_head=None):
         decisions.append(decision)
         previous_by_candidate[candidate_id] = decision
     decisions_path = root / "decision_events.jsonl"
-    _write_projection(
-        decisions_path, b"".join(_canonical_bytes(row) + b"\n" for row in decisions)
-    )
+    write(decisions_path, b"".join(_canonical_bytes(row) + b"\n" for row in decisions))
     output_refs = [
         _artifact(
             selection_path,
@@ -1084,5 +1089,5 @@ def export_selection(run_dir, *, expected_event_head=None):
         },
         "next_allowed_action": "human-review",
     }
-    _write_projection(root / "stage_result.json", stage_result)
+    write(root / "stage_result.json", stage_result)
     return selection

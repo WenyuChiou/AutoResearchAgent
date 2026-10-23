@@ -311,6 +311,7 @@ def build_delivery(
     expected_guard_bundles_sha256=None,
     record_registered_history=False,
     imported_history_deliveries=None,
+    _resume=False,
 ):
     """Build a separate source-bound checker and prehuman delivery package."""
     state = inspect_workflow(run_dir, expected_head=expected_head)
@@ -351,10 +352,17 @@ def build_delivery(
         _reject_ineligible_recommendations(reconciliation)
 
     output = Path(output_dir).resolve()
-    if output.exists():
+    if type(_resume) is not bool:
+        raise Stage2Error("delivery-resume-option-invalid")
+    write = _write_new
+    if _resume:
+        from .atomic_delivery import resume_write
+
+        write = resume_write
+    if output.exists() and not _resume:
         raise Stage2Error(f"delivery-output-exists: {output}")
     try:
-        output.mkdir(parents=False)
+        output.mkdir(parents=False, exist_ok=_resume)
     except FileExistsError as error:
         raise Stage2Error(f"delivery-output-exists: {output}") from error
     except OSError as error:
@@ -363,30 +371,40 @@ def build_delivery(
         ) from error
 
     packet_path = output / "input_packet.json"
-    _write_new(packet_path, packet)
-    _write_new(output / "review_batch.json", batch)
-    _write_new(output / "review_results.json", reviews)
-    _write_new(output / "review_resolutions.json", resolutions)
-    _write_new(output / "reconciliation.json", reconciliation)
+    write(packet_path, packet)
+    write(output / "review_batch.json", batch)
+    write(output / "review_results.json", reviews)
+    write(output / "review_resolutions.json", resolutions)
+    write(output / "reconciliation.json", reconciliation)
     if guarded:
-        _write_new(output / "guard_bundles.json", guard_bundles)
-        _write_new(output / "guarded_reconciliation.json", reconciliation)
+        write(output / "guard_bundles.json", guard_bundles)
+        write(output / "guarded_reconciliation.json", reconciliation)
     audit = _review_audit(state, snapshot, batch, reviews, resolutions, reconciliation)
-    _write_new(output / "review_audit.json", audit)
+    write(output / "review_audit.json", audit)
 
     checker_root = output / "checker"
-    with _delivery_source_inputs(snapshot["checker"], source_root) as input_root:
-        initialize_run(
-            packet_path,
-            input_root,
-            checker_root,
-            canonical_hash(packet),
-        )
+    if _resume and checker_root.exists():
+        saved = inspect_run(checker_root)
+        expected = _resolved_assessments(reconciliation)
+        if (
+            saved["manifest"]["packet_sha256"] != canonical_hash(packet)
+            or [row["assessment"] for row in saved["events"]]
+            != expected[: len(saved["events"])]
+        ):
+            raise Stage2Error("delivery-resume-checker-input-differs")
+    else:
+        with _delivery_source_inputs(snapshot["checker"], source_root) as input_root:
+            initialize_run(
+                packet_path,
+                input_root,
+                checker_root,
+                canonical_hash(packet),
+            )
     for index, assessment in enumerate(_resolved_assessments(reconciliation), 1):
         assessment_path = output / "resolved_assessments" / f"{index:06d}.json"
-        _write_new(assessment_path, assessment)
+        write(assessment_path, assessment)
         apply_assessment(checker_root, assessment_path)
-    checker_selection = export_selection(checker_root)
+    checker_selection = export_selection(checker_root, preserve_existing=_resume)
     checker = inspect_run(checker_root)
     if record_registered_history:
         from .registered_history import history_revisions
@@ -412,22 +430,20 @@ def build_delivery(
     for source in checker["packet"]["sources"]:
         source_path = _safe_package_path(checker_root, source["path"])
         delivery_source = _safe_package_path(output, source["path"])
-        _write_new(delivery_source, source_path.read_bytes())
+        write(delivery_source, source_path.read_bytes())
 
-    _write_new(output / "selection.json", selection)
+    write(output / "selection.json", selection)
     if provenance is not None:
         for relative, raw in provenance_files.items():
-            _write_new(_safe_package_path(output, relative), raw)
+            write(_safe_package_path(output, relative), raw)
         if record_registered_history:
             (output / "registered_history" / "workflow" / "actions").mkdir(
                 parents=True, exist_ok=True
             )
-        _write_new(output / "revision_provenance.json", provenance)
-    _write_new(
-        output / "selection.md", _root_markdown(checker, selection, reconciliation)
-    )
+        write(output / "revision_provenance.json", provenance)
+    write(output / "selection.md", _root_markdown(checker, selection, reconciliation))
     html = _root_html(checker, selection, reconciliation)
-    _write_new(output / "selection.html", html)
+    write(output / "selection.html", html)
 
     # Unreviewed screened-out ideas and honestly parked options remain visible.
     # They do not veto the independently checked selectable directions.
@@ -504,7 +520,7 @@ def build_delivery(
             guarded_reconciliation_sha256=canonical_hash(reconciliation),
         )
     manifest["manifest_sha256"] = _manifest_hash(manifest)
-    _write_new(output / MANIFEST, manifest)
+    write(output / MANIFEST, manifest)
     inspect_delivery(output, manifest["manifest_sha256"])
     return manifest
 
