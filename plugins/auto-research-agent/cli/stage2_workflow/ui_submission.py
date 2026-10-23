@@ -9,6 +9,16 @@ UI_VERSION = "1.1.0"
 UI_MESSAGE_FILE = "projecthost-user-submission.json"
 
 
+def valid_input_version(value, *, allow_string=False):
+    return (type(value) is int and value > 0) or (
+        allow_string
+        and type(value) is str
+        and 0 < len(value) <= 128
+        and value == value.strip()
+        and all(ord(c) >= 32 and ord(c) != 127 for c in value)
+    )
+
+
 def read_ui_submission(raw, *, expected=None):
     """Check retained request bytes; credential access does not identify a person."""
     if not isinstance(raw, bytes):
@@ -37,10 +47,11 @@ def read_ui_submission(raw, *, expected=None):
         raise Stage2Error("projecthost-submission-shape")
     if (
         value["kind"] != "Stage2ProjectHostUserSubmission"
-        or value["schema_version"] != "1.0.0"
+        or value["schema_version"] not in ("1.0.0", "1.1.0")
         or value["confirmed"] is not True
-        or type(value["input_version"]) is not int
-        or value["input_version"] < 1
+        or not valid_input_version(
+            value["input_version"], allow_string=value["schema_version"] == "1.1.0"
+        )
     ):
         raise Stage2Error("projecthost-submission-version-confirmation")
     for name in ("project_ref", "principal", "received_at"):
@@ -71,7 +82,11 @@ def read_ui_submission(raw, *, expected=None):
         json.dumps(value, ensure_ascii=False).encode("utf-8")
     except (UnicodeError, RecursionError) as error:
         raise Stage2Error("projecthost-submission-invalid-encoding-or-depth") from error
-    if expected is not None and any(value.get(k) != v for k, v in expected.items()):
+    if expected is not None and any(
+        value.get(k) != v
+        or (k == "input_version" and type(value.get(k)) is not type(v))
+        for k, v in expected.items()
+    ):
         raise Stage2Error("projecthost-submission-binding-mismatch")
     return value
 
