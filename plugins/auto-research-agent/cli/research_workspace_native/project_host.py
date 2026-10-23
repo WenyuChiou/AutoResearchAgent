@@ -278,6 +278,14 @@ class ProjectHost(AtlasHost):
         finally:
             super().server_close()
 
+    def continue_stage1(self, credential, ref, *, run_id, deadline, max_actions=32):
+        """Trusted operator continuation; does not register grants or start Stage2."""
+        from .project_stage1_auto import ProjectStage1AutoDriver
+
+        return ProjectStage1AutoDriver(self, credential, ref).run(
+            run_id=run_id, deadline=deadline, max_actions=max_actions
+        )
+
     def overview(self, credential, ref):
         # One store lock joins matching saved revisions. Workers cannot commit
         # another input/version between the UI brief and its action offers.

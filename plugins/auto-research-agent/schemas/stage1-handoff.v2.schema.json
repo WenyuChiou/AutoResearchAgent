@@ -10,7 +10,7 @@
     "source_state_sha256": {"$ref": "#/$defs/Sha"},
     "snapshot_ref": {"$ref": "#/$defs/Ref"},
     "acceptance_ref": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Ref"}]},
-    "project_id": {"type": "string", "minLength": 1}, "input_version": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1}, "input_version": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer", "minimum": 1}]},
     "deliverable_manifest_sha256": {"$ref": "#/$defs/Sha"}, "brief_sha256": {"$ref": "#/$defs/Sha"},
     "papers": {"type": "array", "minItems": 1, "items": {
       "type": "object", "additionalProperties": false,
