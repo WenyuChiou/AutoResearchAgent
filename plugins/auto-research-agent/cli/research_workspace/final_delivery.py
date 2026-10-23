@@ -266,6 +266,13 @@ def inspect_final_delivery(
                     "body_review_attachment.py",
                     "wiki.py",
                 )
+                + (
+                    ("saved_search_ledger.py", "SavedSearchLedger.v1.schema.json")
+                    if index.get("original_record_recovery", {})
+                    .get("payload", {})
+                    .get("saved_search_ledger")
+                    else ()
+                )
             },
         },
         "limits": "Saved-byte/selection checks are prerequisites. Final semantic, lineage, coverage, handoff and actual browser acceptance must be independently evidenced. Operator-supplied hashes are not authentication. No final-completion receipt is minted by this command.",

@@ -115,6 +115,16 @@ def work_trace(index, work_id):
         return anchor
 
     matches = []
+    saved_ledger = (
+        index.get("original_record_recovery", {})
+        .get("payload", {})
+        .get("saved_search_ledger")
+    )
+    batch_contexts = (
+        {row["batch_ref"]: row for row in saved_ledger["batches"]}
+        if saved_ledger
+        else {}
+    )
     for number, observation in enumerate(observations):
         key = observation["observation_ref"]
         review_number, _ = reviews.get(key, (None, {}))
@@ -130,6 +140,10 @@ def work_trace(index, work_id):
                     observation_review_pointer=f"/original_record_recovery/payload/new_candidate_screening/value/rows/{review_number}",
                 )
             )
+            if saved_ledger:
+                matches[-1]["batch_context"] = deepcopy(
+                    batch_contexts[observation["batch_ref"]]
+                )
     batches = list(dict.fromkeys(m["observation"]["batch_ref"] for m in matches))
     base.update(
         mode="saved-observations-only",
@@ -152,6 +166,11 @@ def work_trace(index, work_id):
         + ([] if matches else ["no-linked-observation-in-recovered-saved-scope"]),
         scope_note="Saved appearances and inventory order are not search rounds, chronological first discovery, API retries or full historical search counts. A saved header links a work, not an authenticated historical edition. No linked observation means not recorded, never zero searches.",
     )
+    if saved_ledger:
+        base["batch_context_contract_version"] = saved_ledger["contract_version"]
+        base["scope_note"] += (
+            " Independently pinned batch context supplies recorded batch timestamps and query parameters only; it does not assign a query or discovery time to this work. Original observations and their review hashes are unchanged."
+        )
     return base
 
 

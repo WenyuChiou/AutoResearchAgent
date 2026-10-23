@@ -414,6 +414,16 @@ def _project_recovery(index, raw, data):
             index,
             spec["input_canonical_sha256"],
         )
+    if "saved_search_ledger" in spec:
+        from .saved_search_ledger import project_saved_search_ledger
+
+        payload["saved_search_ledger"] = project_saved_search_ledger(
+            spec["saved_search_ledger"],
+            reference,
+            index,
+            data,
+            payload.get("new_candidate_screening", {}).get("observations", []),
+        )
     return payload
 
 
