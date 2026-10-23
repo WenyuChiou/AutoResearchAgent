@@ -18,6 +18,7 @@ from .planned_query_contract import (
     tree_sha,
 )
 from .project_stage1 import _basis
+from . import project_query_run as run_adapter
 
 
 def configured_pin(pin):
@@ -103,7 +104,17 @@ def proposal(intake, ref, principal, config):
     )
 
 
-def save_seal(intake, ref, principal, config, request_hash, document, user_input):
+def save_seal(
+    intake,
+    ref,
+    principal,
+    config,
+    request_hash,
+    document,
+    user_input,
+    *,
+    run_guard=None,
+):
     paths = {
         name: intake._path(ref, "q1-" + request_hash[:20] + suffix).as_posix()
         for name, suffix in (
@@ -141,6 +152,12 @@ def save_seal(intake, ref, principal, config, request_hash, document, user_input
         user_input=user_input,
         authorization_request_sha256=request_hash,
     )
+    if run_guard is not None:
+        _, grant = run_guard.check()
+        permit.update(run_adapter.seal_fields(run_guard))
+        permit["expires_at_unix"] = min(
+            permit["expires_at_unix"], math.floor(grant["expires_at"])
+        )
     raw = canonical(permit) + b"\n"
     path = intake._path(ref, "q1-" + request_hash[:20] + "-permit.json")
     write_new(path, raw)
@@ -152,7 +169,7 @@ def save_seal(intake, ref, principal, config, request_hash, document, user_input
     )
 
 
-def inspect_seal(intake, ref, authorization, config, *, ready=True):
+def inspect_seal(intake, ref, authorization, config, *, ready=True, run_grants=None):
     permit = authorization["permit"]
     path = intake._path(ref, authorization["path"])
     raw = path.read_bytes()
@@ -190,12 +207,13 @@ def inspect_seal(intake, ref, authorization, config, *, ready=True):
         and any(json.loads(row[0]) == saved for row in events),
         "project-query-authorization-history-differs",
     )
+    run_adapter.check_seal(intake, ref, permit, saved, run_grants)
     prefix = "q1-" + permit["authorization_request_sha256"][:20]
     require(
         authorization["path"] == prefix + "-permit.json"
         and authorization["snapshot_path"] == prefix + "-input.json"
         and permit["kind"] == "Stage1ProjectQueryBootstrapPermit"
-        and permit["schema_version"] == "1.0.0"
+        and permit["schema_version"] in {"1.0.0", "1.1.0"}
         and permit["project_ref"] == ref
         and permit["principals"] == [principal]
         and permit["scope"] == ["initialize-query-runtime", "execute-planned-query"]
@@ -242,8 +260,12 @@ def inspect_seal(intake, ref, authorization, config, *, ready=True):
     return binding, permit
 
 
-def derived_registration(intake, ref, authorization, receipt, config, *, write=True):
-    binding, permit = inspect_seal(intake, ref, authorization, config, ready=write)
+def derived_registration(
+    intake, ref, authorization, receipt, config, *, write=True, run_grants=None
+):
+    binding, permit = inspect_seal(
+        intake, ref, authorization, config, ready=write, run_grants=run_grants
+    )
     identity = permit["binding"]
     basis = {k: identity[k] for k in (*_basis(binding), "plan_sha256")}
     item = dict(

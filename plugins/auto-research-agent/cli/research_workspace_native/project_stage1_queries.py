@@ -22,7 +22,7 @@ from .project_intake_contract import BOUND_FIELDS, _fields, _text
 from .project_query_permit import (
     check_configuration,
     derived_registration,
-    inspect_seal,
+    inspect_seal as inspect_query_seal,
     proposal,
     save_seal,
 )
@@ -31,6 +31,7 @@ from .query_execution_source import check_execution_source
 from .project_query_history import admitted_query, bound_run, reserved_intents
 from .project_resource_budget import reserve_resource, resource_view
 from .project_query_versions import archived_versions, current_budget
+from . import project_query_run as run_adapter
 
 FIELDS = BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"}
 
@@ -47,6 +48,7 @@ class ProjectStage1QueryService:
         admit,
         caps,
         backends,
+        run_grants=None,
     ):
         require(isinstance(stage1, ProjectStage1Service), "project-stage1-required")
         require(
@@ -62,6 +64,7 @@ class ProjectStage1QueryService:
             root.is_absolute() and root.is_dir(), "project-query-source-root-required"
         )
         self.stage1, self.intake = stage1, stage1.intake
+        self.run_grants = run_adapter.configured(self.intake, run_grants)
         self.config = check_configuration(
             runtime_pin,
             root.resolve().as_posix(),
@@ -83,10 +86,19 @@ class ProjectStage1QueryService:
         principal = self.intake._principal(credential)
         return principal, self.intake._load(principal, ref)
 
-    def _request(self, body, *, authorization=False):
+    def _inspect_seal(self, intake, ref, authorization, config, *, ready=True):
+        require(
+            intake is self.intake and config is self.config,
+            "query-run-composition-differs",
+        )
+        return inspect_query_seal(
+            intake, ref, authorization, config, ready=ready, run_grants=self.run_grants
+        )
+
+    def _request(self, body, *, authorization=False, derived=False):
         _fields(body, FIELDS | ({"user_input"} if authorization else set()))
         require(
-            body["confirmed"] is True
+            (body["confirmed"] is False if derived else body["confirmed"] is True)
             and isinstance(body["key"], str)
             and KEY.fullmatch(body["key"])
             and type(body["revision"]) is int
@@ -95,7 +107,7 @@ class ProjectStage1QueryService:
             400,
         )
         if authorization:
-            _text(body["user_input"], 4096)
+            _text(body["user_input"], 8192 if derived else 4096)
 
     def read(self, credential, ref):
         with self.intake._lock:
@@ -157,7 +169,7 @@ class ProjectStage1QueryService:
                     _, _, offer = proposal(self.intake, ref, principal, self.config)
                     result["authorization_offer"] = offer
                     return result
-                _, permit = inspect_seal(
+                _, permit = self._inspect_seal(
                     self.intake, ref, authorization, self.config, ready=False
                 )
                 result.update(
@@ -178,7 +190,7 @@ class ProjectStage1QueryService:
                 )
                 jobs = state.get("stage1_query_jobs", {})
                 if not jobs:
-                    inspect_seal(self.intake, ref, authorization, self.config)
+                    self._inspect_seal(self.intake, ref, authorization, self.config)
                     digest = sha(
                         canonical(
                             dict(
@@ -238,8 +250,15 @@ class ProjectStage1QueryService:
                 )
             return result
 
-    def authorize(self, credential, ref, body, *, check_deadline=None):
-        self._request(body, authorization=True)
+    def authorize(
+        self, credential, ref, body, *, check_deadline=None, run_authorization=None
+    ):
+        self._request(body, authorization=True, derived=run_authorization is not None)
+        guard = run_adapter.request(
+            self, credential, ref, body, run_authorization, "query-authorize"
+        )
+        if guard is not None:
+            check_deadline = guard.deadline_check(check_deadline)
         principal = self.intake._principal(credential)
 
         def work(state, request_hash, actor):
@@ -263,6 +282,7 @@ class ProjectStage1QueryService:
                 request_hash,
                 document,
                 body["user_input"],
+                run_guard=guard,
             )
             state["stage1_query_authorization"] = authorization
             state.setdefault(
@@ -280,23 +300,32 @@ class ProjectStage1QueryService:
             principal,
             ref,
             "stage1-query-authorize",
-            deepcopy(body),
+            deepcopy(body) if guard is None else deepcopy(guard.request),
             work,
             check_deadline=check_deadline,
         )
 
     def _reserve(
-        self, state, principal, key, request_hash, *, probe=False, expansion=False
+        self,
+        state,
+        principal,
+        key,
+        request_hash,
+        *,
+        probe=False,
+        expansion=False,
+        run_guard=None,
     ):
         authorization = state.get("stage1_query_authorization")
         require(authorization is not None, "project-query-permission-required")
-        _, permit = inspect_seal(
+        _, permit = self._inspect_seal(
             self.intake,
             state["project_ref"],
             authorization,
             self.config,
             ready=not expansion,
         )
+        run_adapter.check_mode(run_guard, permit)
         budget = current_budget(self.intake, state, principal)
         limits = permit["limits"]
         reserved_intents(
@@ -336,8 +365,15 @@ class ProjectStage1QueryService:
         state["stage1_query_budget"]["probes" if probe else "attempts"] += 1
         return permit
 
-    def bootstrap(self, credential, ref, body, *, check_deadline=None):
-        self._request(body)
+    def bootstrap(
+        self, credential, ref, body, *, check_deadline=None, run_authorization=None
+    ):
+        self._request(body, derived=run_authorization is not None)
+        guard = run_adapter.request(
+            self, credential, ref, body, run_authorization, "query-bootstrap"
+        )
+        if guard is not None:
+            check_deadline = guard.deadline_check(check_deadline)
         principal = self.intake._principal(credential)
 
         def reserve(state, request_hash, actor):
@@ -352,7 +388,9 @@ class ProjectStage1QueryService:
                 and body["offer_sha256"] == offer["offer_sha256"],
                 "project-query-bootstrap-offer-differs",
             )
-            permit = self._reserve(state, actor, body["key"], request_hash, probe=True)
+            permit = self._reserve(
+                state, actor, body["key"], request_hash, probe=True, run_guard=guard
+            )
             state["stage1_query_jobs"] = {
                 request_hash: dict(
                     status="dispatch-unobserved",
@@ -365,6 +403,11 @@ class ProjectStage1QueryService:
                         time.time() + permit["limits"]["bootstrap_probe_seconds"],
                     ),
                     automatic_retry=False,
+                    **(
+                        {}
+                        if guard is None
+                        else dict(run_request=deepcopy(guard.request))
+                    ),
                 )
             }
 
@@ -387,7 +430,7 @@ class ProjectStage1QueryService:
             principal,
             ref,
             "stage1-query-bootstrap",
-            deepcopy(body),
+            deepcopy(body) if guard is None else deepcopy(guard.request),
             work,
             reserve=reserve,
             check_deadline=check_deadline,
@@ -409,7 +452,7 @@ class ProjectStage1QueryService:
                         and job["permit_sha256"] == authorization["sha256"],
                         "project-query-bootstrap-commit-authority-differs",
                     )
-                    _, permit = inspect_seal(
+                    _, permit = self._inspect_seal(
                         self.intake, ref, authorization, self.config
                     )
                     reserved_intents(
@@ -419,6 +462,7 @@ class ProjectStage1QueryService:
                         permit["limits"],
                         self.config["pin"]["timeout_seconds"],
                     )
+                    run_adapter.check_job(self, principal, ref, job, permit)
                     deadline = job["deadline_unix"]
                     require(time.time() < deadline, "project-query-bootstrap-expired")
                 state["stage1_query_jobs"][key].update(deepcopy(change))
@@ -449,7 +493,7 @@ class ProjectStage1QueryService:
                 and state.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed",
             )
-            _, permit = inspect_seal(
+            _, permit = self._inspect_seal(
                 self.intake, ref, authorization, self.config, ready=expansion is None
             )
             reserved_intents(
@@ -478,7 +522,7 @@ class ProjectStage1QueryService:
                 current.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed-after-source-check",
             )
-            inspect_seal(
+            self._inspect_seal(
                 self.intake, ref, authorization, self.config, ready=expansion is None
             )
             reserved_intents(
@@ -511,7 +555,7 @@ class ProjectStage1QueryService:
                 and current.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed-during-admission",
             )
-            inspect_seal(
+            self._inspect_seal(
                 self.intake, ref, authorization, self.config, ready=expansion is None
             )
         check_execution_source(
@@ -525,7 +569,7 @@ class ProjectStage1QueryService:
                 and current.get("stage1_query_authorization") == authorization,
                 "project-query-authority-changed-after-final-source-check",
             )
-            inspect_seal(
+            self._inspect_seal(
                 self.intake, ref, authorization, self.config, ready=expansion is None
             )
             reserved_intents(
@@ -568,7 +612,7 @@ class ProjectStage1QueryService:
                 is_expansion = "expansion_grant_sha256" in event["offer"]
                 if is_expansion:
                     expansion_authority(event)
-                _, permit = inspect_seal(
+                _, permit = self._inspect_seal(
                     self.intake, ref, authorization, self.config, ready=not is_expansion
                 )
                 intents = reserved_intents(
@@ -580,6 +624,7 @@ class ProjectStage1QueryService:
                 )
                 admitted_query(intents, event, ref, principal)
                 resource_view(self.intake, state, principal)
+                run_adapter.check_execution(self, credential, ref, authorization, event)
             return True
 
         def admission(event):
@@ -613,6 +658,9 @@ class ProjectStage1QueryService:
             verify_source=self.verify_source,
             check_resources=final_resources,
             check_expansion=expansion_authority,
+            check_result=lambda event: run_adapter.check_execution(
+                self, credential, ref, authorization, event
+            ),
         )
 
     def _bootstrap_worker(self, credential, ref, request_hash):
@@ -633,9 +681,10 @@ class ProjectStage1QueryService:
                     time.time() < job["deadline_unix"],
                     "project-query-bootstrap-expired",
                 )
-                binding, permit = inspect_seal(
+                binding, permit = self._inspect_seal(
                     self.intake, ref, authorization, self.config
                 )
+                run_adapter.check_job(self, principal, ref, job, permit)
             self._guard(credential, ref, authorization, "before-bootstrap-probe")
             self._save_job(principal, ref, request_hash, dict(status="dispatching"))
             # Persist dispatching before any Core.create/probe. A crash is unknown.
@@ -692,7 +741,12 @@ class ProjectStage1QueryService:
                 stage1_complete=False,
             )
             registration = derived_registration(
-                self.intake, ref, authorization, receipt, self.config
+                self.intake,
+                ref,
+                authorization,
+                receipt,
+                self.config,
+                run_grants=self.run_grants,
             )
             service = self._service(credential, ref, authorization, registration)
             self._guard(credential, ref, authorization, "before-bootstrap-commit")
@@ -742,7 +796,9 @@ class ProjectStage1QueryService:
                 "project-query-bootstrap-not-completed",
             )
             authorization = state["stage1_query_authorization"]
-            inspect_seal(self.intake, ref, authorization, self.config, ready=False)
+            self._inspect_seal(
+                self.intake, ref, authorization, self.config, ready=False
+            )
             events = self.intake.db.execute(
                 "SELECT payload FROM intake_events WHERE project=? AND kind=?",
                 (ref, "stage1-query-bootstrap-observation"),
@@ -758,6 +814,7 @@ class ProjectStage1QueryService:
                 jobs[0]["receipt"],
                 self.config,
                 write=False,
+                run_grants=self.run_grants,
             )
             require(
                 jobs[0]["registration"] == expected,
@@ -793,12 +850,19 @@ class ProjectStage1QueryService:
             check_deadline=check_deadline,
         )
 
-    def execute(self, credential, ref, body, *, check_deadline=None):
-        self._request(body)
+    def execute(
+        self, credential, ref, body, *, check_deadline=None, run_authorization=None
+    ):
+        self._request(body, derived=run_authorization is not None)
+        guard = run_adapter.request(
+            self, credential, ref, body, run_authorization, "query-execute"
+        )
+        if guard is not None:
+            check_deadline = guard.deadline_check(check_deadline)
         principal = self.intake._principal(credential)
 
         def reserve(state, request_hash, actor):
-            self._reserve(state, actor, body["key"], request_hash)
+            self._reserve(state, actor, body["key"], request_hash, run_guard=guard)
             require(ref in self.services, "project-query-owner-reopen-required")
             offer = self.services[ref].offer(credential, ref)
             require(
@@ -826,9 +890,16 @@ class ProjectStage1QueryService:
                 **{k: offer["document"][k] for k in ("index_sha256", "input_version")},
                 offer_ref=offer["offer_ref"],
                 offer_sha256=offer["offer_sha256"],
-                confirmed=True,
+                confirmed=True if guard is None else False,
+                **(
+                    {}
+                    if guard is None
+                    else dict(run_authority=deepcopy(guard.request["run_authority"]))
+                ),
             )
-            observed = service.execute(credential, ref, inner, deadline=deadline)
+            observed = service.execute(
+                credential, ref, inner, deadline=deadline, run_authorization=guard
+            )
             return dict(
                 query_status=observed["status"],
                 query_action_key=inner["key"],
@@ -840,7 +911,7 @@ class ProjectStage1QueryService:
             principal,
             ref,
             "stage1-query-execute",
-            deepcopy(body),
+            deepcopy(body) if guard is None else deepcopy(guard.request),
             work,
             reserve=reserve,
             check_deadline=check_deadline,
