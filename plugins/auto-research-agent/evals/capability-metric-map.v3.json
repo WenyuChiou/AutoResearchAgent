@@ -494,7 +494,8 @@
             "optional academic-screening sidecars retain raw include/exclude history and reasons separately from unchanged technical selection bytes, source eligibility and claims; legacy missing history and historical candidate totals remain Unknown, and canonical1.2 work-level decisions do not acquire invented version bindings",
             "recovered reasons, per-work need context and independent historical runs remain bound to original source bytes; rehashed payload-only forgeries, cross-input claims, changed source files and ambiguous spans fail closed",
             "saved ledger project/input and snapshot resource/canonical-manifest pins, batch receipt mappings and unchanged original observation hashes replay; query parameters and distinct batch timestamps remain separate from unknown per-work discovery and backend counts",
-            "recorded-run prefix query starts and backend attempt starts have separate denominators, exact inclusive cutoff and index/journal pointers; missing captured history stays Unknown and mixed identities, changed external pins and incomplete/reordered chains reject"
+            "recorded-run prefix query starts and backend attempt starts have separate denominators, exact inclusive cutoff and index/journal pointers; missing captured history stays Unknown and mixed identities, changed external pins and incomplete/reordered chains reject",
+            "An explicit saved-source compatibility2 envelope preserves the independently accepted historical producer complete source closure, Core categories, actual HTML and CI while separately binding the current receiving validator complete closure, delivered/head/tree/CI, verified HostReplay and compatibility review. Existing v1 has no fallback, subset or historical-root bypass. Archived code is read only, old observations and Unknowns stay unchanged and neither technical compatibility nor receiving authorizes Stage2 research. Synthetic direct and context-forwarding fixtures do not constitute real Core or actual import acceptance."
           ],
           "human_judgment": "Core reviews whether the preserved evidence and limitations are readable; successful projection is not a P1-P3 quality improvement."
         }
@@ -560,7 +561,8 @@
         "plugins/auto-research-agent/tests/test_stage1_host_replay.py",
         "plugins/auto-research-agent/tests/test_stage1_import_host_replay.py",
         "plugins/auto-research-agent/tests/test_stage1_host_context_binding.py",
-        "plugins/auto-research-agent/tests/test_saved_admission_input_versions.py"
+        "plugins/auto-research-agent/tests/test_saved_admission_input_versions.py",
+        "plugins/auto-research-agent/tests/test_saved_admission_compatibility.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false

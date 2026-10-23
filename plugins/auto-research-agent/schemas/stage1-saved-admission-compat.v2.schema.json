@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:auto-research-agent:stage1-saved-admission-compat:2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "snapshot_sha256",
+    "snapshot_ref",
+    "project_id",
+    "input_version",
+    "contract_sha256",
+    "historical_acceptance",
+    "historical_sources",
+    "receiver",
+    "host_replay_sha256",
+    "compatibility_review"
+  ],
+  "$defs": {
+    "Ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "properties": {
+    "kind": {
+      "const": "SavedSourceAdmissionCompatibilityAcceptance"
+    },
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "snapshot_ref": {
+      "$ref": "#/$defs/Ref"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_version": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "integer",
+          "minimum": 1
+        }
+      ]
+    },
+    "contract_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "historical_acceptance": {
+      "$ref": "#/$defs/Ref"
+    },
+    "historical_sources": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/Ref"
+      }
+    },
+    "receiver": {
+      "type": "object"
+    },
+    "host_replay_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "compatibility_review": {
+      "$ref": "#/$defs/Ref"
+    }
+  }
+}
