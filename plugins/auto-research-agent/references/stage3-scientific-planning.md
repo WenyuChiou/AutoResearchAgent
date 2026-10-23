@@ -198,3 +198,116 @@ resolved in the applicable source/decision version. Markdown rendering displays
 conditions and the planned evidence/deadline table. Structure and metadata do not
 prove scientific sufficiency, rights, independent review or native authentication.
 All scientific results remain not-run/null and execution_authorized stays false.
+
+## Offline P7-P9 assessment records
+
+The [generic assessor guidance v1](stage3-evaluation-guidance.v1.md) connects
+nine literature-supported diagnostics to the existing five semantic axes and
+three `stage23-general-v1` criteria. It covers empirical, observational,
+simulation, theoretical, qualitative and methods studies. ML/LLM requirements
+apply only when the selected question needs them. Source URLs, versions,
+method locations and adaptation limits are retained for review and presentations.
+The guidance is a local adaptation awaiting expert calibration and validation.
+
+`evaluation-prepare` takes an existing plan package, its externally retained
+manifest hash and a new private output file. It creates a version-bound
+assessment request with the plan/intake view and separate catalog/guidance
+bindings. `evaluation-record` takes that request, an externally supplied raw
+judgment and both external raw-file hashes, then writes a new private record.
+Run either command with `--help` for exact arguments. Neither command invokes
+a model, provider, native process, experiment or A/B campaign.
+
+Each P7/P8/P9 criterion has one plan-level 0/1/2-or-null judgment with evidence
+for every selected question. They are reported separately without a total.
+Unknown necessary evidence is `unverifiable`; a technical assessment failure
+is `grader_error`, including timeout/429. Both retain null scores and explicit
+reasons. An observable necessary defect can receive a low score. Diagnostic
+non-applicability never exempts a whole core dimension. Semantic `adequate`
+does not automatically become a numeric 2. Original judgment text and input
+bindings remain available; pointer existence does not validate scientific reasoning.
+
+Outputs use the existing private, bounded, write-once storage rules. Inspect
+saved bytes/hashes after interruption; do not overwrite or silently retry.
+Changed inputs require a new version/path. The recorded reviewer identity and
+relationship are declarations, not authentication or proof of independence.
+Synthetic source scope stays synthetic. Scores do not promote plan readiness,
+resolve unknowns, record a human decision or grant execution authority.
+
+The input route remains Stage2 delivery and HTML discussion -> genuine
+version-bound selection -> existing interaction/planning handoff -> admitted
+intake -> saved Stage3 plan -> assessment request/record. An HTML control or
+route label alone is not admission. With no eligible recommendation or actual
+selection, advisory planning can continue while selected planning waits on
+the existing source contract. This evaluator adds no route or readiness gate.
+Calibration, independent assessment, A/B and research execution remain unrun
+until separately authorized; engineering fixtures establish mechanics only.
+
+### Judgment format and API details
+
+The library entry points are `evaluation.prepare_evaluation(package, *,
+expected_manifest_sha256, output, catalog_path=..., guidance_path=...)` and
+`evaluation.record_evaluation(request, *, expected_request_sha256, judgment,
+expected_judgment_sha256, output)`. The expected request/judgment hashes cover
+raw file bytes. Each verified input snapshot is parsed without reopening it.
+The catalog/guidance paths can refer to retained source copies; the bound bytes,
+versions and source paths must remain available for record validation.
+
+With `cli` on `PYTHONPATH`, the offline commands are:
+
+```text
+python -m stage3_plan evaluation-prepare --package PACKAGE --expected-manifest-sha256 MANIFEST_SHA --output NEW_PRIVATE_REQUEST.json
+python -m stage3_plan evaluation-record --request REQUEST.json --expected-request-sha256 REQUEST_RAW_SHA --judgment JUDGMENT.json --expected-judgment-sha256 JUDGMENT_RAW_SHA --output NEW_PRIVATE_RECORD.json
+```
+
+This synthetic shape illustrates the three distinct outcomes; it is not a
+rating of a research plan. Replace the question reference and evidence with
+actual values from the request. Every non-error criterion needs one assessment
+per question, including secondary questions. A shared design can be cited by
+multiple assessments with question-specific reasons.
+
+```json
+{
+  "kind": "Stage3EvaluationJudgment",
+  "schema_version": "1.0.0",
+  "request_sha256": "REQUEST_RAW_SHA",
+  "reviewer": {
+    "actor": "declared-rater",
+    "kind": "synthetic",
+    "relationship_to_author": "unknown",
+    "identity_authenticated": false,
+    "evidence_ref": "retained-external-assessment"
+  },
+  "criteria": [
+    {
+      "criterion_id": "P7V1.QUESTION_DESIGN",
+      "status": "scored",
+      "score": 1,
+      "question_assessments": [{"question_ref": "EXACT_REQUEST_REF", "applicability_basis": "Why this condition is necessary", "rationale": "What the evidence supports and what remains missing", "plan_locations": ["/question_plans/0"]}]
+    },
+    {
+      "criterion_id": "P8V1.EVIDENCE_INTERPRETATION",
+      "status": "unverifiable",
+      "score": null,
+      "missing_evidence_reason": "Which necessary evidence or expertise is unavailable",
+      "question_assessments": [{"question_ref": "EXACT_REQUEST_REF", "applicability_basis": "Why this condition is necessary", "rationale": "Why it cannot yet be judged", "plan_locations": ["/question_plans/0"]}]
+    },
+    {
+      "criterion_id": "P9V1.FEASIBILITY",
+      "status": "grader_error",
+      "score": null,
+      "error": {"kind": "timeout", "message": "Retained external assessment failure; no retry"}
+    }
+  ]
+}
+```
+
+Reviewer kinds are `human-record`, `external-model-record` and `synthetic`;
+all retain `identity_authenticated=false`. Scientific justification still needs
+appropriate review. The recorder does not generate assessments or arbitrate
+disagreements. Valid records preserve each row's status even when another row
+has an error; `record_status=recorded` means the record was saved, not that all
+dimensions were assessable. Invalid judgment JSON/fields produce an immutable
+`record_status=failed` record with raw text and error, then a nonzero CLI exit.
+Hash/source mismatches refuse ingestion; original input files remain untouched.
+If a record exceeds storage bounds or cannot be written, retain the original
+inputs and inspect any incomplete output; the command does not report success.

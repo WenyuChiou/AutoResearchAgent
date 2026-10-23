@@ -43,6 +43,11 @@ def read_bytes(value):
 
 
 def read_json(value):
+    return decode_json(read_bytes(value), label=value)
+
+
+def decode_json(raw, *, label="captured bytes"):
+    """Parse an already bounded snapshot without reopening its source path."""
     try:
 
         def unique(pairs):
@@ -54,12 +59,12 @@ def read_json(value):
             return result
 
         return json.loads(
-            read_bytes(value),
+            raw,
             object_pairs_hook=unique,
             parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
         )
-    except (ValueError, UnicodeError) as error:
-        raise Stage3Error(f"invalid JSON: {value}: {error}") from error
+    except (ValueError, UnicodeError, RecursionError) as error:
+        raise Stage3Error(f"invalid JSON: {label}: {error}") from error
 
 
 def write_new(path, value, *, raw=False):
