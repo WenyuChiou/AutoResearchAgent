@@ -12,6 +12,7 @@ from .frame_journal import _validated
 from .store import _require
 from .transport import _deadline, _encode
 from .runtime_spec import _notification_opt_out
+from .model_input_profile import input_limit, supports_full_source_hello
 
 
 def _cwd_matches(observed, requested, *, windows=None):
@@ -67,13 +68,30 @@ def _account(value):
 
 class BootstrapSession(BootstrapContext):
     def open_thread(
-        self, client_info, *, timeout=10, total_timeout=None, notification_opt_out=None
+        self,
+        client_info,
+        *,
+        timeout=10,
+        total_timeout=None,
+        notification_opt_out=None,
+        experimental_api=False,
+        input_profile=None,
     ):
+        input_limit(input_profile)
+        _require(
+            input_profile is None or experimental_api is True,
+            "full-source experimental API required",
+        )
         initialize = {"clientInfo": client_info}
         if notification_opt_out is not None:
             initialize["capabilities"] = {
                 "optOutNotificationMethods": _notification_opt_out(notification_opt_out)
             }
+        _require(
+            type(experimental_api) is bool, "literal experimental API opt-in required"
+        )
+        if experimental_api:
+            initialize.setdefault("capabilities", {})["experimentalApi"] = True
         _deadline(timeout)  # Validate finite/nonboolean before any I/O.
         _require(0 < timeout <= 30, "bootstrap deadline must be within 30 seconds")
         budget = timeout if total_timeout is None else total_timeout
@@ -96,6 +114,10 @@ class BootstrapSession(BootstrapContext):
                 _require(
                     isinstance(hello.get("userAgent"), str) and hello["userAgent"],
                     "invalid hello",
+                )
+                _require(
+                    input_profile is None or supports_full_source_hello(hello),
+                    "full-source-native-support-required",
                 )
                 self._send("initialized", None, None, step_deadline())
                 self.transport.initialized = True
