@@ -19,6 +19,7 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
+            "Explicit ordinary Stage2 reading registration retains external config/package hashes, literal source comments and unknown material status, rejects tampering before listener allocation, exposes only fixed readonly routes and performs zero project selection or research writes.",
             "Manual saved-source claim context uses zero excerpts and retains the 48000-byte saved-input limit, complete source identities and existing claims. It grants no model call; model snapshot fitting and the complete serialized 10000-byte reading-prompt guard remain independently enforced.",
             "Explicit native local hosting inherits the exact pinned request timeout of at most thirty seconds; default hosting retains five seconds, absolute accept-time deadlines and pre-admission expiry remain enforced. Synthetic forwarding and timeout-bound tests do not demonstrate model completion.",
             "An explicitly spec-pinned optional handshake total of at most 120 seconds stays within the existing process lease; each RPC remains at most 30 seconds and omitted fields retain the legacy total. Late cached replies cannot upgrade an expired handshake.",
@@ -224,6 +225,8 @@
         "ProjectStage2SelectionView is read-only trusted host composition: no browser-selected filesystem paths, user selection, native/model/research calls or execution authority. Candidate materials and recommendations retain their original evidence and unknowns."
       ],
       "test_refs": [
+        "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_reading.py",
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",
         "plugins/auto-research-agent/tests/test_atlas_runtime_spec.py",
         "plugins/auto-research-agent/tests/test-stage-run-read-recovery.cjs",
@@ -478,6 +481,11 @@
         "plugins/auto-research-agent/tests/test_project_stage2_host_controller.py",
         "plugins/auto-research-agent/tests/test_stage2_native_preparation_cli.py",
         "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
+      "ordinary_stage2_reading_contract": "Externally raw-hash-bound trusted Host configuration reopens ordinary delivery inspectors and seals only escaped direction cards plus plain saved Markdown/JSON. The independent reading association does not attest Stage1 lineage or project adoption, creates no action/choice/workflow writes and grants no selection or execution authority, even with recommendations. Configuration and package drift reject before listener allocation; unknowns, original comments, exact versions and ordinary manifest/source pins remain visible. Registered fixed same-origin GET routes retain default CSP and origin protection; browser data cannot provide local paths or trusted bindings.",
+      "ordinary_stage2_reading_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_reading.py",
+        "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs"
       ]
     },
     {

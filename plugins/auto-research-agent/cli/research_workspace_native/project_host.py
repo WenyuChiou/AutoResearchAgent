@@ -22,6 +22,7 @@ from .project_stage1_records import reading_registration_view
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
 from .project_stage2_selection import ProjectStage2SelectionService
+from .project_stage2_reading import Stage2ReadingRegistry
 from .project_atlas_shell import shell_assets
 from .project_ui_overlay import (
     PANEL,
@@ -83,6 +84,7 @@ class ProjectHost(AtlasHost):
         stage1=None,
         stage2=None,
         stage2_selection=None,
+        stage2_readings=None,
         stage2_controllers=None,
         stage1_materials_root=None,
         stage1_sources=None,
@@ -98,6 +100,16 @@ class ProjectHost(AtlasHost):
             or stage2_selection.intake is not projects
         ):
             raise ValueError("same trusted Stage2 selection service required")
+        if (
+            stage2_readings is not None
+            and type(stage2_readings) is not Stage2ReadingRegistry
+        ):
+            raise ValueError("trusted Stage2 reading registry required")
+        reading_assets, self.stage2_readings = (
+            ({}, []) if stage2_readings is None else stage2_readings.snapshot()
+        )
+        if set(reading_assets) & set(options["files"]):
+            raise ValueError("Stage2 reading routes collide with saved view assets")
         controllers = {} if stage2_controllers is None else dict(stage2_controllers)
         if controllers:
             from .project_stage2_controller import ProjectStage2ControllerDriver
@@ -149,6 +161,7 @@ class ProjectHost(AtlasHost):
                 "projects-stages.js",
                 "projects-stages.css",
                 "projects-stage2-preview.js",
+                "projects-stage2-readings.js",
                 "project-operations.js",
                 "project-operations.css",
                 "project-stage2-selection.html",
@@ -256,6 +269,7 @@ class ProjectHost(AtlasHost):
         self._assets.update(project_assets)
         self._assets.update(atlas_shell)
         self._assets.update(example_assets)
+        self._assets.update(reading_assets)
         self.project_panel_parents = install_project_overlay(
             self._assets, self.views, ASSETS
         )
@@ -283,6 +297,7 @@ class ProjectHost(AtlasHost):
             project_stage1_saved_text_reading=models is not None
             and getattr(models, "reading_records", None) is not None,
             project_stage2_import=stage2 is not None,
+            project_stage2_reading_references=self.stage2_readings,
             project_stage2_operator_continuation=bool(controllers),
             project_execution_authority=False,
             project_operations_presentation="additive-v6-drawer",
@@ -882,6 +897,7 @@ class ProjectHandler(AtlasHandler):
                         credential=self.server.credential,
                         views=self.server.views,
                         stage2_examples=self.server.stage2_examples,
+                        stage2_readings=self.server.stage2_readings,
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
                         stage2_selection_projects=(
@@ -920,6 +936,8 @@ def main(argv=None):
     parser.add_argument("--controller-key")
     parser.add_argument("--selection-config", type=Path)
     parser.add_argument("--selection-sha256")
+    parser.add_argument("--stage2-reading-config", type=Path)
+    parser.add_argument("--stage2-reading-sha256")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args(argv)
@@ -929,6 +947,8 @@ def main(argv=None):
         parser.error("Stage1 imports require their external configuration SHA256")
     if bool(args.selection_config) != bool(args.selection_sha256):
         parser.error("selection bindings require their external configuration SHA256")
+    if bool(args.stage2_reading_config) != bool(args.stage2_reading_sha256):
+        parser.error("Stage2 readings require their external configuration SHA256")
     if bool(args.controller_config) != bool(args.controller_sha256):
         parser.error("Stage2 controllers require their external configuration SHA256")
     if bool(args.continue_stage2) != bool(args.controller_key) or (
@@ -941,6 +961,11 @@ def main(argv=None):
         load_views(args.views_config, args.views_sha256)
         if args.views_config
         else ({}, [])
+    )
+    readings = (
+        Stage2ReadingRegistry(args.stage2_reading_config, args.stage2_reading_sha256)
+        if args.stage2_reading_config
+        else None
     )
     token = secrets.token_urlsafe(32)
     projects = ProjectIntakeService(
@@ -981,6 +1006,7 @@ def main(argv=None):
             stage1=ProjectStage1Service(projects),
             stage2=stage2,
             stage2_selection=selection,
+            stage2_readings=readings,
             stage2_controllers=controllers,
             files=files,
             views=views,
