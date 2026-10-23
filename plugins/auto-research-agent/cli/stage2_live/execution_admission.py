@@ -65,7 +65,7 @@ class AdmittedAdapter:
         return existing, remaining, previous
 
     def reserve(self, operation, context):
-        admission = self.handler.admission_context
+        admission = getattr(self.handler, "admission_context", None)
         if not _admitted(admission, self.spec):
             raise Stage2Error("controller-original-admission-expired-before-unit")
         policy = _execution_policy(self.spec["native"]["extraction_policy"])

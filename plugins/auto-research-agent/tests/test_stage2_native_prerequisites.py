@@ -158,16 +158,20 @@ class NativePrerequisiteTests(unittest.TestCase):
         self.spec["base_snapshot_sha256"] = self.state["latest_snapshot"]["event"][
             "payload"
         ]["snapshot_sha256"]
-        for index, admission in enumerate((None, {})):
-            with self.subTest(admission=admission):
+        missing = object()
+        for index, admission in enumerate((None, {}, missing)):
+            with self.subTest(
+                admission="missing" if admission is missing else admission
+            ):
                 core = self.root / ("missing-admission-" + str(index))
                 dispatch = Mock(side_effect=AssertionError("must not dispatch"))
                 adapter = SimpleNamespace(synthetic=False, research=dispatch)
                 handler = SimpleNamespace(
                     identity="synthetic-missing-admission",
-                    admission_context=admission,
                     prepare=Mock(side_effect=AssertionError("must not prepare")),
                 )
+                if admission is not missing:
+                    handler.admission_context = admission
 
                 def run(head, spec):
                     guard = AdmittedAdapter(adapter, handler, spec, core)
