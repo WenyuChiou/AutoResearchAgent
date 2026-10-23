@@ -220,6 +220,11 @@ class ProjectStage2Service:
     @staticmethod
     def _matches(binding, offer):
         _check(
+            binding.get("imported_input_sha256") == offer.get("imported_input_sha256")
+            and type(binding["input_version"]) is type(offer["input_version"]),
+            "stage2-offer-source-version-differs",
+        )
+        _check(
             all(
                 binding[key] == offer[key]
                 for key in (
@@ -231,6 +236,12 @@ class ProjectStage2Service:
             ),
             "stage2-offer-source-version-differs",
         )
+
+    def import_stage1_project(self, credential, **trusted_inputs):
+        """Trusted saved-source bootstrap; not a public browser endpoint."""
+        from .project_stage1_import import import_stage1_project
+
+        return import_stage1_project(self, credential, **trusted_inputs)
 
     def register(
         self,
@@ -290,6 +301,8 @@ class ProjectStage2Service:
                     "plan_manifest_sha256",
                 )
             }
+            if "imported_input_sha256" in binding:
+                basis["imported_input_sha256"] = binding["imported_input_sha256"]
             basis.update(
                 stage1_manifest_sha256=expected_manifest_sha256,
                 stage1_handoff_sha256=expected_handoff_sha256,
@@ -343,8 +356,27 @@ class ProjectStage2Service:
                 if (
                     offer["input_version"] != current.get("input_version")
                     or offer["brief_sha256"] != current.get("brief_sha256")
-                    or current_plan is None
-                    or offer["plan_manifest_sha256"] != current_plan["manifest_sha256"]
+                    or type(offer["input_version"])
+                    is not type(current.get("input_version"))
+                    or (
+                        state.get("stage1_import") is not None
+                        and (
+                            current_plan is not None
+                            or offer["plan_manifest_sha256"] is not None
+                            or state["stage2_offers"][offer["offer_ref"]].get(
+                                "imported_input_sha256"
+                            )
+                            != state["stage1_import"]["sha256"]
+                        )
+                    )
+                    or (
+                        state.get("stage1_import") is None
+                        and (
+                            current_plan is None
+                            or offer["plan_manifest_sha256"]
+                            != current_plan["manifest_sha256"]
+                        )
+                    )
                 ):
                     offer["status"] = "stale-input"
             activation = deepcopy(state.get("stage2_activation"))
@@ -588,6 +620,8 @@ class ProjectStage2Service:
         }
         if "admission_pins" in offer:
             basis["admission_pins"] = offer["admission_pins"]
+        if "imported_input_sha256" in offer:
+            basis["imported_input_sha256"] = offer["imported_input_sha256"]
         _check(
             registered == [_public(offer)]
             and sha(canonical(basis))

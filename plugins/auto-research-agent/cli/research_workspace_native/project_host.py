@@ -866,11 +866,15 @@ def main(argv=None):
     parser.add_argument("--projects-root", required=True, type=Path)
     parser.add_argument("--views-config", type=Path)
     parser.add_argument("--views-sha256")
+    parser.add_argument("--stage1-import-config", type=Path)
+    parser.add_argument("--stage1-import-sha256")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args(argv)
     if bool(args.views_config) != bool(args.views_sha256):
         parser.error("saved views require their external configuration SHA256")
+    if bool(args.stage1_import_config) != bool(args.stage1_import_sha256):
+        parser.error("Stage1 imports require their external configuration SHA256")
     files, views = (
         load_views(args.views_config, args.views_sha256)
         if args.views_config
@@ -882,11 +886,18 @@ def main(argv=None):
     )
     host = None
     try:
+        stage2 = ProjectStage2Service(projects)
+        if args.stage1_import_config is not None:
+            from .project_stage1_import import load_stage1_imports
+
+            load_stage1_imports(
+                stage2, token, args.stage1_import_config, args.stage1_import_sha256
+            )
         host = ProjectHost(
             projects=projects,
             credential=token,
             stage1=ProjectStage1Service(projects),
-            stage2=ProjectStage2Service(projects),
+            stage2=stage2,
             files=files,
             views=views,
             port=args.port,
