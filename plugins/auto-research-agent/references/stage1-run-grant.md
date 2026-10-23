@@ -37,3 +37,9 @@ Core or HTML acceptance.
 
 Temporary SQLite/intake regressions cover these mechanics without native
 model, network, source acquisition, research or scientific-quality claims.
+
+Trusted run-derived requests preserve the original consent text and exact payload
+identity. Initial grouped agent pending events only record unassessed discoveries;
+they never include a paper or attest source quality. A partial Core append stays
+execution-unknown and holds later local writes. Canonical semantic adoption and
+the default automatic launcher remain separate integration work.

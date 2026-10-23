@@ -276,7 +276,14 @@ class ProjectIntakeService:
                 receipt.update(
                     status="execution-unknown"
                     if work_completed
-                    or kind in {"stage1-coverage", "stage1-claim", "stage2-select"}
+                    or kind
+                    in {
+                        "stage1-coverage",
+                        "stage1-claim",
+                        "stage1-agent-pending",
+                        "stage1-agent-analysis",
+                        "stage2-select",
+                    }
                     else "failed",
                     error=str(error)[:512],
                 )
@@ -285,7 +292,13 @@ class ProjectIntakeService:
                         failure_phase="post-work-before-commit",
                         output_observation=deepcopy(result),
                     )
-                elif kind in {"stage1-coverage", "stage1-claim", "stage2-select"}:
+                elif kind in {
+                    "stage1-coverage",
+                    "stage1-claim",
+                    "stage1-agent-pending",
+                    "stage1-agent-analysis",
+                    "stage2-select",
+                }:
                     # A Core append can succeed before its producer raises.
                     # Keep this new local action held; failed is unlockable by UI.
                     receipt["failure_phase"] = "core-write-outcome-unobserved"
