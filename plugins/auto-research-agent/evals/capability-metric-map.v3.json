@@ -691,6 +691,7 @@
         "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
         "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
         "plugins/auto-research-agent/tests/test_native_incomplete_responses.py",
+        "plugins/auto-research-agent/tests/test_provider_schema_projection.py",
         "plugins/auto-research-agent/tests/test_evaluator_units_v31.py",
         "plugins/auto-research-agent/tests/test_evidence_spans.py",
         "plugins/auto-research-agent/tests/test_extraction_v31.py",
@@ -723,7 +724,8 @@
         "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
         "plugins/auto-research-agent/tests/test_stage2_native_process.py",
         "plugins/auto-research-agent/tests/test_complete_prompt_transport.py"
-      ]
+      ],
+      "provider_schema_projection_contract": "Strict provider generation omits unsupported composition and retains its conditions as descriptions; the original full schema remains authoritative for local acceptance and source-bound replay. Historical source and archived generation bytes are never rewritten or rebound."
     },
     {
       "capability_id": "cli:stage1-brief",
