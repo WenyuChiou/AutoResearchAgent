@@ -78,6 +78,7 @@
     } else openWorkspace(target);
   }, true);
   let frame = null, frameLoaded = false, portal = null, readyPromise = null, projects = [], selection = null, busy = false, listBusy = false, listGeneration = 0, topicRef = null, statusKey = "loading", resizeObserver = null, resizeQueued = false, displayedBinding = null, activeStage = 1;
+  window.ResearchSavedStage1Views?.mount({anchor: card});
   function stageNavigation() {
     for (const control of stages?.querySelectorAll("[data-atlas-focus]") || []) control.setAttribute("aria-pressed", String(control.dataset.atlasFocus === "stage:" + activeStage));
   }
@@ -87,7 +88,10 @@
       const api = await ensurePortal();
       if (api.showStage(stage) !== true) return;
       activeStage = stage; historical.open = false; content.hidden = true;
-      stageNavigation(); openWorkspace("project-stage-" + stage);
+      stageNavigation(); showSummary();
+      const saved = document.getElementById("project-saved-stage1");
+      if (!selection && stage === 1 && saved && !saved.hidden) saved.scrollIntoView({block: "start", behavior: "smooth"});
+      else openWorkspace("project-stage-" + stage);
     } catch (_) { statusKey = "unavailable"; showSummary(); }
   }
   const ref = value => typeof value === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(value);
@@ -110,6 +114,7 @@
   function showSummary() {
     summary.textContent = selection ? w().current + ": " + selection.topic + " · " + w().version + " " + selection.input_version : w().none;
     status.textContent = w()[statusKey]; buttons();
+    window.ResearchSavedStage1Views?.update({selection, stage: activeStage, language: language?.value || "en"});
   }
   function fitPortal() {
     if (!frameLoaded || resizeQueued) return;
@@ -210,7 +215,7 @@
       portal = api; frame.contentWindow.addEventListener("research-project-selection", syncSelection);
       frame.contentWindow.addEventListener("research-project-stage", () => {
         const stage = api.activeStage();
-        if (Number.isInteger(stage) && stage >= 1 && stage <= 6) { activeStage = stage; stageNavigation(); fitPortal(); }
+        if (Number.isInteger(stage) && stage >= 1 && stage <= 6) { activeStage = stage; stageNavigation(); showSummary(); fitPortal(); }
       });
       translate(); await refreshProjects(); return api;
     }).catch(error => { portal = null; readyPromise = null; statusKey = "unavailable"; showSummary(); throw error; });

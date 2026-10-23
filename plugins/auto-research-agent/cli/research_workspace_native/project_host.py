@@ -26,7 +26,9 @@ from .project_ui_overlay import (
     PANEL,
     PANEL_CSP,
     PARENT_CSP,
+    SOURCE_HTML_CSP,
     install_project_overlay,
+    saved_stage1_views,
     stage2_example_views,
 )
 from .project_stage1_library import ProjectStage1LibraryService
@@ -129,11 +131,20 @@ class ProjectHost(AtlasHost):
                 "projects-stage2-preview.js",
                 "project-operations.js",
                 "project-operations.css",
+                "project-saved-views.js",
             )
         }
         atlas_shell = shell_assets(ASSETS)
         example_assets, self.stage2_examples, self.stage2_example_routes = (
             stage2_example_views(options["files"], options["views"])
+        )
+        saved_assets, self.saved_stage1_references, self.saved_stage1_routes = (
+            saved_stage1_views(options["files"], options["views"])
+        )
+        self.saved_stage1_source_html_routes = frozenset(
+            path
+            for path in saved_assets
+            if path.endswith(".html") and path not in self.saved_stage1_routes
         )
         self.projects, self.project_models, self.project_stage2 = (
             projects,
@@ -229,8 +240,9 @@ class ProjectHost(AtlasHost):
         self._assets.update(project_assets)
         self._assets.update(atlas_shell)
         self._assets.update(example_assets)
+        self._assets.update(saved_assets)
         self.project_panel_parents = install_project_overlay(
-            self._assets, self.views, ASSETS
+            self._assets, self.views, ASSETS, self.saved_stage1_references
         )
         # No package is invented for a new project. Existing saved views keep
         # their original entry and renderer, with operations in a lazy drawer.
@@ -257,6 +269,7 @@ class ProjectHost(AtlasHost):
             and getattr(models, "reading_records", None) is not None,
             project_stage2_import=stage2 is not None,
             project_execution_authority=False,
+            project_saved_stage1_references=self.saved_stage1_references,
             project_operations_presentation="additive-v6-drawer",
             project_home_route=self.views[0]["url"] if self.views else "/projects.html",
         )
@@ -356,13 +369,18 @@ class ProjectHost(AtlasHost):
 class ProjectHandler(AtlasHandler):
     def send_header(self, keyword, value):
         if keyword.lower() == "content-security-policy":
-            if self.path == PANEL:
+            if self.path in self.server.saved_stage1_source_html_routes:
+                value = SOURCE_HTML_CSP
+            elif self.path == PANEL:
                 value = PANEL_CSP
             elif self.path == "/project-atlas.html":
                 value = value.replace(
                     "frame-ancestors 'none'", "frame-ancestors 'self'"
                 )
-            elif self.path in self.server.stage2_example_routes:
+            elif (
+                self.path in self.server.stage2_example_routes
+                or self.path in self.server.saved_stage1_routes
+            ):
                 value = value.replace(
                     "frame-ancestors 'none'", "frame-ancestors 'self'"
                 )
