@@ -246,6 +246,7 @@ class Stage2ScientificArgumentTests(unittest.TestCase):
             },
         }
         record = {
+            "schema_version": "1.0.0",
             "decision": {"selected": [selected]},
             "report_manifest_sha256": "b" * 64,
             "snapshot_sha256": "c" * 64,

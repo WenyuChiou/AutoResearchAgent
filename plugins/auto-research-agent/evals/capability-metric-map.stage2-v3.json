@@ -595,6 +595,12 @@
       "decision_card_rendering_contract": "Pure deterministic Markdown and script-free escaped HTML views render the same current-version decision-card questions, proposed methods, requirements, resource mappings, unmapped resources, unknowns, evidence bindings, limitations, alternatives and next checks. Rendering does not declare any resource available or adequate, make a human selection, authorize or execute Stage3, rerun models, or claim scientific improvement.",
       "decision_card_rendering_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_decision_card_views.py"
+      ],
+      "projecthost_user_submission_contract": "Opt-in interaction/planning1.1 retains externally hashed confirmed ProjectHost UI submission bytes under an honest distinct filename and source kind. Displayed workflow/snapshot/delivery/current candidate pins, conditions and unknowns revalidate; source rehash or native-origin relabelling rejects. Credential principal is not authenticated human identity. Legacy native-message1.0 remains strict. No human choice is fabricated, no execution authority is granted, and UI/host transport acceptance remains separate.",
+      "projecthost_user_submission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_ui_submission.py",
+        "plugins/auto-research-agent/tests/test_stage2_interaction.py",
+        "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
       ]
     },
     {

@@ -11,6 +11,12 @@ from stage2_common import Stage2Error, canonical_hash, current_prior_work_review
 
 from .delivery import _relative_files, _safe_package_path, inspect_delivery
 from .interaction import _record, _user_text, _validate_decision
+from .ui_submission import (
+    UI_MESSAGE_FILE,
+    UI_VERSION,
+    read_ui_submission,
+    submission_origin,
+)
 
 VERSION = "1.0.0"
 MANIFEST = "planning_manifest.json"
@@ -26,6 +32,13 @@ DELIVERY_REFS = {
     "selection_html": "selection.html",
     "review_audit": "review_audit.json",
 }
+
+
+def _files(version):
+    if version == VERSION:
+        return FILES
+    _require(version == UI_VERSION, "planning-interaction-version")
+    return {**FILES, "native_message": UI_MESSAGE_FILE}
 
 
 def _require(condition, reason):
@@ -63,17 +76,23 @@ def _read_regular(path, reason):
 def _interaction_bytes(interaction_dir):
     root = Path(interaction_dir).resolve()
     _require(root.is_dir() and not root.is_symlink(), "planning-interaction-directory")
+    record = decode_json(
+        _read_regular(root / FILES["interaction"], "planning-interaction-invalid"),
+        "planning interaction",
+    )
+    _require(isinstance(record, dict), "planning-interaction-object")
+    files = _files(record.get("schema_version"))
     actual = set()
     for path in root.iterdir():
         _require(path.is_file() and not path.is_symlink(), "planning-interaction-entry")
         actual.add(path.name)
     _require(
-        actual == set(FILES.values()) - {FILES["handoff"]},
+        actual == set(files.values()) - {files["handoff"]},
         "planning-interaction-inventory",
     )
     return root, {
         name: _read_regular(root / relative, f"planning-interaction-{name}-invalid")
-        for name, relative in FILES.items()
+        for name, relative in files.items()
         if name != "handoff"
     }
 
@@ -89,12 +108,29 @@ def _validate_interaction(
     )
     _require(
         record["kind"] == "Stage2HumanInteraction"
-        and record["schema_version"] == "1.0.0",
+        and record["schema_version"] in {VERSION, UI_VERSION},
         "planning-interaction-version",
     )
-    _validate_decision(
-        record["decision"], _user_text(raw_message, record["message_index"])
-    )
+    origin = None
+    if record["schema_version"] == UI_VERSION:
+        _require(record["message_index"] == 0, "projecthost-submission-index")
+        submission = read_ui_submission(
+            raw_message,
+            expected={
+                "workflow_manifest_sha256": delivery["manifest"][
+                    "workflow_manifest_sha256"
+                ],
+                "workflow_head_sha256": delivery["manifest"]["workflow_head_sha256"],
+                "snapshot_sha256": delivery["manifest"]["snapshot_sha256"],
+                "delivery_manifest_sha256": delivery["manifest"]["manifest_sha256"],
+                "decision": record["decision"],
+            },
+        )
+        origin = submission_origin(submission)
+        text = submission["decision"]["user_text"]
+    else:
+        text = _user_text(raw_message, record["message_index"])
+    _validate_decision(record["decision"], text)
     _require(record["decision"]["kind"] == "select", "planning-selection-required")
     manifest = delivery["manifest"]
     # Reconstruct only the saved record, not a live workflow or execution authority.
@@ -117,7 +153,12 @@ def _validate_interaction(
         },
     }
     expected = _record(
-        state, delivery, record["decision"], raw_message, record["message_index"]
+        state,
+        delivery,
+        record["decision"],
+        raw_message,
+        record["message_index"],
+        input_origin=origin,
     )
     _require(
         _canonical_bytes(record) == _canonical_bytes(expected),
@@ -174,7 +215,7 @@ def _project_handoff(delivery, record, interaction_sha256, message_sha256):
         set(DELIVERY_REFS.values()).issubset(inventory),
         "planning-delivery-reference-not-inventoried",
     )
-    return {
+    handoff = {
         "kind": "Stage2ToStage3PlanningPackage",
         "schema_version": VERSION,
         "required_delivery_manifest_sha256": delivery["manifest"]["manifest_sha256"],
@@ -194,6 +235,14 @@ def _project_handoff(delivery, record, interaction_sha256, message_sha256):
         "semantic_verification": "not-established",
         "execution_authorized": False,
     }
+    if record["schema_version"] == UI_VERSION:
+        handoff.update(
+            schema_version=UI_VERSION,
+            input_origin=copy.deepcopy(record["input_origin"]),
+            user_submission_sha256=message_sha256,
+        )
+        del handoff["native_user_message_sha256"]
+    return handoff
 
 
 def _manifest_hash(manifest):
@@ -247,17 +296,18 @@ def prepare_planning_handoff(
     output = _private_output(output_dir)
     _require(not output.exists(), "planning-output-exists")
     output.mkdir(parents=False)
+    files = _files(record["schema_version"])
     values = {
-        FILES["handoff"]: _canonical_bytes(handoff),
-        FILES["interaction"]: raw["interaction"],
-        FILES["native_message"]: raw["native_message"],
-        FILES["delivery_manifest"]: raw["delivery_manifest"],
+        files["handoff"]: _canonical_bytes(handoff),
+        files["interaction"]: raw["interaction"],
+        files["native_message"]: raw["native_message"],
+        files["delivery_manifest"]: raw["delivery_manifest"],
     }
     for name, data in values.items():
         _write_new(output / name, data)
     manifest = {
         "kind": "Stage2ToStage3PlanningPackageManifest",
-        "schema_version": VERSION,
+        "schema_version": record["schema_version"],
         "required_delivery_manifest_sha256": expected_delivery_manifest_sha256,
         "files": _package_files(output),
     }
@@ -283,14 +333,15 @@ def inspect_planning_handoff(package_dir, delivery_dir, *, expected_manifest_sha
             "manifest_sha256",
         }
         and manifest["kind"] == "Stage2ToStage3PlanningPackageManifest"
-        and manifest["schema_version"] == VERSION
+        and manifest["schema_version"] in {VERSION, UI_VERSION}
         and manifest["manifest_sha256"] == _manifest_hash(manifest)
         and manifest["manifest_sha256"] == expected_manifest_sha256,
         "planning-manifest-binding",
     )
+    files = _files(manifest["schema_version"])
     _require(_package_files(root) == manifest["files"], "planning-package-inventory")
     _require(
-        {row["path"] for row in manifest["files"]} == set(FILES.values()),
+        {row["path"] for row in manifest["files"]} == set(files.values()),
         "planning-package-file-set",
     )
     delivery = inspect_delivery(
@@ -300,7 +351,7 @@ def inspect_planning_handoff(package_dir, delivery_dir, *, expected_manifest_sha
         name: _read_regular(
             _safe_package_path(root, relative), f"planning-{name}-invalid"
         )
-        for name, relative in FILES.items()
+        for name, relative in files.items()
     }
     record = _validate_interaction(
         delivery, raw["interaction"], raw["native_message"], raw["delivery_manifest"]
