@@ -595,6 +595,10 @@
       "decision_card_rendering_contract": "Pure deterministic Markdown and script-free escaped HTML views render the same current-version decision-card questions, proposed methods, requirements, resource mappings, unmapped resources, unknowns, evidence bindings, limitations, alternatives and next checks. Rendering does not declare any resource available or adequate, make a human selection, authorize or execute Stage3, rerun models, or claim scientific improvement.",
       "decision_card_rendering_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_decision_card_views.py"
+      ],
+      "projecthost_selection_view_contract": "Read-only host-bound current direction/material cards verify actual delivery, workflow, project/input version and active project root. Unknowns, eligibility, human selection and Stage3 planning/execution states remain distinct. Browser input cannot choose filesystem paths; view creation does not make a choice, rerun models or authorize execution. Actual HTTP/browser and selection writes remain separate acceptance.",
+      "projecthost_selection_view_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_view.py"
       ]
     },
     {
