@@ -606,3 +606,29 @@ remain separate.
 ## Explicit saved-request maintenance queue
 
 The [saved review queue](SAVED_REVIEW_QUEUE.md) adds explicit authorized admission, receiving-owner claims, source-bound result reports and passive recovery using the existing private inbox. Original opinions remain recorded-not-dispatched. It adds no automatic worker, model/research execution, scientific certification, Core acceptance or Stage2 import.
+
+## Accepted saved-source Stage1 intake
+
+The trusted project bootstrap can register saved-handoff-v2 inputs using the
+original project/input lineage and independent Core/replay pins. Activation
+uses the same Stage2 importer, initializes an unstarted workflow and retains
+its versioned receipt. Reopen verifies the exact source, notes and pins; an
+old string input version is never coerced into a new native integer version.
+See [saved-source intake](../../references/stage2-saved-source-intake.md) for
+the complete CLI and trusted-registration requirements. Engineering checks
+and a technical replay do not substitute for content or main-Wiki acceptance.
+
+The Python-only Stage1 continuation helper is a bounded scheduling component.
+It uses existing durable receipts and refuses unknown/unconnected phases or
+review barriers. It does not by itself connect the default launcher to a
+complete automatic topic-to-delivery workflow.
+
+Trusted Python operators can use `ProjectHost.continue_stage1` with the current
+credential/project, a stable run ID, an absolute monotonic deadline and a finite
+action limit. Its production adapter reopens actual intake receipts and reads
+`project_progress`, then calls the existing admitted query, checkpoint, records
+and delivery owners. It joins each existing query worker at most once without
+restarting it. Re-entry keeps the original action identities and consumed
+reservations; unknown dispatch and missing semantic producers stop the slice.
+Automatic screening and full-note content review are still unconnected here.
+The helper cannot approve Core/Wiki reviews or start Stage2 research.
