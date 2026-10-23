@@ -30,8 +30,11 @@ class AtomicDeliveryTests(unittest.TestCase):
         self.f.setUp()
         self.addCleanup(self.f.doCleanups)
         self.reviews, self.resolutions = self.f._complete_inputs()
-        self.output = self.f.root / "ordinary-delivery"
-        self.staging = self.f.root / ".ordinary-delivery.stage2-staging"
+        # macOS temporary roots can include /var -> /private/var. Supply the
+        # actual private path; production must still reject symlink ancestors.
+        root = self.f.root.resolve()
+        self.output = root / "ordinary-delivery"
+        self.staging = root / ".ordinary-delivery.stage2-staging"
 
     def build(self, reviews=None):
         return atomic.build_atomic_delivery(
@@ -210,7 +213,7 @@ class AtomicDeliveryTests(unittest.TestCase):
         with self.assertRaisesRegex(Stage2Error, "unbound-existing-output"):
             self.build()
         self.assertEqual(marker.read_bytes(), b"retained")
-        self.output = self.f.root / "locked-output"
+        self.output = self.output.parent / "locked-output"
         lock = self.output.with_name(".locked-output.stage2-publish.lock")
         lock.write_bytes(b"uninspected owner")
         with self.assertRaisesRegex(Stage2Error, "lock-requires-inspection"):
