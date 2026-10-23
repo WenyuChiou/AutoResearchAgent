@@ -19,6 +19,7 @@ from stage2_live.native_namespace import (
 from stage2_live.native_process import run_bound_process, validate_timeout_seconds
 
 from .common import EvaluationError, canonical, read_json, sha
+from .native_failures import incomplete_response_failure
 from .runtime import executable_sha256
 
 MODEL_CALL_ARCHIVE_VERSION = "3.1.0"
@@ -121,6 +122,7 @@ def _evaluator_code_sha():
     for name, path in (
         ("model.py", root / "model.py"),
         ("model_calls.py", root / "model_calls.py"),
+        ("native_failures.py", root / "native_failures.py"),
         (
             "stage2_live/native_process.py",
             root.parent / "stage2_live" / "native_process.py",
@@ -694,6 +696,8 @@ def call_model_v31(
         elif runner_error is not None:
             error = "runner"
             failure_detail = f"{type(runner_error).__name__}: {runner_error}"
+        elif failure := incomplete_response_failure(stdout):
+            error, failure_detail = failure
         elif returncode:
             error = (
                 "transient-transport"

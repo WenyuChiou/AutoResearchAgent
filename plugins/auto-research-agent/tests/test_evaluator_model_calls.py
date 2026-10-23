@@ -241,6 +241,7 @@ class ModelCallTests(unittest.TestCase):
             for name, path in (
                 ("model.py", root / "model.py"),
                 ("model_calls.py", root / "model_calls.py"),
+                ("native_failures.py", root / "native_failures.py"),
                 (
                     "stage2_live/native_process.py",
                     root.parent / "stage2_live" / "native_process.py",

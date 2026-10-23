@@ -678,6 +678,7 @@
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_general_eval.py",
         "plugins/auto-research-agent/tests/test_evaluator_model_calls.py",
+        "plugins/auto-research-agent/tests/test_native_incomplete_responses.py",
         "plugins/auto-research-agent/tests/test_evaluator_units_v31.py",
         "plugins/auto-research-agent/tests/test_evidence_spans.py",
         "plugins/auto-research-agent/tests/test_extraction_v31.py",
