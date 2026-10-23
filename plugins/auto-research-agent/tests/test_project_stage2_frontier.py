@@ -155,6 +155,148 @@ class ProjectStage2FrontierTests(unittest.TestCase):
         with self.assertRaisesRegex(SessionApiError, "idempotency-payload-differs"):
             self.advance("f" * 64)
 
+    def interrupted_completed_frontier(self):
+        self.activate()
+        head = self.append_start()
+        original = self.intake._save
+
+        def fail_commit(state, kind, payload):
+            original(state, kind, payload)
+            if kind == "stage2-frontier-saved":
+                raise OSError("synthetic completed frontier commit failure")
+
+        with patch.object(self.intake, "_save", side_effect=fail_commit):
+            with self.assertRaisesRegex(SessionApiError, "intake-operation-failed"):
+                self.advance(head)
+        self.assertEqual(self.advance(head)["status"], "execution-unknown")
+        return head
+
+    def recover(self, head):
+        return self.service.recover_frontier(
+            self.ref,
+            key="frontier-1",
+            expected_activation_sha256=self.initial["activation_sha256"],
+            expected_previous_head_sha256=self.initial["workflow_head_sha256"],
+            new_workflow_head_sha256=head,
+        )
+
+    def test_completed_frontier_recovery_is_metadata_only_durable_and_idempotent(self):
+        head = self.interrupted_completed_frontier()
+        before = inspect_workflow(self.workflow)
+        result = self.recover(head)
+        self.assertEqual(result["status"], "saved")
+        self.assertFalse(result["execution_authorized"])
+        self.assertIn("recovered_from_receipt_sha256", result)
+        self.assertEqual(inspect_workflow(self.workflow), before)
+        self.reopen()
+        self.assertEqual(self.service.binding(self.ref)["workflow_head_sha256"], head)
+        self.assertEqual(self.recover(head)["frontier"], result["frontier"])
+        failures = self.service._journal(self.ref, "stage2-frontier-failed")
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0]["status"], "execution-unknown")
+
+    def test_completed_frontier_recovery_rejects_changed_request_and_observation(self):
+        head = self.interrupted_completed_frontier()
+        with self.assertRaisesRegex(SessionApiError, "recovery-request-differs"):
+            self.recover("f" * 64)
+        row = self.intake.db.execute(
+            "SELECT receipt FROM intake_actions WHERE project=? AND key='frontier-1'",
+            (self.ref,),
+        ).fetchone()
+        value = json.loads(row[0])
+        value["output_observation"]["frontier"]["sequence"] += 1
+        with self.intake.db:
+            self.intake.db.execute(
+                "UPDATE intake_actions SET receipt=? WHERE project=? AND key='frontier-1'",
+                (canonical(value).decode(), self.ref),
+            )
+        with self.assertRaisesRegex(
+            SessionApiError, "recovery-failure-receipt-differs"
+        ):
+            self.recover(head)
+        self.assertEqual(
+            self.intake._load("researcher", self.ref)["stage2_frontier"]["sequence"], 0
+        )
+
+    def assert_failure_receipt_edit_is_rejected(self, field, altered):
+        head = self.interrupted_completed_frontier()
+        before = inspect_workflow(self.workflow)
+        failures = self.service._journal(self.ref, "stage2-frontier-failed")
+        row = self.intake.db.execute(
+            "SELECT receipt FROM intake_actions WHERE project=? AND key='frontier-1'",
+            (self.ref,),
+        ).fetchone()
+        value = json.loads(row[0])
+        value[field] = altered
+        with self.intake.db:
+            self.intake.db.execute(
+                "UPDATE intake_actions SET receipt=? WHERE project=? AND key='frontier-1'",
+                (canonical(value).decode(), self.ref),
+            )
+        with self.assertRaises(SessionApiError):
+            self.recover(head)
+        self.assertEqual(inspect_workflow(self.workflow), before)
+        self.assertEqual(
+            self.service._journal(self.ref, "stage2-frontier-failed"), failures
+        )
+        self.assertEqual(self.service._journal(self.ref, "stage2-frontier-saved"), [])
+        self.assertEqual(
+            self.intake._load("researcher", self.ref)["stage2_frontier"]["sequence"], 0
+        )
+
+    def test_completed_recovery_rejects_action_row_only_project_tampering(self):
+        self.assert_failure_receipt_edit_is_rejected("project_ref", "project-foreign")
+
+    def test_completed_recovery_rejects_action_row_only_key_tampering(self):
+        self.assert_failure_receipt_edit_is_rejected("key", "frontier-forged")
+
+    def test_completed_recovery_rejects_action_row_only_digest_tampering(self):
+        self.assert_failure_receipt_edit_is_rejected("request_sha256", "f" * 64)
+
+    def test_completed_recovery_deadline_after_sql_writes_rolls_back(self):
+        head = self.interrupted_completed_frontier()
+        before = inspect_workflow(self.workflow)
+        row = self.intake.db.execute(
+            "SELECT receipt FROM intake_actions WHERE project=? AND key='frontier-1'",
+            (self.ref,),
+        ).fetchone()
+        original = row[0]
+        checks = 0
+
+        def deadline():
+            nonlocal checks
+            checks += 1
+            if checks == 3:
+                raise TimeoutError("synthetic deadline after SQL writes")
+
+        with self.assertRaisesRegex(TimeoutError, "after SQL writes"):
+            self.service.recover_frontier(
+                self.ref,
+                key="frontier-1",
+                expected_activation_sha256=self.initial["activation_sha256"],
+                expected_previous_head_sha256=self.initial["workflow_head_sha256"],
+                new_workflow_head_sha256=head,
+                check_deadline=deadline,
+            )
+        self.assertEqual(checks, 3)
+        self.assertEqual(
+            self.intake.db.execute(
+                "SELECT receipt FROM intake_actions WHERE project=? AND key='frontier-1'",
+                (self.ref,),
+            ).fetchone()[0],
+            original,
+        )
+        self.assertEqual(self.service._journal(self.ref, "stage2-frontier-saved"), [])
+        self.assertEqual(inspect_workflow(self.workflow), before)
+        self.assertEqual(self.recover(head)["status"], "saved")
+
+    def test_frontier_validation_failure_is_not_promoted_to_completed_recovery(self):
+        self.activate()
+        with self.assertRaises(SessionApiError):
+            self.advance("f" * 64)
+        with self.assertRaisesRegex(SessionApiError, "recovery-outcome-unverified"):
+            self.recover("f" * 64)
+
     def test_stale_cas_wrong_activation_and_noop_preserve_failed_history(self):
         self.activate()
         first = self.append_start()
