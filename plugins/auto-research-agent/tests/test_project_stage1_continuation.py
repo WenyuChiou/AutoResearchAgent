@@ -30,7 +30,7 @@ class ProjectStage1ContinuationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="stage1-continuation-")
         self.intake = ProjectIntakeService(
-            Path(self.tmp.name),
+            Path(self.tmp.name).resolve(),
             authenticate=lambda token: (
                 "synthetic-owner" if token == "fixture" else None
             ),
