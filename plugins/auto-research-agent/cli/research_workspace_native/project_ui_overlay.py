@@ -120,6 +120,7 @@ def saved_stage1_views(files, views):
                 manifest_sha256=row["manifest_sha256"],
                 html_sha256=sha(html_raw),
                 snapshot_sha256=sha(snapshot_raw),
+                stage1_manifest_sha256=delivery_binding["sha256"],
                 url=route,
                 fixture=False,
                 read_only=True,

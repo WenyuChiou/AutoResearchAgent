@@ -12,12 +12,76 @@ import os
 from stage1_brief.brief import validate_brief
 from stage1_deliverable.common import identifier, sha
 from stage1_ledger.journal import canonical, decode
-from .session_api import _check
+from .session_api import _check, _hash
 from .project_intake_contract import MAX_PROJECTS, MAX_REQUEST
 
 
+RECEIVING_ROUTE = "stage1-saved-source-receiving-only"
+
+
+def registration_mode(policy, *, settings=None):
+    """Receiving an authenticated input is separate from offering research."""
+    if type(policy) is dict and policy.get("route") == RECEIVING_ROUTE:
+        _check(
+            policy.get("schema_version") == "1.0.0"
+            and policy.get("execution_authorized") is False,
+            "stage2-receiving-only-policy-required",
+            400,
+        )
+        if settings is not None:
+            _check(
+                type(settings) is dict
+                and settings.get("mode") == RECEIVING_ROUTE
+                and settings.get("execution_authorized") is False
+                and all(
+                    type(settings.get(key)) is int and settings[key] == 0
+                    for key in (
+                        "model_calls_authorized",
+                        "external_queries_authorized",
+                        "source_acquisitions_authorized",
+                    )
+                ),
+                "stage2-receiving-only-zero-budget-required",
+                400,
+            )
+        return "receiving-only"
+    _check(
+        type(policy) is dict
+        and policy.get("route") == "stage2-general-v3/daily_v3"
+        and policy.get("packet_profile", "legacy-v2") in ("legacy-v2", "scientific-v3"),
+        "stage2-daily-v3-policy-reference-required",
+        400,
+    )
+    return "research"
+
+
+def saved_view_reference(value):
+    """An optional trusted declaration pins an existing saved view, not a path."""
+    if value is None:
+        return None
+    _check(
+        type(value) is dict
+        and set(value) == {"ref", "index_sha256", "manifest_sha256"}
+        and type(value["ref"]) is str
+        and 0 < len(value["ref"]) <= 64
+        and _hash(value["index_sha256"])
+        and _hash(value["manifest_sha256"]),
+        "stage1-saved-view-reference-invalid",
+        400,
+    )
+    identifier(value["ref"])
+    return deepcopy(value)
+
+
 def import_stage1_project(
-    service, credential, *, brief_path, expected_brief_sha256, settings, **registration
+    service,
+    credential,
+    *,
+    brief_path,
+    expected_brief_sha256,
+    settings,
+    saved_view=None,
+    **registration,
 ):
     from .project_stage2 import _raw, _verified_inputs
 
@@ -31,11 +95,8 @@ def import_stage1_project(
         400,
     )
     policy = registration.get("policy_ref")
-    _check(
-        type(policy) is dict and policy.get("route") == "stage2-general-v3/daily_v3",
-        "stage2-daily-v3-policy-reference-required",
-        400,
-    )
+    registration_mode(policy, settings=settings)
+    view_ref = saved_view_reference(saved_view)
     raw = _raw(brief_path, expected_brief_sha256, maximum=MAX_REQUEST)
     brief = decode(raw, "confirmed Stage1 brief")
     validate_brief(brief, require_confirmed=True)
@@ -86,6 +147,8 @@ def import_stage1_project(
         policy_ref=deepcopy(policy),
         execution_authorized=False,
     )
+    if view_ref is not None:
+        origin["saved_view"] = view_ref
     origin_raw = canonical(origin)
     _check(len(origin_raw) <= MAX_REQUEST, "stage2-import-context-too-large", 400)
     origin_hash = sha(origin_raw)
@@ -196,7 +259,8 @@ def imported_binding(intake, state):
         and state["plan"] is None,
         "stage2-import-context-differs",
     )
-    return dict(
+    mode = registration_mode(origin["policy_ref"], settings=state["settings"])
+    binding = dict(
         project_id=state["project_id"],
         input_version=state["input_version"],
         brief_path=path,
@@ -207,6 +271,12 @@ def imported_binding(intake, state):
         imported_input_sha256=saved["sha256"],
         execution_authorized=False,
     )
+    if mode == "receiving-only":
+        binding["receiving_only"] = True
+    if origin.get("saved_view") is not None:
+        binding["saved_view"] = saved_view_reference(origin["saved_view"])
+        binding["imported_stage1_inputs"] = deepcopy(origin["inputs"])
+    return binding
 
 
 def load_stage1_imports(service, credential, config_path, expected_sha256):
@@ -246,6 +316,7 @@ def load_stage1_imports(service, credential, config_path, expected_sha256):
         "trusted_host_replay_sha256",
         "historical_exporter_root",
         "replayer_exporter_root",
+        "saved_view",
     }
     _check(
         all(
