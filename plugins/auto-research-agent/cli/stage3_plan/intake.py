@@ -92,6 +92,17 @@ def project_intake(handoff, manifest_sha256):
     }
     if "input_origin" in handoff:
         intake["input_origin"] = copy.deepcopy(handoff["input_origin"])
+    if "reviewer_planning_context" in handoff:
+        context = handoff["reviewer_planning_context"]
+        if (
+            not isinstance(context, dict)
+            or context.get("kind") != "Stage2ReviewerPlanningContext"
+            or context.get("schema_version") != "1.0.0"
+            or context.get("source_kind") != "stage2-independent-review"
+            or context.get("review_view_version") != "1.3.0"
+        ):
+            raise Stage3Error("unsupported reviewer planning context")
+        intake["reviewer_planning_context"] = copy.deepcopy(context)
     return intake
 
 

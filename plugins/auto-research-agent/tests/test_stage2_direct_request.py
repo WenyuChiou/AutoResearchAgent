@@ -128,7 +128,7 @@ class Stage2DirectRequestTests(unittest.TestCase):
         self.assertIn(self.packet["entry"]["request_sha256"], task["prompt"])
         extraction = build_extraction_task("A proposal", self.packet, "a" * 64)
         self.assertEqual(extraction["schema_version"], "1.2.0")
-        self.assertEqual(_initial_review_view_version(self.packet), "1.2.0")
+        self.assertEqual(_initial_review_view_version(self.packet), "1.3.0")
         self.assertEqual(
             _prior_work_completion(self.packet, "a" * 64)["status"], "complete"
         )

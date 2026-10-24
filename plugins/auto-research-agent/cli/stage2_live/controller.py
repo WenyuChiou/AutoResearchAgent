@@ -150,10 +150,10 @@ def _latest_map(packet):
 
 
 def _initial_review_view_version(packet):
-    """Select the opt-in prior-work view without changing historical packets."""
+    """Use direction-stage guidance for rich packets; replay pins saved versions."""
 
     return (
-        "1.2.0"
+        "1.3.0"
         if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}
         else REVIEW_VIEW_VERSION_CURRENT
     )

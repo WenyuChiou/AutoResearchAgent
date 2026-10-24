@@ -207,6 +207,15 @@ judgments and checks their bindings; it does not decide whether the science is
 true. Do not run experiments, unbounded searches or background agents merely
 because a next-step field suggests them.
 
+For rich packets, current initial review view1.3 binds `direction-readiness-1.0`.
+Support a choice of broad direction with evidenced data/reports, methods/tools,
+an answering or validation route and principal risks. Do not demand completed
+Stage 3 planning: exact sample sizes, named staffing, calls, GPU, cost, schedule
+or final stop rules. Preserve those unknowns as planning tasks. Necessary access,
+grain/variable fit, missing answering routes and stated hard-limit conflicts
+still need evidence. Record why a missing fact prevents the present choice;
+do not automatically promote a direction or rewrite old review/evaluation bytes.
+
 Keep independent evaluation outputs, condition labels and judge feedback outside
 the production choice process. An internal recommendation is not an external
 P4–P6 score. This first slice is experimental and has not demonstrated improvement.

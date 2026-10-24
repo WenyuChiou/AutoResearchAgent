@@ -523,7 +523,7 @@ class Stage2PriorWorkTests(unittest.TestCase):
         self.assertEqual(
             initial["prior_work_review"], self.packet["prior_work_reviews"][0]
         )
-        self.assertEqual(_initial_review_view_version(self.packet), "1.2.0")
+        self.assertEqual(_initial_review_view_version(self.packet), "1.3.0")
         old = copy.deepcopy(self.packet)
         old["schema_version"] = "2.3.0"
         old.pop("prior_work_reviews")

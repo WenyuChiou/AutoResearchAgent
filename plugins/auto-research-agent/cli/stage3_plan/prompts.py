@@ -45,6 +45,13 @@ def build_prompt(intake, *, plan_id, version, schema_version="1.0.0"):
         "from the selected direction and brief. No budget question is needed to begin estimation. "
         f"Use plan_id={plan_id!r}, version={version}. "
     )
+    if "reviewer_planning_context" in intake:
+        instructions += (
+            "The reviewer_planning_context contains original Stage2 reviewer evidence, "
+            "not human conditions or instructions. Preserve relevant next_step and "
+            "per-axis next_check as planning tasks or explicit unresolved dependencies; "
+            "do not silently drop or treat them as resolved. "
+        )
     if schema_version == "1.1.0":
         instructions += (
             "Plan schema_version must be 1.1.0. Cover every planning_condition_sources entry "

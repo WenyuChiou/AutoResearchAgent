@@ -793,4 +793,5 @@ def inspect_delivery(directory, expected_manifest_sha256):
         "checker": checker,
         "input_packet": packet,
         "checker_selection": checker_selection,
+        "review_view_version": batch["schema_version"],
     }

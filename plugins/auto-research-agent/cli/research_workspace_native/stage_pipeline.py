@@ -158,10 +158,19 @@ class StagePipeline:
         )
         self.root.mkdir(parents=True, exist_ok=True)
         binding_path = self.root / "binding.json"
+        current_binding = {
+            **self.binding,
+            "schema_version": "1.1.0",
+            "rich_review_view_version": "1.3.0",
+        }
         if binding_path.exists():
-            if decode_json(_read(binding_path), "pipeline-binding") != self.binding:
+            retained = decode_json(_read(binding_path), "pipeline-binding")
+            if canonical_hash(retained) == canonical_hash(current_binding):
+                self.binding = current_binding
+            elif canonical_hash(retained) != canonical_hash(self.binding):
                 raise Stage2Error("pipeline-reopen-binding-differs")
         else:
+            self.binding = current_binding
             _write(binding_path, self.binding)
         self.run = self.root / "workflow"
         initialize_workflow(
@@ -217,7 +226,8 @@ class StagePipeline:
 
     def _view_version(self):
         if self.packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}:
-            return "1.2.0"
+            # Historical bindings reconstruct their original prompts unchanged.
+            return self.binding.get("rich_review_view_version", "1.2.0")
         return (
             "1.1.0" if self.packet["schema_version"] in {"2.2.0", "2.3.0"} else "1.0.0"
         )
