@@ -10,8 +10,9 @@ sys.path[:0] = [str(PLUGIN / "cli"), str(PLUGIN / "tests")]
 
 from stage3_plan.campaign import SELECTION_FIELDS, binding, prepare_campaign  # noqa: E402
 from stage3_plan.contracts import canonical_bytes, digest  # noqa: E402
-from stage3_plan.evaluation import prepare_evaluation  # noqa: E402
+from stage3_plan.evaluation import CRITERIA, prepare_evaluation  # noqa: E402
 from stage3_plan.planner import draft_synthetic_plan  # noqa: E402
+from stage3_plan.storage import read_json  # noqa: E402
 from stage3_plan_fixtures import make_intake, make_plan  # noqa: E402
 
 
@@ -107,3 +108,79 @@ class CampaignFixture(unittest.TestCase):
         self.campaign_sha = result["campaign_sha256"]
         self.manifest = result["manifest"]
         return result
+
+    def judgment(self, unit, score=2, status="scored"):
+        view = read_json(self.campaign / (unit["subject_id"] + ".json"))
+        rows = []
+        for dimension, criterion in CRITERIA.items():
+            row = {
+                "criterion_id": criterion,
+                "status": status,
+                "score": score if status == "scored" else None,
+            }
+            if status == "grader_error":
+                row["error"] = {
+                    "kind": "429",
+                    "message": "Injected external failure; no API call.",
+                }
+            else:
+                row["question_assessments"] = [
+                    {
+                        "question_ref": q["question_ref"],
+                        "applicability_basis": "Synthetic condition applies.",
+                        "rationale": "Synthetic engineering fixture only.",
+                        "plan_locations": ["/question_plans/0"],
+                    }
+                    for q in view["plan"]["questions"]
+                ]
+                if status == "unverifiable":
+                    row["missing_evidence_reason"] = "Independent evidence unavailable."
+            rows.append(row)
+        return {
+            "kind": "Stage3EvaluationJudgment",
+            "schema_version": "1.0.0",
+            "request_sha256": unit["request"]["sha256"],
+            "reviewer": {
+                "actor": "declared-" + unit["role"],
+                "kind": "synthetic",
+                "relationship_to_author": "unknown",
+                "identity_authenticated": False,
+                "evidence_ref": "synthetic",
+            },
+            "criteria": rows,
+        }
+
+    def record(self, unit, score=2, status="scored"):
+        from stage3_plan.campaign_records import record_campaign
+
+        path = self.save(
+            unit["unit_id"] + "-input.json", self.judgment(unit, score, status)
+        )
+        return record_campaign(
+            self.campaign,
+            expected_sha256=self.campaign_sha,
+            unit_id=unit["unit_id"],
+            judgment=path,
+            expected_judgment_sha256=binding(path)["sha256"],
+            output=self.root / unit["unit_id"],
+        )
+
+    def summary(self, refs):
+        from stage3_plan.campaign_summary import summarize_campaign
+
+        path = self.save(
+            "index.json",
+            {
+                "kind": "Stage3CampaignIndex",
+                "schema_version": "1.0.0",
+                "campaign_sha256": self.campaign_sha,
+                "receipts": refs,
+                "human_interventions": None,
+            },
+        )
+        return summarize_campaign(
+            self.campaign,
+            expected_sha256=self.campaign_sha,
+            index=path,
+            expected_index_sha256=binding(path)["sha256"],
+        )

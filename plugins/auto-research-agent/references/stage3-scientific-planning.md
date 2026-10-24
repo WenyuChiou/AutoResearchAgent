@@ -318,3 +318,8 @@ campaign-prepare and campaign-inspect use an externally pinned definition and
 private immutable output. Source-verified saved-plan requests retain every SQ;
 subject and assessor display orders are separate. Unrun inputs remain declared-
 unverified. Preparation never invokes a subject/judge or changes authority.
+
+campaign-record retains an externally pinned raw judgment and its neutral-to-
+source question-ref translation, then reuses evaluation-record. Returned receipt
+bindings are retained externally. Read-only record replay recomputes the vector
+and preserves failed/partial input; it neither dispatches nor retries a judge.
