@@ -248,6 +248,33 @@ class SavedStage1ViewTests(unittest.TestCase):
                 projects.close()
             self.assertFalse(worker.is_alive())
 
+    def test_stage1_and_stage2_saved_readers_coexist_without_project_adoption(self):
+        import test_project_stage2_reading as reading_cases
+
+        case = reading_cases.Stage2ReadingTests("runTest")
+        case.setUp()
+        self.addCleanup(case.doCleanups)
+        files, views = registered()
+        registry = case.registry()
+        reading_assets, reading_refs = registry.snapshot()
+        host = ProjectHost(
+            projects=case.projects,
+            credential=case.token,
+            stage2_readings=registry,
+            files=files,
+            views=views,
+            port=0,
+        )
+        self.addCleanup(host.server_close)
+        self.assertEqual(
+            host._assets["/project-stage1-saved/saved-A03/index.html"],
+            files["/views/saved-A03/index.html"],
+        )
+        for path, raw in reading_assets.items():
+            self.assertEqual(host._assets[path], raw)
+        self.assertEqual(host.stage2_readings, reading_refs)
+        self.assertEqual(case.projects.list(case.token), [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -462,6 +462,17 @@
       "ordinary_atomic_publication_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_atomic_delivery.py",
         "plugins/auto-research-agent/tests/test_stage2_controller_publication.py"
+      ],
+      "controller_preparation_contract": "The existing public controller can accept one externally hash-pinned local prerequisite provider. At most two durable gate transitions add only requested proved role slots or a validated source-bound prior-work snapshot. Native dossier acquisition reuses the original capture adapter; exact queries, preserved capture bytes, current candidate/source hashes, partial access and unknown outcomes remain explicit. Interrupted or failed preparation never silently redispatches. A sealed returned-result projection permits fully reverified Host registration after interruption; it never replaces original action/capture evidence or fabricates selection.",
+      "controller_preparation_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_controller_preparation.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_prerequisites.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_preparation_cli.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
+      "controller_original_budget_contract": "Before each new production adapter unit, conservative native-capture/no-tools attempt capacity and worst-case duration must fit the original admitted whole-run deadline and remaining capacities. Immutable reservations survive reopen and never renew quota. Synthetic adapters are explicitly excluded; reserved capacity is not actual inference, tool, token or cost usage. Native per-call policies, permission proofs, model, rubric and formal admission are unchanged. Missing capacity yields a retained readable incomplete/recovery state.",
+      "controller_original_budget_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_execution_admission.py"
       ]
     },
     {
@@ -732,6 +743,12 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "recoverable_controller_entry_contract": "The existing skill routes admitted foreground work through the existing bounded prerequisite/controller interface, current native proofs and externally pinned local Host configuration. It preserves completed units and failures, separates delivery/evaluation/choice/intake, and retains honest incomplete gates; no new executor, budget, policy, source promotion or Stage3 execution authority is introduced.",
+      "recoverable_controller_entry_test_refs": [
+        "plugins/auto-research-agent/tests/test_plugin_loading.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_preparation_cli.py"
       ]
     },
     {

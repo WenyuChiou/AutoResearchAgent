@@ -85,7 +85,9 @@
             "Same-page browser cases use two distinct saved repository deliveries, an empty project and a revised input without a result; switching, refresh and trilingual navigation perform zero POSTs and leave SQLite/ledger bytes unchanged. These cases test UI binding, not native research completion or quality.",
             "Saved package reviews preserve original UTF-8 text and opinions in the existing SQLite feedback journal; wrong project/work/version/source/offer/principal and stale revisions refuse. Two handles deduplicate identical keys, serialize distinct keys by review revision, and retain passive history/replay after source drift; source changes or deadline failure around insertion roll back new writes.",
             "Saved-review queue tests use real SQLite reopen and concurrent handles to verify source-request key/hash/revision binding, queue CAS and deduplication, fixed receiving-owner authorization, deadline/source/result rollback and exact result pins. A later opinion does not invalidate an older request; no worker or model is launched.",
-            "Read-only Stage2 selection views reopen the externally hashed package and current workflow, bind the exact host project/input/brief and active workflow root, preserve material/source unknowns, and recheck deadlines after verification. Real offline Core/SQLite fixtures refuse wrong hashes, versions, foreign roots and principals without changing workflow or project state; browser/selection/Stage3 acceptance is separate."
+            "Read-only Stage2 selection views reopen the externally hashed package and current workflow, bind the exact host project/input/brief and active workflow root, preserve material/source unknowns, and recheck deadlines after verification. Real offline Core/SQLite fixtures refuse wrong hashes, versions, foreign roots and principals without changing workflow or project state; browser/selection/Stage3 acceptance is separate.",
+            "Six-stage navigation preserves the imported string input type and current source-bound identity while refusing wrong schema, type-coerced versions, stale revisions and foreign briefs. Three-language authored DOM checks expose only a previously configured selection link and produce no network, storage or execution effects.",
+            "Explicit ordinary Stage2 reading registration retains external config/package hashes, literal source comments and unknown material status, rejects tampering before listener allocation, exposes only fixed readonly routes and performs zero project selection or research writes."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         },
@@ -465,7 +467,11 @@
         "plugins/auto-research-agent/tests/test_project_agent_rounds.py",
         "plugins/auto-research-agent/tests/test_project_agent_coverage.py",
         "plugins/auto-research-agent/tests/test_project_saved_run_actions.py",
-        "plugins/auto-research-agent/tests/test_project_saved_run_delivery.py"
+        "plugins/auto-research-agent/tests/test_project_saved_run_delivery.py",
+        "plugins/auto-research-agent/tests/test_project_typed_navigation.py",
+        "plugins/auto-research-agent/tests/browser/project-typed-navigation-test.cjs",
+        "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_reading.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -531,6 +537,23 @@
         "plugins/auto-research-agent/tests/test_project_workspace_launcher.py",
         "plugins/auto-research-agent/tests/test_project_saved_run_actions.py",
         "plugins/auto-research-agent/tests/test_project_saved_run_delivery.py"
+      ],
+      "stage2_trusted_controller_contract": "Server-owned local configuration binds exact project, spec and prerequisite bytes to the existing Stage2 controller. Explicit foreground continuation authenticates the current source/version/activation, then preserves one durable intent and outcome. Saved current core return seals may be reverified and registered after interruption without entering the engine again. Browser input cannot install paths, policies, deadlines or handlers. Research delivery, independent assessment/audit, actual human choice and Stage3 intake remain distinct; execution stays false.",
+      "stage2_trusted_controller_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_controller.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_host_controller.py",
+        "plugins/auto-research-agent/tests/test_stage2_native_preparation_cli.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
+      "projecthost_typed_stage_navigation_contract": "HarnessUiProjectView1.0 remains integer-only and 1.1 preserves bounded string input versions. The six-stage current-project view checks schema, exact value/type, revision and brief identity before showing saved state or the already configured Stage2 selection link. Invalid or stale projections clear prior content without action, authority or coercion.",
+      "projecthost_typed_stage_navigation_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_typed_navigation.py",
+        "plugins/auto-research-agent/tests/browser/project-typed-navigation-test.cjs"
+      ],
+      "ordinary_stage2_reading_contract": "Externally raw-hash-bound trusted Host configuration reopens ordinary delivery inspectors and seals only escaped direction cards plus plain saved Markdown/JSON. The independent reading association does not attest Stage1 lineage or project adoption, creates no action/choice/workflow writes and grants no selection or execution authority, even with recommendations. Configuration and package drift reject before listener allocation; unknowns, original comments, exact versions and ordinary manifest/source pins remain visible. Registered fixed same-origin GET routes retain default CSP and origin protection; browser data cannot provide local paths or trusted bindings.",
+      "ordinary_stage2_reading_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_reading.py",
+        "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs"
       ]
     },
     {

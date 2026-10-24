@@ -1,6 +1,6 @@
 ---
 name: stage2-directions
-description: This skill applies when the user asks to improve an existing research method, discuss a new concept, challenge an assumption, check proposed directions, revise an infeasible idea, or prepare a Stage 2 selection package from literature evidence. It guides open proposal development and fixed-candidate checking; full autonomous generation and Stage 3 design remain separate.
+description: This skill applies when the user asks to improve an existing research method, discuss a new concept, challenge an assumption, check proposed directions, revise an infeasible idea, or prepare a Stage 2 selection package from literature evidence. It guides open proposal development, fixed-candidate checking and the admitted recoverable controller; Stage 3 research design requires actual selection.
 ---
 
 # Stage 2 direction checking
@@ -11,6 +11,25 @@ starts without Stage1 literature or lineage and retains the rich argument,
 table, prior-work, review and delivery contracts. Do not fabricate a Stage1
 acceptance, scope decision or user selection to enter them. Manual-v1 remains
 a historical reduced route, not an equivalent complete rich workflow.
+
+
+For an admitted foreground run, read the
+[recoverable controller interface](../../references/stage2-controller-preparation.md).
+Use the existing controller with the original deadline, remaining capacities,
+current source/runtime pins and independently proved role templates. Supply an
+externally hashed local preparation configuration to complete missing prior-work
+or role-workspace gates; do not create a separate executor or renew admission.
+Keep capture output, extraction, registration and publication failures separate.
+Reuse verified completed actions; do not relaunch an ambiguous or failed outcome.
+
+For ProjectHost, load only the trusted local controller configuration and use its
+explicit foreground continuation. Browser input cannot install a handler, policy
+or deadline. Report research delivery, independent evaluation/audit, actual human
+selection and Stage 3 intake separately. When admission, capacity or necessary
+proofs are unavailable, retain a readable incomplete package and precise next
+step. Zero recommendations are valid; do not invent an eligible selection or
+Stage 3 permission. A real HTML choice must bind the current project/version and
+external delivery/interaction/planning hashes before intake.
 
 For opt-in packet 2.4, read the [prior-work positioning contract](../../references/stage2-prior-work.zh-TW.md).
 Decompose the candidate's proposed increment before searching question, mechanism,
