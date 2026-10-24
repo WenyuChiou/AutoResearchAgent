@@ -1236,18 +1236,38 @@ class ProjectStage1RecordsService:
         expected_checkpoint_event_id,
         action_body=None,
         check_current=None,
+        run_authorization=None,
     ):
         _check(
             check_current is None or callable(check_current),
             "saved-producer-extra-check-required",
         )
+        _check(
+            run_authorization is None or action_body is not None,
+            "saved-records-run-action-required",
+        )
         extra_check = check_current
+        action_guard = None
         if extra_check is not None:
             extra_check()
         with self.intake._lock:
             context = self._context(
                 project_ref, expected_ledger_state_sha256, require_checkpoint=True
             )
+            if run_authorization is not None:
+                from .project_run_authority import RunActionGuard
+
+                action_guard = RunActionGuard(
+                    self.intake,
+                    context[0],
+                    project_ref,
+                    action_body,
+                    run_authorization,
+                    operation="records",
+                    action="stage1-produce-records",
+                )
+                extra_check = action_guard.deadline_check(extra_check)
+                extra_check()
             with self.guard(*context[3:6]) as guard_check:
                 check_frontier = self._mutation_check(
                     project_ref,
@@ -1299,10 +1319,14 @@ class ProjectStage1RecordsService:
                             "checkpoint_event_id",
                             "confirmed",
                         ),
-                        "human records preparation",
+                        "saved records preparation",
                     )
                     _check(
-                        action_body["confirmed"] is True
+                        (
+                            action_body["confirmed"] is True
+                            if action_guard is None
+                            else action_body["confirmed"] is False
+                        )
                         and action_body["input_version"] == binding["input_version"]
                         and action_body["brief_sha256"] == binding["brief_sha256"]
                         and action_body["ledger_state_sha256"]
@@ -1311,7 +1335,11 @@ class ProjectStage1RecordsService:
                         == expected_checkpoint_event_id,
                         "saved-records-action-binding-differs",
                     )
-                    body = deepcopy(action_body)
+                    body = (
+                        deepcopy(action_body)
+                        if action_guard is None
+                        else action_guard.request
+                    )
                 write_error = []
 
                 def check_current():

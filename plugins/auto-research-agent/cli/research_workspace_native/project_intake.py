@@ -291,6 +291,8 @@ class ProjectIntakeService:
                         "stage1-agent-pending",
                         "stage1-agent-analysis",
                         "stage1-agent-coverage",
+                        "stage1-checkpoint",
+                        "stage1-deliver",
                         "stage2-select",
                     }
                     else "failed",
@@ -301,12 +303,15 @@ class ProjectIntakeService:
                         failure_phase="post-work-before-commit",
                         output_observation=deepcopy(result),
                     )
+                elif kind == "stage1-deliver":
+                    receipt["failure_phase"] = "publication-outcome-unobserved"
                 elif kind in {
                     "stage1-coverage",
                     "stage1-claim",
                     "stage1-agent-pending",
                     "stage1-agent-analysis",
                     "stage1-agent-coverage",
+                    "stage1-checkpoint",
                     "stage2-select",
                 }:
                     # A Core append can succeed before its producer raises.

@@ -39,6 +39,8 @@ def unresolved(service, ref, actor, version):
             "stage1-agent-pending",
             "stage1-agent-analysis",
             "stage1-agent-coverage",
+            "stage1-checkpoint",
+            "stage1-deliver",
         }
         and row["status"] in {"intent-recorded", "execution-unknown"}
         and row["request"]["input_version"] == version
