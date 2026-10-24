@@ -64,13 +64,15 @@
         "plugins/auto-research-agent/tests/test_stage3_planning_conditions.py",
         "plugins/auto-research-agent/tests/test_stage3_plan_conditions_integration.py",
         "plugins/auto-research-agent/tests/test_stage3_evaluation.py",
-        "plugins/auto-research-agent/tests/test_stage3_receiver_binding.py"
+        "plugins/auto-research-agent/tests/test_stage3_receiver_binding.py",
+        "plugins/auto-research-agent/tests/test_stage3_campaign.py"
       ],
       "live_ab_required_at": "separately-authorized-stage3-generic-milestone",
       "quality_improvement_claimed": false,
       "legacy_mapping_contract": "Explicit v1 packet/source-byte checked read-only question mapping retains manual origin, current versions, full original history, unknown resource status and missing review/human-choice blockers. It is not a strict delivery or a generation admission. Optional mapping enrichment still requires strict current delivery/interaction admission, exact logical packet equivalence, selected-version closure and trusted-host verification of the displayed mapping choice; no CLI override or fabricated old review. Bounded source capture precedes semantic validation; selected original approaches/limitations and packet unresolved context survive into hashed planning requests independently of decision conditions.",
       "condition_resolution_contract": "Opt-in plan1.1 preserves default1.0 schema bytes; source-bound condition dispositions and evidence/deadline/owner/trigger/fallback unknown records add deterministic diagnostics without changing strict admission, human verification or conservative resource blocking. Assumption/deferred metadata never resolves evidence or authorizes execution.",
-      "verified_input_origin_contract": "Only after shared strict admission, deepcopy optional input_origin into the planning intake. Keep native/legacy absent origin absent, preserve typed project version and not-established human identity, and retain execution false. Projection alone is not admission; external pin or rehashed origin/choice tampering rejects through the public receiver."
+      "verified_input_origin_contract": "Only after shared strict admission, deepcopy optional input_origin into the planning intake. Keep native/legacy absent origin absent, preserve typed project version and not-established human identity, and retain execution false. Projection alone is not admission; external pin or rehashed origin/choice tampering rejects through the public receiver.",
+      "offline_campaign_contract": "Bounded versioned offline campaign preparation with separate subject/display schedules, original source/selection/SQ bindings, private neutral views and deterministic source-aware replay. No dispatch, identity authentication, formal pairing or scientific improvement."
     }
   ],
   "capability_extensions": [

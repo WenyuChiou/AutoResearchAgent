@@ -494,3 +494,12 @@ def record_evaluation(
     }
     write_new(target, value)
     return value
+
+
+def inspect_evaluation_request(path, *, expected_sha256):
+    """Revalidate a pinned request against its saved plan, sources and guidance."""
+    from .preparation import file_binding
+
+    value = file_binding(path, expected_sha256)
+    _validate_request(value)
+    return value
