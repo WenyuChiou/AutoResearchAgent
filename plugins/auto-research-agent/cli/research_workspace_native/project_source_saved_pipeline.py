@@ -531,6 +531,9 @@ class _OwnedPipelineGuard:
             )
             binding = intake.binding(self.ref)
             grant = row["grants"][actual["grant_ref"]]
+            from .project_source_run import check_job as check_run_job
+
+            check_run_job(service, self.principal, self.ref, actual, grant)
             _check(
                 service.clock() < grant["expires_at"]
                 and grant["scope"] == actual["binding"]["scope"]
@@ -634,6 +637,7 @@ class _OwnedPipelineGuard:
                     "source-pipeline-query-frontier-changed",
                 )
             self.deadline.check()
+            check_run_job(service, self.principal, self.ref, actual, grant)
 
     def frontier(self):
         self()

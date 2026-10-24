@@ -9,6 +9,7 @@ Source materials remain retained outside Git; this case never removes them.
 """
 
 from copy import deepcopy
+from contextlib import ExitStack
 from datetime import datetime
 import json
 from pathlib import Path
@@ -36,6 +37,11 @@ from research_workspace_native.saved_source_parser_factory import (
 )
 from research_workspace_native.source_worker_process import WindowsJobProcess
 from stage1_ledger.validation import validate_run
+from research_workspace_native.project_stage1_run_grant import (
+    ProjectStage1RunGrantService,
+    SCOPE,
+)
+from research_workspace_native.project_run_authority import action_identity
 from test_workspace_project_intake import bound_body, compile_body, submit_body
 
 
@@ -76,7 +82,7 @@ frame(3,'terminal',status='receipt-observed',receipt_path=target.name,receipt_sh
 
 
 class SourceSavedPipelineCases(ProjectQueryCases):
-    def test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat(self):
+    def _pipeline_fixture(self, *, derived=False, revoke_after=None):
         # New explicit fixture submission, before any query permit/job. Original
         # fixture brief and all later original receipts remain untouched.
         body = submit_body(self.intake.read("alice-token", self.ref))
@@ -161,28 +167,97 @@ class SourceSavedPipelineCases(ProjectQueryCases):
         self.addCleanup(sources.close)
         offer = sources.offers("alice-token", self.ref, candidate["work_id"])
         self.assertEqual(offer["document"]["pipeline_sha256"], pipeline.binding_sha256)
-        grant = sources.authorize(
-            "alice-token",
-            self.ref,
+        issuer = original_grant = None
+        if derived:
+            issuer = ProjectStage1RunGrantService(self.intake, runtime_sha256="a" * 64)
+            sources.run_grants = issuer
+            original_grant = issuer.authorize(
+                "alice-token",
+                self.ref,
+                {
+                    **bound_body(
+                        self.intake.read("alice-token", self.ref), "pipeline-whole-run"
+                    ),
+                    "confirmed": True,
+                    "user_input": "Authored acquisition; original SDK/Core within saved limits.",
+                    "scope": SCOPE,
+                    "operations": ["source"],
+                    "max_seconds": 540,
+                    "max_actions": 8,
+                },
+            )
+
+        def request(kind, fields, key):
+            body = dict(
+                bound_body(self.intake.read("alice-token", self.ref), key),
+                confirmed=not derived,
+                **fields,
+            )
+            token = None
+            if derived:
+                token = issuer.derive(
+                    "alice-token",
+                    self.ref,
+                    grant_ref=original_grant["grant_ref"],
+                    grant_sha256=original_grant["grant_sha256"],
+                    operation="source",
+                    identity=action_identity(kind, body),
+                )
+                body.update(
+                    key=token.key + "-work",
+                    revision=self.intake.read("alice-token", self.ref)["revision"],
+                )
+            return body, token
+
+        authorize_body, authorize_token = request(
+            "source-authorize",
             dict(
-                bound_body(
-                    self.intake.read("alice-token", self.ref), "authored-source-grant"
-                ),
-                confirmed=True,
                 work_ref=candidate["work_id"],
                 offer_ref=offer["offer_ref"],
                 offer_sha256=offer["offer_sha256"],
             ),
+            "authored-source-grant",
         )
-        action = dict(
-            bound_body(
-                self.intake.read("alice-token", self.ref), "authored-source-run"
-            ),
-            confirmed=True,
-            grant_ref=grant["grant_ref"],
-            grant_sha256=grant["grant_sha256"],
+        grant = sources.authorize(
+            "alice-token", self.ref, authorize_body, run_authorization=authorize_token
         )
-        sources.execute("alice-token", self.ref, action)
+        action, action_token = request(
+            "source-execute",
+            dict(grant_ref=grant["grant_ref"], grant_sha256=grant["grant_sha256"]),
+            "authored-source-run",
+        )
+        sources.execute("alice-token", self.ref, action, run_authorization=action_token)
+        if derived:
+            current = sources._row(self.intake._load("alice", self.ref))
+            self.assertEqual(
+                current["grants"][grant["grant_ref"]]["document"]["schema_version"],
+                "1.1.0",
+            )
+            self.assertFalse(
+                current["jobs"][action["key"]]["action_request"]["confirmed"]
+            )
+            self.assertLessEqual(
+                current["jobs"][action["key"]]["binding"]["deadline_at"],
+                original_grant["expires_at"],
+            )
+        revoked = []
+
+        def revoke():
+            self.assertTrue(derived)
+            self.assertEqual(revoked, [])
+            issuer.revoke(
+                "alice-token",
+                self.ref,
+                {
+                    **bound_body(
+                        self.intake.read("alice-token", self.ref), "pipeline-revoke"
+                    ),
+                    "grant_ref": original_grant["grant_ref"],
+                    "grant_sha256": original_grant["grant_sha256"],
+                },
+            )
+            revoked.append(revoke_after)
+
         reservation = resource_view(
             self.intake, self.intake._load("alice", self.ref), "alice"
         )["reserved"]
@@ -215,8 +290,103 @@ class SourceSavedPipelineCases(ProjectQueryCases):
                 cleanup_end=cleanup_end,
             )
 
-        with patch.object(WindowsJobProcess, "launch", side_effect=launch):
+        import research_workspace_native.project_source_saved_pipeline as pipeline_module
+
+        actual_parse = pipeline_module.parse_acquired_source
+        actual_mutate = self.stage1._mutate
+        actual_register = records.register_source
+        registered = []
+
+        def parse(*args, **kwargs):
+            result = actual_parse(*args, **kwargs)
+            if revoke_after == "sdk":
+                revoke()
+            return result
+
+        def mutate(*args, **kwargs):
+            result = actual_mutate(*args, **kwargs)
+            if revoke_after == "core" and args[3] == "stage1-import-saved":
+                revoke()
+            return result
+
+        def register(*args, **kwargs):
+            result = actual_register(*args, **kwargs)
+            registered.append(deepcopy(result))
+            if revoke_after == "registry":
+                revoke()
+            return result
+
+        before_sources = [
+            row
+            for row in ledger.events()
+            if row["payload"]["kind"] == "SourceReadStarted"
+        ]
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch.object(WindowsJobProcess, "launch", side_effect=launch)
+            )
+            if revoke_after:
+                stack.enter_context(
+                    patch.object(
+                        pipeline_module, "parse_acquired_source", side_effect=parse
+                    )
+                )
+                stack.enter_context(
+                    patch.object(self.stage1, "_mutate", side_effect=mutate)
+                )
+                stack.enter_context(
+                    patch.object(records, "register_source", side_effect=register)
+                )
             saved = sources.dispatch_pending("alice-token", self.ref, action["key"])
+        if revoke_after:
+            self.assertEqual(revoked, [revoke_after])
+            self.assertEqual(saved["status"], "source-observation-saved", saved)
+            followup = saved["followup"]
+            self.assertEqual(followup["status"], "execution-unknown", saved)
+            self.assertEqual(
+                followup["failure"]["error_code"], "stage1-run-grant-revoked", saved
+            )
+            self.assertFalse(followup["automatic_retry"])
+            self.assertEqual(
+                [item["synthetic_transport"] for item in launches], [True, False]
+            )
+            self.assertTrue(worker.observations[-1]["sdk_parse_observed"])
+            current_sources = [
+                row
+                for row in ledger.events()
+                if row["payload"]["kind"] == "SourceReadStarted"
+            ]
+            self.assertEqual(
+                len(current_sources) - len(before_sources),
+                0 if revoke_after == "sdk" else 1,
+            )
+            self.assertTrue(validate_run(ledger.root)["valid"])
+            registry = self.intake._load("alice", self.ref).get(
+                "stage1_saved_registries", {}
+            )
+            if revoke_after == "registry":
+                self.assertEqual(len(registered), 1)
+                entry = registered[0]
+                self.assertTrue(entry["ref"].startswith("stage1-source-registry-"))
+                self.assertEqual(registry[entry["ref"]], entry)
+                self.assertEqual(entry["payload"]["work_id"], candidate["work_id"])
+            else:
+                self.assertEqual(registered, [])
+                self.assertFalse(
+                    any(k.startswith("stage1-source-registry-") for k in registry)
+                )
+            before = ledger.events()
+            sources.dispatch_pending("alice-token", self.ref, action["key"])
+            self.assertEqual(ledger.events(), before)
+            self.assertEqual(len(launches), 2)
+            self.assertEqual(
+                resource_view(
+                    self.intake, self.intake._load("alice", self.ref), "alice"
+                )["reserved"],
+                reservation,
+            )
+            # The completed parser/Core/registry prefix remains; no retry or refund.
+            return
         self.assertEqual(saved["status"], "source-observation-saved", saved)
         self.assertEqual(saved["followup"]["status"], "source-core-registered", saved)
         self.assertEqual(
@@ -261,7 +431,11 @@ class SourceSavedPipelineCases(ProjectQueryCases):
             datetime.fromisoformat(sdk["retrieved_at"].replace("Z", "+00:00")),
         )
         before = ledger.events()
-        self.assertTrue(sources.execute("alice-token", self.ref, action)["replayed"])
+        self.assertTrue(
+            sources.execute(
+                "alice-token", self.ref, action, run_authorization=action_token
+            )["replayed"]
+        )
         sources.dispatch_pending("alice-token", self.ref, action["key"])
         self.assertEqual(ledger.events(), before)
         self.assertEqual(len(worker.observations), 2)
@@ -272,3 +446,20 @@ class SourceSavedPipelineCases(ProjectQueryCases):
             ],
             reservation,
         )
+
+    def test_authored_transport_actual_sdk_core_registry_and_same_key_no_repeat(self):
+        self._pipeline_fixture()
+
+    def test_run_grant_actual_sdk_core_registry_and_same_key_no_repeat(self):
+        self._pipeline_fixture(derived=True)
+
+    def test_run_grant_revoked_after_actual_sdk_preserves_receipt_without_core(self):
+        self._pipeline_fixture(derived=True, revoke_after="sdk")
+
+    def test_run_grant_revoked_after_core_preserves_source_without_final_success(self):
+        self._pipeline_fixture(derived=True, revoke_after="core")
+
+    def test_run_grant_revoked_after_registry_preserves_prefix_without_final_success(
+        self,
+    ):
+        self._pipeline_fixture(derived=True, revoke_after="registry")
