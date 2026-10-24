@@ -1,5 +1,10 @@
 # Generic Stage 2 to Stage 3 scientific planning
 
+The explicit offline campaign commands and calibration preparation are described
+in [campaign and calibration v1](../evals/stage3/CAMPAIGN_AND_CALIBRATION.md).
+They organize version-bound saved-plan evaluation requests and supplied judgments;
+they do not invoke a provider or change the planning/authority boundaries below.
+
 Status: experimental, implementation-only. HTML and UI wiring are deferred.
 All interfaces keep `execution_authorized=false`. There is no experiment runner,
 background monitor, automatic A/B, or confirmation-to-execution transition.
@@ -311,15 +316,3 @@ dimensions were assessable. Invalid judgment JSON/fields produce an immutable
 Hash/source mismatches refuse ingestion; original input files remain untouched.
 If a record exceeds storage bounds or cannot be written, retain the original
 inputs and inspect any incomplete output; the command does not report success.
-
-## Offline campaign preparation
-
-campaign-prepare and campaign-inspect use an externally pinned definition and
-private immutable output. Source-verified saved-plan requests retain every SQ;
-subject and assessor display orders are separate. Unrun inputs remain declared-
-unverified. Preparation never invokes a subject/judge or changes authority.
-
-campaign-record retains an externally pinned raw judgment and its neutral-to-
-source question-ref translation, then reuses evaluation-record. Returned receipt
-bindings are retained externally. Read-only record replay recomputes the vector
-and preserves failed/partial input; it neither dispatches nor retries a judge.

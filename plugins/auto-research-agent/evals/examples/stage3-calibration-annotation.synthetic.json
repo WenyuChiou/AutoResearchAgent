@@ -1,0 +1,158 @@
+{
+  "kind": "Stage3ExpertAnnotationPreparation",
+  "schema_version": "1.0.0",
+  "evidence_scope": "synthetic-format-only",
+  "annotation_status": "not-run",
+  "campaign_sha256": null,
+  "base_case_id": null,
+  "case_id": null,
+  "variant": null,
+  "research_type": null,
+  "split": null,
+  "source_versions": {
+    "selection": null,
+    "saved_plan": null,
+    "rubric": "stage23-general-v1",
+    "guidance": "stage3-evaluation-guidance-v1"
+  },
+  "expert": {
+    "actor": null,
+    "expertise": null,
+    "relationship_to_author": null,
+    "identity_authenticated": false,
+    "reference_label_source": null
+  },
+  "question_assessments": [
+    {
+      "question_ref": null,
+      "plan_locations": [],
+      "diagnostics": [
+        {
+          "diagnostic_id": "D01",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D02",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D03",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D04",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D05",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D06",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D07",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D08",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        },
+        {
+          "diagnostic_id": "D09",
+          "applicable": null,
+          "necessary_condition": null,
+          "lawful_alternative": null,
+          "evidence_refs": [],
+          "original_comment": null
+        }
+      ]
+    }
+  ],
+  "criteria": [
+    {
+      "criterion_id": "P7V1.QUESTION_DESIGN",
+      "status": "not-run",
+      "score": null,
+      "missing_evidence_reason": null,
+      "original_comment": null
+    },
+    {
+      "criterion_id": "P8V1.EVIDENCE_INTERPRETATION",
+      "status": "not-run",
+      "score": null,
+      "missing_evidence_reason": null,
+      "original_comment": null
+    },
+    {
+      "criterion_id": "P9V1.FEASIBILITY",
+      "status": "not-run",
+      "score": null,
+      "missing_evidence_reason": null,
+      "original_comment": null
+    }
+  ],
+  "critical_defects": {
+    "status": "not-run",
+    "items": []
+  },
+  "adjudication": {
+    "status": "not-run",
+    "disagreements": [],
+    "original_comments": [],
+    "decision": null
+  },
+  "human_audit": {
+    "status": "pending",
+    "actor": null,
+    "evidence": null
+  },
+  "analysis_preparation": {
+    "raw_agreement": null,
+    "ordinal_alpha": null,
+    "weighted_kappa": null,
+    "precision": null,
+    "recall": null,
+    "F1": null,
+    "coverage": null,
+    "uncertainty": null,
+    "assumptions_frozen": false
+  },
+  "execution_authorized": false,
+  "evaluation_calls_authorized": false,
+  "formal_execution_enabled": false,
+  "external_claim_ready": false
+}
