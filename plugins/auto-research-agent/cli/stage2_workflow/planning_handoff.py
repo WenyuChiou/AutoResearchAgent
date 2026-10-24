@@ -242,6 +242,23 @@ def _project_handoff(delivery, record, interaction_sha256, message_sha256):
             user_submission_sha256=message_sha256,
         )
         del handoff["native_user_message_sha256"]
+    if delivery.get("review_view_version") == "1.3.0":
+        handoff["reviewer_planning_context"] = {
+            "kind": "Stage2ReviewerPlanningContext",
+            "schema_version": "1.0.0",
+            "source_kind": "stage2-independent-review",
+            "review_view_version": "1.3.0",
+            "review_batch_sha256": delivery["manifest"]["batch_sha256"],
+            "rows": [
+                {
+                    "candidate_id": option["candidate"]["candidate_id"],
+                    "candidate_version": option["candidate"]["version"],
+                    "assessment_sha256": canonical_hash(option["assessment"]),
+                    "assessment": copy.deepcopy(option["assessment"]),
+                }
+                for option in options
+            ],
+        }
     return handoff
 
 
