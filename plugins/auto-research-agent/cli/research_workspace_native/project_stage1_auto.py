@@ -42,6 +42,17 @@ class ProjectStage1AutoDriver:
         self.principal = self.intake._principal(credential)
         self._operations = {}
         self._last = None
+        self.producer = getattr(host, "project_stage1_execution", None)
+        if self.producer is not None:
+            from .project_stage1_execution import ProjectStage1ExecutionService
+
+            _check(
+                isinstance(self.producer, ProjectStage1ExecutionService)
+                and self.producer.intake is self.intake
+                and self.producer.stage1 is host.project_stage1,
+                "stage1-auto-producer-owner-differs",
+            )
+        self._production_step = None
 
     def _binding(self):
         value = self.intake.binding(self.ref)
@@ -102,6 +113,26 @@ class ProjectStage1AutoDriver:
             progress = project_progress(overview)
             stage = overview["stage1"] or {}
             query_view = stage.get("query_execution") or {}
+            self._production_step = None
+            if (
+                self.producer is not None
+                and (progress.get("next_action") or {}).get("reason")
+                != "package-saved-review-required"
+                and not any(row["status"] == "held" for row in progress["phases"])
+            ):
+                self._production_step = self.producer.next_step(
+                    self.host, self.credential, self.ref, overview
+                )
+                if self._production_step is not None:
+                    phase = self._production_step["phase"]
+                    for row in progress["phases"]:
+                        if row["phase_id"] == phase:
+                            row.update(
+                                status="available", reason="automatic-producer-ready"
+                            )
+                    progress["next_action"] = dict(
+                        phase_id=phase, target=phase, reason="automatic-producer-ready"
+                    )
             rows = self.intake.db.execute(
                 "SELECT receipt FROM intake_actions WHERE principal=? AND project=? ORDER BY rowid",
                 (self.principal, self.ref),
@@ -124,10 +155,40 @@ class ProjectStage1AutoDriver:
                 if status == "saved" and receipt["kind"] in {
                     "stage1-query-execute",
                     "stage1-query-bootstrap",
+                    "stage1-expansion-execute",
                 }:
                     status, outcome, observed = self._query_observation(
                         receipt, state, query_view
                     )
+                elif status == "saved" and receipt["kind"] == "model-operation":
+                    models = self.host.project_models
+                    observed = (
+                        None
+                        if models is None
+                        else models._job(self.principal, self.ref, receipt["key"])
+                    )
+                    status = (
+                        "execution-unknown" if observed is None else observed["status"]
+                    )
+                    if status in {
+                        "content-review-pending",
+                        "plan-validated-not-executed",
+                    }:
+                        status, outcome = "completed", "succeeded"
+                elif status == "saved" and receipt["kind"] == "stage1-source-execute":
+                    sources = self.host.project_stage1_sources
+                    observed = (
+                        None
+                        if sources is None
+                        else sources.read(self.credential, self.ref)["jobs"].get(
+                            receipt["key"]
+                        )
+                    )
+                    status = (
+                        "execution-unknown" if observed is None else observed["status"]
+                    )
+                    if status in {"source-observation-saved", "failed-observed"}:
+                        status, outcome = "completed", "succeeded"
                 observations.append(observed)
                 actions.append(
                     DurableAction(
@@ -161,6 +222,37 @@ class ProjectStage1AutoDriver:
             "confirmed": True,
         }
         operation, method, body = None, None, None
+        production = self._production_step
+        if production is not None and production["kind"] is not None:
+            method, body = production["method"], production["body"]
+            identity = sha(
+                canonical(
+                    dict(
+                        method=method.__name__,
+                        kind=production["kind"],
+                        body={k: v for k, v in body.items() if k != "revision"},
+                    )
+                )
+            )
+            self._operations[identity] = (method, body)
+            return ContinuationAction(
+                production["kind"], identity, snapshot.binding, snapshot.frontier_sha256
+            )
+        if phase == "planning" and self.host.project_models is not None:
+            offer = next(
+                (
+                    o
+                    for o in (overview.get("model_offers") or {}).get("offers", [])
+                    if o["operation"] == "plan-search" and o.get("available") is True
+                ),
+                None,
+            )
+            if offer is not None:
+                operation, method = "plan-search", self.host.project_models.execute
+                body = {
+                    **common,
+                    **{k: offer[k] for k in ("offer_ref", "offer_sha256")},
+                }
         if phase == "query" and self.queries is not None:
             view = stage.get("query_execution") or {}
             if view.get("execution_authorized") is not True:
@@ -187,6 +279,7 @@ class ProjectStage1AutoDriver:
                 operation, method = "deliver", self.host.project_stage1_delivery.deliver
                 body = {
                     **common,
+                    "ledger_state_sha256": ledger["state_sha256"],
                     "offer_ref": offer["offer_ref"],
                     "offer_sha256": offer["offer_sha256"],
                 }
@@ -215,7 +308,9 @@ class ProjectStage1AutoDriver:
             )
         )
         kind = (
-            "records"
+            "planning"
+            if phase == "planning"
+            else "records"
             if operation == "records"
             else "delivery"
             if phase == "delivery"
@@ -246,11 +341,21 @@ class ProjectStage1AutoDriver:
             receipt = self.intake.action(
                 self.credential, action.key, project_ref=self.ref
             )
-            if self.queries is None:
+            if receipt["kind"] == "model-operation":
+                models = self.host.project_models
+                worker = (
+                    None
+                    if models is None
+                    else models._workers.get((self.ref, action.key))
+                )
+            elif self.queries is None:
                 return
-            if receipt["kind"] == "stage1-query-bootstrap":
+            elif receipt["kind"] == "stage1-query-bootstrap":
                 worker = self.queries.workers.get(self.ref)
-            elif receipt["kind"] == "stage1-query-execute":
+            elif receipt["kind"] in {
+                "stage1-query-execute",
+                "stage1-expansion-execute",
+            }:
                 owner = self.queries.services.get(self.ref)
                 worker = None if owner is None else owner._workers.get(self.ref)
             else:
@@ -284,7 +389,12 @@ class ProjectStage1AutoDriver:
             snapshot=self.snapshot,
             next_action=self.next_action,
             handlers={
+                "planning": self.dispatch,
                 "query": self.dispatch,
+                "screen": self.dispatch,
+                "source": self.dispatch,
+                "reading": self.dispatch,
+                "coverage": self.dispatch,
                 "records": self.dispatch,
                 "delivery": self.dispatch,
             },
@@ -298,8 +408,27 @@ class ProjectStage1AutoDriver:
             "saved-records",
             "saved-delivery",
         ]
-        result["unconnected_producers"] = [
-            "automatic-screening",
-            "automatic-full-note-review",
-        ]
+        result["unconnected_producers"] = (
+            []
+            if self.producer is not None
+            else [
+                "automatic-screening",
+                "automatic-full-note-review",
+            ]
+        )
+        if self.producer is not None:
+            result["supported_operations"] += [
+                "delegated-source",
+                "segmented-text-reading",
+                "automatic-screening",
+                "source-bound-full-notes",
+                "coverage-and-expansion",
+            ]
+            result["automatic_production"] = self.producer.read(
+                self.credential, self.ref
+            )
+            if result["status"] == "barrier" and result["reason"] == "saved-delivery":
+                result["automatic_notes_companion"] = self.producer.delivery_notes(
+                    self.credential, self.ref
+                )
         return result

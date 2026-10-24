@@ -17,6 +17,11 @@ from research_workspace_native.project_model_factory import (
     OwnAccountProjectModelFactory,
 )
 from research_workspace_native.runtime_spec import DENIED_THREAD_CONFIG
+from research_workspace_native.project_stage1_review_units import (
+    OPERATION as AUTO_REVIEW,
+    prompt as automatic_review_prompt,
+    segments,
+)
 from stage1_brief.formal_target import prepare_formal_intake
 
 
@@ -183,6 +188,71 @@ class ProjectModelFactoryTests(unittest.TestCase):
                     REPO, self.executable, self.config, self.home, self.auth, "own"
                 )
         self.assertEqual(self.created, [])
+
+    def test_automatic_review_retains_complete_context_and_refuses_drift(self):
+        context = deepcopy(self.context)
+        context["brief"] = dict(
+            kind="ResearchBrief",
+            schema_version="1.0.0",
+            original_description="Synthetic source-review fixture",
+            needs=[dict(need_id="n1", question="Synthetic question")],
+            scope_fields=[
+                dict(field="geography", material=False, reason="Synthetic scope")
+            ],
+        )
+        context["brief_sha256"] = source.digest(
+            source.canonical(context["brief"]) + b"\n"
+        )
+        context["settings"]["brief_sha256"] = context["brief_sha256"]
+        snapshot = dict(
+            kind="Stage1AutomaticReviewInput",
+            schema_version="1.0.0",
+            **{
+                k: context[k]
+                for k in ("project_ref", "project_id", "input_version", "brief_sha256")
+            },
+            unit="segment",
+            task_ref="synthetic-task",
+            work_id="synthetic-work",
+            segment=segments(b"Complete synthetic saved source text.")[0],
+            scientific_acceptance=False,
+            human_acceptance=False,
+        )
+        context.update(
+            operation=AUTO_REVIEW,
+            task_ref=snapshot["task_ref"],
+            work_ref=snapshot["work_id"],
+            saved_reading=snapshot,
+            snapshot_sha256=source.digest(source.canonical(snapshot)),
+            prompt_sha256=source.digest(
+                automatic_review_prompt(snapshot).encode("utf8")
+            ),
+        )
+
+        def rebound(value):
+            value["source_sha256"] = source.digest(
+                source.canonical(
+                    {k: v for k, v in value.items() if k != "source_sha256"}
+                )
+            )
+            return value
+
+        for field in ("task_ref", "snapshot_sha256", "prompt_sha256"):
+            changed = deepcopy(context)
+            changed[field] = "different" if field == "task_ref" else "a" * 64
+            with self.assertRaisesRegex(
+                ValueError, "automatic reading source or prompt"
+            ):
+                self.provider(rebound(changed))
+        self.assertEqual(self.created, [])
+        self.assertFalse((self.root / "project-model-input").exists())
+        provider = self.provider(rebound(context))
+        saved = json.loads(self.created[0].checked["config_path"].read_bytes())
+        self.assertEqual(saved["saved_reading"], snapshot)
+        self.assertFalse(saved["saved_reading"]["scientific_acceptance"])
+        self.assertTrue(
+            provider.run("k", automatic_review_prompt(snapshot), 1)["synthetic"]
+        )
 
     def test_user_config_executable_and_effective_home_edits_refuse_methods(self):
         provider = self.provider()
