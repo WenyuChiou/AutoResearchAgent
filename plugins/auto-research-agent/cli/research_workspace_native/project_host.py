@@ -302,12 +302,28 @@ class ProjectHost(AtlasHost):
         finally:
             super().server_close()
 
-    def continue_stage1(self, credential, ref, *, run_id, deadline, max_actions=32):
+    def continue_stage1(
+        self,
+        credential,
+        ref,
+        *,
+        run_id,
+        deadline,
+        max_actions=32,
+        run_grants=None,
+        grant_ref=None,
+        grant_sha256=None,
+    ):
         """Trusted operator continuation; does not register grants or start Stage2."""
         from .project_stage1_auto import ProjectStage1AutoDriver
 
         return ProjectStage1AutoDriver(self, credential, ref).run(
-            run_id=run_id, deadline=deadline, max_actions=max_actions
+            run_id=run_id,
+            deadline=deadline,
+            max_actions=max_actions,
+            run_grants=run_grants,
+            grant_ref=grant_ref,
+            grant_sha256=grant_sha256,
         )
 
     def overview(self, credential, ref):

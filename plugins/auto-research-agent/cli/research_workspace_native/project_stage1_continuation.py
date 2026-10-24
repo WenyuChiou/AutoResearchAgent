@@ -365,6 +365,8 @@ def continue_stage1(
         )
         if phase["status"] in {"unknown", "unconnected"}:
             return finish("held", "phase-" + phase["status"])
+        if count >= max_actions:
+            return finish("held", "administrative-limit-exhausted")
         action = next_action(current)
         if action is None:
             return finish("partial", "no-next-action")
@@ -409,8 +411,6 @@ def continue_stage1(
             return finish("held", "frontier-cycle")
         if action.kind not in handlers:
             return finish("held", "handler-unconnected")
-        if count >= max_actions:
-            return finish("held", "administrative-limit-exhausted")
         fresh = read()
         if fresh != current:
             return finish("held", "stale-frontier")

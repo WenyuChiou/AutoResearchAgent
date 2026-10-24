@@ -168,6 +168,31 @@ class ProjectStage1ContinuationTests(unittest.TestCase):
         options.update(changes)
         return continue_stage1(**options)
 
+    def test_action_limit_stops_before_preparing_a_further_authority_request(self):
+        selected = []
+
+        def select(snapshot):
+            selected.append(snapshot.frontier_sha256)
+            if len(selected) > 1:
+                raise AssertionError(
+                    "must not request another producer or authority beyond slice limit"
+                )
+            return self.next_action(snapshot)
+
+        result = continue_stage1(
+            run_id="bounded-selection",
+            binding=self.binding,
+            snapshot=self.snapshot,
+            next_action=select,
+            handlers={"query": self.handler, "screen": self.handler},
+            deadline=100,
+            max_actions=1,
+            monotonic=lambda: self.now,
+        )
+        self.assertEqual(result["reason"], "administrative-limit-exhausted")
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(len(self.writes), 1)
+
     def test_two_actual_durable_operations_and_reentry_do_not_repeat(self):
         result = self.run_slice()
         self.assertEqual(

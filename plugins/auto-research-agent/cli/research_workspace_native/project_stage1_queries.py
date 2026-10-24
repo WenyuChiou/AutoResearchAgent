@@ -1059,6 +1059,7 @@ class ProjectStage1QueryService:
                         job["receipt"],
                         self.config,
                         write=False,
+                        run_grants=self.run_grants,
                     )
                     == registration,
                     "project-query-records-registration-differs",
