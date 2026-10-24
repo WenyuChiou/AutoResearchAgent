@@ -19,7 +19,13 @@ it does not change a research rubric, baseline, denominator or assessment rule.
 ## Version and identity
 
 `GET /api/projects/<project-ref>/contract` returns
-`HarnessUiProjectView`, `schema_version: "1.0.0"`. Stage keys are strings `1`–`6`.
+`HarnessUiProjectView`, `schema_version: "1.0.0"` for integer input versions and
+`"1.1.0"` for bounded string input versions imported from saved evidence. Values
+and types remain exact: `1` and `"1"` are different identities. The six-stage
+view checks that schema against the current input type before showing saved
+state or the configured Stage 2 selection entry. Strings retain the existing
+128-character, no-control and no-edge-whitespace bounds; this adds no action,
+source admission or execution authority. Stage keys are strings `1`–`6`.
 Every stage has `input`, `status`, `connected`, `execution_authorized`, `accepted`,
 `expected_outputs`, `artifacts`, `attempts`, `pending_questions`, `approvals`,
 `metrics`, and `assessment`. Empty arrays are unconnected projection slots, not
