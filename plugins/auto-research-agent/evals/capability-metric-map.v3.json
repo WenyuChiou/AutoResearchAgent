@@ -557,6 +557,13 @@
         "plugins/auto-research-agent/tests/test_project_stage2_reading.py",
         "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs",
         "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py"
+      ],
+      "projecthost_saved_stage1_material_ui_contract": "The existing upper project selector accepts a bounded string input version only through SavedStage1ProjectInputBinding1.0 from the server-verified saved-view map. Exact project/context and version type/value are retained; malformed, partial, foreign or stale profiles clear old materials and never coerce string versions into legacy integers. Switching Stage1/Stage2 and three languages preserves or removes only the same-project read-only frame. Actual receiving-only Stage2 offers show that Stage1 delivery was received and research has not started; the existing activation guard stays disabled. This presentation contract grants no source, research, selection, scientific acceptance or execution authority; legacy integer navigation and default CSP remain unchanged. HarnessUiProjectSelectionState1.0.0 explicitly distinguishes unselected/loading/failed/selected broker states. A navigation target and exact validated status keep saved references suppressed before reads, throughout null/failure/late events and across refresh/language changes. Only a matching valid selection or explicit successful new-topic navigation releases that context; legacy brokers hold unexpected null events without changing their integer schema. Malformed/unknown/inconsistent status descriptors refuse.",
+      "projecthost_saved_stage1_material_ui_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_saved_views_browser.py",
+        "plugins/auto-research-agent/tests/test_project_saved_views_browser.cjs",
+        "plugins/auto-research-agent/tests/test_project_operations_browser.cjs",
+        "plugins/auto-research-agent/tests/test_project_typed_navigation.py"
       ]
     },
     {

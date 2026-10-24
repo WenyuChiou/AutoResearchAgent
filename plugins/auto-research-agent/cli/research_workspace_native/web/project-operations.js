@@ -77,7 +77,7 @@
       showStage(1).then(() => openWorkspace(target));
     } else openWorkspace(target);
   }, true);
-  let frame = null, frameLoaded = false, portal = null, readyPromise = null, projects = [], selection = null, busy = false, listBusy = false, listGeneration = 0, topicRef = null, statusKey = "loading", resizeObserver = null, resizeQueued = false, displayedBinding = null, activeStage = 1;
+  let frame = null, frameLoaded = false, portal = null, readyPromise = null, projects = [], selection = null, selectionInvalid = false, selectionTarget = null, busy = false, listBusy = false, listGeneration = 0, topicRef = null, statusKey = "loading", resizeObserver = null, resizeQueued = false, displayedBinding = null, activeStage = 1;
   window.ResearchSavedStage1Views?.mount({anchor: card});
   function stageNavigation() {
     for (const control of stages?.querySelectorAll("[data-atlas-focus]") || []) control.setAttribute("aria-pressed", String(control.dataset.atlasFocus === "stage:" + activeStage));
@@ -90,11 +90,20 @@
       activeStage = stage; historical.open = false; content.hidden = true;
       stageNavigation(); showSummary();
       const saved = document.getElementById("project-saved-stage1");
-      if (!selection && stage === 1 && saved && !saved.hidden) saved.scrollIntoView({block: "start", behavior: "smooth"});
+      if (stage === 1 && saved && !saved.hidden) saved.scrollIntoView({block: "start", behavior: "smooth"});
       else openWorkspace("project-stage-" + stage);
     } catch (_) { statusKey = "unavailable"; showSummary(); }
   }
   const ref = value => typeof value === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(value);
+  function validProjectVersion(row) {
+    if (Number.isInteger(row.input_version) && row.input_version > 0) return true;
+    if (typeof row.input_version !== "string" || !row.input_version.trim() || row.input_version.length > 128) return false;
+    const binding = window.ResearchSavedStage1Views?.projectInputBinding?.(row);
+    return binding?.kind === "SavedStage1ProjectInputBinding" && binding.schema_version === "1.0.0"
+      && binding.project_ref === row.project_ref && binding.input_version === row.input_version
+      && typeof binding.project_input_sha256 === "string" && /^[0-9a-f]{64}$/.test(binding.project_input_sha256)
+      && binding.execution_authorized === false;
+  }
   function validTopic(value) {
     if (!value.trim() || new TextEncoder().encode(value).length > 4096) return false;
     for (let i = 0; i < value.length; i++) {
@@ -114,7 +123,7 @@
   function showSummary() {
     summary.textContent = selection ? w().current + ": " + selection.topic + " · " + w().version + " " + selection.input_version : w().none;
     status.textContent = w()[statusKey]; buttons();
-    window.ResearchSavedStage1Views?.update({selection, stage: activeStage, language: language?.value || "en"});
+    window.ResearchSavedStage1Views?.update({selection: selectionInvalid ? {} : selection, stage: activeStage, language: language?.value || "en"});
   }
   function fitPortal() {
     if (!frameLoaded || resizeQueued) return;
@@ -133,15 +142,30 @@
     for (const project of projects) { const option = node("option", null, choice); option.value = project.project_ref; option.textContent = project.topic + " · v" + project.input_version; }
     choice.value = projects.some(row => row.project_ref === chosen) ? chosen : "";
   }
-  function syncSelection() {
+  function syncSelection(event) {
     try {
       const value = portal.selection();
+      let phase = null;
+      if (typeof portal.selectionState === "function") {
+        phase = portal.selectionState();
+        if (!phase || typeof phase !== "object" || Array.isArray(phase) || Object.keys(phase).length !== 3
+            || phase.kind !== "HarnessUiProjectSelectionState" || phase.schema_version !== "1.0.0"
+            || !["unselected", "loading", "failed", "selected"].includes(phase.status)
+            || (phase.status === "selected") !== (value !== null)) throw Error("invalid-project-selection-state");
+      }
       if (value !== null && (!value || !ref(value.project_ref) || typeof value.topic !== "string"
-          || !Number.isInteger(value.input_version) || value.input_version < 1 || !Number.isInteger(value.revision)
+          || !validProjectVersion(value) || !Number.isInteger(value.revision)
           || value.revision < 0 || typeof value.brief_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(value.brief_sha256))) throw Error("invalid-project-selection");
-      selection = value;
-      const binding = selection ? selection.project_ref + "/" + selection.input_version + "/" + selection.revision : null;
-      if (binding !== displayedBinding) { historical.open = false; content.hidden = true; displayedBinding = binding; }
+      const listed = value && projects.find(row => row.project_ref === value.project_ref);
+      if (value && (typeof value.input_version === "string" || typeof listed?.input_version === "string")
+          && (!listed || listed.input_version !== value.input_version)) throw Error("project-selection-version-differs");
+      if (value && selectionTarget !== null && value.project_ref !== selectionTarget) throw Error("project-selection-target-differs");
+      const held = value === null && (selectionTarget !== null || (phase ? phase.status !== "unselected"
+        : selectionInvalid || Boolean(selection) || Boolean(displayedBinding) || event?.type === "research-project-selection"));
+      selection = value === null ? null : {...value}; selectionInvalid = held;
+      const changed = Boolean(selection) !== Boolean(displayedBinding) || (selection
+        && !["project_ref", "input_version", "revision", "brief_sha256"].every(key => selection[key] === displayedBinding[key]));
+      if (changed) { historical.open = false; content.hidden = true; displayedBinding = selection && {...selection}; }
       const projectTitle = document.getElementById("atlas-project");
       if (projectTitle) projectTitle.textContent = selection?.topic || w().title;
       if (selection) {
@@ -152,7 +176,7 @@
         }
       }
       showSummary(); fitPortal();
-    } catch (_) { selection = null; statusKey = "unavailable"; showSummary(); }
+    } catch (_) { selection = null; selectionInvalid = true; statusKey = "unavailable"; showSummary(); }
   }
   async function refreshProjects() {
     const generation = ++listGeneration; listBusy = true;
@@ -161,7 +185,7 @@
       if (generation !== listGeneration) return;
       if (!Array.isArray(result) || result.length > 128 || result.some(row => !row || !ref(row.project_ref)
           || typeof row.topic !== "string" || new TextEncoder().encode(row.topic).length > 4096
-          || !Number.isInteger(row.input_version) || row.input_version < 1)
+          || !validProjectVersion(row))
           || new Set(result.map(row => row.project_ref)).size !== result.length) throw Error("invalid-project-list");
       projects = result; renderChoices(); statusKey = "ready"; syncSelection();
     } finally { if (generation === listGeneration) listBusy = false; }
@@ -236,14 +260,17 @@
   }
   async function openProject(projectRef, scope) {
     if (busy || !ref(projectRef)) return;
+    selectionTarget = projectRef; selection = null; selectionInvalid = true; displayedBinding = null;
+    historical.open = false; content.hidden = true;
     busy = true; statusKey = "loading"; showSummary();
     try {
       const api = await ensurePortal();
       if (await api.selectProject(projectRef) !== true) throw Error("project-navigation-held");
       syncSelection(); if (selection?.project_ref !== projectRef) throw Error("project-navigation-differs");
+      selectionTarget = null;
       statusKey = "ready";
       if (scope) openWorkspace("intake-card");
-    } catch (_) { statusKey = "unavailable"; }
+    } catch (_) { selection = null; selectionInvalid = true; displayedBinding = null; statusKey = "unavailable"; }
     finally { busy = false; showSummary(); }
   }
   select.onclick = () => { if (projects.some(row => row.project_ref === choice.value)) return openProject(choice.value, false); };
@@ -256,7 +283,7 @@
     try {
       const api = await ensurePortal();
       if (api.beginTopic(topic.value) !== true) throw Error("project-topic-held");
-      selection = null; topicRef = null; choice.value = ""; statusKey = "prepared";
+      selection = null; selectionInvalid = false; selectionTarget = null; displayedBinding = null; topicRef = null; choice.value = ""; statusKey = "prepared";
       openWorkspace("create-card");
       frame.contentDocument.getElementById("needs")?.focus();
     } catch (_) { statusKey = "unavailable"; }
