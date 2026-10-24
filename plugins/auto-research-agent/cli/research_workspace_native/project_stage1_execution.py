@@ -1079,6 +1079,37 @@ class ProjectStage1ExecutionService:
             return dict(phase="delivery", kind=None)
         return None
 
+    def project_view(self, credential, ref):
+        """Expose this producer only to its matching authenticated project/run."""
+        actor = self.intake._principal(credential)
+        with self.intake._lock:
+            state = self.intake._load(actor, ref)
+            if (
+                actor != self.permit["principal"]
+                or state["project_id"] != self.permit["project_id"]
+                or type(state["input_version"])
+                is not type(self.permit["input_version"])
+                or state["input_version"] != self.permit["input_version"]
+                or state["plan"] is None
+                or state["settings"] is None
+            ):
+                return None
+            binding = self.intake.binding(ref)
+            if (
+                any(
+                    binding[k] != self.permit[k]
+                    for k in (
+                        "project_id",
+                        "input_version",
+                        "brief_sha256",
+                        "plan_manifest_sha256",
+                    )
+                )
+                or self.stage1.read(credential, ref)["ledger"] is None
+            ):
+                return None
+            return self.read(credential, ref)
+
     def read(self, credential, ref):
         """Read current work/technical/human groups without creating a task."""
         actor = self.intake._principal(credential)
@@ -1086,12 +1117,22 @@ class ProjectStage1ExecutionService:
         with self.intake._lock:
             items = self.work_items(ref)
             results, _, jobs = self._results(ref)
-            questions, unresolved, solved, technical = {}, [], [], []
+            context = self._context(ref)
+            questions, unresolved, solved, technical, notes = {}, [], [], [], []
             for item in items:
                 if item["status"] == "excluded-existing":
                     continue
                 if item["status"] == "done":
                     applied = item["applied"]
+                    digest = applied["note_sha256"]
+                    notes.append(
+                        dict(
+                            work_id=item["work_id"],
+                            version_id=applied["version_id"],
+                            sha256=digest,
+                            url=f"/api/projects/{ref}/stage1/automatic-notes/{digest}",
+                        )
+                    )
                     solved.append(
                         dict(
                             work_id=item["work_id"],
@@ -1151,11 +1192,15 @@ class ProjectStage1ExecutionService:
                 kind="Stage1AutomaticProductionProgress",
                 schema_version="1.0.0",
                 project_ref=ref,
+                binding=_basis(context[2]),
+                run_ref=context[3]["run_ref"],
+                ledger_state_sha256=context[5]["state_sha256"],
                 permit_sha256=self.permit_sha256,
                 automatically_recorded=solved,
                 automatic_pending=unresolved,
                 technical_blocked=technical,
                 researcher_questions=list(questions.values()),
+                notes=notes,
                 model_calls_reserved=len(jobs),
                 model_units_completed=len(results),
                 failed_or_unobserved=[
@@ -1166,6 +1211,22 @@ class ProjectStage1ExecutionService:
                 stage1_complete=False,
                 scientific_acceptance=False,
                 stage2_started=False,
+            )
+
+    def note_by_hash(self, credential, ref, digest):
+        """Resolve an opaque hash against current notes, never a client path."""
+        with self.intake._lock:
+            progress = self.project_view(credential, ref)
+            _check(progress is not None, "automatic-stage1-project-unconnected", 409)
+            row = next((n for n in progress["notes"] if n["sha256"] == digest), None)
+            _check(row is not None, "automatic-stage1-current-note-unavailable", 404)
+            note = self.note(credential, ref, row["work_id"])
+            _check(note["sha256"] == digest, "automatic-stage1-note-changed", 409)
+            return dict(
+                note,
+                binding=progress["binding"],
+                run_ref=progress["run_ref"],
+                ledger_state_sha256=progress["ledger_state_sha256"],
             )
 
     def note(self, credential, ref, work_ref):

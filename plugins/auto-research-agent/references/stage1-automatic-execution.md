@@ -91,6 +91,31 @@ The exporter receives the current ledger digest, and the driver ends at the save
 delivery barrier. `stage1_complete`, scientific acceptance and Stage2 execution
 remain false.
 
+## Read-only UI integration
+
+After trusted registration, authenticated `GET /api/projects/<ref>/overview`
+and `GET /api/projects/<ref>/stage1` expose `stage1.automatic_production` and
+`automatic_production`, respectively. This additive value is null when no
+producer is registered, the project/input/brief/plan differs or no saved run
+exists. It never adopts another project's delegation. Existing default hosting
+and execution admission remain unchanged.
+
+The projection retains separate `automatically_recorded`, `automatic_pending`,
+`technical_blocked` and `researcher_questions` groups, plus actual model-job
+counts. Recorded work is not a scientific or human acceptance. Its binding,
+run reference and ledger digest identify the exact saved state. The `notes`
+inventory supplies work/version, SHA-256 and an opaque same-origin URL. Fetch
+that URL with the existing bearer authentication to read the complete saved
+UTF-8 note. The handler reopens the current work/source and verifies note bytes;
+it returns the same binding/run/ledger identity without a private filesystem path.
+
+`GET /api/projects/<ref>/stage1/automatic-notes/<sha256>` accepts no client path,
+permit or provider. Missing registration or a different producer project returns
+409; an unavailable current note digest returns 404; altered note bytes fail
+with the existing error envelope. Writes and GET bodies are rejected, and the
+existing Host/Origin/fetch-site/authentication/deadline guards apply. These reads
+create no tasks, permits, model calls, source requests or Stage2 actions.
+
 ## Existing pending observations
 
 `research_workspace.pending_backlog.prepare_execution_queue` consumes an externally
