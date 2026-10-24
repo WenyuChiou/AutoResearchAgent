@@ -124,14 +124,34 @@ class ProjectStage1RecordsService:
 
         return check
 
-    def _register(
-        self, project_ref, context, kind, payload, check_current, action_body=None
-    ):
-        principal, state, binding, *_ = context
+    def _entry(self, context, payload):
         entry = dict(basis=self._basis(context), payload=payload)
         _check(
             len(canonical(entry)) <= 256 * 1024, "stage1-saved-registration-too-large"
         )
+        return entry
+
+    @staticmethod
+    def _reading_content(value):
+        for field, keys in (("classification", CLASSIFICATION), ("findings", FINDINGS)):
+            _keys(value[field], keys, "saved " + field)
+            for text in value[field].values():
+                _text(text)
+        _check(
+            type(value["claims"]) is list and type(value["roles"]) is list,
+            "saved-reading-list-required",
+        )
+        _check(
+            len(value["claims"]) <= MAX_RECORDS
+            and len(value["source_ids"]) <= MAX_RECORDS,
+            "saved-reading-record-bound-exceeded",
+        )
+
+    def _register(
+        self, project_ref, context, kind, payload, check_current, action_body=None
+    ):
+        principal, state, binding, *_ = context
+        entry = self._entry(context, payload)
         digest = sha(canonical(entry))
         entry.update(ref=kind + "-" + digest, sha256=digest)
         body = dict(
@@ -583,19 +603,7 @@ class ProjectStage1RecordsService:
             and bool(sources),
             "saved-reading-source-set-differs",
         )
-        for field, keys in (("classification", CLASSIFICATION), ("findings", FINDINGS)):
-            _keys(value[field], keys, "saved " + field)
-            for text in value[field].values():
-                _text(text)
-        _check(
-            type(value["claims"]) is list and type(value["roles"]) is list,
-            "saved-reading-list-required",
-        )
-        _check(
-            len(value["claims"]) <= MAX_RECORDS
-            and len(value["source_ids"]) <= MAX_RECORDS,
-            "saved-reading-record-bound-exceeded",
-        )
+        self._reading_content(value)
         seen = set()
         for claim in value["claims"]:
             _keys(
