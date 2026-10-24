@@ -14,6 +14,21 @@ from stage3_plan.storage import read_json
 
 
 class CampaignPreparationTests(CampaignFixture):
+    def test_rehashed_raw_float_seed_is_rejected(self):
+        self.prepare()
+        definition_path = self.campaign / "definition.json"
+        definition = read_json(definition_path)
+        definition["seed"] = float(definition["seed"])
+        definition_path.write_bytes(canonical_bytes(definition))
+        manifest_path = self.campaign / "manifest.json"
+        manifest = read_json(manifest_path)
+        manifest["definition_raw_sha256"] = binding(definition_path)["sha256"]
+        manifest_path.write_bytes(canonical_bytes(manifest))
+        with self.assertRaisesRegex(Stage3Error, "source-aware replay"):
+            inspect_campaign(
+                self.campaign, expected_sha256=binding(manifest_path)["sha256"]
+            )
+
     def test_prepare_replay_orders_views_source_scope_and_no_dispatch(self):
         with (
             patch(
