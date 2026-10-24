@@ -454,7 +454,18 @@
         "plugins/auto-research-agent/tests/test_project_model_run.py",
         "plugins/auto-research-agent/tests/test_project_query_run_contract.py",
         "plugins/auto-research-agent/tests/test_project_query_run.py",
-        "plugins/auto-research-agent/tests/test_project_source_run.py"
+        "plugins/auto-research-agent/tests/test_project_source_run.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_actions.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_query_dispatch.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_source_dispatch.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_round_query_progress.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_producer_queue.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_producer_progress.py",
+        "plugins/auto-research-agent/tests/test_project_agent_rounds.py",
+        "plugins/auto-research-agent/tests/test_project_agent_coverage.py",
+        "plugins/auto-research-agent/tests/test_project_saved_run_actions.py",
+        "plugins/auto-research-agent/tests/test_project_saved_run_delivery.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -496,7 +507,31 @@
         "source_and_runtime_mismatch": "refused; retained historical HostReplay is never silently rebound",
         "http_deadline_unchanged": true,
         "execution_authorized": false
-      }
+      },
+      "stage1_bounded_run_producer_contract": {
+        "entry": "ProjectHost.continue_stage1 with an explicitly saved typed ProjectStage1RunGrantService issuer; original run-project-workspace.py opt-in request/resume only",
+        "default_execution": false,
+        "operations": "Original query, source dispatcher, full-source analysis1.1, agent pending/adoption/coverage/reading registration, round metadata, checkpoint, records and delivery; one original owner per lane",
+        "authority": "Actual principal/project/input/brief/plan/settings/runtime and original grant lease are rechecked; agent decisions are not per-action human confirmations or Core acceptance",
+        "recovery": "Reopen complete current durable history and actual worker observations; join an owned pending worker once outside the intake lock. Unknown, stale, missing owner and ambiguous publication preserve holds without resend, reset or refund.",
+        "bounds": "Original resource counters, grant expiry and action limit stay binding; optional history capacity256..2048 is separate from execution budget. Pinned CLI slice may only reduce the original action cap.",
+        "stopping": "Known source/model failure, unsupported analysis, missing evidence or content/Core/Wiki barriers retain partial/held; zero exit means saved-delivery barrier only, never scientific completeness or Stage2 execution.",
+        "evidence_scope": "Deterministic actual SQLite/Core/owned-queue tests use authored provider/backend/source bytes. Registered wrappers do not multiply nested case counts. Native topic-to30, another physical host and scientific quality require their own real evidence."
+      },
+      "stage1_bounded_run_producer_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage1_run_actions.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_query_dispatch.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_source_dispatch.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_round_query_progress.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_producer_queue.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_producer_progress.py",
+        "plugins/auto-research-agent/tests/test_project_agent_rounds.py",
+        "plugins/auto-research-agent/tests/test_project_agent_coverage.py",
+        "plugins/auto-research-agent/tests/test_project_workspace_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_saved_run_actions.py",
+        "plugins/auto-research-agent/tests/test_project_saved_run_delivery.py"
+      ]
     },
     {
       "capability_id": "cli:research-workspace",

@@ -229,6 +229,171 @@ assert not any(n.startswith('research_workspace_native') for n in sys.modules)
         self.assertEqual(receipt["content_model"], "disabled")
         self.assertFalse((self.root / "projects").exists())
 
+    def test_stage1_run_flag_groups_fail_before_store_creation(self):
+        request = self.root / "run.json"
+        request.write_text("{}", encoding="utf8")
+        pin = sha(request.read_bytes())
+        cases = (
+            ({"stage1_run_request": request}, "external SHA256"),
+            ({"stage1_run_request_sha256": pin}, "external SHA256"),
+            (
+                {
+                    "stage1_run_request": request,
+                    "stage1_run_request_sha256": pin,
+                },
+                "enable-stage1-run",
+            ),
+            ({"enable_stage1_run": True}, "model and public source"),
+            (
+                {"enable_stage1_run": True, "enable_content_model": True},
+                "model and public source",
+            ),
+            (
+                {"enable_stage1_run": True, "enable_public_sources": True},
+                "model and public source",
+            ),
+            (
+                {
+                    "stage1_run_request": request,
+                    "stage1_run_request_sha256": pin,
+                    "enable_stage1_run": True,
+                    "enable_content_model": True,
+                    "enable_public_sources": True,
+                    "prepare_only": True,
+                },
+                "prepare-only",
+            ),
+        )
+        for changes, message in cases:
+            with self.subTest(changes=changes):
+                args = LAUNCHER["parser"]().parse_args(
+                    [
+                        "--repo",
+                        str(self.repo),
+                        "--source-helper-sha256",
+                        self.args.source_helper_sha256,
+                        "--projects-root",
+                        str(self.root / "projects"),
+                        "--check-only",
+                    ]
+                )
+                for key, value in changes.items():
+                    setattr(args, key, value)
+                with self.assertRaisesRegex(ValueError, message):
+                    LAUNCHER["inspect_inputs"](args)
+                self.assertFalse((self.root / "projects").exists())
+
+    def test_stage1_run_request_pin_tamper_and_size_fail_before_bootstrap(self):
+        request = self.root / "run.json"
+        request.write_text('{"kind":"ProjectStage1RunRequest"}', encoding="utf8")
+        base = [
+            "--repo",
+            str(self.repo),
+            "--source-helper-sha256",
+            self.args.source_helper_sha256,
+            "--projects-root",
+            str(self.root / "projects"),
+            "--check-only",
+            "--enable-stage1-run",
+            "--enable-content-model",
+            "--enable-public-sources",
+            "--stage1-run-request",
+            str(request),
+        ]
+        main_globals = LAUNCHER["main"].__globals__
+        with (
+            patch.dict(
+                main_globals,
+                install_source=lambda *_: (_ for _ in ()).throw(
+                    AssertionError("raw bootstrap forbidden")
+                ),
+            ),
+            patch("subprocess.Popen", side_effect=AssertionError("process forbidden")),
+        ):
+            with self.assertRaisesRegex(ValueError, "SHA256 invalid"):
+                LAUNCHER["main"](base + ["--stage1-run-request-sha256", "x"])
+            original_pin = sha(request.read_bytes())
+            request.write_bytes(request.read_bytes() + b" ")
+            with self.assertRaisesRegex(ValueError, "bytes differ"):
+                LAUNCHER["main"](base + ["--stage1-run-request-sha256", original_pin])
+            request.write_bytes(b"x" * 16385)
+            with self.assertRaisesRegex(ValueError, "file bound exceeded"):
+                LAUNCHER["main"](
+                    base + ["--stage1-run-request-sha256", sha(request.read_bytes())]
+                )
+        self.assertFalse((self.root / "projects").exists())
+
+    def test_fresh_check_only_validates_full_stage1_run_configuration_without_calls(
+        self,
+    ):
+        runtime = self.root / "runtime.json"
+        runtime.write_text(
+            json.dumps(
+                dict(
+                    kind="ProjectStage1QueryRuntime",
+                    schema_version="1.0.0",
+                    pin={"runtime": "synthetic-unexecuted"},
+                    caps=dict(
+                        max_attempts=1,
+                        max_reserved_seconds=60,
+                        max_results=1,
+                        validity_seconds=60,
+                    ),
+                    backends=["openalex"],
+                )
+            ),
+            encoding="utf8",
+        )
+        materials = self.root / "materials"
+        materials.mkdir()
+        home = self.root / "own-home"
+        home.mkdir()
+        (home / "config.toml").write_text(
+            'model = "synthetic-unexecuted"\n', encoding="utf8"
+        )
+        executable = self.root / "codex.exe"
+        executable.write_bytes(b"synthetic-unexecuted-codex")
+        code = """
+import json, runpy, subprocess, sys
+from unittest.mock import patch
+ns = runpy.run_path(sys.argv[1])
+ns['inspect_inputs'].__globals__['windows_root_preflight'] = lambda root, **kwargs: None
+with patch('subprocess.Popen', side_effect=AssertionError('native process forbidden')):
+    assert ns['main'](sys.argv[2:]) == 0
+"""
+        result = self.worker(
+            code,
+            self.script,
+            "--repo",
+            self.repo,
+            "--source-helper-sha256",
+            self.args.source_helper_sha256,
+            "--projects-root",
+            self.root / "projects",
+            "--stage1-query-runtime",
+            runtime,
+            "--stage1-query-runtime-sha256",
+            sha(runtime.read_bytes()),
+            "--stage1-materials-root",
+            materials,
+            "--enable-public-sources",
+            "--enable-content-model",
+            "--model",
+            "synthetic-unexecuted",
+            "--codex",
+            executable,
+            "--codex-home",
+            home,
+            "--enable-stage1-run",
+            "--check-only",
+        )
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        receipt = json.loads(result.stdout)
+        self.assertEqual((receipt["native_calls"], receipt["model_calls"]), (0, 0))
+        self.assertTrue(receipt["stage1_run_grant_configuration"])
+        self.assertEqual(receipt["status"], "filesystem-and-raw-loader-preflight-only")
+        self.assertFalse((self.root / "projects").exists())
+
     def test_loader_raw_compiles_owned_bytes_and_rejects_preloaded_origin(self):
         (self.plugin / "cli/owned_probe.py").write_text(
             "VALUE = 'raw-source'\n", encoding="utf8"
