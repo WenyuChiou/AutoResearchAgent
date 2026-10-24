@@ -725,7 +725,15 @@ class ProjectStage1DeliveryService:
                 else "not-produced",
             )
 
-    def deliver(self, credential, project_ref, body, *, check_deadline=None):
+    def deliver(
+        self,
+        credential,
+        project_ref,
+        body,
+        *,
+        check_deadline=None,
+        run_authorization=None,
+    ):
         def producer(state, _, __, request_hash, ___):
             context = self._context(project_ref)
             offer = state.get("stage1_delivery_offers", {}).get(body["offer_ref"])
@@ -802,6 +810,7 @@ class ProjectStage1DeliveryService:
             producer,
             fields={"offer_ref", "offer_sha256"},
             check_deadline=check_deadline,
+            run_authorization=run_authorization,
         )
 
     def binding(self, project_ref):

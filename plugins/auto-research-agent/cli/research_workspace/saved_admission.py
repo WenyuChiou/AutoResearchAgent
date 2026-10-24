@@ -196,8 +196,127 @@ def check_acquisition_binding(row, source, provenance, admission_at):
         )
 
 
+def _check_producer(producer, root, historical_sources=None):
+    require(
+        type(producer) is dict
+        and set(producer)
+        == {
+            "delivered_commit",
+            "reviewed_head",
+            "merge_parents",
+            "merge_tree",
+            "sources",
+            "ci",
+        },
+        "producer contract invalid",
+    )
+    commit = producer["delivered_commit"]
+    reviewed = producer["reviewed_head"]
+    parents = producer["merge_parents"]
+    require(
+        all(
+            type(value) is str
+            and len(value) == 40
+            and all(c in "0123456789abcdef" for c in value)
+            for value in (commit, reviewed, producer["merge_tree"])
+        )
+        and type(parents) is list
+        and len(parents) == 2
+        and all(
+            type(value) is str
+            and len(value) == 40
+            and all(c in "0123456789abcdef" for c in value)
+            for value in parents
+        )
+        and len(set(parents)) == 2
+        and reviewed in parents
+        and commit not in parents,
+        "producer not delivered",
+    )
+    require(
+        type(producer["sources"]) is dict
+        and set(producer["sources"])
+        == set(producer_files() if historical_sources is None else historical_sources),
+        "producer runtime inventory incomplete",
+    )
+    for name, digest in producer["sources"].items():
+        require(
+            hashlib.sha256(
+                (SCHEMA.parent.parent / name).read_bytes()
+                if historical_sources is None
+                else read_bound(root, historical_sources[name])
+            ).hexdigest()
+            == digest,
+            "producer runtime changed",
+        )
+    ci = producer["ci"]
+    require(type(ci) is list, "CI evidence missing")
+    for job in ci:
+        require(
+            type(job) is dict
+            and set(job)
+            == {"phase", "name", "head_sha", "run_id", "job_id", "conclusion"}
+            and type(job["phase"]) is str
+            and job["phase"] in {"pr", "post-main"}
+            and type(job["name"]) is str
+            and job["head_sha"] == (reviewed if job["phase"] == "pr" else commit)
+            and job["conclusion"] == "success"
+            and all(
+                type(job[key]) is int and job[key] > 0 for key in ("run_id", "job_id")
+            ),
+            "CI not successful on delivered producer",
+        )
+    require(
+        type(ci) is list
+        and {
+            (phase, name)
+            for phase, names in (
+                ("pr", REQUIRED_CI_JOBS),
+                ("post-main", REQUIRED_CI_JOBS - {"pr-contract"}),
+            )
+            for name in names
+        }.issubset({(job.get("phase"), job.get("name")) for job in ci})
+        and len({(job.get("phase"), job.get("name")) for job in ci}) == len(ci),
+        "CI evidence missing",
+    )
+
+
 def _check_acceptance(
-    root, ref, trusted_digest, snapshot_digest, snapshot, view_manifest
+    root,
+    ref,
+    trusted_digest,
+    snapshot_digest,
+    snapshot,
+    view_manifest,
+    *,
+    host_replay=None,
+):
+    require(
+        trusted_digest == ref["sha256"],
+        "Core acceptance needs independent external hash",
+    )
+    acceptance = read_bound_json(root, ref)
+    require(type(acceptance) is dict, "Core acceptance contract invalid")
+    if acceptance.get("kind") == "SavedSourceAdmissionCompatibilityAcceptance":
+        from .saved_admission_compat import check_compatibility
+
+        return check_compatibility(
+            root, acceptance, snapshot_digest, snapshot, view_manifest, host_replay
+        )
+    return _check_acceptance_v1(
+        root, ref, trusted_digest, snapshot_digest, snapshot, view_manifest
+    )
+
+
+def _check_acceptance_v1(
+    root,
+    ref,
+    trusted_digest,
+    snapshot_digest,
+    snapshot,
+    view_manifest,
+    *,
+    historical_sources=None,
 ):
     require(
         trusted_digest == ref["sha256"],
@@ -225,82 +344,26 @@ def _check_acceptance(
         ("snapshot_sha256", snapshot_digest),
         ("project_id", snapshot["project_id"]),
         ("input_version", snapshot["input_version"]),
-        ("contract_sha256", hashlib.sha256(SCHEMA.read_bytes()).hexdigest()),
+        (
+            "contract_sha256",
+            (
+                hashlib.sha256(SCHEMA.read_bytes()).hexdigest()
+                if historical_sources is None
+                else hashlib.sha256(
+                    read_bound(
+                        root,
+                        historical_sources[
+                            "schemas/stage1-saved-admission.v1.schema.json"
+                        ],
+                    )
+                ).hexdigest()
+            ),
+        ),
     ):
         require(
             acceptance[field] == expected, "Core acceptance binding mismatch: " + field
         )
-    producer = acceptance["producer"]
-    require(
-        set(producer)
-        == {
-            "delivered_commit",
-            "reviewed_head",
-            "merge_parents",
-            "merge_tree",
-            "sources",
-            "ci",
-        },
-        "producer contract invalid",
-    )
-    commit = producer["delivered_commit"]
-    reviewed = producer["reviewed_head"]
-    parents = producer["merge_parents"]
-    require(
-        all(
-            type(value) is str
-            and len(value) == 40
-            and all(c in "0123456789abcdef" for c in value)
-            for value in (commit, reviewed, producer["merge_tree"])
-        )
-        and type(parents) is list
-        and len(parents) == 2
-        and len(set(parents)) == 2
-        and all(
-            type(value) is str
-            and len(value) == 40
-            and all(c in "0123456789abcdef" for c in value)
-            for value in parents
-        )
-        and reviewed in parents
-        and commit not in parents,
-        "producer not delivered",
-    )
-    require(
-        set(producer["sources"]) == set(producer_files()),
-        "producer runtime inventory incomplete",
-    )
-    for name, digest in producer["sources"].items():
-        require(
-            hashlib.sha256((SCHEMA.parent.parent / name).read_bytes()).hexdigest()
-            == digest,
-            "producer runtime changed",
-        )
-    ci = producer["ci"]
-    require(
-        type(ci) is list
-        and {
-            (phase, name)
-            for phase, names in (
-                ("pr", REQUIRED_CI_JOBS),
-                ("post-main", REQUIRED_CI_JOBS - {"pr-contract"}),
-            )
-            for name in names
-        }.issubset({(job.get("phase"), job.get("name")) for job in ci})
-        and len({(job.get("phase"), job.get("name")) for job in ci}) == len(ci),
-        "CI evidence missing",
-    )
-    for job in ci:
-        require(
-            set(job) == {"phase", "name", "head_sha", "run_id", "job_id", "conclusion"}
-            and job["phase"] in {"pr", "post-main"}
-            and job["head_sha"] == (reviewed if job["phase"] == "pr" else commit)
-            and job["conclusion"] == "success"
-            and all(
-                type(job[key]) is int and job[key] > 0 for key in ("run_id", "job_id")
-            ),
-            "CI not successful on delivered producer",
-        )
+    _check_producer(acceptance["producer"], root, historical_sources)
     require(
         set(acceptance["checks"]) == set(CORE_CHECKS),
         "Core acceptance categories incomplete",
@@ -555,6 +618,7 @@ def inspect_saved_admission(
             snapshot_ref["sha256"],
             snapshot,
             view_manifest,
+            host_replay=host_replay,
         )
     result = {
         "kind": "Stage1Handoff",

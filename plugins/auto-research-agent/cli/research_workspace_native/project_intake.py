@@ -174,7 +174,15 @@ class ProjectIntakeService:
                     "SELECT COUNT(*) FROM intake_actions WHERE principal=? AND project=?",
                     (principal, project_ref),
                 ).fetchone()[0]
-                _check(count < MAX_ACTIONS, "intake-action-bound-exceeded")
+                if count >= MAX_ACTIONS:
+                    from .project_stage1_run_grant import saved_history_limit
+
+                    limit = (
+                        MAX_ACTIONS
+                        if create
+                        else saved_history_limit(self, principal, project_ref)
+                    )
+                    _check(count < limit, "intake-action-bound-exceeded")
                 if create:
                     _check(
                         self.db.execute(
@@ -276,7 +284,17 @@ class ProjectIntakeService:
                 receipt.update(
                     status="execution-unknown"
                     if work_completed
-                    or kind in {"stage1-coverage", "stage1-claim", "stage2-select"}
+                    or kind
+                    in {
+                        "stage1-coverage",
+                        "stage1-claim",
+                        "stage1-agent-pending",
+                        "stage1-agent-analysis",
+                        "stage1-agent-coverage",
+                        "stage1-checkpoint",
+                        "stage1-deliver",
+                        "stage2-select",
+                    }
                     else "failed",
                     error=str(error)[:512],
                 )
@@ -285,7 +303,17 @@ class ProjectIntakeService:
                         failure_phase="post-work-before-commit",
                         output_observation=deepcopy(result),
                     )
-                elif kind in {"stage1-coverage", "stage1-claim", "stage2-select"}:
+                elif kind == "stage1-deliver":
+                    receipt["failure_phase"] = "publication-outcome-unobserved"
+                elif kind in {
+                    "stage1-coverage",
+                    "stage1-claim",
+                    "stage1-agent-pending",
+                    "stage1-agent-analysis",
+                    "stage1-agent-coverage",
+                    "stage1-checkpoint",
+                    "stage2-select",
+                }:
                     # A Core append can succeed before its producer raises.
                     # Keep this new local action held; failed is unlockable by UI.
                     receipt["failure_phase"] = "core-write-outcome-unobserved"

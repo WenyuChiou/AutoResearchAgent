@@ -1,4 +1,4 @@
-"""Explicit saved-record preparation from a current checkpoint; no research."""
+"""Current-checkpoint records under human or typed run authority; no research."""
 
 import json
 
@@ -30,13 +30,36 @@ class ProjectRecordsPrepareService:
 
         self.recovery = ProjectRecordsRecoveryService(records)
 
-    def prepare(self, credential, ref, body, *, check_deadline=None):
+    def prepare(
+        self, credential, ref, body, *, check_deadline=None, run_authorization=None
+    ):
         actor = self.intake._principal(credential)
         _check(
-            type(body) is dict and set(body) == FIELDS and body["confirmed"] is True,
+            type(body) is dict
+            and set(body) == FIELDS
+            and (
+                body["confirmed"] is True
+                if run_authorization is None
+                else body["confirmed"] is False
+            ),
             "records-prepare-fields",
             400,
         )
+        request = body
+        if run_authorization is not None:
+            from .project_run_authority import RunActionGuard
+
+            guard = RunActionGuard(
+                self.intake,
+                actor,
+                ref,
+                body,
+                run_authorization,
+                operation="records",
+                action=KIND,
+            )
+            request = guard.request
+            check_deadline = guard.deadline_check(check_deadline)
         identifier(body["key"])
         identifier(body["checkpoint_event_id"])
         _check(
@@ -50,7 +73,7 @@ class ProjectRecordsPrepareService:
         with self.intake._lock:
             state = self.intake._load(actor, ref)
             semantic = {
-                name: value for name, value in body.items() if name != "revision"
+                name: value for name, value in request.items() if name != "revision"
             }
             request_hash = sha(canonical(dict(kind=KIND, body=semantic)))
             saved = self.intake.db.execute(
@@ -104,4 +127,5 @@ class ProjectRecordsPrepareService:
                 expected_checkpoint_event_id=body["checkpoint_event_id"],
                 action_body=body,
                 check_current=check_deadline,
+                run_authorization=run_authorization,
             )

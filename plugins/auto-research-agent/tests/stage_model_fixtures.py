@@ -25,16 +25,36 @@ from stage1_deliverable.common import canonical, sha
 class FakeChannel(Channel):
     """No processes/models/search: only deterministic protocol messages."""
 
+    full_source_user_agent = "synthetic/0.163.0 (Synthetic OS; synthetic) synthetic"
+
     def __init__(self, mode):
         super().__init__()
         self.mode = mode
+        self._write_pending = b""
 
     def write(self, data, timeout):
         count = super().write(data, timeout)
-        message = json.loads(data)
+        self._write_pending += data[:count]
+        if b"\n" not in self._write_pending:
+            return count
+        frame, self._write_pending = self._write_pending.split(b"\n", 1)
+        message = json.loads(frame)
         method = message.get("method")
         if method == "initialize":
-            self.queue(dict(id=message["id"], result=dict(userAgent="synthetic")))
+            self.queue(
+                dict(
+                    id=message["id"],
+                    result=dict(
+                        userAgent=(
+                            self.full_source_user_agent
+                            if message.get("params", {})
+                            .get("capabilities", {})
+                            .get("experimentalApi")
+                            else "synthetic"
+                        )
+                    ),
+                )
+            )
         elif method == "account/read":
             self.queue(
                 dict(
@@ -174,14 +194,28 @@ class FakeRuntime:
             verify_binding=lambda: self.gate["verify_source"]({}),
             admit_lifecycle=lambda a: self.gate["admit_lifecycle"](dict(action=a)),
         )
-        boot.open_thread(dict(name="synthetic", version="1"))
+        boot.open_thread(
+            dict(name="synthetic", version="1"),
+            experimental_api=spec["kind"] == "NativeFullSourceStageUnitRuntimeSpec",
+            input_profile=(
+                "stage1-full-source-context-1.0"
+                if spec["kind"] == "NativeFullSourceStageUnitRuntimeSpec"
+                else None
+            ),
+        )
         self.controller = InjectedSessionController.adopt_ready(
             boot, admit_action=lambda a: self.gate["admit_action"](dict(action=a))
         )
         self.api = SessionApi(authenticate=authenticate)
         self.api.register(
             spec["project_ref"],
-            trusted_stage_unit=spec["kind"] == "NativeStageUnitRuntimeSpec",
+            trusted_stage_unit=spec["kind"]
+            in {"NativeStageUnitRuntimeSpec", "NativeFullSourceStageUnitRuntimeSpec"},
+            **(
+                {"input_profile": "stage1-full-source-context-1.0"}
+                if spec["kind"] == "NativeFullSourceStageUnitRuntimeSpec"
+                else {}
+            ),
             controller=self.controller,
             principals={"local-viewer"},
             source_root=spec["source_root"],

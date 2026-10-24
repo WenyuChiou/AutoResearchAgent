@@ -42,6 +42,7 @@ class SessionOwners:
         start_offer=None,
         approval_policy=None,
         trusted_stage_unit=False,
+        input_profile=None,
     ):
         """Trusted configuration; pre-admission refusal leaves resources borrowed."""
         _require(type(trusted_stage_unit) is bool, "literal stage unit opt-in required")
@@ -109,6 +110,8 @@ class SessionOwners:
                 )
                 if trusted_stage_unit:
                     options["trusted_stage_unit"] = True
+                if input_profile is not None:
+                    options["input_profile"] = input_profile
                 if start_offer is not None:
                     options["start_offer"] = start_offer
                 if approval_policy is not None:

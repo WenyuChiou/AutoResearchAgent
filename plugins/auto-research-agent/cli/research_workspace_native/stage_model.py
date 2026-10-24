@@ -22,7 +22,13 @@ from .frame_journal import _validated
 from .process_deadline import SessionLeaseExpired
 from .runtime_factory import compose_runtime
 from .runtime_spec import _hash, _require, _thread_config
-from .session_api import MAX_MODEL_INPUT_BYTES, _bounded_text_inputs
+from .model_input_profile import (
+    FULL_SOURCE_SPEC,
+    input_limit,
+    record_limit,
+    turn_input,
+    preflight_wire,
+)
 from .stage_inputs import snapshot_inputs, source_digest
 
 
@@ -57,9 +63,10 @@ class StageModel:
     True at every later phase without reserving another model call.
     ``runtime_factory`` is an explicit injected seam for synthetic tests only.
     ``trusted_stage_unit=True`` selects a separately bound, single-start stage
-    spec. Historical 16/32-KiB spec envelopes remain readable, while current
-    complete model inputs are capped at 10,000 UTF-8 bytes before reservation.
-    Neither selection supplies execution authority or increases calls/time.
+    spec. Legacy complete inputs retain the 10,000-byte limit. The separately
+    selected full-source profile permits at most 256 KiB before the stricter complete-wire preflight, with a distinct pinned
+    spec and serialized-record bound. Both reject overflow before reservation.
+    Neither profile supplies execution authority or increases calls/time.
     """
 
     def __init__(
@@ -79,6 +86,7 @@ class StageModel:
         project_ref="repo-content-pilot",
         runtime_factory=compose_runtime,
         trusted_stage_unit=False,
+        input_profile=None,
     ):
         _require(
             all(callable(v) for v in (authenticate, admit, runtime_factory)),
@@ -90,9 +98,13 @@ class StageModel:
         )
         _require(type(trusted_stage_unit) is bool, "literal stage unit opt-in required")
         self.trusted_stage_unit = trusted_stage_unit
-        self.prompt_limit = min(
-            32768 if trusted_stage_unit else 16384, MAX_MODEL_INPUT_BYTES
+        self.prompt_limit = input_limit(input_profile)
+        _require(
+            input_profile is None or trusted_stage_unit,
+            "profile requires trusted stage unit",
         )
+        self.input_profile = input_profile
+        self.record_limit = record_limit(input_profile)
         _require(
             isinstance(project_ref, str)
             and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", project_ref),
@@ -150,6 +162,8 @@ class StageModel:
         )
         if trusted_stage_unit:
             self.context["trusted_stage_unit"] = True
+        if input_profile is not None:
+            self.context["input_profile"] = input_profile
         self.context_sha256 = sha(canonical(self.context))
         self._lock, self._run_lock = threading.RLock(), threading.Lock()
         self._active, self._current, self._accepted = None, None, {}
@@ -226,7 +240,12 @@ class StageModel:
                     payload.get("model") == self.model
                     and payload.get("cwd")
                     == Path(self.checked["source_root"]).as_posix()
-                    and payload.get("input") == _bounded_text_inputs(request["prompt"]),
+                    and {
+                        k: v
+                        for k, v in payload.items()
+                        if k in {"input", "additionalContext"}
+                    }
+                    == turn_input(request["prompt"], self.input_profile),
                     "unit prompt binding differs",
                 )
             elif method not in {
@@ -266,9 +285,13 @@ class StageModel:
         _require(remaining >= 1, "unit deadline expired")
         checked = self.checked
         return dict(
-            kind="NativeStageUnitRuntimeSpec"
-            if self.trusted_stage_unit
-            else "NativeAtlasRuntimeSpec",
+            kind=FULL_SOURCE_SPEC
+            if self.input_profile is not None
+            else (
+                "NativeStageUnitRuntimeSpec"
+                if self.trusted_stage_unit
+                else "NativeAtlasRuntimeSpec"
+            ),
             schema_version="1.0.0",
             project_ref=self.ref,
             project_id=checked["project_id"],
@@ -311,13 +334,20 @@ class StageModel:
             # The server adds bounded opaque offer/key/revision fields later.
             # Reserve room without truncating escaped JSON source/schema text.
             _require(
-                len(canonical(dict(text=prompt))) <= 65536 - 2048,
+                len(canonical(dict(text=prompt))) <= self.record_limit - 2048,
                 "unit serialized prompt bound exceeded",
             )
         _require(
             type(deadline) in (int, float) and math.isfinite(deadline),
             "monotonic deadline required",
         )
+        if self.input_profile is not None:
+            preflight_wire(
+                prompt,
+                self.input_profile,
+                cwd=Path(self.checked["source_root"]).as_posix(),
+                model=self.model,
+            )
         folder = self.root / sha(unit_key.encode("utf8"))
         request = dict(
             unit_key=unit_key,
@@ -332,7 +362,7 @@ class StageModel:
             if folder.exists():
                 _require(
                     self.checked["source"].decode(
-                        self.checked["source"].read(request_path, 65536)
+                        self.checked["source"].read(request_path, self.record_limit)
                     )
                     == request,
                     "unit key payload differs",
@@ -479,6 +509,12 @@ class StageModel:
             return deepcopy(receipt)
 
     def _reconstruct(self, data, request, spec):
+        if self.input_profile is not None:
+            _require(
+                spec["kind"] == FULL_SOURCE_SPEC
+                and spec["limits"]["max_text_bytes"] == self.prompt_limit,
+                "saved input profile differs",
+            )
         state, rows = data["state"], data["events"]
         _require(state["index_sha256"] == spec["index_sha256"], "saved project differs")
         starts = [
@@ -507,11 +543,16 @@ class StageModel:
                 threadId=thread,
                 cwd=spec["source_root"],
                 model=spec["model"],
-                input=_bounded_text_inputs(request["prompt"]),
+                **turn_input(request["prompt"], self.input_profile),
             ),
             "saved native payload differs",
         )
         document = action["start_offer"]["document"]
+        if self.input_profile is not None:
+            _require(
+                document.get("input_profile") == self.input_profile,
+                "saved offer input profile differs",
+            )
         _require(
             all(
                 document.get(n) == spec[n]
@@ -678,7 +719,9 @@ class StageModel:
         folder = self.root / sha(key.encode("utf8"))
         source = self.checked["source"]
         request = source.decode(
-            source.pinned(folder / "request.json", saved["request_sha256"], 65536)
+            source.pinned(
+                folder / "request.json", saved["request_sha256"], self.record_limit
+            )
         )
         _require(
             request["context_sha256"] == self.context_sha256

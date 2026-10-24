@@ -30,6 +30,7 @@ from research_workspace_native.query_storage import (
     check_writer_paths,
 )
 from research_workspace_native.query_execution_source import check_execution_source
+from .project_run_authority import RunActionGuard
 
 
 SAVED_OPERATIONS = {
@@ -55,6 +56,7 @@ class PlannedQueryService:
         executor=execute_backend,
         check_resources=None,
         check_expansion=None,
+        check_result=None,
     ):
         require(
             callable(authenticate)
@@ -78,6 +80,10 @@ class PlannedQueryService:
             "query-expansion-gate-required",
         )
         self._check_expansion = check_expansion
+        require(
+            check_result is None or callable(check_result), "query-result-gate-required"
+        )
+        self._check_result = check_result
         self._lock, self._closed, self._workers, self._projects = (
             threading.RLock(),
             False,
@@ -568,7 +574,9 @@ class PlannedQueryService:
                 document=document,
             )
 
-    def execute(self, token, ref, request, *, deadline, expansion=None):
+    def execute(
+        self, token, ref, request, *, deadline, expansion=None, run_authorization=None
+    ):
         with self._lock:
             require(not self._closing, "query-service-closing", 503)
             p, principal = self._access(token, ref)
@@ -583,7 +591,8 @@ class PlannedQueryService:
                     "offer_ref",
                     "offer_sha256",
                     "confirmed",
-                },
+                }
+                | ({"run_authority"} if run_authorization is not None else set()),
                 "query-request-fields",
                 400,
             )
@@ -592,10 +601,46 @@ class PlannedQueryService:
                 and KEY.fullmatch(request["key"])
                 and type(request["revision"]) is int
                 and 0 <= request["revision"] < 2**63
-                and request["confirmed"] is True,
+                and (
+                    request["confirmed"] is True
+                    if run_authorization is None
+                    else request["confirmed"] is False
+                ),
                 "query-explicit-request-required",
                 400,
             )
+            if run_authorization is not None:
+                require(
+                    type(run_authorization) is RunActionGuard
+                    and callable(self._check_result)
+                    and run_authorization.operation == "query"
+                    and run_authorization.action == "query-execute"
+                    and run_authorization.principal == principal
+                    and run_authorization.ref == ref
+                    and expansion is None,
+                    "query-run-typed-authority-required",
+                )
+                proof, _ = run_authorization.check()
+                body = run_authorization.request
+                require(
+                    request["run_authority"] == proof
+                    and request["offer_ref"] == body["offer_ref"]
+                    and request["offer_sha256"] == body["offer_sha256"]
+                    and body["input_version"] == p["item"].get("project_input_version")
+                    and request["key"]
+                    == "project-"
+                    + sha(
+                        canonical(
+                            {
+                                "kind": "stage1-query-execute",
+                                "body": {
+                                    k: v for k, v in body.items() if k != "revision"
+                                },
+                            }
+                        )
+                    ),
+                    "query-run-inner-request-differs",
+                )
             require(
                 all(
                     request[k] == p["item"][k]
@@ -855,6 +900,30 @@ class PlannedQueryService:
             result = self._execute(
                 ledger.root, query, target["backend"], before_spawn=gate
             )
+            if "run_authority" in row["request"]:
+                row["backend_observation"] = dict(
+                    query_id=query, backend_result_id=result
+                )
+                require(
+                    callable(self._check_result), "query-run-result-check-unconnected"
+                )
+
+                def final_run_check(phase):
+                    require(
+                        self._check_result(
+                            dict(
+                                project_ref=ref,
+                                principal=row["principal"],
+                                client_key=row["client_key"],
+                                offer=deepcopy(target),
+                                phase=phase,
+                            )
+                        )
+                        is True,
+                        "query-run-result-check-refused",
+                    )
+
+                final_run_check("after-backend-capture")
             finished = ledger.event(result, "ActionFinished")
             attempt = ledger.event(finished["attempt_id"], "ActionStarted")
             require(
@@ -867,9 +936,15 @@ class PlannedQueryService:
             completed = set(state.backends_for(target["arguments"])) == {
                 s["backend"] for s in children
             } and not any(s["event_id"] in ledger.pending() for s in children)
+            if "run_authority" in row["request"]:
+                final_run_check("before-query-completion")
             query_result = ledger.complete_query(query) if completed else None
             if completed:
+                if "run_authority" in row["request"]:
+                    final_run_check("before-extraction")
                 ledger.extract()
+            if "run_authority" in row["request"]:
+                final_run_check("after-extraction")
             row.update(
                 status="completed",
                 result=dict(

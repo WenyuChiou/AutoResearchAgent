@@ -26,6 +26,7 @@ from stage1_deliverable.common import (
     sha,
 )
 from stage1_ledger.journal import decode
+from . import project_model_run as run_adapter
 from .session_api import MAX_MODEL_INPUT_BYTES, SessionApiError, _check
 from .stage_run_service import StageUnitProvider
 from .transport import validate_answer
@@ -33,13 +34,22 @@ from .project_resource_budget import reserve_resource, resource_view
 from .project_model_recovery import public_retirement, retired, retire
 from .project_model_reading import (
     READ_OPERATION,
-    READ_SCOPE,
-    reading_prompt,
     saved_reading_snapshot,
-    validate_reading_draft,
 )
 
-OPERATIONS = {"suggest-topic", "plan-search", READ_OPERATION}
+from .project_full_reading import FULL_READ_OPERATION, saved_full_reading_snapshot
+from .project_full_analysis import ANALYZE_OPERATION, saved_full_analysis_snapshot
+from .project_reading_dispatch import (
+    READING_OPERATIONS,
+    FULL_SOURCE_OPERATIONS,
+    reading_scope,
+    model_reading_prompt,
+    model_reading_draft,
+    reading_metadata,
+)
+from .model_input_profile import FULL_SOURCE_PROFILE, turn_input
+
+OPERATIONS = {"suggest-topic", "plan-search", *READING_OPERATIONS}
 PERMIT_FIELDS = {
     "kind",
     "schema_version",
@@ -187,8 +197,8 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
         .isoformat()
     )
     prompt = (
-        reading_prompt(snapshot)
-        if permit["operation"] == READ_OPERATION
+        model_reading_prompt(snapshot)
+        if permit["operation"] in READING_OPERATIONS
         else _prompt(permit["operation"], binding, as_of)
     )
     context = {
@@ -215,6 +225,10 @@ def _offer_record(binding, permit, permit_sha256, project_ref, snapshot=None):
             snapshot_sha256=sha(canonical(snapshot)),
             work_ref=permit["work_ref"],
         )
+    if permit["operation"] in FULL_SOURCE_OPERATIONS:
+        context["input_profile"] = FULL_SOURCE_PROFILE
+    if "run_request" in permit:
+        context["run_request"] = deepcopy(permit["run_request"])
     context["source_sha256"] = sha(canonical(context))
     offer_hash = sha(canonical(context))
     return dict(
@@ -245,12 +259,17 @@ class ProjectModelService:
         model=None,
         local_cap_seconds=600,
         reading_records=None,
+        run_grants=None,
+        analysis_coverage=False,
     ):
         _check(
             provider_factory is None or callable(provider_factory),
             "model-provider-factory-invalid",
         )
         self.intake, self.factory = intake, provider_factory
+        self.run_grants = run_adapter.configured(intake, run_grants)
+        _check(type(analysis_coverage) is bool, "model-analysis-coverage-mode-invalid")
+        self.analysis_coverage = analysis_coverage
         self.clock, self.monotonic = clock, monotonic
         _check(
             model is None
@@ -291,6 +310,110 @@ class ProjectModelService:
         return saved_reading_snapshot(
             self.reading_records, ref, work_ref, check_deadline=check_deadline
         )
+
+    def _operation_reading_snapshot(
+        self, operation, ref, work_ref, check_deadline=None, *, analysis_version=None
+    ):
+        if operation == ANALYZE_OPERATION:
+            version = analysis_version
+            if version is None:
+                version = "1.1.0" if self.analysis_coverage else "1.0.0"
+            _check(
+                type(version) is str and version in {"1.0.0", "1.1.0"},
+                "model-analysis-version-invalid",
+            )
+            return saved_full_analysis_snapshot(
+                self.reading_records,
+                ref,
+                work_ref,
+                check_deadline=check_deadline,
+                coverage=version == "1.1.0",
+            )
+        if operation == FULL_READ_OPERATION:
+            return saved_full_reading_snapshot(
+                self.reading_records, ref, work_ref, check_deadline=check_deadline
+            )
+        return self._reading_snapshot(ref, work_ref, check_deadline)
+
+    def full_reading_offer(self, credential, project_ref, work_ref, **expected):
+        return self._full_source_offer(
+            credential, project_ref, work_ref, FULL_READ_OPERATION, **expected
+        )
+
+    def full_analysis_offer(self, credential, project_ref, work_ref, **expected):
+        """Passive proposal eligibility; no operation permission is created."""
+        return self._full_source_offer(
+            credential, project_ref, work_ref, ANALYZE_OPERATION, **expected
+        )
+
+    def _full_source_offer(
+        self,
+        credential,
+        project_ref,
+        work_ref,
+        operation,
+        *,
+        expected_input_version,
+        expected_ledger_state_sha256,
+        check_deadline=None,
+    ):
+        """Passive full-source eligibility; no permit, reservation or model call."""
+        principal = self.intake._principal(credential)
+        with self.intake._lock:
+            self.intake._load(principal, project_ref)
+            result = dict(
+                kind=(
+                    "Stage1FullSourceAnalysisOfferPreview"
+                    if operation == ANALYZE_OPERATION
+                    else "Stage1FullSourceReadingOfferPreview"
+                ),
+                schema_version="1.0.0",
+                project_ref=project_ref,
+                work_ref=work_ref,
+                operation=operation,
+                available=False,
+                snapshot_sha256=None,
+                blocked_reason=None,
+                authorization_required=True,
+                execution_authorized=False,
+                scientific_acceptance=False,
+            )
+            if (
+                self.factory is None
+                or self.model is None
+                or self.reading_records is None
+            ):
+                return dict(
+                    result, blocked_reason="reading-model-or-records-unconnected"
+                )
+            try:
+                snapshot = self._operation_reading_snapshot(
+                    operation, project_ref, work_ref, check_deadline
+                )
+                meta = reading_metadata(snapshot)
+                _check(
+                    type(expected_input_version) is int
+                    and meta["input_version"] == expected_input_version
+                    and meta["ledger_state_sha256"] == expected_ledger_state_sha256,
+                    "reading-library-snapshot-stale",
+                )
+                model_reading_prompt(snapshot)
+                result.update(
+                    available=True,
+                    snapshot_sha256=sha(canonical(snapshot)),
+                    source_count=len(meta["sources"]),
+                    source_failures_count=len(meta["source_failures"]),
+                    identity_statuses=sorted(
+                        {s["identity_status"] for s in meta["sources"]}
+                    ),
+                    saved_text_bytes=sum(s["text_bytes"] for s in meta["sources"]),
+                    entire_saved_text_shown=True,
+                )
+            except SessionApiError as error:
+                result["blocked_reason"] = error.code
+            except (ValueError, OSError, KeyError, TypeError, UnicodeError):
+                result["blocked_reason"] = "reading-saved-source-verification-failed"
+            return result
 
     def reading_offer(
         self,
@@ -334,7 +457,7 @@ class ProjectModelService:
                     and snapshot["ledger_state_sha256"] == expected_ledger_state_sha256,
                     "reading-library-snapshot-stale",
                 )
-                reading_prompt(snapshot)
+                model_reading_prompt(snapshot)
                 result.update(
                     available=True,
                     snapshot_sha256=sha(canonical(snapshot)),
@@ -516,11 +639,13 @@ class ProjectModelService:
             == PERMIT_FIELDS
             | (
                 {"work_ref", "snapshot_sha256"}
-                if operation == READ_OPERATION
+                if operation in READING_OPERATIONS
                 else set()
             )
+            | ({"run_request"} if permit.get("schema_version") == "1.1.0" else set())
             and permit["kind"] == "ProjectModelOperationPermit"
-            and permit["schema_version"] == "1.0.0",
+            and type(permit["schema_version"]) is str
+            and permit["schema_version"] in {"1.0.0", "1.1.0"},
             "model-permit-fields",
         )
         binding = self.intake.brief_binding(
@@ -540,8 +665,8 @@ class ProjectModelService:
             permit["allow_model_calls"] is True
             and permit["execution_scope"]
             == (
-                READ_SCOPE
-                if operation == READ_OPERATION
+                reading_scope(operation)
+                if operation in READING_OPERATIONS
                 else "project-content-planning-only"
             )
             and permit["external_search"] is False
@@ -570,9 +695,32 @@ class ProjectModelService:
         principal = permit["principal"]
         with self.intake._lock:
             self.intake._load(principal, project_ref)
+        run_adapter.check_permit(self, project_ref, permit, permit_sha256)
         snapshot = None
-        if operation == READ_OPERATION:
-            snapshot = self._reading_snapshot(project_ref, permit["work_ref"])
+        if operation in READING_OPERATIONS:
+            analysis_version = None
+            if operation == ANALYZE_OPERATION:
+                with self.intake._lock:
+                    state = self.intake._load(principal, project_ref)
+                    offers = [
+                        o
+                        for o in self._row(state)["offers"].values()
+                        if o["context"]["permit_sha256"] == permit_sha256
+                    ]
+                    _check(len(offers) <= 1, "model-analysis-permit-ambiguous")
+                    # Existing saved offers select their own format across restart.
+                    # An external legacy permit carries no analysis-format field.
+                    analysis_version = (
+                        offers[0]["context"]["saved_reading"]["schema_version"]
+                        if offers
+                        else "1.0.0"
+                    )
+            snapshot = self._operation_reading_snapshot(
+                operation,
+                project_ref,
+                permit["work_ref"],
+                analysis_version=analysis_version,
+            )
             _check(
                 permit["snapshot_sha256"] == sha(canonical(snapshot)),
                 "reading-permit-snapshot-differs",
@@ -608,7 +756,15 @@ class ProjectModelService:
         )
         return self._public_offer(record)
 
-    def authorize(self, credential, project_ref, body, *, check_deadline=None):
+    def authorize(
+        self,
+        credential,
+        project_ref,
+        body,
+        *,
+        check_deadline=None,
+        run_authorization=None,
+    ):
         """Explicit local researcher authorization; never starts a model unit.
 
         A draft resource request alone supplies no authority. This action binds
@@ -625,7 +781,11 @@ class ProjectModelService:
             "confirmed",
             "user_input",
         }
-        if type(body) is dict and body.get("operation") == READ_OPERATION:
+        if (
+            type(body) is dict
+            and type(body.get("operation")) is str
+            and body.get("operation") in READING_OPERATIONS
+        ):
             fields.update({"work_ref", "snapshot_sha256"})
         _check(
             type(body) is dict
@@ -634,11 +794,26 @@ class ProjectModelService:
             "model-authorization-fields",
             400,
         )
+        guard = run_adapter.request(
+            self,
+            credential,
+            project_ref,
+            body,
+            run_authorization,
+            action="model-authorize",
+            operation=body["operation"],
+        )
+        if guard is not None:
+            check_deadline = guard.deadline_check(check_deadline)
         identifier(body["key"])
         _check(
             type(body["operation"]) is str
             and body["operation"] in OPERATIONS
-            and body["confirmed"] is True
+            and (
+                body["confirmed"] is True
+                if guard is None
+                else body["confirmed"] is False
+            )
             and type(body["user_input"]) is str
             and body["user_input"].strip()
             and len(body["user_input"].encode("utf8")) <= 8192,
@@ -664,8 +839,10 @@ class ProjectModelService:
             )
             digest = budget_digest(binding)
             snapshot = (
-                self._reading_snapshot(project_ref, body["work_ref"], check_deadline)
-                if body["operation"] == READ_OPERATION
+                self._operation_reading_snapshot(
+                    body["operation"], project_ref, body["work_ref"], check_deadline
+                )
+                if body["operation"] in READING_OPERATIONS
                 else None
             )
             if snapshot is not None:
@@ -707,6 +884,8 @@ class ProjectModelService:
                     scope["calls"] < budgets["model_calls"], "model-budget-exhausted"
                 )
                 seconds = min(seconds, math.floor(scope["deadline_at"] - self.clock()))
+            if guard is not None:
+                seconds = min(seconds, guard.remaining_seconds())
             _check(seconds > 0, "model-budget-exhausted")
             permit = dict(
                 kind="ProjectModelOperationPermit",
@@ -725,7 +904,7 @@ class ProjectModelService:
                     self.clock() + seconds, timezone.utc
                 ).isoformat(),
                 allow_model_calls=True,
-                execution_scope=READ_SCOPE
+                execution_scope=reading_scope(body["operation"])
                 if snapshot is not None
                 else "project-content-planning-only",
                 external_search=False,
@@ -735,6 +914,7 @@ class ProjectModelService:
                 permit.update(
                     work_ref=body["work_ref"], snapshot_sha256=sha(canonical(snapshot))
                 )
+            permit.update(run_adapter.permit_fields(guard))
             raw = canonical(permit) + b"\n"
             name = "content-permit-" + request_hash + ".json"
             record = _offer_record(binding, permit, sha(raw), project_ref, snapshot)
@@ -769,7 +949,7 @@ class ProjectModelService:
             principal,
             project_ref,
             "model-authorization",
-            deepcopy(body),
+            deepcopy(body) if guard is None else deepcopy(guard.request),
             work,
             check_deadline=check_deadline,
         )
@@ -835,11 +1015,11 @@ class ProjectModelService:
             "scope": "content-only; no search or source acquisition",
             "confirmation_required": True,
         }
-        if context["operation"] == READ_OPERATION:
+        if context["operation"] in READING_OPERATIONS:
             result.update(
                 work_ref=context["work_ref"],
                 snapshot_sha256=context["snapshot_sha256"],
-                scope=READ_SCOPE,
+                scope=reading_scope(context["operation"]),
                 core_claims_created=False,
             )
         return result
@@ -865,6 +1045,9 @@ class ProjectModelService:
             sha(registration["path"].read_bytes()) == registration["permit_sha256"],
             "model-permit-changed",
         )
+        run_adapter.check_permit(
+            self, ref, registration["permit"], registration["permit_sha256"]
+        )
         if not allow_expired:
             _check(self.clock() < registration["expires"], "model-permit-expired")
         binding = self.intake.brief_binding(
@@ -878,8 +1061,15 @@ class ProjectModelService:
             and binding["settings"] == offer["context"]["settings"],
             "model-source-version-differs",
         )
-        if offer["context"]["operation"] == READ_OPERATION:
-            snapshot = self._reading_snapshot(ref, offer["context"]["work_ref"])
+        if offer["context"]["operation"] in READING_OPERATIONS:
+            snapshot = self._operation_reading_snapshot(
+                offer["context"]["operation"],
+                ref,
+                offer["context"]["work_ref"],
+                analysis_version=offer["context"]["saved_reading"]["schema_version"]
+                if offer["context"]["operation"] == ANALYZE_OPERATION
+                else None,
+            )
             _check(
                 snapshot == offer["context"]["saved_reading"]
                 and sha(canonical(snapshot)) == offer["context"]["snapshot_sha256"],
@@ -1009,6 +1199,7 @@ class ProjectModelService:
                 "work_ref",
                 "snapshot_sha256",
                 "reading_draft",
+                "analysis_draft",
             )
             if k in job
         }
@@ -1419,7 +1610,15 @@ class ProjectModelService:
             credential, project_ref, "interrupt", body, check_deadline
         )
 
-    def execute(self, credential, project_ref, body, *, check_deadline=None):
+    def execute(
+        self,
+        credential,
+        project_ref,
+        body,
+        *,
+        check_deadline=None,
+        run_authorization=None,
+    ):
         _check(
             type(body) is dict
             and set(body) == BODY_FIELDS
@@ -1437,8 +1636,8 @@ class ProjectModelService:
             "model-action-binding-invalid",
             400,
         )
-        _check(body["confirmed"] is True, "model-explicit-confirmation-required", 400)
         principal = self.intake._principal(credential)
+        guard = None
         with self.intake._lock:
             state = self.intake._load(principal, project_ref)
             offer = deepcopy(
@@ -1455,6 +1654,30 @@ class ProjectModelService:
             and body["brief_sha256"] == offer["context"]["brief_sha256"],
             "model-action-input-differs",
         )
+        guard = run_adapter.request(
+            self,
+            credential,
+            project_ref,
+            body,
+            run_authorization,
+            action="model-execute",
+            operation=offer["context"]["operation"],
+        )
+        _check(
+            body["confirmed"] is True if guard is None else body["confirmed"] is False,
+            "model-explicit-confirmation-required",
+            400,
+        )
+        if guard is not None:
+            _check(
+                offer["context"]
+                .get("run_request", {})
+                .get("run_authority", {})
+                .get("grant_sha256")
+                == guard.token.grant_sha256,
+                "model-run-offer-grant-differs",
+            )
+            check_deadline = guard.deadline_check(check_deadline)
         key = body["key"]
 
         def reserve(state, request_hash, actor):
@@ -1517,6 +1740,8 @@ class ProjectModelService:
                 and scope["calls"] < budgets["model_calls"],
                 "model-budget-exhausted",
             )
+            if guard is not None:
+                deadline = min(deadline, self.clock() + guard.remaining_seconds())
             started_at = self.clock()
             reserve_resource(
                 self.intake,
@@ -1562,7 +1787,9 @@ class ProjectModelService:
                 owner=self._tokens[project_ref],
             )
             job = row["jobs"][key]
-            if offer["context"]["operation"] == READ_OPERATION:
+            if guard is not None:
+                job["run_request"] = deepcopy(guard.request)
+            if offer["context"]["operation"] in READING_OPERATIONS:
                 job.update(
                     work_ref=offer["context"]["work_ref"],
                     snapshot_sha256=offer["context"]["snapshot_sha256"],
@@ -1583,7 +1810,7 @@ class ProjectModelService:
             principal,
             project_ref,
             "model-operation",
-            deepcopy(body),
+            deepcopy(body) if guard is None else deepcopy(guard.request),
             queued,
             reserve=reserve,
             check_deadline=check_deadline,
@@ -1625,6 +1852,7 @@ class ProjectModelService:
             "model-admission-binding-differs",
         )
         self._guard(ref, offer)
+        run_adapter.check_job(self, principal, ref, key)
 
         def admit(state):
             resource_view(self.intake, state, principal)
@@ -1659,16 +1887,14 @@ class ProjectModelService:
                     "model-native-action-refused",
                 )
                 if method == "turn/start":
+                    expected = turn_input(
+                        offer["prompt"], offer["context"].get("input_profile")
+                    )
                     _check(
                         payload.get("model") == offer["context"]["model"]
-                        and payload.get("input")
-                        == [
-                            {
-                                "type": "text",
-                                "text": offer["prompt"],
-                                "text_elements": [],
-                            }
-                        ],
+                        and payload.get("input") == expected["input"]
+                        and payload.get("additionalContext")
+                        == expected.get("additionalContext"),
                         "model-native-prompt-differs",
                     )
                 elif method.endswith("requestApproval"):
@@ -1684,6 +1910,7 @@ class ProjectModelService:
     def _run(self, principal, ref, key, offer):
         provider: StageUnitProvider | None = None
         try:
+            run_adapter.check_job(self, principal, ref, key)
             self._guard(ref, offer)
 
             def running(state):
@@ -1701,6 +1928,7 @@ class ProjectModelService:
                 principal, ref, self._job(principal, ref, key), create=True
             )
             self._guard(ref, offer)
+            run_adapter.check_job(self, principal, ref, key)
             provider = self.factory(
                 context=context,
                 admit=lambda event: self._admit(principal, ref, key, offer, event),
@@ -1749,21 +1977,30 @@ class ProjectModelService:
                 "status": "content-review-pending",
                 "finished_at": self.clock(),
             }
-            if offer["context"]["operation"] == READ_OPERATION:
+            if offer["context"]["operation"] in READING_OPERATIONS:
                 try:
-                    draft = validate_reading_draft(
-                        raw, offer["context"]["saved_reading"]
-                    )
+                    draft = model_reading_draft(raw, offer["context"]["saved_reading"])
+                    analysis = offer["context"]["operation"] == ANALYZE_OPERATION
                     artifact = _write_new(
-                        folder / "reading-draft.json", canonical(draft) + b"\n"
+                        folder
+                        / ("analysis-draft.json" if analysis else "reading-draft.json"),
+                        canonical(draft) + b"\n",
                     )
-                    result["reading_draft"] = {
+                    result["analysis_draft" if analysis else "reading_draft"] = {
                         **artifact,
                         "snapshot_sha256": draft["snapshot_sha256"],
                         "work_id": draft["work_id"],
                         "version_id": draft["version_id"],
-                        "evidence_count": len(draft["draft"]["evidence"]),
-                        "evidence_validation": draft["evidence_validation"],
+                        "evidence_count": len(
+                            draft["reading"]["evidence"]
+                            if analysis
+                            else draft["draft"]["evidence"]
+                        ),
+                        "evidence_validation": (
+                            "exact-complete-source-UTF8-spans-only"
+                            if analysis
+                            else draft["evidence_validation"]
+                        ),
                         "researcher_acceptance": False,
                         "core_claims_created": False,
                     }

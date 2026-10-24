@@ -28,7 +28,9 @@ from .project_ui_overlay import (
     PANEL,
     PANEL_CSP,
     PARENT_CSP,
+    SOURCE_HTML_CSP,
     install_project_overlay,
+    saved_stage1_views,
     stage2_example_views,
 )
 from .project_stage1_library import ProjectStage1LibraryService
@@ -164,6 +166,7 @@ class ProjectHost(AtlasHost):
                 "projects-stage2-readings.js",
                 "project-operations.js",
                 "project-operations.css",
+                "project-saved-views.js",
                 "project-stage2-selection.html",
                 "project-stage2-selection.js",
                 "project-stage2-selection.css",
@@ -172,6 +175,14 @@ class ProjectHost(AtlasHost):
         atlas_shell = shell_assets(ASSETS)
         example_assets, self.stage2_examples, self.stage2_example_routes = (
             stage2_example_views(options["files"], options["views"])
+        )
+        saved_assets, self.saved_stage1_references, self.saved_stage1_routes = (
+            saved_stage1_views(options["files"], options["views"])
+        )
+        self.saved_stage1_source_html_routes = frozenset(
+            path
+            for path in saved_assets
+            if path.endswith(".html") and path not in self.saved_stage1_routes
         )
         self.projects, self.project_models, self.project_stage2 = (
             projects,
@@ -269,9 +280,10 @@ class ProjectHost(AtlasHost):
         self._assets.update(project_assets)
         self._assets.update(atlas_shell)
         self._assets.update(example_assets)
+        self._assets.update(saved_assets)
         self._assets.update(reading_assets)
         self.project_panel_parents = install_project_overlay(
-            self._assets, self.views, ASSETS
+            self._assets, self.views, ASSETS, self.saved_stage1_references
         )
         # No package is invented for a new project. Existing saved views keep
         # their original entry and renderer, with operations in a lazy drawer.
@@ -300,6 +312,7 @@ class ProjectHost(AtlasHost):
             project_stage2_reading_references=self.stage2_readings,
             project_stage2_operator_continuation=bool(controllers),
             project_execution_authority=False,
+            project_saved_stage1_references=self.saved_stage1_references,
             project_operations_presentation="additive-v6-drawer",
             project_home_route=self.views[0]["url"] if self.views else "/projects.html",
         )
@@ -321,12 +334,28 @@ class ProjectHost(AtlasHost):
         finally:
             super().server_close()
 
-    def continue_stage1(self, credential, ref, *, run_id, deadline, max_actions=32):
+    def continue_stage1(
+        self,
+        credential,
+        ref,
+        *,
+        run_id,
+        deadline,
+        max_actions=32,
+        run_grants=None,
+        grant_ref=None,
+        grant_sha256=None,
+    ):
         """Trusted operator continuation; does not register grants or start Stage2."""
         from .project_stage1_auto import ProjectStage1AutoDriver
 
         return ProjectStage1AutoDriver(self, credential, ref).run(
-            run_id=run_id, deadline=deadline, max_actions=max_actions
+            run_id=run_id,
+            deadline=deadline,
+            max_actions=max_actions,
+            run_grants=run_grants,
+            grant_ref=grant_ref,
+            grant_sha256=grant_sha256,
         )
 
     def continue_stage2(self, credential, ref, *, key):
@@ -411,13 +440,18 @@ class ProjectHost(AtlasHost):
 class ProjectHandler(AtlasHandler):
     def send_header(self, keyword, value):
         if keyword.lower() == "content-security-policy":
-            if self.path == PANEL:
+            if self.path in self.server.saved_stage1_source_html_routes:
+                value = SOURCE_HTML_CSP
+            elif self.path == PANEL:
                 value = PANEL_CSP
             elif self.path == "/project-atlas.html":
                 value = value.replace(
                     "frame-ancestors 'none'", "frame-ancestors 'self'"
                 )
-            elif self.path in self.server.stage2_example_routes:
+            elif (
+                self.path in self.server.stage2_example_routes
+                or self.path in self.server.saved_stage1_routes
+            ):
                 value = value.replace(
                     "frame-ancestors 'none'", "frame-ancestors 'self'"
                 )

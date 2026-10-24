@@ -32,7 +32,16 @@ def unresolved(service, ref, actor, version):
     return [
         row
         for raw in rows
-        if (row := json.loads(raw[0]))["kind"] in {"stage1-coverage", "stage1-claim"}
+        if (row := json.loads(raw[0]))["kind"]
+        in {
+            "stage1-coverage",
+            "stage1-claim",
+            "stage1-agent-pending",
+            "stage1-agent-analysis",
+            "stage1-agent-coverage",
+            "stage1-checkpoint",
+            "stage1-deliver",
+        }
         and row["status"] in {"intent-recorded", "execution-unknown"}
         and row["request"]["input_version"] == version
     ]
@@ -243,7 +252,9 @@ def prepare(ledger, binding, run, report, body, actor):
             candidate_event_id=document["candidate_event_id"],
             decision_event_id=document["decision_event_id"],
             scope="reviewer-attestation",
-            replaces_event_id=(document["current_review"] or {}).get("event_id"),
+            replaces_event_id=(
+                ledger.coverage_state().evidence.reviews.get(document["work_ref"]) or {}
+            ).get("event_id"),
         )
         method = "review_work"
     elif operation == "receipt":
