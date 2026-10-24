@@ -290,6 +290,7 @@ class ProjectIntakeService:
                         "stage1-claim",
                         "stage1-agent-pending",
                         "stage1-agent-analysis",
+                        "stage1-agent-coverage",
                         "stage2-select",
                     }
                     else "failed",
@@ -305,6 +306,7 @@ class ProjectIntakeService:
                     "stage1-claim",
                     "stage1-agent-pending",
                     "stage1-agent-analysis",
+                    "stage1-agent-coverage",
                     "stage2-select",
                 }:
                     # A Core append can succeed before its producer raises.

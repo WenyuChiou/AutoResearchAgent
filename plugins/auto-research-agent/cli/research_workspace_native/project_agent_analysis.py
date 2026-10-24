@@ -370,6 +370,31 @@ class ProjectStage1AnalysisService:
     def register(
         self, credential, ref, body, *, run_authorization, check_deadline=None
     ):
+        return self._register_adoption(
+            credential,
+            ref,
+            body,
+            adoption_kind="stage1-agent-analysis",
+            run_authorization=run_authorization,
+            check_deadline=check_deadline,
+        )
+
+    def _register_adoption(
+        self,
+        credential,
+        ref,
+        body,
+        *,
+        adoption_kind,
+        run_authorization,
+        check_deadline=None,
+    ):
+        # Only trusted Python services select the durable receipt kind; the
+        # caller body and typed run authority remain exact and unchanged.
+        _check(
+            adoption_kind in {"stage1-agent-analysis", "stage1-agent-coverage"},
+            "stage1-agent-adoption-kind-invalid",
+        )
         # A separate action after adoption commit; never nest intake transactions.
         _fields(
             body,
@@ -404,7 +429,7 @@ class ProjectStage1AnalysisService:
             )
             saved = decode(row[1].encode(), "saved analysis adoption")
             _check(
-                saved["kind"] == "stage1-agent-analysis"
+                saved["kind"] == adoption_kind
                 and saved["status"] == "saved"
                 and saved["request_sha256"]
                 == row[0]

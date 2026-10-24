@@ -86,7 +86,12 @@ def analysis_proposal(
 
 
 @contextmanager
-def analysis_run_fixture(*, proposal_builder=analysis_proposal, long_source=False):
+def analysis_run_fixture(
+    *,
+    proposal_builder=analysis_proposal,
+    long_source=False,
+    analysis_coverage=False,
+):
     """Yield one completed saved job plus its real adoption/authority services."""
     original_submit = delivery_fixture.submit_body
     original_records = package_fixture.ResearchDeliverableTests.make_records
@@ -169,6 +174,7 @@ def analysis_run_fixture(*, proposal_builder=analysis_proposal, long_source=Fals
             local_cap_seconds=30,
             clock=lambda: 1_900_000_000,
             reading_records=case.producer,
+            analysis_coverage=analysis_coverage,
         )
         try:
 
