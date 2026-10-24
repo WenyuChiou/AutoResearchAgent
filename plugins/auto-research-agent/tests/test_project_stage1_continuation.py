@@ -320,6 +320,56 @@ class ProjectStage1ContinuationTests(unittest.TestCase):
             ("no-frontier-progress", 1, 1),
         )
 
+    def test_trusted_alternate_key_reopens_actual_receipts_and_replays(self):
+        expected = []
+
+        def key_for(action):
+            key = (
+                "stage1-run-action-"
+                + sha(canonical([action.kind, action.identity]))[:40]
+                + "-work"
+            )
+            expected.append(key)
+            return key
+
+        result = self.run_slice(key_for_action=key_for)
+        self.assertEqual(
+            (result["status"], result["reason"], result["action_count"]),
+            ("barrier", "core-review", 2),
+        )
+        self.assertEqual([row["key"] for row in result["actions"]], expected)
+        self.assertEqual([row[0] for row in self.writes], expected)
+        for key in expected:
+            self.assertEqual(
+                self.intake.action("fixture", key, project_ref=self.ref)["status"],
+                "saved",
+            )
+        again = self.run_slice(key_for_action=key_for)
+        self.assertEqual(again["action_count"], 0)
+        self.assertEqual(len(self.writes), 2)
+
+    def test_alternate_key_never_substitutes_handler_return_for_receipt(self):
+        result = self.run_slice(
+            key_for_action=lambda action: "trusted-child-work",
+            handlers={"query": lambda *args: {"status": "saved"}},
+        )
+        self.assertEqual(
+            (result["reason"], result["action_count"]), ("durable-receipt-missing", 1)
+        )
+        self.assertEqual(self.writes, [])
+
+    def test_alternate_key_requires_trusted_callable_and_bounded_string(self):
+        for resolver in (
+            {},
+            "caller-json",
+            lambda action: None,
+            lambda action: "",
+            lambda action: "x" * 257,
+        ):
+            with self.subTest(resolver=repr(resolver)), self.assertRaises(ValueError):
+                self.run_slice(key_for_action=resolver)
+        self.assertEqual(self.writes, [])
+
     def test_same_action_identity_keeps_key_across_changed_frontier(self):
         def still_query():
             current = self.snapshot()
