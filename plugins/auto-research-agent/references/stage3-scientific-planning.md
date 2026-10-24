@@ -311,3 +311,10 @@ dimensions were assessable. Invalid judgment JSON/fields produce an immutable
 Hash/source mismatches refuse ingestion; original input files remain untouched.
 If a record exceeds storage bounds or cannot be written, retain the original
 inputs and inspect any incomplete output; the command does not report success.
+
+## Offline campaign preparation
+
+campaign-prepare and campaign-inspect use an externally pinned definition and
+private immutable output. Source-verified saved-plan requests retain every SQ;
+subject and assessor display orders are separate. Unrun inputs remain declared-
+unverified. Preparation never invokes a subject/judge or changes authority.
