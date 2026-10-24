@@ -230,6 +230,19 @@ class Stage2ReadingTests(unittest.TestCase):
             self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
             self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
             self.assertIn(b"Return to workspace", raw)
+            for language, title in (
+                ("zh-Hant", "Stage 2 方向決策卡"),
+                ("zh-Hans", "Stage 2 方向决策卡"),
+            ):
+                code, localized_headers, localized = get(
+                    f"/project-stage2-readings/saved-report/index.{language}.html"
+                )
+                self.assertEqual(code, 200)
+                self.assertIn(title.encode(), localized)
+                self.assertEqual(
+                    localized_headers["Content-Security-Policy"],
+                    headers["Content-Security-Policy"],
+                )
             css_code, _, css = get("/project-stage2-readings/saved-report/reading.css")
             self.assertEqual(css_code, 200)
             self.assertEqual(css, b".stage2-reading-nav{flex-wrap:wrap}")
@@ -243,7 +256,13 @@ class Stage2ReadingTests(unittest.TestCase):
             self.assertFalse(bootstrap["stage2"])
             self.assertEqual(bootstrap["stage2_selection_projects"], [])
             self.assertEqual(bootstrap["stage2_readings"][0]["ref"], "saved-report")
-            for suffix in ("selection.html", "private.txt", "../foreign/index.html"):
+            for suffix in (
+                "selection.html",
+                "private.txt",
+                "../foreign/index.html",
+                "index.fr.html",
+                "index.zh-Hant.js",
+            ):
                 self.assertEqual(
                     get("/project-stage2-readings/saved-report/" + suffix)[0], 404
                 )

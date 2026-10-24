@@ -44,9 +44,13 @@ def _md_list(values, empty="None recorded"):
     return "\n".join(f"- {_md(value)}" for value in values) or f"- {_md(empty)}"
 
 
-def _html_list(values, empty="None recorded"):
+def _label(value, ui_text):
+    return escape((ui_text or {}).get(value, value), quote=True)
+
+
+def _html_list(values, empty="None recorded", *, ui_text=None):
     rows = "".join(f"<li>{_html(value)}</li>" for value in values)
-    return f"<ul>{rows or '<li>' + _html(empty) + '</li>'}</ul>"
+    return f"<ul>{rows or '<li>' + _label(empty, ui_text) + '</li>'}</ul>"
 
 
 def _resource_markdown(use):
@@ -86,7 +90,7 @@ def _resource_markdown(use):
     return "\n".join(lines)
 
 
-def _resource_html(use):
+def _resource_html(use, ui_text=None):
     resource = use["resource"]
     ref = use.get("resource_ref")
     fit = ref.get("fit_status") if isinstance(ref, dict) else "unmapped"
@@ -120,15 +124,16 @@ def _resource_html(use):
         ("Resource source", use.get("resource_source", use.get("source"))),
     ]
     items = "".join(
-        f"<dt>{escape(label)}</dt><dd>{_html(value)}</dd>" for label, value in details
+        f"<dt>{_label(label, ui_text)}</dt><dd>{_html(value)}</dd>"
+        for label, value in details
     )
-    limitations = _html_list(resource.get("limitations", []))
-    alternatives = _html_list(resource.get("alternatives", []))
+    limitations = _html_list(resource.get("limitations", []), ui_text=ui_text)
+    alternatives = _html_list(resource.get("alternatives", []), ui_text=ui_text)
     return (
         '<article class="decision-resource">'
         f"<h5>{_html(resource.get('category'))}: {_html(resource.get('name'))}</h5>"
-        f"<dl>{items}</dl><h6>Limitations</h6>{limitations}"
-        f"<h6>Alternatives</h6>{alternatives}</article>"
+        f"<dl>{items}</dl><h6>{_label('Limitations', ui_text)}</h6>{limitations}"
+        f"<h6>{_label('Alternatives', ui_text)}</h6>{alternatives}</article>"
     )
 
 
@@ -143,12 +148,12 @@ def _claim_markdown(claim):
     )
 
 
-def _claim_html(claim):
+def _claim_html(claim, ui_text=None):
     return (
         '<article class="decision-contribution">'
         f"<h5>{_html(claim.get('text'))}</h5><dl>"
-        f"<dt>Status</dt><dd>{_html(claim.get('status'))}</dd>"
-        "<dt>Question IDs</dt><dd>"
+        f"<dt>{_label('Status', ui_text)}</dt><dd>{_html(claim.get('status'))}</dd>"
+        f"<dt>{_label('Question IDs', ui_text)}</dt><dd>"
         f"{_html(', '.join(claim.get('question_ids', [])) or None)}</dd>"
         "</dl></article>"
     )
@@ -177,31 +182,34 @@ def _prior_work_markdown(prior):
     return "\n".join(lines)
 
 
-def _prior_work_html(prior):
+def _prior_work_html(prior, ui_text=None):
     review = prior.get("review")
     if not isinstance(review, dict):
-        return "<p>Not recorded for this candidate version.</p>"
+        return f"<p>{_label('Not recorded for this candidate version.', ui_text)}</p>"
     comparisons = []
     for row in review.get("comparisons", []):
         comparisons.append(
             '<article class="decision-precedent">'
             f"<h4>{_html(row.get('work_id'))} / {_html(row.get('version_id'))}</h4>"
             "<dl>"
-            f"<dt>Role</dt><dd>{_html(row.get('role'))}</dd>"
-            f"<dt>Established</dt><dd>{_html(row.get('established'))}</dd>"
-            f"<dt>Overlap</dt><dd>{_html(row.get('overlap'))}</dd>"
-            f"<dt>Difference</dt><dd>{_html(row.get('difference'))}</dd>"
-            "<dt>Evidence IDs</dt><dd>"
+            f"<dt>{_label('Role', ui_text)}</dt><dd>{_html(row.get('role'))}</dd>"
+            f"<dt>{_label('Established', ui_text)}</dt><dd>{_html(row.get('established'))}</dd>"
+            f"<dt>{_label('Overlap', ui_text)}</dt><dd>{_html(row.get('overlap'))}</dd>"
+            f"<dt>{_label('Difference', ui_text)}</dt><dd>{_html(row.get('difference'))}</dd>"
+            f"<dt>{_label('Evidence IDs', ui_text)}</dt><dd>"
             + _html(", ".join(row.get("evidence_ids", [])) or None)
             + "</dd>"
             "</dl></article>"
         )
     return (
         "<dl>"
-        f"<dt>Review status</dt><dd>{_html(review.get('review_status'))}</dd>"
-        f"<dt>Positioning</dt><dd>{_html(review.get('positioning'))}</dd>"
+        f"<dt>{_label('Review status', ui_text)}</dt><dd>{_html(review.get('review_status'))}</dd>"
+        f"<dt>{_label('Positioning', ui_text)}</dt><dd>{_html(review.get('positioning'))}</dd>"
         "</dl>"
-        + ("".join(comparisons) or "<p>No closest-work comparison recorded.</p>")
+        + (
+            "".join(comparisons)
+            or f"<p>{_label('No closest-work comparison recorded.', ui_text)}</p>"
+        )
     )
 
 
@@ -332,11 +340,13 @@ def render_decision_cards_markdown(cards):
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_decision_cards_html(cards):
+def render_decision_cards_html(cards, *, ui_text=None):
     """Render decision cards as an escaped, script-free HTML fragment."""
 
     rendered = [
-        '<section class="stage2-decision-cards"><h1>Stage 2 decision cards</h1>'
+        '<section class="stage2-decision-cards"><h1>'
+        + _label("Stage 2 decision cards", ui_text)
+        + "</h1>"
     ]
     for card in cards["cards"]:
         questions = []
@@ -345,42 +355,48 @@ def render_decision_cards_html(cards):
             status = question_card["resource_mapping_status"]
             uses = (
                 "".join(
-                    _resource_html(use)
+                    _resource_html(use, ui_text)
                     for use in question_card.get("resource_uses", [])
                 )
-                or "<p>None mapped for this candidate version.</p>"
+                or f"<p>{_label('None mapped for this candidate version.', ui_text)}</p>"
             )
             contributions = (
                 "".join(
-                    _claim_html(row) for row in question_card.get("contributions", [])
+                    _claim_html(row, ui_text)
+                    for row in question_card.get("contributions", [])
                 )
-                or "<p>None recorded.</p>"
+                or f"<p>{_label('None recorded.', ui_text)}</p>"
             )
             next_checks = _html_list(
-                [row.get("text") for row in question_card.get("next_checks", [])]
+                [row.get("text") for row in question_card.get("next_checks", [])],
+                ui_text=ui_text,
             )
             questions.append(
                 '<article class="decision-question">'
                 f"<h3>{_html(question.get('text'))}</h3><dl>"
-                f"<dt>Question ID</dt><dd>{_html(question.get('question_id'))}</dd>"
-                "<dt>Priority / status</dt><dd>"
+                f"<dt>{_label('Question ID', ui_text)}</dt><dd>{_html(question.get('question_id'))}</dd>"
+                f"<dt>{_label('Priority / status', ui_text)}</dt><dd>"
                 f"{_html(question.get('priority'))} / {_html(question.get('status'))}"
                 "</dd>"
-                f"<dt>Object</dt><dd>{_html(question.get('object'))}</dd>"
-                "<dt>Intended claim</dt><dd>"
+                f"<dt>{_label('Object', ui_text)}</dt><dd>{_html(question.get('object'))}</dd>"
+                f"<dt>{_label('Intended claim', ui_text)}</dt><dd>"
                 f"{_html(question.get('intended_claim'))}</dd>"
-                f"<dt>Resource mapping</dt><dd><strong>{_html(status)}</strong>; "
-                f"{_html(_MAPPING_NOTES[status])}</dd>"
-                f"</dl><h4>Contribution</h4>{contributions}"
-                f"<h4>Mapped resources</h4>{uses}<h4>Next checks</h4>{next_checks}"
+                f"<dt>{_label('Resource mapping', ui_text)}</dt><dd><strong>{_html(status)}</strong>; "
+                f"{_label(_MAPPING_NOTES[status], ui_text)}</dd>"
+                f"</dl><h4>{_label('Contribution', ui_text)}</h4>{contributions}"
+                f"<h4>{_label('Mapped resources', ui_text)}</h4>{uses}"
+                f"<h4>{_label('Next checks', ui_text)}</h4>{next_checks}"
                 "</article>"
             )
         question_html = "".join(questions) or (
-            "<p>No scientific questions are recorded for this candidate version.</p>"
+            f"<p>{_label('No scientific questions are recorded for this candidate version.', ui_text)}</p>"
         )
         unused = (
-            "".join(_resource_html(row) for row in card.get("unmapped_resources", []))
-            or "<p>None recorded.</p>"
+            "".join(
+                _resource_html(row, ui_text)
+                for row in card.get("unmapped_resources", [])
+            )
+            or f"<p>{_label('None recorded.', ui_text)}</p>"
         )
         alternatives = [
             alternative
@@ -393,35 +409,35 @@ def render_decision_cards_html(cards):
         }
         unassigned = (
             "".join(
-                _claim_html(claim)
+                _claim_html(claim, ui_text)
                 for claim in card.get("contribution", [])
                 if not any(
                     question_id in question_ids
                     for question_id in claim.get("question_ids", [])
                 )
             )
-            or "<p>None recorded.</p>"
+            or f"<p>{_label('None recorded.', ui_text)}</p>"
         )
         rendered.append(
             '<article class="decision-card">'
             f"<h2>{_html(card.get('candidate_id'))} "
             f"v{_html(card.get('candidate_version'))}</h2>"
-            "<p><strong>Candidate question:</strong> "
+            f"<p><strong>{_label('Candidate question:', ui_text)}</strong> "
             f"{_html(card.get('candidate_question'))}</p>"
-            f"<p><strong>Research mode:</strong> {_html(card.get('research_mode'))}</p>"
-            "<p><strong>Scientific argument:</strong> "
+            f"<p><strong>{_label('Research mode:', ui_text)}</strong> {_html(card.get('research_mode'))}</p>"
+            f"<p><strong>{_label('Scientific argument:', ui_text)}</strong> "
             f"{_html(card.get('scientific_argument_status'))}</p>"
-            "<h3>Closest precedent</h3>"
-            f"{_prior_work_html(card.get('closest_prior_work', {}))}"
-            f"<h3>Scientific questions</h3>{question_html}"
-            f"<h3>Unassigned contribution claims</h3>{unassigned}"
-            f"<h3>Suggested approach</h3><p>{_html(card.get('suggested_approach'))}</p>"
-            f"<h3>Requirements</h3>{_html_list(card.get('requirements', []))}"
-            f"<h3>Same-version resources not mapped to a question</h3>{unused}"
-            f"<h3>Limitations</h3>{_html_list(card.get('limitations', []))}"
-            f"<h3>Alternatives</h3>{_html_list(alternatives)}"
-            "<h3>Next checks</h3>"
-            f"{_html_list([row.get('text') for row in card.get('next_checks', [])])}"
+            f"<h3>{_label('Closest precedent', ui_text)}</h3>"
+            f"{_prior_work_html(card.get('closest_prior_work', {}), ui_text)}"
+            f"<h3>{_label('Scientific questions', ui_text)}</h3>{question_html}"
+            f"<h3>{_label('Unassigned contribution claims', ui_text)}</h3>{unassigned}"
+            f"<h3>{_label('Suggested approach', ui_text)}</h3><p>{_html(card.get('suggested_approach'))}</p>"
+            f"<h3>{_label('Requirements', ui_text)}</h3>{_html_list(card.get('requirements', []), ui_text=ui_text)}"
+            f"<h3>{_label('Same-version resources not mapped to a question', ui_text)}</h3>{unused}"
+            f"<h3>{_label('Limitations', ui_text)}</h3>{_html_list(card.get('limitations', []), ui_text=ui_text)}"
+            f"<h3>{_label('Alternatives', ui_text)}</h3>{_html_list(alternatives, ui_text=ui_text)}"
+            f"<h3>{_label('Next checks', ui_text)}</h3>"
+            f"{_html_list([row.get('text') for row in card.get('next_checks', [])], ui_text=ui_text)}"
             "</article>"
         )
     rendered.append("</section>")

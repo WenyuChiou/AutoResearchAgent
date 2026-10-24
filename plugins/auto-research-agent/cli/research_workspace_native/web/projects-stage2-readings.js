@@ -21,11 +21,19 @@
     box.replaceChildren(); box.hidden = true;
     const rows = window.RESEARCH_PROJECTS?.stage2_readings;
     if (!Array.isArray(rows) || rows.length < 1 || rows.length > 8 || !rows.every(valid) || new Set(rows.map(row => row.ref)).size !== rows.length) return;
-    const copy = words[document.getElementById("language")?.value] || words.en;
+    const language = document.getElementById("language")?.value;
+    const copy = words[language] || words.en;
     for (const [tag, text] of [["h3", copy[0]], ["p", copy[1]]]) { const node = document.createElement(tag); node.textContent = text; box.append(node); }
-    for (const row of rows) { const link = document.createElement("a"); link.textContent = row.label; link.href = row.url; link.setAttribute("translate", "no"); const p = document.createElement("p"); p.append(link); box.append(p); }
+    for (const row of rows) { const link = document.createElement("a"); link.textContent = row.label; link.href = ["zh-Hant", "zh-Hans"].includes(language) ? row.url.replace(/index\.html$/, "index." + language + ".html") : row.url; link.setAttribute("translate", "no"); const p = document.createElement("p"); p.append(link); box.append(p); }
     box.hidden = false;
   }
   window.addEventListener("research-project-stage", event => { if (event.detail?.stage === 2) render(); });
+  const returned = /^#stage2-reading-language=(en|zh-Hant|zh-Hans)$/.exec(window.location?.hash || "");
+  const language = document.getElementById("language");
+  if (returned && language) {
+    const restore = () => { language.value = returned[1]; language.dispatchEvent(new Event("change")); };
+    if (document.readyState === "complete") restore();
+    else window.addEventListener("DOMContentLoaded", restore, {once: true});
+  }
   render();
 }());
