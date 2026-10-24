@@ -102,7 +102,16 @@ and execution admission remain unchanged.
 
 The projection retains separate `automatically_recorded`, `automatic_pending`,
 `technical_blocked` and `researcher_questions` groups, plus actual model-job
-counts. Recorded work is not a scientific or human acceptance. Its binding,
+counts. Progress schema `1.0.1` additionally exposes `automatic_resolved` and
+each recorded row's actual decision/event, AI proposal, identity status,
+rationale and source/version reference. A completed write is not a completed
+assessment: a pending AI judgment, unverified identity or a retained decision
+that differs from the model remains automatic follow-up. Unread sources remain
+technical work. Only a fully read, identity-verified terminal decision without
+open questions enters `automatic_resolved`; this is an AI screening outcome,
+not scientific or human acceptance. `automatically_recorded` is the recording
+inventory, overlaps the outcome groups and must not be counted as resolved.
+Reading an unfinished outcome never resends its existing model job. Its binding,
 run reference and ledger digest identify the exact saved state. The `notes`
 inventory supplies work/version, SHA-256 and an opaque same-origin URL. Fetch
 that URL with the existing bearer authentication to read the complete saved

@@ -320,7 +320,14 @@ class AutomaticStage1ProductionTests(unittest.TestCase):
         )
         progress = execution.read("alice-token", fixture["ref"])
         self.assertEqual(len(progress["automatically_recorded"]), 2, result)
-        self.assertEqual(progress["automatic_pending"], [], result)
+        self.assertEqual(len(progress["automatic_pending"]), 2, result)
+        self.assertTrue(
+            all(
+                "source-identity-unverified" in row["reason_codes"]
+                for row in progress["automatic_pending"]
+            )
+        )
+        self.assertEqual(progress["automatic_resolved"], [])
         self.assertEqual(progress["researcher_questions"], [])
         self.assertTrue(
             all(

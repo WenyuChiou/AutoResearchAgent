@@ -228,7 +228,8 @@
         "ProjectStage2SelectionView is read-only trusted host composition: no browser-selected filesystem paths, user selection, native/model/research calls or execution authority. Candidate materials and recommendations retain their original evidence and unknowns.",
         "Automatic Stage1 model children cannot exceed the externally pinned parent calls/reserved seconds or original shared resources; public model authorization cannot create this delegation.",
         "Complete extracted-text review is separate from PDF/figure validation, human acceptance, scientific sufficiency, live Topic execution and formal Stage2 intake.",
-        "Automatic Stage1 UI progress and hash-addressed full-note GETs authenticate the original project and typed input, disclose no private paths and neither create tasks nor grant execution or Stage2 acceptance; default and other-project views stay unconnected."
+        "Automatic Stage1 UI progress and hash-addressed full-note GETs authenticate the original project and typed input, disclose no private paths and neither create tasks nor grant execution or Stage2 acceptance; default and other-project views stay unconnected.",
+        "Recording an automatic assessment is not resolution: pending judgments, unverified source identity and preserved decisions that disagree with the model remain automatic follow-up; unread sources remain technical work. Only a complete, identity-verified terminal screening decision without open questions is reported automatic_resolved, with no scientific or human authority."
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage_model_prompt_bound.py",

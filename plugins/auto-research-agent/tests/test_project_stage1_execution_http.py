@@ -1,18 +1,99 @@
 """Real authenticated HTTP and saved automatic results; authored model output only."""
 
 import http.client
+from copy import deepcopy
 import json
 import sys
 import threading
 import time
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
 from research_workspace_native.project_host import ProjectHost
 from stage1_deliverable.common import sha
 import test_project_stage1_execution as execution_fixture
+
+
+class AutomaticOutcomeProjectionTests(unittest.TestCase):
+    fixture = execution_fixture.AutomaticStage1ProductionTests.fixture
+
+    def test_recorded_pending_unknown_and_unread_are_not_resolved(self):
+        case, saved, _, execution, calls = self.fixture()
+        context = execution._context(saved["ref"])
+        work, decision = next(
+            (work, d)
+            for work, d in context[4].coverage_state().evidence.decisions.items()
+            if d["new_decision"] == "include"
+        )
+        version = context[4].candidates()[work]["version_ids"][-1]
+        applied = dict(
+            version_id=version,
+            decision_event_id=decision["event_id"],
+            review_event_id=None,
+            source_basis_sha256="a" * 64,
+            note_sha256="b" * 64,
+            entire_extracted_text_reviewed=True,
+            source_failures=[],
+            review=dict(
+                decision="include",
+                identity_status="verified",
+                rationale="Authored projection fixture; not semantic verification.",
+                questions=[],
+            ),
+        )
+        changes = case.intake.db.total_changes
+        for model_decision, identity, read, expected in (
+            ("pending", "verified", True, "automatic-pending"),
+            ("include", "unverifiable", True, "automatic-pending"),
+            ("pending", "unverifiable", False, "technical-blocked"),
+            ("include", "verified", True, "automatic-resolved"),
+        ):
+            with self.subTest(decision=model_decision, identity=identity, read=read):
+                value = deepcopy(applied)
+                value["review"].update(
+                    decision=model_decision, identity_status=identity
+                )
+                value["entire_extracted_text_reviewed"] = read
+                # This test authors only the projection input. Real HTTP/source,
+                # quote validation and durable model execution have separate tests.
+                with patch.object(
+                    execution,
+                    "work_items",
+                    return_value=[dict(work_id=work, status="done", applied=value)],
+                ):
+                    progress = execution.read("alice-token", saved["ref"])
+                if expected == "automatic-pending":
+                    self.assertTrue(
+                        any(
+                            w["work_id"] == work for w in progress["automatic_pending"]
+                        ),
+                        "Recording a pending or unverifiable assessment cannot clear automatic work.",
+                    )
+                row = progress["automatically_recorded"][0]
+                self.assertEqual(row["processing_status"], expected)
+                self.assertEqual(row["decision"], "include")
+                self.assertEqual(row["model_decision"], model_decision)
+                self.assertEqual(row["decision_event_id"], decision["event_id"])
+                self.assertEqual(row["version_id"], version)
+                self.assertEqual(
+                    len(progress["automatic_resolved"]),
+                    int(expected == "automatic-resolved"),
+                )
+                self.assertEqual(
+                    len(progress["automatic_pending"]),
+                    int(expected == "automatic-pending"),
+                )
+                self.assertEqual(
+                    len(progress["technical_blocked"]),
+                    int(expected == "technical-blocked"),
+                )
+                self.assertEqual(progress["researcher_questions"], [])
+                self.assertFalse(progress["scientific_acceptance"])
+        self.assertEqual(case.intake.db.total_changes, changes)
+        self.assertEqual(calls, [])
 
 
 class AutomaticStage1HttpTests(unittest.TestCase):
@@ -98,7 +179,14 @@ class AutomaticStage1HttpTests(unittest.TestCase):
         self.assertEqual(code, 200, overview)
         progress = overview["stage1"]["automatic_production"]
         self.assertEqual(len(progress["automatically_recorded"]), 2)
-        self.assertEqual(progress["automatic_pending"], [])
+        self.assertEqual(len(progress["automatic_pending"]), 2)
+        self.assertTrue(
+            all(
+                "source-identity-unverified" in row["reason_codes"]
+                for row in progress["automatic_pending"]
+            )
+        )
+        self.assertEqual(progress["automatic_resolved"], [])
         self.assertEqual(progress["technical_blocked"], [])
         self.assertEqual(progress["researcher_questions"], [])
         self.assertEqual(len(progress["notes"]), 2)

@@ -1118,7 +1118,15 @@ class ProjectStage1ExecutionService:
             items = self.work_items(ref)
             results, _, jobs = self._results(ref)
             context = self._context(ref)
-            questions, unresolved, solved, technical, notes = {}, [], [], [], []
+            questions, unresolved, recorded, resolved, technical, notes = (
+                {},
+                [],
+                [],
+                [],
+                [],
+                [],
+            )
+            decisions = context[4].coverage_state().evidence.decisions
             for item in items:
                 if item["status"] == "excluded-existing":
                     continue
@@ -1133,25 +1141,59 @@ class ProjectStage1ExecutionService:
                             url=f"/api/projects/{ref}/stage1/automatic-notes/{digest}",
                         )
                     )
-                    solved.append(
-                        dict(
-                            work_id=item["work_id"],
-                            note_sha256=applied["note_sha256"],
-                            entire_extracted_text_reviewed=applied[
-                                "entire_extracted_text_reviewed"
-                            ],
-                            source_failures=applied["source_failures"],
-                        )
+                    review = applied["review"]
+                    decision = decisions[item["work_id"]]
+                    row = dict(
+                        work_id=item["work_id"],
+                        version_id=applied["version_id"],
+                        decision=decision["new_decision"],
+                        decision_event_id=applied["decision_event_id"],
+                        review_event_id=applied["review_event_id"],
+                        model_decision=review["decision"],
+                        identity_status=review["identity_status"],
+                        rationale=review["rationale"],
+                        source_basis_sha256=applied["source_basis_sha256"],
+                        note_sha256=applied["note_sha256"],
+                        entire_extracted_text_reviewed=applied[
+                            "entire_extracted_text_reviewed"
+                        ],
+                        source_failures=applied["source_failures"],
                     )
+                    reasons = []
+                    if review["decision"] == "pending":
+                        reasons.append("semantic-decision-pending")
+                    if review["identity_status"] != "verified":
+                        reasons.append("source-identity-unverified")
+                    if row["decision"] not in {"include", "exclude"}:
+                        reasons.append("recorded-decision-pending")
+                    elif row["decision"] != review["decision"]:
+                        reasons.append("retained-decision-differs-from-model")
                     if not applied["entire_extracted_text_reviewed"]:
+                        row["processing_status"] = "technical-blocked"
                         technical.append(
                             dict(
-                                work_id=item["work_id"],
+                                row,
                                 reason="source-retry-or-identity-required",
                                 attempted=applied["source_failures"],
                                 automatic=True,
                             )
                         )
+                    elif reasons:
+                        row["processing_status"] = "automatic-pending"
+                        unresolved.append(
+                            dict(
+                                row,
+                                next_step="source-identity-or-screening-follow-up",
+                                reason_codes=reasons,
+                                automatic=True,
+                            )
+                        )
+                    elif review["questions"]:
+                        row["processing_status"] = "researcher-question"
+                    else:
+                        row["processing_status"] = "automatic-resolved"
+                        resolved.append(row)
+                    recorded.append(row)
                     for question in applied["review"]["questions"]:
                         key = sha(
                             canonical(
@@ -1190,13 +1232,14 @@ class ProjectStage1ExecutionService:
             ]
             return dict(
                 kind="Stage1AutomaticProductionProgress",
-                schema_version="1.0.0",
+                schema_version="1.0.1",
                 project_ref=ref,
                 binding=_basis(context[2]),
                 run_ref=context[3]["run_ref"],
                 ledger_state_sha256=context[5]["state_sha256"],
                 permit_sha256=self.permit_sha256,
-                automatically_recorded=solved,
+                automatically_recorded=recorded,
+                automatic_resolved=resolved,
                 automatic_pending=unresolved,
                 technical_blocked=technical,
                 researcher_questions=list(questions.values()),
