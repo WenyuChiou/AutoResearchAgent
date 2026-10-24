@@ -363,7 +363,26 @@ class ProjectStage1AutoDriver:
         if worker is not None and worker is not threading.current_thread():
             worker.join(max(0, deadline - time.monotonic()))
 
-    def run(self, *, run_id, deadline, max_actions=32):
+    def run(
+        self,
+        *,
+        run_id,
+        deadline,
+        max_actions=32,
+        run_grants=None,
+        grant_ref=None,
+        grant_sha256=None,
+    ):
+        if run_grants is not None or grant_ref is not None or grant_sha256 is not None:
+            from .project_stage1_run_continuation import ProjectStage1RunContinuation
+
+            return ProjectStage1RunContinuation(
+                self, run_grants, grant_ref, grant_sha256
+            ).run(
+                run_id=run_id,
+                deadline=deadline,
+                max_actions=max_actions,
+            )
         result = continue_stage1(
             run_id=run_id,
             binding=self._binding(),

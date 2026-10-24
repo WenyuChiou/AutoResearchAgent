@@ -21,12 +21,16 @@ from .project_stage1_progress import project_progress
 from .project_stage1_records import reading_registration_view
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
+from .project_stage2_selection import ProjectStage2SelectionService
+from .project_stage2_reading import Stage2ReadingRegistry
 from .project_atlas_shell import shell_assets
 from .project_ui_overlay import (
     PANEL,
     PANEL_CSP,
     PARENT_CSP,
+    SOURCE_HTML_CSP,
     install_project_overlay,
+    saved_stage1_views,
     stage2_example_views,
 )
 from .project_stage1_library import ProjectStage1LibraryService
@@ -45,7 +49,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -84,6 +88,9 @@ class ProjectHost(AtlasHost):
         models=None,
         stage1=None,
         stage2=None,
+        stage2_selection=None,
+        stage2_readings=None,
+        stage2_controllers=None,
         stage1_materials_root=None,
         stage1_sources=None,
         stage1_source_dispatcher=None,
@@ -93,6 +100,35 @@ class ProjectHost(AtlasHost):
             raise ValueError("trusted project intake service required")
         if projects.authenticate(credential) != "local-viewer":
             raise ValueError("same local principal required")
+        if stage2_selection is not None and (
+            type(stage2_selection) is not ProjectStage2SelectionService
+            or stage2_selection.intake is not projects
+        ):
+            raise ValueError("same trusted Stage2 selection service required")
+        if (
+            stage2_readings is not None
+            and type(stage2_readings) is not Stage2ReadingRegistry
+        ):
+            raise ValueError("trusted Stage2 reading registry required")
+        reading_assets, self.stage2_readings = (
+            ({}, []) if stage2_readings is None else stage2_readings.snapshot()
+        )
+        if set(reading_assets) & set(options["files"]):
+            raise ValueError("Stage2 reading routes collide with saved view assets")
+        controllers = {} if stage2_controllers is None else dict(stage2_controllers)
+        if controllers:
+            from .project_stage2_controller import ProjectStage2ControllerDriver
+
+            if any(
+                not isinstance(ref, str)
+                or type(driver) is not ProjectStage2ControllerDriver
+                or driver.service is not stage2
+                or driver.service.intake is not projects
+                for ref, driver in controllers.items()
+            ):
+                raise ValueError("same trusted Stage2 controller owner required")
+            for ref in controllers:
+                projects.read(credential, ref)
         if stage1_sources is not None and (
             not isinstance(stage1_sources, ProjectStage1SourceService)
             or stage1_sources.stage1 is not stage1
@@ -130,13 +166,26 @@ class ProjectHost(AtlasHost):
                 "projects-stages.js",
                 "projects-stages.css",
                 "projects-stage2-preview.js",
+                "projects-stage2-readings.js",
                 "project-operations.js",
                 "project-operations.css",
+                "project-saved-views.js",
+                "project-stage2-selection.html",
+                "project-stage2-selection.js",
+                "project-stage2-selection.css",
             )
         }
         atlas_shell = shell_assets(ASSETS)
         example_assets, self.stage2_examples, self.stage2_example_routes = (
             stage2_example_views(options["files"], options["views"])
+        )
+        saved_assets, self.saved_stage1_references, self.saved_stage1_routes = (
+            saved_stage1_views(options["files"], options["views"])
+        )
+        self.saved_stage1_source_html_routes = frozenset(
+            path
+            for path in saved_assets
+            if path.endswith(".html") and path not in self.saved_stage1_routes
         )
         self.projects, self.project_models, self.project_stage2 = (
             projects,
@@ -144,6 +193,8 @@ class ProjectHost(AtlasHost):
             stage2,
         )
         self.project_stage1 = stage1
+        self.project_stage2_selection = stage2_selection
+        self.project_stage2_controllers = controllers
         self.project_expansions = None
         queries = getattr(stage1, "query_service", None)
         if queries is not None:
@@ -232,8 +283,10 @@ class ProjectHost(AtlasHost):
         self._assets.update(project_assets)
         self._assets.update(atlas_shell)
         self._assets.update(example_assets)
+        self._assets.update(saved_assets)
+        self._assets.update(reading_assets)
         self.project_panel_parents = install_project_overlay(
-            self._assets, self.views, ASSETS
+            self._assets, self.views, ASSETS, self.saved_stage1_references
         )
         # No package is invented for a new project. Existing saved views keep
         # their original entry and renderer, with operations in a lazy drawer.
@@ -259,7 +312,10 @@ class ProjectHost(AtlasHost):
             project_stage1_saved_text_reading=models is not None
             and getattr(models, "reading_records", None) is not None,
             project_stage2_import=stage2 is not None,
+            project_stage2_reading_references=self.stage2_readings,
+            project_stage2_operator_continuation=bool(controllers),
             project_execution_authority=False,
+            project_saved_stage1_references=self.saved_stage1_references,
             project_operations_presentation="additive-v6-drawer",
             project_home_route=self.views[0]["url"] if self.views else "/projects.html",
         )
@@ -281,12 +337,28 @@ class ProjectHost(AtlasHost):
         finally:
             super().server_close()
 
-    def continue_stage1(self, credential, ref, *, run_id, deadline, max_actions=32):
+    def continue_stage1(
+        self,
+        credential,
+        ref,
+        *,
+        run_id,
+        deadline,
+        max_actions=32,
+        run_grants=None,
+        grant_ref=None,
+        grant_sha256=None,
+    ):
         """Trusted operator continuation; does not register grants or start Stage2."""
         from .project_stage1_auto import ProjectStage1AutoDriver
 
         return ProjectStage1AutoDriver(self, credential, ref).run(
-            run_id=run_id, deadline=deadline, max_actions=max_actions
+            run_id=run_id,
+            deadline=deadline,
+            max_actions=max_actions,
+            run_grants=run_grants,
+            grant_ref=grant_ref,
+            grant_sha256=grant_sha256,
         )
 
     def register_stage1_execution(
@@ -324,6 +396,18 @@ class ProjectHost(AtlasHost):
             model_or_source_started=False,
             stage2_started=False,
         )
+
+    def continue_stage2(self, credential, ref, *, key):
+        """Trusted operator continuation under its original admitted run budget.
+
+        Browser input cannot install a controller or change native policy, paths
+        or deadlines. Research completion is distinct from selection/intake.
+        """
+        self.projects.read(credential, ref)
+        driver = self.project_stage2_controllers.get(ref)
+        if driver is None:
+            raise SessionApiError("stage2-controller-not-connected", 409)
+        return driver.run(credential, ref, key=key)
 
     def overview(self, credential, ref, *, automatic=False):
         # One store lock joins matching saved revisions. Workers cannot commit
@@ -401,13 +485,18 @@ class ProjectHost(AtlasHost):
 class ProjectHandler(AtlasHandler):
     def send_header(self, keyword, value):
         if keyword.lower() == "content-security-policy":
-            if self.path == PANEL:
+            if self.path in self.server.saved_stage1_source_html_routes:
+                value = SOURCE_HTML_CSP
+            elif self.path == PANEL:
                 value = PANEL_CSP
             elif self.path == "/project-atlas.html":
                 value = value.replace(
                     "frame-ancestors 'none'", "frame-ancestors 'self'"
                 )
-            elif self.path in self.server.stage2_example_routes:
+            elif (
+                self.path in self.server.stage2_example_routes
+                or self.path in self.server.saved_stage1_routes
+            ):
                 value = value.replace(
                     "frame-ancestors 'none'", "frame-ancestors 'self'"
                 )
@@ -577,7 +666,16 @@ class ProjectHandler(AtlasHandler):
                     action or resolution
                 ):
                     raise SessionApiError("invalid-project-read", 400)
-                if operation in {"models", "stage1", "stage2"}:
+                if (
+                    operation == "stage2"
+                    and action == "selection"
+                    and resolution is None
+                ):
+                    extension = self.server.project_stage2_selection
+                    if extension is None:
+                        raise SessionApiError("stage2-selection-unconnected", 409)
+                    result = extension.read(token, ref, check_deadline=self._remaining)
+                elif operation in {"models", "stage1", "stage2"}:
                     extension = (
                         self.server.project_models
                         if operation == "models"
@@ -745,6 +843,16 @@ class ProjectHandler(AtlasHandler):
                     result = getattr(extension, action.replace("-", "_"))(
                         token, ref, body, check_deadline=self._remaining
                     )
+                elif (
+                    operation == "stage2" and action == "select" and resolution is None
+                ):
+                    extension = self.server.project_stage2_selection
+                    if extension is None:
+                        raise SessionApiError("stage2-selection-unconnected", 409)
+                    called = ("stage2-select", ref, body)
+                    result = extension.select(
+                        token, ref, body, check_deadline=self._remaining
+                    )
                 elif operation in {"models", "stage2"} and action in {
                     "actions",
                     "authorize",
@@ -880,8 +988,14 @@ class ProjectHandler(AtlasHandler):
                         credential=self.server.credential,
                         views=self.server.views,
                         stage2_examples=self.server.stage2_examples,
+                        stage2_readings=self.server.stage2_readings,
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
+                        stage2_selection_projects=(
+                            list(self.server.project_stage2_selection.bindings)
+                            if self.server.project_stage2_selection is not None
+                            else []
+                        ),
                         stage1=self.server.project_stage1 is not None,
                     ),
                     ensure_ascii=True,
@@ -905,15 +1019,44 @@ def main(argv=None):
     parser.add_argument("--projects-root", required=True, type=Path)
     parser.add_argument("--views-config", type=Path)
     parser.add_argument("--views-sha256")
+    parser.add_argument("--stage1-import-config", type=Path)
+    parser.add_argument("--stage1-import-sha256")
+    parser.add_argument("--controller-config", type=Path)
+    parser.add_argument("--controller-sha256")
+    parser.add_argument("--continue-stage2", metavar="PROJECT_REF")
+    parser.add_argument("--controller-key")
+    parser.add_argument("--selection-config", type=Path)
+    parser.add_argument("--selection-sha256")
+    parser.add_argument("--stage2-reading-config", type=Path)
+    parser.add_argument("--stage2-reading-sha256")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args(argv)
     if bool(args.views_config) != bool(args.views_sha256):
         parser.error("saved views require their external configuration SHA256")
+    if bool(args.stage1_import_config) != bool(args.stage1_import_sha256):
+        parser.error("Stage1 imports require their external configuration SHA256")
+    if bool(args.selection_config) != bool(args.selection_sha256):
+        parser.error("selection bindings require their external configuration SHA256")
+    if bool(args.stage2_reading_config) != bool(args.stage2_reading_sha256):
+        parser.error("Stage2 readings require their external configuration SHA256")
+    if bool(args.controller_config) != bool(args.controller_sha256):
+        parser.error("Stage2 controllers require their external configuration SHA256")
+    if bool(args.continue_stage2) != bool(args.controller_key) or (
+        args.continue_stage2 and not args.controller_config
+    ):
+        parser.error(
+            "Stage2 continuation requires a configured project and original request key"
+        )
     files, views = (
         load_views(args.views_config, args.views_sha256)
         if args.views_config
         else ({}, [])
+    )
+    readings = (
+        Stage2ReadingRegistry(args.stage2_reading_config, args.stage2_reading_sha256)
+        if args.stage2_reading_config
+        else None
     )
     token = secrets.token_urlsafe(32)
     projects = ProjectIntakeService(
@@ -921,15 +1064,53 @@ def main(argv=None):
     )
     host = None
     try:
+        stage2 = ProjectStage2Service(projects)
+        if args.stage1_import_config is not None:
+            from .project_stage1_import import load_stage1_imports
+
+            load_stage1_imports(
+                stage2, token, args.stage1_import_config, args.stage1_import_sha256
+            )
+        controllers = {}
+        if args.controller_config:
+            from .project_stage2_controller_config import load_stage2_controllers
+
+            controllers = load_stage2_controllers(
+                stage2, token, args.controller_config, args.controller_sha256
+            )
+        selection = None
+        if args.selection_config:
+            raw = args.selection_config.read_bytes()
+            if args.selection_config.is_symlink() or sha(raw) != args.selection_sha256:
+                parser.error("selection configuration receipt differs")
+            config = _decode(raw.decode("utf-8"))
+            if (
+                not isinstance(config, dict)
+                or set(config) != {"schema_version", "bindings"}
+                or config["schema_version"] != "1.0.0"
+            ):
+                parser.error("selection configuration shape differs")
+            selection = ProjectStage2SelectionService(projects, config["bindings"])
         host = ProjectHost(
             projects=projects,
             credential=token,
             stage1=ProjectStage1Service(projects),
-            stage2=ProjectStage2Service(projects),
+            stage2=stage2,
+            stage2_selection=selection,
+            stage2_readings=readings,
+            stage2_controllers=controllers,
             files=files,
             views=views,
             port=args.port,
         )
+        if args.continue_stage2:
+            outcome = host.continue_stage2(
+                token, args.continue_stage2, key=args.controller_key
+            )
+            print(
+                json.dumps({"stage2_controller": outcome}, ensure_ascii=False),
+                flush=True,
+            )
         url = host.expected_origin + "/"
         print(
             json.dumps(

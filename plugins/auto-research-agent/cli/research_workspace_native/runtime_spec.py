@@ -1,10 +1,11 @@
 """Pinned private configuration only; no sessions, processes or model calls.
 
-Only the distinct trusted single-stage-unit kind allows 32-KiB input. Ordinary
-Atlas specs keep their 16-KiB bound; neither kind grants admission or authority.
+Historical Atlas/stage envelopes retain their 16/32-KiB bounds. The distinct
+full-source single-unit kind permits at most 256 KiB. No kind grants authority.
 """
 
 from pathlib import Path
+from .model_input_profile import FULL_SOURCE_INPUT_BYTES, FULL_SOURCE_SPEC
 import re
 
 from stage1_deliverable.common import identifier, private_output, reject_links, sha
@@ -126,11 +127,12 @@ def _load(path, expected):
     if "notification_opt_out" in spec:
         _notification_opt_out(spec["notification_opt_out"])
     _require(
-        spec["kind"] in {"NativeAtlasRuntimeSpec", "NativeStageUnitRuntimeSpec"}
+        spec["kind"]
+        in {"NativeAtlasRuntimeSpec", "NativeStageUnitRuntimeSpec", FULL_SOURCE_SPEC}
         and spec["schema_version"] == "1.0.0",
         "unsupported runtime spec",
     )
-    if spec["kind"] == "NativeStageUnitRuntimeSpec":
+    if spec["kind"] in {"NativeStageUnitRuntimeSpec", FULL_SOURCE_SPEC}:
         _require("thread_config" in spec, "trusted stage unit tool denials required")
     for name in ("project_ref", "model"):
         _require(
@@ -208,9 +210,9 @@ def _load(path, expected):
     bounds = {
         "lifetime_seconds": 600,
         "max_stream_bytes": 1048576,
-        "max_text_bytes": 32768
-        if spec["kind"] == "NativeStageUnitRuntimeSpec"
-        else 16384,
+        "max_text_bytes": FULL_SOURCE_INPUT_BYTES
+        if spec["kind"] == FULL_SOURCE_SPEC
+        else (32768 if spec["kind"] == "NativeStageUnitRuntimeSpec" else 16384),
         "max_starts": 128,
         "timeout_seconds": 30,
     }
@@ -226,7 +228,7 @@ def _load(path, expected):
     _require(
         limits["timeout_seconds"] <= limits["lifetime_seconds"], "timeout exceeds lease"
     )
-    if spec["kind"] == "NativeStageUnitRuntimeSpec":
+    if spec["kind"] in {"NativeStageUnitRuntimeSpec", FULL_SOURCE_SPEC}:
         _require(limits["max_starts"] == 1, "trusted stage unit requires one start")
     if "handshake_timeout_seconds" in spec:
         budget = spec["handshake_timeout_seconds"]

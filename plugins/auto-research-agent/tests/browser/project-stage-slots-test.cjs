@@ -203,7 +203,7 @@ for (const [name, project] of [['foreign project', {...fixture.project, project_
   render(); render(fixture.contract, 'en', project);
   assert.equal(statusText().includes(savedCanary), false, `${name} must refuse saved observations`);
 }
-for (const [key, value] of [['project_ref', '../foreign'], ['revision', -1], ['input_version', '1'], ['brief_sha256', 'not-a-hash']]) {
+for (const [key, value] of [['project_ref', '../foreign'], ['revision', -1], ['input_version', ' padded '], ['brief_sha256', 'not-a-hash']]) {
   render(fixture.contract, 'en', {...fixture.project, [key]: value});
   assert.equal(statusText().includes(savedCanary), false, `malformed project ${key} refuses observations`);
   stages.showStage(3);

@@ -1,8 +1,10 @@
-"""Own-account project portal; all model operations require separate UI actions.
+"""Own-account project portal with explicit UI or pinned saved-run consent.
 
 Bootstrap uses the externally pinned raw source helper before any owned import.
-No startup, GET, topic entry or budget declaration probes/starts Codex. Saved
-views remain optional snapshots, independent from the new versioned projects.
+No startup, GET, topic entry or budget declaration probes/starts Codex. Only an
+explicit --stage1-run-request can start a bounded run after original plan and
+consent checks; registration alone grants nothing. Saved views remain optional
+snapshots, independent from the new versioned projects.
 """
 
 import argparse
@@ -16,6 +18,7 @@ import secrets
 import shutil
 import stat
 import sys
+import time
 from types import ModuleType
 import webbrowser
 
@@ -204,6 +207,13 @@ def parser():
     )
     value.add_argument("--codex")
     value.add_argument("--codex-home", type=Path)
+    value.add_argument(
+        "--enable-stage1-run",
+        action="store_true",
+        help="Register one shared typed run issuer; grants still require explicit consent",
+    )
+    value.add_argument("--stage1-run-request", type=Path)
+    value.add_argument("--stage1-run-request-sha256")
     value.add_argument("--check-only", action="store_true")
     value.add_argument("--prepare-only", action="store_true")
     return value
@@ -226,6 +236,34 @@ def inspect_inputs(args):
         bool(args.views_config) == bool(args.views_sha256),
         "saved views require their external configuration SHA256",
     )
+    run_request = getattr(args, "stage1_run_request", None)
+    run_pin = getattr(args, "stage1_run_request_sha256", None)
+    require(
+        (run_request is None) == (run_pin is None),
+        "Stage1 run request requires its external SHA256",
+    )
+    require(
+        not run_request or args.enable_stage1_run,
+        "Stage1 run request requires --enable-stage1-run",
+    )
+    require(
+        not args.enable_stage1_run
+        or (args.enable_content_model and args.enable_public_sources),
+        "whole Stage1 run requires model and public source registration",
+    )
+    require(
+        not run_request or not args.prepare_only,
+        "prepare-only never executes a Stage1 run",
+    )
+    if run_request is not None:
+        require(
+            type(run_pin) is str and HASH.fullmatch(run_pin),
+            "Stage1 run request SHA256 invalid",
+        )
+        require(
+            digest(raw_file(run_request, 16384)) == run_pin,
+            "Stage1 run request bytes differ",
+        )
     runtime_path = getattr(args, "stage1_query_runtime", None)
     runtime_sha = getattr(args, "stage1_query_runtime_sha256", None)
     require(
@@ -385,6 +423,15 @@ def prepare(args, checked, *, source=None, inventory=None):
     projects = ProjectIntakeService(checked["root"], authenticate=authenticate)
     models = queries = sources = source_dispatcher = None
     try:
+        run_grants = None
+        if args.enable_stage1_run:
+            from research_workspace_native.project_stage1_run_grant import (
+                ProjectStage1RunGrantService,
+            )
+
+            run_grants = ProjectStage1RunGrantService(
+                projects, runtime_sha256=digest(source.canonical(inventory))
+            )
         factory = None
         if args.enable_content_model:
             from research_workspace_native.project_model_factory import (
@@ -406,6 +453,8 @@ def prepare(args, checked, *, source=None, inventory=None):
             provider_factory=factory,
             model=args.model,
             local_cap_seconds=args.model_cap_seconds,
+            run_grants=run_grants,
+            analysis_coverage=args.enable_stage1_run,
         )
         stage1, stage2 = ProjectStage1Service(projects), ProjectStage2Service(projects)
         if runtime is not None:
@@ -436,6 +485,7 @@ def prepare(args, checked, *, source=None, inventory=None):
                 admit=admit,
                 caps=config["caps"],
                 backends=config["backends"],
+                run_grants=run_grants,
             )
         sources, source_dispatcher = None, None
         if args.enable_public_sources:
@@ -479,11 +529,16 @@ def prepare(args, checked, *, source=None, inventory=None):
             )
             source_config["pipeline_sha256"] = pipeline.binding_sha256
             sources = runner.create_service(
-                projects, stage1, config=source_config, pipeline=pipeline
+                projects,
+                stage1,
+                config=source_config,
+                pipeline=pipeline,
+                run_grants=run_grants,
             )
             source_dispatcher = ProjectSourceDispatcher(sources)
         return dict(
             projects=projects,
+            stage1_run_grants=run_grants,
             models=models,
             stage1=stage1,
             stage2=stage2,
@@ -515,6 +570,93 @@ def prepare(args, checked, *, source=None, inventory=None):
         raise
 
 
+def run_requested_stage1(args, host, services):
+    """Explicit CLI request only; JSON grants no typed action authority itself."""
+    raw = raw_file(args.stage1_run_request, 16384)
+    require(digest(raw) == args.stage1_run_request_sha256, "Stage1 run request changed")
+    from stage1_ledger.journal import decode
+    from research_workspace_native.project_stage1_run_grant import (
+        ProjectStage1RunGrantService,
+    )
+
+    request = decode(raw, "Stage1 run request")
+    require(
+        type(request) is dict
+        and request.get("kind") == "ProjectStage1RunRequest"
+        and request.get("schema_version") == "1.0.0",
+        "Stage1 run request schema invalid",
+    )
+    common = {"kind", "schema_version", "project_ref", "run_id"}
+    if "slice_max_actions" in request:
+        common.add("slice_max_actions")
+    require(
+        set(request) in (common | {"authorization"}, common | {"resume"}),
+        "Stage1 run request fields invalid",
+    )
+    issuer = services["stage1_run_grants"]
+    require(
+        type(issuer) is ProjectStage1RunGrantService
+        and issuer.intake is services["projects"],
+        "Stage1 run issuer unconnected",
+    )
+    ref, credential = request["project_ref"], services["credential"]
+    require(
+        type(ref) is str
+        and type(request["run_id"]) is str
+        and 0 < len(request["run_id"]) <= 256,
+        "Stage1 run reference invalid",
+    )
+    if "slice_max_actions" in request:
+        cap = request["slice_max_actions"]
+        require(
+            type(cap) is int and 0 < cap <= 512,
+            "Stage1 slice cannot expand original action limit",
+        )
+        if "authorization" in request:
+            authorization = request["authorization"]
+            require(
+                type(authorization) is dict
+                and type(authorization.get("max_actions")) is int
+                and cap <= authorization["max_actions"],
+                "Stage1 slice cannot expand original action limit",
+            )
+    if "authorization" in request:
+        grant = issuer.authorize(credential, ref, request["authorization"])
+        require(grant["status"] == "saved", "Stage1 run authorization not saved")
+    else:
+        grant = request["resume"]
+        require(
+            type(grant) is dict and set(grant) == {"grant_ref", "grant_sha256"},
+            "Stage1 run resume fields invalid",
+        )
+    doc = issuer.inspect(credential, ref, grant["grant_ref"], grant["grant_sha256"])
+    cap = request.get("slice_max_actions", doc["max_actions"])
+    require(
+        type(cap) is int and 0 < cap <= doc["max_actions"],
+        "Stage1 slice cannot expand original action limit",
+    )
+    remaining = doc["expires_at"] - issuer._now()
+    require(remaining > 0, "Stage1 run original deadline exhausted")
+    result = host.continue_stage1(
+        credential,
+        ref,
+        run_id=request["run_id"],
+        deadline=time.monotonic() + remaining,
+        max_actions=cap,
+        run_grants=issuer,
+        grant_ref=grant["grant_ref"],
+        grant_sha256=grant["grant_sha256"],
+    )
+    return dict(
+        kind="ProjectStage1RunReceipt",
+        schema_version="1.0.0",
+        project_ref=ref,
+        grant_ref=grant["grant_ref"],
+        grant_sha256=grant["grant_sha256"],
+        result=result,
+    )
+
+
 def main(argv=None):
     args = parser().parse_args(argv)
     checked = inspect_inputs(args)
@@ -543,6 +685,7 @@ def main(argv=None):
         stage1_saved_parser_core_configuration=args.enable_public_sources,
         stage1_source_acquisition=False,
         stage1_automatic_reading=False,
+        stage1_run_grant_configuration=args.enable_stage1_run,
     )
     if args.check_only:
         receipt["status"] = "filesystem-and-raw-loader-preflight-only"
@@ -573,13 +716,22 @@ def main(argv=None):
             receipt["url"] = host.expected_origin + "/"
         receipt["status"] = "prepared-only" if args.prepare_only else "local-UI-ready"
         print(json.dumps(receipt, ensure_ascii=False), flush=True)
+        if args.stage1_run_request is not None:
+            result = run_requested_stage1(args, host, services)
+            print(json.dumps(result, ensure_ascii=False), flush=True)
+            return (
+                0
+                if result["result"]["status"] == "barrier"
+                and result["result"]["reason"] == "saved-delivery"
+                else 2
+            )
         if host is not None:
             if args.open:
                 webbrowser.open(receipt["url"])
             host.serve_forever(poll_interval=0.2)
         return 0
     except KeyboardInterrupt:
-        return 0
+        return 2 if args.stage1_run_request is not None else 0
     finally:
         try:
             if host is not None:

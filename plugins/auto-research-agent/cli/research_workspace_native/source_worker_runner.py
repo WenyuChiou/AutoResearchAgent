@@ -313,7 +313,7 @@ class ContainedSourceJobRunner(SourceJobRunner):
         self._pins()
         return True
 
-    def create_service(self, intake, stage1, *, config, pipeline=None):
+    def create_service(self, intake, stage1, *, config, pipeline=None, run_grants=None):
         """Register only this sealed root/runner into the unchanged broker."""
         sealed_root = private_output(Path(self.config["materials_root"])).resolve()
         self.verify_configuration(config)
@@ -341,6 +341,7 @@ class ContainedSourceJobRunner(SourceJobRunner):
             runner=self,
             verify_configuration=verify,
             pipeline=pipeline,
+            run_grants=run_grants,
         )
         return service
 

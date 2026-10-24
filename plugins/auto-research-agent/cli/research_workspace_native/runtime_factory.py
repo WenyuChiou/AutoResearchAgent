@@ -16,6 +16,7 @@ from research_workspace_native.process_channel import OwnedProcessChannel
 from research_workspace_native.server_owner import SessionOwners
 from research_workspace_native.session_api import SessionApi
 from .runtime_spec import CompositionError, _load_all, _read, _require, _thread_config
+from .model_input_profile import FULL_SOURCE_PROFILE, FULL_SOURCE_SPEC
 
 
 class NativeAtlasRuntime:
@@ -206,6 +207,10 @@ def compose_runtime(registrations, *, authenticate=None, gates=None, enabled=Fal
             )
             boot.open_thread(
                 dict(name="harness-atlas", version="1"),
+                experimental_api=spec["kind"] == FULL_SOURCE_SPEC,
+                input_profile=(
+                    FULL_SOURCE_PROFILE if spec["kind"] == FULL_SOURCE_SPEC else None
+                ),
                 timeout=spec["limits"]["timeout_seconds"],
                 **(
                     {"total_timeout": spec["handshake_timeout_seconds"]}
@@ -287,9 +292,13 @@ def compose_runtime(registrations, *, authenticate=None, gates=None, enabled=Fal
                 start_offer=offer,
                 approval_policy=approval,
                 **(
-                    {"trusted_stage_unit": True}
-                    if spec["kind"] == "NativeStageUnitRuntimeSpec"
-                    else {}
+                    {"trusted_stage_unit": True, "input_profile": FULL_SOURCE_PROFILE}
+                    if spec["kind"] == FULL_SOURCE_SPEC
+                    else (
+                        {"trusted_stage_unit": True}
+                        if spec["kind"] == "NativeStageUnitRuntimeSpec"
+                        else {}
+                    )
                 ),
             )
             runtime._entries.append(dict(orphan, owner=owner, ref=spec["project_ref"]))

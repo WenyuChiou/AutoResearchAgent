@@ -252,6 +252,7 @@ def continue_stage1(
     deadline,
     max_actions,
     wait=None,
+    key_for_action=None,
     monotonic=time.monotonic,
 ):
     """Run a bounded slice; callbacks and limits are trusted server wiring only.
@@ -260,6 +261,9 @@ def continue_stage1(
     ``next_action(snapshot)`` returns ContinuationAction or None. A handler takes
     ``(action, deterministic_key, absolute_deadline)``; its result is ignored.
     ``wait(durable_action, absolute_deadline)`` may join an existing owner once.
+    ``key_for_action(action)`` optionally previews the existing owner's durable
+    key without granting authority or changing state; defaults retain auto keys.
+    Actual owner receipts are still reopened after dispatch.
     The adapter must retain failure/unknown actions until explicitly reconciled.
     A newly compiled plan requires explicit re-entry with its confirmed binding.
     """
@@ -276,6 +280,7 @@ def continue_stage1(
         "stage1-handlers-required",
     )
     _require(wait is None or callable(wait), "wait-callback-invalid")
+    _require(key_for_action is None or callable(key_for_action), "key-callback-invalid")
     _require(
         type(max_actions) is int and 0 < max_actions <= 512,
         "finite-action-limit-required",
@@ -360,6 +365,8 @@ def continue_stage1(
         )
         if phase["status"] in {"unknown", "unconnected"}:
             return finish("held", "phase-" + phase["status"])
+        if count >= max_actions:
+            return finish("held", "administrative-limit-exhausted")
         action = next_action(current)
         if action is None:
             return finish("partial", "no-next-action")
@@ -392,15 +399,18 @@ def continue_stage1(
                 )
             )
         )
-        key = "stage1-auto-" + digest
+        key = (
+            "stage1-auto-" + digest
+            if key_for_action is None
+            else key_for_action(action)
+        )
+        _require(_text(key), "durable-action-key-invalid")
         if digest in seen or any(a.key == key for a in current.actions):
             return finish("held", "repeated-action")
         if current.frontier_sha256 in frontiers:
             return finish("held", "frontier-cycle")
         if action.kind not in handlers:
             return finish("held", "handler-unconnected")
-        if count >= max_actions:
-            return finish("held", "administrative-limit-exhausted")
         fresh = read()
         if fresh != current:
             return finish("held", "stale-frontier")

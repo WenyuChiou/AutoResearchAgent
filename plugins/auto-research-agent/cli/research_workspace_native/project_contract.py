@@ -180,7 +180,7 @@ def project_view(
         stages["2"]["assessment"]["route"] = "stage2-general-v3/daily_v3"
     return dict(
         kind="HarnessUiProjectView",
-        schema_version="1.0.0",
+        schema_version="1.1.0" if type(identity["input_version"]) is str else "1.0.0",
         identity=identity,
         stages=stages,
         resources=deepcopy(view.get("settings")),

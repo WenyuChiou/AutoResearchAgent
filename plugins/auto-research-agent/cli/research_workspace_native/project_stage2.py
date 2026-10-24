@@ -23,6 +23,12 @@ from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_workflow import build_stage2_seed, initialize_workflow, inspect_workflow
 from stage2_workflow.import_stage1 import verify_stage1_handoff
 from .project_intake import ProjectIntakeService, _fields
+from .project_stage2_profile import (
+    PACKET_FILE,
+    inspect_initial_packet,
+    prepare_initial_packet,
+    read_initial_seed,
+)
 from .session_api import SessionApiError, _check, _hash
 
 MAX_OFFERS = 16
@@ -220,6 +226,11 @@ class ProjectStage2Service:
     @staticmethod
     def _matches(binding, offer):
         _check(
+            binding.get("imported_input_sha256") == offer.get("imported_input_sha256")
+            and type(binding["input_version"]) is type(offer["input_version"]),
+            "stage2-offer-source-version-differs",
+        )
+        _check(
             all(
                 binding[key] == offer[key]
                 for key in (
@@ -231,6 +242,12 @@ class ProjectStage2Service:
             ),
             "stage2-offer-source-version-differs",
         )
+
+    def import_stage1_project(self, credential, **trusted_inputs):
+        """Trusted saved-source bootstrap; not a public browser endpoint."""
+        from .project_stage1_import import import_stage1_project
+
+        return import_stage1_project(self, credential, **trusted_inputs)
 
     def register(
         self,
@@ -253,7 +270,9 @@ class ProjectStage2Service:
         """Trusted bootstrap only. Browser requests cannot supply these paths."""
         _check(
             type(policy_ref) is dict
-            and policy_ref.get("route") == "stage2-general-v3/daily_v3",
+            and policy_ref.get("route") == "stage2-general-v3/daily_v3"
+            and policy_ref.get("packet_profile", "legacy-v2")
+            in ("legacy-v2", "scientific-v3"),
             "stage2-daily-v3-policy-reference-required",
             400,
         )
@@ -290,6 +309,8 @@ class ProjectStage2Service:
                     "plan_manifest_sha256",
                 )
             }
+            if "imported_input_sha256" in binding:
+                basis["imported_input_sha256"] = binding["imported_input_sha256"]
             basis.update(
                 stage1_manifest_sha256=expected_manifest_sha256,
                 stage1_handoff_sha256=expected_handoff_sha256,
@@ -343,8 +364,27 @@ class ProjectStage2Service:
                 if (
                     offer["input_version"] != current.get("input_version")
                     or offer["brief_sha256"] != current.get("brief_sha256")
-                    or current_plan is None
-                    or offer["plan_manifest_sha256"] != current_plan["manifest_sha256"]
+                    or type(offer["input_version"])
+                    is not type(current.get("input_version"))
+                    or (
+                        state.get("stage1_import") is not None
+                        and (
+                            current_plan is not None
+                            or offer["plan_manifest_sha256"] is not None
+                            or state["stage2_offers"][offer["offer_ref"]].get(
+                                "imported_input_sha256"
+                            )
+                            != state["stage1_import"]["sha256"]
+                        )
+                    )
+                    or (
+                        state.get("stage1_import") is None
+                        and (
+                            current_plan is None
+                            or offer["plan_manifest_sha256"]
+                            != current_plan["manifest_sha256"]
+                        )
+                    )
                 ):
                     offer["status"] = "stale-input"
             activation = deepcopy(state.get("stage2_activation"))
@@ -460,13 +500,18 @@ class ProjectStage2Service:
             )
             if check_deadline is not None:
                 check_deadline()
+            seed_root = output / "seed"
+            original_packet = read_initial_seed(seed_root, receipt["packet_sha256"])
+            initial_path, initial_sha256, profile = prepare_initial_packet(
+                seed_root, offer["policy_ref"], original_packet
+            )
             manifest = initialize_workflow(
-                output / "seed" / "packet.json",
+                initial_path,
                 output / "seed",
                 output / "workflow",
                 binding["settings"],
                 offer["policy_ref"],
-                receipt["packet_sha256"],
+                initial_sha256,
             )
             verified = inspect_workflow(output / "workflow")
             handoff, _, host_replay = _verified_inputs(binding, inputs)
@@ -494,6 +539,8 @@ class ProjectStage2Service:
             )
             if "saved_source_root" in inputs:
                 result["import_receipt"] = deepcopy(receipt)
+            if profile is not None:
+                result["initial_packet_profile"] = profile
             state["stage2_activation"] = result
             state["stage2_frontier"] = self._initial_frontier(
                 project_ref, binding, offer, result
@@ -588,6 +635,8 @@ class ProjectStage2Service:
         }
         if "admission_pins" in offer:
             basis["admission_pins"] = offer["admission_pins"]
+        if "imported_input_sha256" in offer:
+            basis["imported_input_sha256"] = offer["imported_input_sha256"]
         _check(
             registered == [_public(offer)]
             and sha(canonical(basis))
@@ -639,6 +688,12 @@ class ProjectStage2Service:
                 root / "seed",
                 host_replay=host_replay,
             )
+        inspect_initial_packet(
+            root / "seed",
+            offer["policy_ref"],
+            packet,
+            activation.get("initial_packet_profile"),
+        )
         return current, activation, offer, root
 
     def _frontier(self, project_ref, state, current, offer, activation):
@@ -828,17 +883,25 @@ class ProjectStage2Service:
                 frontier["workflow_head_sha256"],
                 frontier["workflow_head_sha256"],
             )
+            # _activation_context just reopened and recomputed this profile under
+            # the same store lock. Return its verified binding, not a second
+            # full source/schema replay before every downstream read.
+            profile = activation.get("initial_packet_profile")
+            initial_path = root / "seed" / (PACKET_FILE if profile else "packet.json")
+            initial_sha256 = (
+                profile["packet_sha256"] if profile else activation["packet_sha256"]
+            )
             return dict(
                 project_id=current["project_id"],
                 input_version=current["input_version"],
                 brief_sha256=current["brief_sha256"],
                 source_root=root / "seed",
-                packet_path=root / "seed" / "packet.json",
+                packet_path=initial_path,
                 workflow_root=root / "workflow",
                 workflow_head_sha256=frontier["workflow_head_sha256"],
                 initial_workflow_head_sha256=activation["workflow_head_sha256"],
                 activation_sha256=frontier["activation_sha256"],
                 frontier_sequence=frontier["sequence"],
-                packet_sha256=activation["packet_sha256"],
+                packet_sha256=initial_sha256,
                 execution_authorized=False,
             )

@@ -335,14 +335,38 @@ class ProjectStage1Service:
         fields=(),
         preflight=None,
         check_deadline=None,
+        run_authorization=None,
     ):
         _fields(body, BODY_FIELDS | {"ledger_state_sha256"} | set(fields))
         _check(
-            body["confirmed"] is True and _hash(body["ledger_state_sha256"]),
+            (
+                body["confirmed"] is True
+                if run_authorization is None
+                else body["confirmed"] is False
+            )
+            and _hash(body["ledger_state_sha256"]),
             "stage1-action-binding-invalid",
             400,
         )
         principal = self.intake._principal(credential)
+        if run_authorization is not None:
+            from .project_run_authority import RunActionGuard
+
+            _check(
+                kind in {"stage1-checkpoint", "stage1-deliver"},
+                "stage1-run-saved-operation-invalid",
+            )
+            guard = RunActionGuard(
+                self.intake,
+                principal,
+                project_ref,
+                body,
+                run_authorization,
+                operation="records" if kind == "stage1-checkpoint" else "delivery",
+                action=kind,
+            )
+            body = guard.request
+            check_deadline = guard.deadline_check(check_deadline)
 
         def reserve(state, _, actor):
             from .project_stage1_coverage import unresolved
@@ -527,7 +551,15 @@ class ProjectStage1Service:
             check_deadline=check_deadline,
         )
 
-    def checkpoint(self, credential, project_ref, body, *, check_deadline=None):
+    def checkpoint(
+        self,
+        credential,
+        project_ref,
+        body,
+        *,
+        check_deadline=None,
+        run_authorization=None,
+    ):
         def producer(state, run, ledger, _, __):
             event = ledger.checkpoint()
             result = deepcopy(event["stage_result"])
@@ -550,6 +582,7 @@ class ProjectStage1Service:
             "stage1-checkpoint",
             producer,
             check_deadline=check_deadline,
+            run_authorization=run_authorization,
         )
 
     def export(self, credential, project_ref, body, *, check_deadline=None):

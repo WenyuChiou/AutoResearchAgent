@@ -71,6 +71,8 @@ def main(argv=None):
         "output",
     ):
         control.add_argument("--" + option, required=True)
+    control.add_argument("--preparation-config", type=Path)
+    control.add_argument("--expected-preparation-sha256")
     control_check = commands.add_parser(
         "verify-controller", help="read-only controller verification"
     )
@@ -337,6 +339,10 @@ def main(argv=None):
         command.add_argument("--packet", required=True)
         command.add_argument("--source-root", required=True)
     args = parser.parse_args(argv)
+    if args.command == "controller" and bool(args.preparation_config) != bool(
+        args.expected_preparation_sha256
+    ):
+        parser.error("native preparation requires its external configuration SHA256")
     try:
         if args.command == "observe-runtime":
             from .observation import collect_runtime_observation
@@ -385,12 +391,24 @@ def main(argv=None):
             if Path(args.output).exists():
                 raise CaptureError("output already exists")
             if args.command == "controller":
+                spec = _read(args.spec)
+                options = {}
+                if args.preparation_config is not None:
+                    from .native_prerequisites import load_native_prerequisites
+
+                    options["prerequisite_handler"] = load_native_prerequisites(
+                        args.preparation_config,
+                        args.expected_preparation_sha256,
+                        workflow=args.workflow,
+                        spec=spec,
+                    )
                 result = run_controller(
                     args.workflow,
                     args.controller_root,
                     args.delivery,
                     args.expected_head,
-                    _read(args.spec),
+                    spec,
+                    **options,
                 )
             else:
                 verified = verify_controller(
@@ -785,6 +803,8 @@ def main(argv=None):
                 "blocked",
                 "unresolved",
                 "needs-workspace",
+                "needs-prior-work",
+                "unavailable-preparation-admission",
                 "needs-recovery",
                 "follow-up-needed",
             }

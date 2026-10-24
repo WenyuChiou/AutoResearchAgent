@@ -19,9 +19,17 @@ import threading
 
 from stage1_deliverable.common import canonical, private_output, sha
 from .controller import InjectedSessionController
+from .model_input_profile import (
+    input_limit,
+    record_limit,
+    turn_input,
+    supports_full_source_hello,
+)
+from .bootstrap_context import _rpc_id
+from .frame_journal import _validated
 from .process_deadline import SessionLeaseExpired
 from .store import JournalError
-from .transport import validate_answer
+from .transport import validate_answer, _encode
 from .transcript import project_transcript
 
 
@@ -44,20 +52,10 @@ def _text(value):
 MAX_MODEL_INPUT_BYTES = 10000
 
 
-def _bounded_text_inputs(text):
-    """Bound the complete user message; the Core consumer aggregates inputs.
-
-    This conservative byte-level tokenization bound is not a measured token
-    count. Inputs that can cross 1K tokens remain P0/manual-review scope under
-    the repository review rules; this function does not attest that review.
-    """
-    _check(isinstance(text, str) and bool(text), "invalid-message-text", 400)
-    _check(
-        len(text.encode("utf8")) <= MAX_MODEL_INPUT_BYTES,
-        "model-input-bound-exceeded",
-        400,
-    )
-    return [dict(type="text", text=text, text_elements=[])]
+def _bounded_text_inputs(text, *, input_profile=None):
+    # Historical callers can only request one bounded user message.
+    _check(input_profile is None, "context-profile-requires-turn-input", 400)
+    return turn_input(text)["input"]
 
 
 def _hash(value):
@@ -87,6 +85,37 @@ def _unsettled_messages(state):
     return False
 
 
+def _full_source_bootstrap(boot, connection_id):
+    """Recheck the saved request/reply witness; no version string grants authority."""
+    proof = boot.get("correlations", {}).get(_rpc_id(1), {})
+    request, response = proof.get("request", {}), proof.get("response") or {}
+    _check(
+        boot.get("phase") == "adopted"
+        and boot.get("connection_id") == connection_id
+        and request.get("method") == "initialize"
+        and type(request.get("id")) is int
+        and request["id"] == 1
+        and request.get("params", {}).get("capabilities", {}).get("experimentalApi")
+        is True
+        and type(response.get("id")) is int
+        and response["id"] == 1
+        and "error" not in response
+        and supports_full_source_hello(response.get("result"))
+        and sha(_encode(request) + b"\n") in boot.get("written", {})
+        and all(
+            any(
+                frame.get("direction") == direction
+                and frame.get("connection_id") == connection_id
+                and frame.get("message") == message
+                and _validated(frame)[1] is None
+                for frame in boot.get("frames", [])
+            )
+            for direction, message in (("outgoing", request), ("incoming", response))
+        ),
+        "full-source-native-support-required",
+    )
+
+
 class SessionApi:
     def __init__(self, *, authenticate):
         _check(callable(authenticate), "identity-check-required")
@@ -94,6 +123,7 @@ class SessionApi:
         self._start_offers = {}
         self._approval_policies = {}
         self._trusted_stage_units = set()
+        self._input_profiles = {}
         self._lock = threading.RLock()
         self._guards = threading.local()
 
@@ -126,13 +156,25 @@ class SessionApi:
         start_offer=None,
         approval_policy=None,
         trusted_stage_unit=False,
+        input_profile=None,
     ):
         """Trusted startup only; all roots and controller identities stay server-side."""
         _check(type(trusted_stage_unit) is bool, "literal-stage-unit-optin-required")
+        input_limit(input_profile)
+        _check(
+            input_profile is None or trusted_stage_unit,
+            "profile-requires-trusted-stage-unit",
+        )
         _check(
             _text(project_ref) and isinstance(controller, InjectedSessionController),
             "invalid-registration",
         )
+        if input_profile is not None:
+            _check(
+                type(controller.thread_id) is str
+                and 0 < len(controller.thread_id.encode("utf8")) <= 128,
+                "full-source-thread-id-bound",
+            )
         _check(
             not isinstance(principals, str)
             and principals
@@ -158,6 +200,8 @@ class SessionApi:
         )
         if trusted_stage_unit:
             binding["trusted_stage_unit"] = True
+        if input_profile is not None:
+            binding["input_profile"] = input_profile
         registration = (controller, frozenset(principals), binding, verify_source)
         _check(start_offer is None or callable(start_offer), "invalid-start-offer")
         _check(
@@ -179,6 +223,10 @@ class SessionApi:
             )
             self._source(registration)
             state = controller._context()
+            if input_profile is not None:
+                _full_source_bootstrap(
+                    state.get("bootstrap", {}), controller.connection_id
+                )
             with controller.store._edit(
                 controller.project_id,
                 controller.owner,
@@ -192,6 +240,7 @@ class SessionApi:
                 )
                 current["session_api_binding"] = deepcopy(binding)
             self._projects[project_ref] = registration
+            self._input_profiles[project_ref] = input_profile
             self._start_offers[project_ref] = start_offer
             self._approval_policies[project_ref] = approval_policy
             if trusted_stage_unit:
@@ -264,7 +313,11 @@ class SessionApi:
             and all(type(value) is int for value in limits.values())
             and 1
             <= limits["max_text_bytes"]
-            <= (32768 if trusted_stage_unit else 16384)
+            <= (
+                input_limit(self._input_profiles[binding["project_ref"]])
+                if self._input_profiles[binding["project_ref"]] is not None
+                else (32768 if trusted_stage_unit else 16384)
+            )
             and 1 <= limits["max_starts"] <= 128
             and (not trusted_stage_unit or limits["max_starts"] == 1)
             and 1 <= limits["timeout_seconds"] <= 30,
@@ -285,8 +338,11 @@ class SessionApi:
             },
         )
         document["limits"]["max_text_bytes"] = min(
-            document["limits"]["max_text_bytes"], MAX_MODEL_INPUT_BYTES
+            document["limits"]["max_text_bytes"],
+            input_limit(self._input_profiles[binding["project_ref"]]),
         )
+        if self._input_profiles[binding["project_ref"]] is not None:
+            document["input_profile"] = self._input_profiles[binding["project_ref"]]
         digest = sha(canonical(document))
         return dict(
             offer_ref=self._ref(binding, "start-offer", digest),
@@ -620,7 +676,7 @@ class SessionApi:
                     json.dumps(body, allow_nan=False)
                     encoded = canonical(body)
                     limit = (
-                        65536
+                        record_limit(self._input_profiles[project_ref])
                         if kind == "message"
                         and project_ref in self._trusted_stage_units
                         else 32768
@@ -711,7 +767,7 @@ class SessionApi:
                         threadId=controller.thread_id,
                         cwd=offer["document"]["source_root"],
                         model=offer["document"]["model"],
-                        input=_bounded_text_inputs(body["text"]),
+                        **turn_input(body["text"], self._input_profiles[project_ref]),
                     )
                 elif kind == "answer":
                     matches = [

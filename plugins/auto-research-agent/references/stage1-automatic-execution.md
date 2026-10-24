@@ -151,3 +151,30 @@ invalid evidence, package generation and no-resend recovery. Related query/sourc
 and existing model tests remain required. These tests establish implementation
 behavior only. Actual Topic execution, model semantics, hosted CI, Core review,
 native UI acceptance and formal Stage2 import require their own real receipts.
+
+## Composed native host
+
+The compatibility candidate combines the fixed de92358 producer with Core's
+74ea551 native host. It preserves full-source reading and analysis, explicit
+run-grant continuation, saved Wiki views, and configured Stage2 controllers.
+Automatic-review snapshots bind their work directly; Core reading and analysis
+offers retain the work reference already validated in their permits. Their
+different snapshot shapes are not interchangeable.
+
+The original operator registers the optional producer with
+`ProjectHost.register_stage1_execution` using an externally pinned private permit
+and the original source/model/records owners. Registration starts no model,
+source, query, or Stage2 operation. Authenticated overview and Stage1 reads expose
+`automatic_production`; complete notes use the returned opaque `notes[].url`.
+Core run-grant arguments still select the original bounded continuation. An
+invalid grant cannot fall through to automatic production, and an unconfigured
+Stage2 controller remains unconnected.
+
+Deploy one complete, checked source closure and bind its real host, project,
+typed input, brief, plan, run, and ledger. The old de92358 package and this composed
+candidate have different runtime identities; do not overlay selected files or
+reuse a host attestation from another source closure. Original UI receiving and
+actual page acceptance follow the completed build and the operator's binding.
+No stored run means null with its reason; do not start research to populate a
+read-only acceptance fixture. Original30 receiving-only import retains its
+separate accepted a778 source and admission inputs.

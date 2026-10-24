@@ -27,6 +27,14 @@ from .project_stage1_review_units import (
     OPERATION as AUTO_REVIEW,
     prompt as automatic_review_prompt,
 )
+from .project_full_analysis import ANALYZE_OPERATION
+from .project_reading_dispatch import (
+    READING_OPERATIONS,
+    FULL_SOURCE_OPERATIONS,
+    model_reading_prompt,
+    reading_metadata,
+)
+from .model_input_profile import FULL_SOURCE_PROFILE, record_limit
 
 MAX_CONTEXT = 65536
 HASH = re.compile(r"[0-9a-f]{64}")
@@ -260,7 +268,12 @@ class OwnAccountProjectModelFactory:
         )
         context = deepcopy(context)
         source.require(
-            len(source.canonical(context)) <= MAX_CONTEXT,
+            len(source.canonical(context))
+            <= (
+                record_limit(FULL_SOURCE_PROFILE)
+                if context.get("operation") in FULL_SOURCE_OPERATIONS
+                else MAX_CONTEXT
+            ),
             "model context bound exceeded",
         )
         for name in ("brief_sha256", "source_sha256", "permit_sha256"):
@@ -295,8 +308,14 @@ class OwnAccountProjectModelFactory:
         )
         source.require(
             context.get("operation")
-            in {"suggest-topic", "plan-search", READ_OPERATION, AUTO_REVIEW},
+            in {"suggest-topic", "plan-search", *READING_OPERATIONS, AUTO_REVIEW},
             "bounded project content operation required",
+        )
+        source.require(
+            context.get("input_profile") == FULL_SOURCE_PROFILE
+            if context["operation"] in FULL_SOURCE_OPERATIONS
+            else "input_profile" not in context,
+            "model input profile differs",
         )
         validate_brief(
             context["brief"],
@@ -368,6 +387,37 @@ class OwnAccountProjectModelFactory:
                 == context.get("prompt_sha256"),
                 "automatic reading source or prompt binding differs",
             )
+        elif context["operation"] in FULL_SOURCE_OPERATIONS:
+            snapshot = context.get("saved_reading")
+            source.require(type(snapshot) is dict, "full reading snapshot required")
+            expected_kind = (
+                "Stage1SavedFullSourceAnalysisInput"
+                if context["operation"] == ANALYZE_OPERATION
+                else "Stage1SavedFullSourceReadingInput"
+            )
+            source.require(
+                snapshot.get("kind") == expected_kind,
+                "reading operation snapshot differs",
+            )
+            meta = reading_metadata(snapshot)
+            source.require(
+                type(meta) is dict
+                and meta.get("work_id") == context.get("work_ref")
+                and all(
+                    meta.get(name) == context[name]
+                    for name in (
+                        "project_ref",
+                        "project_id",
+                        "input_version",
+                        "brief_sha256",
+                    )
+                )
+                and source.digest(source.canonical(snapshot))
+                == context.get("snapshot_sha256")
+                and source.digest(model_reading_prompt(snapshot).encode("utf8"))
+                == context.get("prompt_sha256"),
+                "full reading source or prompt binding differs",
+            )
         output = private_output(source.unlinked(output_root).resolve())
         source.require(
             not output.exists() and output.parent.is_dir(),
@@ -395,7 +445,7 @@ class OwnAccountProjectModelFactory:
             for name in ("brief.json", "input-snapshot.json", "model-context.json")
         )
         _save(brief_path, raw_brief)
-        if context["operation"] == READ_OPERATION:
+        if context["operation"] in READING_OPERATIONS:
             _save(
                 input_root / "saved-reading.json",
                 source.canonical(context["saved_reading"]) + b"\n",
@@ -476,5 +526,10 @@ class OwnAccountProjectModelFactory:
             output_root=output,
             project_ref=context["project_ref"],
             trusted_stage_unit=True,
+            **(
+                {"input_profile": FULL_SOURCE_PROFILE}
+                if context["operation"] in FULL_SOURCE_OPERATIONS
+                else {}
+            ),
         )
         return _GuardedStageModel(model, verify)

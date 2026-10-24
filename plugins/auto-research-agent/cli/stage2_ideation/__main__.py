@@ -1,7 +1,6 @@
 """Export a source-bound draft without changing workflow or selection state."""
 
 import argparse
-import copy
 import hashlib
 import json
 from pathlib import Path
@@ -12,6 +11,7 @@ from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage1_deliverable.common import private_output
 
 from .extraction import validate_extraction
+from .seed_profile import prepare_opt_in_packet
 
 from .report import (
     build_proposal_view,
@@ -27,46 +27,13 @@ def _read(path):
 def _enable_tables(args):
     """Prepare a new opt-in run seed without rewriting or promoting its parent."""
     original = _read(args.packet)
-    validate_packet(original, args.source_root)
-    scientific_arguments = getattr(args, "scientific_arguments", False)
-    if (
-        original["schema_version"] not in {"2.0.0", "2.1.0"}
-        and not (original["schema_version"] == "2.2.0" and args.supplemental_versions)
-        and not (original["schema_version"] == "2.3.0" and args.prior_work_reviews)
-        and not (
-            original["schema_version"] == "2.4.0"
-            and scientific_arguments
-            and not original["candidates"]
-        )
-    ):
-        raise Stage2Error(
-            "topic tables require an eligible opt-in seed; scientific arguments "
-            "require an unformed packet 2.4 seed"
-        )
-    if scientific_arguments and (
-        original["schema_version"] != "2.4.0" or original["candidates"]
-    ):
-        raise Stage2Error(
-            "scientific arguments require an unformed packet 2.4 input seed"
-        )
-    packet = copy.deepcopy(original)
-    packet["schema_version"] = (
-        "2.5.0"
-        if scientific_arguments
-        else "2.4.0"
-        if args.prior_work_reviews
-        else "2.3.0"
-        if args.supplemental_versions
-        else "2.2.0"
+    packet = prepare_opt_in_packet(
+        original,
+        args.source_root,
+        supplemental_versions=args.supplemental_versions,
+        prior_work_reviews=args.prior_work_reviews,
+        scientific_arguments=getattr(args, "scientific_arguments", False),
     )
-    if args.supplemental_versions:
-        packet["supplemental_literature"] = []
-    elif args.prior_work_reviews:
-        packet.setdefault("supplemental_literature", [])
-    if args.prior_work_reviews:
-        packet["prior_work_reviews"] = []
-    packet["research_tables"] = None
-    validate_packet(packet, args.source_root)
     output = Path(args.output).absolute()
     private_output(output.parent)
     raw = (json.dumps(packet, ensure_ascii=False, indent=2) + "\n").encode("utf-8")

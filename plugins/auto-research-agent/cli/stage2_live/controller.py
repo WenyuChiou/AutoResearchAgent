@@ -1105,16 +1105,40 @@ def _followups(reconciliation, policy=None):
     return rows
 
 
-def run_controller(run_dir, controller_dir, delivery_dir, expected_head, spec):
+def run_controller(
+    run_dir,
+    controller_dir,
+    delivery_dir,
+    expected_head,
+    spec,
+    *,
+    prerequisite_handler=None,
+):
     """Run or resume the production controller; never records human selection."""
 
-    return _run_controller(
-        run_dir,
-        controller_dir,
-        delivery_dir,
-        expected_head,
-        spec,
-        _ProductionAdapter(),
+    def run(head, prepared_spec):
+        adapter = _ProductionAdapter()
+        if prerequisite_handler is not None:
+            from .execution_admission import AdmittedAdapter
+
+            adapter = AdmittedAdapter(
+                adapter, prerequisite_handler, prepared_spec, controller_dir
+            )
+        return _run_controller(
+            run_dir,
+            controller_dir,
+            delivery_dir,
+            head,
+            prepared_spec,
+            adapter,
+        )
+
+    if prerequisite_handler is None:
+        return run(expected_head, spec)
+    from .preparation import run_with_preparation
+
+    return run_with_preparation(
+        run, run_dir, controller_dir, expected_head, spec, prerequisite_handler
     )
 
 
@@ -1134,11 +1158,45 @@ def _run_controller(
     manifest = _persist_controller_manifest(
         run_dir, controller_dir, delivery_dir, spec, adapter, result
     )
-    return {
+    returned = {
         **result,
         "schema_version": spec.get("schema_version", VERSION),
         "controller_manifest_sha256": manifest["manifest_sha256"],
     }
+    # Seal a small verifiable projection before returning to Host registration.
+    # Raw model outputs remain in the original action/capture artifacts.
+    fields = {
+        "kind",
+        "schema_version",
+        "status",
+        "workflow_head_sha256",
+        "controller_manifest_sha256",
+        "synthetic_test_only",
+        "formal_ready",
+        "human_selection",
+        "stage3_execution_authorized",
+        "selection_ready",
+        "stage2_complete",
+        "completion",
+    }
+    saved = {key: returned[key] for key in fields if key in returned}
+    record = {
+        "kind": "Stage2ControllerReturnedResult",
+        "schema_version": "1.0.0",
+        "result": saved,
+    }
+    record["record_sha256"] = canonical_hash(record)
+    path = (
+        Path(controller_dir)
+        / "controller_results"
+        / (manifest["manifest_sha256"] + ".json")
+    )
+    if path.exists():
+        if json.loads(path.read_text(encoding="utf-8")) != record:
+            raise Stage2Error("controller-returned-result-binding-changed")
+    else:
+        _write_new(path, record)
+    return returned
 
 
 def _run_controller_impl(

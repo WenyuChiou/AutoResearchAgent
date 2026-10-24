@@ -43,7 +43,9 @@ class Stage2SelectionFixture(unittest.TestCase):
     setUp = activation_fixture.ProjectStage2Tests.setUp
     body = activation_fixture.ProjectStage2Tests.body
 
-    def prepare_choice(self, service_type=ProjectStage2SelectionView):
+    def prepare_choice(
+        self, service_type=ProjectStage2SelectionView, *, packet_transform=None
+    ):
         self.service.activate("own", self.ref, self.body())
         initial = self.service.binding(self.ref)
         workflow = Path(initial["workflow_root"])
@@ -52,11 +54,13 @@ class Stage2SelectionFixture(unittest.TestCase):
         evidence = packet["evidence"][0]["evidence_id"]
         packet["candidates"].append(_candidate("candidate-1", evidence_ids=[evidence]))
         packet["packet_id"] = "synthetic-active-choice"
-        packet_path = self.root / "choice-packet.json"
-        packet_path.write_text(json.dumps(packet), encoding="utf-8")
         source_root = materialize_snapshot_input_root(
             state["latest_snapshot"], self.root / "source-view"
         )
+        if packet_transform is not None:
+            packet = packet_transform(packet, source_root)
+        packet_path = self.root / "choice-packet.json"
+        packet_path.write_text(json.dumps(packet), encoding="utf-8")
         add_snapshot(
             workflow,
             packet_path,

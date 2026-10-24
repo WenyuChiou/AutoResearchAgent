@@ -20,6 +20,40 @@ class SourceSavedPipelineIntegrationTests(unittest.TestCase):
             timeout_seconds=600,
         )
 
+    def test_run_grant_actual_sdk_core_registry_and_same_key_no_repeat(self):
+        run_cases(
+            "source_saved_pipeline_cases.SourceSavedPipelineCases.test_run_grant_actual_sdk_core_registry_and_same_key_no_repeat",
+            self,
+            complete_plugin=True,
+            timeout_seconds=600,
+        )
+
+    def test_run_grant_revoked_after_actual_sdk_preserves_receipt_without_core(self):
+        run_cases(
+            "source_saved_pipeline_cases.SourceSavedPipelineCases.test_run_grant_revoked_after_actual_sdk_preserves_receipt_without_core",
+            self,
+            complete_plugin=True,
+            timeout_seconds=600,
+        )
+
+    def test_run_grant_revoked_after_core_preserves_source_without_final_success(self):
+        run_cases(
+            "source_saved_pipeline_cases.SourceSavedPipelineCases.test_run_grant_revoked_after_core_preserves_source_without_final_success",
+            self,
+            complete_plugin=True,
+            timeout_seconds=600,
+        )
+
+    def test_run_grant_revoked_after_registry_preserves_prefix_without_final_success(
+        self,
+    ):
+        run_cases(
+            "source_saved_pipeline_cases.SourceSavedPipelineCases.test_run_grant_revoked_after_registry_preserves_prefix_without_final_success",
+            self,
+            complete_plugin=True,
+            timeout_seconds=600,
+        )
+
 
 class SourceSavedPipelineDeadlineTests(unittest.TestCase):
     def test_worker_gate_refuses_expired_original_deadline_before_verifier(self):

@@ -35,6 +35,7 @@ from .project_intake import ProjectIntakeService
 from .project_resource_budget import reserve_resource, resource_view
 from .project_source_permit import configuration, proposal, _selected
 from .project_stage1 import ProjectStage1Service, _basis
+from . import project_source_run as run_adapter
 from .session_api import SessionApiError, _check, _hash
 
 STORE = "stage1_source_operations"
@@ -73,7 +74,7 @@ class SourceJobRunner(ABC):
         raise NotImplementedError
 
 
-def _shape(body, fields):
+def _shape(body, fields, *, derived=False):
     _check(
         type(body) is dict and set(body) == fields, "source-action-fields-invalid", 400
     )
@@ -85,7 +86,7 @@ def _shape(body, fields):
         and type(body["input_version"]) is int
         and body["input_version"] > 0
         and _hash(body["brief_sha256"])
-        and body["confirmed"] is True,
+        and (body["confirmed"] is False if derived else body["confirmed"] is True),
         "source-action-binding-invalid",
         400,
     )
@@ -152,6 +153,7 @@ class ProjectStage1SourceService:
         verify_configuration=None,
         clock=time.time,
         pipeline=None,
+        run_grants=None,
     ):
         _check(
             isinstance(intake, ProjectIntakeService)
@@ -169,6 +171,7 @@ class ProjectStage1SourceService:
         )
         _check(callable(clock), "source-clock-required")
         self.intake, self.stage1 = intake, stage1
+        self.run_grants = run_adapter.configured(intake, run_grants)
         self.config = configuration(config)
         self.config_sha256 = sha(canonical(self.config))
         self.materials_root = private_output(materials_root).resolve()
@@ -387,6 +390,7 @@ class ProjectStage1SourceService:
             return self._scope_snapshot(principal, ref, grant)
 
     def _scope_snapshot(self, principal, ref, grant):
+        run_adapter.check_grant(self, principal, ref, grant)
         state = self.intake._load(principal, ref)
         binding = self.intake.binding(ref)
         run, ledger, _ = self.stage1._ledger(state, binding)
@@ -441,8 +445,17 @@ class ProjectStage1SourceService:
                 reading_connected=False,
             )
 
-    def authorize(self, credential, ref, body, *, check_deadline=None):
-        _shape(body, AUTHORIZE_FIELDS)
+    def authorize(
+        self, credential, ref, body, *, check_deadline=None, run_authorization=None
+    ):
+        _shape(body, AUTHORIZE_FIELDS, derived=run_authorization is not None)
+        guard = run_adapter.request(
+            self, credential, ref, body, run_authorization, "source-authorize"
+        )
+        if guard is not None:
+            body = deepcopy(guard.request)
+            _check(len(canonical(body)) <= 16384, "source-run-action-too-large", 400)
+            check_deadline = guard.deadline_check(check_deadline)
         principal = self.intake._principal(credential)
         with self.intake._lock:
             old = self._past(principal, ref, "stage1-source-authorize", body)
@@ -490,6 +503,10 @@ class ProjectStage1SourceService:
                     automatic_retry=False,
                     execution_authorized=False,
                 )
+                if guard is not None:
+                    _, original = guard.check()
+                    seal.update(run_adapter.seal_fields(guard))
+                    seal["expires_at"] = min(seal["expires_at"], original["expires_at"])
                 row["grants"][grant_ref] = dict(
                     grant_ref=grant_ref,
                     grant_sha256=sha(canonical(seal)),
@@ -577,8 +594,17 @@ class ProjectStage1SourceService:
             self.pipeline.verify(self)
         return runner
 
-    def execute(self, credential, ref, body, *, check_deadline=None):
-        _shape(body, EXECUTE_FIELDS)
+    def execute(
+        self, credential, ref, body, *, check_deadline=None, run_authorization=None
+    ):
+        _shape(body, EXECUTE_FIELDS, derived=run_authorization is not None)
+        guard = run_adapter.request(
+            self, credential, ref, body, run_authorization, "source-execute"
+        )
+        if guard is not None:
+            body = deepcopy(guard.request)
+            _check(len(canonical(body)) <= 16384, "source-run-action-too-large", 400)
+            check_deadline = guard.deadline_check(check_deadline)
         principal = self.intake._principal(credential)
         with self.intake._lock:
             old = self._past(principal, ref, "stage1-source-execute", body)
@@ -599,6 +625,7 @@ class ProjectStage1SourceService:
                     and grant["grant_sha256"] == body["grant_sha256"],
                     "source-grant-differs",
                 )
+                run_adapter.check_mode(guard, grant)
                 action = self.intake.db.execute(
                     "SELECT receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
                     (actor, ref, grant["key"]),
@@ -627,6 +654,8 @@ class ProjectStage1SourceService:
                 limits = grant["offer"]["limits"]
                 now = self.clock()
                 seconds = min(limits["timeout_seconds"], grant["expires_at"] - now)
+                if guard is not None:
+                    seconds = min(seconds, guard.remaining_seconds())
                 _check(seconds > 0, "source-grant-expired", 408)
                 _check(
                     sum(
@@ -799,6 +828,7 @@ class ProjectStage1SourceService:
             408,
         )
         grant = row["grants"][job["grant_ref"]]
+        run_adapter.check_job(self, principal, ref, job, grant)
         _check(self.clock() < grant["expires_at"], "source-grant-expired", 408)
         _, ledger = self._current_scope(principal, ref, grant)
         _check(

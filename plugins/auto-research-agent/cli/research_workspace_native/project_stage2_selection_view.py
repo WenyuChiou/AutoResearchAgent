@@ -5,10 +5,11 @@ import hashlib
 import json
 from pathlib import Path
 
-from stage2_common import Stage2Error
+from stage2_common import Stage2Error, canonical_hash
 from stage2_workflow.decision_cards import derive_decision_cards
 from stage2_workflow.delivery import inspect_delivery
 from stage2_workflow.store import inspect_workflow
+from stage2_workflow.ui_submission import valid_input_version
 from stage3_plan.intake import admit_intake
 from .project_stage2 import ProjectStage2Service
 from .session_api import SessionApiError, _check, _hash
@@ -37,7 +38,7 @@ class ProjectStage2SelectionView:
                 "selection-binding-shape",
             )
             _check(
-                type(binding["input_version"]) is int and binding["input_version"] > 0,
+                valid_input_version(binding["input_version"], allow_string=True),
                 "selection-binding-version",
             )
             _check(
@@ -48,19 +49,51 @@ class ProjectStage2SelectionView:
 
     def _project_context(self, project_ref, state, binding):
         service = ProjectStage2Service(self.intake)
-        _, activation, _, root = service._activation_context(project_ref, state)
+        current, activation, offer, root = service._activation_context(
+            project_ref, state
+        )
         _check(
             Path(binding["workflow_root"]).resolve() == (root / "workflow").resolve(),
             "stage2-selection-project-workflow-differs",
         )
-        return service, activation
+        return service, activation, current, offer, root
+
+    def _verified_frontier(self, project_ref, state, context):
+        # This context is local to one locked request. No verification result is
+        # retained across requests, and every call reopens the durable frontier.
+        service, activation, current, offer, root = context
+        _check(
+            canonical_hash(state.get("stage2_activation"))
+            == canonical_hash(activation),
+            "stage2-selection-activation-differs",
+        )
+        fresh = self.intake.binding(project_ref)
+        service._matches(fresh, offer)
+        _check(
+            canonical_hash(fresh["settings"]) == offer["settings_sha256"],
+            "stage2-settings-differ",
+        )
+        frontier = service._frontier(project_ref, state, fresh, offer, activation)
+        service._inspect_frontier(
+            root,
+            activation,
+            frontier["workflow_head_sha256"],
+            frontier["workflow_head_sha256"],
+        )
+        return frontier
 
     def _current(self, credential, project_ref, *, validate_frontier=True):
+        return self._current_context(
+            credential, project_ref, validate_frontier=validate_frontier
+        )[0]
+
+    def _current_context(self, credential, project_ref, *, validate_frontier=True):
         project = self.intake.read(credential, project_ref)
         binding = self.bindings.get(project_ref)
         _check(binding is not None, "stage2-selection-unconnected", 409)
         _check(
-            project.get("input_version") == binding["input_version"]
+            type(project.get("input_version")) is type(binding["input_version"])
+            and project.get("input_version") == binding["input_version"]
             and project.get("brief_sha256") == binding["brief_sha256"],
             "stage2-selection-project-stale",
         )
@@ -98,7 +131,7 @@ class ProjectStage2SelectionView:
                 "stage2-selection-project-manifest-differs",
             )
             if validate_frontier:
-                frontier = context[0].binding(project_ref)
+                frontier = self._verified_frontier(project_ref, state, context)
                 _check(
                     frontier["workflow_head_sha256"] == expected_head,
                     "stage2-selection-project-frontier-differs",
@@ -141,7 +174,7 @@ class ProjectStage2SelectionView:
                 raise SessionApiError(
                     "stage2-selection-retained-input-invalid", 409
                 ) from error
-        return project, binding, delivery, workflow, ack, admitted
+        return (project, binding, delivery, workflow, ack, admitted), context
 
     def read(self, credential, project_ref, *, check_deadline=None):
         with self.intake._lock:

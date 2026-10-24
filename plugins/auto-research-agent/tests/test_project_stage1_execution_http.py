@@ -13,6 +13,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.session_api import SessionApiError
 from stage1_deliverable.common import sha
 import test_project_stage1_execution as execution_fixture
 
@@ -269,6 +270,47 @@ class AutomaticStage1HttpTests(unittest.TestCase):
         self.assertEqual(code, 409, error)
         self.assertEqual(error["error"], "automatic-stage1-parent-changed")
         self.assertEqual(self.case.intake.db.total_changes, changes)
+        self.assertEqual(self.calls, [])
+
+    def test_composed_host_keeps_core_reading_and_refuses_unbound_continuations(self):
+        context = self.execution._context(self.ref)
+        work = next(
+            work
+            for work, decision in context[4].coverage_state().evidence.decisions.items()
+            if decision["new_decision"] == "include"
+        )
+        view = self.case.intake.read("alice-token", self.ref)
+        changes = self.case.intake.db.total_changes
+        ledger_hash = context[5]["state_sha256"]
+        preview = self.host.project_models.full_reading_offer(
+            "alice-token",
+            self.ref,
+            work,
+            expected_input_version=view["input_version"],
+            expected_ledger_state_sha256=ledger_hash,
+        )
+        self.assertTrue(preview["available"], preview)
+        code, stage1 = self.request(f"/api/projects/{self.ref}/stage1")
+        self.assertEqual(code, 200, stage1)
+        self.assertIsNotNone(stage1["automatic_production"])
+        self.assertIsNotNone(stage1["reading_registration"])
+        with self.assertRaises(SessionApiError):
+            self.host.continue_stage1(
+                "alice-token",
+                self.ref,
+                run_id="synthetic-refused-core-grant",
+                deadline=time.monotonic() + 30,
+                max_actions=1,
+                grant_ref="unregistered-core-grant",
+            )
+        with self.assertRaises(SessionApiError):
+            self.host.continue_stage2(
+                "alice-token", self.ref, key="synthetic-unconnected-controller"
+            )
+        self.assertEqual(self.case.intake.db.total_changes, changes)
+        self.assertEqual(
+            self.execution._context(self.ref)[5]["state_sha256"], ledger_hash
+        )
         self.assertEqual(self.calls, [])
 
 
