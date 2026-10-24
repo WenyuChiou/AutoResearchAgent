@@ -218,6 +218,7 @@ class PlanningJobTests(unittest.TestCase):
         self.assertEqual(failure["error_class"], type(error).__name__)
         self.assertEqual(self.execute(prepared), failed)
         self.assertEqual(self.callback.call_count, 1)
+
         return failure
 
     def test_timeout_keeps_exact_streams_unknown_outcome_and_never_retries(self):
@@ -272,6 +273,10 @@ class PlanningJobTests(unittest.TestCase):
         )
         self.assertEqual(self.execute(prepared), failed)
         self.assertEqual(self.callback.call_count, 1)
+
+        (Path(payload["output"]) / "plan/raw-response.json").write_bytes(b"changed")
+        with self.assertRaisesRegex(Stage3Error, "failure artifact changed"):
+            self.execute(prepared)
 
     def test_interrupted_after_saved_output_recovers_without_another_callback(self):
         prepared = self.prepare()

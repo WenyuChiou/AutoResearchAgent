@@ -55,6 +55,10 @@ def _runtime():
 class PlanningJobs:
     """Wrap host-owned Journal intents; the host retains authentication and ownership."""
 
+    method = "stage3/planning"
+    kind = "Stage3PlanningJob"
+    namespace = "stage3-plan-"
+
     def __init__(self, journal, project_id, owner, root):
         self.journal, self.project_id, self.owner = journal, project_id, owner
         self.root = private_output(root)
@@ -62,7 +66,7 @@ class PlanningJobs:
 
     def _key(self, key):
         text(key, "job key")
-        return "stage3-plan-" + digest(key)
+        return self.namespace + digest(key)
 
     def _payload(
         self,
@@ -108,7 +112,7 @@ class PlanningJobs:
             )
         schema = plan_schema_path(schema_version)
         value = {
-            "kind": "Stage3PlanningJob",
+            "kind": self.kind,
             "schema_version": "1.0.0",
             "key": key,
             "project_id": self.project_id,
@@ -134,7 +138,7 @@ class PlanningJobs:
             "configuration": configuration,
             "adapter_context": adapter_context,
             "runtime": _runtime(),
-            "output": str(self.root / digest([self.project_id, key])),
+            "output": str(self.root / digest([self.project_id, self.method, key])),
             "policy": dict(POLICY),
         }
         from .contracts import canonical_bytes
@@ -169,7 +173,7 @@ class PlanningJobs:
             self.project_id,
             self.owner,
             self._key(key),
-            "stage3/planning",
+            self.method,
             payload,
             expected_revision,
         )
@@ -179,7 +183,7 @@ class PlanningJobs:
 
     def _item(self, key, expected_request_sha256, current_checkpoint):
         item = self.journal.snapshot(self.project_id)["intents"].get(self._key(key))
-        if item is None or item["method"] != "stage3/planning":
+        if item is None or item["method"] != self.method:
             raise Stage3Error("unknown Stage3 planning job")
         payload = item["payload"]
         if digest(payload) != expected_request_sha256 or digest(
@@ -270,9 +274,7 @@ class PlanningJobs:
         result = None
         if item["status"] == "completed":
             if evidence["outcome"] == "saved":
-                result = self._saved(
-                    item["payload"], evidence["plan"]["manifest_sha256"]
-                )
+                result = self._saved(item["payload"], self._result_pin(evidence))
                 if digest(result) != digest(evidence):
                     raise Stage3Error("job completion evidence differs")
             else:
@@ -302,8 +304,34 @@ class PlanningJobs:
             self.journal.snapshot(self.project_id)["revision"],
         )
 
+    def _result_pin(self, evidence):
+        return evidence["plan"]["manifest_sha256"]
+
+    def _failure_artifacts(self, payload):
+        root = Path(payload["output"])
+        return {
+            name: _ref(root / "plan" / name)
+            for name in (
+                "request.json",
+                "prompt.txt",
+                "schema.json",
+                "raw-response.json",
+                "generation.json",
+                "validation.json",
+                "failure.json",
+                "manifest.json",
+            )
+            if (root / "plan" / name).is_file()
+        }
+
+    def _known_failure(self, payload):
+        return (Path(payload["output"]) / "plan/raw-response.json").is_file()
+
     def _verify_failure(self, ref):
         value = file_binding(ref["path"], ref["sha256"])
+        for artifact in value.get("artifacts", {}).values():
+            if _ref(artifact["path"]) != artifact:
+                raise Stage3Error("saved failure artifact changed")
         for name in ("stdout", "stderr"):
             stream = value[name]
             if stream and stream["retained"]:
@@ -329,6 +357,7 @@ class PlanningJobs:
             "message": str(cause).encode("utf-8", "backslashreplace").decode(),
             "returncode": returncode if type(returncode) is int else None,
             "policy": dict(POLICY),
+            "artifacts": self._failure_artifacts(payload),
         }
         for name in ("stdout", "stderr"):
             raw = getattr(cause, name, None)
@@ -352,6 +381,20 @@ class PlanningJobs:
         write_new(path, value)
         return _ref(path)
 
+    def _perform(self, payload, callback):
+        saved = draft_plan(
+            payload["source"]["package"],
+            payload["source"]["delivery"],
+            expected_manifest_sha256=payload["source"]["manifest_sha256"],
+            output_dir=Path(payload["output"]) / "plan",
+            callback=callback,
+            configuration=payload["configuration"],
+            plan_id=payload["plan"]["plan_id"],
+            version=payload["plan"]["version"],
+            schema_version=payload["plan"]["schema_version"],
+        )
+        return self._saved(payload, saved["manifest"]["manifest_sha256"], attach=True)
+
     def run(self, key, *, expected_request_sha256, current_checkpoint, callback):
         """One explicit host action; reuse NativePlanner rather than a process manager."""
         item = self._item(key, expected_request_sha256, current_checkpoint)
@@ -372,24 +415,11 @@ class PlanningJobs:
         root = Path(payload["output"])
         try:
             root.mkdir(parents=True, exist_ok=True)
-            saved = draft_plan(
-                payload["source"]["package"],
-                payload["source"]["delivery"],
-                expected_manifest_sha256=payload["source"]["manifest_sha256"],
-                output_dir=root / "plan",
-                callback=callback,
-                configuration=payload["configuration"],
-                plan_id=payload["plan"]["plan_id"],
-                version=payload["plan"]["version"],
-                schema_version=payload["plan"]["schema_version"],
-            )
-            result = self._saved(
-                payload, saved["manifest"]["manifest_sha256"], attach=True
-            )
+            result = self._perform(payload, callback)
         except BaseException as error:
             failure = self._failure(payload, error)
             failure_value = file_binding(failure["path"], failure["sha256"])
-            known = (root / "plan" / "raw-response.json").is_file() or (
+            known = self._known_failure(payload) or (
                 type(failure_value["returncode"]) is int
                 and failure_value["returncode"] != 0
             )

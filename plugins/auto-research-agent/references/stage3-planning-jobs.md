@@ -26,4 +26,11 @@ Registered tests use authored admission mocks and stub callbacks; native/process
 calls are forbidden. Real choice, deadline enforcement, identity/isolation, provider
 recovery, external exactly-once and scientific quality remain unverified. All five
 authority/formal-pairing flags stay false. Evaluation/campaign and host HTTP wiring
-are separate slices, not implemented here.
+remain host-owned.
+
+`evaluation_jobs.EvaluationJobs` adds a single configured R1/R2/ADJ job over the
+same journal and existing request/record validators. It retains exact raw/prose,
+streams, errors and null vectors; inspect/recover never calls the evaluator.
+Optional campaign receipts/index use Delivery A's pinned modules, not a new
+evaluator. Missing campaign dependencies reject before dispatch; that integration
+requires the combined candidate. Native identity/isolation remain unverified.
