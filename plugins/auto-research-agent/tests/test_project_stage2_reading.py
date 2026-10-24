@@ -28,7 +28,7 @@ class Stage2ReadingTests(unittest.TestCase):
         self.fixture = delivery_fixture.Stage2DeliveryTests("runTest")
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
-        self.root = self.fixture.root
+        self.root = self.fixture.root.resolve()
         self.delivery = self.root / "ordinary"
         self.manifest = self.fixture._build(
             self.delivery,
