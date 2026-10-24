@@ -22,3 +22,6 @@ class SavedStage1BrowserTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("project saved Stage1 view VM checks: passed", result.stdout)
+        self.assertIn(
+            "project operations typed saved-input DOM checks: passed", result.stdout
+        )

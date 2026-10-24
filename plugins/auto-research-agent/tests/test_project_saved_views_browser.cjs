@@ -154,4 +154,122 @@ for (const invalid of [
   assert.equal(frameOf(sectionOf(result)), undefined, 'malformed or untrusted bindings fail closed');
 }
 
+const projectA = 'project-' + '1'.repeat(32);
+const projectB = 'project-' + '2'.repeat(32);
+const bind = (view, project_ref) => ({
+  ...view, project_ref, project_input_sha256: hash('d'),
+  binding_origin: 'trusted-host-stage1-view-binding'
+});
+const boundA = bind(row, projectA);
+const boundB = bind({...row, ref: 'saved_view_B', label: 'Other project material',
+  url: '/project-stage1-saved/saved_view_B/index.html'}, projectB);
+const selection = project_ref => ({project_ref, input_version: row.input_version});
+
+{
+  const result = run({kind: 'SavedStage1References', schema_version: '1.0.0', views: [row, boundB, boundA]});
+  // The saved refs must be unique, even if an unbound copy has the same identity.
+  result.api.mount({anchor: result.anchor});
+  result.api.update({selection: selection(projectA), stage: 1, language: 'en'});
+  assert.equal(frameOf(sectionOf(result)), undefined, 'duplicate saved refs fail closed');
+}
+
+{
+  const legacy = {...row, ref: 'saved_unbound', url: '/project-stage1-saved/saved_unbound/index.html'};
+  const result = run({kind: 'SavedStage1References', schema_version: '1.0.0', views: [legacy, boundB, boundA]});
+  result.api.mount({anchor: result.anchor});
+  const section = sectionOf(result);
+  result.api.update({selection: selection(projectA), stage: 1, language: 'en'});
+  assert.equal(section.hidden, false, 'the exact project can read its trusted saved material');
+  let frame = frameOf(section);
+  assert(frame);
+  assert.equal(frame.src, boundA.url);
+  assert.match(section.textContent, /STRING20261009-A03/, 'string input versions remain literal');
+  assert.doesNotMatch(section.textContent, /Other project material/);
+  assert.equal(flatten(section).some(node => node.tag === 'select'), false, 'unbound/other-project rows are not offered');
+  assert.equal(frame.getAttribute('sandbox'), 'allow-scripts allow-same-origin allow-downloads');
+  result.api.update({selection: selection(projectA), stage: 1, language: 'en'});
+  assert.equal(frameOf(section), frame, 'same binding summaries preserve the reader');
+  const mutableSelection = selection(projectA);
+  result.api.update({selection: mutableSelection, stage: 1, language: 'en'});
+  mutableSelection.project_ref = projectB;
+  result.api.update({selection: mutableSelection, stage: 1, language: 'en'});
+  assert.equal(frame.parent, null, 'reused caller objects cannot hide a project switch');
+  assert.equal(frameOf(section).src, boundB.url);
+  result.api.update({selection: selection(projectA), stage: 1, language: 'en'});
+  result.api.update({selection: selection(projectA), stage: 1, language: 'zh-Hant'});
+  assert.match(section.textContent, /已保存的 Stage1 交付 · 唯讀/);
+  assert.equal(frameOf(section).src, boundA.url);
+  result.api.update({selection: selection(projectA), stage: 1, language: 'zh-Hans'});
+  assert.match(section.textContent, /已保存的 Stage1 交付 · 只读/);
+  assert.equal(frameOf(section).src, boundA.url);
+  frame = frameOf(section);
+  result.api.update({selection: selection(projectB), stage: 1, language: 'en'});
+  assert.equal(frame.parent, null, 'switching projects removes the old iframe');
+  assert.equal(frameOf(section).src, boundB.url, 'matching uses project_ref, not the shared project_id');
+  frame.onload();
+  assert.equal(frameOf(section).src, boundB.url, 'a late old load cannot restore another project');
+  frame = frameOf(section);
+  result.api.update({selection: selection('project-' + '3'.repeat(32)), stage: 1, language: 'en'});
+  assert.equal(section.hidden, true);
+  assert.equal(frame.parent, null);
+  assert.equal(frameOf(section), undefined, 'unknown projects do not fall back to legacy material');
+  result.api.update({selection: selection(projectA), stage: 2, language: 'en'});
+  assert.equal(section.hidden, true);
+  assert.equal(frameOf(section), undefined, 'the Stage1 material frame is absent on Stage2');
+  result.api.update({selection: {...selection(projectA), input_version: 7}, stage: 1, language: 'en'});
+  assert.equal(frameOf(section), undefined, 'wrong typed versions cannot reuse the saved material');
+  result.api.update({selection: null, stage: 1, language: 'en'});
+  assert.equal(section.hidden, false, 'unselected legacy references remain available');
+}
+
+{
+  const secondA = {...boundA, ref: 'saved_A_second', label: 'Second same-project source',
+    url: '/project-stage1-saved/saved_A_second/index.html'};
+  const result = run({kind: 'SavedStage1References', schema_version: '1.0.0', views: [boundA, secondA, boundB]});
+  result.api.mount({anchor: result.anchor});
+  const section = sectionOf(result);
+  result.api.update({selection: selection(projectA), stage: 1, language: 'en'});
+  const select = flatten(section).find(node => node.tag === 'select');
+  assert.deepEqual(select.children.map(node => node.value), ['', boundA.ref, secondA.ref]);
+  select.value = secondA.ref;
+  select.onchange();
+  assert.equal(frameOf(section).src, secondA.url);
+  result.api.update({selection: selection(projectA), stage: 1, language: 'zh-Hant'});
+  assert.equal(frameOf(section).src, secondA.url, 'language changes retain the current matching material');
+  result.api.update({selection: selection(projectB), stage: 1, language: 'en'});
+  assert.equal(frameOf(section).src, boundB.url);
+  select.value = boundA.ref;
+  select.onchange();
+  assert.equal(frameOf(section).src, boundB.url, 'detached controls cannot select a foreign project row');
+}
+
+for (const invalid of [
+  {project_ref: projectA},
+  {project_input_sha256: hash('d')},
+  {binding_origin: 'trusted-host-stage1-view-binding'},
+  {project_ref: projectA, project_input_sha256: hash('d')},
+  {project_ref: projectA, binding_origin: 'trusted-host-stage1-view-binding'},
+  {project_ref: projectA, project_input_sha256: 'bad', binding_origin: 'trusted-host-stage1-view-binding'},
+  {project_ref: 'project-' + 'A'.repeat(32), project_input_sha256: hash('d'), binding_origin: 'trusted-host-stage1-view-binding'},
+  {project_ref: projectA, project_input_sha256: hash('d'), binding_origin: 'client-guessed'},
+  {project_ref: null, project_input_sha256: hash('d'), binding_origin: 'trusted-host-stage1-view-binding'}
+]) {
+  const result = run({kind: 'SavedStage1References', schema_version: '1.0.0', views: [{...row, ...invalid}]});
+  result.api.mount({anchor: result.anchor});
+  assert.equal(frameOf(sectionOf(result)), undefined, 'malformed mapping is refused even without an active project');
+  result.api.update({selection: selection(projectA), stage: 1, language: 'en'});
+  assert.equal(frameOf(sectionOf(result)), undefined, 'partial or malformed trusted mapping cannot display material');
+}
+
+{
+  const numericString = {...boundA, input_version: '7'};
+  const result = run({kind: 'SavedStage1References', schema_version: '1.0.0', views: [numericString]});
+  result.api.mount({anchor: result.anchor});
+  result.api.update({selection: {project_ref: projectA, input_version: 7}, stage: 1, language: 'en'});
+  assert.equal(frameOf(sectionOf(result)), undefined, 'numeric string and integer versions stay distinct');
+  result.api.update({selection: {project_ref: projectA, input_version: '7'}, stage: 1, language: 'en'});
+  assert.equal(frameOf(sectionOf(result)).src, boundA.url);
+}
+
 console.log('project saved Stage1 view VM checks: passed');
+require('./test_project_operations_browser.cjs');
