@@ -1,10 +1,48 @@
 """Synthetic offline campaign checks; not a scientific evaluation."""
 
 from stage3_campaign_test_support import CampaignFixture
+from stage3_plan.campaign import binding
+from stage3_plan.campaign_records import record_campaign
+from stage3_plan.contracts import Stage3Error
 from stage3_plan.evaluation import CRITERIA
 
 
 class CampaignSummaryTests(CampaignFixture):
+    def _malformed_grading_receipt(self):
+        unit = next(u for u in self.manifest["units"] if u["role"] == "R1")
+        raw = self.root / "malformed-judgment.json"
+        raw.write_bytes(b"{bad")
+        output = self.root / "failed-receipt"
+        with self.assertRaises(Stage3Error):
+            record_campaign(
+                self.campaign,
+                expected_sha256=self.campaign_sha,
+                unit_id=unit["unit_id"],
+                judgment=raw,
+                expected_judgment_sha256=binding(raw)["sha256"],
+                output=output,
+            )
+        return binding(output / "receipt.json")
+
+    def test_format_failure_keeps_configured_grader_error_audit_pending(self):
+        self.prepare()
+        result = self.summary([self._malformed_grading_receipt()])
+        self.assertEqual(len(result["failed_receipts"]), 1)
+        self.assertEqual(result["audit_pending_subjects"], 1)
+        self.assertEqual(
+            [s["audit_pending"] for s in result["subjects"] if s["audit_pending"]],
+            [["grader_error"]],
+        )
+        self.assertFalse(result["usable_for_formal_pairing"])
+        self.assertTrue(all(value is False for value in result["policy"].values()))
+
+    def test_format_failure_without_trigger_does_not_add_audit_gate(self):
+        self.definition["analysis"]["audit_triggers"] = ["disagreement"]
+        self.prepare()
+        result = self.summary([self._malformed_grading_receipt()])
+        self.assertEqual(len(result["failed_receipts"]), 1)
+        self.assertEqual(result["audit_pending_subjects"], 0)
+
     def test_summary_counts_base_cases_not_variants_questions_or_raters(self):
         self.prepare()
         refs = [
@@ -143,6 +181,7 @@ class CampaignSummaryTests(CampaignFixture):
         result = self.summary([])
         self.assertEqual(result["subject_failures"], 1)
         self.assertEqual(result["subject_not_run"], 3)
+        self.assertEqual(result["audit_pending_subjects"], 0)
         self.assertEqual(result["dimensions"]["P7"]["planned_pairs"], 2)
         self.assertEqual(
             result["dimensions"]["P7"]["planned_independent_base_cases"], 1

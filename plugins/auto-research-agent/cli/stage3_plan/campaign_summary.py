@@ -87,6 +87,11 @@ def summarize_campaign(root, *, expected_sha256, index, expected_index_sha256):
         for trigger in manifest["definition"]["analysis"]["audit_triggers"]:
             if trigger == "disagreement" and disagreement:
                 pending.add(trigger)
+            if trigger == "grader_error" and any(
+                receipts.get(role_unit["unit_id"], {}).get("status") == "failed"
+                for role_unit, _ in roles.values()
+            ):
+                pending.add(trigger)
             for record in rows.values():
                 if any(
                     (trigger == row["status"])
