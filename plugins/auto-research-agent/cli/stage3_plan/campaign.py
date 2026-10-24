@@ -330,16 +330,14 @@ def inspect_campaign(root, *, expected_sha256):
     expected, views = build_campaign(
         actual["definition"], definition_sha256=actual["definition_raw_sha256"]
     )
-    if (
-        digest(actual) != digest(expected)
-        or pinned(
+    if digest(actual) != digest(expected) or digest(
+        pinned(
             {
                 "path": str(root / "definition.json"),
                 "sha256": actual["definition_raw_sha256"],
             }
         )
-        != actual["definition"]
-    ):
+    ) != digest(actual["definition"]):
         raise Stage3Error("campaign differs from deterministic source-aware replay")
     expected_names = {"definition.json", "manifest.json"} | {
         name + ".json" for name in views
