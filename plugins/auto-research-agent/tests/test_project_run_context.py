@@ -171,29 +171,71 @@ class ProjectRunContextTests(unittest.TestCase):
         with self.assertRaises(SessionApiError):
             self.delivery.deliver("alice-token", fixture["ref"], changed)
 
-    def test_companion_failure_preserves_failed_action_partial_package_and_no_retry(
-        self,
-    ):
+    def test_companion_failure_preserves_unknown_partial_package_and_no_retry(self):
         fixture = self.authored()
-        with patch.object(
-            context,
-            "build_run_context",
-            side_effect=ValueError("context source absent"),
-        ):
+        published = []
+
+        def files(root):
+            return {
+                path.relative_to(root).as_posix(): sha(path.read_bytes())
+                for path in root.rglob("*")
+                if path.is_file()
+            }
+
+        def fail_companion(_, project_ref, artifact, output, source_context):
+            published.append((Path(output), files(Path(output))))
+            raise ValueError("context source absent")
+
+        with patch.object(context, "build_run_context", side_effect=fail_companion):
             with self.assertRaises(SessionApiError) as raised:
                 self.delivery.deliver("alice-token", fixture["ref"], fixture["body"])
-        self.assertEqual(raised.exception.receipt["status"], "failed")
+        failure = raised.exception.receipt
+        self.assertEqual(failure["status"], "execution-unknown")
+        self.assertEqual(failure["failure_phase"], "publication-outcome-unobserved")
+        self.assertEqual(failure["error"], "context source absent")
+        self.assertEqual(len(published), 1)
+        root, original_files = published[0]
+        self.assertIn("provenance_manifest.json", original_files)
+        self.assertIn("records.original.json", original_files)
         self.assertIsNone(
             self.intake._load("alice", fixture["ref"]).get("stage1_canonical_package")
         )
-        with patch.object(
-            context, "build_run_context", side_effect=AssertionError("repeated")
+        before_paths = sorted(path.name for path in root.parent.iterdir())
+        self.reopen()
+        history = self.intake.history("alice-token", fixture["ref"])
+        with (
+            patch.object(
+                context, "build_run_context", side_effect=AssertionError("recaptured")
+            ) as companion,
+            patch(
+                "research_workspace_native.project_stage1_delivery.package.build",
+                side_effect=AssertionError("rebuilt"),
+            ) as builder,
         ):
             replay = self.delivery.deliver(
                 "alice-token", fixture["ref"], fixture["body"]
             )
-        self.assertEqual(replay["status"], "failed")
-        self.assertTrue(replay["replayed"])
+            self.assertEqual(replay, dict(failure, replayed=True))
+            changed = dict(
+                fixture["body"],
+                key=fixture["body"]["key"] + "-new",
+                revision=self.intake.read("alice-token", fixture["ref"])["revision"],
+            )
+            with self.assertRaisesRegex(
+                SessionApiError, "stage1-coverage-write-outcome-unobserved"
+            ):
+                self.delivery.deliver("alice-token", fixture["ref"], changed)
+            companion.assert_not_called()
+            builder.assert_not_called()
+        self.assertEqual(self.intake.history("alice-token", fixture["ref"]), history)
+        self.assertEqual(files(root), original_files)
+        self.assertEqual(
+            sorted(path.name for path in root.parent.iterdir()), before_paths
+        )
+        self.assertIsNone(
+            self.intake._load("alice", fixture["ref"]).get("stage1_canonical_package")
+        )
+        self.runner.assert_not_called()
 
     def test_cas_rejects_source_drift_after_copy(self):
         fixture = self.authored()
