@@ -1,0 +1,11 @@
+# Read independently saved ordinary Stage 2 reports
+
+This optional ProjectHost entry reads an ordinary Stage2DeliveryManifest without inventing an evaluated delivery, Stage1 lineage, project adoption or a human choice. It reuses inspect_delivery and the escaped decision-card renderer. It starts no model, search, controller or experiment.
+
+The trusted operator supplies --stage2-reading-config and its external raw --stage2-reading-sha256. The version1.0.0 Stage2ReadingConfiguration contains one to eight readings. Each entry has ref, label, an absolute delivery_root and the original canonical delivery_manifest_sha256. References are bounded opaque local names; browser callers cannot supply filesystem paths or this trust configuration.
+
+The Host validates every ordinary package and rechecks its bytes before allocating its listener. The six-stage Stage2 result area shows a clearly independent reading link in all three interface languages. The report has direction cards, exact-version materials and unknowns, the original full Markdown report/comments, selection JSON and a source/hash binding. The saved package HTML and arbitrary source paths are not served. Return to workspace keeps the existing project entry.
+
+Reading is separate from formal selection. Zero recommendations remain readable. Positive recommendations also confer no project-choice authority through this entry. Existing formal selection still requires the actual current project activation/frontier, version-bound eligible candidate and real user submission; Stage3 execution_authorized remains false. A report sharing a topic with Stage1 does not prove it used that Stage1 package.
+
+Tests use explicit synthetic packages and actual HTTP plus actual JavaScript with an authored DOM. They establish engineering behavior only. Actual browser deployment and real Stage1/Stage2 scientific acceptance must retain their own evidence. No research-quality gain or A/B score change is claimed.
