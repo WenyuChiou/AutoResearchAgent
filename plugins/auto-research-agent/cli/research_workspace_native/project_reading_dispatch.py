@@ -57,7 +57,8 @@ def _kind(snapshot):
         type(kind) is str and kind in _KINDS, "reading-dispatch-kind-unsupported", 400
     )
     _check(
-        snapshot.get("schema_version") == "1.0.0",
+        snapshot.get("schema_version") == "1.0.0"
+        or (kind == _ANALYSIS_KIND and snapshot.get("schema_version") == "1.1.0"),
         "reading-dispatch-schema-version",
         400,
     )

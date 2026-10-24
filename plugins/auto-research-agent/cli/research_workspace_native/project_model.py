@@ -260,6 +260,7 @@ class ProjectModelService:
         local_cap_seconds=600,
         reading_records=None,
         run_grants=None,
+        analysis_coverage=False,
     ):
         _check(
             provider_factory is None or callable(provider_factory),
@@ -267,6 +268,8 @@ class ProjectModelService:
         )
         self.intake, self.factory = intake, provider_factory
         self.run_grants = run_adapter.configured(intake, run_grants)
+        _check(type(analysis_coverage) is bool, "model-analysis-coverage-mode-invalid")
+        self.analysis_coverage = analysis_coverage
         self.clock, self.monotonic = clock, monotonic
         _check(
             model is None
@@ -309,11 +312,22 @@ class ProjectModelService:
         )
 
     def _operation_reading_snapshot(
-        self, operation, ref, work_ref, check_deadline=None
+        self, operation, ref, work_ref, check_deadline=None, *, analysis_version=None
     ):
         if operation == ANALYZE_OPERATION:
+            version = analysis_version
+            if version is None:
+                version = "1.1.0" if self.analysis_coverage else "1.0.0"
+            _check(
+                type(version) is str and version in {"1.0.0", "1.1.0"},
+                "model-analysis-version-invalid",
+            )
             return saved_full_analysis_snapshot(
-                self.reading_records, ref, work_ref, check_deadline=check_deadline
+                self.reading_records,
+                ref,
+                work_ref,
+                check_deadline=check_deadline,
+                coverage=version == "1.1.0",
             )
         if operation == FULL_READ_OPERATION:
             return saved_full_reading_snapshot(
@@ -684,8 +698,28 @@ class ProjectModelService:
         run_adapter.check_permit(self, project_ref, permit, permit_sha256)
         snapshot = None
         if operation in READING_OPERATIONS:
+            analysis_version = None
+            if operation == ANALYZE_OPERATION:
+                with self.intake._lock:
+                    state = self.intake._load(principal, project_ref)
+                    offers = [
+                        o
+                        for o in self._row(state)["offers"].values()
+                        if o["context"]["permit_sha256"] == permit_sha256
+                    ]
+                    _check(len(offers) <= 1, "model-analysis-permit-ambiguous")
+                    # Existing saved offers select their own format across restart.
+                    # An external legacy permit carries no analysis-format field.
+                    analysis_version = (
+                        offers[0]["context"]["saved_reading"]["schema_version"]
+                        if offers
+                        else "1.0.0"
+                    )
             snapshot = self._operation_reading_snapshot(
-                operation, project_ref, permit["work_ref"]
+                operation,
+                project_ref,
+                permit["work_ref"],
+                analysis_version=analysis_version,
             )
             _check(
                 permit["snapshot_sha256"] == sha(canonical(snapshot)),
@@ -1029,7 +1063,12 @@ class ProjectModelService:
         )
         if offer["context"]["operation"] in READING_OPERATIONS:
             snapshot = self._operation_reading_snapshot(
-                offer["context"]["operation"], ref, offer["context"]["work_ref"]
+                offer["context"]["operation"],
+                ref,
+                offer["context"]["work_ref"],
+                analysis_version=offer["context"]["saved_reading"]["schema_version"]
+                if offer["context"]["operation"] == ANALYZE_OPERATION
+                else None,
             )
             _check(
                 snapshot == offer["context"]["saved_reading"]
