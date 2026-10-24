@@ -32,6 +32,21 @@ AUTHORIZE = BOUND | {
 }
 
 
+def derived_action_key(grant_sha256, operation, identity):
+    """Preview an existing derived key without reading or creating authority."""
+    _check(
+        _hash(grant_sha256)
+        and type(operation) is str
+        and operation in OPERATIONS
+        and _hash(identity),
+        "stage1-run-action-invalid",
+        400,
+    )
+    return (
+        "stage1-run-action-" + sha(canonical([grant_sha256, operation, identity]))[:40]
+    )
+
+
 def _bound(body, fields):
     _check(
         type(body) is dict and set(body) == fields and len(canonical(body)) <= 16384,
@@ -360,10 +375,7 @@ class ProjectStage1RunGrantService:
                 operation in document["operations"],
                 "stage1-run-operation-not-authorized",
             )
-            key = (
-                "stage1-run-action-"
-                + sha(canonical([grant_sha256, operation, identity]))[:40]
-            )
+            key = derived_action_key(grant_sha256, operation, identity)
             body = {key: state[key] for key in ("revision", "input_version")}
             body.update(
                 key=key,
