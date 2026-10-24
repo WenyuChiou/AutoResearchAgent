@@ -82,7 +82,8 @@
             "Saved-review queue tests use real SQLite reopen and concurrent handles to verify source-request key/hash/revision binding, queue CAS and deduplication, fixed receiving-owner authorization, deadline/source/result rollback and exact result pins. A later opinion does not invalidate an older request; no worker or model is launched.",
             "Read-only Stage2 selection views reopen the externally hashed package and current workflow, bind the exact host project/input/brief and active workflow root, preserve material/source unknowns, and recheck deadlines after verification. Real offline Core/SQLite fixtures refuse wrong hashes, versions, foreign roots and principals without changing workflow or project state; browser/selection/Stage3 acceptance is separate.",
             "Six-stage navigation preserves the imported string input type and current source-bound identity while refusing wrong schema, type-coerced versions, stale revisions and foreign briefs. Three-language authored DOM checks expose only a previously configured selection link and produce no network, storage or execution effects.",
-            "Explicit ordinary Stage2 reading registration retains external config/package hashes, literal source comments and unknown material status, rejects tampering before listener allocation, exposes only fixed readonly routes and performs zero project selection or research writes."
+            "Explicit ordinary Stage2 reading registration retains external config/package hashes, literal source comments and unknown material status, rejects tampering before listener allocation, exposes only fixed readonly routes and performs zero project selection or research writes.",
+            "Three fixed ordinary Stage2 reading pages and language-matched menu/return links preserve literal research, zero recommendation and no-choice authority; same-source HTTP routes retain CSP and reject unknown locale filenames."
           ],
           "human_judgment": "Core review assesses trace sufficiency; synthetic protocol checks do not establish native Windows execution or research quality."
         },
@@ -435,7 +436,8 @@
         "plugins/auto-research-agent/tests/test_project_typed_navigation.py",
         "plugins/auto-research-agent/tests/browser/project-typed-navigation-test.cjs",
         "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs",
-        "plugins/auto-research-agent/tests/test_project_stage2_reading.py"
+        "plugins/auto-research-agent/tests/test_project_stage2_reading.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -490,10 +492,11 @@
         "plugins/auto-research-agent/tests/test_project_typed_navigation.py",
         "plugins/auto-research-agent/tests/browser/project-typed-navigation-test.cjs"
       ],
-      "ordinary_stage2_reading_contract": "Externally raw-hash-bound trusted Host configuration reopens ordinary delivery inspectors and seals only escaped direction cards plus plain saved Markdown/JSON. The independent reading association does not attest Stage1 lineage or project adoption, creates no action/choice/workflow writes and grants no selection or execution authority, even with recommendations. Configuration and package drift reject before listener allocation; unknowns, original comments, exact versions and ordinary manifest/source pins remain visible. Registered fixed same-origin GET routes retain default CSP and origin protection; browser data cannot provide local paths or trusted bindings.",
+      "ordinary_stage2_reading_contract": "Externally raw-hash-bound trusted Host configuration reopens ordinary delivery inspectors and seals only escaped direction cards plus plain saved Markdown/JSON. The independent reading association does not attest Stage1 lineage or project adoption, creates no action/choice/workflow writes and grants no selection or execution authority, even with recommendations. Configuration and package drift reject before listener allocation; unknowns, original comments, exact versions and ordinary manifest/source pins remain visible. Registered fixed same-origin GET routes retain default CSP and origin protection; browser data cannot provide local paths or trusted bindings. Three sealed script-free English, Traditional Chinese and Simplified Chinese pages translate only fixed controls and labels. Original research and raw artifacts remain unchanged; exact enum-only return-language fragments use the existing workbench handler without selection or research actions. Unregistered locale assets refuse under the existing CSP and source guards.",
       "ordinary_stage2_reading_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_reading.py",
-        "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs"
+        "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py"
       ]
     },
     {

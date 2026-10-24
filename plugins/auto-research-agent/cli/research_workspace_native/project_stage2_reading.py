@@ -1,15 +1,15 @@
 """Pinned ordinary Stage 2 packages for reading, without project adoption."""
 
 from copy import deepcopy
-from html import escape
 from pathlib import Path
 import re
 
 from stage1_deliverable.common import canonical, sha
 from stage2_check.contracts import decode_json
 from stage2_workflow.decision_cards import derive_decision_cards
-from stage2_workflow.decision_card_views import render_decision_cards_html
 from stage2_workflow.delivery import MANIFEST, inspect_delivery
+
+from .project_stage2_reading_locales import reading_pages
 
 _NAV_CSS = b".stage2-reading-nav{flex-wrap:wrap}"
 
@@ -120,35 +120,12 @@ class Stage2ReadingRegistry:
             binding_raw = canonical(binding)
             # Only trusted escaped rendering and plain saved text are published.
             # The package's potentially active HTML and arbitrary paths are not served.
-            page = (
-                '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-                '<meta name="viewport" content="width=device-width,initial-scale=1">'
-                "<title>" + escape(row["label"], quote=True) + "</title>"
-                '<link rel="stylesheet" href="/project-stage2-selection.css">'
-                '<link rel="stylesheet" href="reading.css"></head><body><main>'
-                '<nav class="stage2-reading-nav"><a href="/projects.html">Return to workspace</a> · '
-                '<a href="selection.md">Full saved report</a> · '
-                '<a href="selection.json">Saved selection JSON</a> · '
-                '<a href="binding.json">Package identity</a></nav>'
-                "<h1>" + escape(row["label"], quote=True) + "</h1>"
-                "<p>Independent Stage 2 report. This reading entry does not link the report "
-                "to this project's Stage 1 run or record a research choice.</p>"
-                "<p>Directions: "
-                + str(binding["direction_count"])
-                + "; recommended candidates: "
-                + str(binding["recommendation_count"])
-                + ". Reading only; no research or experiment is started here.</p>"
-                + render_decision_cards_html(cards)
-                + "<details><summary>Full saved report, review comments and limitations</summary>"
-                '<pre translate="no">'
-                + escape(saved["selection.md"].decode("utf-8"), quote=True)
-                + "</pre></details><details><summary>Source and version binding</summary><pre>"
-                + escape(binding_raw.decode("utf-8"), quote=True)
-                + "</pre></details></main></body></html>"
-            ).encode("utf-8")
+            pages = reading_pages(
+                row["label"], binding, binding_raw, cards, saved["selection.md"]
+            )
+            assets.update({prefix + name: page for name, page in pages.items()})
             assets.update(
                 {
-                    prefix + "index.html": page,
                     prefix + "reading.css": _NAV_CSS,
                     prefix + "binding.json": binding_raw,
                     prefix + "decision-cards.json": cards_raw,
