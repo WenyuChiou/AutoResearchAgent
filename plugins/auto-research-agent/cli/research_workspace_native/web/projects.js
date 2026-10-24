@@ -45,6 +45,7 @@
       modelHeld: "An earlier task has an uncertain result, so new submissions stay held. Inspect saved operations below; refresh never resends the task.",
       stage2Missing: "No accepted canonical Stage1 package is registered for this project/version.",
       stage2Ready: "A source-bound Stage1 import is available for explicit review.",
+      stage2Receiving: "Stage1 delivery received. Stage2 research has not started.",
       emptyHistory: "No actions are saved yet.", working: "Saving the action intent…",
       responseLost: "The response was lost or rejected. Read saved history before taking another action; nothing is automatically resent.",
       recovered: "Saved history loaded. Any unknown action remains unknown.", sourceDetails: "Input versions and saved identity",
@@ -88,6 +89,7 @@
       modelHeld: "此前任务结果尚不确定，已暂停新的送出。请查看下方保存的操作；刷新不会重发任务。",
       stage2Missing: "此项目/版本尚未注册已接受的规范 Stage1 交付包。",
       stage2Ready: "已有来源绑定的 Stage1 导入选项，等待明确审阅。",
+      stage2Receiving: "Stage1 交付已接收；Stage2 研究尚未开始。",
       emptyHistory: "尚无保存操作。", working: "正在保存操作意图…",
       responseLost: "响应丢失或请求被拒绝。继续操作前先读取保存历史；系统不会自动重发。",
       recovered: "已读取保存历史，未知操作仍保持未知。", sourceDetails: "输入版本与保存的身份绑定",
@@ -130,6 +132,7 @@
       modelHeld: "先前任務結果仍不確定，已暫停新的送出。請查看下方保存的操作；重新整理不會重送任務。",
       stage2Missing: "此專案/版本尚未註冊已接受的規範 Stage1 交付包。",
       stage2Ready: "已有來源綁定的 Stage1 匯入選項，等待明確審閱。",
+      stage2Receiving: "Stage1 交付已接收；Stage2 研究尚未開始。",
       emptyHistory: "尚無保存操作。", working: "正在保存操作意圖…",
       responseLost: "回應遺失或請求被拒絕。繼續操作前先讀取保存歷史；系統不會自動重送。",
       recovered: "已讀取保存歷史，未知操作仍保持未知。", sourceDetails: "輸入版本與保存的身分綁定",
@@ -409,7 +412,8 @@
       ? "modelHeld" : state.modelOffers.some((row) => row.available === true)
         ? "modelReady" : state.modelStatus && state.modelStatus.authorization_available === true
           ? "modelConfigured" : "modelMissing");
-    $("stage2-offer").textContent = t(availableStage2() ? "stage2Ready" : "stage2Missing");
+    const receivingOnly = !state.stage2?.activation && rows(state.stage2, "offers").some((row) => row.status === "receiving-only" && row.receiving_only === true && row.activation_allowed === false);
+    $("stage2-offer").textContent = t(availableStage2() ? "stage2Ready" : receivingOnly ? "stage2Receiving" : "stage2Missing");
     const budgets = project.settings && project.settings.budgets;
     $("authorization-budget").textContent = budgets ? "1 × Codex · ≤ " + Math.min(budgets.seconds, state.modelStatus && state.modelStatus.local_cap_seconds || 600) + " s · " + budgets.model_calls + " " + t("modelCalls") : "Unknown";
     const ledger = state.stage1 && state.stage1.ledger;
@@ -607,7 +611,7 @@
       if (generation !== state.generation || state.project !== project) return;
       renderStages(); await refreshList(); await history(); await native();
       if (generation === state.generation && state.project === project) return {generation, project, stage1: snapshot.stage1};
-    } finally { if (generation === state.generation) { state.loading = false; buttons(); renderStages(); } }
+    } finally { if (generation === state.generation) { state.selectionFailed = !state.project; state.loading = false; buttons(); renderStages(); } }
   }
   function identity() {
     const project = state.project;
@@ -811,7 +815,7 @@
     buttons();
   }
   $("language").onchange = guarded(async () => { state.language = $("language").value; translate(); if (state.project) await Promise.all([history(), native()]); });
-  $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.project = null; state.stageContract = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); renderStages(); $("topic").focus(); };
+  $("new-project").onclick = () => { document.dispatchEvent(new Event("project-screening-clear")); ++state.generation; state.loading = false; state.selectionFailed = false; state.project = null; state.stageContract = null; state.modelOffers = []; state.stage2 = null; $("create-card").hidden = false; $("project-content").hidden = true; $("project-heading").textContent = t("workspace"); buttons(); renderStages(); $("topic").focus(); };
   $("create-form").onsubmit = async (event) => {
     event.preventDefault();
     const generation = state.generation;
@@ -1041,10 +1045,15 @@
       topic: project.brief ? project.brief.original_description : project.original_description || project.topic || ""
     };
   }
+  function portalSelectionState() {
+    return {kind: "HarnessUiProjectSelectionState", schema_version: "1.0.0",
+      status: state.loading ? "loading" : state.project ? "selected" : state.selectionFailed === true ? "failed" : "unselected"};
+  }
   // Presentation navigation only. Credentials, permits and action keys remain
   // private to this existing broker; these methods never authorize execution.
   window.ResearchProjectPortal = Object.freeze({
     selection: portalSelection,
+    selectionState: portalSelectionState,
     showStage: number => Boolean(window.ResearchProjectStages && window.ResearchProjectStages.showStage(number)),
     activeStage: () => window.ResearchProjectStages ? window.ResearchProjectStages.activeStage() : 1,
     listProjects: async () => rows(await request(route()), "projects").map(project => ({

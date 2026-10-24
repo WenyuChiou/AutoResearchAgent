@@ -162,7 +162,19 @@ def _public(offer):
     }
     if "admission_pins" in offer:
         value["admission_pins"] = deepcopy(offer["admission_pins"])
+    if offer["status"] == "receiving-only":
+        value.update(receiving_only=True, activation_allowed=False)
     return value
+
+
+def _require_research_offer(offer):
+    _check(
+        type(offer.get("policy_ref")) is dict
+        and offer["policy_ref"].get("route") == "stage2-general-v3/daily_v3"
+        and offer.get("status") != "receiving-only",
+        "stage2-receiving-only-research-not-authorized",
+        403,
+    )
 
 
 def _verify_import_receipt(receipt, inputs, handoff, root, *, host_replay=None):
@@ -268,14 +280,9 @@ class ProjectStage2Service:
         replayer_exporter_root=None,
     ):
         """Trusted bootstrap only. Browser requests cannot supply these paths."""
-        _check(
-            type(policy_ref) is dict
-            and policy_ref.get("route") == "stage2-general-v3/daily_v3"
-            and policy_ref.get("packet_profile", "legacy-v2")
-            in ("legacy-v2", "scientific-v3"),
-            "stage2-daily-v3-policy-reference-required",
-            400,
-        )
+        from .project_stage1_import import registration_mode
+
+        mode = registration_mode(policy_ref)
         inputs = dict(
             deliverable_dir=str(Path(deliverable_dir).absolute()),
             manifest_sha256=expected_manifest_sha256,
@@ -299,6 +306,17 @@ class ProjectStage2Service:
                 )
         with self.intake._lock:
             binding = self.intake.binding(project_ref)
+            registration_mode(policy_ref, settings=binding["settings"])
+            _check(
+                not binding.get("receiving_only") or mode == "receiving-only",
+                "stage2-receiving-only-policy-cannot-escalate",
+                403,
+            )
+            _check(
+                mode != "receiving-only" or "imported_input_sha256" in binding,
+                "stage2-receiving-only-imported-context-required",
+                400,
+            )
             handoff, _, host_replay = _verified_inputs(binding, inputs)
             basis = {
                 key: binding[key]
@@ -327,7 +345,11 @@ class ProjectStage2Service:
                 offer_sha256=offer_hash,
                 inputs=inputs,
                 work_count=len(handoff["papers"]),
-                status="ready-for-researcher-activation",
+                status=(
+                    "receiving-only"
+                    if mode == "receiving-only"
+                    else "ready-for-researcher-activation"
+                ),
             )
             row = self.intake.db.execute(
                 "SELECT principal FROM intake_projects WHERE ref=?", (project_ref,)
@@ -449,16 +471,23 @@ class ProjectStage2Service:
         def reserve(state, _, __):
             offer = state.get("stage2_offers", {}).get(body["offer_ref"])
             if offer is not None and offer["offer_sha256"] == body["offer_sha256"]:
+                _require_research_offer(offer)
                 _consumer_manifest(offer["inputs"])
 
         def work(state, request_hash, actor):
             binding = self.intake.binding(project_ref)
+            _check(
+                not binding.get("receiving_only"),
+                "stage2-receiving-only-research-not-authorized",
+                403,
+            )
             offer = state.get("stage2_offers", {}).get(body["offer_ref"])
             _check(
                 offer is not None and offer["offer_sha256"] == body["offer_sha256"],
                 "stage2-offer-unavailable",
                 404,
             )
+            _require_research_offer(offer)
             self._matches(binding, offer)
             _check(
                 canonical_hash(binding["settings"]) == offer["settings_sha256"],

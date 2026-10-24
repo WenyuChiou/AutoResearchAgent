@@ -182,6 +182,11 @@ class ProjectHost(AtlasHost):
         saved_assets, self.saved_stage1_references, self.saved_stage1_routes = (
             saved_stage1_views(options["files"], options["views"])
         )
+        from .project_stage1_view_binding import bind_saved_stage1_references
+
+        self.saved_stage1_references = bind_saved_stage1_references(
+            projects, credential, self.saved_stage1_references
+        )
         self.saved_stage1_source_html_routes = frozenset(
             path
             for path in saved_assets

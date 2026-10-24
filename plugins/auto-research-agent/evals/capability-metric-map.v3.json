@@ -494,6 +494,12 @@
         "plugins/auto-research-agent/tests/browser/project-imported-overview-test.cjs"
       ],
       "stage1_imported_identity_contract": "Trusted saved-source import reopens external Stage1 admission and HostReplay pins, preserves original project ID, typed input version and confirmed brief bytes, and records imported origin rather than fabricating a native user submission or compiled search plan. Stage2/3 actions retain exact type/value/hash matching; imported brief changes are read-only, principal-scoped bootstrap is idempotent, partial file recovery requires identical bytes, and no research or execution authority is granted. Imported overviews open in the existing trilingual UI with Stage1 mutation forms hidden and no invented budgets or search/read consent; the same verified Stage2 activation offer remains usable.",
+      "stage1_receiving_only_project_contract": "Trusted Stage1 import accepts an explicit receiving-only policy with false execution and exact integer-zero model/search/acquisition settings. It preserves the confirmed brief, typed identity, external admission and HostReplay, records a receiving-only offer, and rejects activation or silent policy escalation. Optional saved-view references are exact server-side view/index hash declarations in the immutable import origin; host startup reopens admission and matches the registered view identity and typed version before publishing opaque project/context bindings. Unbound, stale, cross-project, ambiguous or partial references cannot acquire a native association. Reading, language changes and exact replay grant no research, selection, scientific acceptance or execution authority; original source packages and default research policy behavior remain separate.",
+      "stage1_receiving_only_project_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_receiving_project_registration.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_identity_import.py",
+        "plugins/auto-research-agent/tests/test_project_saved_views.py"
+      ],
       "projecthost_selection_registration_contract": "Confirmed ProjectHost UI selection composes the existing externally hash-bound interaction, planning handoff and Stage3 intake. Current project/input/source/recommendation and user message bytes are verified without new research. Same-key replay validates canonical event identity. Only complete post-work-before-commit metadata can recover; unobserved Core outcomes remain held. Activation, original receipt, duplicate events and changed bytes fail closed. Conditions and unknowns are preserved; selection grants no scientific or execution authority. HTTP and real user acceptance remain separate.",
       "projecthost_selection_registration_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_selection_frontier.py"
@@ -565,6 +571,13 @@
         "plugins/auto-research-agent/tests/test_project_stage2_reading.py",
         "plugins/auto-research-agent/tests/browser/project-stage2-readings-test.cjs",
         "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py"
+      ],
+      "projecthost_saved_stage1_material_ui_contract": "The existing upper project selector accepts a bounded string input version only through SavedStage1ProjectInputBinding1.0 from the server-verified saved-view map. Exact project/context and version type/value are retained; malformed, partial, foreign or stale profiles clear old materials and never coerce string versions into legacy integers. Switching Stage1/Stage2 and three languages preserves or removes only the same-project read-only frame. Actual receiving-only Stage2 offers show that Stage1 delivery was received and research has not started; the existing activation guard stays disabled. This presentation contract grants no source, research, selection, scientific acceptance or execution authority; legacy integer navigation and default CSP remain unchanged. HarnessUiProjectSelectionState1.0.0 explicitly distinguishes unselected/loading/failed/selected broker states. A navigation target and exact validated status keep saved references suppressed before reads, throughout null/failure/late events and across refresh/language changes. Only a matching valid selection or explicit successful new-topic navigation releases that context; legacy brokers hold unexpected null events without changing their integer schema. Malformed/unknown/inconsistent status descriptors refuse.",
+      "projecthost_saved_stage1_material_ui_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_saved_views_browser.py",
+        "plugins/auto-research-agent/tests/test_project_saved_views_browser.cjs",
+        "plugins/auto-research-agent/tests/test_project_operations_browser.cjs",
+        "plugins/auto-research-agent/tests/test_project_typed_navigation.py"
       ]
     },
     {
