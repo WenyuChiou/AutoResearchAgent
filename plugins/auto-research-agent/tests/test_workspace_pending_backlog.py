@@ -349,7 +349,9 @@ class PendingBacklogTests(unittest.TestCase):
 
     def test_cli_writes_exclusive_private_companion_and_keeps_input(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            # macOS temporary roots may traverse the /var -> /private/var alias.
+            # Author the fixture at its physical path; keep CLI link rejection.
+            root = Path(temporary).resolve()
             source = root / "index.json"
             output = root / "backlog.json"
             raw = canonical(fixture())
