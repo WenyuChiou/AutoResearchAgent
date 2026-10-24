@@ -59,9 +59,23 @@ class RichSyntheticAdapter(controller_fixture.SyntheticAdapter):
         return result
 
     def review(self, context):
+        view = context["view"]
+        if (
+            view["schema_version"] != "1.3.0"
+            or view["assessment_contract"]["decision_scope"] != "direction-selection"
+        ):
+            raise AssertionError(
+                "The current rich controller omitted direction readiness."
+            )
         result = super().review(context)
+        result["review"]["assessment"]["next_step"] = (
+            "STAGE3_REVIEWER_ONLY: plan sample harmonization after direction selection."
+        )
         for finding in result["review"]["assessment"]["checks"].values():
             finding["evidence_ids"] = [context["packet"]["evidence"][0]["evidence_id"]]
+        result["review"]["assessment"]["checks"]["execution"]["next_check"] = (
+            "STAGE3_AXIS_ONLY: estimate compute and staffing during planning."
+        )
         return result
 
     def resolve(self, context):
@@ -378,6 +392,23 @@ class ImportedRichControllerChoiceE2ETests(unittest.TestCase):
         )
         self.assertEqual(admitted["unresolved"], body["decision"]["unresolved"])
         self.assertIs(admitted["execution_authorized"], False)
+        context = admitted["reviewer_planning_context"]
+        self.assertEqual(context["source_kind"], "stage2-independent-review")
+        self.assertEqual(context["review_view_version"], "1.3.0")
+        self.assertEqual(len(context["rows"]), 1)
+        from stage3_plan.prompts import build_prompt
+
+        prompt = build_prompt(
+            admitted,
+            plan_id="synthetic-reviewer-context",
+            version=1,
+            schema_version="1.1.0",
+        )
+        self.assertIn("STAGE3_REVIEWER_ONLY", prompt)
+        self.assertIn("STAGE3_AXIS_ONLY", prompt)
+        self.assertNotIn(
+            "STAGE3_REVIEWER_ONLY", json.dumps(admitted["selection_conditions"])
+        )
         self.assertEqual(self.shared.brief.read_bytes(), self.original_brief)
 
 

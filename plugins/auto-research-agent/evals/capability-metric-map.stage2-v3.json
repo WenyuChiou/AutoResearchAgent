@@ -244,7 +244,8 @@
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_replays_frozen_v1_prompt_without_mutation",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_new_resolution_binds_v1_1_prompt_and_rejects_version_tampering",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_cannot_be_relabelled_as_new_contract",
-        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py",
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
       ],
       "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
       "research_followup_test_refs": [
@@ -473,6 +474,10 @@
       "controller_original_budget_contract": "Before each new production adapter unit, conservative native-capture/no-tools attempt capacity and worst-case duration must fit the original admitted whole-run deadline and remaining capacities. Immutable reservations survive reopen and never renew quota. Synthetic adapters are explicitly excluded; reserved capacity is not actual inference, tool, token or cost usage. Native per-call policies, permission proofs, model, rubric and formal admission are unchanged. Missing capacity yields a retained readable incomplete/recovery state.",
       "controller_original_budget_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_execution_admission.py"
+      ],
+      "direction_readiness_contract": "Initial review view1.3 binds direction-readiness-1.0 to native initial review, tool-free extraction and reconciliation; rich controller inputs use it before current selection. Direction-stage evidence supports choosing a credible route; detailed staffing/sample/calls/GPU/cost/schedule tasks remain Stage3 planning. Necessary access/grain/answering-route/hard-limit blockers, all-applicable assessed=2, independent review, human choice and execution=false remain. Legacy1.0/1.1/1.2 views keep exact prior contracts; mixed or rehashed policy bindings reject. No automatic scientific promotion, old-score rewrite or A/B rerun.",
+      "direction_readiness_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
       ]
     },
     {
@@ -594,7 +599,8 @@
         "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.cjs",
         "plugins/auto-research-agent/tests/test_project_stage2_selection_requests.cjs",
         "plugins/auto-research-agent/tests/test_stage2_ui_submission.py",
-        "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py"
+        "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py",
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
       ],
       "completion_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
@@ -639,6 +645,10 @@
       "projecthost_typed_submission_contract": "New raw UI submission1.1 accepts typed bounded string versions;1.0 keeps integer-only verification. Exact independent project/version/hash context is mandatory; bool/float aliases and stale types refuse. Full interaction/planning/receiver origin stays projecthost-ui-submission, human_identity not-established and execution false.",
       "projecthost_typed_submission_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_ui_submission.py"
+      ],
+      "direction_readiness_contract": "Initial review view1.3 binds direction-readiness-1.0 to native initial review, tool-free extraction and reconciliation; rich controller inputs use it before current selection. Direction-stage evidence supports choosing a credible route; detailed staffing/sample/calls/GPU/cost/schedule tasks remain Stage3 planning. Necessary access/grain/answering-route/hard-limit blockers, all-applicable assessed=2, independent review, human choice and execution=false remain. Legacy1.0/1.1/1.2 views keep exact prior contracts; mixed or rehashed policy bindings reject. No automatic scientific promotion, old-score rewrite or A/B rerun.",
+      "direction_readiness_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
       ]
     },
     {
@@ -751,6 +761,13 @@
         "plugins/auto-research-agent/tests/test_plugin_loading.py",
         "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py",
         "plugins/auto-research-agent/tests/test_stage2_native_preparation_cli.py"
+      ],
+      "direction_readiness_contract": "Initial review view1.3 binds direction-readiness-1.0 to native initial review, tool-free extraction and reconciliation; rich controller inputs use it before current selection. Direction-stage evidence supports choosing a credible route; detailed staffing/sample/calls/GPU/cost/schedule tasks remain Stage3 planning. Necessary access/grain/answering-route/hard-limit blockers, all-applicable assessed=2, independent review, human choice and execution=false remain. Legacy1.0/1.1/1.2 views keep exact prior contracts; mixed or rehashed policy bindings reject. No automatic scientific promotion, old-score rewrite or A/B rerun.",
+      "direction_readiness_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
       ]
     },
     {
@@ -991,6 +1008,29 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_evaluator_model_calls.py"
+      ]
+    },
+    {
+      "capability_id": "cli:research-workspace-native",
+      "direction_readiness_transport": "Existing native pipeline carries the Stage2 direction-readiness view1.3. New binding1.1 pins it; legacy binding1.0 retains1.2 and exact accepted/pending receipts. This transport supports direction selection, not scientific approval or a new execution authority.",
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py",
+        "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
+      "metric_effects": [
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V3.FEASIBILITY",
+            "P6V3.CHOICE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "Current-only policy and selected reviewer-context hashes survive public selection/admission/prompt; original human conditions remain distinct; legacy replay and tamper rejection remain strict."
+          ],
+          "human_judgment": "Engineering transport checks do not establish scientific quality, an eligible real recommendation, human selection or execution."
+        }
       ]
     }
   ]

@@ -18,7 +18,7 @@ from stage2_common import (
 
 
 ROLES = ("challenger", "feasibility")
-REVIEW_VIEW_VERSIONS = ("1.0.0", "1.1.0", "1.2.0")
+REVIEW_VIEW_VERSIONS = ("1.0.0", "1.1.0", "1.2.0", "1.3.0")
 REVIEW_VIEW_VERSION_CURRENT = "1.1.0"
 
 _ASSESSMENT_CONTRACT = {
@@ -71,6 +71,46 @@ _ASSESSMENT_CONTRACT = {
 }
 
 
+_DIRECTION_READINESS_CONTRACT = {
+    **_ASSESSMENT_CONTRACT,
+    "policy_version": "direction-readiness-1.0",
+    "decision_scope": "direction-selection",
+    "axis_anchors": {
+        **_ASSESSMENT_CONTRACT["axis_anchors"],
+        "answerability": {
+            **_ASSESSMENT_CONTRACT["axis_anchors"]["answerability"],
+            "1": "A plausible route exists, but a decision-critical method or observation is not supported.",
+            "2": "An evidenced broad method and comparison or validation can answer the question; final design belongs to Stage 3.",
+        },
+        "materials": {
+            **_ASSESSMENT_CONTRACT["axis_anchors"]["materials"],
+            "2": "Documentation supports necessary data/reports, constructs, grain and lawful access, with limits and alternatives; final preparation belongs to Stage 3.",
+        },
+        "execution": {
+            **_ASSESSMENT_CONTRACT["axis_anchors"]["execution"],
+            "1": "A minimum route is plausible, but a necessary dependency or stated hard-limit conflict remains unresolved.",
+            "2": "The minimum route, methods/tools and main risks support initial viability within stated constraints; detailed allocation belongs to Stage 3.",
+        },
+    },
+    "stage_boundary": (
+        "Stage 2 selects broad research directions; Stage 3 develops the detailed plan. "
+        "Recommendation means ready for planning. Missing Stage 3 details alone "
+        "must not fail or make a direction-level axis unknown."
+    ),
+    "resource_rules": [
+        "Unknown necessary access, unsuitable grain/variables, no credible answering route or an evidenced hard-limit conflict still block; cite the premise and a bounded check or alternative.",
+        "Optional alternatives and unknown new-method effectiveness are not mandatory blockers. Never assume rights or unlimited resources.",
+        "Do not require completed experiments, named owners, exact samples, calls, GPU, costs, schedules or stop rules before selection; preserve them as Stage 3 tasks unless necessary to the present choice.",
+        "Keep assessed=2 for all applicable recommendation axes, explicit limits and genuine human choice. Never promote old scores automatically.",
+    ],
+    "stage3_planning": [
+        "Final hypotheses, estimands, experiments and analysis.",
+        "Exact fields, samples, cleaning, harmonization and splits.",
+        "Detailed staffing, calls, GPU, cost, schedule and stop rules.",
+    ],
+}
+
+
 def _require(condition, message):
     if not condition:
         raise Stage2Error(message)
@@ -90,7 +130,7 @@ def prepare_review(
         review_view_version in REVIEW_VIEW_VERSIONS,
         "unsupported-review-view-version",
     )
-    if review_view_version == "1.2.0":
+    if review_view_version in {"1.2.0", "1.3.0"}:
         _require(
             packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"},
             "review-view-1.2-requires-packet-2.4",
@@ -122,7 +162,7 @@ def prepare_review(
             "Do not invent findings, tool receipts or a necessary disagreement."
         ),
     }
-    if review_view_version in {"1.1.0", "1.2.0"}:
+    if review_view_version in {"1.1.0", "1.2.0", "1.3.0"}:
         tables = packet.get("research_tables")
         _require(
             tables is None or isinstance(tables, dict),
@@ -149,7 +189,14 @@ def prepare_review(
             and row.get("candidate_version") == candidate["version"]
         ]
         view["assessment_contract"] = copy.deepcopy(_ASSESSMENT_CONTRACT)
-    if review_view_version == "1.2.0":
+    if review_view_version == "1.3.0":
+        view["assessment_contract"] = copy.deepcopy(_DIRECTION_READINESS_CONTRACT)
+        view["instructions"] += (
+            " Apply the bound direction-selection assessment contract. Separate "
+            "necessary enabling checks from tasks deferred to Stage 3 planning; "
+            "do not demand a completed detailed plan before recommending a direction."
+        )
+    if review_view_version in {"1.2.0", "1.3.0"}:
         prior_work = current_prior_work_reviews(packet)
         _require(candidate_id in prior_work, "prior-work-review-missing")
         view["prior_work_review"] = prior_work[candidate_id]

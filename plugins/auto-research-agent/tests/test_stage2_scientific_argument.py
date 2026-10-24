@@ -261,14 +261,75 @@ class Stage2ScientificArgumentTests(unittest.TestCase):
             self.packet["prior_work_reviews"],
         )
         self.assertFalse(handoff["execution_authorized"])
+        self.assertNotIn("reviewer_planning_context", handoff)
+
+    def test_direction_review_context_is_separate_from_human_conditions(self):
+        from stage3_plan.intake import project_intake
+        from stage3_plan.prompts import build_prompt
+
+        selected = {
+            "candidate_id": self.candidate["candidate_id"],
+            "candidate_version": self.candidate["version"],
+        }
+        original = {
+            "next_step": "REVIEW_ONLY: plan sample harmonization.",
+            "checks": {"execution": {"next_check": "AXIS_ONLY: estimate compute."}},
+        }
+        delivery = {
+            "review_view_version": "1.3.0",
+            "selection": {
+                "evaluation_packet": self.packet,
+                "current_options": [
+                    {"candidate": self.candidate, "assessment": original}
+                ],
+            },
+            "manifest": {
+                "manifest_sha256": "a" * 64,
+                "batch_sha256": "f" * 64,
+                "files": [{"path": path} for path in DELIVERY_REFS.values()],
+            },
+        }
+        record = {
+            "schema_version": "1.0.0",
+            "decision": {
+                "kind": "select",
+                "selected": [selected],
+                "conditions": ["USER_ONLY"],
+            },
+            "report_manifest_sha256": "b" * 64,
+            "snapshot_sha256": "c" * 64,
+        }
+        handoff = _project_handoff(delivery, record, "d" * 64, "e" * 64)
+        intake = project_intake(handoff, "a" * 64)
+        row = intake["reviewer_planning_context"]["rows"][0]
+        self.assertEqual(row["assessment"], original)
+        self.assertEqual(row["assessment_sha256"], canonical_hash(original))
+        self.assertEqual(intake["selection_conditions"], ["USER_ONLY"])
+        self.assertEqual(intake["unresolved"], [])
+        for version in ("1.0.0", "1.1.0"):
+            prompt = build_prompt(
+                intake,
+                plan_id="synthetic-review-context",
+                version=1,
+                schema_version=version,
+            )
+            self.assertIn("REVIEW_ONLY", prompt)
+            self.assertIn("AXIS_ONLY", prompt)
+        self.assertIs(intake["execution_authorized"], False)
+        handoff["reviewer_planning_context"]["schema_version"] = "unknown"
+        with self.assertRaisesRegex(
+            ValueError, "unsupported reviewer planning context"
+        ):
+            project_intake(handoff, "a" * 64)
 
     def test_workspace_pipeline_preserves_rich_review_view_for_2_5(self):
         from research_workspace_native.stage_pipeline import StagePipeline
 
         pipeline = StagePipeline.__new__(StagePipeline)
+        pipeline.binding = {"rich_review_view_version": "1.3.0"}
         for version, expected in (
-            ("2.4.0", "1.2.0"),
-            ("2.5.0", "1.2.0"),
+            ("2.4.0", "1.3.0"),
+            ("2.5.0", "1.3.0"),
             ("2.3.0", "1.1.0"),
         ):
             pipeline.packet = {"schema_version": version}
