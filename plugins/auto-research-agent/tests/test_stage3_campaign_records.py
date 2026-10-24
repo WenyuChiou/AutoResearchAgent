@@ -11,6 +11,47 @@ from stage3_plan.storage import read_json
 
 
 class CampaignRecordsTests(CampaignFixture):
+    def _assert_raw_type_tamper_rejected(self, mutate):
+        self.prepare()
+        unit = next(u for u in self.manifest["units"] if u["role"] == "R1")
+        result = self.record(unit, score=1)
+        receipt_path = Path(result["receipt_binding"]["path"])
+        receipt = read_json(receipt_path)
+        saved = {
+            name: Path(receipt[name]["path"]).read_bytes()
+            for name in ("mapped", "record")
+        }
+        raw_path = Path(receipt["raw"]["path"])
+        raw = read_json(raw_path)
+        mutate(raw)
+        raw_path.write_bytes(canonical_bytes(raw))
+        receipt["raw"] = binding(raw_path)
+        receipt_path.write_bytes(canonical_bytes(receipt))
+        with self.assertRaisesRegex(Stage3Error, "neutral judgment mapping"):
+            inspect_receipt(binding(receipt_path), self.manifest, self.campaign_sha)
+        self.assertEqual(
+            saved,
+            {
+                name: Path(receipt[name]["path"]).read_bytes()
+                for name in ("mapped", "record")
+            },
+        )
+
+    def test_rehashed_raw_boolean_score_is_rejected(self):
+        self._assert_raw_type_tamper_rejected(
+            lambda value: value["criteria"][0].update(score=True)
+        )
+
+    def test_rehashed_raw_float_score_is_rejected(self):
+        self._assert_raw_type_tamper_rejected(
+            lambda value: value["criteria"][0].update(score=1.0)
+        )
+
+    def test_rehashed_raw_numeric_identity_is_rejected(self):
+        self._assert_raw_type_tamper_rejected(
+            lambda value: value["reviewer"].update(identity_authenticated=0)
+        )
+
     def test_raw_neutral_judgment_roundtrip_and_same_key_resume(self):
         self.prepare()
         unit = self.manifest["units"][0]

@@ -62,7 +62,7 @@ def inspect_receipt(ref, manifest, campaign_sha256):
         raise Stage3Error("raw judgment hash mismatch")
     record = None
     if value["mapped"] is not None:
-        if pinned(value["mapped"]) != _mapped(raw, unit):
+        if digest(pinned(value["mapped"])) != digest(_mapped(raw, unit)):
             raise Stage3Error("neutral judgment mapping differs from supplied bytes")
         if value["record"] is not None:
             if binding(value["record"]["path"]) != value["record"]:
