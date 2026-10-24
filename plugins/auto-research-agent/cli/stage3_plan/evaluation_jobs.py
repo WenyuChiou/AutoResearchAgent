@@ -40,8 +40,8 @@ class EvaluationJobs(PlanningJobs):
     kind = "Stage3EvaluationJob"
     namespace = "stage3-evaluation-"
 
-    def __init__(self, *args, request, role, campaign=None):
-        super().__init__(*args)
+    def __init__(self, *args, request, role, campaign=None, project_ref=None):
+        super().__init__(*args, project_ref=project_ref)
         closed(request, {"path", "sha256"}, "evaluation request binding")
         if role not in {"R1", "R2", "ADJ"}:
             raise Stage3Error("explicit existing evaluator role required")

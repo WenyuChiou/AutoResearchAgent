@@ -59,8 +59,10 @@ class PlanningJobs:
     kind = "Stage3PlanningJob"
     namespace = "stage3-plan-"
 
-    def __init__(self, journal, project_id, owner, root):
+    def __init__(self, journal, project_id, owner, root, *, project_ref=None):
         self.journal, self.project_id, self.owner = journal, project_id, owner
+        self.project_ref = project_id if project_ref is None else project_ref
+        text(self.project_ref, "host project reference")
         self.root = private_output(root)
         journal.snapshot(project_id)
 
@@ -91,7 +93,7 @@ class PlanningJobs:
             expected_manifest_sha256=source["manifest_sha256"],
         )
         origin = intake.get("input_origin", {})
-        if origin.get("project_ref", self.project_id) != self.project_id:
+        if origin.get("project_ref", self.project_ref) != self.project_ref:
             raise Stage3Error("planning source belongs to another host project")
         text(plan_id, "plan identity")
         if type(version) is not int or version < 1:
@@ -116,6 +118,8 @@ class PlanningJobs:
             "schema_version": "1.0.0",
             "key": key,
             "project_id": self.project_id,
+            "project_ref": self.project_ref,
+            "brief_project_id": intake.get("brief", {}).get("project_id"),
             "project_index_sha256": self.journal.snapshot(self.project_id)[
                 "index_sha256"
             ],

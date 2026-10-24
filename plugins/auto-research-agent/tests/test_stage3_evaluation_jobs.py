@@ -15,7 +15,7 @@ from research_workspace_native.journal import JournalError  # noqa: E402
 from stage3_plan.contracts import Stage3Error, canonical_bytes  # noqa: E402
 from stage3_plan.evaluation import prepare_evaluation  # noqa: E402
 from stage3_plan.evaluation_jobs import EvaluationJobs, save_campaign_index  # noqa: E402
-from stage3_plan.jobs import _ref  # noqa: E402
+from stage3_plan.jobs import PlanningJobs, _ref  # noqa: E402
 from stage3_plan.storage import read_json  # noqa: E402
 
 
@@ -284,3 +284,70 @@ class EvaluationJobTests(unittest.TestCase):
                     output=self.f.root / "index.json",
                 )
         self.callback.assert_not_called()
+
+    def test_host_reference_journal_id_and_original_brief_id_stay_separate(self):
+        self.f.intake["input_origin"] = {"project_ref": "host-alias"}
+        current = self.f.workflow("aliased-source")
+        jobs = PlanningJobs(
+            self.f.journal,
+            "project-a",
+            self.f.owner,
+            self.f.root / "jobs",
+            project_ref="host-alias",
+        )
+        prepared = jobs.prepare(
+            "aliased-plan",
+            checkpoint=current,
+            configuration=self.f.config,
+            adapter_context=self.f.context,
+            plan_id=self.f.plan["plan_id"],
+            expected_revision=self.f.journal.snapshot("project-a")["revision"],
+        )
+        result = jobs.run(
+            "aliased-plan",
+            expected_request_sha256=prepared["request_sha256"],
+            current_checkpoint=current,
+            callback=self.f.callback,
+        )
+        self.assertEqual(result["result"]["outcome"], "saved")
+        payload = self.f.journal.snapshot("project-a")["intents"][
+            jobs._key("aliased-plan")
+        ]["payload"]
+        self.assertEqual(
+            (
+                payload["project_ref"],
+                payload["project_id"],
+                payload["brief_project_id"],
+            ),
+            ("host-alias", "project-a", "original-brief"),
+        )
+        path = self.f.root / "alias-evaluation.json"
+        prepare_evaluation(
+            result["result"]["plan"]["package"],
+            expected_manifest_sha256=result["result"]["plan"]["manifest_sha256"],
+            output=path,
+        )
+        self.judgments.request_path = path
+        evaluation = EvaluationJobs(
+            self.f.journal,
+            "project-a",
+            self.f.owner,
+            self.f.root / "jobs",
+            request=_ref(path),
+            role="R1",
+            project_ref="host-alias",
+        )
+        kwargs = dict(
+            checkpoint=result["result"]["checkpoint"],
+            configuration=self.config,
+            adapter_context=self.context,
+            expected_revision=self.f.journal.snapshot("project-a")["revision"],
+        )
+        grade = evaluation.prepare("alias-grade", **kwargs)
+        graded = evaluation.run(
+            "alias-grade",
+            expected_request_sha256=grade["request_sha256"],
+            current_checkpoint=result["result"]["checkpoint"],
+            callback=self.callback,
+        )
+        self.assertEqual(graded["result"]["outcome"], "saved")
