@@ -13,7 +13,7 @@ PLUGIN = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PLUGIN / "cli"), str(PLUGIN / "tests")]
 from research_workspace_native.journal import JournalError  # noqa: E402
 from stage3_plan.contracts import Stage3Error, canonical_bytes  # noqa: E402
-from stage3_plan.evaluation import prepare_evaluation  # noqa: E402
+from stage3_plan.evaluation import prepare_evaluation, record_evaluation  # noqa: E402
 from stage3_plan.evaluation_jobs import EvaluationJobs, save_campaign_index  # noqa: E402
 from stage3_plan.jobs import PlanningJobs, _ref  # noqa: E402
 from stage3_plan.storage import read_json  # noqa: E402
@@ -284,6 +284,35 @@ class EvaluationJobTests(unittest.TestCase):
                     output=self.f.root / "index.json",
                 )
         self.callback.assert_not_called()
+
+    def test_recovery_rejects_partial_capture_and_rehashed_boolean_exit(self):
+        self.callback.side_effect = lambda **kw: {
+            "raw_response": canonical_bytes(self.judgments.judgment()),
+            "provenance": {"kind": "synthetic"},
+            "returncode": 0,
+            "stderr": b"x" * 2_000_001,
+        }
+        prepared = self.prepare()
+        root = self.interrupt_after_record(prepared)
+        record_evaluation(
+            self.request_path,
+            expected_request_sha256=self.request_ref["sha256"],
+            judgment=root / "judgment.raw",
+            expected_judgment_sha256=_ref(root / "judgment.raw")["sha256"],
+            output=root / "record.json",
+        )
+        capture = read_json(root / "adapter-result.json")
+        for code, stderr in ((0, capture["stderr"]), (False, None)):
+            capture.update(returncode=code, stderr=stderr)
+            (root / "adapter-result.json").write_bytes(canonical_bytes(capture))
+            with self.assertRaises(Stage3Error):
+                self.jobs.recover(
+                    "grade",
+                    expected_request_sha256=prepared["request_sha256"],
+                    current_checkpoint=self.checkpoint,
+                    expected_record_sha256=_ref(root / "record.json")["sha256"],
+                )
+        self.assertEqual(self.callback.call_count, 1)
 
     def test_host_reference_journal_id_and_original_brief_id_stay_separate(self):
         self.f.intake["input_origin"] = {"project_ref": "host-alias"}

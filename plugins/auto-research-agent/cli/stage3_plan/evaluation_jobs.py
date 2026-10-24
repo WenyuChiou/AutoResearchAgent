@@ -13,7 +13,7 @@ from .evaluation import (
     record_evaluation,
 )
 from .jobs import POLICY, PlanningJobs, _ref
-from .preparation import closed, file_binding
+from .preparation import closed, file_binding, sha256
 from .storage import MAX_ARTIFACT_BYTES, read_bytes, write_new
 
 
@@ -173,9 +173,34 @@ class EvaluationJobs(PlanningJobs):
         root = Path(payload["output"])
         ref = _ref(root / "adapter-result.json")
         value = file_binding(ref["path"], ref["sha256"])
+        closed(
+            value,
+            {"raw", "provenance", "returncode", "stdout", "stderr"},
+            "adapter capture",
+        )
+        if value["returncode"] is not None and type(value["returncode"]) is not int:
+            raise Stage3Error("saved exit code must be an exact integer or null")
         for field in ("raw", "stdout", "stderr"):
             blob = value[field]
-            if blob and blob["retained"]:
+            if blob is None and field != "raw":
+                continue
+            if (
+                not isinstance(blob, dict)
+                or type(blob.get("retained")) is not bool
+                or type(blob.get("size")) is not int
+                or blob["size"] < 0
+            ):
+                raise Stage3Error("saved capture metadata has invalid types")
+            closed(
+                blob,
+                {"size", "sha256", "retained"}
+                | ({"path"} if blob["retained"] else set()),
+                "capture blob",
+            )
+            sha256(blob["sha256"])
+            if blob["retained"] != (blob["size"] <= MAX_ARTIFACT_BYTES):
+                raise Stage3Error("saved capture retention differs from its byte bound")
+            if blob["retained"]:
                 name = "judgment.raw" if field == "raw" else field + ".raw"
                 if Path(blob["path"]) != root / name:
                     raise Stage3Error("evaluator capture escapes its job")
@@ -233,7 +258,10 @@ class EvaluationJobs(PlanningJobs):
 
     def _saved(self, payload, pin, *, attach=False):
         capture_ref, capture = self._capture_value(payload)
-        if capture["returncode"] not in (None, 0) or not capture["raw"]["retained"]:
+        if capture["returncode"] not in (None, 0) or any(
+            capture[field] is not None and not capture[field]["retained"]
+            for field in ("raw", "stdout", "stderr")
+        ):
             raise Stage3Error(
                 "failed or partial capture cannot complete an evaluation job"
             )
