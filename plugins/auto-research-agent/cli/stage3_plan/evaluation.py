@@ -464,6 +464,21 @@ def record_evaluation(
         raise Stage3Error(
             f"invalid judgment retained in failure record: {error}"
         ) from error
+    value = _record_value(
+        request_value,
+        expected_request_sha256,
+        judgment_sha256,
+        raw_text,
+        judgment_value,
+        indexed,
+    )
+    write_new(target, value)
+    return value
+
+
+def _record_value(
+    request_value, request_sha256, judgment_sha256, raw_text, judgment_value, indexed
+):
     vector = {
         dimension: {
             "criterion_id": criterion_id,
@@ -472,11 +487,11 @@ def record_evaluation(
         }
         for dimension, criterion_id in CRITERIA.items()
     }
-    value = {
+    return {
         "kind": "Stage3EvaluationRecord",
         "schema_version": EVALUATION_SCHEMA_VERSION,
         "record_status": "recorded",
-        "request_sha256": expected_request_sha256,
+        "request_sha256": request_sha256,
         "judgment_sha256": judgment_sha256,
         "raw_judgment_text": raw_text,
         "reviewer": judgment_value["reviewer"],
@@ -492,5 +507,51 @@ def record_evaluation(
         "external_claim_ready": False,
         "limitations": LIMITATIONS,
     }
-    write_new(target, value)
+
+
+def inspect_evaluation_request(path, *, expected_sha256):
+    """Revalidate a pinned request against its saved plan, sources and guidance."""
+    from .preparation import file_binding
+
+    value = file_binding(path, expected_sha256)
+    _validate_request(value)
+    return value
+
+
+def inspect_evaluation_record(record, *, expected_sha256, request, judgment):
+    """Rebuild a saved record without writing files or invoking an assessor."""
+    from .preparation import file_binding
+
+    value = file_binding(record, expected_sha256)
+    request_value = inspect_evaluation_request(
+        request["path"], expected_sha256=request["sha256"]
+    )
+    raw = read_bytes(judgment["path"])
+    if hashlib.sha256(raw).hexdigest() != judgment["sha256"]:
+        raise Stage3Error("external evaluation judgment hash mismatch")
+    raw_text = raw.decode("utf-8")
+    try:
+        parsed = decode_json(raw, label=judgment["path"])
+        indexed = _validate_judgment(
+            parsed,
+            request["sha256"],
+            request_value["assessor_view"]["plan"],
+            request_value["bindings"]["question_refs"],
+        )
+        canonical_bytes(parsed)
+    except (Stage3Error, OSError, ValueError) as error:
+        expected = _failure_record(
+            request["sha256"], judgment["sha256"], raw_text, error
+        )
+    else:
+        expected = _record_value(
+            request_value,
+            request["sha256"],
+            judgment["sha256"],
+            raw_text,
+            parsed,
+            indexed,
+        )
+    if digest(value) != digest(expected):
+        raise Stage3Error("evaluation record differs from source-aware replay")
     return value

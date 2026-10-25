@@ -46,6 +46,9 @@ def main(argv=None):
     from .workflow_cli import add_commands
 
     add_commands(commands)
+    from .campaign_cli import add_commands as add_campaign_commands
+
+    add_campaign_commands(commands)
     draft = commands.add_parser("draft")
     _intake_args(draft)
     for name in (
@@ -120,6 +123,10 @@ def main(argv=None):
                 expected_judgment_sha256=args.expected_judgment_sha256,
                 output=args.output,
             )
+        elif args.command.startswith("campaign-"):
+            from .campaign_cli import run
+
+            result = run(args)
         elif args.command.startswith("workflow-"):
             from .workflow_cli import run
 
@@ -199,7 +206,7 @@ def main(argv=None):
             "error": str(error),
             "execution_authorized": False,
         }
-        if args.command.startswith("evaluation-"):
+        if args.command.startswith(("evaluation-", "campaign-")):
             failure["evaluation_calls_authorized"] = False
             failure["formal_execution_enabled"] = False
             failure["external_claim_ready"] = False

@@ -1,0 +1,76 @@
+{
+  "kind": "Stage3CampaignDefinition",
+  "schema_version": "1.0.0",
+  "campaign_id": "unrun-synthetic-format-example",
+  "seed": 7,
+  "repetitions": 1,
+  "arms": {
+    "A": {
+      "build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "protocol": "example-only baseline"
+    },
+    "B": {
+      "build_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "protocol": "example-only treatment"
+    }
+  },
+  "runtime": {
+    "model": "host-configured-not-dispatched",
+    "reasoning": "medium",
+    "tool_policy": "none",
+    "timeout_seconds": 90
+  },
+  "roles": {
+    "R1": {
+      "model": "configured-not-dispatched",
+      "reasoning": "medium"
+    },
+    "R2": {
+      "model": "configured-not-dispatched",
+      "reasoning": "medium"
+    },
+    "ADJ": {
+      "model": "configured-not-dispatched",
+      "reasoning": "medium"
+    }
+  },
+  "subject_order": "seeded",
+  "display_order": "seeded",
+  "limits": {
+    "max_units": 6,
+    "max_view_bytes": 2000000
+  },
+  "analysis": {
+    "version": "1.0.0",
+    "case_rule": "pareto-over-planned-pairs",
+    "audit_triggers": [
+      "disagreement",
+      "unverifiable",
+      "grader_error",
+      "score-zero"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "example",
+      "base_case_id": "example-base",
+      "variant": "original",
+      "research_type": "user-defined",
+      "split": "calibration",
+      "selection": {
+        "intake_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source_manifest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "selected_candidates": [
+          {
+            "candidate_id": "example-only",
+            "candidate_version": 1
+          }
+        ],
+        "question_refs": [
+          "example-only@1/q1"
+        ]
+      },
+      "subjects": []
+    }
+  ]
+}
