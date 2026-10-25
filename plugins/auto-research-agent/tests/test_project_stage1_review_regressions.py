@@ -15,6 +15,7 @@ from research_workspace_native import project_stage1_execution as execution_modu
 from research_workspace_native import project_stage1_review_units as units
 from research_workspace_native.session_api import SessionApiError
 from stage1_deliverable.common import canonical, sha
+from stage1_review_test_support import continue_with_diagnostics
 
 
 class AutomaticReviewBoundaryRegressions(unittest.TestCase):
@@ -228,14 +229,19 @@ class AutomaticReviewOwnerRegressions(unittest.TestCase):
         with patch.object(fixture, "answer", side_effect=large):
             case, saved, host, execution, calls = self.fixture(long_source=True)
             ref = saved["ref"]
-            result = host.continue_stage1(
+            result, failures = continue_with_diagnostics(
+                host,
                 "alice-token",
                 ref,
                 run_id="review-fix-synthetic",
                 deadline=time.monotonic() + 300,
                 max_actions=64,
             )
-            self.assertEqual(result["reason"], "saved-delivery", result)
+            self.assertEqual(
+                result["reason"],
+                "saved-delivery",
+                dict(result=result, dispatch_failures=failures),
+            )
             count = len(calls)
             self.assertGreater(count, 2)
             progress = execution.read("alice-token", ref)

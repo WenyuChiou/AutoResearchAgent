@@ -177,6 +177,20 @@ Saved charged results are revalidated and their full notes can be read/exported
 without redispatch. New service instances reopen those same durable bindings;
 old permit/runtime hashes cannot silently authorize changed producer bytes.
 
+The actual `OwnAccountProjectModelFactory` accepts automatic-review input 1.1.0
+and historical 1.0.0. This adapter keeps exact kind, project, typed input, work,
+task, brief, snapshot, prompt and source hashes, and deny-only authority checks.
+Unsupported versions and rehashed identity or authority changes still refuse
+before a native model is constructed. Boundary regressions feed the snapshot
+emitted by the real automatic producer into this factory; only `StageModel` is
+replaced with a no-process test seam. They do not attest a native or research run.
+
+The authored charged-recovery regression retains its original 300-second
+continuation deadline and source/result data. A test-only dispatch wrapper now
+includes the original exception chain and remaining deadline in a failed
+assertion, then rethrows the same exception without retry. A pass on another
+host does not close an independently observed failure or establish its cause.
+
 ### Offline resource feasibility
 
 The existing 1600-byte leaf/binary-synthesis path costs two model calls even for

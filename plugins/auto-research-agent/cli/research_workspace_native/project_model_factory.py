@@ -367,7 +367,7 @@ class OwnAccountProjectModelFactory:
             source.require(
                 type(snapshot) is dict
                 and snapshot.get("kind") == "Stage1AutomaticReviewInput"
-                and snapshot.get("schema_version") == "1.0.0"
+                and snapshot.get("schema_version") in ("1.0.0", "1.1.0")
                 and snapshot.get("scientific_acceptance") is False
                 and snapshot.get("human_acceptance") is False
                 and snapshot.get("task_ref") == context.get("task_ref")
