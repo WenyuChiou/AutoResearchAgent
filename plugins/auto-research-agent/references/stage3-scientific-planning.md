@@ -1,5 +1,10 @@
 # Generic Stage 2 to Stage 3 scientific planning
 
+The explicit offline campaign commands and calibration preparation are described
+in [campaign and calibration v1](../evals/stage3/CAMPAIGN_AND_CALIBRATION.md).
+They organize version-bound saved-plan evaluation requests and supplied judgments;
+they do not invoke a provider or change the planning/authority boundaries below.
+
 Status: experimental, implementation-only. HTML and UI wiring are deferred.
 All interfaces keep `execution_authorized=false`. There is no experiment runner,
 background monitor, automatic A/B, or confirmation-to-execution transition.
