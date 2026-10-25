@@ -1019,6 +1019,8 @@ def main(argv=None):
     parser.add_argument("--selection-sha256")
     parser.add_argument("--stage2-reading-config", type=Path)
     parser.add_argument("--stage2-reading-sha256")
+    parser.add_argument("--stage3-planning-config", type=Path)
+    parser.add_argument("--stage3-planning-sha256")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args(argv)
@@ -1032,6 +1034,10 @@ def main(argv=None):
         parser.error("Stage2 readings require their external configuration SHA256")
     if bool(args.controller_config) != bool(args.controller_sha256):
         parser.error("Stage2 controllers require their external configuration SHA256")
+    if bool(args.stage3_planning_config) != bool(args.stage3_planning_sha256):
+        parser.error("Stage3 planning requires its external configuration SHA256")
+    if args.stage3_planning_config and not args.selection_config:
+        parser.error("Stage3 planning requires configured Stage2 selection")
     if bool(args.continue_stage2) != bool(args.controller_key) or (
         args.continue_stage2 and not args.controller_config
     ):
@@ -1053,6 +1059,8 @@ def main(argv=None):
         args.projects_root, authenticate=token_authenticator({token: "local-viewer"})
     )
     host = None
+    planning_resources = None
+    failure = None
     try:
         stage2 = ProjectStage2Service(projects)
         if args.stage1_import_config is not None:
@@ -1081,18 +1089,46 @@ def main(argv=None):
             ):
                 parser.error("selection configuration shape differs")
             selection = ProjectStage2SelectionService(projects, config["bindings"])
+        if args.stage3_planning_config:
+            from .project_stage3_planning_config import (
+                Stage3PlanningHostResources,
+                load_stage3_planning_configuration,
+            )
+
+            planning_config = load_stage3_planning_configuration(
+                projects,
+                token,
+                args.stage3_planning_config,
+                args.stage3_planning_sha256,
+            )
+            planning_resources = Stage3PlanningHostResources(
+                projects, token, selection, planning_config
+            )
         host = ProjectHost(
             projects=projects,
             credential=token,
             stage1=ProjectStage1Service(projects),
             stage2=stage2,
             stage2_selection=selection,
+            stage3_planning=(
+                planning_resources.service if planning_resources is not None else None
+            ),
+            stage3_recovery_pins=(
+                planning_resources.recovery_pins
+                if planning_resources is not None
+                else None
+            ),
             stage2_readings=readings,
             stage2_controllers=controllers,
             files=files,
             views=views,
             port=args.port,
         )
+        if planning_resources is not None:
+            # The CLI must join the original request threads before closing intake.
+            # NativePlanner keeps its original finite deadline; no worker is added.
+            host.daemon_threads = False
+            host.block_on_close = True
         if args.continue_stage2:
             outcome = host.continue_stage2(
                 token, args.continue_stage2, key=args.controller_key
@@ -1108,6 +1144,10 @@ def main(argv=None):
                     url=url,
                     model_execution="unconnected",
                     search_execution="unconnected",
+                    stage3_planning=(
+                        "connected" if planning_resources is not None else "unconnected"
+                    ),
+                    execution_authorized=False,
                 )
             ),
             flush=True,
@@ -1117,10 +1157,48 @@ def main(argv=None):
         host.serve_forever()
     except KeyboardInterrupt:
         pass
+    except BaseException as error:
+        failure = error
+        raise
     finally:
-        if host is not None:
-            host.server_close()
-        projects.close()
+        cleanup_errors = []
+        # Only a completed server_close confirms the configured handlers drained.
+        # Keep their Journal and intake open if that join fails or is interrupted.
+        drained = host is None or planning_resources is None
+        try:
+            if host is not None:
+                host.server_close()
+                drained = True
+                if planning_resources is not None:
+                    host.planning_shutdown = host.project_stage3_http.close()
+        except BaseException as cleanup:
+            cleanup_errors.append(cleanup)
+        finally:
+            if drained:
+                try:
+                    if planning_resources is not None:
+                        planning_resources.close()
+                except BaseException as cleanup:
+                    cleanup_errors.append(cleanup)
+                finally:
+                    try:
+                        projects.close()
+                    except BaseException as cleanup:
+                        cleanup_errors.append(cleanup)
+            else:
+                cleanup_errors.append(
+                    RuntimeError(
+                        "CLI handlers did not confirm shutdown; "
+                        "Journal and intake remain open"
+                    )
+                )
+        if cleanup_errors:
+            primary = failure if failure is not None else cleanup_errors[0]
+            for cleanup in cleanup_errors:
+                if cleanup is not primary:
+                    primary.add_note(f"ProjectHost cleanup failed: {cleanup!r}")
+            if failure is None:
+                raise primary
 
 
 if __name__ == "__main__":
