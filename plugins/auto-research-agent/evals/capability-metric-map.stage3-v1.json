@@ -214,12 +214,14 @@
         "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py",
         "plugins/auto-research-agent/tests/test_project_stage3_planning.py",
         "plugins/auto-research-agent/tests/test_project_stage3_planning_http.py",
-        "plugins/auto-research-agent/tests/test_project_stage3_host_e2e.py"
+        "plugins/auto-research-agent/tests/test_project_stage3_host_e2e.py",
+        "plugins/auto-research-agent/tests/test_project_stage3_planning_config.py"
       ],
       "project_stage3_planning_contract": "Programmatic trusted ProjectHost wiring reuses the same selected-project intake, existing PlanningJobs Journal and configured adapter. Prepare/read/inspect/recover never dispatch; an explicit confirmed HTTP run acknowledges admission separately and continues once in its existing request thread under the original native deadline. Current typed versions, selection receipt, external package hashes, all questions, conditions and unknowns are reverified. Browser fields cannot set paths, configuration, credentials or recovery pins. The original no-retry job semantics and five false authority flags remain unchanged; no worker, scheduler or chat wake adapter is created. JSON envelopes must be objects. CLI configuration/deployment and real research-package acceptance remain separate.",
       "browser_test_refs": [
         "plugins/auto-research-agent/tests/browser/project-stage3-host-e2e.cjs"
-      ]
+      ],
+      "project_stage3_planning_configuration_contract": "Closed externally hashed server-owned settings are validated before opening any Journal or listener. The factory composes the existing selected-project service, one original Journal with separate project owners, existing PlanningJobs and lazy NativePlanner. Real authenticated intake reference/internal-id/root form a Host journal identity token, never a native ProjectIndex or approval. Output paths and capture slots cannot overlap, trusted recovery pins stay server-only, and constructor cleanup preserves the primary failure and cleanup errors. Loading and factory construction dispatch zero calls. CLI activation, deployed lifecycle, real material availability, human selection and scientific improvement require separate acceptance; five authority flags remain false."
     }
   ]
 }
