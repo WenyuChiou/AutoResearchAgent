@@ -1,0 +1,8 @@
+.planning-actions {display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:1.5rem 0}
+#actions {display:grid;gap:1rem;margin:1.5rem 0;padding:1.25rem;border:1px solid #a9bac9;border-radius:.5rem}
+#actions[hidden],#plan[hidden] {display:none}
+#actions label {display:flex;gap:.5rem;align-items:flex-start}
+#actions input {width:auto;margin-top:.3rem}
+#questions article {border-left:4px solid #226b80;padding:.5rem 1rem;margin:1rem 0}
+pre {white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
+@media(max-width:480px){header,.planning-actions{align-items:stretch;flex-direction:column}button,select{max-width:100%}#actions{padding:.75rem}}

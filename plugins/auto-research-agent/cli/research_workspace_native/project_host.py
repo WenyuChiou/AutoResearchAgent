@@ -22,6 +22,12 @@ from .project_stage1_records import reading_registration_view
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
 from .project_stage2_selection import ProjectStage2SelectionService
+from .project_stage3_planning import ProjectStage3PlanningService
+from .project_stage3_http import (
+    ProjectStage3Http,
+    ROUTE as PLANNING_ROUTE,
+    handle_planning,
+)
 from .project_stage2_reading import Stage2ReadingRegistry
 from .project_atlas_shell import shell_assets
 from .project_ui_overlay import (
@@ -86,6 +92,9 @@ class ProjectHost(AtlasHost):
         stage1=None,
         stage2=None,
         stage2_selection=None,
+        stage3_planning=None,
+        stage3_recovery_pins=None,
+        stage3_close_owner=None,
         stage2_readings=None,
         stage2_controllers=None,
         stage1_materials_root=None,
@@ -102,6 +111,25 @@ class ProjectHost(AtlasHost):
             or stage2_selection.intake is not projects
         ):
             raise ValueError("same trusted Stage2 selection service required")
+        if stage3_planning is not None and (
+            type(stage3_planning) is not ProjectStage3PlanningService
+            or stage3_planning.intake is not projects
+            or stage3_planning.selection_view is not stage2_selection
+        ):
+            raise ValueError("same trusted Stage3 planning service required")
+        if stage3_planning is None and (
+            stage3_recovery_pins is not None or stage3_close_owner is not None
+        ):
+            raise ValueError("Stage3 lifecycle requires its planning service")
+        planning_http = (
+            None
+            if stage3_planning is None
+            else ProjectStage3Http(
+                stage3_planning,
+                recovery_pins=stage3_recovery_pins,
+                close_owner=stage3_close_owner,
+            )
+        )
         if (
             stage2_readings is not None
             and type(stage2_readings) is not Stage2ReadingRegistry
@@ -170,6 +198,9 @@ class ProjectHost(AtlasHost):
                 "project-stage2-selection.html",
                 "project-stage2-selection.js",
                 "project-stage2-selection.css",
+                "project-stage3-planning.html",
+                "project-stage3-planning.js",
+                "project-stage3-planning.css",
             )
         }
         atlas_shell = shell_assets(ASSETS)
@@ -196,6 +227,7 @@ class ProjectHost(AtlasHost):
         )
         self.project_stage1 = stage1
         self.project_stage2_selection = stage2_selection
+        self.project_stage3_http = planning_http
         self.project_stage2_controllers = controllers
         self.project_expansions = None
         queries = getattr(stage1, "query_service", None)
@@ -316,6 +348,7 @@ class ProjectHost(AtlasHost):
             project_stage2_import=stage2 is not None,
             project_stage2_reading_references=self.stage2_readings,
             project_stage2_operator_continuation=bool(controllers),
+            project_stage3_planning=stage3_planning is not None,
             project_execution_authority=False,
             project_saved_stage1_references=self.saved_stage1_references,
             project_operations_presentation="additive-v6-drawer",
@@ -330,6 +363,8 @@ class ProjectHost(AtlasHost):
 
     def server_close(self):
         try:
+            if self.project_stage3_http is not None:
+                self.planning_shutdown = self.project_stage3_http.close()
             if self.project_stage1_source_dispatcher is not None:
                 self.source_dispatch_shutdown = (
                     self.project_stage1_source_dispatcher.close()
@@ -471,6 +506,8 @@ class ProjectHandler(AtlasHandler):
     def _project(self, method):
         if SOURCE_ROUTE.fullmatch(self.path) is not None:
             return handle_sources(self, method)
+        if PLANNING_ROUTE.fullmatch(self.path) is not None:
+            return handle_planning(self, method)
         called = None
         try:
             token, length = self._headers(method)
@@ -942,6 +979,11 @@ class ProjectHandler(AtlasHandler):
                         stage2_selection_projects=(
                             list(self.server.project_stage2_selection.bindings)
                             if self.server.project_stage2_selection is not None
+                            else []
+                        ),
+                        stage3_planning_projects=(
+                            list(self.server.project_stage3_http.service.bindings)
+                            if self.server.project_stage3_http is not None
                             else []
                         ),
                         stage1=self.server.project_stage1 is not None,
