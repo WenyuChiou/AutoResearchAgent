@@ -3,6 +3,7 @@
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import json
 import os
 import sys
 import time
@@ -52,16 +53,25 @@ def answer(snapshot):
             )
         ]
     else:
-        claims = deepcopy(snapshot["children"][0]["claims"][:1])
+        claims = deepcopy(
+            next((c["claims"][:1] for c in snapshot["children"] if c["claims"]), [])
+        )
+    modern = snapshot.get("schema_version") == "1.1.0"
+    if modern and snapshot["unit"] == "segment":
+        claims[0]["assessment"] = dict(
+            reason_code="fixture-scope-partial",
+            rationale="The authored passage addresses this assertion's local clause; it provides no evidence for extending the finding to other populations or settings.",
+        )
+    partial = not snapshot.get("projection", {}).get("complete", True)
     return dict(
         summary="Authored automatic reading; model semantics are synthetic.",
         classification={k: "Unknown" for k in CLASSIFICATION},
         findings={k: "Unknown" for k in FINDINGS},
         limitations=["No scientific or human acceptance."],
         claims=claims,
-        decision="include",
+        decision="pending" if partial else "include",
         rationale="Synthetic model output tests source-bound production, not scientific quality.",
-        cluster_claims={snapshot["cluster_ids"][0]: 0},
+        cluster_claims={} if partial else {snapshot["cluster_ids"][0]: 0},
         identity_status="unverifiable",
         identity_claims={k: None for k in IDENTITY},
         closest=False,
@@ -208,7 +218,9 @@ class AutomaticStage1ProductionTests(unittest.TestCase):
                     )
                     admit(dict(event, phase="reserve"))
                     admit(dict(event, phase="spawn"))
-                    value = answer(context["saved_reading"])
+                    # Author the response from the exact model-visible turn,
+                    # not from fields retained only in the private snapshot.
+                    value = answer(json.loads(text.rsplit("\n", 1)[-1]))
                     if corrupt:
                         value["claims"][0]["quote"] = "not in saved source"
                     return dict(

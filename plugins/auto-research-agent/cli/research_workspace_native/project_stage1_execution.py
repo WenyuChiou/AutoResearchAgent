@@ -27,6 +27,7 @@ from .project_stage1_review_units import (
     full_note,
     prompt,
     segments,
+    semantic_context,
     task_ref,
     validate_result,
 )
@@ -355,9 +356,11 @@ class ProjectStage1ExecutionService:
                 applied=applied,
                 source_basis_sha256=source_basis,
             )
+        brief = binding.get("brief") or self.intake.brief_binding(ref)["brief"]
+        meaning = semantic_context(brief, ledger.coverage_state().plan)
         base = dict(
             kind="Stage1AutomaticReviewInput",
-            schema_version="1.0.0",
+            schema_version="1.1.0",
             project_ref=ref,
             **_basis(binding),
             work_id=work,
@@ -366,9 +369,8 @@ class ProjectStage1ExecutionService:
             decision_event_id=None if decision is None else decision["event_id"],
             source_basis_sha256=source_basis,
             metadata=candidate["discoveries"][-1]["record"],
-            topic=binding["brief"]["original_description"]
-            if "brief" in binding
-            else self.intake.brief_binding(ref)["brief"]["original_description"],
+            topic=brief["original_description"],
+            semantic_context=meaning,
             cluster_ids=[
                 c["cluster_id"]
                 for c in ledger.coverage_state().plan["proposal"]["clusters"]
@@ -385,7 +387,6 @@ class ProjectStage1ExecutionService:
                 document = dict(base, unit="segment", source=source, segment=part)
                 task = task_ref(document)
                 document["task_ref"] = task
-                prompt(document)
                 tasks[task] = document
                 level.append(task)
         # A deterministic binary tree covers every leaf without presenting an
@@ -402,7 +403,6 @@ class ProjectStage1ExecutionService:
                         tasks[task]["children"] = [
                             child_context(child, results[child]) for child in children
                         ]
-                        prompt(tasks[task])
                     following.append(task)
                 level = following
         root_task = level[0] if level else None
@@ -483,6 +483,16 @@ class ProjectStage1ExecutionService:
                 and snapshot["metadata"] == candidate["discoveries"][-1]["record"],
                 "automatic-stage1-task-binding-differs",
             )
+            if snapshot.get("schema_version") == "1.1.0":
+                _check(
+                    snapshot["semantic_context"]
+                    == semantic_context(
+                        current[2].get("brief")
+                        or self.intake.brief_binding(ref)["brief"],
+                        current[4].coverage_state().plan,
+                    ),
+                    "automatic-stage1-confirmed-context-differs",
+                )
             identity = {
                 k: v for k, v in snapshot.items() if k not in {"task_ref", "children"}
             }
@@ -518,6 +528,10 @@ class ProjectStage1ExecutionService:
         with self.intake._lock:
             self.check_reservation(ref)
             snapshot = self.snapshot(ref, task)
+            # A passive saved-progress read never needs to serialize a prompt.
+            # Refuse an oversized confirmed context before any child permit or
+            # model reservation, without shortening accepted user constraints.
+            prompt(snapshot)
             binding = self.intake.binding(ref)
             state = self.intake._load(self.permit["principal"], ref)
             existing = next(
@@ -590,8 +604,8 @@ class ProjectStage1ExecutionService:
             )
             results, snapshots, _ = self._results(ref)
             if item["status"] == "apply":
-                reviewed = results[item["root_task"]]
-                value = reviewed["review"]
+                root_review = results[item["root_task"]]
+                value = root_review["review"]
             else:
                 value = dict(
                     summary="No eligible saved full source. Automatic source follow-up remains.",
@@ -663,6 +677,7 @@ class ProjectStage1ExecutionService:
                         actor_type="agent",
                         method="automatic-source-review; exact-quote-checked",
                     ),
+                    assessment=deepcopy(claim.get("assessment")),
                 )
                 claims.append(cid)
                 spans[cid] = dict(
@@ -728,6 +743,8 @@ class ProjectStage1ExecutionService:
                 human_acceptance=False,
                 scientific_acceptance=False,
                 entire_extracted_text_reviewed=item["status"] == "apply",
+                semantic_projection_complete=item["status"] == "apply"
+                and root_review.get("semantic_projection_complete", True),
                 paper_figures_verified=False,
                 source_failures=deepcopy(item["source_failures"]),
             )
@@ -1157,9 +1174,14 @@ class ProjectStage1ExecutionService:
                         entire_extracted_text_reviewed=applied[
                             "entire_extracted_text_reviewed"
                         ],
+                        semantic_projection_complete=applied.get(
+                            "semantic_projection_complete", True
+                        ),
                         source_failures=applied["source_failures"],
                     )
                     reasons = []
+                    if not row["semantic_projection_complete"]:
+                        reasons.append("synthesis-evidence-projection-incomplete")
                     if review["decision"] == "pending":
                         reasons.append("semantic-decision-pending")
                     if review["identity_status"] != "verified":

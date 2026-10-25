@@ -144,6 +144,59 @@ it is not a list of researcher-only decisions or a claimed 80-paper reading run.
 
 ## Verification boundary
 
+### Review input/result 1.1 and saved recovery
+
+New automatic tasks bind the complete confirmed needs and current scope choices,
+the plan's inclusion/exclusion criteria, decomposition and cluster questions in
+`semantic_context`, with canonical brief/plan content hashes. The actual model
+turn contains that context. Rehashed snapshots cannot substitute another scope.
+If the unchanged 10000-byte complete prompt bound cannot fit the confirmed
+meaning, registration refuses before a model reservation; it never clips scope.
+
+Each new claim requires `assessment: {reason_code, rationale}`. The lowercase
+hyphenated code is at most 80 characters and the assertion-specific rationale is
+at most 1024 UTF-8 bytes. Status-only reasons refuse. Synthesis must copy the
+entire displayed validated claim, including that assessment, and Core receives
+the same assessment in the append-only claim event. A quote match alone is not
+support. Historical 1.0 results remain readable without invented reasons.
+
+Two individually valid child results can exceed the 10000-byte input bound. The
+1.1 synthesis projection first tries the complete child context, then packs only
+whole questions, claims with reasons, and limitations deterministically. Its
+hash-bound count manifest and `projection.complete=false` expose omissions; all
+full results and all segment, intermediate and root notes remain saved. A partial
+projection requires `decision=pending`, empty coverage assignments and
+`closest=false`. That flag propagates to later synthesis and progress as
+`semantic_projection_complete=false`, with
+`synthesis-evidence-projection-incomplete`. It cannot enter `automatic_resolved`.
+This is bounded pending work, not a completed semantic synthesis or permission to
+reduce the source evidence. Complete confirmed meaning is retained in every turn.
+
+Passive work/progress reads do not render a future prompt or reserve a call.
+Saved charged results are revalidated and their full notes can be read/exported
+without redispatch. New service instances reopen those same durable bindings;
+old permit/runtime hashes cannot silently authorize changed producer bytes.
+
+### Offline resource feasibility
+
+The existing 1600-byte leaf/binary-synthesis path costs two model calls even for
+one leaf (leaf plus root). With multiple leaves it costs the leaf count plus each
+successive rounded-up binary level. Thirty one-leaf works therefore consume all
+60 allowed calls before planning or any other model work; longer texts can exceed
+that cap. A saved-delivery barrier or fully covered text is not proof that a new
+30-work task is executable within 60 calls, 40 queries, 80 source attempts, three
+rounds and three hours. Reservations, failures and uncertain attempts retain their
+original cost. No limit or expiry is raised here.
+
+The already existing `read-full-paper` / `analyze-full-paper` path has its own
+`stage1-full-source-context-1.0` profile and a 256 KiB full-frame admission bound.
+Reusing that path is conditional on complete source/context bytes fitting the
+actual serialized native turn, its inspected runtime and trusted host/permit
+bindings. It is a separate operation and the automatic delegation does not grant
+it. Source sizes, runtime binding, other model tasks and available resources must
+be known before a feasible new-topic execution can be claimed. This repair adds
+no alternate executor and performs no live new-topic work.
+
 Focused tests use the real saved Core ledger, source registry, shared model broker,
 resource reservations, records producer and exporter, with authored source/model
 responses. They cover segmented text, exact spans, parent drift and budget limits,
