@@ -174,11 +174,51 @@
             "Packet2.5 uses rich reviewview1.2 rather than dropping resources and prior-work"
           ],
           "human_judgment": "Routing parity does not establish review correctness or scientific improvement."
+        },
+        {
+          "metric_id": "P7",
+          "rubric_criteria": [
+            "P7V1.QUESTION_DESIGN"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "S3V1_QUESTION_PATH"
+          ],
+          "human_judgment": "Can each source-bound scientific question be answered by its proposed evidence and design?"
+        },
+        {
+          "metric_id": "P8",
+          "rubric_criteria": [
+            "P8V1.EVIDENCE_INTERPRETATION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "S3V1_EVIDENCE_RESULT"
+          ],
+          "human_judgment": "Are materials, credibility checks, analysis and possible result interpretations adequate for each question?"
+        },
+        {
+          "metric_id": "P9",
+          "rubric_criteria": [
+            "P9V1.FEASIBILITY"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "S3V1_DEPENDENCIES"
+          ],
+          "human_judgment": "Do scope, resources, dependencies, milestones and stops preserve a useful achievable minimum?"
         }
       ],
-      "scientific_argument_review_view": "Packet2.5 retains resources, assessment contract and prior-work; no Stage3 UI wiring.",
+      "scientific_argument_review_view": "Packet2.5 retains resources, assessment contract and prior-work; the original routing contract does not establish scientific quality.",
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py"
+        "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py",
+        "plugins/auto-research-agent/tests/test_project_stage3_planning.py",
+        "plugins/auto-research-agent/tests/test_project_stage3_planning_http.py",
+        "plugins/auto-research-agent/tests/test_project_stage3_host_e2e.py"
+      ],
+      "project_stage3_planning_contract": "Programmatic trusted ProjectHost wiring reuses the same selected-project intake, existing PlanningJobs Journal and configured adapter. Prepare/read/inspect/recover never dispatch; an explicit confirmed HTTP run acknowledges admission separately and continues once in its existing request thread under the original native deadline. Current typed versions, selection receipt, external package hashes, all questions, conditions and unknowns are reverified. Browser fields cannot set paths, configuration, credentials or recovery pins. The original no-retry job semantics and five false authority flags remain unchanged; no worker, scheduler or chat wake adapter is created. JSON envelopes must be objects. CLI configuration/deployment and real research-package acceptance remain separate.",
+      "browser_test_refs": [
+        "plugins/auto-research-agent/tests/browser/project-stage3-host-e2e.cjs"
       ]
     }
   ]

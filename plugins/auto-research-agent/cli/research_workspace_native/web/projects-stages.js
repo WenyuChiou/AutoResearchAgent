@@ -11,6 +11,9 @@
   Object.assign(words.en, {selectionEntry: "Review directions and choose", selectionIntro: "Read the current directions, evidence and materials before confirming a version. Opening this view does not start research."});
   Object.assign(words["zh-Hans"], {selectionEntry: "比较方向并选择", selectionIntro: "先阅读当前方向、证据与材料，再确认版本。打开此页面不会启动研究。"});
   Object.assign(words["zh-Hant"], {selectionEntry: "比較方向並選案", selectionIntro: "先閱讀目前方向、證據與材料，再確認版本。開啟此頁不會啟動研究。"});
+  Object.assign(words.en, {planningEntry: "Continue Stage 3 planning", planningIntro: "Planning is connected. Review the saved choice, prepare an input and explicitly start planning. Experiment execution remains disconnected."});
+  Object.assign(words["zh-Hans"], {planningEntry: "继续 Stage 3 规划", planningIntro: "规划接口已接通。查看保存的选择，准备输入后明确开始规划。实验执行仍未接通。"});
+  Object.assign(words["zh-Hant"], {planningEntry: "接續 Stage 3 規劃", planningIntro: "規劃介面已接通。檢視保存選案，準備輸入後明確開始規劃。實驗執行仍未接通。"});
   const outputWords = {
     scope: ["Confirmed scope", "已确认研究范围", "已確認研究範圍"], "search-plan": ["Search plan", "检索计划", "檢索計畫"], "coverage-ledger": ["Coverage ledger", "覆盖记录", "覆蓋紀錄"], "source-notes": ["Source notes", "来源笔记", "來源筆記"], "canonical-delivery": ["Canonical delivery", "规范交付包", "規範交付包"],
     "source-handoff": ["Stage1 evidence handoff", "Stage1 证据交接", "Stage1 證據交接"], comparison: ["Literature comparison", "文献比较", "文獻比較"], "candidate-routes": ["Candidate directions", "候选研究方向", "候選研究方向"], "independent-review": ["Independent review", "独立查核", "獨立查核"], "selection-package": ["Direction selection package", "方向选择包", "方向選擇包"],
@@ -98,6 +101,10 @@
           add(result, "p", w.selectionIntro);
           const link = add(result, "a", w.selectionEntry);
           link.href = "/project-stage2-selection.html#" + encodeURIComponent(current.project_ref);
+        } else if (number === 3 && valid && window.RESEARCH_PROJECTS?.stage3_planning_projects?.includes(current.project_ref)) {
+          add(result, "p", w.planningIntro);
+          const link = add(result, "a", w.planningEntry);
+          link.href = "/project-stage3-planning.html#" + encodeURIComponent(current.project_ref);
         } else {add(result, "p", w.empty); add(result, "p", number === 2 ? w.stage2Missing : w.future);}
       }
     }
