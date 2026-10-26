@@ -501,6 +501,10 @@ class ProjectHost(AtlasHost):
         # another input/version between the UI brief and its action offers.
         with self.projects._lock:
             project = self.projects.read(credential, ref)
+            direct_receiving = (
+                project.get("input_origin") == "stage2-direct-request"
+                and project.get("receiving_only") is True
+            )
             result = dict(
                 project=project,
                 models=None
@@ -510,7 +514,7 @@ class ProjectHost(AtlasHost):
                 if self.project_models is None
                 else self.project_models.offers(credential, ref),
                 stage1=None
-                if self.project_stage1 is None
+                if self.project_stage1 is None or direct_receiving
                 else self.stage1_view(credential, ref, automatic=automatic),
                 stage2=None
                 if self.project_stage2 is None
@@ -1121,6 +1125,8 @@ def main(argv=None):
     parser.add_argument("--views-sha256")
     parser.add_argument("--stage1-import-config", type=Path)
     parser.add_argument("--stage1-import-sha256")
+    parser.add_argument("--stage2-direct-import-config", type=Path)
+    parser.add_argument("--stage2-direct-import-sha256")
     parser.add_argument("--controller-config", type=Path)
     parser.add_argument("--controller-sha256")
     parser.add_argument("--continue-stage2", metavar="PROJECT_REF")
@@ -1138,6 +1144,10 @@ def main(argv=None):
         parser.error("saved views require their external configuration SHA256")
     if bool(args.stage1_import_config) != bool(args.stage1_import_sha256):
         parser.error("Stage1 imports require their external configuration SHA256")
+    if bool(args.stage2_direct_import_config) != bool(args.stage2_direct_import_sha256):
+        parser.error(
+            "direct Stage2 imports require their external configuration SHA256"
+        )
     if bool(args.selection_config) != bool(args.selection_sha256):
         parser.error("selection bindings require their external configuration SHA256")
     if bool(args.stage2_reading_config) != bool(args.stage2_reading_sha256):
@@ -1146,7 +1156,9 @@ def main(argv=None):
         parser.error("Stage2 controllers require their external configuration SHA256")
     if bool(args.stage3_planning_config) != bool(args.stage3_planning_sha256):
         parser.error("Stage3 planning requires its external configuration SHA256")
-    if args.stage3_planning_config and not args.selection_config:
+    if args.stage3_planning_config and not (
+        args.selection_config or args.stage2_direct_import_config
+    ):
         parser.error("Stage3 planning requires configured Stage2 selection")
     if bool(args.continue_stage2) != bool(args.controller_key) or (
         args.continue_stage2 and not args.controller_config
@@ -1187,6 +1199,16 @@ def main(argv=None):
                 stage2, token, args.controller_config, args.controller_sha256
             )
         selection = None
+        selection_bindings = {}
+        if args.stage2_direct_import_config:
+            from .project_stage2_direct_config import load_direct_request_imports
+
+            selection_bindings = load_direct_request_imports(
+                stage2,
+                token,
+                args.stage2_direct_import_config,
+                args.stage2_direct_import_sha256,
+            )
         if args.selection_config:
             raw = args.selection_config.read_bytes()
             if args.selection_config.is_symlink() or sha(raw) != args.selection_sha256:
@@ -1198,7 +1220,13 @@ def main(argv=None):
                 or config["schema_version"] != "1.0.0"
             ):
                 parser.error("selection configuration shape differs")
-            selection = ProjectStage2SelectionService(projects, config["bindings"])
+            if not isinstance(config["bindings"], dict) or set(
+                selection_bindings
+            ) & set(config["bindings"]):
+                parser.error("selection bindings overlap or have invalid shape")
+            selection_bindings.update(config["bindings"])
+        if args.selection_config or args.stage2_direct_import_config:
+            selection = ProjectStage2SelectionService(projects, selection_bindings)
         if args.stage3_planning_config:
             from .project_stage3_planning_config import (
                 Stage3PlanningHostResources,
