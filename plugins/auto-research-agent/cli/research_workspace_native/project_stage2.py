@@ -375,11 +375,38 @@ class ProjectStage2Service:
             )
             return _public(offer)
 
+    def import_direct_request_project(self, credential, **trusted_inputs):
+        from .project_stage2_direct_import import import_direct_request_project
+
+        return import_direct_request_project(self, credential, **trusted_inputs)
+
     def read(self, credential, project_ref):
         principal = self.intake._principal(credential)
         with self.intake._lock:
             state = self.intake._load(principal, project_ref)
             current = self.intake.read(credential, project_ref)
+            if "stage2_direct_import" in state:
+                return dict(
+                    project_ref=project_ref,
+                    revision=state["revision"],
+                    offers=[],
+                    activation=dict(
+                        deepcopy(state["stage2_activation"]),
+                        stage2_status="delivery-received",
+                    ),
+                    frontier=deepcopy(state.get("stage2_frontier")),
+                    input_origin="stage2-direct-request",
+                    receiving_only=True,
+                    stage1_lineage=False,
+                    execution_authorized=False,
+                    native_connected=False,
+                    daily_v3="receiving-only",
+                    stage2_complete=False,
+                    later_stages={
+                        str(i): dict(status="planned", connected=False)
+                        for i in range(3, 7)
+                    },
+                )
             offers = [_public(row) for row in state.get("stage2_offers", {}).values()]
             current_plan = current.get("plan")
             for offer in offers:
@@ -600,6 +627,10 @@ class ProjectStage2Service:
 
     @staticmethod
     def _initial_frontier(project_ref, current, offer, activation):
+        if current.get("direct_request_input"):
+            from .project_stage2_direct_import import direct_frontier
+
+            return direct_frontier(project_ref, current, offer, activation)
         return dict(
             kind="Stage2WorkflowFrontier",
             schema_version="1.0.0",
@@ -625,6 +656,10 @@ class ProjectStage2Service:
         )
 
     def _activation_context(self, project_ref, state):
+        if "stage2_direct_import" in state:
+            from .project_stage2_direct_import import direct_context
+
+            return direct_context(self, project_ref, state)
         activation = state.get("stage2_activation")
         _check(activation is not None, "stage2-not-activated")
         saved = [
@@ -911,6 +946,11 @@ class ProjectStage2Service:
                 activation,
                 frontier["workflow_head_sha256"],
                 frontier["workflow_head_sha256"],
+            )
+            _check(
+                not current.get("direct_request_input"),
+                "stage2-direct-receiving-only",
+                403,
             )
             # _activation_context just reopened and recomputed this profile under
             # the same store lock. Return its verified binding, not a second

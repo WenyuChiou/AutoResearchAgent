@@ -1012,11 +1012,12 @@
     },
     {
       "capability_id": "cli:research-workspace-native",
-      "direction_readiness_transport": "Existing native pipeline carries the Stage2 direction-readiness view1.3. New binding1.1 pins it; legacy binding1.0 retains1.2 and exact accepted/pending receipts. This transport supports direction selection, not scientific approval or a new execution authority.",
+      "direction_readiness_transport": "Existing native pipeline carries the Stage2 direction-readiness view1.3. New binding1.1 pins it; legacy binding1.0 retains1.2 and exact accepted/pending receipts. This transport supports direction selection, not scientific approval or a new execution authority. A trusted receiving-only direct-request import separately binds the original request, sealed Stage2 delivery and full saved workflow; it never fabricates Stage1 lineage or grants research execution. Existing formal UI selection and planning intake remain version-bound.",
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py",
         "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py",
-        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direct_import.py"
       ],
       "metric_effects": [
         {
@@ -1027,7 +1028,8 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "Current-only policy and selected reviewer-context hashes survive public selection/admission/prompt; original human conditions remain distinct; legacy replay and tamper rejection remain strict."
+            "Current-only policy and selected reviewer-context hashes survive public selection/admission/prompt; original human conditions remain distinct; legacy replay and tamper rejection remain strict.",
+            "Pinned direct-delivery/request import, principal and typed-version rejection, interrupted catalog registration recovery, exact workflow frontier, and zero research/model reexecution."
           ],
           "human_judgment": "Engineering transport checks do not establish scientific quality, an eligible real recommendation, human selection or execution."
         }
