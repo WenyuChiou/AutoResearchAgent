@@ -28,7 +28,7 @@ class DirectDeliveryAdmissionTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         request = self.root / "request.txt"
         request.write_text(
             "Compare bounded synthetic opportunities; preserve unknown access.\n",
