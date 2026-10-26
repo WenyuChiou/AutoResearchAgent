@@ -283,6 +283,67 @@ assert not any(n.startswith('research_workspace_native') for n in sys.modules)
                     LAUNCHER["inspect_inputs"](args)
                 self.assertFalse((self.root / "projects").exists())
 
+    def test_full_source_flag_groups_refuse_before_store_or_bootstrap(self):
+        request = self.root / "full-source-run.json"
+        request.write_text("{}", encoding="utf8")
+        pin = sha(request.read_bytes())
+        notes = self.root / "notes"
+        notes.mkdir()
+        valid = dict(
+            enable_stage1_run=True,
+            enable_content_model=True,
+            enable_public_sources=True,
+            enable_stage1_full_source=True,
+            stage1_full_notes_root=notes,
+            stage1_run_request=request,
+            stage1_run_request_sha256=pin,
+        )
+        cases = (
+            (
+                dict(enable_stage1_full_source=True),
+                "full-source analysis and notes root",
+            ),
+            (
+                dict(stage1_full_notes_root=notes),
+                "full-source analysis and notes root",
+            ),
+            (
+                dict(
+                    enable_stage1_full_source=True,
+                    stage1_full_notes_root=notes,
+                ),
+                "full-source analysis requires",
+            ),
+            (
+                {
+                    **valid,
+                    "stage1_run_request": None,
+                    "stage1_run_request_sha256": None,
+                },
+                "full-source analysis requires",
+            ),
+            (
+                {**valid, "stage1_full_notes_root": self.root / "missing"},
+                "existing full-source notes directory",
+            ),
+            (
+                {**valid, "stage1_full_notes_root": request},
+                "existing full-source notes directory",
+            ),
+            (
+                {**valid, "stage1_full_notes_root": self.root},
+                "separate from the project store",
+            ),
+        )
+        for changes, message in cases:
+            with self.subTest(changes=changes):
+                args = type(self.args)(**vars(self.args))
+                for key, value in changes.items():
+                    setattr(args, key, value)
+                with self.assertRaisesRegex(ValueError, message):
+                    LAUNCHER["inspect_inputs"](args)
+                self.assertFalse((self.root / "projects").exists())
+
     def test_stage1_run_request_pin_tamper_and_size_fail_before_bootstrap(self):
         request = self.root / "run.json"
         request.write_text('{"kind":"ProjectStage1RunRequest"}', encoding="utf8")
