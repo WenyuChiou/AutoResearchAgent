@@ -148,7 +148,14 @@ class ProjectStage1RecordsService:
         )
 
     def _register(
-        self, project_ref, context, kind, payload, check_current, action_body=None
+        self,
+        project_ref,
+        context,
+        kind,
+        payload,
+        check_current,
+        action_body=None,
+        registration_key=None,
     ):
         principal, state, binding, *_ = context
         entry = self._entry(context, payload)
@@ -161,6 +168,15 @@ class ProjectStage1RecordsService:
             brief_sha256=binding["brief_sha256"],
             entry_sha256=digest,
         )
+        if registration_key is not None:
+            _check(
+                action_body is None and kind == "stage1-reading-registry",
+                "saved-reading-key-owner-invalid",
+            )
+            from stage1_deliverable.common import identifier
+
+            identifier(registration_key)
+            body["key"] = registration_key
         if action_body is not None:
             _check(
                 kind == "stage1-reading-registry"
@@ -876,8 +892,9 @@ class ProjectStage1RecordsService:
         findings,
         roles,
         expected_ledger_state_sha256,
+        exact_spans=None,
     ):
-        """Read exact current spans for an explicit human review; never save it."""
+        """Derive caller-reviewed notes; exact spans still pass the Core validator."""
         with self.intake._lock:
             context = self._context(project_ref, expected_ledger_state_sha256)
             ledger = context[4]
@@ -904,6 +921,9 @@ class ProjectStage1RecordsService:
                 if s["work_id"] == work_id and s["version_id"] == selected
             ]
             manual_locators = self._saved_claim_locators(context, work_id, selected)
+            if exact_spans is not None:
+                _check(type(exact_spans) is dict, "saved-reading-exact-spans-invalid")
+                manual_locators.update(deepcopy(exact_spans))
             spans = []
             for row in ledger.events():
                 event = row["payload"]
@@ -961,6 +981,7 @@ class ProjectStage1RecordsService:
         expected_ledger_state_sha256,
         action_body=None,
         check_current=None,
+        registration_key=None,
     ):
         reading = deepcopy(reading)
         with self.intake._lock:
@@ -995,6 +1016,7 @@ class ProjectStage1RecordsService:
                     reading,
                     check_current,
                     action_body,
+                    registration_key,
                 )
 
     def _records(self, context, entries):
