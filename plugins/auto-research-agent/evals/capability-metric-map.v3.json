@@ -991,8 +991,8 @@
       "status": "active",
       "metric_role": "enabler",
       "owner_path": ".github/scripts/ci_test_routing.py",
-      "problem": "A small isolated presentation change otherwise selects the broad standard plugin suite, while an unchecked narrow plan could silently omit affected or required tests.",
-      "mechanism": "Extend the existing runner with a bounded versioned exact-owner routing table, regular Git-modification admission, deterministic domain union and test-reference closure. Preserve broad fallback for unknown/shared/critical input and router changes, nonempty selector checks, current required platform jobs, automatic standard/manual full coverage and actual failure accounting.",
+      "problem": "Stage-owned presentation and backend changes otherwise select unrelated Stage1 suites; narrowing must preserve genuine cross-stage consumers, bridge tests and shared-runtime coverage.",
+      "mechanism": "Extend the existing runner with a bounded versioned exact-owner routing table, regular Git-modification admission, deterministic domain union and test-reference closure. Include Stage2/Stage3 backends with reverse-consumer and registered bridge/provider tests; unchanged imported helpers do not imply rerunning upstream Stage1. Preserve broad fallback for modified shared runtime, unknown/critical input and router changes, nonempty selector checks, current required jobs, separate standard/full duration profiles and actual failure accounting.",
       "metric_effects": [
         {
           "metric_id": "P3",
