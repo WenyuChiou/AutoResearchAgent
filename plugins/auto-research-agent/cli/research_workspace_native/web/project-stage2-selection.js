@@ -10,6 +10,8 @@
   words.en.continuePlanning="Continue Stage 3 planning";
   words["zh-TW"].continuePlanning="接續 Stage 3 規劃";
   words["zh-CN"].continuePlanning="继续 Stage 3 规划";
+  words.en.inputVersion="Input version"; words["zh-TW"].inputVersion="輸入版本"; words["zh-CN"].inputVersion="输入版本";
+  const projectNames=new Map(); let projectNamesFailed=false;
   let view = null, busy = false, requestKey = null, lastBody = null, viewProject = null, loadSerial = 0;
   const current = (ref, serial) => serial === loadSerial && byId("project").value === ref;
   const w = () => words[byId("language").value] || words.en;
@@ -20,9 +22,14 @@
   function claims(parent,rows) { if(!rows?.length)node(parent,"p",w().unknown); for(const claim of rows || []) {node(parent,"p",claim.text);field(parent,w().status,claim.status);field(parent,w().questions,claim.question_ids);if(claim.evidence_ids)field(parent,w().evidence,claim.evidence_ids);} }
   function resource(parent,use) { const r=use.resource || use,ref=use.resource_ref;node(parent,"h4",r.name);node(parent,"p",[r.category,r.status].filter(Boolean).join(" · "));if(ref){field(parent,w().questionUse,ref.purpose);field(parent,w().fit,ref.fit_status);field(parent,w().evidence,ref.evidence_ids);}field(parent,w().generalUse,r.purpose);field(parent,w().required,r.required);field(parent,w().license,r.license);field(parent,w().cost,r.cost_basis);field(parent,w().checked,r.checked_at);list(parent,[r.url,r.version,r.access_conditions].map(value));field(parent,w().evidence,r.evidence_ids);list(parent,r.limitations);list(parent,r.alternatives); }
   async function api(path, body) { const response=await fetch(path,{method:body?"POST":"GET",credentials:"omit",cache:"no-store",headers:{Authorization:"Bearer "+boot.credential,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})}); const data=await response.json(); if(!response.ok) throw new Error(data.error || "request-failed"); return data; }
+  function renderProjectContext() {
+    const area=byId("project-context");
+    if(area) area.textContent=view?(projectNames.get(viewProject) || (projectNamesFailed?w().unknown+" · ":"")+viewProject)+" · "+w().inputVersion+": "+JSON.stringify(view.input_version):"";
+  }
   function render() {
     for(const n of document.querySelectorAll("[data-i18n]")) n.textContent=w()[n.dataset.i18n];
     document.documentElement.lang=byId("language").value;
+    renderProjectContext();
     byId("cards").replaceChildren();
     byId("planning").hidden=!view?.planning_input;
     byId("planning-link").hidden=!view?.planning_input;
@@ -31,6 +38,8 @@
     byId("submit").disabled=busy;
     byId("project").disabled=busy;
     if(!view) return;
+    byId("planning-link").href="#"+viewProject;
+    byId("return-cards").href="#"+viewProject;
     byId("status").textContent=w()[view.selection_status==="recorded"?"saved":view.eligible.length?"ready":"none"];
     for(const card of view.cards.cards) {
       const a=node(byId("cards"),"article",""); node(a,"h2",card.candidate_question || card.candidate_id); node(a,"p",card.candidate_id+" · v"+card.candidate_version);
@@ -49,10 +58,13 @@
     if(view.planning_input) { const p=view.planning_input; if(p.legacy_candidates.length) node(byId("planning-summary"),"p",w().legacy); for(const q of p.questions) {node(byId("planning-summary"),"h3",q.text);node(byId("planning-summary"),"p",q.intended_claim);} list(byId("planning-summary"),p.selection_conditions);list(byId("planning-summary"),p.unresolved);byId("planning-input").textContent=JSON.stringify(p,null,2);
       if((boot.stage3_planning_projects || []).includes(viewProject) && view.selection_status==="recorded") {const link=node(byId("planning-summary"),"a",w().continuePlanning);link.id="stage3-entry";link.href="/project-stage3-planning.html#"+encodeURIComponent(viewProject);}
     }
-    byId("receipt").textContent=JSON.stringify({selection_receipt:view.selection_receipt,delivery_manifest_sha256:view.delivery_manifest_sha256,snapshot_sha256:view.snapshot_sha256,planning_status:view.planning_status,execution_authorized:false},null,2);
+    byId("receipt").textContent=JSON.stringify({project_ref:view.project_ref,input_version:view.input_version,selection_receipt:view.selection_receipt,delivery_manifest_sha256:view.delivery_manifest_sha256,snapshot_sha256:view.snapshot_sha256,planning_status:view.planning_status,execution_authorized:false},null,2);
   }
-  async function load() { const ref=byId("project").value, serial=++loadSerial; view=null; viewProject=null; requestKey=null; lastBody=null; render(); if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {byId("status").textContent=w().unconnected;return;} try { const loaded=await api("/api/projects/"+ref+"/stage2/selection"); if(!current(ref,serial))return; view=loaded; viewProject=ref; render(); } catch(e) {if(current(ref,serial))byId("status").textContent=w().unconnected+" ("+e.message+")";} }
+  async function load() { const ref=byId("project").value, serial=++loadSerial; view=null; viewProject=null; requestKey=null; lastBody=null; render(); if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {byId("status").textContent=w().unconnected;return;} try { const loaded=await api("/api/projects/"+ref+"/stage2/selection"); if(!current(ref,serial))return; view=loaded; viewProject=ref; history.replaceState(null,"","#"+ref); render(); } catch(e) {if(current(ref,serial))byId("status").textContent=w().unconnected+" ("+e.message+")";} }
   byId("language").onchange=render; byId("project").onchange=load;
+  for(const [link,target] of [["planning-link","planning"],["return-cards","cards"]]) {
+    byId(link).onclick=event=>{event.preventDefault();byId(target).scrollIntoView({block:"start"});};
+  }
   byId("choice").onsubmit=async event=>{event.preventDefault(); if(busy || !view || !current(viewProject,loadSerial)) return; const ref=viewProject, serial=loadSerial; const selected=document.querySelector('input[name="direction"]:checked'); if(!selected || !byId("confirmed").checked) return; const lines=id=>byId(id).value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
     const body={key:requestKey || crypto.randomUUID(),revision:view.revision,input_version:view.input_version,brief_sha256:view.brief_sha256,delivery_manifest_sha256:view.delivery_manifest_sha256,workflow_head_sha256:view.workflow_head_sha256,snapshot_sha256:view.snapshot_sha256,confirmed:true,decision:{actor:byId("actor").value,kind:"select",user_text:byId("message").value,selected:[{candidate_id:selected.value,candidate_version:Number(selected.dataset.version)}],conditions:lines("conditions"),unresolved:lines("unresolved"),rationale:byId("rationale").value,scope_or_resource_change:false}};
     if(lastBody && JSON.stringify({...body,key:lastBody.key})!==JSON.stringify(lastBody)) {byId("status").textContent="Reload the current version before changing a submitted request.";return;} requestKey=body.key;lastBody=body;busy=true;byId("submit").disabled=true;byId("project").disabled=true;
@@ -61,4 +73,15 @@
   for(const ref of boot.stage2_selection_projects || []) {const option=node(byId("project"),"option",ref);option.value=ref;}
   const ref=location.hash.slice(1); if((boot.stage2_selection_projects || []).includes(ref)) byId("project").value=ref;
   load();
+  api("/api/projects").then(result=>{
+    const rows=Array.isArray(result)?result:result.projects;
+    if(!Array.isArray(rows)) throw new Error("project-labels-unavailable");
+    for(const row of rows) {
+      const title=row.topic || row.original_description;
+      if(!boot.stage2_selection_projects?.includes(row.project_ref) || typeof title!=="string") continue;
+      const name=title.replace(/\s+/g," ").slice(0,240); projectNames.set(row.project_ref,name);
+      for(const option of byId("project").children) if(option.value===row.project_ref) option.textContent=name+" · "+row.project_ref;
+    }
+    renderProjectContext();
+  }).catch(()=>{projectNamesFailed=true;renderProjectContext();});
 }());

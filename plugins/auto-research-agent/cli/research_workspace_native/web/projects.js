@@ -222,7 +222,7 @@
   function buttons() {
     const blocked = state.busy || state.loading;
     $("create-form").querySelector("button").disabled = blocked || pending.some((row) => !row.project_ref);
-    const imported = state.project?.stage1_status === "imported-verified-delivery";
+    const imported = state.project?.stage1_status === "imported-verified-delivery" || state.project?.input_origin === "stage2-direct-request";
     const projectBlocked = blocked || !state.project || !state.project.brief || (bootstrap.models && !state.modelStatus) || state.activeJob || pending.some((row) => state.project && row.project_ref === state.project.project_ref);
     $("confirm-form").querySelectorAll("button").forEach((button) => { button.disabled = projectBlocked || imported; });
     $("revise-form").querySelector("button").disabled = projectBlocked || imported;
@@ -591,7 +591,7 @@
       if (!project || project.project_ref !== ref) throw new Error("project-overview-binding-differs");
       state.project = project;
       $("confirm-form").reset(); $("revised-topic").value = project.brief ? project.brief.original_description : "";
-      const imported = project.stage1_status === "imported-verified-delivery";
+      const imported = project.stage1_status === "imported-verified-delivery" || project.input_origin === "stage2-direct-request";
       $("confirm-form").hidden = imported; $("revise-form").hidden = imported;
       const settings = project.settings || {};
       $("resources").value = settings.resource_envelope ?? "";
