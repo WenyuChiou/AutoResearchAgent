@@ -121,8 +121,12 @@ def running_cli(case, arguments):
 
 class Stage3CliFailureTests(unittest.TestCase):
     def test_unconfigured_cli_and_open_do_not_dispatch(self):
-        directory = self.enterContext(
-            tempfile.TemporaryDirectory(prefix="stage3-cli-absent-")
+        directory = str(
+            Path(
+                self.enterContext(
+                    tempfile.TemporaryDirectory(prefix="stage3-cli-absent-")
+                )
+            ).resolve()
         )
         with (
             patch(
@@ -140,8 +144,12 @@ class Stage3CliFailureTests(unittest.TestCase):
             process.assert_not_called()
 
     def test_cleanup_without_primary_preserves_both_failures_and_closes_intake(self):
-        directory = self.enterContext(
-            tempfile.TemporaryDirectory(prefix="stage3-cli-two-cleanup-")
+        directory = str(
+            Path(
+                self.enterContext(
+                    tempfile.TemporaryDirectory(prefix="stage3-cli-two-cleanup-")
+                )
+            ).resolve()
         )
         original_host_close, original_intake_close = (
             project_host.ProjectHost.server_close,
