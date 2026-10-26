@@ -193,7 +193,14 @@ class RoutingTests(unittest.TestCase):
 
     def test_actual_repository_catalog_has_real_owners_and_nonempty_suites(self):
         catalog = routing.load_catalog(REPO)
-        self.assertEqual(len(catalog["routes"]), 3)
+        self.assertTrue(
+            {
+                "stage2-workflow-backend",
+                "stage2-live-backend",
+                "stage3-planning-backend",
+            }
+            <= {row["id"] for row in catalog["routes"]}
+        )
         for route in catalog["routes"]:
             for owner in route["owners"]:
                 self.assertTrue((REPO / owner).is_file(), owner)
@@ -202,9 +209,9 @@ class RoutingTests(unittest.TestCase):
         for path in [
             "cli/research_workspace_native/project_host.py",
             "cli/research_workspace_native/store.py",
-            "cli/stage2_workflow/store.py",
-            "cli/stage3_plan/jobs.py",
-            "cli/stage2_live/controller.py",
+            "cli/stage2_live/native.py",
+            "cli/stage2_live/native_policy.py",
+            "cli/stage2_live/native_process.py",
         ]:
             self.assertIsNone(
                 routing.routed_modules(
@@ -271,6 +278,144 @@ class RoutingTests(unittest.TestCase):
                     {"mode": "selected", "modules": ["test_empty_ci_route"]},
                     repo=self.repo,
                 )
+
+    def test_stage_owned_backends_exclude_unrelated_stage1_suites(self):
+        cases = [
+            "cli/stage2_workflow/store.py",
+            "cli/stage2_workflow/orchestration.py",
+            "cli/stage2_live/controller.py",
+            "cli/stage3_plan/campaign.py",
+            "cli/stage3_plan/jobs.py",
+            "cli/research_workspace_native/project_stage2_selection.py",
+        ]
+        for owner in cases:
+            path = "plugins/auto-research-agent/" + owner
+            with self.subTest(owner=owner):
+                selected = scope.plan([path], REPO, records=[self.record(path)])
+                self.assertEqual(selected["mode"], "selected", selected)
+                self.assertIn("test_plugin_loading", selected["modules"])
+                self.assertIn("test_stage_contracts", selected["modules"])
+                self.assertNotIn("test_retrieval_execution", selected["modules"])
+                self.assertNotIn("test_stage1_deliverable", selected["modules"])
+                self.assertNotIn("test_project_stage1_library", selected["modules"])
+
+    def test_backend_routes_keep_bridge_and_provider_consumers(self):
+        cases = {
+            "cli/research_workspace_native/project_stage2.py": {
+                "test_project_stage1_discovery_records",
+                "test_stage1_core_records",
+                "test_stage1_screening_records",
+            },
+            "cli/stage2_workflow/import_stage1.py": {
+                "test_stage1_stage2_handoff",
+                "test_saved_source_stage2_intake",
+                "test_stage1_import_host_replay",
+                "test_project_stage1_discovery_records",
+                "test_stage1_core_records",
+                "test_stage1_screening_records",
+            },
+            "cli/stage2_workflow/store.py": {"test_stage_pipeline_prompt_bounds"},
+            "cli/stage3_plan/native.py": {
+                "test_native_incomplete_responses",
+                "test_provider_schema_projection",
+            },
+            "cli/stage3_plan/intake.py": {
+                "test_stage123_imported_selection_recovery_e2e",
+                "test_project_stage2_selection_http",
+            },
+        }
+        for owner, required in cases.items():
+            path = "plugins/auto-research-agent/" + owner
+            with self.subTest(owner=owner):
+                selected = scope.plan([path], REPO, records=[self.record(path)])
+                self.assertEqual(selected["mode"], "selected")
+                self.assertTrue(required <= set(selected["modules"]))
+
+    def test_backend_route_union_and_modified_shared_fallback(self):
+        a = "plugins/auto-research-agent/cli/stage2_live/controller.py"
+        b = "plugins/auto-research-agent/cli/stage3_plan/campaign.py"
+        one = scope.plan([a], REPO, records=[self.record(a)])
+        two = scope.plan([b], REPO, records=[self.record(b)])
+        both = scope.plan([a, b], REPO, records=[self.record(a), self.record(b)])
+        self.assertEqual(both["mode"], "selected")
+        self.assertEqual(
+            set(both["modules"]), set(one["modules"]) | set(two["modules"])
+        )
+        for shared in [
+            "cli/stage2_live/native.py",
+            "cli/stage2_live/native_policy.py",
+            "cli/stage2_live/trace_files.py",
+            "cli/stage1_eval/model_calls.py",
+            "cli/research_workspace_native/project_host.py",
+        ]:
+            path = "plugins/auto-research-agent/" + shared
+            with self.subTest(shared=shared):
+                selected = scope.plan(
+                    [a, path], REPO, records=[self.record(a), self.record(path)]
+                )
+                self.assertEqual(selected["mode"], "full")
+
+    def test_stage3_source_inventory_changes_reject_before_worker_execution(self):
+        # Explicit partial fixture: the baseline reaches the later loader guard.
+        # This exercises byte/inventory rejection only, never a worker or model.
+        guard = r"""
+import json, pathlib, sys, tempfile
+sys.path.insert(0, sys.argv[1])
+from research_workspace_native.source_worker_runner import ContainedSourceJobRunner
+from stage1_deliverable.common import canonical, sha
+with tempfile.TemporaryDirectory() as temporary:
+    repo = pathlib.Path(temporary).resolve()
+    cli = repo / 'plugins/auto-research-agent/cli'
+    source = cli / 'stage3_plan/prompts.py'
+    source.parent.mkdir(parents=True)
+    source.write_text('VALUE = 1\n', encoding='utf8')
+    files = {'cli/stage3_plan/prompts.py': sha(source.read_bytes())}
+    inventory = sha(canonical(files))
+    config = dict(kind='OwnedSourceWorkerConfiguration', schema_version='1.0.0',
+        repo=str(repo), files=files, inventory_sha256=inventory,
+        interpreter=sys.executable, interpreter_sha256='1'*64,
+        git_executable=str(repo/'git.exe'), git_sha256='2'*64,
+        execution_source_sha256=inventory, runtime_sha256='3'*64,
+        resolver_sha256='4'*64, materials_root=str(repo/'materials'),
+        cleanup_reserve_seconds=1, guard_timeout_seconds=1,
+        max_stdout_bytes=1024, max_stderr_bytes=1024, max_frames=1)
+    runner = ContainedSourceJobRunner(config)
+    def rejection():
+        try:
+            runner._pins()
+        except ValueError as error:
+            return str(error)
+        raise AssertionError('partial fixture must not admit a worker')
+    observed = {'baseline': rejection()}
+    source.write_text('VALUE = 2\n', encoding='utf8')
+    observed['modified'] = rejection()
+    source.write_text('VALUE = 1\n', encoding='utf8')
+    (source.parent/'new_module.py').write_text('VALUE = 3\n', encoding='utf8')
+    observed['added'] = rejection()
+    print(json.dumps(observed))
+"""
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-B",
+                "-c",
+                guard,
+                str(REPO / "plugins/auto-research-agent/cli"),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout),
+            {
+                "baseline": "source-worker-required-module-missing",
+                "modified": "source-worker-inventory-bytes-differ",
+                "added": "source-worker-complete-source-required",
+            },
+        )
 
 
 if __name__ == "__main__":
