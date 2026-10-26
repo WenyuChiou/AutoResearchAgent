@@ -1017,7 +1017,8 @@
         "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py",
         "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py",
         "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py",
-        "plugins/auto-research-agent/tests/test_project_stage2_direct_import.py"
+        "plugins/auto-research-agent/tests/test_project_stage2_direct_import.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direct_cli.py"
       ],
       "metric_effects": [
         {
