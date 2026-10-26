@@ -78,6 +78,9 @@ SAVED_CLAIM_ROUTE = re.compile(
 SOURCE_READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/source-reading/([A-Za-z0-9_-]{1,256})"
 )
+AUTOMATIC_NOTE_ROUTE = re.compile(
+    r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/automatic-notes/([0-9a-f]{64})"
+)
 
 
 class ProjectHost(AtlasHost):
@@ -398,6 +401,42 @@ class ProjectHost(AtlasHost):
             grant_sha256=grant_sha256,
         )
 
+    def register_stage1_execution(
+        self, ref, *, permit_path, permit_sha256, output_root
+    ):
+        """Trusted bootstrap only; register a delegated producer without running it."""
+        from .project_stage1_execution import ProjectStage1ExecutionService
+
+        if getattr(self, "project_stage1_execution", None) is not None:
+            raise ValueError("automatic Stage1 producer already registered")
+        producer = ProjectStage1ExecutionService(
+            self.project_stage1,
+            self.project_models,
+            self.project_stage1_records,
+            permit_path=permit_path,
+            permit_sha256=permit_sha256,
+            output_root=output_root,
+        )
+        try:
+            producer._permit(ref)
+        except BaseException:
+            self.project_models.automatic_stage1 = None
+            raise
+        self.project_stage1_execution = producer
+        self.host_binding.update(
+            project_stage1_automatic_reading=True,
+            project_stage1_automatic_parent_sha256=permit_sha256,
+            project_stage1_automatic_stage2_execution=False,
+        )
+        self._assets["/host-binding.json"] = canonical(self.host_binding)
+        return dict(
+            registered=True,
+            project_ref=ref,
+            permit_sha256=permit_sha256,
+            model_or_source_started=False,
+            stage2_started=False,
+        )
+
     def continue_stage2(self, credential, ref, *, key):
         """Trusted operator continuation under its original admitted run budget.
 
@@ -410,7 +449,7 @@ class ProjectHost(AtlasHost):
             raise SessionApiError("stage2-controller-not-connected", 409)
         return driver.run(credential, ref, key=key)
 
-    def overview(self, credential, ref):
+    def overview(self, credential, ref, *, automatic=False):
         # One store lock joins matching saved revisions. Workers cannot commit
         # another input/version between the UI brief and its action offers.
         with self.projects._lock:
@@ -425,7 +464,7 @@ class ProjectHost(AtlasHost):
                 else self.project_models.offers(credential, ref),
                 stage1=None
                 if self.project_stage1 is None
-                else self.stage1_view(credential, ref),
+                else self.stage1_view(credential, ref, automatic=automatic),
                 stage2=None
                 if self.project_stage2 is None
                 else self.project_stage2.read(credential, ref),
@@ -434,7 +473,7 @@ class ProjectHost(AtlasHost):
                 result["stage1"]["progress"] = project_progress(result)
             return result
 
-    def stage1_view(self, credential, ref):
+    def stage1_view(self, credential, ref, *, automatic=False):
         """Read saved delivery offers together with the same project revision."""
         with self.projects._lock:
             result = dict(
@@ -473,6 +512,12 @@ class ProjectHost(AtlasHost):
                 else self.project_stage1_records.reading_readiness(
                     credential, ref, expected_ledger_state_sha256=state_hash
                 )
+            )
+            producer = getattr(self, "project_stage1_execution", None)
+            result["automatic_production"] = (
+                producer.project_view(credential, ref)
+                if automatic and producer is not None
+                else None
             )
             return result
 
@@ -515,6 +560,18 @@ class ProjectHandler(AtlasHandler):
                 raise SessionApiError("cross-site-rejected", 403)
             if self.server.authenticate(token) is None:
                 raise SessionApiError("credential-rejected", 401)
+            automatic_note = AUTOMATIC_NOTE_ROUTE.fullmatch(self.path)
+            if automatic_note is not None:
+                if method != "GET" or length:
+                    raise SessionApiError("invalid-project-read", 400)
+                producer = getattr(self.server, "project_stage1_execution", None)
+                if producer is None:
+                    raise SessionApiError("automatic-stage1-unconnected", 409)
+                result = producer.note_by_hash(
+                    token, automatic_note[1], automatic_note[2]
+                )
+                self._remaining()
+                return self._reply(200, result)
             atlas = ATLAS_ROUTE.fullmatch(self.path)
             if atlas is not None:
                 if method != "GET" or length:
@@ -689,11 +746,11 @@ class ProjectHandler(AtlasHandler):
                         else extension.read(token, ref)
                     )
                     if operation == "stage1" and action in {None, "offers"}:
-                        result = self.server.stage1_view(token, ref)
+                        result = self.server.stage1_view(token, ref, automatic=True)
                 elif operation == "overview":
                     if action or resolution:
                         raise SessionApiError("invalid-project-read", 400)
-                    result = self.server.overview(token, ref)
+                    result = self.server.overview(token, ref, automatic=True)
                 elif operation == "contract":
                     with service._lock:
                         result = project_view(
