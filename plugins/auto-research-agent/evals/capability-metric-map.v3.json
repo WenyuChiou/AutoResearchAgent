@@ -562,6 +562,22 @@
         "plugins/auto-research-agent/tests/test_project_saved_run_actions.py",
         "plugins/auto-research-agent/tests/test_project_saved_run_delivery.py"
       ],
+      "stage1_full_source_run_adapter_contract": {
+        "entry": "Trusted ProjectHost.register_stage1_full_source selects existing run-grant AutoDriver/RunContinuation/ProducerQueue/RunActions/full-analysis/adopt/register owners; no alternate engine or default activation",
+        "authority": "Original same principal/project/input/brief/plan/settings/runtime, grant lease and model owner; derived actions retain confirmed=false; mutually exclusive with segmented automatic owner",
+        "projection": "Complete validated full-analysis proposal plus flat reading/screening and exact evidence-index claim/assessment mapping; questions, failures, original acquisition scopes and Unknown retained; no semantic clipping",
+        "saved_readback": "Original adoption stable-input/owner/permit/job/physical-source checks after its own ledger append; exact current reading registration follows only that adoption's saved coverage receipt, current Core review event and unchanged reading fields; held readiness, same-context unresolved adoption/registration technical blockers and raw/provider receipt tamper guards remain; no future prompt or new dispatch on passive reads",
+        "bounds": "Remaining original calls compared with one-per-work/version full-analysis lower bound before dispatch, including undecided candidates the original ProducerQueue initializes to pending in the same continuation; excluded works without an adoption do not consume the lower bound; insufficient saves partial without permission. Original source, prompt/RPC, fragment, record, deadline and counter caps unchanged; lower bound is not topic feasibility",
+        "artifacts": "Stage1AutomaticProductionProgress1.1.0 existing-full-analysis-adopt-register; content-addressed full Markdown notes and separate notes companion recheck fresh private ancestry before every publication; existing authenticated opaque GET URLs; default and historical schemas unchanged",
+        "trusted_launcher": "Explicit --enable-stage1-full-source with a pinned saved run and separate existing --stage1-full-notes-root registers the existing adapter before continuation; the exact original grant and deadline are reused, coverage-capable analysis remains enabled and existing adapter-owner guards remain authoritative, and default startup remains passive.",
+        "evidence_scope": "Actual producer and OwnAccountProjectModelFactory/adopt/register with FakeStageModel only; no live/native/new-topic/Stage2 execution or scientific acceptance"
+      },
+      "stage1_full_source_run_adapter_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage1_full_source_adapter.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_full_source_review.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_run_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_workspace_launcher.py"
+      ],
       "stage2_trusted_controller_contract": "Server-owned local configuration binds exact project, spec and prerequisite bytes to the existing Stage2 controller. Explicit foreground continuation authenticates the current source/version/activation, then preserves one durable intent and outcome. Saved current core return seals may be reverified and registered after interruption without entering the engine again. Browser input cannot install paths, policies, deadlines or handlers. Research delivery, independent assessment/audit, actual human choice and Stage3 intake remain distinct; execution stays false.",
       "stage2_trusted_controller_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_controller.py",

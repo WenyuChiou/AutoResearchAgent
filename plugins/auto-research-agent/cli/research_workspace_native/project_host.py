@@ -390,6 +390,18 @@ class ProjectHost(AtlasHost):
         grant_sha256=None,
     ):
         """Trusted operator continuation; does not register grants or start Stage2."""
+        full_source = getattr(self, "project_stage1_full_source_execution", None)
+        if full_source is not None:
+            return full_source.run(
+                credential,
+                ref,
+                run_id=run_id,
+                deadline=deadline,
+                max_actions=max_actions,
+                run_grants=run_grants,
+                grant_ref=grant_ref,
+                grant_sha256=grant_sha256,
+            )
         from .project_stage1_auto import ProjectStage1AutoDriver
 
         return ProjectStage1AutoDriver(self, credential, ref).run(
@@ -401,11 +413,46 @@ class ProjectHost(AtlasHost):
             grant_sha256=grant_sha256,
         )
 
+    def register_stage1_full_source(
+        self, credential, ref, *, run_grants, grant_ref, grant_sha256, output_root
+    ):
+        """Bind only an existing trusted run; no permission or execution is created."""
+        from .project_stage1_full_source import ProjectStage1FullSourceAdapter
+
+        if getattr(self, "project_stage1_full_source_execution", None) is not None:
+            raise ValueError("full-source Stage1 adapter already registered")
+        adapter = ProjectStage1FullSourceAdapter(
+            self,
+            credential,
+            ref,
+            run_grants=run_grants,
+            grant_ref=grant_ref,
+            grant_sha256=grant_sha256,
+            output_root=output_root,
+        )
+        self.project_stage1_full_source_execution = adapter
+        self.host_binding.update(
+            project_stage1_full_source_run=grant_sha256,
+            project_stage1_automatic_reading=True,
+            project_stage1_full_source_stage2_execution=False,
+        )
+        self._assets["/host-binding.json"] = canonical(self.host_binding)
+        return dict(
+            registered=True,
+            project_ref=ref,
+            run_grant_sha256=grant_sha256,
+            model_or_source_started=False,
+            stage2_started=False,
+        )
+
     def register_stage1_execution(
         self, ref, *, permit_path, permit_sha256, output_root
     ):
         """Trusted bootstrap only; register a delegated producer without running it."""
         from .project_stage1_execution import ProjectStage1ExecutionService
+
+        if getattr(self, "project_stage1_full_source_execution", None) is not None:
+            raise ValueError("full-source Stage1 adapter already registered")
 
         if getattr(self, "project_stage1_execution", None) is not None:
             raise ValueError("automatic Stage1 producer already registered")
@@ -513,7 +560,9 @@ class ProjectHost(AtlasHost):
                     credential, ref, expected_ledger_state_sha256=state_hash
                 )
             )
-            producer = getattr(self, "project_stage1_execution", None)
+            producer = getattr(self, "project_stage1_full_source_execution", None)
+            if producer is None:
+                producer = getattr(self, "project_stage1_execution", None)
             result["automatic_production"] = (
                 producer.project_view(credential, ref)
                 if automatic and producer is not None
@@ -564,7 +613,11 @@ class ProjectHandler(AtlasHandler):
             if automatic_note is not None:
                 if method != "GET" or length:
                     raise SessionApiError("invalid-project-read", 400)
-                producer = getattr(self.server, "project_stage1_execution", None)
+                producer = getattr(
+                    self.server, "project_stage1_full_source_execution", None
+                )
+                if producer is None:
+                    producer = getattr(self.server, "project_stage1_execution", None)
                 if producer is None:
                     raise SessionApiError("automatic-stage1-unconnected", 409)
                 result = producer.note_by_hash(

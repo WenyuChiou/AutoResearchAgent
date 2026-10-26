@@ -221,6 +221,97 @@ native UI acceptance and formal Stage2 import require their own real receipts.
 
 ## Composed native host
 
+### Opt-in adapter for the existing full-source run
+
+Trusted Python bootstrap can select the existing full-source run with
+`ProjectHost.register_stage1_full_source`. This is mutually exclusive with
+`register_stage1_execution`; neither registration starts work. The existing
+`ProjectStage1RunGrantService` and `ProjectModelService` must already share the
+same intake and saved grant. The grant must authorize full analysis, agent
+adoption and records. Registration does not create that consent, install a
+provider, select a model or increase a limit. Default CLI hosting is unchanged.
+
+```python
+host.register_stage1_full_source(
+    credential, project_ref,
+    run_grants=original_run_grants,
+    grant_ref=original_grant_ref,
+    grant_sha256=externally_pinned_original_grant_sha256,
+    output_root=existing_private_output,
+)
+result = host.continue_stage1(
+    credential, project_ref,
+    run_id=original_run_id,
+    deadline=trusted_absolute_monotonic_deadline,
+    max_actions=trusted_finite_action_limit,
+)
+```
+
+The adapter delegates to the existing AutoDriver, RunContinuation, ProducerQueue
+and RunActions. These owners use the original full-analysis offer, derived run
+authority, model authorization, `OwnAccountProjectModelFactory`, analysis adoption
+and reading registration. Derived actions retain `confirmed=false`. A saved
+model-authorization receipt must be included in the continuation's durable
+history; a successful authorization is not a missing-receipt hold. Uncertain
+jobs and failed dispatches retain their original no-resend behavior.
+
+Before continuation, the adapter compares the original remaining call budget
+with a lower bound: one new full-analysis call for each current work/version
+that the original ProducerQueue can analyze without a completed, non-retired
+full-analysis job. This includes undecided works it initializes to pending in
+the same continuation, before any model permission is created. Excluded works
+without an adoption do not consume this lower bound; independent queue blockers
+still apply.
+Insufficient remaining calls
+save an explicit partial companion without creating a model permission or
+dispatch. Satisfying this bound does not establish whole-run feasibility. The
+existing full-source limits still apply: eight sources, 2 MiB aggregate source
+bytes, 256 KiB prompt and serialized native frame, 768-byte fragments, and the
+existing record/context ceiling. Planning, failed attempts, retries, source
+availability, actual native compatibility and other resource costs remain
+separate. No new-topic or 30-work feasibility is claimed.
+
+Progress uses `Stage1AutomaticProductionProgress` schema `1.1.0` and
+`execution_profile=existing-full-analysis-adopt-register`. Authenticated existing
+overview/Stage1 reads and opaque automatic-note URLs expose it. Older progress
+profiles and the segmented producer are unchanged.
+The note envelope retains byte count, opaque note reference, source-basis hash
+and false human/scientific/figure acceptance, with its explicit execution profile.
+The full-input observation does not claim independently verified comprehension.
+These reads reopen saved
+jobs, provider receipts, raw output, adopted records and physical source hashes;
+they never generate a future offer or prompt. After adoption has appended its
+decision/claims, reading reuses the original adoption service's stable-input and
+physical-source checks. It does not compare the old pre-adoption frontier with
+the intentionally changed current ledger. Held readiness and stale or missing
+reading registrations cannot become registered results. For an included work,
+the adapter follows only the saved coverage receipt linked to the original
+adoption and its exact job/output/proposal. Only the current Core review event
+may change the reading's review ID; all other reading fields and the registered
+reading hash must still match. An unrelated or tampered coverage cannot mark
+the reading registered.
+Same-context unobserved adoption/registration receipts remain explicit technical
+blockers in progress; saved model output does not authorize resending them.
+
+`Stage1FullAnalysisRootProjection` flattens the validated reading and screening
+while retaining the complete original proposal. Every claim keeps its original
+assessment and exact evidence-index source/hash/UTF-8 span/quote mapping.
+Questions, missing information, coverage, source failures and original source
+observation scopes remain visible. All results conservatively remain automatic
+follow-up; recorded output alone does not resolve a scientific question. Entire
+admitted extracted text is distinct from complete publication/figure coverage.
+
+The trusted output root receives content-addressed full Markdown notes and a
+separate `Stage1FullSourceNotesCompanion`. The existing record-byte ceiling
+applies; oversized output refuses rather than clipping, while original model
+artifacts remain saved. Passive reads write no files or events. Each artifact's
+ancestry passes the original fresh private-output check at
+publication time, including a Git directory or gitfile introduced after
+registration. Link/reparse checks and exclusive creation remain in force.
+Output paths and trust roots are never browser inputs. Scientific/human acceptance, Stage1
+completion and Stage2 execution remain false. Actual Host installation, complete
+delivery, independent review/CI and original UI acceptance are separate gates.
+
 The compatibility candidate combines the fixed de92358 producer with Core's
 74ea551 native host. It preserves full-source reading and analysis, explicit
 run-grant continuation, saved Wiki views, and configured Stage2 controllers.
@@ -245,3 +336,26 @@ actual page acceptance follow the completed build and the operator's binding.
 No stored run means null with its reason; do not start research to populate a
 read-only acceptance fixture. Original30 receiving-only import retains its
 separate accepted a778 source and admission inputs.
+
+
+### Explicit full-source launcher mode
+
+The existing trusted `run-project-workspace.py` launcher can select the reviewed
+full-source adapter with `--enable-stage1-full-source` and an existing, separate
+private `--stage1-full-notes-root`. This mode also requires the existing
+`--enable-stage1-run`, content-model/public-source configuration and the externally
+pinned `--stage1-run-request`. The saved original grant must authorize
+`analyze-full-paper`, `agent-adoption` and `records`; no new consent is inferred.
+
+The launcher inspects that same grant, registers the adapter before continuation,
+and preserves the original expiry and action cap on authorization and resume.
+Coverage-capable analysis1.1 remains enabled for the Stage1 run; the existing
+adapter registration guards enforce owner exclusivity. Registration refusal stops
+before continuation. Default startup stays
+passive, and missing model/operator/query-runtime/source bindings still refuse.
+
+The notes root remains subject to the adapter's fresh private-output checks on
+registration and every publication. Browser input cannot select it. This wiring
+and its authored local regressions do not attest account authentication, live
+30-paper feasibility, current Wiki rendering, Core/scientific acceptance or Stage2
+research. The original formal Stage1-to-Stage2 consumer gates remain separate.
