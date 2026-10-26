@@ -14,6 +14,8 @@ import sys
 import traceback
 import unittest
 
+from ci_test_routing import ROUTING_FILES, routed_modules
+
 from ci_scope import (
     UI_TEST_PATTERNS,
     changed_paths_from_records,
@@ -117,6 +119,7 @@ DOCS = {
     "plugins/auto-research-agent/CONTRIBUTING.md",
     "plugins/auto-research-agent/references/research-workspace/PORTABLE_ATLAS_SETUP.md",
     ".github/pull_request_template.md",
+    ".github/CI_ROUTING.md",
 }
 CI_FILES = {
     ".github/workflows/stage1-plugin.yml",
@@ -128,12 +131,17 @@ CI_FILES = {
     ".github/scripts/test_stage1_test_scope.py",
     ".github/scripts/test_stage1_ci_quality.py",
 }
+CI_FILES.update(ROUTING_FILES | {".github/scripts/test_ci_test_routing.py"})
+
 SELF_REFERENTIAL_CI_FILES = {
     ".github/scripts/ci_scope.py",
     ".github/scripts/stage1_test_scope.py",
     ".github/workflows/stage1-plugin.yml",
 }
+SELF_REFERENTIAL_CI_FILES.update(ROUTING_FILES)
+
 CONTRACT_MODULES = (
+    "test_ci_test_routing",
     "test_ci_scope",
     "test_stage1_test_scope",
     "test_validate_research_pr",
@@ -149,7 +157,7 @@ GOVERNANCE_MODULES = (
 
 
 def plan(paths, repo=REPO, records=None, event_name=None):
-    """Only standalone test edits and explicitly named CI/docs use selection."""
+    """Use reviewed exact-owner routes; uncertain source changes stay broad."""
     full = {"mode": "full", "modules": [], "changed_paths": sorted(set(paths))}
     if not paths:
         return {**full, "reason": "No bounded change set (manual or initial push)"}
@@ -171,6 +179,7 @@ def plan(paths, repo=REPO, records=None, event_name=None):
             ),
         }
     modules = set(BASE_MODULES)
+    routes = []
     for path in paths:
         if not (repo / path).is_file():
             return {**full, "reason": f"Deleted or unavailable input: {path}"}
@@ -192,6 +201,11 @@ def plan(paths, repo=REPO, records=None, event_name=None):
                         "reason": "No interface tests for presentation input",
                     }
                 modules.update(interface_modules)
+            continue
+        routed = routed_modules(path, repo, records)
+        if routed is not None:
+            modules.update(routed["modules"])
+            routes.append(routed)
             continue
         relative = Path(path)
         if (
@@ -224,12 +238,19 @@ def plan(paths, repo=REPO, records=None, event_name=None):
         modules.update(
             name for name, source in sources.items() if pattern.search(source)
         )
-    return {
+    result = {
         "mode": "selected",
         "modules": sorted(modules),
         "changed_paths": sorted(set(paths)),
         "reason": "CI/docs and affected test modules; production inputs unchanged",
     }
+    if routes:
+        result.update(
+            reason="Versioned project routes and affected test-reference closure",
+            ci_routes=sorted({row["id"] for row in routes}),
+            routing_catalog_sha256=routes[0]["catalog_sha256"],
+        )
+    return result
 
 
 def event_changes(event, event_name, repo=REPO):
@@ -463,10 +484,13 @@ def run_suite(
         suite = apply_test_profile(suite, profile)
     if suite.countTestCases() == 0:
         raise ValueError("Selected test suite is empty")
-    if workers > 1 and not contracts and selection["mode"] == "full":
+    parallel_inventory = selection["mode"] == "full" or bool(selection.get("ci_routes"))
+    if workers > 1 and not contracts and parallel_inventory:
         if loader.errors:
             raise ValueError(
-                "Full discovery contains import errors: " + str(loader.errors)
+                ("Routed" if selection.get("ci_routes") else "Full")
+                + " discovery contains import errors: "
+                + str(loader.errors)
             )
         return run_parallel(suite, directory, workers)
     result = unittest.TextTestRunner(verbosity=2).run(suite)

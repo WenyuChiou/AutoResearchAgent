@@ -968,6 +968,45 @@
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "validator:project-ci-routing",
+      "kind": "validator",
+      "status": "active",
+      "metric_role": "enabler",
+      "owner_path": ".github/scripts/ci_test_routing.py",
+      "problem": "A small isolated presentation change otherwise selects the broad standard plugin suite, while an unchecked narrow plan could silently omit affected or required tests.",
+      "mechanism": "Extend the existing runner with a bounded versioned exact-owner routing table, regular Git-modification admission, deterministic domain union and test-reference closure. Preserve broad fallback for unknown/shared/critical input and router changes, nonempty selector checks, current required platform jobs, automatic standard/manual full coverage and actual failure accounting.",
+      "metric_effects": [
+        {
+          "metric_id": "P3",
+          "rubric_criteria": [
+            "P3V3.DECISION_TRACE"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "route IDs and the exact table SHA256 accompany the selected test inventory",
+            "unknown or ambiguous source changes retain the broad standard runner",
+            "every declared test pattern matches existing tests and selected failures remain failures",
+            "routing and shared workflow changes cannot use their own narrow route"
+          ],
+          "human_judgment": "These are CI audit and selection guards, not evidence that research decisions or P1-P9 scientific scores improve."
+        }
+      ],
+      "guardrails": [
+        "No new research, evaluation, scheduler, native budget or model authority",
+        "No required job rename, branch-protection bypass, path-filtered required workflow or continue-on-error",
+        "New, deleted, renamed, type-changed or unclassified production paths stay on broad standard CI",
+        "Long integration profile remains explicitly manual; Windows standard deferred coverage stays visible"
+      ],
+      "test_refs": [
+        ".github/scripts/test_ci_test_routing.py",
+        ".github/scripts/test_stage1_test_scope.py",
+        ".github/scripts/test_ci_scope.py",
+        ".github/scripts/test_stage1_ci_quality.py"
+      ],
+      "live_ab_required_at": "not-applicable: CI selection infrastructure; scientific improvement is not claimed",
+      "quality_improvement_claimed": false
     }
   ],
   "capability_extensions": [

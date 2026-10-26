@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "routes": [
+    {
+      "id": "stage2-decision-presentation",
+      "owners": [
+        "plugins/auto-research-agent/cli/stage2_workflow/decision_cards.py",
+        "plugins/auto-research-agent/cli/stage2_workflow/decision_card_views.py"
+      ],
+      "test_patterns": [
+        "test_stage2_*.py",
+        "test_project_stage2*.py",
+        "test_stage3_*.py",
+        "test_project_stage3*.py"
+      ]
+    },
+    {
+      "id": "projecthost-stage2-pane",
+      "owners": [
+        "plugins/auto-research-agent/cli/research_workspace_native/web/project-stage2-selection.html",
+        "plugins/auto-research-agent/cli/research_workspace_native/web/project-stage2-selection.js"
+      ],
+      "test_patterns": [
+        "test_project_stage2*.py",
+        "test_project_stage3*.py",
+        "test_stage2_interaction.py",
+        "test_stage2_planning_handoff.py",
+        "test_stage2_ui_submission.py",
+        "test_research_workspace_native_binding*.py",
+        "test_research_workspace_native_transport*.py"
+      ]
+    },
+    {
+      "id": "projecthost-stage3-pane",
+      "owners": [
+        "plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.html",
+        "plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.js"
+      ],
+      "test_patterns": [
+        "test_project_stage3*.py",
+        "test_stage3_*.py",
+        "test_project_stage2_selection*.py",
+        "test_research_workspace_native_binding*.py",
+        "test_research_workspace_native_transport*.py"
+      ]
+    }
+  ]
+}

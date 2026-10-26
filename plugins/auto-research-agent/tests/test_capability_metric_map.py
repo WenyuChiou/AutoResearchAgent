@@ -100,6 +100,7 @@ class CapabilityMetricMapTests(unittest.TestCase):
         }
         expected.add(".github/scripts/validate_research_pr.py")
         expected.add(".github/scripts/check_research_pr_dependencies.py")
+        expected.add(".github/scripts/ci_test_routing.py")
         for directory in ("tools", "mcp", "cli", "validators", "gates"):
             root = PLUGIN_ROOT / directory
             if root.exists():
