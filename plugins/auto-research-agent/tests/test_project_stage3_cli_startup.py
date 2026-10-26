@@ -16,7 +16,7 @@ import threading
 import time
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
 import test_project_stage3_planning_config as fixture
 import test_project_stage123_controller_e2e as upstream
@@ -39,6 +39,106 @@ from stage1_deliverable import sources
 from stage3_plan.contracts import Stage3Error, canonical_bytes, digest
 from stage3_plan.jobs import POLICY, PlanningJobs
 from stage3_plan.storage import read_json
+
+
+def wait_for_cli_submission(case, connection, route, deadline):
+    """Observe completion without resubmitting or extending the test deadline."""
+    view = None
+    while True:
+        remaining = deadline - time.monotonic()
+        case.assertGreater(remaining, 0, view)
+        status, view = connection.request(route, timeout=remaining)
+        observed = time.monotonic()
+        case.assertLess(observed, deadline, view)
+        case.assertEqual(status, 200, view)
+        if not view["submission_in_progress"]:
+            return view
+        threading.Event().wait(min(0.05, deadline - observed))
+
+
+class Stage3CliCompletionTests(unittest.TestCase):
+    def test_http_observation_uses_remaining_timeout_and_preserves_default(self):
+        connection = SimpleNamespace(
+            host=SimpleNamespace(expected_origin="http://127.0.0.1:1"),
+            seed=SimpleNamespace(credential="authored-fixture"),
+            timings=[],
+        )
+        for supplied, expected in (({}, 32), ({"timeout": 0.125}, 0.125)):
+            with (
+                self.subTest(timeout=expected),
+                patch("urllib.request.urlopen") as opened,
+            ):
+                response = opened.return_value.__enter__.return_value
+                response.status = 200
+                response.read.return_value = b'{"state":"saved"}'
+                self.assertEqual(
+                    http_fixture.HostConnection.request(
+                        connection, "/planning", **supplied
+                    ),
+                    (200, {"state": "saved"}),
+                )
+                self.assertEqual(opened.call_count, 1)
+                self.assertEqual(opened.call_args.kwargs["timeout"], expected)
+
+    def test_expired_and_late_success_cannot_bypass_observation_deadline(self):
+        saved = {"submission_in_progress": False, "job": {"outcome": "saved"}}
+        for label, times in (
+            ("already-expired", [30.0]),
+            ("late-success", [29.0, 31.0]),
+        ):
+            with self.subTest(label=label):
+                connection = SimpleNamespace(request=Mock(return_value=(200, saved)))
+                with patch("time.monotonic", side_effect=times):
+                    with self.assertRaises(AssertionError):
+                        wait_for_cli_submission(self, connection, "/planning", 30.0)
+                if label == "already-expired":
+                    connection.request.assert_not_called()
+                else:
+                    connection.request.assert_called_once_with("/planning", timeout=1.0)
+
+    def test_pending_submission_is_observed_until_terminal_without_resend(self):
+        pending = {"submission_in_progress": True, "job": {"outcome": None}}
+        saved = {"submission_in_progress": False, "job": {"outcome": "saved"}}
+        connection = SimpleNamespace(
+            request=Mock(side_effect=[(200, pending), (200, saved)])
+        )
+        with patch("time.monotonic", side_effect=[0.0, 0.1, 0.2, 0.3]):
+            result = wait_for_cli_submission(self, connection, "/planning", 30)
+        self.assertIs(result, saved)
+        self.assertEqual(
+            connection.request.call_args_list,
+            [call("/planning", timeout=30.0), call("/planning", timeout=29.8)],
+        )
+
+    def test_terminal_failure_is_returned_without_retry_or_hiding_error(self):
+        failed = {
+            "submission_in_progress": False,
+            "submission_error": {"code": "authored-failure"},
+            "job": {"outcome": "failed"},
+        }
+        connection = SimpleNamespace(request=Mock(return_value=(200, failed)))
+        with patch("time.monotonic", return_value=0):
+            self.assertIs(
+                wait_for_cli_submission(self, connection, "/planning", 30), failed
+            )
+        connection.request.assert_called_once_with("/planning", timeout=30)
+
+    def test_pending_deadline_and_http_failure_remain_failures(self):
+        for status, view in (
+            (200, {"submission_in_progress": True, "job": {"outcome": None}}),
+            (409, {"error": "authored-stale-source"}),
+        ):
+            with self.subTest(status=status):
+                connection = SimpleNamespace(request=Mock(return_value=(status, view)))
+                with patch("time.monotonic", return_value=0):
+                    with self.assertRaises(AssertionError):
+                        wait_for_cli_submission(
+                            self, connection, "/planning", 0 if status == 200 else 30
+                        )
+                if status == 200:
+                    connection.request.assert_not_called()
+                else:
+                    connection.request.assert_called_once_with("/planning", timeout=30)
 
 
 @contextmanager
@@ -710,9 +810,9 @@ class Stage3CliJourneyTests(unittest.TestCase):
                         cli.request(route + "/run", dict(pinned, confirmed=True))[0],
                         202,
                     )
-                    self.assertTrue(entered.wait(30))
-                    status, saved = cli.request(route)
-                    self.assertEqual(status, 200, saved)
+                    deadline = time.monotonic() + 30
+                    self.assertTrue(entered.wait(max(0, deadline - time.monotonic())))
+                    saved = wait_for_cli_submission(self, cli, route, deadline)
                     self.assertEqual(saved["job"]["outcome"], "saved", saved)
                     self.assertEqual(
                         saved["job"]["planning_status"], "needs-information"

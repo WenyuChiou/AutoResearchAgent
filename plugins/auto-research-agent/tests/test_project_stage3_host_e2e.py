@@ -50,7 +50,9 @@ class HostConnection:
             if self.thread.is_alive():
                 raise AssertionError("Host request listener did not stop")
 
-    def request(self, path, body=None, *, credential=True, origin=None, headers=None):
+    def request(
+        self, path, body=None, *, credential=True, origin=None, headers=None, timeout=32
+    ):
         supplied = {"Origin": origin or self.host.expected_origin}
         if credential:
             supplied["Authorization"] = "Bearer " + self.seed.credential
@@ -64,7 +66,7 @@ class HostConnection:
         )
         started = time.monotonic()
         try:
-            with urllib.request.urlopen(request, timeout=32) as response:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 status, value = response.status, json.loads(response.read())
         except urllib.error.HTTPError as error:
             status, value = error.code, json.loads(error.read())
