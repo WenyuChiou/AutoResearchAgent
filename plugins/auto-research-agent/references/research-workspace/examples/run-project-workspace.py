@@ -214,6 +214,12 @@ def parser():
     )
     value.add_argument("--stage1-run-request", type=Path)
     value.add_argument("--stage1-run-request-sha256")
+    value.add_argument(
+        "--enable-stage1-full-source",
+        action="store_true",
+        help="Use full-source analysis for the explicit saved Stage1 run",
+    )
+    value.add_argument("--stage1-full-notes-root", type=Path)
     value.add_argument("--check-only", action="store_true")
     value.add_argument("--prepare-only", action="store_true")
     return value
@@ -238,6 +244,25 @@ def inspect_inputs(args):
     )
     run_request = getattr(args, "stage1_run_request", None)
     run_pin = getattr(args, "stage1_run_request_sha256", None)
+    full_source = getattr(args, "enable_stage1_full_source", False)
+    notes_root = getattr(args, "stage1_full_notes_root", None)
+    require(
+        type(full_source) is bool and full_source == (notes_root is not None),
+        "full-source analysis and notes root must be selected together",
+    )
+    if full_source:
+        require(
+            args.enable_stage1_run and run_request is not None,
+            "full-source analysis requires an enabled pinned Stage1 run request",
+        )
+        notes_root = unlinked(notes_root)
+        require(notes_root.is_dir(), "existing full-source notes directory required")
+        projects_root = unlinked(args.projects_root)
+        require(
+            not notes_root.is_relative_to(projects_root)
+            and not projects_root.is_relative_to(notes_root),
+            "full-source notes must be separate from the project store",
+        )
     require(
         (run_request is None) == (run_pin is None),
         "Stage1 run request requires its external SHA256",
@@ -637,6 +662,15 @@ def run_requested_stage1(args, host, services):
     )
     remaining = doc["expires_at"] - issuer._now()
     require(remaining > 0, "Stage1 run original deadline exhausted")
+    if getattr(args, "enable_stage1_full_source", False):
+        host.register_stage1_full_source(
+            credential,
+            ref,
+            run_grants=issuer,
+            grant_ref=grant["grant_ref"],
+            grant_sha256=grant["grant_sha256"],
+            output_root=args.stage1_full_notes_root,
+        )
     result = host.continue_stage1(
         credential,
         ref,

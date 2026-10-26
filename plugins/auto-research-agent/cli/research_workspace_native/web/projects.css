@@ -17,3 +17,12 @@
 .progress-phases li>button{border:0;padding:0;background:transparent!important;font-weight:650;text-align:left;border-radius:2px;font-size:.92rem;width:100%;white-space:normal}
 .progress-phases li>button:hover:not(:disabled){color:var(--teal);text-decoration:underline;text-underline-offset:3px}
 .project-embedded{overflow-x:hidden}
+
+/* Narrow screens: reserve the heading row before placing secondary controls. */
+@media(max-width:700px){
+ .topbar{height:auto;gap:10px 12px}
+ .topbar>#project-heading{flex:0 0 100%;width:100%;min-width:0;overflow-wrap:break-word;word-break:normal}
+ .topbar>#recover-intents{flex:1 1 10rem;min-width:0;max-width:100%;white-space:normal;overflow-wrap:break-word;min-height:44px;line-height:1.5}
+ .topbar>label{flex:0 1 auto;min-width:0;max-width:100%}
+ .topbar #language{min-width:0;max-width:100%;min-height:44px}
+}

@@ -25,6 +25,7 @@ TRACKED = frozenset(
         "stage1-source-authorize",
         "stage1-source-execute",
         "model-operation",
+        "model-authorization",
         "stage1-agent-pending",
         "stage1-agent-analysis",
         "stage1-agent-coverage",
