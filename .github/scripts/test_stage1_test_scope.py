@@ -30,10 +30,14 @@ class Stage1TestScopeTests(unittest.TestCase):
         self.write(TESTS + "test_stage_contracts.py", PASSING)
         for path in scope.DOCS | scope.CI_FILES:
             self.write(path, "# existing scope fixture\n")
-        for name in ("stage1_test_scope.py", "ci_scope.py"):
+        for name in ("stage1_test_scope.py", "ci_scope.py", "ci_test_routing.py"):
             target = self.repo / ".github/scripts" / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(REPO / ".github/scripts" / name, target)
+        shutil.copyfile(
+            REPO / ".github/ci-test-routing.v1.json",
+            self.repo / ".github/ci-test-routing.v1.json",
+        )
 
     def write(self, name, text):
         path = self.repo / name

@@ -13,6 +13,10 @@ import unittest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENGINE_JOBS = {"bazel", "cargo-deny", "codespell", "repo-checks", "rust-ci", "sdk"}
 PLUGIN_CI = {
+    ".github/ci-test-routing.v1.json",
+    ".github/CI_ROUTING.md",
+    ".github/scripts/ci_test_routing.py",
+    ".github/scripts/test_ci_test_routing.py",
     ".agents/plugins/marketplace.json",
     ".github/workflows/stage1-plugin.yml",
     ".github/workflows/research-pr-metadata.yml",
@@ -40,6 +44,7 @@ GOVERNANCE_ONLY_PATHS = {
 
 
 PLUGIN_DOCS = {
+    ".github/CI_ROUTING.md",
     "plugins/auto-research-agent/README.md",
     "plugins/auto-research-agent/CONTRIBUTING.md",
 }
