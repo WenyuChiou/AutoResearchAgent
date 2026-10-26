@@ -312,7 +312,9 @@ class AutomaticStage1ProductionTests(unittest.TestCase):
             "alice-token",
             fixture["ref"],
             run_id="synthetic-full-producer",
-            deadline=time.monotonic() + 300,
+            # Match the existing synthetic parent window; this checks full
+            # composition and replay, not loaded-host wall-clock performance.
+            deadline=time.monotonic() + execution.permit["max_seconds"],
             max_actions=64,
         )
         self.assertGreater(len(calls), 4, result)
