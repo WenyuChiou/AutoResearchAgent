@@ -293,6 +293,8 @@ class SelectionCliTests(unittest.TestCase):
                     "url": observed["origin"] + "/",
                     "model_execution": "unconnected",
                     "search_execution": "unconnected",
+                    "stage3_planning": "unconnected",
+                    "execution_authorized": False,
                 },
             )
             self.assertEqual(observed["bindings"], {})

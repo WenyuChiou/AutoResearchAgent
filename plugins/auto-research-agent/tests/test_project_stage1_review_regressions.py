@@ -234,7 +234,9 @@ class AutomaticReviewOwnerRegressions(unittest.TestCase):
                 "alice-token",
                 ref,
                 run_id="review-fix-synthetic",
-                deadline=time.monotonic() + 300,
+                # This positive recovery case uses the existing authored parent
+                # window; deadline rejection is checked independently.
+                deadline=time.monotonic() + execution.permit["max_seconds"],
                 max_actions=64,
             )
             self.assertEqual(
