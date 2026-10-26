@@ -221,7 +221,10 @@ class ProjectIntakeService:
                         "intake-source-version-differs",
                     )
                 _check(
-                    "stage1_import" not in state
+                    (
+                        "stage1_import" not in state
+                        and "stage2_direct_import" not in state
+                    )
                     or kind.startswith(("stage2-", "stage3-")),
                     "imported-intake-is-read-only",
                 )
@@ -744,6 +747,11 @@ class ProjectIntakeService:
                 from .project_stage1_import import imported_binding
 
                 imported_binding(self, state)
+            direct = "stage2_direct_import" in state
+            if direct:
+                from .project_stage2_direct_import import direct_binding
+
+                direct_binding(self, state)
             report = validate_brief(brief)
             if state["plan"] is not None:
                 validate_bound_plan(
@@ -758,7 +766,7 @@ class ProjectIntakeService:
                 "brief": brief,
                 "intake_report": report,
                 "formal_question": None
-                if "stage1_import" in state
+                if "stage1_import" in state or direct
                 else formal_question(brief),
                 "suggested_priority_target": 30,
                 "settings": deepcopy(state["settings"]),
@@ -769,10 +777,21 @@ class ProjectIntakeService:
                 },
                 "stage1_intake_ready": report["necessary_clarification_complete"]
                 and state["plan"] is not None,
-                "stage1_status": "imported-verified-delivery"
+                "stage1_status": "not-applicable-direct-request"
+                if direct
+                else "imported-verified-delivery"
                 if "stage1_import" in state
                 else "not-started",
-                "stage2_status": "not-started",
+                "stage2_status": "delivery-received" if direct else "not-started",
+                **(
+                    {
+                        "input_origin": "stage2-direct-request",
+                        "stage1_lineage": False,
+                        "receiving_only": True,
+                    }
+                    if direct
+                    else {}
+                ),
                 "later_stages": {
                     str(i): {"status": "planned", "connected": False}
                     for i in range(3, 7)
@@ -875,6 +894,10 @@ class ProjectIntakeService:
             ).fetchone()
             _check(row is not None, "project-unavailable", 404)
             state = self._load(row[0], project_ref)
+            if "stage2_direct_import" in state:
+                from .project_stage2_direct_import import direct_binding
+
+                return direct_binding(self, state)
             if "stage1_import" in state:
                 from .project_stage1_import import imported_binding
 
