@@ -90,7 +90,7 @@ async function main() {
   await page.getByLabel("Conditions to retain (one per line)", {exact: true}).fill("Keep limitations");
   await page.getByLabel("Open questions (one per line)", {exact: true}).fill("Access unknown");
   await page.locator("#confirmed").check();
-  await page.getByRole("button", {name: "Confirm and prepare Stage 3 planning input", exact: true}).click();
+  await page.getByRole("button", {name: "Save selection only", exact: true}).click();
   await page.locator("#stage3-entry").waitFor({state: "visible", timeout: 65000});
   assert.equal(summary.run_requests, 0);
   assert.equal(new URL(await page.locator("#stage3-entry").getAttribute("href"), origin).hash, "#" + ref);

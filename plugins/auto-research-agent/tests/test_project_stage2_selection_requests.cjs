@@ -2,7 +2,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 class Element{constructor(tag){this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.value='';this.hidden=false;this.checked=false;this.disabled=false;this._text='';}append(...xs){this.children.push(...xs);if(this.tagName==='SELECT'&&!this.value&&xs[0])this.value=xs[0].value||xs[0].textContent;}replaceChildren(...xs){this.children=xs;}scrollIntoView(){this.scrolled=true;}get textContent(){return this._text+this.children.map(x=>x.textContent||'').join('');}set textContent(v){this._text=String(v);this.children=[];}}
-const ids=['language','project','project-context','cards','planning','planning-link','return-cards','planning-summary','choice','submit','receipt','status','planning-input','actor','message','rationale','conditions','unresolved','confirmed'];
+const ids=['language','project','project-context','cards','planning','planning-link','return-cards','planning-summary','choice','submit','submit-and-start','receipt','status','planning-input','actor','message','rationale','conditions','unresolved','confirmed'];
 const els=new Map(ids.map(x=>[x,new Element(x==='project'||x==='language'?'select':'div')]));els.get('language').value='en';
 const pending=[],selected={value:'A',dataset:{version:'1'}};
 const document={documentElement:{},getElementById:id=>els.get(id),querySelectorAll:()=>[],querySelector:()=>selected,createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
