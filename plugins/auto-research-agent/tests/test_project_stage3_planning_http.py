@@ -3,6 +3,8 @@
 import io
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import threading
 import unittest
@@ -178,6 +180,22 @@ class PlanningHttpTests(unittest.TestCase):
         self.assertEqual(closed, [1])
         self.assertTrue(handler.close_connection)
         self.assertEqual(self.service.calls, 0)
+
+
+class PlanningWikiTests(unittest.TestCase):
+    def test_saved_plan_dom_and_readonly_project_switching(self):
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "Node.js is required for the page-script contract")
+        script = Path(__file__).parent / "browser" / "project-stage3-wiki.cjs"
+        result = subprocess.run(
+            [node, "--test", str(script)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

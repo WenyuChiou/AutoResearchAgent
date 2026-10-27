@@ -4,5 +4,16 @@
 #actions label {display:flex;gap:.5rem;align-items:flex-start}
 #actions input {width:auto;margin-top:.3rem}
 #questions article {border-left:4px solid #226b80;padding:.5rem 1rem;margin:1rem 0}
+#evidence-state {margin:1rem 0;padding:1rem;background:#f1f5f8;border-radius:.5rem}
+#evidence-state[hidden] {display:none}
+.sq-section {margin:1rem 0;border-top:1px solid #ced8df;padding-top:.5rem}
+.sq-fields {display:grid;grid-template-columns:minmax(9rem,1fr) minmax(0,3fr);gap:.4rem 1rem}
+.sq-fields dt {font-weight:600}
+.sq-fields dd {margin:0;white-space:pre-wrap}
+.sq-fields ul {margin:0;padding-left:1.2rem}
+.sq-record {border:1px solid #ced8df;border-radius:.4rem;padding:.8rem;margin:.6rem 0}
+.sq-missing {border-left:3px solid #a86514;padding-left:.7rem}
+#questions,#plan-conditions,#plan-milestones,#evidence-state {overflow-wrap:anywhere;min-width:0}
+@media(max-width:640px){.sq-fields{grid-template-columns:minmax(0,1fr)}.sq-fields dd{margin-bottom:.5rem}.sq-record{padding:.6rem}}
 pre {white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
 @media(max-width:480px){header,.planning-actions{align-items:stretch;flex-direction:column}button,select{max-width:100%}#actions{padding:.75rem}}
