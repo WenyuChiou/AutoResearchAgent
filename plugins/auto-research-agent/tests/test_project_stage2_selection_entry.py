@@ -58,6 +58,31 @@ class Stage2SelectionEntryTests(unittest.TestCase):
             "Delayed success/error and captured-project submission PASS", result.stdout
         )
 
+    def test_save_and_start_keeps_existing_transaction_boundaries(self):
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "Node is required; this invariant did not run")
+        root = Path(__file__).resolve().parent
+        result = subprocess.run(
+            [
+                node,
+                str(root / "test_project_stage2_selection_oneclick.cjs"),
+                str(
+                    root.parent
+                    / "cli/research_workspace_native/web/project-stage2-selection.js"
+                ),
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            timeout=25,
+            check=False,
+            shell=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('"cases":11', result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

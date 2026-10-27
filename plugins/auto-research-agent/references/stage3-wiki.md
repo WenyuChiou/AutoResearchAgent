@@ -36,3 +36,14 @@ calibration, A/B improvement or experimental reproducibility.
 Scientific review and P7–P9 definitions remain in
 [the planning specification](stage3-scientific-planning.md) and
 [evaluation guidance with sources](stage3-evaluation-guidance.v1.md).
+
+The Stage 2 selection page offers **Save selection only** and **Save and start
+planning** for configured current projects. The second explicit click sequences
+the existing selection, fresh same-selection readback, prepare, matching prepared
+request and confirmed-run APIs. The selection key and server-derived planning key
+are reused for their respective actions; a saved selection is never rolled back
+because planning fails. Reads, reloads and project or language changes never
+start planning. Existing jobs, stale identities and unknown or failed responses
+stop continuation without an automatic retry. HTTP 202 records admission only;
+use the Stage 3 page to inspect the actual saved outcome. Neither button changes
+recommendations, resolves unknowns or authorizes research or experiments.
