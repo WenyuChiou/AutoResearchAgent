@@ -34,6 +34,9 @@ def main(argv=None):
     evaluation_prepare.add_argument("--package", required=True)
     evaluation_prepare.add_argument("--expected-manifest-sha256", required=True)
     evaluation_prepare.add_argument("--output", required=True)
+    evaluation_prepare.add_argument("--native-text")
+    evaluation_prepare.add_argument("--expected-native-text-sha256")
+    evaluation_prepare.add_argument("--delivery")
     evaluation_record = commands.add_parser("evaluation-record")
     for name in (
         "request",
@@ -112,6 +115,9 @@ def main(argv=None):
                 args.package,
                 expected_manifest_sha256=args.expected_manifest_sha256,
                 output=args.output,
+                native_text=args.native_text,
+                expected_native_text_sha256=args.expected_native_text_sha256,
+                delivery=args.delivery,
             )
         elif args.command == "evaluation-record":
             from .evaluation import record_evaluation

@@ -5,6 +5,11 @@ from pathlib import Path
 import re
 
 from .contracts import Stage3Error, canonical_bytes, digest
+from .evaluation_text import (
+    REQUEST_KIND as TEXT_REQUEST_KIND,
+    SUBJECT_KIND,
+    text_request_parts,
+)
 from .preparation import CRITERIA, closed, sha256, text
 from .review import RUBRIC as SEMANTIC_RUBRIC
 from .storage import (
@@ -106,44 +111,14 @@ def _source_snapshot(package, expected_manifest_sha256):
     return saved, plan, intake, request, question_refs
 
 
-def prepare_evaluation(
-    package,
-    *,
-    expected_manifest_sha256,
-    output,
-    catalog_path=CATALOG_PATH,
-    guidance_path=GUIDANCE_PATH,
+def _request_value(
+    source, bindings, plan, intake, *, kind, catalog_path, guidance_path
 ):
-    """Save one immutable assessor request derived from a verified plan package."""
-    target = private_output(output)
-    if target.exists():
-        raise Stage3Error(
-            "evaluation request output exists; inspect it, do not overwrite"
-        )
-    saved, plan, intake, source_request, question_refs = _source_snapshot(
-        package, expected_manifest_sha256
-    )
-    value = {
-        "kind": "Stage3EvaluationRequest",
+    return {
+        "kind": kind,
         "schema_version": EVALUATION_SCHEMA_VERSION,
-        "source": {
-            "package": str(safe_path(package)),
-            "manifest_sha256": expected_manifest_sha256,
-            "manifest_raw_sha256": _raw_sha256(Path(package) / "manifest.json"),
-            "request_raw_sha256": _raw_sha256(Path(package) / "request.json"),
-            "plan_raw_sha256": _raw_sha256(Path(package) / "plan.json"),
-        },
-        "bindings": {
-            "plan_sha256": digest(plan),
-            "intake_sha256": digest(intake),
-            "source_manifest_sha256": intake["source_manifest_sha256"],
-            "plan_id": plan["plan_id"],
-            "plan_version": plan["version"],
-            "plan_schema_version": plan["schema_version"],
-            "selected_candidates": plan["selected_candidates"],
-            "question_refs": question_refs,
-            "admission_scope": source_request["admission_scope"],
-        },
+        "source": source,
+        "bindings": bindings,
         "assessor_view": {"plan": plan, "intake": intake},
         "catalog": _catalog_binding(catalog_path),
         "guidance": _guidance_binding(guidance_path),
@@ -162,6 +137,85 @@ def prepare_evaluation(
         },
         "limitations": LIMITATIONS,
     }
+
+
+def _text_request_value(source, catalog_path, guidance_path):
+    normalized, bindings, subject, intake = text_request_parts(source)
+    return _request_value(
+        normalized,
+        bindings,
+        subject,
+        intake,
+        kind=TEXT_REQUEST_KIND,
+        catalog_path=catalog_path,
+        guidance_path=guidance_path,
+    )
+
+
+def prepare_evaluation(
+    package,
+    *,
+    expected_manifest_sha256,
+    output,
+    catalog_path=CATALOG_PATH,
+    guidance_path=GUIDANCE_PATH,
+    native_text=None,
+    expected_native_text_sha256=None,
+    delivery=None,
+):
+    """Save one immutable assessor request derived from a verified plan package."""
+    target = private_output(output)
+    if target.exists():
+        raise Stage3Error(
+            "evaluation request output exists; inspect it, do not overwrite"
+        )
+    native_args = (native_text, expected_native_text_sha256, delivery)
+    if any(value is not None for value in native_args):
+        if any(value is None for value in native_args):
+            raise Stage3Error(
+                "native text, external raw hash and delivery are required together"
+            )
+        value = _text_request_value(
+            {
+                "package": str(safe_path(package)),
+                "delivery": str(safe_path(delivery)),
+                "manifest_sha256": expected_manifest_sha256,
+                "text_path": str(safe_path(native_text)),
+                "raw_sha256": expected_native_text_sha256,
+            },
+            catalog_path,
+            guidance_path,
+        )
+        write_new(target, value)
+        return value
+    saved, plan, intake, source_request, question_refs = _source_snapshot(
+        package, expected_manifest_sha256
+    )
+    value = _request_value(
+        source={
+            "package": str(safe_path(package)),
+            "manifest_sha256": expected_manifest_sha256,
+            "manifest_raw_sha256": _raw_sha256(Path(package) / "manifest.json"),
+            "request_raw_sha256": _raw_sha256(Path(package) / "request.json"),
+            "plan_raw_sha256": _raw_sha256(Path(package) / "plan.json"),
+        },
+        bindings={
+            "plan_sha256": digest(plan),
+            "intake_sha256": digest(intake),
+            "source_manifest_sha256": intake["source_manifest_sha256"],
+            "plan_id": plan["plan_id"],
+            "plan_version": plan["version"],
+            "plan_schema_version": plan["schema_version"],
+            "selected_candidates": plan["selected_candidates"],
+            "question_refs": question_refs,
+            "admission_scope": source_request["admission_scope"],
+        },
+        plan=plan,
+        intake=intake,
+        kind="Stage3EvaluationRequest",
+        catalog_path=catalog_path,
+        guidance_path=guidance_path,
+    )
     # Reuse the inspected value so preparation cannot claim an unverified manifest.
     if saved["manifest"]["manifest_sha256"] != expected_manifest_sha256:
         raise Stage3Error("saved plan manifest binding changed")
@@ -186,6 +240,21 @@ def _validate_request(value):
         },
         "evaluation request",
     )
+    if value["kind"] == TEXT_REQUEST_KIND:
+        if value["schema_version"] != EVALUATION_SCHEMA_VERSION:
+            raise Stage3Error("unsupported native text evaluation request version")
+        for name, fields in (
+            ("catalog", {"path", "rubric_id", "raw_sha256", "selected_criteria"}),
+            ("guidance", {"path", "version", "raw_sha256"}),
+        ):
+            closed(value[name], fields, "native text " + name)
+            text(value[name]["path"], "native text " + name + " path")
+        expected = _text_request_value(
+            value["source"], value["catalog"]["path"], value["guidance"]["path"]
+        )
+        if digest(value) != digest(expected):
+            raise Stage3Error("native text evaluation request binding mismatch")
+        return expected["assessor_view"]["plan"], expected["bindings"]["question_refs"]
     if (
         value["kind"] != "Stage3EvaluationRequest"
         or value["schema_version"] != EVALUATION_SCHEMA_VERSION
@@ -388,6 +457,10 @@ def _validate_judgment(judgment, request_sha256, plan, question_refs):
                     raise Stage3Error("question assessment needs plan evidence")
                 if any(
                     not _pointer_exists(plan, pointer)
+                    or (
+                        plan.get("kind") == SUBJECT_KIND
+                        and re.fullmatch(r"/lines/(0|[1-9][0-9]*)", pointer) is None
+                    )
                     for pointer in item["plan_locations"]
                 ):
                     raise Stage3Error(

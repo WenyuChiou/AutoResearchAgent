@@ -97,6 +97,10 @@ class EvaluationJobs(PlanningJobs):
         request = inspect_evaluation_request(
             self.request["path"], expected_sha256=self.request["sha256"]
         )
+        if request["kind"] == "Stage3NativeTextEvaluationRequest":
+            raise Stage3Error(
+                "native text subjects use offline prepare/inspect/record; evaluation jobs are not enabled"
+            )
         binding = request["bindings"]
         return super().prepare(
             key,
