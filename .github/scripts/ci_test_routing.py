@@ -72,13 +72,23 @@ def load_catalog(repo):
         for owner in _strings(route["owners"], 64):
             parts = PurePosixPath(owner).parts
             if (
-                not owner.startswith("plugins/auto-research-agent/cli/")
+                (
+                    owner
+                    not in {
+                        "plugins/auto-research-agent/evals/capability-metric-map.stage3-v1.json",
+                        "plugins/auto-research-agent/references/stage3-native-text-subject.v1.md",
+                    }
+                    and (
+                        not owner.startswith("plugins/auto-research-agent/cli/")
+                        or PurePosixPath(owner).suffix
+                        not in {".py", ".js", ".css", ".html"}
+                    )
+                )
                 or not re.fullmatch(r"[A-Za-z0-9_./-]+", owner)
                 or ".." in parts
                 or PurePosixPath(owner).as_posix() != owner
                 or "." in owner.split("/")
                 or owner in owners
-                or PurePosixPath(owner).suffix not in {".py", ".js", ".css", ".html"}
             ):
                 raise ValueError("Unsafe or duplicate CI route owner")
             owners.add(owner)

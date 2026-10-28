@@ -16,6 +16,11 @@ import stage1_test_scope as scope
 
 REPO = Path(__file__).resolve().parents[2]
 PASSING = "import unittest\nclass T(unittest.TestCase):\n def test_ok(self): pass\n"
+STAGE3_TEXT_OWNERS = (
+    "plugins/auto-research-agent/cli/stage3_plan/evaluation_text.py",
+    "plugins/auto-research-agent/evals/capability-metric-map.stage3-v1.json",
+    "plugins/auto-research-agent/references/stage3-native-text-subject.v1.md",
+)
 
 
 class RoutingTests(unittest.TestCase):
@@ -70,6 +75,22 @@ class RoutingTests(unittest.TestCase):
             records=records if records is not None else [self.record(self.owner)],
             event_name=event,
         )
+
+    def stage3_text_fixture(self):
+        # Keep the real route but use inert test bodies, never research subjects.
+        route = next(
+            row
+            for row in routing.load_catalog(REPO)["routes"]
+            if row["id"] == "stage3-planning-backend"
+        )
+        self.table["routes"] = [route]
+        for owner in STAGE3_TEXT_OWNERS:
+            self.write(owner, "# synthetic Stage 3 routing fixture\n")
+        for pattern in route["test_patterns"]:
+            for test in (REPO / routing.TEST_DIRECTORY).glob(pattern):
+                self.write(f"{routing.TEST_DIRECTORY}/{test.name}", PASSING)
+        self.catalog()
+        return [self.record(owner) for owner in STAGE3_TEXT_OWNERS]
 
     def test_public_plan_routes_regular_projection_edit(self):
         result = self.plan()
@@ -354,6 +375,189 @@ class RoutingTests(unittest.TestCase):
                     [a, path], REPO, records=[self.record(a), self.record(path)]
                 )
                 self.assertEqual(selected["mode"], "full")
+
+    def test_stage3_text_owners_select_existing_route_and_consumers(self):
+        required = {
+            "test_plugin_loading",
+            "test_stage_contracts",
+            "test_capability_metric_map",
+            "test_stage3_native_text_evaluation",
+            "test_stage3_evaluation",
+            "test_stage3_evaluation_jobs",
+            "test_stage3_campaign",
+            "test_stage2_planning_handoff",
+            "test_project_stage2_selection_http",
+            "test_stage123_imported_selection_recovery_e2e",
+        }
+        for owner in STAGE3_TEXT_OWNERS:
+            with self.subTest(owner=owner):
+                selected = scope.plan([owner], REPO, records=[self.record(owner)])
+                self.assertEqual(selected["mode"], "selected", selected)
+                self.assertEqual(selected["ci_routes"], ["stage3-planning-backend"])
+                self.assertTrue(required <= set(selected["modules"]), selected)
+                self.assertEqual(
+                    selected["routing_catalog_sha256"],
+                    routing.load_catalog(REPO)["sha256"],
+                )
+                self.assertTrue(
+                    {
+                        "test_retrieval_execution",
+                        "test_stage1_deliverable",
+                        "test_project_stage1_library",
+                    }.isdisjoint(selected["modules"])
+                )
+        self.assertIn("test_stage3_pr_contract", scope.CONTRACT_MODULES)
+
+    def test_stage3_text_union_keeps_changed_tests_and_reference_closure(self):
+        records = self.stage3_text_fixture()
+        changed = f"{routing.TEST_DIRECTORY}/test_stage3_changed_fixture.py"
+        self.write(changed, PASSING)
+        self.write(
+            f"{routing.TEST_DIRECTORY}/test_reference_consumer.py",
+            "import test_stage3_changed_fixture\n" + PASSING,
+        )
+        selected = self.plan(
+            [*STAGE3_TEXT_OWNERS, changed],
+            [*records, {**self.record(changed), "status": "A"}],
+        )
+        self.assertEqual(selected["mode"], "selected", selected)
+        self.assertEqual(selected["ci_routes"], ["stage3-planning-backend"])
+        self.assertTrue(
+            {
+                "test_capability_metric_map",
+                "test_stage3_native_text_evaluation",
+                "test_stage3_changed_fixture",
+                "test_reference_consumer",
+            }
+            <= set(selected["modules"])
+        )
+
+    def test_stage3_text_owners_preserve_m_only_and_ambiguous_record_fallback(self):
+        variants = [{"status": status} for status in ("A", "D", "R", "C", "T")]
+        variants += [
+            {"old_path": "old.py"},
+            {"old_mode": "120000"},
+            {"new_mode": "100755"},
+            {"old_sha": "bad"},
+            {"new_sha": "1" * 40},
+        ]
+        for owner in STAGE3_TEXT_OWNERS:
+            for delta in variants:
+                with self.subTest(owner=owner, delta=delta):
+                    record = {**self.record(owner), **delta}
+                    self.assertEqual(
+                        scope.plan([owner], REPO, records=[record])["mode"], "full"
+                    )
+            record = self.record(owner)
+            for records in ([], [record, record], None):
+                with self.subTest(owner=owner, records=records):
+                    self.assertEqual(
+                        scope.plan([owner], REPO, records=records)["mode"], "full"
+                    )
+
+    def test_stage3_text_unknown_shared_and_ci_changes_remain_full(self):
+        records = self.stage3_text_fixture()
+        for path in (
+            "plugins/auto-research-agent/cli/stage3_plan/evaluation_text_extra.py",
+            "plugins/auto-research-agent/evals/capability-metric-map.stage3-v2.json",
+            "plugins/auto-research-agent/cli/research_workspace_native/project_host.py",
+        ):
+            self.write(path, "# unclassified synthetic input\n")
+            with self.subTest(path=path):
+                self.assertEqual(
+                    self.plan(
+                        [*STAGE3_TEXT_OWNERS, path], [*records, self.record(path)]
+                    )["mode"],
+                    "full",
+                )
+        for path in scope.SELF_REFERENTIAL_CI_FILES:
+            with self.subTest(ci_owner=path):
+                self.assertEqual(
+                    scope.plan(
+                        [*STAGE3_TEXT_OWNERS, path],
+                        REPO,
+                        records=[*records, self.record(path)],
+                    )["mode"],
+                    "full",
+                )
+
+    def test_stage3_text_noncli_owner_exceptions_remain_exact_and_unique(self):
+        self.stage3_text_fixture()
+        owners = self.table["routes"][0]["owners"]
+        for owner in (
+            *STAGE3_TEXT_OWNERS[1:],  # Exact exceptions still cannot be duplicated.
+            "plugins/auto-research-agent/evals/capability-metric-map.stage3-v2.json",
+            "plugins/auto-research-agent/references/stage3-native-text-subject.v2.md",
+            "plugins/auto-research-agent/cli/stage3_plan/settings.json",
+            "plugins/auto-research-agent/cli/stage3_plan/notes.md",
+            "plugins/auto-research-agent/evals/../evals/capability-metric-map.stage3-v1.json",
+        ):
+            with self.subTest(owner=owner):
+                owners.append(owner)
+                try:
+                    self.catalog()
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        "Invalid or duplicate CI routing list|Unsafe or duplicate CI route owner",
+                    ):
+                        routing.load_catalog(self.repo)
+                finally:
+                    owners.pop()
+
+    def test_stage3_text_missing_capability_selector_is_not_a_smoke_pass(self):
+        records = self.stage3_text_fixture()
+        (self.repo / routing.TEST_DIRECTORY / "test_capability_metric_map.py").unlink()
+        with self.assertRaisesRegex(
+            ValueError, "stage3-planning-backend.*test_capability_metric_map"
+        ):
+            self.plan(list(STAGE3_TEXT_OWNERS), records)
+
+    def test_stage3_text_runner_keeps_selected_failure_and_excludes_stage1_fixture(
+        self,
+    ):
+        records = self.stage3_text_fixture()
+        self.write(
+            f"{routing.TEST_DIRECTORY}/test_stage1_unrelated_failure.py",
+            PASSING.replace("pass", "self.fail('unrelated-stage1')"),
+        )
+        selected = self.plan(list(STAGE3_TEXT_OWNERS), records)
+        self.assertNotIn("test_stage1_unrelated_failure", selected["modules"])
+        command = [
+            sys.executable,
+            "-B",
+            "-c",
+            "import json,sys,stage1_test_scope as s; sys.exit(s.run_suite(json.loads(sys.argv[1]),repo=__import__('pathlib').Path(sys.argv[2])))",
+            json.dumps(selected),
+            str(self.repo),
+        ]
+        env = {
+            **os.environ,
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPATH": str(REPO / ".github/scripts"),
+        }
+
+        def invoke():
+            return subprocess.run(
+                command,
+                cwd=self.repo,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+
+        green = invoke()
+        self.assertEqual(green.returncode, 0, green.stdout + green.stderr)
+        self.assertTrue(json.loads(green.stdout.splitlines()[-1])["passed"])
+        self.assertNotIn("unrelated-stage1", green.stdout + green.stderr)
+        self.write(
+            f"{routing.TEST_DIRECTORY}/test_stage3_native_text_evaluation.py",
+            PASSING.replace("pass", "self.fail('selected-stage3')"),
+        )
+        red = invoke()
+        self.assertNotEqual(red.returncode, 0)
+        self.assertEqual(json.loads(red.stdout.splitlines()[-1])["failures"], 1)
+        self.assertFalse(json.loads(red.stdout.splitlines()[-1])["passed"])
 
     def test_stage3_source_inventory_changes_reject_before_worker_execution(self):
         # Explicit partial fixture: the baseline reaches the later loader guard.
