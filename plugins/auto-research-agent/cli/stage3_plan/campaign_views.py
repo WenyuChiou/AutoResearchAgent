@@ -2,11 +2,16 @@
 
 from pathlib import PurePosixPath, PureWindowsPath
 
-from .contracts import digest
+from .contracts import Stage3Error, digest
+from .evaluation_text import REQUEST_KIND as TEXT_REQUEST_KIND
 
 
 def assessor_view(request, subject_id):
     """Return a neutral view and its private reversible identifier mapping."""
+    if request.get("kind") == TEXT_REQUEST_KIND:
+        raise Stage3Error(
+            "native text subjects use prepare/inspect/record; campaign masking is not enabled"
+        )
     aliases = {}
 
     def collect(value, identifier=False):
