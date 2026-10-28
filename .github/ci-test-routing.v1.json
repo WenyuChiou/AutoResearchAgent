@@ -259,6 +259,7 @@
         "plugins/auto-research-agent/cli/stage3_plan/decision.py",
         "plugins/auto-research-agent/cli/stage3_plan/evaluation.py",
         "plugins/auto-research-agent/cli/stage3_plan/evaluation_jobs.py",
+        "plugins/auto-research-agent/cli/stage3_plan/evaluation_text.py",
         "plugins/auto-research-agent/cli/stage3_plan/intake.py",
         "plugins/auto-research-agent/cli/stage3_plan/jobs.py",
         "plugins/auto-research-agent/cli/stage3_plan/legacy_mapping.py",
@@ -272,9 +273,12 @@
         "plugins/auto-research-agent/cli/stage3_plan/storage.py",
         "plugins/auto-research-agent/cli/stage3_plan/validation.py",
         "plugins/auto-research-agent/cli/stage3_plan/workflow.py",
-        "plugins/auto-research-agent/cli/stage3_plan/workflow_cli.py"
+        "plugins/auto-research-agent/cli/stage3_plan/workflow_cli.py",
+        "plugins/auto-research-agent/evals/capability-metric-map.stage3-v1.json",
+        "plugins/auto-research-agent/references/stage3-native-text-subject.v1.md"
       ],
       "test_patterns": [
+        "test_capability_metric_map.py",
         "test_stage3_*.py",
         "test_project_stage3*.py",
         "test_project_stage2_selection*.py",
