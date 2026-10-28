@@ -164,9 +164,9 @@ class DirectionFixture:
         return {
             "intent": value,
             "intent_sha256": digest(value),
-            "advisory_dir": str(self.advisory),
+            "advisory_dir": str(self.advisory.resolve()),
             "advisory_manifest_sha256": value["advisory_manifest_sha256"],
-            "delivery_dir": str(self.delivery),
+            "delivery_dir": str(self.delivery.resolve()),
             "delivery_manifest_sha256": self.manifest["manifest_sha256"],
         }
 
