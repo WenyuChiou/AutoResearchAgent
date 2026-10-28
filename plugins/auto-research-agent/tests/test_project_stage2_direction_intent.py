@@ -147,10 +147,10 @@ class DirectionIntentTests(Stage2SelectionFixture):
         service, body, _ = self.choice()
         original = core._retain
 
-        def interrupted(path, raw):
+        def interrupted(path, raw, **kwargs):
             if path.name == "intent.json":
                 raise OSError("synthetic interruption before final seal")
-            return original(path, raw)
+            return original(path, raw, **kwargs)
 
         with (
             patch.object(core, "_retain", side_effect=interrupted),
@@ -219,6 +219,112 @@ class DirectionIntentTests(Stage2SelectionFixture):
         (output / "intent.json").write_text("{}")
         with self.assertRaisesRegex(SessionApiError, "retained-input-invalid"):
             service.read("own", self.ref)
+
+    def test_truncated_write_before_publish_recovers_with_original_key(self):
+        service, body, workflow = self.choice()
+        before = _tree_hash(workflow)
+        original = core._retain
+
+        def interrupted(path, raw, **kwargs):
+            def fail_sync(fd):
+                core.os.ftruncate(fd, 3)
+                raise OSError("synthetic truncated write before publish")
+
+            with patch.object(core.os, "fsync", side_effect=fail_sync):
+                return original(path, raw, **kwargs)
+
+        with (
+            patch.object(core, "_retain", side_effect=interrupted),
+            self.assertRaises(SessionApiError),
+        ):
+            service.direction_intent("own", self.ref, body)
+        pending = self.intake._load("researcher", self.ref)[
+            "stage2_direction_intent_pending"
+        ]
+        output = self.intake._path(
+            self.ref, "stage2-direction-" + pending["request_sha256"]
+        )
+        self.assertFalse((output / "advisory/advisory_context.json").exists())
+        recovered = service.direction_intent("own", self.ref, body)
+        self.assertEqual(recovered["status"], "saved")
+        self.assertIn("recovered_from_receipt_sha256", recovered)
+        self.assertEqual(_tree_hash(workflow), before)
+        self.assertEqual(
+            self.intake.db.execute(
+                "SELECT COUNT(*) FROM intake_events WHERE project=? AND kind=?",
+                (self.ref, "stage2-direction-intent-failed"),
+            ).fetchone()[0],
+            1,
+        )
+
+    def test_completed_replay_survives_newer_preference_and_formal_choice(self):
+        service, body, _ = self.choice()
+        first = service.direction_intent("own", self.ref, body)
+        second_body = dict(
+            body,
+            key="newer-preference",
+            revision=self.intake.read("own", self.ref)["revision"],
+            user_input="A newer tentative preference",
+        )
+        second = service.direction_intent("own", self.ref, second_body)
+        for phase in ("newer-preference", "formal-choice"):
+            if phase == "formal-choice":
+                view = service.read("own", self.ref)
+                formal = {
+                    k: body[k]
+                    for k in (
+                        "input_version",
+                        "brief_sha256",
+                        "delivery_manifest_sha256",
+                        "workflow_head_sha256",
+                        "snapshot_sha256",
+                        "confirmed",
+                    )
+                }
+                formal.update(
+                    key="later-formal-choice",
+                    revision=view["revision"],
+                    decision=dict(
+                        actor="synthetic-ui-user",
+                        kind="select",
+                        user_text="Synthetic formal choice after tentative preferences",
+                        selected=view["eligible"],
+                        conditions=[],
+                        unresolved=[],
+                        rationale="Synthetic compatibility only",
+                        scope_or_resource_change=False,
+                    ),
+                )
+                service.select("own", self.ref, formal)
+            count = self.intake.db.execute(
+                "SELECT COUNT(*) FROM intake_events WHERE project=?", (self.ref,)
+            ).fetchone()[0]
+            with (
+                self.subTest(phase=phase),
+                patch.object(
+                    core,
+                    "prepare_advisory_handoff",
+                    side_effect=AssertionError("recompiled"),
+                ),
+            ):
+                replay = service.direction_intent("own", self.ref, body)
+                self.assertEqual(replay, dict(first, replayed=True))
+                self.assertEqual(
+                    self.intake.db.execute(
+                        "SELECT COUNT(*) FROM intake_events WHERE project=?",
+                        (self.ref,),
+                    ).fetchone()[0],
+                    count,
+                )
+            with self.assertRaises(SessionApiError):
+                service.direction_intent_context(
+                    "own", self.ref, expected_intent_sha256=first["intent_sha256"]
+                )
+        self.assertEqual(service.read("own", self.ref)["selection_status"], "recorded")
+        with self.assertRaises(SessionApiError):
+            service.direction_intent_context(
+                "own", self.ref, expected_intent_sha256=second["intent_sha256"]
+            )
 
 
 class DirectionIntentHttpTests(unittest.TestCase):

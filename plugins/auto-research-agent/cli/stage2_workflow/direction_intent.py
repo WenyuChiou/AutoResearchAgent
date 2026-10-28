@@ -40,17 +40,27 @@ def validate_preferences(delivery, preferences):
         seen.add(pair)
 
 
-def _retain(path, raw):
+def _retain(path, raw, *, staging_dir):
     if path.exists():
         _require(
             _read_regular(path, "direction-intent-file-invalid") == raw,
             "direction-intent-existing-bytes-differ",
         )
         return
-    with path.open("xb") as stream:
-        stream.write(raw)
-        stream.flush()
-        os.fsync(stream.fileno())
+    # Keep interrupted temporary files outside the final strict inventory.
+    with tempfile.TemporaryDirectory(dir=staging_dir, prefix="direction-file-") as tmp:
+        staged = Path(tmp) / path.name
+        with staged.open("xb") as stream:
+            _require(stream.write(raw) == len(raw), "direction-intent-short-write")
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(staged, path)  # Atomic no-replace publication on this volume.
+        except FileExistsError:
+            _require(
+                _read_regular(path, "direction-intent-file-invalid") == raw,
+                "direction-intent-existing-bytes-differ",
+            )
 
 
 def retain_direction_intent(output_dir, delivery_dir, submission):
@@ -78,9 +88,13 @@ def retain_direction_intent(output_dir, delivery_dir, submission):
         target = safe_path(output, "advisory")
         target.mkdir(exist_ok=True)
         for name in ("advisory_context.json", "advisory_manifest.json"):
-            _retain(safe_path(target, name), (projected / name).read_bytes())
+            _retain(
+                safe_path(target, name),
+                (projected / name).read_bytes(),
+                staging_dir=output.parent,
+            )
     raw = _canonical_bytes(submission)
-    _retain(safe_path(output, "submission.json"), raw)
+    _retain(safe_path(output, "submission.json"), raw, staging_dir=output.parent)
     intent = dict(deepcopy(submission))
     intent.pop("confirmed")
     intent.update(
@@ -95,7 +109,7 @@ def retain_direction_intent(output_dir, delivery_dir, submission):
         execution_authorized=False,
     )
     raw_intent = _canonical_bytes(intent)
-    _retain(safe_path(output, "intent.json"), raw_intent)
+    _retain(safe_path(output, "intent.json"), raw_intent, staging_dir=output.parent)
     return inspect_direction_intent(
         output,
         delivery_dir,

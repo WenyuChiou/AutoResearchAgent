@@ -158,11 +158,12 @@ class ProjectStage2DirectionIntent:
                 result = self._recover_direction(
                     credential, project_ref, body, check_deadline
                 )
-            self.direction_intent_context(
+            self._direction_intent_context(
                 credential,
                 project_ref,
                 expected_intent_sha256=result["intent_sha256"],
                 check_deadline=check_deadline,
+                replay_key=body["key"] if result["replayed"] else None,
             )
             return result
         except SessionApiError:
@@ -263,31 +264,44 @@ class ProjectStage2DirectionIntent:
             ) from error
 
     def _direction_intent_context(
-        self, credential, project_ref, *, expected_intent_sha256, check_deadline=None
+        self,
+        credential,
+        project_ref,
+        *,
+        expected_intent_sha256,
+        check_deadline=None,
+        replay_key=None,
     ):
         with self.intake._lock:
             if check_deadline:
                 check_deadline()
             principal = self.intake._principal(credential)
             state = self.intake._load(principal, project_ref)
-            ack = state.get("stage2_direction_intent")
-            _check(
-                ack is not None and ack["intent_sha256"] == expected_intent_sha256,
-                "direction-intent-not-current",
-            )
+            ack = state.get("stage2_direction_intent") if replay_key is None else None
+            if replay_key is None:
+                _check(
+                    ack is not None and ack["intent_sha256"] == expected_intent_sha256,
+                    "direction-intent-not-current",
+                )
             row = self.intake.db.execute(
                 "SELECT request_hash,receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
-                (principal, project_ref, ack["key"]),
+                (principal, project_ref, ack["key"] if ack else replay_key),
             ).fetchone()
             _check(
-                row is not None and row["request_hash"] == ack["request_sha256"],
+                row is not None
+                and (ack is None or row["request_hash"] == ack["request_sha256"]),
                 "direction-intent-receipt-missing",
             )
             saved = json.loads(row["receipt"])
             _check(
                 saved["kind"] == KIND
                 and saved["status"] == "saved"
-                and all(saved.get(k) == v for k, v in ack.items() if k != "kind"),
+                and saved["intent_sha256"] == expected_intent_sha256
+                and saved["request_sha256"] == row["request_hash"]
+                and (
+                    ack is None
+                    or all(saved.get(k) == v for k, v in ack.items() if k != "kind")
+                ),
                 "direction-intent-receipt-differs",
             )
             events = self.intake.db.execute(
@@ -299,10 +313,21 @@ class ProjectStage2DirectionIntent:
                 == 1,
                 "direction-intent-journal-differs",
             )
-            binding, _, workflow = self._direction_source(
-                credential, project_ref, saved["request"]
-            )
-            output = self.intake._path(project_ref, ack["artifact_ref"])
+            workflow = None
+            if replay_key is None:
+                binding, _, workflow = self._direction_source(
+                    credential, project_ref, saved["request"]
+                )
+            else:
+                # Completed-key replay proves history, never current planning authority.
+                binding = self.bindings.get(project_ref)
+                _check(
+                    binding is not None
+                    and binding["delivery_manifest_sha256"]
+                    == saved["request"]["delivery_manifest_sha256"],
+                    "direction-intent-delivery-differs",
+                )
+            output = self.intake._path(project_ref, saved["artifact_ref"])
             intent = inspect_direction_intent(
                 output,
                 binding["delivery_root"],
@@ -313,8 +338,11 @@ class ProjectStage2DirectionIntent:
                 and intent["project_id"] == state["project_id"]
                 and intent["principal"] == principal
                 and intent["request_sha256"] == row["request_hash"]
-                and intent["workflow_manifest_sha256"]
-                == workflow["manifest"]["manifest_sha256"]
+                and (
+                    workflow is None
+                    or intent["workflow_manifest_sha256"]
+                    == workflow["manifest"]["manifest_sha256"]
+                )
                 and all(
                     intent.get(k) == v
                     for k, v in saved["request"].items()
