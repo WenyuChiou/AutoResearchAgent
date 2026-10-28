@@ -27,3 +27,18 @@ including materials, method, design, validation, analysis, interpretation,
 unknowns and minimum deliverable. It is a conditional draft, not a selected plan,
 scientific acceptance or evaluation subject. Host/UI integration and real native
 planning remain unverified.
+
+The Host adds mode=direction-intent to the existing planning API. Its key is
+stage3-direction- plus the saved intent hash; current project/source bindings
+are checked before dispatch and publication. Read, prepare, inspect and recover
+never call the planner. Missing source questions or an oversized context return
+needs-information, visible planning_blockers and no default_request. The saved
+preference is retained. An identical complete input left before journal creation
+is reused; a mismatched or partial input remains an explicit failure.
+
+The API retains the original per-question materials and conditional result for
+the Wiki presentation slice. Saved jobs must still match the current Host model,
+adapter and source bindings; recovery availability uses the existing trusted pin
+map. Source unknowns and user conditions remain separate. The target is a Stage 3
+planning job; agent_conversation_connected=false. Deployment, Wiki integration
+and native/scientific acceptance remain separate; execution_authorized=false.

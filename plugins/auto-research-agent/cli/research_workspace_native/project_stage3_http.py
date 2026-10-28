@@ -18,6 +18,7 @@ from stage3_plan.storage import inspect_package
 from .session_api import SessionApiError
 from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS
+from .project_stage3_direction_planning import DIRECTION_FIELDS
 
 
 ROUTE = re.compile(
@@ -53,6 +54,22 @@ class ProjectStage3Http:
 
     def view(self, credential, ref, *, check_deadline=None):
         view = self.service.read(credential, ref, check_deadline=check_deadline)
+        if view.get("planning_mode") == "direction-intent":
+            if check_deadline:
+                check_deadline()
+            request = view.get("default_request") or {}
+            with self._lock:
+                return dict(
+                    view,
+                    submission_in_progress=ref in self._active,
+                    submission_error=deepcopy(self._errors.get(ref)),
+                    recovery_pin_available=(
+                        ref,
+                        request.get("key"),
+                        request.get("request_sha256"),
+                    )
+                    in self.recovery_pins,
+                )
         result = dict(view, default_request=None, job=None, plan=None)
         with self._lock:
             result["submission_in_progress"] = ref in self._active
@@ -99,7 +116,13 @@ class ProjectStage3Http:
     def admit_run(self, credential, ref, body, check_deadline):
         if (
             type(body) is not dict
-            or set(body) != SOURCE_FIELDS | {"request_sha256", "confirmed"}
+            or set(body)
+            != (
+                DIRECTION_FIELDS
+                if body.get("mode") == "direction-intent"
+                else SOURCE_FIELDS
+            )
+            | {"request_sha256", "confirmed"}
             or body["confirmed"] is not True
         ):
             raise SessionApiError("explicit-stage3-planning-required", 400)
