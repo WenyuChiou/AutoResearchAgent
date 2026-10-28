@@ -20,6 +20,7 @@ class DirectionFixture:
             "test_full_cycle_binds_package_and_preserves_embedded_checker"
         )
         fixture.setUp()
+        fixture.root = fixture.root.resolve()
         add_cleanup(fixture.doCleanups)
         self.fixture = fixture
         scientific = scientific_fixture.Stage2ScientificArgumentTests(
