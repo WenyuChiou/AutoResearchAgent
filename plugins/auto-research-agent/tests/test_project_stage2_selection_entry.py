@@ -81,7 +81,7 @@ class Stage2SelectionEntryTests(unittest.TestCase):
             shell=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('"cases":11', result.stdout)
+        self.assertIn('"cases":14', result.stdout)
 
 
 if __name__ == "__main__":

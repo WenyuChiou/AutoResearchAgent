@@ -33,7 +33,20 @@
   function field(parent,label,v) { node(parent,"p",label+": "+value(v)); }
   function claims(parent,rows) { if(!rows?.length)node(parent,"p",w().unknown); for(const claim of rows || []) {node(parent,"p",claim.text);field(parent,w().status,claim.status);field(parent,w().questions,claim.question_ids);if(claim.evidence_ids)field(parent,w().evidence,claim.evidence_ids);} }
   function resource(parent,use) { const r=use.resource || use,ref=use.resource_ref;node(parent,"h4",r.name);node(parent,"p",[r.category,r.status].filter(Boolean).join(" · "));if(ref){field(parent,w().questionUse,ref.purpose);field(parent,w().fit,ref.fit_status);field(parent,w().evidence,ref.evidence_ids);}field(parent,w().generalUse,r.purpose);field(parent,w().required,r.required);field(parent,w().license,r.license);field(parent,w().cost,r.cost_basis);field(parent,w().checked,r.checked_at);list(parent,[r.url,r.version,r.access_conditions].map(value));field(parent,w().evidence,r.evidence_ids);list(parent,r.limitations);list(parent,r.alternatives); }
-  async function api(path, body) { const response=await fetch(path,{method:body?"POST":"GET",credentials:"omit",cache:"no-store",headers:{Authorization:"Bearer "+boot.credential,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})}); const data=await response.json(); if(!response.ok) throw new Error(data.error || "request-failed"); return data; }
+  async function api(path, body, options={}) { const response=await fetch(path,{method:body?"POST":"GET",credentials:"omit",cache:"no-store",headers:{Authorization:"Bearer "+boot.credential,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})}); const data=await response.json(); if(!response.ok) throw new Error(data.error || "request-failed"); return options.includeStatus?{data,status:response.status}:data; }
+  function enterPlanning(ref,serial,selectedView,request,response) {
+    const result=response.data,job=result?.job;
+    const policyUnchanged=state=>state && ["execution_authorized","evaluation_calls_authorized","formal_execution_enabled","external_claim_ready","usable_for_formal_pairing"].every(key=>state[key]===false);
+    const tentative=request.mode==="direction-intent";
+    if(!current(ref,serial) || viewProject!==ref || view!==selectedView || response.status!==202 ||
+      result?.kind!=="ProjectStage3PlanningSubmission" || result.submission_status!=="accepted" ||
+      !policyUnchanged(result) || !policyUnchanged(job) || job.project_ref!==ref || job.key!==request.key ||
+      job.request_sha256!==request.request_sha256 || job.status!=="intent-recorded" ||
+      job.kind!==(tentative?"ProjectStage3DirectionPlanningJob":"ProjectStage3PlanningJob") ||
+      (tentative && (job.mode!=="direction-intent" || job.formal_selected_receiver!==false))) return;
+    const language=byId("language").value,query=["en","zh-TW","zh-CN"].includes(language)?"?lang="+encodeURIComponent(language):"";
+    window.location.assign("/project-stage3-planning.html"+query+"#"+encodeURIComponent(ref));
+  }
   function renderProjectContext() {
     const area=byId("project-context");
     if(area) area.textContent=view?(projectNames.get(viewProject) || (projectNamesFailed?w().unknown+" · ":"")+viewProject)+" · "+w().inputVersion+": "+JSON.stringify(view.input_version):"";
@@ -112,10 +125,11 @@
     requireMatch(matches(prepared) && next && Object.keys(request).every(key=>next[key]===request[key]) &&
       prepared.job?.status==="intent-recorded" && !prepared.submission_in_progress && !prepared.submission_error &&
       /^[a-f0-9]{64}$/.test(next.request_sha256 || "") && prepared.job.request_sha256===next.request_sha256);
-    const result=await api(path+"/run",{...next,confirmed:true});
+    const response=await api(path+"/run",{...next,confirmed:true},{includeStatus:true}),result=response.data;
     if(!current(ref,serial)) return;
     planningSubmission=result;
     notice=result.submission_status==="accepted" ? w().startAccepted : w().startHeld;
+    enterPlanning(ref,serial,selectedView,next,response);
   }
   byId("choice").onsubmit=async event=>{
     event.preventDefault();
@@ -187,10 +201,11 @@
     requireIntent(prepared.planning_configured && next && Object.keys(source).every(key=>next[key]===source[key]) && Object.keys(next).every(key=>key==="request_sha256" || Object.hasOwn(source,key)) && prepared.job?.status==="intent-recorded" && !prepared.submission_in_progress && !prepared.submission_error && /^[a-f0-9]{64}$/.test(next.request_sha256 || "") && prepared.job.request_sha256===next.request_sha256);
     transaction.runSent=true;
     transaction.planningWork={key:next.key,request_sha256:next.request_sha256,mode:next.mode,direction_intent_sha256:intentHash};
-    const result=await api(path+"/run",{...next,confirmed:true});
+    const response=await api(path+"/run",{...next,confirmed:true},{includeStatus:true}),result=response.data;
     if(!current(ref,serial))return;
     transaction.submission=result;
     intentNotice=(result.submission_status==="accepted"?w().intentStartAccepted:w().intentHeld)+" "+w().intentWork+": "+next.key+" · "+(result.job?.status || result.submission_status || w().unknown);
+    enterPlanning(ref,serial,selectedView,next,response);
   }
   if(byId("direction-intent"))byId("direction-intent").onsubmit=async event=>{
     event.preventDefault();
