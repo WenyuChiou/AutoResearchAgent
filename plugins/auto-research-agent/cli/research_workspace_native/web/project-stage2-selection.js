@@ -14,9 +14,17 @@
   Object.assign(words["en"], {"submit":"Save selection only","saveAndStart":"Save and start planning","startBoundary":"Save and start makes one planning request after this choice is verified. It does not run research or experiments.","startAccepted":"Choice saved. The planning request was accepted; inspect Stage 3 for its actual outcome.","startHeld":"Planning was not started again. Check the saved selection and Stage 3 status before continuing."});
   Object.assign(words["zh-TW"], {"submit":"只保存選案","saveAndStart":"保存並開始規劃","startBoundary":"保存並開始會在選案驗證後送出一次規劃請求，不執行研究或實驗。","startAccepted":"選案已保存，規劃請求已接受；請到 Stage 3 檢視實際結果。","startHeld":"未再次開始規劃。請先檢查已保存的選案與 Stage 3 狀態。"});
   Object.assign(words["zh-CN"], {"submit":"只保存选案","saveAndStart":"保存并开始规划","startBoundary":"保存并开始会在选案验证后发出一次规划请求，不执行研究或实验。","startAccepted":"选案已保存，规划请求已接受；请到 Stage 3 查看实际结果。","startHeld":"未再次开始规划。请先检查已保存的选案与 Stage 3 状态。"});
+  Object.assign(words.en, {tentative:"Tentative preference",prefer:"Include in tentative preference",intentMessage:"Your direction guidance",intentAttest:"I have reviewed these versions and their unknowns. Save this tentative preference for advice; formal selection is still pending and experiments are not authorized.",intentBoundary:"Choose 1–16 delivered directions, including directions awaiting revision or evidence. This preference requests advice; it does not make a formal selection. The saved origin does not authenticate your identity.",intentSave:"Save tentative preference only",intentStart:"Save preference and start planning",intentSaved:"Tentative preference saved. Formal selection remains pending; experiments are not authorized.",intentStartAccepted:"Tentative preference saved. The Stage 3 planning request was accepted; inspect Stage 3 for its actual outcome.",intentHeld:"Planning was not started again. Review the saved preference and Stage 3 status.",intentInvalid:"Choose 1–16 current directions, enter your guidance and confirm the tentative preference.",intentChanged:"This submitted preference is fixed. Reload the current delivery before changing it.",intentWork:"Stage 3 planning work",intentReceipt:"Tentative preference receipt",intentLink:"Open Stage 3 planning"});
+  Object.assign(words["zh-TW"], {tentative:"暫定方向偏好",prefer:"加入暫定方向偏好",intentMessage:"你的方向指導",intentAttest:"我已閱讀這些版本與未知事項。此暫定偏好只供建議，正式選案仍待確認，尚未授權執行實驗。",intentBoundary:"可勾選 1–16 個已交付方向，包括仍待修訂或補證據的方向。此偏好用於徵詢建議，不構成正式選案。保存的來源不代表已驗證你的身分。",intentSave:"只保存暫定偏好",intentStart:"保存偏好並開始規劃",intentSaved:"暫定偏好已保存；正式選案仍待確認，尚未授權執行實驗。",intentStartAccepted:"暫定偏好已保存，Stage 3 規劃請求已接受；請到 Stage 3 檢視實際結果。",intentHeld:"未再次開始規劃。請檢查已保存的偏好與 Stage 3 狀態。",intentInvalid:"請選擇 1–16 個目前方向、填寫方向指導，並確認暫定偏好。",intentChanged:"已送出的偏好內容固定；請重新載入目前交付版本後再修改。",intentWork:"Stage 3 規劃工作",intentReceipt:"暫定偏好收據",intentLink:"開啟 Stage 3 規劃"});
+  Object.assign(words["zh-CN"], {tentative:"暂定方向偏好",prefer:"加入暂定方向偏好",intentMessage:"你的方向指导",intentAttest:"我已阅读这些版本与未知事项。此暂定偏好仅供建议，正式选案仍待确认，尚未授权执行实验。",intentBoundary:"可勾选 1–16 个已交付方向，包括仍待修订或补证据的方向。此偏好用于征询建议，不构成正式选案。保存的来源不代表已验证你的身份。",intentSave:"只保存暂定偏好",intentStart:"保存偏好并开始规划",intentSaved:"暂定偏好已保存；正式选案仍待确认，尚未授权执行实验。",intentStartAccepted:"暂定偏好已保存，Stage 3 规划请求已接受；请到 Stage 3 查看实际结果。",intentHeld:"未再次开始规划。请检查已保存的偏好与 Stage 3 状态。",intentInvalid:"请选择 1–16 个当前方向、填写方向指导，并确认暂定偏好。",intentChanged:"已发出的偏好内容固定；请重新加载当前交付版本后再修改。",intentWork:"Stage 3 规划工作",intentReceipt:"暂定偏好收据",intentLink:"打开 Stage 3 规划"});
+  Object.assign(words.en,{intentRefresh:"The saved receipt and current preference differ. Refresh this page before continuing; no planning run has started.",intentFocus:"More focus is needed. Refresh this page, choose fewer directions or clarify the question, then save again. The saved preference and unknowns are retained.",intentUnavailable:"Planning is currently unavailable. Read the reasons below; the preference is saved and no planning run has started."});
+  Object.assign(words["zh-TW"],{intentRefresh:"保存收據與目前偏好不同。請重新整理此頁後再繼續；尚未啟動規劃。",intentFocus:"需要進一步聚焦。請重新整理此頁、減少方向或釐清問題後再保存。原偏好與未知事項仍保留。",intentUnavailable:"目前暫時無法開始規劃。請閱讀下方原因；偏好已保存，尚未啟動規劃。"});
+  Object.assign(words["zh-CN"],{intentRefresh:"保存收据与当前偏好不同。请刷新此页后再继续；尚未启动规划。",intentFocus:"需要进一步聚焦。请刷新此页、减少方向或厘清问题后再保存。原偏好与未知事项仍保留。",intentUnavailable:"当前暂时无法开始规划。请阅读下方原因；偏好已保存，尚未启动规划。"});
   const projectNames=new Map(); let projectNamesFailed=false;
   let notice = null, planningSubmission = null;
   let view = null, busy = false, requestKey = null, lastBody = null, viewProject = null, loadSerial = 0;
+  const preferredDirections=new Map(), intentTransactions=new Map();
+  let intentTransaction=null, intentNotice=null, intentHold=null;
   const current = (ref, serial) => serial === loadSerial && byId("project").value === ref;
   const w = () => words[byId("language").value] || words.en;
   function node(parent, tag, text) { const n=document.createElement(tag); n.textContent=String(text ?? w().unknown); parent.append(n); return n; }
@@ -43,12 +51,24 @@
     byId("submit-and-start").disabled=busy;
     byId("submit-and-start").hidden=!(boot.stage3_planning_projects || []).includes(viewProject);
     byId("project").disabled=busy;
+    if(byId("direction-intent")) {
+      byId("direction-intent").hidden=!view || view.selection_status==="recorded" || !view.cards.cards.length;
+      byId("intent-save").disabled=busy;
+      byId("intent-start").disabled=busy;
+      byId("intent-start").hidden=!(boot.stage3_planning_projects || []).includes(viewProject);
+      byId("intent-status").textContent=intentHold?[w()[intentHold.kind],intentNotice].filter(Boolean).join(" "):intentNotice || (view?.direction_intent?w().intentSaved:"");
+      const blockers=byId("intent-blockers");if(blockers){blockers.hidden=!intentHold?.blockers.length;blockers.textContent=intentHold?intentHold.blockers.map(blocker=>typeof blocker==="string"?blocker:JSON.stringify(blocker,null,2)).join("\n"):"";}
+      byId("intent-receipt").textContent=JSON.stringify({direction_intent:view?.direction_intent || null,planning_submission:intentTransaction?.submission || null,planning_work:intentTransaction?.planningWork || null},null,2);
+      byId("intent-planning-link").hidden=!view?.direction_intent;
+      byId("intent-planning-link").href="/project-stage3-planning.html#"+encodeURIComponent(viewProject || "");
+    }
     if(!view) return;
     byId("planning-link").href="#"+viewProject;
     byId("return-cards").href="#"+viewProject;
     byId("status").textContent=notice || w()[view.selection_status==="recorded"?"saved":view.eligible.length?"ready":"none"];
     for(const card of view.cards.cards) {
       const a=node(byId("cards"),"article",""); node(a,"h2",card.candidate_question || card.candidate_id); node(a,"p",card.candidate_id+" · v"+card.candidate_version);
+      if(byId("direction-intent") && view.selection_status!=="recorded") {const label=node(a,"label",""),checkbox=document.createElement("input"),key=JSON.stringify([card.candidate_id,card.candidate_version]);checkbox.type="checkbox";checkbox.name="tentative-direction";checkbox.value=card.candidate_id;checkbox.dataset.version=String(card.candidate_version);checkbox.checked=preferredDirections.has(key);checkbox.disabled=busy;checkbox.onchange=()=>{if(checkbox.checked)preferredDirections.set(key,{candidate_id:card.candidate_id,candidate_version:card.candidate_version});else preferredDirections.delete(key);};label.append(checkbox,document.createTextNode(w().prefer));}
       const eligible=view.eligible.some(x=>x.candidate_id===card.candidate_id && x.candidate_version===card.candidate_version);
       if(eligible && view.selection_status!=="recorded") { const label=node(a,"label",""); const radio=document.createElement("input"); radio.type="radio"; radio.name="direction"; radio.value=card.candidate_id; radio.dataset.version=String(card.candidate_version); radio.required=true; label.append(radio,document.createTextNode(w().choose)); }
       node(a,"h3",w().approach); node(a,"p",card.suggested_approach);
@@ -66,7 +86,7 @@
     }
     byId("receipt").textContent=JSON.stringify({project_ref:view.project_ref,input_version:view.input_version,selection_receipt:view.selection_receipt,delivery_manifest_sha256:view.delivery_manifest_sha256,snapshot_sha256:view.snapshot_sha256,planning_status:view.planning_status,planning_submission:planningSubmission,execution_authorized:false},null,2);
   }
-  async function load() { const ref=byId("project").value, serial=++loadSerial; view=null; viewProject=null; requestKey=null; lastBody=null; notice=null; planningSubmission=null; render(); if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {byId("status").textContent=w().unconnected;return;} try { const loaded=await api("/api/projects/"+ref+"/stage2/selection"); if(!current(ref,serial))return; view=loaded; viewProject=ref; history.replaceState(null,"","#"+ref); render(); } catch(e) {if(current(ref,serial))byId("status").textContent=w().unconnected+" ("+e.message+")";} }
+  async function load() { const ref=byId("project").value, serial=++loadSerial; view=null; viewProject=null; requestKey=null; lastBody=null; notice=null; planningSubmission=null; intentTransaction=null;intentNotice=null;intentHold=null;preferredDirections.clear();if(byId("intent-message")){byId("intent-message").value="";byId("intent-confirmed").checked=false;} render(); if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {byId("status").textContent=w().unconnected;return;} try { const loaded=await api("/api/projects/"+ref+"/stage2/selection"); if(!current(ref,serial))return; view=loaded; viewProject=ref;const saved=intentTransactions.get(intentBinding(ref,view));if(saved){intentTransaction=saved;for(const direction of saved.body.preferred_directions)preferredDirections.set(JSON.stringify([direction.candidate_id,direction.candidate_version]),direction);if(byId("intent-message")){byId("intent-message").value=saved.body.user_input;byId("intent-confirmed").checked=true;}} history.replaceState(null,"","#"+ref); render(); } catch(e) {if(current(ref,serial))byId("status").textContent=w().unconnected+" ("+e.message+")";} }
   byId("language").onchange=render; byId("project").onchange=load;
   for(const [link,target] of [["planning-link","planning"],["return-cards","cards"]]) {
     byId(link).onclick=event=>{event.preventDefault();byId(target).scrollIntoView({block:"start"});};
@@ -119,6 +139,82 @@
         await startPlanning(ref,serial,receipt,refreshed);
       }
     } catch(e) {if(current(ref,serial)) notice=(start?w().startHeld+" ":"")+e.message;}
+    finally {busy=false;render();}
+  };
+  function intentBinding(ref,state) {
+    return JSON.stringify([ref,state.input_version,state.brief_sha256,state.delivery_manifest_sha256,state.workflow_head_sha256,state.snapshot_sha256]);
+  }
+  function requireIntent(ok,message=w().intentHeld) {if(!ok)throw new Error(message);}
+  function holdIntentPlanning(state) {
+    const kind=state.planning_status==="needs-information" || state.dispatch_action==="needs-information"?"intentFocus":state.planning_status==="unavailable" || state.dispatch_action==="unavailable"?"intentUnavailable":null;
+    if(!kind)return false;
+    intentHold={kind,blockers:Array.isArray(state.planning_blockers)?state.planning_blockers:[]};intentNotice=null;return true;
+  }
+  function verifyIntentReceipt(receipt, transaction) {
+    requireIntent(receipt?.status==="saved" && receipt.key===transaction.body.key && receipt.mode==="direction-advice" && receipt.human_selection==="pending" && receipt.execution_authorized===false && typeof receipt.artifact_ref==="string" && receipt.artifact_ref.length>0);
+    for(const key of ["request_sha256","intent_sha256","submission_sha256","advisory_manifest_sha256"])requireIntent(/^[a-f0-9]{64}$/.test(receipt[key] || ""));
+  }
+  function verifyIntentView(ref,state,transaction) {
+    requireIntent(state.project_ref===ref && intentBinding(ref,state)===transaction.binding && Number.isInteger(state.revision) && state.revision>=transaction.body.revision);
+    requireIntent(state.direction_intent?.intent_sha256===transaction.receipt.intent_sha256,w().intentRefresh);
+    verifyIntentReceipt(state.direction_intent,transaction);
+    for(const key of ["request_sha256","intent_sha256","submission_sha256","advisory_manifest_sha256","artifact_ref"])requireIntent(state.direction_intent[key]===transaction.receipt[key]);
+  }
+  async function startIntentPlanning(ref,serial,transaction,selectedView) {
+    requireIntent(!transaction.prepareSent && !transaction.runSent);
+    const path="/api/projects/"+ref+"/stage3/planning", intentHash=transaction.receipt.intent_sha256;
+    const matches=state=>state.project_ref===ref && state.planning_mode==="direction-intent" && state.direction_intent_sha256===intentHash && state.input_version===selectedView.input_version && state.revision===selectedView.revision && state.brief_sha256===selectedView.brief_sha256;
+    const state=await api(path);
+    if(!current(ref,serial))return;
+    requireIntent(matches(state),w().intentRefresh);
+    if(holdIntentPlanning(state))return;
+    intentHold=null;
+    requireIntent(state.planning_configured && state.default_request && !state.job && !state.submission_in_progress && !state.submission_error);
+    const source={...state.default_request};
+    requireIntent(source.direction_intent_sha256===intentHash,w().intentRefresh);
+    requireIntent(typeof source.key==="string" && source.key.length>0 && source.mode==="direction-intent" && source.direction_intent_sha256===intentHash && source.revision===selectedView.revision && source.input_version===selectedView.input_version && source.brief_sha256===selectedView.brief_sha256 && !source.request_sha256);
+    const request={key:source.key,revision:source.revision,input_version:source.input_version,brief_sha256:source.brief_sha256,mode:"direction-intent",direction_intent_sha256:intentHash};
+    transaction.prepareSent=true;
+    await api(path+"/prepare",request);
+    if(!current(ref,serial))return;
+    const prepared=await api(path);
+    if(!current(ref,serial))return;
+    requireIntent(matches(prepared),w().intentRefresh);
+    if(holdIntentPlanning(prepared))return;
+    intentHold=null;
+    const next=prepared.default_request;
+    requireIntent(next?.direction_intent_sha256===intentHash,w().intentRefresh);
+    requireIntent(prepared.planning_configured && next && Object.keys(source).every(key=>next[key]===source[key]) && Object.keys(next).every(key=>key==="request_sha256" || Object.hasOwn(source,key)) && prepared.job?.status==="intent-recorded" && !prepared.submission_in_progress && !prepared.submission_error && /^[a-f0-9]{64}$/.test(next.request_sha256 || "") && prepared.job.request_sha256===next.request_sha256);
+    transaction.runSent=true;
+    transaction.planningWork={key:next.key,request_sha256:next.request_sha256,mode:next.mode,direction_intent_sha256:intentHash};
+    const result=await api(path+"/run",{...next,confirmed:true});
+    if(!current(ref,serial))return;
+    transaction.submission=result;
+    intentNotice=(result.submission_status==="accepted"?w().intentStartAccepted:w().intentHeld)+" "+w().intentWork+": "+next.key+" · "+(result.job?.status || result.submission_status || w().unknown);
+  }
+  if(byId("direction-intent"))byId("direction-intent").onsubmit=async event=>{
+    event.preventDefault();
+    if(busy || !view || view.selection_status==="recorded" || !current(viewProject,loadSerial))return;
+    const start=event.submitter?.id==="intent-start",ref=viewProject,serial=loadSerial;
+    if(start && !(boot.stage3_planning_projects || []).includes(ref))return;
+    if(view.project_ref!==ref){intentNotice=w().intentHeld;render();return;}
+    const preferred=[...preferredDirections.values()],text=byId("intent-message").value;
+    if(preferred.length<1 || preferred.length>16 || !text.trim() || text.length>4000 || !byId("intent-confirmed").checked || preferred.some(direction=>!view.cards.cards.some(card=>card.candidate_id===direction.candidate_id && card.candidate_version===direction.candidate_version))) {intentNotice=w().intentInvalid;render();return;}
+    const binding=intentBinding(ref,view),existing=intentTransactions.get(binding);
+    const body={key:existing?.body.key || crypto.randomUUID(),revision:existing?.body.revision ?? view.revision,input_version:view.input_version,brief_sha256:view.brief_sha256,delivery_manifest_sha256:view.delivery_manifest_sha256,workflow_head_sha256:view.workflow_head_sha256,snapshot_sha256:view.snapshot_sha256,preferred_directions:preferred,user_input:text,conditions:[],unresolved:[],confirmed:true};
+    if(existing && JSON.stringify(body)!==JSON.stringify(existing.body)) {intentNotice=w().intentChanged;render();return;}
+    const transaction=existing || {body,binding,prepareSent:false,runSent:false};
+    intentTransactions.set(binding,transaction);intentTransaction=transaction;intentNotice=null;busy=true;render();
+    try {
+      requireIntent(!start || (!transaction.prepareSent && !transaction.runSent));
+      const receipt=await api("/api/projects/"+ref+"/stage2/direction-intent",body);
+      if(!current(ref,serial))return;
+      verifyIntentReceipt(receipt,transaction);transaction.receipt=receipt;
+      const refreshed=await api("/api/projects/"+ref+"/stage2/selection");
+      if(!current(ref,serial))return;
+      verifyIntentView(ref,refreshed,transaction);view=refreshed;viewProject=ref;intentNotice=w().intentSaved;render();
+      if(start)await startIntentPlanning(ref,serial,transaction,refreshed);
+    } catch(e) {if(current(ref,serial)){intentNotice=e.message || w().intentHeld;}}
     finally {busy=false;render();}
   };
   for(const ref of boot.stage2_selection_projects || []) {const option=node(byId("project"),"option",ref);option.value=ref;}

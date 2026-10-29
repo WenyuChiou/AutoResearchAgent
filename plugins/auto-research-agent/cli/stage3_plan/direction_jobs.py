@@ -15,6 +15,7 @@ from .jobs import (
     _check_adapter_context,
     _runtime,
 )
+from .planner import _producer_sha256
 from .preparation import closed, file_binding, text
 from .storage import (
     decode_json,
@@ -48,6 +49,16 @@ def direction_context(source):
         expected_intent_sha256=source["intent_sha256"],
         expected_advisory_manifest_sha256=source["advisory_manifest_sha256"],
         expected_delivery_manifest_sha256=source["delivery_manifest_sha256"],
+    )
+
+
+def _direction_request(payload, context):
+    return _bounded_job_payload(
+        {
+            "operation": "stage3.direction-plan.v1",
+            "payload": payload,
+            "context": context,
+        }
     )
 
 
@@ -125,20 +136,17 @@ class DirectionPlanningJobs(PlanningJobs):
                 safe_path(self.root / digest([self.project_id, self.method, key]))
             ),
             "runtime": _runtime(),
+            "producer_sha256": _producer_sha256(),
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "schema_sha256": hashlib.sha256(read_bytes(SCHEMA)).hexdigest(),
             "policy": dict(POLICY),
         }
-        return _bounded_job_payload(value)
+        return _direction_request(value, context)["payload"]
 
     def _request(self, payload):
         context = direction_context(payload["source"])
         prompt = build_direction_prompt(context)
-        request = {
-            "operation": "stage3.direction-plan.v1",
-            "payload": payload,
-            "context": context,
-        }
+        request = _direction_request(payload, context)
         return request, context, prompt
 
     def _perform(self, payload, callback):
