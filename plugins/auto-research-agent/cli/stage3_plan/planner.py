@@ -21,6 +21,19 @@ SCHEMA = (
 )
 
 
+def _producer_sha256():
+    """Bind the same complete CLI source tree for planning and saved replay."""
+    cli_root = Path(__file__).resolve().parents[1]
+    return digest(
+        {
+            p.relative_to(cli_root).as_posix(): hashlib.sha256(
+                p.read_bytes()
+            ).hexdigest()
+            for p in sorted(cli_root.rglob("*.py"))
+        }
+    )
+
+
 def _draft_from_intake(
     intake,
     output_dir,
@@ -53,18 +66,13 @@ def _draft_from_intake(
         intake, plan_id=plan_id, version=version, schema_version=schema_version
     )
     schema = read_bytes(schema_path)
-    cli_root = Path(__file__).resolve().parents[1]
-    source_hashes = {
-        p.relative_to(cli_root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in sorted(cli_root.rglob("*.py"))
-    }
     request = {
         "operation": "stage3.scientific-plan.v1",
         "admission_scope": admission_scope,
         "intake": intake,
         "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
         "schema_sha256": hashlib.sha256(schema).hexdigest(),
-        "producer_sha256": digest(source_hashes),
+        "producer_sha256": _producer_sha256(),
         "configuration": configuration,
         "runtime": {
             "python": sys.version,

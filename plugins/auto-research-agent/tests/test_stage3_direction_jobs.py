@@ -4,14 +4,18 @@
 
 from copy import deepcopy
 from pathlib import Path
+import json
+import shutil
 import sys
 import unittest
+from unittest.mock import patch
 
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PLUGIN / "cli"), str(PLUGIN / "tests")]
 
 from research_workspace_native.journal import Journal
 from stage3_direction_fixtures import DirectionFixture
+from stage3_plan import planner
 from stage3_plan.contracts import Stage3Error, canonical_bytes
 from stage3_plan.direction_jobs import DirectionPlanningJobs, validate_direction_result
 from stage3_plan.jobs import _ref
@@ -194,6 +198,124 @@ class Stage3DirectionJobsTests(unittest.TestCase):
             self.assertEqual(list(after["intents"]), list(before["intents"]))
         self.assertFalse(self.jobs.root.exists())
         self.assertEqual(self.calls, [])
+
+    def test_complete_request_bound_rejects_before_recording_intent(self):
+        callback = self.callback()
+        adapter = dict(callback.request_context, padding="")
+        payload = self.jobs._payload(
+            "complete-request-bound",
+            self.checkpoint,
+            {"model": "stub", "reasoning": "medium"},
+            adapter,
+            "conditional-test",
+            1,
+            "1.0.0",
+        )
+        adapter["padding"] = "x" * (
+            MAX_ARTIFACT_BYTES - len(canonical_bytes(payload)) - 1
+        )
+        payload["adapter_context"] = adapter
+        self.assertLess(len(canonical_bytes(payload)), MAX_ARTIFACT_BYTES)
+        self.assertGreater(
+            len(canonical_bytes({"payload": payload, "context": self.context})),
+            MAX_ARTIFACT_BYTES,
+        )
+        before = self.journal.snapshot(self.jobs.project_id)
+        with self.assertRaises(Stage3Error):
+            self.jobs.prepare(
+                "complete-request-bound",
+                checkpoint=self.checkpoint,
+                configuration={"model": "stub", "reasoning": "medium"},
+                adapter_context=adapter,
+                plan_id="conditional-test",
+                expected_revision=before["revision"],
+            )
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        self.assertFalse(self.jobs.root.exists())
+        self.assertEqual(self.calls, [])
+
+    def interrupted_result(self, key, callback):
+        prepared = self.prepare(key, callback)
+        transition = self.jobs._transition
+
+        def interrupt_completion(job_key, status, evidence):
+            if status == "completed":
+                raise RuntimeError("authored interruption after saving result")
+            return transition(job_key, status, evidence)
+
+        with patch.object(self.jobs, "_transition", side_effect=interrupt_completion):
+            with self.assertRaisesRegex(RuntimeError, "after saving result"):
+                self.run_job(key, prepared, callback)
+        item = self.journal.snapshot(self.jobs.project_id)["intents"][
+            self.jobs._key(key)
+        ]
+        self.assertEqual(item["status"], "dispatching")
+        output = Path(item["payload"]["output"]) / "plan"
+        manifest = json.loads((output / "manifest.json").read_bytes())
+        return prepared, output, manifest["manifest_sha256"]
+
+    def test_saved_conditional_result_recovers_without_callback(self):
+        callback = self.callback()
+        prepared, output, manifest = self.interrupted_result("interrupted", callback)
+        original = (output / "raw-response.json").read_bytes()
+        recovered = self.jobs.recover(
+            "interrupted",
+            expected_request_sha256=prepared["request_sha256"],
+            current_checkpoint=self.checkpoint,
+            expected_plan_manifest_sha256=manifest,
+        )
+        self.assertEqual(recovered["status"], "completed")
+        self.assertIs(recovered["result"]["formal_selected_receiver"], False)
+        self.assertIs(recovered["policy"]["execution_authorized"], False)
+        self.assertEqual((output / "raw-response.json").read_bytes(), original)
+        self.assertEqual(self.run_job("interrupted", prepared, callback), recovered)
+        self.assertEqual(len(self.calls), 1)
+
+    def test_changed_dependency_rejects_inspect_run_and_saved_recovery(self):
+        producer = Path(self.checkpoint["path"]).parent / "producer-cli"
+        shutil.copytree(
+            PLUGIN / "cli", producer, ignore=shutil.ignore_patterns("__pycache__")
+        )
+        callback = self.callback()
+        with patch.object(
+            planner, "__file__", str(producer / "stage3_plan/planner.py")
+        ):
+            prepared, output, manifest = self.interrupted_result("dependency", callback)
+            before = self.journal.snapshot(self.jobs.project_id)
+            dependency = producer / "stage2_workflow/__init__.py"
+            original = dependency.read_bytes()
+            dependency.write_bytes(original + b"\n# Authored byte-change regression.\n")
+            operations = {
+                "inspect": lambda: self.jobs.inspect(
+                    "dependency",
+                    expected_request_sha256=prepared["request_sha256"],
+                    current_checkpoint=self.checkpoint,
+                ),
+                "run": lambda: self.run_job("dependency", prepared, callback),
+                "recover": lambda: self.jobs.recover(
+                    "dependency",
+                    expected_request_sha256=prepared["request_sha256"],
+                    current_checkpoint=self.checkpoint,
+                    expected_plan_manifest_sha256=manifest,
+                ),
+            }
+            for name, operation in operations.items():
+                with self.subTest(operation=name), self.assertRaises(Stage3Error):
+                    operation()
+            self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+            self.assertEqual(len(self.calls), 1)
+            dependency.write_bytes(original)
+            recovered = self.jobs.recover(
+                "dependency",
+                expected_request_sha256=prepared["request_sha256"],
+                current_checkpoint=self.checkpoint,
+                expected_plan_manifest_sha256=manifest,
+            )
+            self.assertEqual(recovered["status"], "completed")
+            self.assertIs(recovered["result"]["formal_selected_receiver"], False)
+            self.assertIs(recovered["policy"]["execution_authorized"], False)
+            self.assertTrue((output / "raw-response.json").is_file())
+            self.assertEqual(len(self.calls), 1)
 
     def test_two_projects_with_the_same_root_and_key_have_separate_outputs(self):
         self.journal.bind_project("other-project-id", "f" * 64)
