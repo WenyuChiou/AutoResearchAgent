@@ -55,7 +55,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select|direction-intent)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -943,13 +943,15 @@ class ProjectHandler(AtlasHandler):
                         token, ref, body, check_deadline=self._remaining
                     )
                 elif (
-                    operation == "stage2" and action == "select" and resolution is None
+                    operation == "stage2"
+                    and action in {"select", "direction-intent"}
+                    and resolution is None
                 ):
                     extension = self.server.project_stage2_selection
                     if extension is None:
                         raise SessionApiError("stage2-selection-unconnected", 409)
-                    called = ("stage2-select", ref, body)
-                    result = extension.select(
+                    called = ("stage2-" + action, ref, body)
+                    result = getattr(extension, action.replace("-", "_"))(
                         token, ref, body, check_deadline=self._remaining
                     )
                 elif operation in {"models", "stage2"} and action in {
