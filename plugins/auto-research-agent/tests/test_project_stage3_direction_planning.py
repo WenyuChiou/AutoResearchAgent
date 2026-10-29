@@ -18,8 +18,9 @@ from research_workspace_native.project_stage3_direction_planning import (
 )  # noqa: E402
 from research_workspace_native.project_stage3_http import ProjectStage3Http  # noqa: E402
 from research_workspace_native.session_api import SessionApiError  # noqa: E402
-from stage3_plan.contracts import canonical_bytes, digest  # noqa: E402
+from stage3_plan.contracts import Stage3Error, canonical_bytes, digest  # noqa: E402
 from stage3_plan.jobs import POLICY, PlanningJobs  # noqa: E402
+from stage3_plan.native import NativePlanner  # noqa: E402
 from stage3_plan.prompts import MAX_CONTEXT_BYTES  # noqa: E402
 from stage3_plan.storage import write_new  # noqa: E402
 from stage3_direction_fixtures import DirectionFixture  # noqa: E402
@@ -138,10 +139,54 @@ class ProjectDirectionPlanningTests(unittest.TestCase):
             direction_intent_sha256=self.source["intent_sha256"],
         )
         self.addCleanup(patch.stopall)
-        patch(
+        self.native_forbidden = patch(
             "stage3_plan.native.NativePlanner.__call__",
             side_effect=AssertionError("native forbidden"),
-        ).start()
+        )
+        self.native_forbidden.start()
+
+    def test_replacing_intent_uses_distinct_native_capture_and_keeps_old_attempt(self):
+        parent = self.service.planning
+        root = self.fixture.fixture.root / self._testMethodName
+        original = NativePlanner(
+            codex=sys.executable,
+            codex_home=root,
+            capture_dir=root / "native-capture",
+            timeout_seconds=1,
+        )
+        parent.bindings["project-direction"]["callback"] = original
+        selection = self.service.selection
+        service = ProjectStage3DirectionPlanning(parent)
+        service.selection = selection
+        first = service._current("own", "project-direction")[3]["callback"]
+        same = service._current("own", "project-direction")[3]["callback"]
+        self.assertEqual(first.request_context, same.request_context)
+        source = self.fixture.source(
+            dict(self.fixture.intent, user_input="Authored second preference.")
+        )
+        selection.read.return_value = {
+            "direction_intent": {"intent_sha256": source["intent_sha256"]}
+        }
+        selection.direction_intent_context.return_value = source
+        second = service._current("own", "project-direction")[3]["callback"]
+        self.assertNotEqual(first.capture, second.capture)
+        namespace = original.capture.with_name(original.capture.name + "-direction")
+        self.assertEqual(first.capture.parent, namespace)
+        self.assertEqual(second.capture.parent, namespace)
+        first.capture.mkdir(parents=True)
+        marker = first.capture / "authored-attempt.txt"
+        marker.write_bytes(b"Preserve this authored prior attempt.")
+        self.native_forbidden.stop()
+        with patch("stage1_eval.model_calls.call_model_v31") as primitive:
+            with self.assertRaisesRegex(Stage3Error, "capture already attempted"):
+                first(
+                    prompt="Authored guard test.",
+                    schema_path=PLUGIN / "schemas/stage3-direction-plan.v1.schema.json",
+                    output_dir=root / "unused-plan",
+                    configuration={"model": "stub", "reasoning": "medium"},
+                )
+            primitive.assert_not_called()
+        self.assertEqual(marker.read_bytes(), b"Preserve this authored prior attempt.")
 
     def test_current_preference_prepare_run_and_read_result_use_original_job(self):
         before = self.service.read(
