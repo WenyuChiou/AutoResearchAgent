@@ -600,7 +600,8 @@
         "plugins/auto-research-agent/tests/test_project_stage2_selection_requests.cjs",
         "plugins/auto-research-agent/tests/test_stage2_ui_submission.py",
         "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py",
-        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
       ],
       "completion_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
@@ -635,7 +636,7 @@
       "projecthost_selection_registration_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_selection_frontier.py"
       ],
-      "projecthost_selection_http_contract": "Explicit local ProjectHost selection bindings require their external config hash and same trusted principal. The six-stage current-project entry opens a literal-text direction/material comparison and records only an explicitly confirmed current eligible version with actual user text. Existing Host, Origin, bearer, CSP, bounds and idempotency guards remain unchanged; same-key completed-registration recovery does not repeat Core work. Zero recommendations remain readable without choice controls. Synthetic browser/HTTP tests establish engineering behavior only, not real selection, source availability or experiment authority. Async reads and post-submit refresh bind the captured project and request generation; stale successes/errors cannot publish under a changed project. CLI external-hash refusal precedes listener allocation; matching explicit config startup closes its actual local listener.",
+      "projecthost_selection_http_contract": "Explicit local ProjectHost selection bindings require their external config hash and same trusted principal. The six-stage current-project entry opens a literal-text direction/material comparison and records only an explicitly confirmed current eligible version with actual user text. Existing Host, Origin, bearer, CSP, bounds and idempotency guards remain unchanged; same-key completed-registration recovery does not repeat Core work. Zero recommendations retain the formal-selection guard; a separate version-bound direction-intent API permits conditional planning preferences without selecting a recommendation. Synthetic browser/HTTP tests establish engineering behavior only, not real selection, source availability or experiment authority. Async reads and post-submit refresh bind the captured project and request generation; stale successes/errors cannot publish under a changed project. CLI external-hash refusal precedes listener allocation; matching explicit config startup closes its actual local listener.",
       "projecthost_selection_http_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_selection_http.py",
         "plugins/auto-research-agent/tests/test_project_stage2_selection_entry.py",
@@ -649,6 +650,10 @@
       "direction_readiness_contract": "Initial review view1.3 binds direction-readiness-1.0 to native initial review, tool-free extraction and reconciliation; rich controller inputs use it before current selection. Direction-stage evidence supports choosing a credible route; detailed staffing/sample/calls/GPU/cost/schedule tasks remain Stage3 planning. Necessary access/grain/answering-route/hard-limit blockers, all-applicable assessed=2, independent review, human choice and execution=false remain. Legacy1.0/1.1/1.2 views keep exact prior contracts; mixed or rehashed policy bindings reject. No automatic scientific promotion, old-score rewrite or A/B rerun.",
       "direction_readiness_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
+      ],
+      "projecthost_direction_intent_contract": "A separately typed ProjectHost UI direction-planning intent retains exact user input, current delivered candidate versions including revise/park, conditions, unresolved materials and source/workflow/snapshot pins. The original request key binds one durable intake intent and a sealed existing advisory projection; save-only does not dispatch, partial file/registration recovery compares original bytes and fills missing zero-model artifacts without overwriting failures or the source workflow. Formal recommended selection and selected planning admission are unchanged; pending preference is not recommendation, named identity, formal receiver acceptance or experiment authority. The core public save/context API supplies the bound intent to a separate Stage3 consumer; browser start wiring is a subsequent implementation slice.",
+      "projecthost_direction_intent_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
       ]
     },
     {
@@ -1018,7 +1023,8 @@
         "plugins/auto-research-agent/tests/test_stage2_scientific_argument.py",
         "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direct_import.py",
-        "plugins/auto-research-agent/tests/test_project_stage2_direct_cli.py"
+        "plugins/auto-research-agent/tests/test_project_stage2_direct_cli.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
       ],
       "metric_effects": [
         {
@@ -1034,6 +1040,10 @@
           ],
           "human_judgment": "Engineering transport checks do not establish scientific quality, an eligible real recommendation, human selection or execution."
         }
+      ],
+      "projecthost_direction_intent_contract": "A separately typed ProjectHost UI direction-planning intent retains exact user input, current delivered candidate versions including revise/park, conditions, unresolved materials and source/workflow/snapshot pins. The original request key binds one durable intake intent and a sealed existing advisory projection; save-only does not dispatch, partial file/registration recovery compares original bytes and fills missing zero-model artifacts without overwriting failures or the source workflow. Formal recommended selection and selected planning admission are unchanged; pending preference is not recommendation, named identity, formal receiver acceptance or experiment authority. The core public save/context API supplies the bound intent to a separate Stage3 consumer; browser start wiring is a subsequent implementation slice.",
+      "projecthost_direction_intent_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
       ]
     }
   ]
