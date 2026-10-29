@@ -101,23 +101,78 @@
     ["milestone_id","Milestone reference","里程碑引用","里程碑引用"],
     ["depends_on","Dependencies","相依項目","依赖项"],
     ["duration_basis","Duration estimate basis","時程估算依據","时程估算依据"],
-    ["deliverable","Deliverable","交付物","交付物"]
+    ["deliverable","Deliverable","交付物","交付物"],
+    ["user_input","Original planning request","原始規劃要求","原始规划要求"],
+    ["source_unresolved","Stage 2 source unknowns","Stage 2 來源未知事項","Stage 2 来源未知事项"],
+    ["pending_scope_questions","Pending source scope questions","來源中待確認的範圍問題","来源中待确认的范围问题"],
+    ["planning_blockers","Planning preparation needs clarification","規劃準備需釐清的事項","规划准备需澄清的事项"]
   ];
+  labels.push(
+    ["directionMode","Conditional direction planning · formal selection pending","方向條件規劃 · 正式選案待定","方向条件规划 · 正式选案待定"],
+    ["planningWork","Stage 3 planning job; desktop agent conversation is not connected","Stage 3 規劃工作；桌面 agent 對話尚未接通","Stage 3 规划工作；桌面 agent 对话尚未接通"],
+    ["needsInformation","More information or a narrower planning scope is needed. The preference remains saved.","需要補充必要資訊或先縮小規劃範圍；原方向意向仍已保存。","需要补充必要信息或先缩小规划范围；原方向意向仍已保存。"],
+    ["pending","Save a direction preference or a current selection in Stage 2 first.","請先在 Stage 2 保存方向偏好或目前選案。","请先在 Stage 2 保存方向偏好或当前选案。"],
+    ["directionIntro","Develop the saved direction preference while keeping formal selection pending.","細化已保存的方向偏好；正式選案仍待確認。","细化已保存的方向偏好；正式选案仍待确认。"],
+    ["directionSelection","Review the Stage 2 direction preference","檢視 Stage 2 方向偏好","查看 Stage 2 方向偏好"],
+    ["directionConfirm","Start conditional planning for this saved direction preference.","針對這次保存的方向偏好開始條件規劃。","针对这次保存的方向偏好开始条件规划。"],
+    ["directionReady","Preference saved. Prepare conditional planning; formal selection remains pending.","方向偏好已保存，可準備條件規劃；正式選案仍待確認。","方向偏好已保存，可准备条件规划；正式选案仍待确认。"],
+    ["directionPrepared","Input prepared. Confirm to start conditional planning; no model has been called.","輸入已準備，確認後開始條件規劃；尚未呼叫模型。","输入已准备，确认后开始条件规划；尚未调用模型。"],
+    ["directionSaved","The conditional draft is saved. Review the remaining evidence and conditions.","條件規劃草稿已保存，請檢視待補證據與未解條件。","条件规划草稿已保存，请查看待补证据与未解条件。"],
+    ["directionDispatching","Conditional planning is in progress; the original preference is retained.","條件規劃進行中，原方向偏好仍保留。","条件规划进行中，原方向偏好仍保留。"],
+    ["directionUnconnected","No planner is configured. The direction preference remains saved.","尚未設定規劃器；方向偏好仍已保存。","尚未配置规划器；方向偏好仍已保存。"],
+    ["directionQuestionIdentity","Original question and preferred direction version","原始問題與偏好方向版本","原始问题与偏好方向版本"],
+    ["directionConditions","User request and source conditions","使用者要求與來源條件","用户要求与来源条件"],
+    ["directionUserConditions","User conditions","使用者條件","用户条件"],
+    ["directionUserUnknowns","Unresolved user questions","使用者尚待釐清的問題","用户尚待澄清的问题"],
+    ["resource_ref","Use and suitability for this question","本題用途與適用性","本题用途与适用性"],
+    ["resource","Recorded resource","來源資源","来源资源"],
+    ["resourceVersion","Resource version","資源版本","资源版本"],
+    ["resourceKind","Resource type","資源類型","资源类型"],
+    ["resourceTitle","Resource name or title","資源名稱或標題","资源名称或标题"],
+    ["resourceNested","Additional recorded resource details","其他資源紀錄明細","其他资源记录明细"],
+    ["fit_status","Suitability status","適用性狀態","适用性状态"],
+    ["fit_evidence_ids","Evidence for suitability","適用性證據","适用性证据"],
+    ["license","Use permission or license","使用許可或授權","使用许可或授权"],
+    ["unresolved_resource_refs","Material links still to resolve","待釐清的材料對應","待澄清的材料对应"],
+    ["next_checks","Next verification steps","下一步查核","下一步核查"],
+    ["recordedDetails","Recorded details","原始紀錄明細","原始记录明细"],
+    ["recordedSource","Recorded source","來源紀錄","来源记录"],
+    ["next_check_status","Status of these checks","查核狀態","核查状态"],
+    ["missing_mapping","Source questions needing a mapping","缺少來源對應的問題","缺少来源对应的问题"],
+    ["researchMethod","Research method","研究方法","研究方法"],
+    ["design","Study or experiment design","研究或實驗設計","研究或实验设计"],
+    ["validation","Validation and credibility checks","驗證與可信度檢查","验证与可信度检查"],
+    ["analysis","Planned analysis","預定分析","预定分析"],
+    ["resultInterpretation","Interpretation of possible results","可能結果的判讀","可能结果的判读"],
+  );
   for(const [key,en,tw,cn] of labels){words.en[key]=en;words["zh-TW"][key]=tw;words["zh-CN"][key]=cn;}
   let view=null,serial=0,busy=false,notice=null;
   const w=()=>words[el("language").value] || words.en;
+  const directionCopy={intro:"directionIntro",selection:"directionSelection",confirm:"directionConfirm",ready:"directionReady",prepared:"directionPrepared",saved:"directionSaved",dispatching:"directionDispatching",unconnected:"directionUnconnected"};
+  const copyKey=key=>view?.planning_mode==="direction-intent" && Object.hasOwn(directionCopy,key)?directionCopy[key]:key;
   const ref=()=>el("project").value;
   const current=(project,sequence)=>ref()===project && serial===sequence;
   const node=(parent,tag,text)=>{const n=document.createElement(tag);n.textContent=String(text ?? "Unknown");parent.append(n);return n;};
   const rows=value=>Array.isArray(value)?value:[];
   const missing=(parent,id)=>{const p=node(parent,"p",w().missingRef+": "+String(id ?? w().unknownValue));p.className="sq-missing";};
-  function fields(parent,record,keys){
+  function fields(parent,record,keys,displayKeys={}){
     const dl=node(parent,"dl","");dl.className="sq-fields";
     for(const key of keys){
-      node(dl,"dt",w()[key] || key);const dd=node(dl,"dd","");const value=record?.[key];
+      const label=Object.hasOwn(displayKeys,key)?displayKeys[key]:key;
+      node(dl,"dt",Object.hasOwn(w(),label)?w()[label]:label.replaceAll("_"," "));const dd=node(dl,"dd","");const value=record?.[key];
       if(Array.isArray(value)){
         if(!value.length)node(dd,"span",w().noneRecorded);
-        else{const ul=node(dd,"ul","");for(const item of value)node(ul,"li",typeof item==="object"?JSON.stringify(item):item);}
+        else{
+          const ul=node(dd,"ul","");
+          for(const item of value){
+            const li=node(ul,"li","");
+            if(item && typeof item==="object" && !Array.isArray(item) && Object.hasOwn(item,"text") && typeof item.text==="string"){
+              node(li,"span",item.text);
+              const extra=Object.keys(item).filter(k=>k!=="text");
+              if(extra.length){const details=node(li,"details","");node(details,"summary",w().recordedDetails);fields(details,item,extra,{source:"recordedSource"});}
+            }else node(li,"span",typeof item==="object"?JSON.stringify(item):item);
+          }
+        }
       }else node(dd,"span",value===undefined || value===""?w().unknownValue:value===null?"null":typeof value==="object"?JSON.stringify(value):value);
     }
   }
@@ -175,27 +230,62 @@
   function renderEvidence(){
     const box=el("evidence-state");box.hidden=!view;box.replaceChildren();if(!view)return;
     node(box,"h2",w().evidenceState);node(box,"p",w().recordStatus+": "+([view.job?.status,view.job?.outcome,view.job?.planning_status].filter(v=>v!==undefined && v!==null).join(" / ") || w().unknownValue));
+    if(view.planning_mode==="direction-intent"){node(box,"p",w().directionMode);node(box,"p",w().planningWork);}
     node(box,"p",w().reviewLimit);node(box,"p",w().evalLimit);
     const details=node(box,"details","");node(details,"summary",w().evidenceDetails);
     fields(details,view.plan,["plan_id","version","schema_version","source_manifest_sha256"]);
     fields(details,view,["execution_authorized","evaluation_calls_authorized","formal_execution_enabled","external_claim_ready","usable_for_formal_pairing"]);
   }
+  function renderDirectionResource(parent,record,title){
+    const box=section(parent,title);
+    if(!record || typeof record!=="object" || Array.isArray(record)){fields(box,{resource:record},["resource"]);return;}
+    const keys=Object.keys(record), plain=keys.filter(k=>record[k]===null || typeof record[k]!=="object" || (Array.isArray(record[k]) && record[k].every(v=>v===null || typeof v!=="object")));
+    const display={version:"resourceVersion",kind:"resourceKind",resource_type:"resourceKind",name:"resourceTitle",title:"resourceTitle"};
+    if(plain.length)fields(box,record,plain,display);
+    if(!keys.length)node(box,"p",w().unknownValue);
+    const nested=keys.filter(k=>!plain.includes(k));
+    if(nested.length){const details=node(box,"details","");node(details,"summary",w().resourceNested);fields(details,record,nested,display);}
+  }
+  function renderDirectionPlan(){
+    const context=view.direction_context, plan=view.plan, target=el("questions");target.replaceChildren();
+    el("plan-conditions").replaceChildren();el("plan-milestones").replaceChildren();
+    for(const q of rows(context?.questions)){
+      const article=node(target,"article","");node(article,"h3",q.text);
+      fields(section(article,"directionQuestionIdentity"),q,["question_ref","candidate_id","candidate_version","priority","gap_ids","intended_claim"]);
+      const card=rows(context.preferred_cards).find(c=>c.candidate_id===q.candidate_id && c.candidate_version===q.candidate_version);
+      const source=rows(card?.scientific_questions).find(r=>r.question?.question_id===q.question_id);
+      const materials=section(article,"materials");node(materials,"p",source?.resource_mapping_status || w().unknownValue);
+      for(const use of rows(source?.resource_uses)){renderDirectionResource(materials,use.resource_ref,"resource_ref");renderDirectionResource(materials,use.resource,"resource");}
+      if(source)fields(materials,source,["unresolved_resource_refs","next_checks","next_check_status"]);
+      const p=rows(plan?.question_plans).find(r=>r.question_ref===q.question_ref);
+      if(p){
+        fields(section(article,"designs"),p,["materials","method","design","validation"],{method:"researchMethod"});
+        fields(section(article,"analyses"),p,["analysis"]);
+        fields(section(article,"results"),p,["interpretation","minimum_deliverable"],{interpretation:"resultInterpretation"});
+        fields(section(article,"unknowns"),p,["unknowns"]);
+      }else node(article,"p",w().unknownValue);
+    }
+    fields(section(el("plan-conditions"),"directionConditions"),context,["user_input","conditions","unresolved","source_unresolved","pending_scope_questions","missing_mapping"],{conditions:"directionUserConditions",unresolved:"directionUserUnknowns"});
+    if(rows(view.planning_blockers).length)fields(section(el("plan-conditions"),"unknowns"),view,["planning_blockers"]);
+    if(plan?.markdown)node(el("plan-milestones"),"p",plan.markdown);
+  }
   async function api(project,action,body){const r=await fetch("/api/projects/"+encodeURIComponent(project)+"/stage3/planning"+(action?"/"+action:""),{method:body?"POST":"GET",credentials:"omit",cache:"no-store",headers:{Authorization:"Bearer "+boot.credential,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw new Error(data.error || "request-failed");return data;}
   function render(){
     document.documentElement.lang=el("language").value;
-    document.querySelectorAll("[data-i18n]").forEach(n=>{n.textContent=w()[n.dataset.i18n];});
+    document.querySelectorAll("[data-i18n]").forEach(n=>{n.textContent=w()[copyKey(n.dataset.i18n)];});
     const request=view?.default_request,job=view?.job,prepared=job?.status==="intent-recorded";
     el("selection").href="/project-stage2-selection.html#"+encodeURIComponent(ref());
     el("project").disabled=busy;el("refresh").disabled=busy;
-    el("actions").hidden=!view || !view.planning_configured || view.selection_status!=="recorded";
+    const admitted=view?.selection_status==="recorded" || view?.planning_mode==="direction-intent";
+    el("actions").hidden=!view || !view.planning_configured || !admitted;
     el("prepare").disabled=busy || !request || Boolean(job);
     el("confirmed").disabled=busy || !prepared;
     el("run").disabled=busy || !prepared || !el("confirmed").checked || view?.submission_in_progress;
     el("inspect").disabled=busy || !request?.request_sha256;
     el("recover").disabled=busy || !request?.request_sha256 || !view?.recovery_pin_available || job?.outcome==="saved";
-    let status=!view?"choose":view.selection_status!=="recorded"?"pending":!view.planning_configured?"unconnected":job?.outcome==="saved"?"saved":job?.outcome==="failed"?"failed":view.submission_error?"failed":job?.status==="execution-unknown"?"unknown":view.submission_in_progress || job?.status==="dispatching"?"dispatching":prepared?"prepared":"ready";
-    el("status").textContent=notice || w()[status];
-    renderEvidence();el("plan").hidden=!view?.plan;renderScientificPlan(view?.plan);
+    let status=!view?"choose":!admitted?"pending":!view.planning_configured?"unconnected":(view.dispatch_action==="needs-information" || view.direction_context?.missing_mapping?.length)?"needsInformation":job?.outcome==="saved"?"saved":job?.outcome==="failed"?"failed":view.submission_error?"failed":job?.status==="execution-unknown"?"unknown":view.submission_in_progress || job?.status==="dispatching"?"dispatching":prepared?"prepared":"ready";
+    el("status").textContent=notice || w()[copyKey(status)];
+    renderEvidence();el("plan").hidden=!(view?.plan || view?.direction_context);if(view?.planning_mode==="direction-intent")renderDirectionPlan();else renderScientificPlan(view?.plan);
     el("plan-json").textContent=view?.plan?JSON.stringify(view.plan,null,2):"";
     el("receipt").textContent=view?JSON.stringify({...view,plan:undefined},null,2):"";
   }

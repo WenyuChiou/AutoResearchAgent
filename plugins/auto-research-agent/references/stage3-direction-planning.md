@@ -42,3 +42,15 @@ adapter and source bindings; recovery availability uses the existing trusted pin
 map. Source unknowns and user conditions remain separate. The target is a Stage 3
 planning job; agent_conversation_connected=false. Deployment, Wiki integration
 and native/scientific acceptance remain separate; execution_authorized=false.
+
+The Wiki presentation joins each original question to its own recorded materials
+and conditional method, design, validation, analysis and result interpretation.
+It separates source unknowns, user conditions and missing mappings. Common
+resource fields have plain labels; nested original details remain expandable.
+Three-language copy keeps direction preferences and conditional drafts distinct
+from formal selections. Reading or changing language dispatches nothing; explicit
+actions reuse the saved typed request and key. Original raw values remain in the
+receipt view. Deployed/native/scientific and whole-flow acceptance remain unverified.
+
+Recorded next-check objects show their original text, with source markers and
+other recorded fields available in expandable details. Rendering changes no values.
