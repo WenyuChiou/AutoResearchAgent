@@ -19,25 +19,39 @@
   <h1 data-i18n="title">Stage 3 · Research planning</h1>
   <p data-i18n="intro">Turn the selected direction into a research plan. Saved conditions and unknowns remain visible.</p>
   <label><span data-i18n="project">Project</span><select id="project"></select></label>
-  <p id="status" role="status" aria-live="polite"></p>
-  <nav class="planning-actions">
-    <a id="selection" data-i18n="selection">Review the selected direction</a>
-    <button id="refresh" type="button" data-i18n="refresh">Read saved state</button>
-  </nav>
-  <section id="evidence-state" hidden aria-label="Planning evidence"></section>
+  <section id="context" hidden aria-labelledby="context-title">
+    <h2 id="context-title" data-i18n="contextTitle">This planning context</h2>
+    <div id="direction-context"></div>
+  </section>
+  <section id="progress" aria-labelledby="step-title">
+    <p class="planning-flow" data-i18n="flow">Stage 2 context → Stage 3 planning → Draft review</p>
+    <h2 id="step-title"></h2>
+    <p id="status" role="status" aria-live="polite"></p>
+    <p id="next-step"></p>
+    <nav class="planning-actions" aria-label="Planning navigation">
+      <a id="selection" data-i18n="selection">Review the selected direction</a>
+      <button id="refresh" type="button" data-i18n="refresh">Read saved state</button>
+      <a id="review" href="#plan" hidden data-i18n="reviewPlan">Review the question-by-question plan</a>
+    </nav>
+  </section>
   <section id="actions" hidden>
     <h2 data-i18n="next">Continue planning</h2>
     <p data-i18n="boundary">Preparing an input makes no model call. Starting planning uses the configured planner once. Experiments remain unauthorized.</p>
     <button id="prepare" type="button" data-i18n="prepare">1. Prepare planning input</button>
-    <label><input id="confirmed" type="checkbox"><span data-i18n="confirm">I want to start planning for this saved selection.</span></label>
+    <label id="confirmation"><input id="confirmed" type="checkbox"><span data-i18n="confirm">I want to start planning for this saved selection.</span></label>
     <button id="run" type="button" data-i18n="run">2. Start planning</button>
-    <button id="inspect" type="button" data-i18n="inspect">Inspect saved result</button>
-    <button id="recover" type="button" data-i18n="recover">Recover verified saved result</button>
   </section>
-  <section id="plan" hidden><h2 data-i18n="plan">Research plan</h2><div id="questions"></div>
-    <div id="plan-conditions"></div><div id="plan-milestones"></div>
+  <section id="plan" hidden tabindex="-1"><h2 id="plan-title" data-i18n="plan">Research plan</h2><div id="questions"></div>
+    <div id="plan-conditions" tabindex="-1"></div><div id="plan-milestones"></div>
     <details><summary data-i18n="fullPlan">Full plan, conditions and unresolved questions</summary><pre id="plan-json" translate="no"></pre></details>
   </section>
-  <details><summary data-i18n="receipt">Version and planning receipt</summary><pre id="receipt" translate="no"></pre></details>
+  <details id="planning-details"><summary data-i18n="receipt">Version and planning receipt</summary>
+    <section id="evidence-state" hidden aria-label="Planning evidence"></section>
+    <div class="planning-actions">
+      <button id="inspect" type="button" data-i18n="inspect">Inspect saved result</button>
+      <button id="recover" type="button" data-i18n="recover">Recover verified saved result</button>
+    </div>
+    <pre id="receipt" translate="no"></pre>
+  </details>
 </main></body>
 </html>

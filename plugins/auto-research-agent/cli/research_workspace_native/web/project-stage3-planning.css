@@ -1,8 +1,24 @@
 .planning-actions {display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:1.5rem 0}
+header {display:flex;justify-content:space-between;gap:1rem;align-items:center}
+header a {display:inline-flex;align-items:center;min-height:44px}
+#context,#progress {background:#fff;border:1px solid #ccd5df;border-radius:12px;padding:1.25rem;margin:1.25rem 0}
+#context h2,#progress h2 {margin-top:0}
+.planning-flow {font-size:.9rem;color:#40566d}
+#next-step {font-weight:600}
+.planning-actions a {display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+.planning-actions button {margin-top:0}
+.planning-primary {background:#143f6b;color:#fff;border:1px solid #143f6b;border-radius:5px;padding:10px;text-decoration:none}
+button:not(.planning-primary):not(:disabled) {background:#fff;color:#143f6b}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible {outline:3px solid #226b80;outline-offset:3px}
+button,select,summary {min-height:44px}
+summary {cursor:pointer;padding:.5rem 0}
+[hidden] {display:none!important}
+#planning-details {margin-top:1.5rem}
 #actions {display:grid;gap:1rem;margin:1.5rem 0;padding:1.25rem;border:1px solid #a9bac9;border-radius:.5rem}
 #actions[hidden],#plan[hidden] {display:none}
 #actions label {display:flex;gap:.5rem;align-items:flex-start}
 #actions input {width:auto;margin-top:.3rem}
+#confirmation {min-height:44px}
 #questions article {border-left:4px solid #226b80;padding:.5rem 1rem;margin:1rem 0}
 #evidence-state {margin:1rem 0;padding:1rem;background:#f1f5f8;border-radius:.5rem}
 #evidence-state[hidden] {display:none}
