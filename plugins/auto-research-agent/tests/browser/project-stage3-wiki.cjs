@@ -169,6 +169,20 @@ if (require.main === module) {
     assert.equal(JSON.stringify(data),original);
     assert.equal(p.calls.length,count);assert.ok(p.calls.every(c=>c.options.method==="GET"));
   });
+  test("next checks retain readable text and recorded sources", async () => {
+    const data=conditionalView();
+    data.direction_context.preferred_cards[0].scientific_questions[0].next_checks=[{text:"Verify access <img src=x>",source:"prior-work unresolved"}];
+    const original=JSON.stringify(data), p=await page(data), count=p.calls.length;
+    const labels={en:["Recorded details","Recorded source"],"zh-TW":["原始紀錄明細","來源紀錄"],"zh-CN":["原始记录明细","来源记录"]};
+    for(const language of ["en","zh-TW","zh-CN"]){
+      p.elements.language.value=language;p.elements.language.onchange();
+      const text=p.elements.questions.children[0].textContent;
+      for(const value of ["Verify access <img src=x>","prior-work unresolved",...labels[language]])assert.ok(text.includes(value),value);
+      for(const raw of ['"text":','"source":'])assert.ok(!text.includes(raw),raw);
+    }
+    assert.equal(JSON.stringify(data),original);assert.equal(p.calls.length,count);
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
   test("missing source question mapping is visible and cannot start planning", async () => {
     const data=conditionalView();data.direction_context.missing_mapping=[{reason:"No source question mapping"}];
     data.direction_context.questions=[];data.default_request=null;data.job=null;data.plan=null;

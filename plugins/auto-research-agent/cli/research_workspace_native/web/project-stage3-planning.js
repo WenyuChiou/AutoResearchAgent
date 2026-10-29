@@ -135,6 +135,8 @@
     ["license","Use permission or license","使用許可或授權","使用许可或授权"],
     ["unresolved_resource_refs","Material links still to resolve","待釐清的材料對應","待澄清的材料对应"],
     ["next_checks","Next verification steps","下一步查核","下一步核查"],
+    ["recordedDetails","Recorded details","原始紀錄明細","原始记录明细"],
+    ["recordedSource","Recorded source","來源紀錄","来源记录"],
     ["next_check_status","Status of these checks","查核狀態","核查状态"],
     ["missing_mapping","Source questions needing a mapping","缺少來源對應的問題","缺少来源对应的问题"],
     ["researchMethod","Research method","研究方法","研究方法"],
@@ -160,7 +162,17 @@
       node(dl,"dt",Object.hasOwn(w(),label)?w()[label]:label.replaceAll("_"," "));const dd=node(dl,"dd","");const value=record?.[key];
       if(Array.isArray(value)){
         if(!value.length)node(dd,"span",w().noneRecorded);
-        else{const ul=node(dd,"ul","");for(const item of value)node(ul,"li",typeof item==="object"?JSON.stringify(item):item);}
+        else{
+          const ul=node(dd,"ul","");
+          for(const item of value){
+            const li=node(ul,"li","");
+            if(item && typeof item==="object" && !Array.isArray(item) && Object.hasOwn(item,"text") && typeof item.text==="string"){
+              node(li,"span",item.text);
+              const extra=Object.keys(item).filter(k=>k!=="text");
+              if(extra.length){const details=node(li,"details","");node(details,"summary",w().recordedDetails);fields(details,item,extra,{source:"recordedSource"});}
+            }else node(li,"span",typeof item==="object"?JSON.stringify(item):item);
+          }
+        }
       }else node(dd,"span",value===undefined || value===""?w().unknownValue:value===null?"null":typeof value==="object"?JSON.stringify(value):value);
     }
   }

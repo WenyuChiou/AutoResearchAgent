@@ -51,3 +51,6 @@ Three-language copy keeps direction preferences and conditional drafts distinct
 from formal selections. Reading or changing language dispatches nothing; explicit
 actions reuse the saved typed request and key. Original raw values remain in the
 receipt view. Deployed/native/scientific and whole-flow acceptance remain unverified.
+
+Recorded next-check objects show their original text, with source markers and
+other recorded fields available in expandable details. Rendering changes no values.
