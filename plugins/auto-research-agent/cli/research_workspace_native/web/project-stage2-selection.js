@@ -45,7 +45,7 @@
       job.kind!==(tentative?"ProjectStage3DirectionPlanningJob":"ProjectStage3PlanningJob") ||
       (tentative && (job.mode!=="direction-intent" || job.formal_selected_receiver!==false))) return;
     const language=byId("language").value,query=["en","zh-TW","zh-CN"].includes(language)?"?lang="+encodeURIComponent(language):"";
-    window.location.assign("/project-stage3-planning.html"+query+"#"+encodeURIComponent(ref));
+    window.location.assign("/project-stage3-planning.html#"+encodeURIComponent(ref)+query);
   }
   function renderProjectContext() {
     const area=byId("project-context");
