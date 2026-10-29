@@ -133,5 +133,66 @@ if (require.main === module) {
       assert.ok(p.elements.questions.textContent.includes("Question asks for bounded description and explanation"));
     }
   });
+  function conditionalView() {
+    const data=fixture(), questions=data.plan.questions.map(q=>({...q,question_id:q.question_ref}));
+    data.selection_status="pending";data.planning_mode="direction-intent";
+    data.job={status:"completed",outcome:"saved"};
+    data.default_request={key:"same-direction-key",revision:1,input_version:1,brief_sha256:"b".repeat(64),mode:"direction-intent",direction_intent_sha256:"d".repeat(64),request_sha256:"e".repeat(64)};
+    data.direction_context={questions,conditions:["Original direction restriction"],unresolved:["Permission remains unknown"],source_unresolved:["Stage2-only governance restriction"],pending_scope_questions:["Confirm the target universe"],missing_mapping:[],
+      preferred_cards:[{candidate_id:"synthetic-choice",candidate_version:3,scientific_questions:questions.map(q=>({question:q,resource_mapping_status:"unknown",resource_uses:[{resource_ref:{purpose:"Evidence for "+q.question_ref,fit_status:"unknown"},resource:{status:"unknown",license:"not-established"}}]}))}]};
+    data.plan={kind:"Stage3DirectionPlanningResult",markdown:"Conditional plan, no experiment run.",question_plans:questions.map((q,i)=>({question_ref:q.question_ref,materials:"Unverified documentary source",method:`Method for SQ${i+1}`,design:"Conditional design",validation:"Negative cases",analysis:"Bounded comparison",interpretation:"Support, contradiction or inconclusive",unknowns:["Resolve access before collection"],minimum_deliverable:"Bounded answer"})),execution_authorized:false};
+    return data;
+  }
+  test("a pending direction preference shows its conditional SQ plan and original unknowns", async () => {
+    const data=conditionalView(), original=JSON.stringify(data), p=await page(data), count=p.calls.length;
+    assert.equal(p.elements.actions.hidden,false);assert.equal(p.elements.plan.hidden,false);
+    assert.equal(p.elements.questions.children.length,2);
+    for(const [i,a] of p.elements.questions.children.entries()){
+      for(const text of [`Method for SQ${i+1}`,"unknown","not-established","Resolve access before collection"])assert.ok(a.textContent.includes(text),text);
+    }
+    assert.ok(p.elements["plan-conditions"].textContent.includes("Permission remains unknown"));
+    for(const t of ["Stage2-only governance restriction","Confirm the target universe"])assert.ok(p.elements["plan-conditions"].textContent.includes(t));
+    for(const [i,a] of p.elements.questions.children.entries()){assert.ok(a.textContent.includes("Evidence for "+data.direction_context.questions[i].question_ref));}
+    assert.ok(p.elements["evidence-state"].textContent.includes("desktop agent conversation is not connected"));
+    assert.ok(p.elements.status.textContent.includes("conditional draft"));
+    const labels={
+      en:["Use and suitability for this question","Interpretation of possible results","Study or experiment design","Validation and credibility checks"],
+      "zh-TW":["本題用途與適用性","可能結果的判讀","研究或實驗設計","驗證與可信度檢查"],
+      "zh-CN":["本题用途与适用性","可能结果的判读","研究或实验设计","验证与可信度检查"]
+    };
+    for(const language of ["en","zh-TW","zh-CN"]){
+      p.elements.language.value=language;p.elements.language.onchange();assert.ok(!p.text().includes("undefined"));
+      const text=p.elements.questions.textContent;
+      for(const label of labels[language])assert.ok(text.includes(label),label);
+      for(const key of ["resource_ref","unresolved_resource_refs","next_check_status",'"purpose":'])assert.ok(!text.includes(key),key);
+    }
+    assert.equal(JSON.stringify(data),original);
+    assert.equal(p.calls.length,count);assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("missing source question mapping is visible and cannot start planning", async () => {
+    const data=conditionalView();data.direction_context.missing_mapping=[{reason:"No source question mapping"}];
+    data.direction_context.questions=[];data.default_request=null;data.job=null;data.plan=null;
+    const p=await page(data);assert.equal(p.elements.prepare.disabled,true);assert.equal(p.elements.run.disabled,true);
+    assert.ok(p.elements.status.textContent.includes("More information"));
+    assert.ok(p.elements["plan-conditions"].textContent.includes("No source question mapping"));
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("an oversized saved preference shows its focus reason and never starts planning", async () => {
+    const data=conditionalView();data.dispatch_action="needs-information";data.planning_status="needs-information";
+    data.planning_blockers=["Narrow the scope while retaining source context"];data.default_request=null;data.job=null;data.plan=null;
+    const p=await page(data);assert.equal(p.elements.prepare.disabled,true);assert.equal(p.elements.run.disabled,true);
+    assert.ok(p.elements.status.textContent.includes("narrower planning scope"));
+    assert.ok(p.elements["plan-conditions"].textContent.includes("Narrow the scope while retaining source context"));
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("explicit conditional start retains its mode and intent key without a target override", async () => {
+    const data=conditionalView();data.job={status:"intent-recorded"};data.plan=null;
+    const p=await page(data,(url,options)=>({ok:true,json:async()=>options.method==="POST"?{submission_status:"accepted"}:structuredClone(data)}));
+    p.elements.confirmed.checked=true;await p.elements.run.onclick();await p.elements.run.onclick();
+    const writes=p.calls.filter(c=>c.options.method==="POST");assert.equal(writes.length,1);
+    const body=JSON.parse(writes[0].options.body);assert.equal(body.mode,"direction-intent");
+    assert.equal(body.key,"same-direction-key");assert.equal(body.direction_intent_sha256,"d".repeat(64));
+    assert.equal(body.confirmed,true);assert.equal(body.target_thread,undefined);assert.equal(body.selection_request_sha256,undefined);
+  });
 }
 module.exports = {fixture, web};
