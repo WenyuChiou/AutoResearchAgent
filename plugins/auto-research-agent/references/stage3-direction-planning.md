@@ -69,7 +69,11 @@ match; all historical errors remain unchanged in the raw receipt.
 When an explicit action hides its old control, keyboard focus moves to the
 applicable confirmation, draft-review or read-state control on the same project.
 Before a plan exists, headings identify original questions and source conditions.
-The optional lang query accepts only en, zh-TW or zh-CN; no preference storage or
-additional planning call is introduced.
+Entry uses the canonical HTML path and #encoded-project?lang=en|zh-TW|zh-CN;
+the fragment is client-only, so the strict Host route needs no query support.
+Unknown or malformed project fragments select no project and read no other one.
+Explicit project/language changes replace the current permalink without storage
+or an extra planning call. Review buttons scroll/focus without replacing the
+project fragment, so reloading retains the same project and language.
 Three-language, narrow-screen and keyboard checks establish presentation behavior
 only; usability with researchers and scientific acceptance remain unverified.

@@ -18,7 +18,7 @@
   </header>
   <h1 data-i18n="title">Stage 3 · Research planning</h1>
   <p data-i18n="intro">Turn the selected direction into a research plan. Saved conditions and unknowns remain visible.</p>
-  <label><span data-i18n="project">Project</span><select id="project"></select></label>
+  <label><span data-i18n="project">Project</span><select id="project"><option value="" data-i18n="choose">Choose a project</option></select></label>
   <section id="context" hidden aria-labelledby="context-title">
     <h2 id="context-title" data-i18n="contextTitle">This planning context</h2>
     <div id="direction-context"></div>
@@ -31,7 +31,7 @@
     <nav class="planning-actions" aria-label="Planning navigation">
       <a id="selection" data-i18n="selection">Review the selected direction</a>
       <button id="refresh" type="button" data-i18n="refresh">Read saved state</button>
-      <a id="review" href="#plan" hidden data-i18n="reviewPlan">Review the question-by-question plan</a>
+      <button id="review" type="button" hidden aria-controls="plan" data-i18n="reviewPlan">Review the question-by-question plan</button>
     </nav>
   </section>
   <section id="actions" hidden>

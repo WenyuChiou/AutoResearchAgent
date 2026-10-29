@@ -334,7 +334,7 @@
     el("review").hidden=!(view?.plan || view?.direction_context);
     el("review").textContent=w()[view?.plan?"reviewPlan":"reviewContext"];
     el("plan-title").textContent=w()[view?.plan?"draftPlan":"contextPlan"];
-    el("review").href=state==="needsInformation" || state==="draftNeedsInformation"?"#plan-conditions":"#plan";
+    el("review").dataset.target=state==="needsInformation" || state==="draftNeedsInformation"?"plan-conditions":"plan";
     let primary="refresh";
     if(canPrepare)primary="prepare";
     else if(canRun)primary="run";
@@ -381,11 +381,17 @@
       }
     }
   }
-  el("language").onchange=render;el("project").onchange=load;el("refresh").onclick=load;el("confirmed").onchange=render;
+  function syncPermalink(){
+    history.replaceState(null,"","#"+encodeURIComponent(ref())+"?lang="+encodeURIComponent(el("language").value));
+  }
+  el("language").onchange=()=>{syncPermalink();render();};el("project").onchange=()=>{syncPermalink();return load();};el("refresh").onclick=load;el("confirmed").onchange=render;
+  el("review").onclick=()=>{const target=el(el("review").dataset.target);target.scrollIntoView({block:"start"});target.focus();};
   for(const action of ["prepare","run","inspect","recover"])el(action).onclick=()=>act(action);
   for(const project of boot.stage3_planning_projects || []){const option=node(el("project"),"option",project);option.value=project;}
-  const initialLanguage=new URLSearchParams(location.search || "").get("lang");
+  const fragment=location.hash.slice(1),separator=fragment.indexOf("?");
+  const initialLanguage=new URLSearchParams(separator<0?"":fragment.slice(separator+1)).get("lang");
   if(Object.hasOwn(words,initialLanguage))el("language").value=initialLanguage;
-  const initial=location.hash.slice(1);if((boot.stage3_planning_projects || []).includes(initial))el("project").value=initial;
+  let initial="";try{initial=decodeURIComponent(separator<0?fragment:fragment.slice(0,separator));}catch{}
+  if((boot.stage3_planning_projects || []).includes(initial))el("project").value=initial;
   load();
 }());

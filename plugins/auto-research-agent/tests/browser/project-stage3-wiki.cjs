@@ -46,18 +46,20 @@ class Element {
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this._text = ""; this.children = children; }
   focus() { this.focusCount=(this.focusCount || 0)+1; }
+  scrollIntoView() { this.scrollCount=(this.scrollCount || 0)+1; }
 }
 const settle = async () => { for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve)); };
-async function page(view = fixture(), responder, search = "") {
+async function page(view = fixture(), responder, fragment = "#project-a") {
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   elements.language.value = "en";
-  const calls = [], created = [];
+  const calls = [], created = [], historyCalls = [], location = {hash:fragment,search:""};
+  const history = {replaceState: (data,title,url) => { assert.ok(url.startsWith("#"));historyCalls.push(url);location.hash=url; }};
   const document = {documentElement: {}, getElementById: id => { assert.ok(elements[id], id); return elements[id]; },
     querySelectorAll: () => [], createElement: tag => { created.push(tag); return new Element(tag); }};
   vm.runInNewContext(script, {document, window: {RESEARCH_PROJECTS: {credential: "synthetic", stage3_planning_projects: ["project-a", "project-b"]}},
-    location: {hash: "#project-a", search}, URLSearchParams, fetch: async (url, options) => { calls.push({url, options}); return responder ? responder(url, options) : {ok: true, json: async () => structuredClone(view)}; }});
+    location, history, URLSearchParams, fetch: async (url, options) => { calls.push({url, options}); return responder ? responder(url, options) : {ok: true, json: async () => structuredClone(view)}; }});
   await settle();
-  return {elements, calls, created, text: () => Object.values(elements).map(n => n.textContent).join("\n")};
+  return {elements, calls, created, location, historyCalls, text: () => Object.values(elements).map(n => n.textContent).join("\n")};
 }
 
 if (require.main === module) {
@@ -261,10 +263,10 @@ if (require.main === module) {
     assert.equal(p.elements.refresh.disabled,false);assert.equal(p.calls.length,1);
     assert.ok(p.calls.every(c=>c.options.method==="GET"));
   });
-  test("entry language is allowlisted and a running context is not labeled as a generated plan", async () => {
+  test("fragment entry language is allowlisted and a running context is not labeled as a generated plan", async () => {
     for(const [query,language] of [["?lang=zh-TW","zh-TW"],["?lang=zh-CN","zh-CN"],["?lang=en","en"],["?lang=other","en"]]){
       const data=conditionalView();data.plan=null;data.job={status:"dispatching"};
-      const original=JSON.stringify(data),p=await page(data,undefined,query);
+      const original=JSON.stringify(data),p=await page(data,undefined,"#project-a"+query);
       assert.equal(p.elements.language.value,language);assert.equal(p.calls.length,1);
       assert.equal(p.calls[0].options.method,"GET");assert.equal(JSON.stringify(data),original);
       assert.ok(!p.elements.review.textContent.includes("question-by-question plan"));
@@ -311,6 +313,44 @@ if (require.main === module) {
     await p.elements.run.onclick();assert.equal(p.elements.refresh.focusCount,1);
     assert.equal(p.elements.refresh.disabled,false);assert.equal(p.elements.actions.hidden,true);
     assert.equal(p.calls.filter(c=>c.options.method==="POST").length,2);
+  });
+  test("fragment project and locale remain current after language or project changes", async () => {
+    const p=await page(conditionalView(),undefined,"#project%2Db?lang=zh-TW");
+    assert.equal(p.elements.project.value,"project-b");assert.equal(p.elements.language.value,"zh-TW");
+    assert.equal(p.calls[0].url,"/api/projects/project-b/stage3/planning");
+    p.elements.language.value="zh-CN";p.elements.language.onchange();
+    assert.equal(p.location.hash,"#project-b?lang=zh-CN");assert.equal(p.calls.length,1);
+    p.elements.project.value="project-a";await p.elements.project.onchange();
+    assert.equal(p.location.hash,"#project-a?lang=zh-CN");
+    assert.equal(p.calls[1].url,"/api/projects/project-a/stage3/planning");
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("review scroll keeps the project permalink intact for reload", async () => {
+    const data=conditionalView();data.job.planning_status="needs-information";
+    const p=await page(data,undefined,"#project-b?lang=zh-TW"),fragment=p.location.hash;
+    p.elements.review.onclick();assert.equal(p.location.hash,fragment);
+    assert.equal(p.elements["plan-conditions"].scrollCount,1);assert.equal(p.elements["plan-conditions"].focusCount,1);
+    assert.equal(p.calls.length,1);
+    const reloaded=await page(data,undefined,p.location.hash);
+    assert.equal(reloaded.elements.project.value,"project-b");assert.equal(reloaded.elements.language.value,"zh-TW");
+    assert.equal(reloaded.calls[0].url,"/api/projects/project-b/stage3/planning");
+  });
+  test("unknown or malformed fragment projects never read a different project", async () => {
+    for(const fragment of ["#missing?lang=zh-TW","#%E0%A4%A?lang=zh-TW","#?lang=zh-TW",""]){
+      const p=await page(conditionalView(),undefined,fragment);
+      assert.equal(p.elements.project.value,"");assert.equal(p.calls.length,0);
+      assert.equal(p.elements.context.hidden,true);assert.equal(p.elements.plan.hidden,true);
+    }
+  });
+  test("clearing the project keeps an empty context and locale across reload", async () => {
+    const data=conditionalView(),p=await page(data,undefined,"#project-b?lang=zh-TW");
+    p.elements.project.value="";await p.elements.project.onchange();
+    assert.equal(p.location.hash,"#?lang=zh-TW");assert.equal(p.calls.length,1);
+    p.elements.language.value="en";p.elements.language.onchange();
+    assert.equal(p.location.hash,"#?lang=en");assert.equal(p.calls.length,1);
+    const reloaded=await page(data,undefined,p.location.hash);
+    assert.equal(reloaded.elements.project.value,"");assert.equal(reloaded.elements.language.value,"en");
+    assert.equal(reloaded.calls.length,0);assert.equal(reloaded.elements.context.hidden,true);
   });
 }
 module.exports = {fixture, web};
