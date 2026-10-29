@@ -54,15 +54,6 @@ class ProjectStage3DirectionPlanning:
         for ref, binding in planning.bindings.items():
             original = binding["jobs"]
             callback = binding["callback"]
-            if isinstance(callback, NativePlanner):
-                callback = NativePlanner(
-                    codex=callback.codex,
-                    codex_home=callback.home,
-                    capture_dir=callback.capture.with_name(
-                        callback.capture.name + "-direction"
-                    ),
-                    timeout_seconds=callback.timeout,
-                )
             self.bindings[ref] = {
                 "jobs": DirectionPlanningJobs(
                     original.journal,
@@ -118,6 +109,22 @@ class ProjectStage3DirectionPlanning:
                 == digest(configured["adapter_context"]),
                 "stage3-direction-adapter-context-differs",
             )
+            callback = configured["callback"]
+            if isinstance(callback, NativePlanner):
+                callback = NativePlanner(
+                    codex=callback.codex,
+                    codex_home=callback.home,
+                    capture_dir=callback.capture.with_name(
+                        callback.capture.name + "-direction"
+                    )
+                    / digest([configured["jobs"].project_id, ref, pin]),
+                    timeout_seconds=callback.timeout,
+                )
+                configured = dict(
+                    configured,
+                    callback=callback,
+                    adapter_context=deepcopy(callback.request_context),
+                )
         return project, source, context, configured
 
     @staticmethod
