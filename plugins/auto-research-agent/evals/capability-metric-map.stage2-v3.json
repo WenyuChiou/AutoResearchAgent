@@ -601,7 +601,9 @@
         "plugins/auto-research-agent/tests/test_stage2_ui_submission.py",
         "plugins/auto-research-agent/tests/test_project_stage2_reading_locales.py",
         "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py",
-        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
       ],
       "completion_evidence_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_completion.py",
@@ -654,6 +656,11 @@
       "projecthost_direction_intent_contract": "A separately typed ProjectHost UI direction-planning intent retains exact user input, current delivered candidate versions including revise/park, conditions, unresolved materials and source/workflow/snapshot pins. The original request key binds one durable intake intent and a sealed existing advisory projection; save-only does not dispatch, partial file/registration recovery compares original bytes and fills missing zero-model artifacts without overwriting failures or the source workflow. Formal recommended selection and selected planning admission are unchanged; pending preference is not recommendation, named identity, formal receiver acceptance or experiment authority. The core public save/context API supplies the bound intent to a separate Stage3 consumer; browser start wiring is a subsequent implementation slice.",
       "projecthost_direction_intent_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
+      ],
+      "projecthost_direction_intent_ui_contract": "Tentative delivered-version preferences stay distinct from formal selection; save-only makes no Stage3 call. Explicit start rechecks the returned receipt against refreshed selection, current planning and default request pins before one prepare/run. Historical replay cannot adopt a newer preference. needs-information/unavailable retain source blockers and unknowns as text in three locales, without dispatch or experiment authority.",
+      "projecthost_direction_intent_ui_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
       ]
     },
     {
@@ -1024,7 +1031,9 @@
         "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direct_import.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direct_cli.py",
-        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
       ],
       "metric_effects": [
         {
@@ -1044,6 +1053,11 @@
       "projecthost_direction_intent_contract": "A separately typed ProjectHost UI direction-planning intent retains exact user input, current delivered candidate versions including revise/park, conditions, unresolved materials and source/workflow/snapshot pins. The original request key binds one durable intake intent and a sealed existing advisory projection; save-only does not dispatch, partial file/registration recovery compares original bytes and fills missing zero-model artifacts without overwriting failures or the source workflow. Formal recommended selection and selected planning admission are unchanged; pending preference is not recommendation, named identity, formal receiver acceptance or experiment authority. The core public save/context API supplies the bound intent to a separate Stage3 consumer; browser start wiring is a subsequent implementation slice.",
       "projecthost_direction_intent_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py"
+      ],
+      "projecthost_direction_intent_ui_contract": "Tentative delivered-version preferences stay distinct from formal selection; save-only makes no Stage3 call. Explicit start rechecks the returned receipt against refreshed selection, current planning and default request pins before one prepare/run. Historical replay cannot adopt a newer preference. needs-information/unavailable retain source blockers and unknowns as text in three locales, without dispatch or experiment authority.",
+      "projecthost_direction_intent_ui_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
       ]
     }
   ]
