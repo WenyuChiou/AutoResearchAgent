@@ -12,11 +12,14 @@ from stage2_workflow.planning_handoff import prepare_planning_handoff
 from stage2_workflow.ui_submission import valid_input_version
 from stage3_plan.intake import admit_intake
 from .project_intake_contract import BOUND_FIELDS, _fields
+from .project_stage2_direction_intent import ProjectStage2DirectionIntent
 from .project_stage2_selection_view import ProjectStage2SelectionView
 from .session_api import SessionApiError, _check
 
 
-class ProjectStage2SelectionService(ProjectStage2SelectionView):
+class ProjectStage2SelectionService(
+    ProjectStage2DirectionIntent, ProjectStage2SelectionView
+):
     """No filesystem, research, or execution authority comes from UI fields."""
 
     def _advance_selected_frontier(
