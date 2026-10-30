@@ -1,0 +1,9 @@
+{
+  "artifact": "downloads/design-only.zip",
+  "sha256": "84b42c6ca6db5ea24a9cbf7ea2562312993656ad504be800ec7746e92f758569",
+  "bytes": 3351280,
+  "files": 66,
+  "zip_crc_checked": true,
+  "scope": "design-only; no backend/API/product source/real research data",
+  "source_baseline": "57ae0509d7ccf17c92080434d8454b4e2352c33c"
+}

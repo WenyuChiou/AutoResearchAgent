@@ -8,9 +8,18 @@
 
 1. [设计说明与完整流程](DESIGN.md)：信息架构、七类内容、状态与边界。
 2. [离线设计文档](design.html)：下载整个目录后在本地打开；含两个案例和设计表。
-3. [状态／互动矩阵](state-matrix.json)：主任务、唯一主动作、转移及保留内容。
-4. [来源→元素映射](source-map.json)：真实字段、具体 JSON pointer、空值、版本及缺件。
-5. [一次 self-review](self-review.json)：设计 finding、修正、定位与剩余限制。
+3. [状态／互动矩阵](STATES.md)：19种状态；[JSON原件](state-matrix.json)。
+4. [来源→元素映射](SOURCE_MAP.md)：36条对照；[JSON原件](source-map.json)。
+5. [一次 self-review](SELF_REVIEW.md)：8项 finding、修正与剩余限制；[JSON原件](self-review.json)。
+
+[下载完整离线设计包](downloads/design-only.zip)，解压后打开 `design.html`。包只含设计文档、合成 fixture 和静态产物，不包含产品源码、真实材料或可执行研究。
+
+| 案例 | Stage 2 保存入口（静态） | Stage 3 静态页面 | 桌机／手机 wireframe |
+|---|---|---|---|
+| 观察研究 | [简中](stage2-observation.zh-CN.html) · [繁中](stage2-observation.zh-TW.html) · [EN](stage2-observation.en.html) | [简中](mock-observation.zh-CN.html) · [繁中](mock-observation.zh-TW.html) · [EN](mock-observation.en.html) | [1440px](wireframes/observation.zh-CN.1440.full.png) · [390px](wireframes/observation.zh-CN.390.full.png) |
+| 理论／形式研究 | [简中](stage2-theory.zh-CN.html) · [繁中](stage2-theory.zh-TW.html) · [EN](stage2-theory.en.html) | [简中](mock-theory.zh-CN.html) · [繁中](mock-theory.zh-TW.html) · [EN](mock-theory.en.html) | [1440px](wireframes/theory.zh-CN.1440.full.png) · [390px](wireframes/theory.zh-CN.390.full.png) |
+
+![手机首屏静态设计示意](wireframes/observation.zh-CN.390.viewport.png)
 
 `mock-*.html` 是三语言静态页面；`wireframes/` 是1440px／390px绘制的静态 wireframe。它们不是浏览器截图，也不是运行中的产品。布局图由与表／卡相同的合成 saved-view 文件生成。
 
