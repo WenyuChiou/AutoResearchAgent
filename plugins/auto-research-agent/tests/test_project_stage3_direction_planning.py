@@ -204,9 +204,13 @@ class ProjectDirectionPlanningTests(unittest.TestCase):
         )
         self.assertEqual(replay, saved)
         self.assertEqual(self.callback.call_count, 1)
-        view = self.service.read(
-            "own", "project-direction", {"selection_status": "pending", **POLICY}
-        )
+        jobs = self.service.bindings["project-direction"]["jobs"]
+        with patch.object(jobs, "inspect", wraps=jobs.inspect) as inspected:
+            view = self.service.read(
+                "own", "project-direction", {"selection_status": "pending", **POLICY}
+            )
+            self.assertEqual(inspected.call_count, 1)
+        self.assertEqual(self.callback.call_count, 1)
         self.assertEqual(view["selection_status"], "pending")
         self.assertEqual(view["plan"]["kind"], "Stage3DirectionPlanningResult")
         self.assertFalse(view["formal_selected_receiver"])

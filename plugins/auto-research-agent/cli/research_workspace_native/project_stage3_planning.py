@@ -17,6 +17,7 @@ from stage3_plan.storage import safe_path
 from stage3_plan.workflow import source_binding, start_workflow
 
 from .project_intake_contract import BOUND_FIELDS, _fields
+from .project_selection_read_context import verified_selection_read
 from .project_stage2_selection_view import ProjectStage2SelectionView
 from .session_api import _check
 
@@ -115,7 +116,7 @@ class ProjectStage3PlanningService:
 
     def read(self, credential, project_ref, *, check_deadline=None):
         """Report selection and configuration without creating a job or dispatch."""
-        with self.intake._lock:
+        with self.intake._lock, verified_selection_read(self.intake):
             project, _, ack, _, configured = self._current(
                 credential, project_ref, check_deadline=check_deadline
             )
