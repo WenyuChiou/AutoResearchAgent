@@ -25,7 +25,9 @@ test('Wiki mounts the real selection component and accepted selection enters the
 });
 test('Wiki project switch suppresses continuation of an in-flight real component submission',async()=>{
  const h=setup();h.ctx.v7AfterRender(h.app);await tick();await tick();h.f.selectRadio();h.f.form();h.f.waitSelect();
- const pending=h.f.els.get('choice').onsubmit({preventDefault(){},submitter:h.f.els.get('submit-and-start')});await tick();
+ const pending=h.f.els.get('choice').onsubmit({preventDefault(){},submitter:h.f.els.get('submit-and-start')});
+ const deadline=Date.now()+5000;while(h.f.writes.length===0&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
+ assert.equal(h.f.writes.length,1,'selection request did not reach the suspended test handler');
  h.app.stage=3;h.ctx.v7BeforeRender(h.app);h.f.release();await pending;
  assert.equal(h.f.writes.length,1);assert.deepEqual(h.moves,[]);
 });
