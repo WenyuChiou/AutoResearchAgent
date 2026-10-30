@@ -8,7 +8,9 @@ from .project_stage2_direct_import import _verified, import_direct_request_proje
 from .session_api import _check
 
 
-def load_direct_request_imports(service, credential, path, expected_sha256):
+def load_direct_request_imports(
+    service, credential, path, expected_sha256, *, existing_only=False
+):
     """Validate the entire pinned host configuration before allocating a listener."""
     from .project_stage2 import _raw
 
@@ -61,6 +63,8 @@ def load_direct_request_imports(service, credential, path, expected_sha256):
         )
     bindings = {}
     for entry in entries:
-        result = import_direct_request_project(service, credential, **entry)
+        result = import_direct_request_project(
+            service, credential, **entry, existing_only=existing_only
+        )
         bindings[result["project_ref"]] = result["selection_binding"]
     return bindings

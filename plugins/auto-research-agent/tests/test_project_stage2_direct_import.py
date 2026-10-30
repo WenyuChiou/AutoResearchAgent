@@ -128,6 +128,54 @@ class DirectDeliveryAdmissionTests(unittest.TestCase):
         self.assertEqual(count, 1)
         self.assertEqual(len(self.intake.list("synthetic-owner")), 1)
 
+    def test_existing_only_configuration_refuses_new_import_and_reuses_exact_original(
+        self,
+    ):
+        from research_workspace_native.project_stage2_direct_config import (
+            load_direct_request_imports,
+        )
+
+        config = self.root / "existing-only.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "kind": "ProjectStage2DirectImportConfiguration",
+                    "schema_version": "1.0.0",
+                    "entries": [
+                        {
+                            "delivery_dir": str(self.delivery_root),
+                            "expected_manifest_sha256": self.manifest[
+                                "manifest_sha256"
+                            ],
+                            "expected_request_sha256": self.request_hash,
+                            "project_id": "synthetic-direct",
+                            "input_version": 1,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        pin = hashlib.sha256(config.read_bytes()).hexdigest()
+        before = sorted(self.intake.root.iterdir())
+        with self.assertRaisesRegex(SessionApiError, "existing-project-required"):
+            load_direct_request_imports(
+                self.service, "synthetic-owner", config, pin, existing_only=True
+            )
+        self.assertEqual(self.intake.list("synthetic-owner"), [])
+        self.assertEqual(sorted(self.intake.root.iterdir()), before)
+        first = self.import_package()
+        repeated = load_direct_request_imports(
+            self.service, "synthetic-owner", config, pin, existing_only=True
+        )
+        self.assertEqual(repeated, {first["project_ref"]: first["selection_binding"]})
+        self.assertEqual(self.import_package(existing_only=True), first)
+        count = self.intake.db.execute(
+            "SELECT COUNT(*) FROM intake_events WHERE project=? AND kind='stage2-direct-input-imported'",
+            (first["project_ref"],),
+        ).fetchone()[0]
+        self.assertEqual(count, 1)
+
     def test_foreign_principal_cannot_read_imported_selection(self):
         registered = self.import_package()
         ref = registered["project_ref"]

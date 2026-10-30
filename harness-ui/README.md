@@ -53,6 +53,36 @@ Old V7 filenames and contract markers remain internally for compatibility.
    `inspect_workflow`. This preserves an event head but performs zero research actions.
    Old recommendations are not replayed as authority in the new workflow.
 
+## Optional current Stage 2 and Stage 3 connection
+
+The normal start above is still an unconnected preview. To use a validated current
+delivery, the operator supplies an existing, externally pinned direct-delivery
+configuration using `--stage2-direct-import-config FILE` and
+`--stage2-direct-import-sha256 SHA256`, or an existing selection binding using
+`--selection-config FILE --selection-sha256 SHA256`. Optional Stage 3 planning
+requires one of those Stage 2 configurations plus
+`--stage3-planning-config FILE --stage3-planning-sha256 SHA256`. Use the
+existing ProjectHost configuration contracts and one verified private project
+store; the files and their SHA-256 pins are not created or inferred by the UI.
+Do not start a second writer against a live project store.
+
+With a current binding, the Wiki Stage 2 section mounts the same version-checked
+selection component as ProjectHost. Earlier Wiki imports and local drafts remain
+separate. A tentative preference is not a formal selection; zero eligible
+directions remains zero. On a verified accepted planning request, the Wiki opens
+Stage 3 for the same project and language. Its diagram reads saved planning
+relationships without dispatching work; missing information remains visible.
+No page load authorizes experiments or establishes human identity, a formal
+receiver pass, or scientific acceptance.
+
+For an unconfirmed submission, this browser retains an opaque action key, request
+hash and version binding in same-origin local storage, without credentials, local
+paths or the user message. Use **Check unconfirmed submission** to verify the
+original receipt; the check only reads and never automatically resends. If storage
+is unavailable, multiple markers conflict, a planning request hash is unavailable,
+or the receipt cannot be verified, the UI keeps the result unknown and blocks a
+new submission. This local marker is not an authorization or a server receipt.
+
 ## Connected and remaining
 
 ### Optional original review reader
@@ -68,7 +98,7 @@ Changed bytes or a different project, candidate version, or manifest are refused
 The result page offers one collapsed **Original independent reviews** entry.
 Original roles, reasons, checks, next steps, failed records and complete JSON stay
 available on demand. These are reading records, not new scientific scores or a
-formal choice. A draft remains a draft; formal selection and Stage3 stay disabled.
+formal choice. A draft remains a draft; without the optional current binding, formal selection and Stage3 stay unconnected.
 Packet2.6 requires the corresponding merged Harness validator/runtime. Existing
 canonical delivery HTML and frozen package files are not modified by this reader.
 
@@ -76,10 +106,10 @@ canonical delivery HTML and frozen package files are not modified by this reader
 |---|---|---|
 | Stage1 operations | Existing project/scope, progress, screening/reading views and checkpoint entry; closed operation panel stays clickable | A trusted current run is required to exercise live review. Pause/revise/resume of an unfinished loop is not implemented by this adapter |
 | Manual materials | Stage-bound registration, chunked upload, SHA verification, persistent drafts | Raw uploaded files do not become reviewed evidence or continuation permission |
-| Stage2 | Validated packet projection; literature, routes, gaps and saved metric plans; local selections; real offline workflow initialization | Trusted delivery registration, current head, independent review receipts and native human-message provenance for formal selection |
+| Stage2 | Validated packet projection and local drafts; an optional externally pinned current delivery provides version-bound formal selection or tentative preference in the Wiki | Current eligible recommendation, real user submission and validated receipts remain necessary for a formal selection |
 | New outputs | Retained native completion collector and canonical saved-view adapters | Generic import-to-new-research completion and auto-attachment have not been demonstrated |
 | Codex | Existing opt-in native transport/configuration is retained | No provider or valid research admission is shipped; this release does not claim arbitrary-topic research acceptance |
-| Stages3–6 | Stage-specific material storage and explicitly labeled previews | Execution adapters |
+| Stages3–6 | Stage-specific previews; optionally configured Stage 3 can read and display saved planning relationships | Actual receiver acceptance and research execution remain separate |
 
 The UI has no invented `/human-record` or loop-repeat endpoint. See
 [#346](https://github.com/WenyuChiou/AutoResearchAgent/issues/346) and

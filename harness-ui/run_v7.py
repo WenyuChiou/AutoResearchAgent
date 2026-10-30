@@ -15,7 +15,8 @@ from native_routes import handle_native
 LAUNCHER = "plugins/auto-research-agent/references/research-workspace/examples/run-project-workspace.py"
 LIMIT_KEYS = {"model_calls", "seconds", "search_calls", "source_reads", "rounds"}
 HOST_KEYS = ("projects", "models", "stage1", "stage2", "credential", "files", "views",
-             "stage1_materials_root", "stage1_sources", "stage1_source_dispatcher")
+             "stage1_materials_root", "stage1_sources", "stage1_source_dispatcher",
+             "stage2_selection", "stage3_planning", "stage3_recovery_pins", "stage2_readings")
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
        "connect-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; "
        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
@@ -94,26 +95,44 @@ def install_renderer(host, assets, meta, project_handler, atlas_handler):
     host._assets["/host-binding.json"] = canonical(host.host_binding)
 
 
+def configure_host_lifecycle(host, services):
+    if services.get('planning_resources') is not None:
+        # Match ProjectHost's supported CLI: wait for all request handlers.
+        host.daemon_threads = False
+        host.block_on_close = True
+
+
 def close_services(services, host):
-    try:
-        if host is not None and getattr(host, 'v7_native_stage1', None) is not None:
-            host.v7_native_stage1.close()
-        if host is not None:
-            host.server_close()
-        else:
-            owner = services.get("stage1_source_dispatcher") or services.get("stage1_sources")
-            if owner is not None:
-                owner.close()
-    finally:
-        try:
-            if services.get("queries") is not None:
-                services["queries"].close()
-        finally:
+    resources = services.get('planning_resources')
+    if host is not None:
+        # Do not close intake or the journal unless the handler join succeeded.
+        host.server_close()
+        if resources is not None:
+            shutdown = host.project_stage3_http.close()
+            host.planning_shutdown = shutdown
+            if shutdown.get('threads_joined') is not True or shutdown.get('active_request_threads') != 0:
+                raise RuntimeError('planning requests have not drained; resources remain open')
+
+    errors = []
+    def close_one(resource):
+        if resource is not None:
             try:
-                if services.get("models") is not None:
-                    services["models"].close()
-            finally:
-                services["projects"].close()
+                resource.close()
+            except BaseException as error:
+                errors.append(error)
+
+    if host is not None:
+        close_one(getattr(host, 'v7_native_stage1', None))
+    close_one(resources)
+    if host is None:
+        close_one(services.get('stage1_source_dispatcher') or services.get('stage1_sources'))
+    close_one(services.get('queries'))
+    close_one(services.get('models'))
+    close_one(services['projects'])
+    if errors:
+        for error in errors[1:]:
+            errors[0].add_note('Additional cleanup failure: ' + repr(error))
+        raise errors[0]
 
 
 def main(argv=None):
@@ -132,8 +151,13 @@ def main(argv=None):
                         help="Explicit project resource envelope JSON, not research authorization or acceptance")
     parser.add_argument('--native-stage1-config', type=Path)
     parser.add_argument('--native-stage1-config-sha256')
+    for stem in ('stage2-direct-import', 'selection', 'stage3-planning', 'stage2-reading'):
+        parser.add_argument('--' + stem + '-config', type=Path)
+        parser.add_argument('--' + stem + '-sha256')
     args = parser.parse_args(argv)
     args.repo = repo
+    from wiki_stage23_services import configure_services, validate_args
+    validate_args(args)
     limits = limits_file(args.run_limits)
     native_config = None
     if (args.native_stage1_config is None) != (args.native_stage1_config_sha256 is None):
@@ -160,13 +184,19 @@ def main(argv=None):
         print(json.dumps(dict(receipt, status="filesystem-and-raw-loader-preflight-only")), flush=True)
         return 0
     services, host = boot["prepare"](args, checked), None
+    primary_failure = None
     try:
+        configure_services(services, args)
+        if services['stage3_planning'] is not None:
+            meta['stages3_to6'] = 'Stage3 planning configured; research execution unconnected'
+            receipt['stages3_to6'] = meta['stages3_to6']
         if not args.prepare_only:
             from research_workspace_native.atlas_host import AtlasHandler
             from research_workspace_native.project_host import ProjectHandler
 
             host = services["host_type"](**{key: services[key] for key in HOST_KEYS},
                                          host="127.0.0.1", port=args.port)
+            configure_host_lifecycle(host, services)
             host.v7_native_stage1 = None
             if native_config is not None:
                 from native_stage1 import NativeStage1Service
@@ -190,8 +220,16 @@ def main(argv=None):
         return 0
     except KeyboardInterrupt:
         return 0
+    except BaseException as error:
+        primary_failure = error
+        raise
     finally:
-        close_services(services, host)
+        try:
+            close_services(services, host)
+        except BaseException as cleanup:
+            if primary_failure is None:
+                raise
+            primary_failure.add_note('Wiki cleanup failure: ' + repr(cleanup))
 
 
 if __name__ == "__main__":

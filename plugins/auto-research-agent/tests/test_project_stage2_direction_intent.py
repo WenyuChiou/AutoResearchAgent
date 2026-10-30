@@ -52,6 +52,60 @@ class DirectionIntentTests(Stage2SelectionFixture):
             result = self.prepare_choice(ProjectStage2SelectionService)
         return result[0], intent_body(result[1]), result[2]
 
+    def test_history_exposes_only_verified_preference_binding_and_rejects_tamper(self):
+        service, body, _ = self.choice()
+        receipt = service.direction_intent("own", self.ref, body)
+        history = self.intake.history("own", self.ref)
+        action = next(row for row in history["actions"] if row["key"] == body["key"])
+        fields = (
+            "input_version",
+            "brief_sha256",
+            "delivery_manifest_sha256",
+            "workflow_head_sha256",
+            "snapshot_sha256",
+        )
+        self.assertEqual(
+            action["request_binding"], {field: body[field] for field in fields}
+        )
+        self.assertNotIn("request", action)
+        self.assertNotIn(body["user_input"], json.dumps(action))
+        self.assertEqual(action["request_sha256"], receipt["request_sha256"])
+        with self.assertRaises(SessionApiError):
+            self.intake.history("other", self.ref)
+        self.intake.db.execute(
+            "UPDATE intake_actions SET key=? WHERE project=? AND key=?",
+            ("different-action-key", self.ref, body["key"]),
+        )
+        with self.assertRaisesRegex(SessionApiError, "history-binding-invalid"):
+            self.intake.history("own", self.ref)
+        self.intake.db.execute(
+            "UPDATE intake_actions SET key=? WHERE project=? AND key=?",
+            (body["key"], self.ref, "different-action-key"),
+        )
+        self.intake.db.execute(
+            "UPDATE intake_actions SET project='' WHERE project=? AND key=?",
+            (self.ref, body["key"]),
+        )
+        with self.assertRaisesRegex(SessionApiError, "history-binding-invalid"):
+            self.intake.history("own", self.ref)
+        self.intake.db.execute(
+            "UPDATE intake_actions SET project=? WHERE project='' AND key=?",
+            (self.ref, body["key"]),
+        )
+        row = self.intake.db.execute(
+            "SELECT receipt FROM intake_actions WHERE project=? AND key=?",
+            (self.ref, body["key"]),
+        ).fetchone()
+        corrupt = json.loads(row[0])
+        corrupt["request"]["workflow_head_sha256"] = "0" * 64
+        self.intake.db.execute(
+            "UPDATE intake_actions SET receipt=? WHERE project=? AND key=?",
+            (json.dumps(corrupt), self.ref, body["key"]),
+        )
+        self.intake.db.commit()
+        with self.assertRaisesRegex(SessionApiError, "history-binding-invalid"):
+            self.intake.history("own", self.ref)
+
     def test_zero_recommendations_can_save_preference_without_selection_or_source_write(
         self,
     ):

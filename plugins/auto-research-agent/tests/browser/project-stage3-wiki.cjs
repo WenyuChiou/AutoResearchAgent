@@ -49,20 +49,43 @@ class Element {
   scrollIntoView() { this.scrollCount=(this.scrollCount || 0)+1; }
 }
 const settle = async () => { for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve)); };
-async function page(view = fixture(), responder, fragment = "#project-a") {
+async function page(view = fixture(), responder, fragment = "#project-a", graph = undefined) {
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   elements.language.value = "en";
   const calls = [], created = [], historyCalls = [], location = {hash:fragment,search:""};
   const history = {replaceState: (data,title,url) => { assert.ok(url.startsWith("#"));historyCalls.push(url);location.hash=url; }};
   const document = {documentElement: {}, getElementById: id => { assert.ok(elements[id], id); return elements[id]; },
     querySelectorAll: () => [], createElement: tag => { created.push(tag); return new Element(tag); }};
-  vm.runInNewContext(script, {document, window: {RESEARCH_PROJECTS: {credential: "synthetic", stage3_planning_projects: ["project-a", "project-b"]}},
+  vm.runInNewContext(script, {document, window: {RESEARCH_PROJECTS: {credential: "synthetic", stage3_planning_projects: ["project-a", "project-b"]}, STAGE3_RESEARCH_DIAGRAM: graph},
     location, history, URLSearchParams, fetch: async (url, options) => { calls.push({url, options}); return responder ? responder(url, options) : {ok: true, json: async () => structuredClone(view)}; }});
   await settle();
   return {elements, calls, created, location, historyCalls, text: () => Object.values(elements).map(n => n.textContent).join("\n")};
 }
 
 if (require.main === module) {
+  test("manual return to Stage 2 preserves the current project and language", async () => {
+    const p=await page();
+    for(const lang of ["en","zh-TW","zh-CN"]) {
+      p.elements.language.value=lang; p.elements.language.onchange();
+      assert.equal(p.elements.selection.href,"/project-stage2-selection.html#project-a?stage=2&lang="+encodeURIComponent(lang));
+    }
+  });
+
+  test("saved plan graph receives the same view and language without another fetch", async () => {
+    const mounts=[], view=fixture();
+    const p=await page(view, undefined, "#project-a", {mount:(...args)=>mounts.push(args)});
+    assert.equal(p.calls.length,1); assert.equal(mounts.length,1);
+    assert.equal(mounts[0][0],p.elements["plan-diagram"]);
+    assert.deepEqual(mounts[0][1],view); assert.equal(mounts[0][2].language,"en");
+    p.elements.language.value="zh-TW"; p.elements.language.onchange();
+    assert.equal(p.calls.length,1); assert.equal(mounts.at(-1)[2].language,"zh-TW");
+  });
+  test("no saved plan does not draw a planning graph", async () => {
+    const mounts=[], view=fixture();view.plan=null;
+    await page(view,undefined,"#project-a",{mount:(...args)=>mounts.push(args)});
+    assert.equal(mounts.length,0);
+  });
+
   test("per-SQ joins show the right material, method, design and three result interpretations", async () => {
     const p = await page(), articles = p.elements.questions.children;
     assert.equal(articles.length, 2);
