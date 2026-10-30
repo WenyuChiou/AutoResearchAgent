@@ -31,7 +31,7 @@ class Stage2DirectionIntentUITests(unittest.TestCase):
         print(result.stdout, end="")
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('"kind":"synthetic-direction-intent-ui"', result.stdout)
-        self.assertIn('"cases":20,"failures":0', result.stdout)
+        self.assertIn('"cases":24,"failures":0', result.stdout)
 
 
 if __name__ == "__main__":

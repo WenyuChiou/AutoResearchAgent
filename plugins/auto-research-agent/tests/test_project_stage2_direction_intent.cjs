@@ -15,7 +15,7 @@ class Element {
  set innerHTML(_){throw new Error('Source content must use textContent');}
 }
 function fixture(options={}) {
- const els=new Map(),translated=[],created=[],calls=[],saved=new Map();let prepares=0,runs=0,posts=0,uuids=0,releaseSave;
+  const els=new Map(),translated=[],created=[],calls=[],saved=new Map(),navigations=[];let prepares=0,runs=0,posts=0,uuids=0,releaseSave;
  for(const match of html.matchAll(/<([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
   const element=new Element(match[1]),id=match[2].match(/\bid="([^"]+)"/),label=match[2].match(/\bdata-i18n="([^"]+)"/);
   if(id){element.id=id[1];els.set(id[1],element);}if(label){element.dataset.i18n=label[1];translated.push(element);}
@@ -27,7 +27,8 @@ function fixture(options={}) {
  const selection=ref=>({project_ref:options.wrongLoadedProject?'B':ref,revision:saved.has(ref)?4:2,input_version:options.version ?? 1,...hashes,eligible:options.eligible?[{candidate_id:'D0',candidate_version:1}]:[],selection_status:options.recorded?'recorded':'pending',selection_receipt:options.recorded?{request_sha256:requestHash}:null,planning_status:options.recorded?'verified':'pending',planning_input:options.recorded?{legacy_candidates:[],questions:[],selection_conditions:[],unresolved:[]}:null,cards:{cards},direction_intent:saved.has(ref)?{...receipt(saved.get(ref)),...(options.badReference?{intent_sha256:'4'.repeat(64)}:{}),...(options.historicalReplay?{key:'newer-preference',intent_sha256:'7'.repeat(64),request_sha256:'8'.repeat(64)}:{})}:null,...(saved.has(ref)&&options.snapshotChanged?{snapshot_sha256:'5'.repeat(64)}:{})});
  const defaults=()=>({key:'planning-original-key',revision:4,input_version:options.version ?? 1,brief_sha256:hashes.brief_sha256,mode:'direction-intent',direction_intent_sha256:intentHash,...(prepares?{request_sha256:runHash}:{}),...(prepares&&options.defaultChanged?{key:'changed-key'}:{}),...(prepares&&options.defaultExtra?{unexpected:'field'}:{}),...options.badDefault});
  const planning=ref=>({project_ref:ref,revision:4,input_version:options.version ?? 1,brief_sha256:hashes.brief_sha256,planning_mode:'direction-intent',direction_intent_sha256:intentHash,planning_configured:!options.unconfigured,planning_status:'ready',planning_blockers:[],dispatch_action:'prepare-then-confirm-run',agent_conversation_connected:false,default_request:defaults(),job:options.existingJob?{status:'completed'}:prepares?{status:'intent-recorded',request_sha256:options.badJobHash?'6'.repeat(64):runHash}:null,submission_in_progress:false,submission_error:null,...options.badPlanning,...(prepares?options.badPrepared:{})});
- const response=data=>({ok:true,json:async()=>data});
+  const policy={execution_authorized:false,evaluation_calls_authorized:false,formal_execution_enabled:false,external_claim_ready:false,usable_for_formal_pairing:false};
+  const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
  const walk=node=>[node,...node.children.flatMap(child=>child instanceof Element?walk(child):[])];
  const checkboxes=()=>walk(els.get('cards')).filter(node=>node.name==='tentative-direction');
  const document={documentElement:{},getElementById:id=>els.get(id),querySelectorAll:()=>translated,querySelector:()=>null,createElement:tag=>{const node=new Element(tag);created.push(node);return node;},createTextNode:text=>({textContent:text})};
@@ -55,14 +56,16 @@ function fixture(options={}) {
   if(path==='stage3/planning/run'){
    assert.deepEqual(body,{...defaults(),confirmed:true});runs++;
    if(options.loseRun)throw new Error('run response lost');
-   return response({submission_status:'accepted',execution_authorized:false,job:{key:body.key,status:'intent-recorded'}});
+    if(options.switchAfterRun){els.get('project').value='B';els.get('project').onchange();}
+    return response({kind:'ProjectStage3PlanningSubmission',submission_status:'accepted',...policy,job:{kind:'ProjectStage3DirectionPlanningJob',project_ref:ref,key:body.key,request_sha256:body.request_sha256,status:'intent-recorded',mode:'direction-intent',formal_selected_receiver:false,...policy,...options.badRunJob},...options.badRunResponse},options.runStatus ?? 202);
   }
   throw new Error('unexpected route '+path);
  };
- vm.runInNewContext(source,{document,window:{RESEARCH_PROJECTS:{credential:'synthetic-only',stage2_selection_projects:['A','B'],stage3_planning_projects:options.noPlanning?[]:['A','B']}},location:{hash:''},history:{replaceState(){}},fetch,crypto:{randomUUID:()=>{uuids++;return 'intent-original-key';}},console});
+  const location={hash:'',assign:url=>navigations.push(url)};
+  vm.runInNewContext(source,{document,window:{RESEARCH_PROJECTS:{credential:'synthetic-only',stage2_selection_projects:['A','B'],stage3_planning_projects:options.noPlanning?[]:['A','B']},location},location,history:{replaceState(){}},fetch,crypto:{randomUUID:()=>{uuids++;return 'intent-original-key';}},console});
  const choose=(count=cards.length)=>{for(const [i,checkbox] of checkboxes().entries()){checkbox.checked=i<count;checkbox.onchange();}};
  const submit=(start=false,text='Prefer these directions; retain unknowns.')=>{els.get('intent-message').value=text;els.get('intent-confirmed').checked=true;return els.get('direction-intent').onsubmit({preventDefault(){},submitter:els.get(start?'intent-start':'intent-save')});};
- return {els,calls,translated,created,checkboxes,choose,submit,releaseSave:()=>releaseSave(),switchTo:ref=>{els.get('project').value=ref;return els.get('project').onchange();},counts:()=>({prepares,runs,posts,uuids})};
+  return {els,calls,translated,created,checkboxes,choose,submit,navigations,releaseSave:()=>releaseSave(),switchTo:ref=>{els.get('project').value=ref;return els.get('project').onchange();},counts:()=>({prepares,runs,posts,uuids})};
 }
 let cases=0,failures=0;
 async function check(name,body){cases++;try{await body();console.log('ok '+cases+' '+name);}catch(error){failures++;console.error('not ok '+cases+' '+name+'\n'+error.stack);}}
@@ -87,7 +90,11 @@ async function main(){
   await check('foreign-project blocker text is not shown or used to plan',async()=>{const h=fixture({badPlanning:{project_ref:'B',planning_status:'needs-information',dispatch_action:'needs-information',default_request:null,planning_blockers:['foreign-secret-do-not-show']}});await tick();h.choose(1);await h.submit(true);assert.equal(h.counts().prepares,0);assert.equal(h.counts().runs,0);assert.ok(!h.els.get('intent-status').textContent.includes('foreign-secret-do-not-show'));assert.ok(!h.els.get('intent-blockers')||!h.els.get('intent-blockers').textContent.includes('foreign-secret-do-not-show'));});
   await check('recorded formal choice hides tentative controls and rejects stale submit',async()=>{const h=fixture({recorded:true,eligible:true});await tick();assert.equal(h.els.get('direction-intent').hidden,true);assert.equal(h.checkboxes().length,0);h.choose(1);await h.submit(true);assert.equal(h.counts().posts,0);assert.equal(h.counts().prepares,0);assert.equal(h.counts().runs,0);});
   await check('duplicate start retains verified blocker reasons until project refresh',async()=>{const blocker='Required material permission remains unknown.';const h=fixture({badPrepared:{planning_status:'needs-information',dispatch_action:'needs-information',planning_blockers:[blocker],default_request:null}});await tick();h.choose(1);await h.submit(true);assert.equal(h.els.get('intent-blockers').hidden,false);await h.submit(true);assert.equal(h.els.get('intent-blockers').hidden,false);assert.ok(h.els.get('intent-blockers').textContent.includes(blocker));assert.equal(h.counts().posts,1);assert.equal(h.counts().prepares,1);assert.equal(h.counts().runs,0);await h.switchTo('B');assert.equal(h.els.get('intent-blockers').hidden,true);assert.ok(!h.els.get('intent-blockers').textContent.includes(blocker));});
-  if(failures)process.exitCode=1;
+    await check('trusted accepted 202 enters the same project Stage3 once',async()=>{for(const version of [1,'1'])for(const lang of ['en','zh-TW','zh-CN','untrusted']){const h=fixture({version});await tick();h.els.get('language').value=lang;h.choose(1);await h.submit(true);const target='/project-stage3-planning.html#A'+(lang==='untrusted'?'':'?lang='+lang);assert.deepEqual(h.navigations,[target]);const url=new URL(h.navigations[0],'https://owned.invalid');assert.equal(url.pathname,'/project-stage3-planning.html');assert.equal(url.search,'');await h.submit(true);assert.deepEqual(h.navigations,[target]);assert.equal(h.counts().runs,1);}});
+   await check('save-only and passive reads never navigate',async()=>{const h=fixture();await tick();h.choose(1);await h.submit(false);for(const lang of ['en','zh-TW','zh-CN']){h.els.get('language').value=lang;h.els.get('language').onchange();}assert.deepEqual(h.navigations,[]);assert.equal(h.counts().runs,0);});
+    await check('unknown, failed or mismatched acknowledgements never navigate',async()=>{const policies=['execution_authorized','evaluation_calls_authorized','formal_execution_enabled','external_claim_ready','usable_for_formal_pairing'];for(const options of [{runStatus:200},{runStatus:429},{badRunResponse:{kind:'other'}},{badRunResponse:{submission_status:'execution-unknown'}},{badRunJob:{project_ref:'B'}},{badRunJob:{key:'foreign-key'}},{badRunJob:{request_sha256:'0'.repeat(64)}},{badRunJob:{kind:'ProjectStage3PlanningJob'}},{badRunJob:{mode:'selected-direction'}},{badRunJob:{formal_selected_receiver:true}},{badRunJob:{status:'execution-unknown'}},...policies.flatMap(key=>[{badRunResponse:{[key]:true}},{badRunJob:{[key]:null}}])]){const h=fixture(options);await tick();h.choose(1);await h.submit(true);assert.deepEqual(h.navigations,[]);assert.equal(h.counts().runs,1);}});
+   await check('project change during run drops late navigation',async()=>{const h=fixture({switchAfterRun:true});await tick();h.choose(1);await h.submit(true);await tick();assert.deepEqual(h.navigations,[]);assert.equal(h.counts().runs,1);assert.equal(h.calls.some(x=>x.method==='POST'&&x.url.includes('/B/')),false);});
+   if(failures)process.exitCode=1;
   console.log(JSON.stringify({kind:'synthetic-direction-intent-ui',cases,failures,network:false,model_calls:0,real_human_selection:false,execution_authorized:false}));
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

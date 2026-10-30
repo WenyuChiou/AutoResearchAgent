@@ -9,13 +9,14 @@ function fixture(options={}) {
  const ids=['language','project','project-context','cards','planning','planning-link','return-cards','planning-summary','choice','submit','submit-and-start','receipt','status','planning-input','actor','message','rationale','conditions','unresolved','confirmed'];
  const els=new Map(ids.map(id=>{const e=new Element(id==='project'||id==='language'?'select':'div');e.id=id;return [id,e];}));
  els.get('language').value='en';els.get('submit').dataset.i18n='submit';els.get('submit-and-start').dataset.i18n='saveAndStart';
- const chosen={value:'candidate',dataset:{version:'1'}},calls=[];let selected=false,prepared=false,dispatched=0,uuids=0,selects=0;
+  const chosen={value:'candidate',dataset:{version:'1'}},calls=[],navigations=[];let selected=false,prepared=false,dispatched=0,uuids=0,selects=0;
  const version=options.version ?? 1;
  const card={candidate_id:'candidate',candidate_version:1,candidate_question:'Unrelated synthetic question',suggested_approach:'A generic method',closest_prior_work:{review:null},contribution:[],scientific_questions:[],requirements:[],unmapped_resources:[],limitations:[],alternatives:[],next_checks:[]};
  const selection=ref=>({project_ref:ref,input_version:version,revision:selected?2:1,brief_sha256:brief,delivery_manifest_sha256:'d'.repeat(64),workflow_head_sha256:'e'.repeat(64),snapshot_sha256:'f'.repeat(64),eligible:options.empty?[]:[{candidate_id:'candidate',candidate_version:1}],selection_status:selected?'recorded':'pending',selection_receipt:selected?{request_sha256:options.badSelectionAck?'f'.repeat(64):ack}:null,planning_status:'pending',planning_input:selected?{questions:[],legacy_candidates:[],selection_conditions:['kept'],unresolved:['unknown']}:null,cards:{cards:[card]}});
  const request=()=>({key:'server-original-job-key',input_version:version,revision:2,brief_sha256:brief,selection_request_sha256:ack,...(prepared?{request_sha256:requestHash}:{})});
  const planning=ref=>({project_ref:ref,input_version:version,revision:2,brief_sha256:brief,selection_status:'recorded',selection_request_sha256:options.badPlanningAck?'f'.repeat(64):ack,planning_configured:true,default_request:request(),submission_in_progress:false,submission_error:null,job:options.existingJob?{status:'completed',outcome:'saved'}:prepared?{status:'intent-recorded',request_sha256:options.badPreparedHash?'f'.repeat(64):requestHash}:null,...(options.driftAfterPrepare&&prepared?{input_version:typeof version==='number'?String(version):1}:{})});
- const response=v=>({ok:true,json:async()=>v});
+  const policy={execution_authorized:false,evaluation_calls_authorized:false,formal_execution_enabled:false,external_claim_ready:false,usable_for_formal_pairing:false};
+  const response=(v,status=200)=>({ok:status>=200&&status<300,status,json:async()=>v});
  const document={documentElement:{},getElementById:id=>els.get(id),querySelectorAll:()=>[els.get('submit'),els.get('submit-and-start')],querySelector:()=>chosen,createElement:t=>new Element(t),createTextNode:text=>({textContent:text})};
  const fetch=async(url,opts)=>{
   const body=opts?.body?JSON.parse(opts.body):null;calls.push({url,method:opts?.method,body});
@@ -36,14 +37,16 @@ function fixture(options={}) {
   if(path==='stage3/planning/run'){
    assert.equal(body.key,'server-original-job-key');assert.equal(body.request_sha256,requestHash);assert.equal(body.confirmed,true);dispatched++;
    if(options.loseRun)throw new Error('run response lost');
-   return response({submission_status:'accepted',dispatch_observed:false,execution_authorized:false,job:{status:'intent-recorded'}});
+    if(options.switchAfterRun){els.get('project').value='B';els.get('project').onchange();}
+    return response({kind:'ProjectStage3PlanningSubmission',submission_status:'accepted',dispatch_observed:false,...policy,job:{kind:'ProjectStage3PlanningJob',project_ref:ref,key:body.key,request_sha256:body.request_sha256,status:'intent-recorded',...policy,...options.badRunJob},...options.badRunResponse},options.runStatus ?? 202);
   }
   throw new Error('unexpected route '+path);
  };
- const context={document,window:{RESEARCH_PROJECTS:{credential:'synthetic-only',stage2_selection_projects:['A','B'],stage3_planning_projects:options.unconfigured?[]:['A','B']}},location:{hash:''},history:{replaceState(){}},fetch,crypto:{randomUUID(){uuids++;return 'original-selection-key';}},console};
+  const location={hash:'',assign:url=>navigations.push(url)};
+  const context={document,window:{RESEARCH_PROJECTS:{credential:'synthetic-only',stage2_selection_projects:['A','B'],stage3_planning_projects:options.unconfigured?[]:['A','B']},location},location,history:{replaceState(){}},fetch,crypto:{randomUUID(){uuids++;return 'original-selection-key';}},console};
  vm.runInNewContext(source,context);
  const submit=start=>{els.get('confirmed').checked=true;els.get('actor').value='fixture';els.get('message').value='Choose the displayed candidate version';els.get('rationale').value='Authored fixture';els.get('conditions').value='condition one\ncondition two';els.get('unresolved').value='unknown one\r\nunknown two';return els.get('choice').onsubmit({preventDefault(){},submitter:els.get(start?'submit-and-start':'submit')});};
- return {els,calls,submit,dispatched:()=>dispatched,uuids:()=>uuids};
+  return {els,calls,submit,navigations,dispatched:()=>dispatched,uuids:()=>uuids};
 }
 let cases=0;
 async function check(name,fn){await fn();cases++;console.log('ok '+cases+' '+name);}
@@ -59,6 +62,9 @@ async function main(){
  await check('prepare failure or changed prepared hash/version never runs',async()=>{for(const opts of [{prepareError:true},{badPreparedHash:true},{driftAfterPrepare:true}]){const h=fixture(opts);await tick();await h.submit(true);assert.equal(h.dispatched(),0);}});
  await check('switching project during preparation blocks delayed run',async()=>{const h=fixture({switchAfterPrepare:true});await tick();await h.submit(true);await tick();assert.equal(h.dispatched(),0);assert.equal(h.calls.some(x=>x.method==='POST'&&x.url.includes('/B/')),false);});
  await check('lost run response never automatically retries or reports completion',async()=>{const h=fixture({loseRun:true});await tick();await h.submit(true);await tick();assert.equal(h.dispatched(),1);assert.match(h.els.get('status').textContent,/run response lost/);assert.doesNotMatch(h.els.get('status').textContent,/completed/);});
- console.log(JSON.stringify({kind:'synthetic-selection-oneclick',cases,failures:0,network:false,model_calls:0,real_human_selection:false,execution_authorized:false}));
+   await check('accepted 202 navigates to the selected project without another dispatch',async()=>{for(const version of [1,'1'])for(const lang of ['en','zh-TW','zh-CN','untrusted']){const h=fixture({version});await tick();h.els.get('language').value=lang;await h.submit(true);assert.deepEqual(h.navigations,['/project-stage3-planning.html#A'+(lang==='untrusted'?'':'?lang='+lang)]);const url=new URL(h.navigations[0],'https://owned.invalid');assert.equal(url.pathname,'/project-stage3-planning.html');assert.equal(url.search,'');assert.equal(h.dispatched(),1);}});
+   await check('nonaccepted, mismatched or failed run acknowledgements do not navigate',async()=>{const policies=['execution_authorized','evaluation_calls_authorized','formal_execution_enabled','external_claim_ready','usable_for_formal_pairing'];for(const options of [{runStatus:200},{runStatus:429},{badRunResponse:{kind:'other'}},{badRunResponse:{submission_status:'execution-unknown'}},{badRunJob:{project_ref:'B'}},{badRunJob:{key:'foreign-key'}},{badRunJob:{request_sha256:'0'.repeat(64)}},{badRunJob:{kind:'ProjectStage3DirectionPlanningJob'}},{badRunJob:{status:'execution-unknown'}},...policies.flatMap(key=>[{badRunResponse:{[key]:true}},{badRunJob:{[key]:null}}])]){const h=fixture(options);await tick();await h.submit(true);assert.deepEqual(h.navigations,[]);assert.equal(h.dispatched(),1);}});
+  await check('save-only and late response after project change cannot navigate',async()=>{const h=fixture();await tick();await h.submit(false);assert.deepEqual(h.navigations,[]);const delayed=fixture({switchAfterRun:true});await tick();await delayed.submit(true);await tick();assert.deepEqual(delayed.navigations,[]);assert.equal(delayed.calls.some(x=>x.method==='POST'&&x.url.includes('/B/')),false);});
+  console.log(JSON.stringify({kind:'synthetic-selection-oneclick',cases,failures:0,network:false,model_calls:0,real_human_selection:false,execution_authorized:false}));
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
