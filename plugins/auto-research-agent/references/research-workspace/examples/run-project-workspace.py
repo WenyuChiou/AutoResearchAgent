@@ -131,8 +131,29 @@ def query_runtime_config(path, expected):
     return value
 
 
-def windows_root_preflight(root, *, platform=None, model=False):
+def windows_root_preflight(root, *, platform=None, model=False, existing_stage23=False):
     """Reserve physical SQLite/native archive space, without changing core names."""
+    if existing_stage23:
+        require(not model, "existing Stage2/3 store cannot enable native content")
+        database = unlinked(root / "project-intake.sqlite")
+        require(database.is_file(), "existing Stage2/3 intake database required")
+        with database.open("rb") as stream:
+            require(
+                stream.read(16) == b"SQLite format 3\x00",
+                "existing Stage2/3 intake database header differs",
+            )
+        if (sys.platform if platform is None else platform) == "win32":
+            require(
+                len(
+                    str(database.with_name(database.name + "-journal")).encode(
+                        "utf-16-le"
+                    )
+                )
+                // 2
+                < 240,
+                "existing intake SQLite layout is too long",
+            )
+        return
     if (sys.platform if platform is None else platform) == "win32":
         # Core Stage1 archives impose their own <=170 character producer path.
         # Native owner/sidecars can add another 170 characters to this prefix.
@@ -179,6 +200,11 @@ def parser():
     value.add_argument("--repo", type=Path, default=REPO)
     value.add_argument("--source-helper-sha256", required=True)
     value.add_argument("--projects-root", type=Path, required=True)
+    value.add_argument(
+        "--existing-stage23-store",
+        action="store_true",
+        help="Serve an existing Stage2/3 store without native Stage1 registration",
+    )
     value.add_argument("--views-config", type=Path)
     value.add_argument("--views-sha256")
     value.add_argument("--stage1-query-runtime", type=Path)
@@ -227,6 +253,22 @@ def parser():
 
 def inspect_inputs(args):
     """Filesystem-only checks; do not create an output or import owned modules."""
+    existing_stage23 = getattr(args, "existing_stage23_store", False)
+    if existing_stage23:
+        require(
+            not any(
+                getattr(args, name, None)
+                for name in (
+                    "enable_content_model",
+                    "enable_public_sources",
+                    "enable_stage1_run",
+                    "stage1_query_runtime",
+                    "stage1_materials_root",
+                    "native_stage1_config",
+                )
+            ),
+            "existing Stage2/3 store cannot register native Stage1 services",
+        )
     require(
         type(args.source_cap_seconds) is int and 1 <= args.source_cap_seconds <= 300,
         "source cap must remain within Harness 1..300 seconds",
@@ -343,7 +385,9 @@ def inspect_inputs(args):
             ),
             "saved Stage1 materials must stay outside every Git checkout",
         )
-    windows_root_preflight(root, model=args.enable_content_model)
+    windows_root_preflight(
+        root, model=args.enable_content_model, existing_stage23=existing_stage23
+    )
     helper = plugin / HELPER
     helper_raw = raw_file(helper)
     require(digest(helper_raw) == args.source_helper_sha256, "helper bytes differ")

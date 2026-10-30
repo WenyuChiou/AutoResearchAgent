@@ -179,6 +179,55 @@ class ProjectWorkspaceLauncherTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "runtime SQLite layout"):
             check(Path("D:/" + "a" * 42), platform="win32", model=True)
 
+    def test_existing_stage23_store_checks_database_without_native_path_reservation(
+        self,
+    ):
+        import sqlite3
+
+        with self.actual_private_temp() as directory:
+            parent = Path(directory).resolve()
+            root = parent / ("saved-" + "x" * max(1, 63 - len(str(parent))))
+            root.mkdir()
+            check = LAUNCHER["windows_root_preflight"]
+            with self.assertRaisesRegex(ValueError, "database required"):
+                check(root, platform="win32", existing_stage23=True)
+            database = root / "project-intake.sqlite"
+            database.write_bytes(b"invalid database header")
+            with self.assertRaisesRegex(ValueError, "header differs"):
+                check(root, platform="win32", existing_stage23=True)
+            database.unlink()
+            connection = sqlite3.connect(database)
+            try:
+                connection.execute("PRAGMA user_version=1")
+            finally:
+                connection.close()
+            self.assertGreater(len(str(root).encode("utf-16-le")) // 2, 60)
+            before = sorted(root.iterdir())
+            check(root, platform="win32", existing_stage23=True)
+            self.assertEqual(sorted(root.iterdir()), before)
+            with self.assertRaisesRegex(ValueError, "too long"):
+                check(root, platform="win32")
+            with self.assertRaisesRegex(ValueError, "cannot enable native"):
+                check(root, platform="win32", model=True, existing_stage23=True)
+
+    def test_existing_stage23_mode_rejects_all_native_startup_registrations(self):
+        self.args.existing_stage23_store = True
+        for name in (
+            "enable_content_model",
+            "enable_public_sources",
+            "enable_stage1_run",
+            "stage1_query_runtime",
+            "stage1_materials_root",
+            "native_stage1_config",
+        ):
+            with self.subTest(name=name):
+                prior = getattr(self.args, name, None)
+                setattr(self.args, name, True)
+                with self.assertRaisesRegex(ValueError, "cannot register native"):
+                    self.inspect()
+                setattr(self.args, name, prior)
+        self.assertFalse(self.args.projects_root.exists())
+
     def test_content_model_requires_explicit_own_home_and_native_executable(self):
         self.args.enable_content_model = True
         with self.assertRaisesRegex(ValueError, "are explicit"):

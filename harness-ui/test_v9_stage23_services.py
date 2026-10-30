@@ -37,6 +37,29 @@ class WikiStage23ServicesTests(unittest.TestCase):
         self.assertIsNone(services["stage3_recovery_pins"])
         self.assertIsNone(services["stage2_readings"])
 
+    def test_existing_store_requests_reuse_only_direct_imports(self):
+        args = options(
+            existing_stage23_store=True,
+            stage2_direct_import_config="source.json",
+            stage2_direct_import_sha256="a" * 64,
+        )
+        intake, stage2 = object(), object()
+        with (
+            patch(
+                "research_workspace_native.project_stage2_direct_config.load_direct_request_imports",
+                return_value={},
+            ) as imports,
+            patch(
+                "research_workspace_native.project_stage2_selection.ProjectStage2SelectionService"
+            ),
+        ):
+            configure_services(
+                {"projects": intake, "stage2": stage2, "credential": "fixture"}, args
+            )
+        imports.assert_called_once_with(
+            stage2, "fixture", "source.json", "a" * 64, existing_only=True
+        )
+
     def test_failed_http_drain_keeps_planner_and_project_open(self):
         from unittest.mock import Mock
         from run_v7 import close_services

@@ -180,6 +180,7 @@ def import_direct_request_project(
     expected_request_sha256,
     project_id,
     input_version,
+    existing_only=False,
 ):
     """Trusted bootstrap only. Browser fields cannot choose paths or import results."""
     intake = service.intake
@@ -237,6 +238,7 @@ def import_direct_request_project(
                 )
                 direct_binding(intake, state)
             else:
+                _check(not existing_only, "direct-import-existing-project-required")
                 count = intake.db.execute(
                     "SELECT COUNT(*) FROM intake_projects WHERE principal=?",
                     (principal,),

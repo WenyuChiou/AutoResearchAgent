@@ -39,11 +39,17 @@ def configure_services(services, args):
             load_direct_request_imports,
         )
 
+        reuse = (
+            {"existing_only": True}
+            if getattr(args, "existing_stage23_store", False)
+            else {}
+        )
         bindings = load_direct_request_imports(
             stage2,
             token,
             args.stage2_direct_import_config,
             args.stage2_direct_import_sha256,
+            **reuse,
         )
     if getattr(args, "selection_config", None):
         from research_workspace_native.project_host import _decode, sha
