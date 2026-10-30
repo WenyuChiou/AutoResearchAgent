@@ -45,18 +45,21 @@ class Element {
   set innerHTML(_) { throw new Error("Unsafe HTML rendering"); }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this._text = ""; this.children = children; }
+  focus() { this.focusCount=(this.focusCount || 0)+1; }
+  scrollIntoView() { this.scrollCount=(this.scrollCount || 0)+1; }
 }
 const settle = async () => { for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve)); };
-async function page(view = fixture(), responder) {
+async function page(view = fixture(), responder, fragment = "#project-a") {
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   elements.language.value = "en";
-  const calls = [], created = [];
+  const calls = [], created = [], historyCalls = [], location = {hash:fragment,search:""};
+  const history = {replaceState: (data,title,url) => { assert.ok(url.startsWith("#"));historyCalls.push(url);location.hash=url; }};
   const document = {documentElement: {}, getElementById: id => { assert.ok(elements[id], id); return elements[id]; },
     querySelectorAll: () => [], createElement: tag => { created.push(tag); return new Element(tag); }};
   vm.runInNewContext(script, {document, window: {RESEARCH_PROJECTS: {credential: "synthetic", stage3_planning_projects: ["project-a", "project-b"]}},
-    location: {hash: "#project-a"}, fetch: async (url, options) => { calls.push({url, options}); return responder ? responder(url, options) : {ok: true, json: async () => structuredClone(view)}; }});
+    location, history, URLSearchParams, fetch: async (url, options) => { calls.push({url, options}); return responder ? responder(url, options) : {ok: true, json: async () => structuredClone(view)}; }});
   await settle();
-  return {elements, calls, created, text: () => Object.values(elements).map(n => n.textContent).join("\n")};
+  return {elements, calls, created, location, historyCalls, text: () => Object.values(elements).map(n => n.textContent).join("\n")};
 }
 
 if (require.main === module) {
@@ -145,7 +148,7 @@ if (require.main === module) {
   }
   test("a pending direction preference shows its conditional SQ plan and original unknowns", async () => {
     const data=conditionalView(), original=JSON.stringify(data), p=await page(data), count=p.calls.length;
-    assert.equal(p.elements.actions.hidden,false);assert.equal(p.elements.plan.hidden,false);
+    assert.equal(p.elements.actions.hidden,true);assert.equal(p.elements.plan.hidden,false);
     assert.equal(p.elements.questions.children.length,2);
     for(const [i,a] of p.elements.questions.children.entries()){
       for(const text of [`Method for SQ${i+1}`,"unknown","not-established","Resolve access before collection"])assert.ok(a.textContent.includes(text),text);
@@ -207,6 +210,147 @@ if (require.main === module) {
     const body=JSON.parse(writes[0].options.body);assert.equal(body.mode,"direction-intent");
     assert.equal(body.key,"same-direction-key");assert.equal(body.direction_intent_sha256,"d".repeat(64));
     assert.equal(body.confirmed,true);assert.equal(body.target_thread,undefined);assert.equal(body.selection_request_sha256,undefined);
+  });
+  test("landing on a running or saved job retains source context and offers no duplicate start", async () => {
+    for(const job of [{status:"dispatching"},{status:"completed",outcome:"saved",planning_status:"needs-information"}]){
+      const data=conditionalView();data.job=job;
+      data.direction_context.preferred_cards[0].candidate_question="Original direction <img src=x>";
+      const original=JSON.stringify(data),p=await page(data);
+      assert.ok(p.elements["direction-context"].textContent.includes("Original direction <img src=x>"));
+      assert.equal(p.elements.actions.hidden,true);assert.equal(p.elements.run.hidden,true);
+      assert.equal(p.elements.confirmation.hidden,true);assert.equal(p.elements.prepare.hidden,true);
+      assert.equal(p.elements[job.outcome==="saved"?"review":"refresh"].className,"planning-primary");
+      assert.ok(p.elements["next-step"].textContent.includes(job.outcome==="saved"?"unknowns":"does not start another"));
+      if(job.outcome==="saved")assert.ok(p.elements.status.textContent.includes("required information remains unresolved"));
+      await p.elements.refresh.onclick();
+      assert.equal(p.calls.length,2);assert.ok(p.calls.every(c=>c.options.method==="GET"));
+      assert.equal(JSON.stringify(data),original);assert.ok(!p.created.includes("img"));
+    }
+  });
+  test("only the applicable prepare or confirmed start control is shown", async () => {
+    for(const prepared of [false,true]){
+      const data=conditionalView();data.job=prepared?{status:"intent-recorded"}:null;data.plan=null;
+      const p=await page(data);
+      assert.equal(p.elements.actions.hidden,false);assert.equal(p.elements.prepare.hidden,prepared);
+      assert.equal(p.elements.confirmation.hidden,!prepared);assert.equal(p.elements.run.hidden,!prepared);
+      assert.equal(p.elements[prepared?"run":"prepare"].className,"planning-primary");
+      assert.equal(p.elements.run.disabled,true);
+      if(prepared){p.elements.confirmed.checked=true;p.elements.confirmed.onchange();assert.equal(Boolean(p.elements.run.disabled),false);}
+      assert.ok(p.calls.every(c=>c.options.method==="GET"));
+    }
+    const data=conditionalView();data.job={status:"intent-recorded"};data.default_request=null;data.plan=null;
+    const p=await page(data);assert.equal(p.elements.actions.hidden,true);
+    assert.ok(p.elements.status.textContent.includes("not confirmed"));
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("a confirmed start reads the actual accepted job before showing progress", async () => {
+    const data=conditionalView();data.job={status:"intent-recorded"};data.plan=null;let accepted=false;
+    const p=await page(data,(url,options)=>({ok:true,json:async()=>{
+      if(options.method==="POST"){accepted=true;return {submission_status:"accepted"};}
+      return {...structuredClone(data),job:accepted?{status:"dispatching"}:data.job};
+    }}));
+    p.elements.confirmed.checked=true;await p.elements.run.onclick();
+    assert.equal(p.calls.filter(c=>c.options.method==="POST").length,1);
+    assert.equal(p.calls.filter(c=>c.options.method==="GET").length,2);
+    assert.equal(p.elements.actions.hidden,true);assert.equal(p.elements.confirmed.checked,false);
+    assert.ok(p.elements.status.textContent.includes("in progress"));
+  });
+  test("read failure explains safe recovery without offering a planning retry", async () => {
+    const p=await page(null,()=>({ok:false,json:async()=>({error:"saved-state-unavailable"})}));
+    assert.ok(p.elements.status.textContent.includes("could not be read"));
+    assert.ok(p.elements["next-step"].textContent.includes("Do not submit another"));
+    assert.equal(p.elements.context.hidden,true);assert.equal(p.elements.actions.hidden,true);
+    assert.equal(p.elements.refresh.disabled,false);assert.equal(p.calls.length,1);
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("fragment entry language is allowlisted and a running context is not labeled as a generated plan", async () => {
+    for(const [query,language] of [["?lang=zh-TW","zh-TW"],["?lang=zh-CN","zh-CN"],["?lang=en","en"],["?lang=other","en"]]){
+      const data=conditionalView();data.plan=null;data.job={status:"dispatching"};
+      const original=JSON.stringify(data),p=await page(data,undefined,"#project-a"+query);
+      assert.equal(p.elements.language.value,language);assert.equal(p.calls.length,1);
+      assert.equal(p.calls[0].options.method,"GET");assert.equal(JSON.stringify(data),original);
+      assert.ok(!p.elements.review.textContent.includes("question-by-question plan"));
+      assert.ok(!p.elements["plan-title"].textContent.includes("draft"));
+    }
+  });
+  test("historical transport errors cannot override verified saved or running jobs", async () => {
+    for(const job of [{status:"completed",outcome:"saved",planning_status:"needs-information"},{status:"dispatching"},{status:"execution-unknown"}]){
+      const data=conditionalView();data.job=job;
+      data.submission_error={key:data.default_request.key,request_sha256:data.default_request.request_sha256,code:"prior-connection-failure",automatic_retry:false};
+      const original=JSON.stringify(data),p=await page(data);
+      const expected=job.outcome==="saved"?"draft is saved":job.status==="dispatching"?"in progress":"not confirmed";
+      assert.ok(p.elements.status.textContent.includes(expected),p.elements.status.textContent);
+      assert.equal(p.elements.actions.hidden,true);
+      assert.deepEqual(JSON.parse(p.elements.receipt.textContent).submission_error,data.submission_error);
+      assert.equal(JSON.stringify(data),original);assert.ok(p.calls.every(c=>c.options.method==="GET"));
+    }
+  });
+  test("a transport error affects controls only when its key and request hash match", async () => {
+    for(const identity of ["old-key","old-hash","current","new-preference"]){
+      const data=conditionalView();data.job=identity==="new-preference"?null:{status:"intent-recorded"};data.plan=null;
+      const request=data.default_request;
+      data.submission_error={key:identity==="old-key" || identity==="new-preference"?"old-key":request.key,request_sha256:identity==="old-hash"?"f".repeat(64):request.request_sha256,code:"prior-connection-failure",automatic_retry:false};
+      if(identity==="new-preference")delete request.request_sha256;
+      const p=await page(data);
+      assert.equal(p.elements.actions.hidden,identity==="current");
+      assert.ok(p.elements.status.textContent.includes(identity==="current"?"did not produce":identity==="new-preference"?"Preference saved":"Input prepared"));
+      assert.deepEqual(JSON.parse(p.elements.receipt.textContent).submission_error,data.submission_error);
+      assert.ok(p.calls.every(c=>c.options.method==="GET"));
+    }
+  });
+  test("prepare and accepted start hand focus to the next applicable control", async () => {
+    const data=conditionalView();data.job=null;data.plan=null;delete data.default_request.request_sha256;
+    const p=await page(data,(url,options)=>({ok:true,json:async()=>{
+      if(options.method==="POST"){
+        data.default_request.request_sha256="e".repeat(64);
+        data.job={status:url.endsWith("/prepare")?"intent-recorded":"dispatching"};
+        return {submission_status:"accepted"};
+      }
+      return structuredClone(data);
+    }}));
+    await p.elements.prepare.onclick();assert.equal(p.elements.confirmed.focusCount,1);
+    assert.equal(p.elements.confirmed.disabled,false);p.elements.confirmed.checked=true;
+    await p.elements.run.onclick();assert.equal(p.elements.refresh.focusCount,1);
+    assert.equal(p.elements.refresh.disabled,false);assert.equal(p.elements.actions.hidden,true);
+    assert.equal(p.calls.filter(c=>c.options.method==="POST").length,2);
+  });
+  test("fragment project and locale remain current after language or project changes", async () => {
+    const p=await page(conditionalView(),undefined,"#project%2Db?lang=zh-TW");
+    assert.equal(p.elements.project.value,"project-b");assert.equal(p.elements.language.value,"zh-TW");
+    assert.equal(p.calls[0].url,"/api/projects/project-b/stage3/planning");
+    p.elements.language.value="zh-CN";p.elements.language.onchange();
+    assert.equal(p.location.hash,"#project-b?lang=zh-CN");assert.equal(p.calls.length,1);
+    p.elements.project.value="project-a";await p.elements.project.onchange();
+    assert.equal(p.location.hash,"#project-a?lang=zh-CN");
+    assert.equal(p.calls[1].url,"/api/projects/project-a/stage3/planning");
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("review scroll keeps the project permalink intact for reload", async () => {
+    const data=conditionalView();data.job.planning_status="needs-information";
+    const p=await page(data,undefined,"#project-b?lang=zh-TW"),fragment=p.location.hash;
+    p.elements.review.onclick();assert.equal(p.location.hash,fragment);
+    assert.equal(p.elements["plan-conditions"].scrollCount,1);assert.equal(p.elements["plan-conditions"].focusCount,1);
+    assert.equal(p.calls.length,1);
+    const reloaded=await page(data,undefined,p.location.hash);
+    assert.equal(reloaded.elements.project.value,"project-b");assert.equal(reloaded.elements.language.value,"zh-TW");
+    assert.equal(reloaded.calls[0].url,"/api/projects/project-b/stage3/planning");
+  });
+  test("unknown or malformed fragment projects never read a different project", async () => {
+    for(const fragment of ["#missing?lang=zh-TW","#%E0%A4%A?lang=zh-TW","#?lang=zh-TW",""]){
+      const p=await page(conditionalView(),undefined,fragment);
+      assert.equal(p.elements.project.value,"");assert.equal(p.calls.length,0);
+      assert.equal(p.elements.context.hidden,true);assert.equal(p.elements.plan.hidden,true);
+    }
+  });
+  test("clearing the project keeps an empty context and locale across reload", async () => {
+    const data=conditionalView(),p=await page(data,undefined,"#project-b?lang=zh-TW");
+    p.elements.project.value="";await p.elements.project.onchange();
+    assert.equal(p.location.hash,"#?lang=zh-TW");assert.equal(p.calls.length,1);
+    p.elements.language.value="en";p.elements.language.onchange();
+    assert.equal(p.location.hash,"#?lang=en");assert.equal(p.calls.length,1);
+    const reloaded=await page(data,undefined,p.location.hash);
+    assert.equal(reloaded.elements.project.value,"");assert.equal(reloaded.elements.language.value,"en");
+    assert.equal(reloaded.calls.length,0);assert.equal(reloaded.elements.context.hidden,true);
   });
 }
 module.exports = {fixture, web};

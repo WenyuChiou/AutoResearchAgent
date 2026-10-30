@@ -144,9 +144,34 @@
     ["validation","Validation and credibility checks","驗證與可信度檢查","验证与可信度检查"],
     ["analysis","Planned analysis","預定分析","预定分析"],
     ["resultInterpretation","Interpretation of possible results","可能結果的判讀","可能结果的判读"],
+    ["contextTitle","This planning context","本次規劃內容","本次规划内容"],
+    ["flow","Stage 2 context → Stage 3 planning → Draft review","Stage 2 方向 → Stage 3 規劃 → 草稿檢視","Stage 2 方向 → Stage 3 规划 → 草稿查看"],
+    ["stepPrepare","Prepare this research plan","準備研究規劃","准备研究规划"],
+    ["stepRunning","Planning in progress","正在規劃","正在规划"],
+    ["stepReview","Review the saved draft","檢視已保存草稿","查看已保存草稿"],
+    ["stepAttention","Information or verification needed","需要補充資訊或查核","需要补充信息或核查"],
+    ["stepLoading","Reading saved progress","正在讀取保存進度","正在读取保存进度"],
+    ["reviewPlan","Review the question-by-question plan","檢視逐題規劃與待確認事項","查看逐题规划与待确认事项"],
+    ["reviewContext","Review original questions and source conditions","檢視原始問題與來源條件","查看原始问题与来源条件"],
+    ["draftPlan","Research planning draft","研究規劃草稿","研究规划草稿"],
+    ["contextPlan","Original questions and unresolved information","原始問題與待釐清資訊","原始问题与待澄清信息"],
+    ["draftNeedsInformation","The draft is saved; required information remains unresolved.","草稿已保存；仍有必要資訊待釐清。","草稿已保存；仍有必要信息待澄清。"],
+    ["nextReady","Prepare the saved input, then confirm once to start planning.","先準備已保存的規劃輸入，再確認開始規劃。","先准备已保存的规划输入，再确认开始规划。"],
+    ["nextPrepared","Check the planning context above, then confirm and start.","核對上方規劃內容後，勾選確認並開始。","核对上方规划内容后，勾选确认并开始。"],
+    ["nextRunning","Use Read saved state to check progress. Returning or refreshing does not start another planning run.","可按「讀取保存狀態」查看進度。返回或重新整理頁面不會另啟規劃。","可按「读取保存状态」查看进度。返回或刷新页面不会另启规划。"],
+    ["nextReview","Review each question's materials, design and possible results, then its conditions and unknowns. Experiments require separate authorization.","逐題檢查材料、設計與可能結果，再檢查條件及未知事項；實驗另需授權。","逐题检查材料、设计与可能结果，再检查条件及未知事项；实验另需授权。"],
+    ["nextInformation","Review the recorded unknowns and next checks below. Return to Stage 2 if the direction or saved conditions need revision.","先查看下方已記錄的未知事項與下一步查核。方向或保存條件需要修訂時，可返回 Stage 2。","先查看下方已记录的未知事项与下一步核查。方向或保存条件需要修订时，可返回 Stage 2。"],
+    ["nextVerify","Read saved state, then open Version and planning receipt to inspect retained evidence. Do not submit another planning run while the outcome is unclear.","先讀取保存狀態，再展開「版本與規劃收據」檢查保留證據；結果未明前請勿再次提交規劃。","先读取保存状态，再展开「版本与规划回执」检查保留证据；结果未明前请勿再次提交规划。"],
+    ["nextUnconnected","The direction is retained. Ask the project owner to configure its planner, then read the saved state again.","方向仍已保留。請專案管理者設定規劃器，再讀取保存狀態。","方向仍已保留。请项目管理者配置规划器，再读取保存状态。"],
+    ["nextPending","Return to Stage 2 to record your direction and conditions.","請返回 Stage 2 保存方向與條件。","请返回 Stage 2 保存方向与条件。"],
+    ["nextLoading","Reading this project's existing records; no planning run is started by opening this page.","正在讀取此專案的既有紀錄；開啟頁面不會啟動規劃。","正在读取此项目的已有记录；打开页面不会启动规划。"],
+    ["nextChoose","Choose a project to see its saved planning context.","選擇專案以查看已保存的規劃內容。","选择项目以查看已保存的规划内容。"],
+    ["nextSubmitting","Wait for the submission receipt. The start control is disabled while it is being sent.","請等待提交收據；送出期間開始按鈕會停用。","请等待提交回执；发送期间开始按钮会停用。"],
+    ["readError","The saved state could not be read. The current outcome remains unconfirmed.","未能讀取保存狀態，目前結果仍未確認。","未能读取保存状态，当前结果仍未确认。"],
+    ["submitting","Sending the confirmed request; waiting for its receipt.","正在送出已確認的要求，等待接收收據。","正在发送已确认的请求，等待接收回执。"],
   );
   for(const [key,en,tw,cn] of labels){words.en[key]=en;words["zh-TW"][key]=tw;words["zh-CN"][key]=cn;}
-  let view=null,serial=0,busy=false,notice=null;
+  let view=null,serial=0,busy=false,notice=null,reading=false,readFailed=false,activeAction=null;
   const w=()=>words[el("language").value] || words.en;
   const directionCopy={intro:"directionIntro",selection:"directionSelection",confirm:"directionConfirm",ready:"directionReady",prepared:"directionPrepared",saved:"directionSaved",dispatching:"directionDispatching",unconnected:"directionUnconnected"};
   const copyKey=key=>view?.planning_mode==="direction-intent" && Object.hasOwn(directionCopy,key)?directionCopy[key]:key;
@@ -270,30 +295,103 @@
     if(plan?.markdown)node(el("plan-milestones"),"p",plan.markdown);
   }
   async function api(project,action,body){const r=await fetch("/api/projects/"+encodeURIComponent(project)+"/stage3/planning"+(action?"/"+action:""),{method:body?"POST":"GET",credentials:"omit",cache:"no-store",headers:{Authorization:"Bearer "+boot.credential,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw new Error(data.error || "request-failed");return data;}
+  function planningState(){
+    if(reading)return "loading";
+    if(readFailed)return "readError";
+    if(notice)return "unknown";
+    if(!view)return "choose";
+    if(view.selection_status!=="recorded" && view.planning_mode!=="direction-intent")return "pending";
+    if(!view.planning_configured)return "unconnected";
+    const job=view.job;
+    if(job?.status==="execution-unknown")return "unknown";
+    if(job?.outcome==="failed")return "failed";
+    if(view.submission_in_progress || job?.status==="dispatching")return "dispatching";
+    if(busy && activeAction==="run")return "submitting";
+    const needsInfo=view.dispatch_action==="needs-information" || view.direction_context?.missing_mapping?.length || job?.planning_status==="needs-information" || view.planning_status==="needs-information";
+    if(job?.outcome==="saved")return needsInfo?"draftNeedsInformation":"saved";
+    if(needsInfo)return "needsInformation";
+    const request=view.default_request,error=view.submission_error;
+    if(request?.key && request?.request_sha256 && error?.key===request.key && error?.request_sha256===request.request_sha256)return "failed";
+    if(job?.status==="intent-recorded")return view.default_request?.request_sha256?"prepared":"unknown";
+    return view.default_request && !job?"ready":"unknown";
+  }
+  function renderProgress(state){
+    const titles={loading:"stepLoading",dispatching:"stepRunning",submitting:"stepRunning",saved:"stepReview",draftNeedsInformation:"stepReview",ready:"stepPrepare",prepared:"stepPrepare",pending:"stepPrepare",choose:"contextTitle"};
+    const next={loading:"nextLoading",choose:"nextChoose",pending:"nextPending",unconnected:"nextUnconnected",ready:"nextReady",prepared:"nextPrepared",dispatching:"nextRunning",submitting:"nextSubmitting",saved:"nextReview",draftNeedsInformation:"nextInformation",needsInformation:"nextInformation"};
+    el("step-title").textContent=w()[titles[state] || "stepAttention"];
+    el("next-step").textContent=w()[next[state] || "nextVerify"];
+    el("context").hidden=!view;
+    const box=el("direction-context");box.replaceChildren();
+    if(view){
+      const cards=rows(view.direction_context?.preferred_cards),questions=rows(view.direction_context?.questions || view.plan?.questions);
+      const texts=cards.length?cards.map(c=>c.candidate_question):questions.map(q=>q.text);
+      const list=node(box,"ul","");for(const text of texts)node(list,"li",typeof text==="string"?text:w().unknownValue);
+      if(!texts.length)node(box,"p",w().unknownValue);
+    }
+    const canPrepare=state==="ready",canRun=state==="prepared" || state==="submitting";
+    el("actions").hidden=!canPrepare && !canRun;
+    el("prepare").hidden=!canPrepare;el("confirmation").hidden=!canRun;el("run").hidden=!canRun;
+    el("review").hidden=!(view?.plan || view?.direction_context);
+    el("review").textContent=w()[view?.plan?"reviewPlan":"reviewContext"];
+    el("plan-title").textContent=w()[view?.plan?"draftPlan":"contextPlan"];
+    el("review").dataset.target=state==="needsInformation" || state==="draftNeedsInformation"?"plan-conditions":"plan";
+    let primary="refresh";
+    if(canPrepare)primary="prepare";
+    else if(canRun)primary="run";
+    else if(["saved","draftNeedsInformation","needsInformation"].includes(state))primary=el("review").hidden?"selection":"review";
+    else if(state==="pending")primary="selection";
+    for(const id of ["prepare","run","selection","refresh","review"])el(id).className=id===primary?"planning-primary":"";
+  }
   function render(){
     document.documentElement.lang=el("language").value;
     document.querySelectorAll("[data-i18n]").forEach(n=>{n.textContent=w()[copyKey(n.dataset.i18n)];});
     const request=view?.default_request,job=view?.job,prepared=job?.status==="intent-recorded";
     el("selection").href="/project-stage2-selection.html#"+encodeURIComponent(ref());
-    el("project").disabled=busy;el("refresh").disabled=busy;
-    const admitted=view?.selection_status==="recorded" || view?.planning_mode==="direction-intent";
-    el("actions").hidden=!view || !view.planning_configured || !admitted;
+    el("project").disabled=busy;el("refresh").disabled=busy || reading;
     el("prepare").disabled=busy || !request || Boolean(job);
     el("confirmed").disabled=busy || !prepared;
     el("run").disabled=busy || !prepared || !el("confirmed").checked || view?.submission_in_progress;
     el("inspect").disabled=busy || !request?.request_sha256;
     el("recover").disabled=busy || !request?.request_sha256 || !view?.recovery_pin_available || job?.outcome==="saved";
-    let status=!view?"choose":!admitted?"pending":!view.planning_configured?"unconnected":(view.dispatch_action==="needs-information" || view.direction_context?.missing_mapping?.length)?"needsInformation":job?.outcome==="saved"?"saved":job?.outcome==="failed"?"failed":view.submission_error?"failed":job?.status==="execution-unknown"?"unknown":view.submission_in_progress || job?.status==="dispatching"?"dispatching":prepared?"prepared":"ready";
-    el("status").textContent=notice || w()[copyKey(status)];
+    el("inspect").hidden=!request?.request_sha256;el("recover").hidden=!request?.request_sha256 || !view?.recovery_pin_available || job?.outcome==="saved";
+    const status=planningState();renderProgress(status);
+    el("status").textContent=notice?w()[copyKey(status)]+" "+w().error+": "+notice:w()[copyKey(status)];
     renderEvidence();el("plan").hidden=!(view?.plan || view?.direction_context);if(view?.planning_mode==="direction-intent")renderDirectionPlan();else renderScientificPlan(view?.plan);
     el("plan-json").textContent=view?.plan?JSON.stringify(view.plan,null,2):"";
     el("receipt").textContent=view?JSON.stringify({...view,plan:undefined},null,2):"";
   }
-  async function load(){const project=ref(),sequence=++serial;view=null;notice=w().loading;el("confirmed").checked=false;render();if(!/^[A-Za-z0-9_-]{1,64}$/.test(project)){notice=w().choose;render();return;}try{const data=await api(project);if(!current(project,sequence))return;view=data;notice=null;}catch(e){if(!current(project,sequence))return;notice=w().error+": "+e.message;}render();}
-  async function act(action){if(busy || !view?.default_request)return;const project=ref(),sequence=serial,source={...view.default_request};if(action!=="prepare" && !source.request_sha256)return;if(action==="run" && !el("confirmed").checked)return;busy=true;notice=null;render();try{const data=await api(project,action,{...source,...(action==="run"?{confirmed:true}:{})});if(!current(project,sequence))return;if(action==="run" && data.submission_status==="accepted"){notice=w().accepted;el("confirmed").checked=false;}else{const dataView=await api(project);if(!current(project,sequence))return;view=dataView;notice=null;}}catch(e){if(current(project,sequence))notice=w().error+": "+e.message;}finally{busy=false;render();}}
-  el("language").onchange=render;el("project").onchange=load;el("refresh").onclick=load;el("confirmed").onchange=render;
+  async function load(){const project=ref(),sequence=++serial;view=null;notice=null;reading=true;readFailed=false;el("confirmed").checked=false;render();if(!/^[A-Za-z0-9_-]{1,64}$/.test(project)){reading=false;render();return;}try{const data=await api(project);if(!current(project,sequence))return;view=data;}catch(e){if(!current(project,sequence))return;notice=e.message;readFailed=true;}if(!current(project,sequence))return;reading=false;render();}
+  async function act(action){
+    if(busy || !view?.default_request)return;
+    const project=ref(),sequence=serial,source={...view.default_request};
+    if(action!=="prepare" && !source.request_sha256)return;
+    if(action==="run" && !el("confirmed").checked)return;
+    busy=true;activeAction=action;notice=null;render();
+    try{
+      const data=await api(project,action,{...source,...(action==="run"?{confirmed:true}:{})});
+      if(!current(project,sequence))return;
+      if(action==="run" && data.submission_status==="accepted")el("confirmed").checked=false;
+      const dataView=await api(project);if(!current(project,sequence))return;view=dataView;
+    }catch(e){if(current(project,sequence))notice=e.message;}
+    finally{
+      busy=false;activeAction=null;render();
+      if(current(project,sequence) && el(action).hidden){
+        const target=!el("confirmation").hidden?"confirmed":view?.plan && !el("review").hidden?"review":"refresh";
+        el(target).focus();
+      }
+    }
+  }
+  function syncPermalink(){
+    history.replaceState(null,"","#"+encodeURIComponent(ref())+"?lang="+encodeURIComponent(el("language").value));
+  }
+  el("language").onchange=()=>{syncPermalink();render();};el("project").onchange=()=>{syncPermalink();return load();};el("refresh").onclick=load;el("confirmed").onchange=render;
+  el("review").onclick=()=>{const target=el(el("review").dataset.target);target.scrollIntoView({block:"start"});target.focus();};
   for(const action of ["prepare","run","inspect","recover"])el(action).onclick=()=>act(action);
   for(const project of boot.stage3_planning_projects || []){const option=node(el("project"),"option",project);option.value=project;}
-  const initial=location.hash.slice(1);if((boot.stage3_planning_projects || []).includes(initial))el("project").value=initial;
+  const fragment=location.hash.slice(1),separator=fragment.indexOf("?");
+  const initialLanguage=new URLSearchParams(separator<0?"":fragment.slice(separator+1)).get("lang");
+  if(Object.hasOwn(words,initialLanguage))el("language").value=initialLanguage;
+  let initial="";try{initial=decodeURIComponent(separator<0?fragment:fragment.slice(0,separator));}catch{}
+  if((boot.stage3_planning_projects || []).includes(initial))el("project").value=initial;
   load();
 }());

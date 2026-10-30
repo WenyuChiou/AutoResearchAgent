@@ -54,3 +54,26 @@ receipt view. Deployed/native/scientific and whole-flow acceptance remain unveri
 
 Recorded next-check objects show their original text, with source markers and
 other recorded fields available in expandable details. Rendering changes no values.
+
+The planning entry shows the original direction or source questions, the current
+recorded state and one primary next action. Running and saved jobs do not show
+another start form. A saved draft marked needs-information stays visibly
+conditional; missing information is not inferred to be resolved. The main view
+prioritizes per-SQ design and outstanding conditions; versions, authority and raw
+receipts are expandable. An explicitly accepted run is followed by a passive
+read of the actual job. Opening, refreshing or changing language never dispatches.
+Loading, read failures and uncertain outcomes retain a safe read/inspect path.
+Verified current job outcomes take precedence over retained connection errors.
+A connection error affects current controls only when its key and request hash
+match; all historical errors remain unchanged in the raw receipt.
+When an explicit action hides its old control, keyboard focus moves to the
+applicable confirmation, draft-review or read-state control on the same project.
+Before a plan exists, headings identify original questions and source conditions.
+Entry uses the canonical HTML path and #encoded-project?lang=en|zh-TW|zh-CN;
+the fragment is client-only, so the strict Host route needs no query support.
+Unknown or malformed project fragments select no project and read no other one.
+Explicit project/language changes replace the current permalink without storage
+or an extra planning call. Review buttons scroll/focus without replacing the
+project fragment, so reloading retains the same project and language.
+Three-language, narrow-screen and keyboard checks establish presentation behavior
+only; usability with researchers and scientific acceptance remain unverified.
