@@ -1,0 +1,462 @@
+{
+  "handoff": "stage3-html-ux-design-20261029-v1",
+  "same_key_hash_engineering_requirement": "reused existing contract; not independently exercised by this mock",
+  "states": [
+    {
+      "id": "no-selection",
+      "stage": "Stage 2",
+      "primary_task": "比较原方向与材料",
+      "primary_action": {
+        "zh-CN": "比较方向",
+        "zh-TW": "比較方向",
+        "en": "Compare directions"
+      },
+      "behavior": "显示候选/材料/限制；不创建选择",
+      "next_state": "到 direction-intent 或合法正式选案入口",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "empty",
+      "stage": "Stage 3",
+      "primary_task": "明确未选项目/无记录",
+      "primary_action": {
+        "zh-CN": "选择项目",
+        "zh-TW": "選擇專案",
+        "en": "Choose a project"
+      },
+      "behavior": "仅从原项目列表选择，未知片段不选默认项",
+      "next_state": "loading",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "direction-intent",
+      "stage": "Stage 2→3",
+      "primary_task": "核对已保存偏好和条件",
+      "primary_action": {
+        "zh-CN": "核对方向偏好",
+        "zh-TW": "核對方向偏好",
+        "en": "Review saved preference"
+      },
+      "behavior": "保留 human_selection pending；不伪造正式接收",
+      "next_state": "ready 或 needs-information",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "formal-selected",
+      "stage": "规则示意",
+      "primary_task": "核对合法来源/版本/实际人类选择链",
+      "primary_action": {
+        "zh-CN": "查看选案记录",
+        "zh-TW": "查看選案紀錄",
+        "en": "Review selection receipt"
+      },
+      "behavior": "只有原 owner 验证链成立才展示该状态；合成 mock 不实例化真实接受",
+      "next_state": "ready 或既有拒绝状态",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "save-only",
+      "stage": "Stage 2",
+      "primary_task": "只保存偏好/条件并留在本阶段",
+      "primary_action": {
+        "zh-CN": "只保存",
+        "zh-TW": "只儲存",
+        "en": "Save only"
+      },
+      "behavior": "保存既有身份，保留两种保存意图的区别；不规划",
+      "next_state": "direction-intent（已保存）",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "future existing save only; no planning",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "save-and-plan",
+      "stage": "Stage 2",
+      "primary_task": "保存身份后显式进入既有规划",
+      "primary_action": {
+        "zh-CN": "保存并开始规划",
+        "zh-TW": "儲存並開始規劃",
+        "en": "Save and start planning"
+      },
+      "behavior": "先完成原保存动作/校验，按既有确认边界进入规划；失败保留保存身份",
+      "next_state": "loading / prepared / needs-information",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "future existing explicit action; never mock",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "loading",
+      "stage": "Stage 3",
+      "primary_task": "等待读取结果，避免误操作",
+      "primary_action": {
+        "zh-CN": "正在读取",
+        "zh-TW": "正在讀取",
+        "en": "Reading…"
+      },
+      "behavior": "唯一主要状态控件为 disabled；不以刷新替代运行",
+      "next_state": "ready / saved-draft / failed",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "ready",
+      "stage": "Stage 3",
+      "primary_task": "检查源版本和准备输入",
+      "primary_action": {
+        "zh-CN": "准备规划输入",
+        "zh-TW": "準備規劃輸入",
+        "en": "Prepare planning input"
+      },
+      "behavior": "原 default_request 存在且合法时才允许准备；不调 planner",
+      "next_state": "prepared 或原失败",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "future prepare only; no model",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "prepared",
+      "stage": "Stage 3",
+      "primary_task": "明确确认本次规划意图",
+      "primary_action": {
+        "zh-CN": "确认并开始规划",
+        "zh-TW": "確認並開始規劃",
+        "en": "Confirm and start planning"
+      },
+      "behavior": "使用原 typed request/key/hash 和原确认；并非授权研究实验",
+      "next_state": "running / failed / execution-unknown",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "future existing confirmed planning only",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "running",
+      "stage": "Stage 3",
+      "primary_task": "读当前规划 job，禁止重复开始",
+      "primary_action": {
+        "zh-CN": "读取已保存状态",
+        "zh-TW": "讀取已儲存狀態",
+        "en": "Read saved state"
+      },
+      "behavior": "开始控件隐藏；不自动轮询/重试",
+      "next_state": "running / saved-draft / failed / execution-unknown",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "saved-draft",
+      "stage": "Stage 3",
+      "primary_task": "阅读问题—方案—预期产物",
+      "primary_action": {
+        "zh-CN": "查看逐题方案",
+        "zh-TW": "查看逐題方案",
+        "en": "Review question-by-question plan"
+      },
+      "behavior": "saved 只表示草稿保存；不代表研究完成",
+      "next_state": "原 saved view 的页内 SQ 锚点",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "needs-information",
+      "stage": "Stage 3",
+      "primary_task": "定位最近必须解决的 unknown",
+      "primary_action": {
+        "zh-CN": "查看需补的信息",
+        "zh-TW": "查看待補資訊",
+        "en": "Review missing information"
+      },
+      "behavior": "保留来源缺件/用户条件区别；不补 SQ/材料/数值",
+      "next_state": "unknown 原文与原最迟处理步骤",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "failed",
+      "stage": "Stage 3",
+      "primary_task": "查看原尝试/错误和恢复条件",
+      "primary_action": {
+        "zh-CN": "查看原失败记录",
+        "zh-TW": "查看原失敗紀錄",
+        "en": "Inspect original failure"
+      },
+      "behavior": "不自动重跑；原错误/原输入可读，不覆盖失败",
+      "next_state": "原只读 inspect 或原规则 recover",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "execution-unknown",
+      "stage": "Stage 3",
+      "primary_task": "查明尝试状态，保留不确定性",
+      "primary_action": {
+        "zh-CN": "检查原尝试",
+        "zh-TW": "檢查原嘗試",
+        "en": "Inspect uncertain attempt"
+      },
+      "behavior": "不显示重新开始；recover 仅在原 pin/既有规则成立时显式提供",
+      "next_state": "inspect / 原 owner 恢复路径",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "refresh-readback",
+      "stage": "Stage 3",
+      "primary_task": "回读同版记录和已保存 job",
+      "primary_action": {
+        "zh-CN": "读取最新保存状态",
+        "zh-TW": "讀取最新儲存狀態",
+        "en": "Read latest saved state"
+      },
+      "behavior": "same key/hash 不重复执行为既有要求，本轮 NOT_RUN；刷新不重发 run",
+      "next_state": "当前 read-only view",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "back",
+      "stage": "Stage 3→2",
+      "primary_task": "回到同项目/同方向/同语言",
+      "primary_action": {
+        "zh-CN": "返回当前方向",
+        "zh-TW": "返回目前方向",
+        "en": "Return to this direction"
+      },
+      "behavior": "保留身份和未解决条件；回跳不改选案",
+      "next_state": "Stage 2 原方向/版本",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "version-changed",
+      "stage": "跨阶段",
+      "primary_task": "看清旧/新版本及影响",
+      "primary_action": {
+        "zh-CN": "读取当前版本",
+        "zh-TW": "讀取目前版本",
+        "en": "Read current version"
+      },
+      "behavior": "旧稿/失败保留为历史；不复用旧 request，不自动修订",
+      "next_state": "重新读取后按原 owner 修订规则",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "missing-SQ-or-graph",
+      "stage": "Stage 3",
+      "primary_task": "看清源问题或关系缺件",
+      "primary_action": {
+        "zh-CN": "返回来源核对",
+        "zh-TW": "返回來源核對",
+        "en": "Review source mapping"
+      },
+      "behavior": "没有 SQ/图也保留来源/unknown；不从自由文字推 DAG",
+      "next_state": "来源记录或原问题澄清",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    },
+    {
+      "id": "read-failed-or-stale-error",
+      "stage": "Stage 3",
+      "primary_task": "恢复可核对的当前记录",
+      "primary_action": {
+        "zh-CN": "重新读取保存状态",
+        "zh-TW": "重新讀取儲存狀態",
+        "en": "Read saved state again"
+      },
+      "behavior": "保留旧视图及版本标识；只有匹配当前 key/hash 的错误影响控件",
+      "next_state": "原只读路径；无自动重试",
+      "preserve": [
+        "project_ref",
+        "locale",
+        "candidate_id/candidate_version",
+        "question_ref",
+        "source unknown",
+        "user conditions/unresolved",
+        "saved history"
+      ],
+      "dispatch_boundary": "none",
+      "mock_behavior": "static only; all operation buttons disabled; no API",
+      "proof_status": "design specification only; product behavior NOT_RUN"
+    }
+  ]
+}

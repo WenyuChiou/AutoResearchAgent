@@ -1,0 +1,128 @@
+{
+  "baseline": "57ae0509d7ccf17c92080434d8454b4e2352c33c",
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "git_blob": "3138d2a37bd42b8d16f743ef8230c1160d3bf046",
+      "bytes": 24708,
+      "sha256": "bb0a98306ea4a9b20acdda8572aa8fbd31705caf0628a7fee80c7ee112f6a286",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/AGENTS.md"
+    },
+    {
+      "path": "plugins/auto-research-agent/AGENTS.md",
+      "git_blob": "75a06fff9749664bfdf35989829b6fd90b216447",
+      "bytes": 11973,
+      "sha256": "add588471e0afabcd4ad2deec2090480c3717b7f794618905ddcb7a6d22d95ac",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/AGENTS.md"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/stage3-scientific-planning.md",
+      "git_blob": "c7cdedb7c7b2d71b4aef37cee06bcd4ca141b27d",
+      "bytes": 20400,
+      "sha256": "7f5916816b1f12e713da7ce6756aa4aceeb8c5d88e2b59710cc8ff2728f40a1f",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/references/stage3-scientific-planning.md"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/stage3-direction-planning.md",
+      "git_blob": "c9448cf834fa8a8d343f867d5078549567823b7a",
+      "bytes": 3617,
+      "sha256": "e03edb059309c792c85e64f95ac4f7a02f8e4ef5e777aff6b3fa40d596c927af",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/references/stage3-direction-planning.md"
+    },
+    {
+      "path": "plugins/auto-research-agent/references/stage3-evaluation-guidance.v1.md",
+      "git_blob": "ff7ece3207ad9e234bede57cd70657efb52278a6",
+      "bytes": 14110,
+      "sha256": "a0b0b3ed9afe432adf2e76d741bdcb824794273f00ccda5b97a50d54fd9d8c0a",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/references/stage3-evaluation-guidance.v1.md"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.html",
+      "git_blob": "5f1ff6a664000366165a98ed89019e53431cc8a3",
+      "bytes": 2607,
+      "sha256": "460ff41a1bfccacfa1ff289c81cc2eb5c0c884825bfe63b09b17ab544ff93f19",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.html"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.js",
+      "git_blob": "3444246210c4c0b4ba48b64ed79f61b9b0f578eb",
+      "bytes": 32501,
+      "sha256": "8d9e9fb2ed2cc2abcd4bbccab335a3cbc87b809430e1f51a143c6271a37e7d9f",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.js"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.css",
+      "git_blob": "2307f6f146fa0827e38bfbc80eb31d2558137eae",
+      "bytes": 1446,
+      "sha256": "6f7aea171c86e0554971d7a9dd62c5cf91b7686df58f89dfdcdccf9e77493f12",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/research_workspace_native/web/project-stage3-planning.css"
+    },
+    {
+      "path": "plugins/auto-research-agent/schemas/stage3-research-plan.v1_1.schema.json",
+      "git_blob": "85de4dd92ac456e4cb963d898e8478041d6d3120",
+      "bytes": 15245,
+      "sha256": "2d0a6739e42a71f312302f9a6b708267b4a3e82447583a4401b8ed2273b9f185",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/schemas/stage3-research-plan.v1_1.schema.json"
+    },
+    {
+      "path": "plugins/auto-research-agent/schemas/stage3-direction-plan.v1.schema.json",
+      "git_blob": "ff20b79516dbc4a09b5cda726c45146518dff047",
+      "bytes": 1518,
+      "sha256": "f09c03b56762350a4f13dfff3557aad2a5d832c3d30db461be1ea57f9b77de8a",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/schemas/stage3-direction-plan.v1.schema.json"
+    },
+    {
+      "path": "plugins/auto-research-agent/schemas/stage2-packet.v2_5.schema.json",
+      "git_blob": "36e31f05783d2227d757e0cf6c96bdece0c58387",
+      "bytes": 8152,
+      "sha256": "7875d0ec285025e1351f23d769485063aca38a8d2db0e2433bee4776a2b1a76d",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/schemas/stage2-packet.v2_5.schema.json"
+    },
+    {
+      "path": "plugins/auto-research-agent/schemas/stage2-packet.v2_6.schema.json",
+      "git_blob": "49deff6d18649b150432ed7f421550f99b33eaf7",
+      "bytes": 2757,
+      "sha256": "f1a1e77a98c079076f929985de5c018d479c7becf15dc623a0dec17309ccf845",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/schemas/stage2-packet.v2_6.schema.json"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/stage3_plan/direction_intent.py",
+      "git_blob": "d7f17b7534ef393404873b7342d31060621579f2",
+      "bytes": 12709,
+      "sha256": "9361ed9bbafdee5f0362e62b868f76add6ef872fc9e3666765a6410015c508ff",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/stage3_plan/direction_intent.py"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/stage3_plan/direction_jobs.py",
+      "git_blob": "e3b52b12ef08f471c4698e508d2262aa39fc9ca1",
+      "bytes": 8516,
+      "sha256": "350dc70c02b9e52e5529fd388f59f8edb1e8dfea4a8be79215701ea3aab9ab51",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/stage3_plan/direction_jobs.py"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/stage2_workflow/decision_cards.py",
+      "git_blob": "f28bcecc26f7f2fd70d0c0a10caccf786713371c",
+      "bytes": 8461,
+      "sha256": "67b691eee93d82ac95c939fe3ae934921a0b0772de08c1741d35b210ea38e418",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/stage2_workflow/decision_cards.py"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage3_planning.py",
+      "git_blob": "d4fbf456ebf429ff73d74e002fd08b3b1904ef8b",
+      "bytes": 14420,
+      "sha256": "f65982c7ad2e8b10874029e7ff512028cfedf824b32b1c5f69e5f09db33442ab",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/research_workspace_native/project_stage3_planning.py"
+    },
+    {
+      "path": "plugins/auto-research-agent/cli/research_workspace_native/project_stage3_direction_planning.py",
+      "git_blob": "82f77742164e67a9b06793526e740f658130ca88",
+      "bytes": 13147,
+      "sha256": "4a652b653f65d8729c4179233b8bbbae5465c4c2c01f1736bc1072eb4225d41e",
+      "url": "https://github.com/WenyuChiou/AutoResearchAgent/blob/57ae0509d7ccf17c92080434d8454b4e2352c33c/plugins/auto-research-agent/cli/research_workspace_native/project_stage3_direction_planning.py"
+    }
+  ],
+  "private_F03": "not-obtained/not-read/not-reproduced",
+  "source_files_copied_into_design": false,
+  "live_deployment_proven": false,
+  "publication_scope": "docs artifact branch only; no source PR/workflow dispatch; artifact branch does not match main/tag/**full-ci** push selectors"
+}

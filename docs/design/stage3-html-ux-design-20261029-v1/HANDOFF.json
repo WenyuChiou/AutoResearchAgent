@@ -1,0 +1,32 @@
+{
+  "version": "stage3-html-ux-design-20261029-v1",
+  "core_request": "https://github.com/WenyuChiou/AutoResearchAgent/issues/381#issuecomment-6511691881",
+  "ack": "https://github.com/WenyuChiou/AutoResearchAgent/issues/381#issuecomment-6511991060",
+  "baseline": "57ae0509d7ccf17c92080434d8454b4e2352c33c",
+  "proposal_reference": {
+    "pr": 420,
+    "head": "249c2d29ee9f62c6e56865d5c3550bf84b45ca92",
+    "implementation_consumed": false
+  },
+  "scope": "design-only; static mock; no backend/API; source product untouched",
+  "first_draft_target_utc": "2026-10-30T01:40:00Z",
+  "private_F03": "NOT_OBTAINED_NOT_READ_NOT_REPRODUCED",
+  "flags": {
+    "execution_authorized": false,
+    "evaluation_calls_authorized": false,
+    "formal_execution_enabled": false,
+    "external_claim_ready": false,
+    "usable_for_formal_pairing": false
+  },
+  "not_run": [
+    "product source tests",
+    "CI",
+    "browser/UI control",
+    "actual E2E",
+    "NativePlanner/model/grader",
+    "research/scoring/calibration/held-out/formal A/B/experiments",
+    "human usability",
+    "actual assistive-technology and 200% zoom verification"
+  ],
+  "delivery_gate": "Design/ACK is not a prerequisite for #420 merge or E2E; core continues independently"
+}

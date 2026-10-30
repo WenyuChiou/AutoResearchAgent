@@ -1,0 +1,672 @@
+{
+  "baseline": "57ae0509d7ccf17c92080434d8454b4e2352c33c",
+  "pointer_note": "production_pointer is a concrete RFC6901 example on one read-only API-shaped view. Fixture pointers add /view. Array joins use original IDs; no wildcard is represented as a JSON pointer.",
+  "rows": [
+    {
+      "id": "identity",
+      "category": "D01",
+      "production_pointer": "/project_ref",
+      "fixture_pointer": "/view/project_ref",
+      "element": "身份条",
+      "display_condition": "始终；project 未匹配则 empty",
+      "empty_policy": "缺失不猜默认项目",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "version",
+      "category": "D01",
+      "production_pointer": "/revision",
+      "fixture_pointer": "/view/revision",
+      "element": "来源版本摘要",
+      "display_condition": "有同版 view 才显示",
+      "empty_policy": "null 与缺失分开，不制造 hash",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "candidate",
+      "category": "D01",
+      "production_pointer": "/direction_context/questions/0/candidate_version",
+      "fixture_pointer": "/view/direction_context/questions/0/candidate_version",
+      "element": "方向/候选版本",
+      "display_condition": "conditional；按 candidate_id + candidate_version join",
+      "empty_policy": "缺失显示未记录，不借其他候选",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "motivation",
+      "category": "D01",
+      "production_pointer": "/direction_context/preferred_options/0/candidate/scientific_argument/motivation",
+      "fixture_pointer": "/view/direction_context/preferred_options/0/candidate/scientific_argument/motivation",
+      "element": "背景与重要性",
+      "display_condition": "同候选版本才读",
+      "empty_policy": "无原字段则 unknown；不补理由",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/stage3_plan/direction_intent.py",
+          "lines": "228-258"
+        },
+        {
+          "path": "schemas/stage2-packet.v2_5.schema.json",
+          "section": "$defs/scientific_argument"
+        }
+      ]
+    },
+    {
+      "id": "closest-work",
+      "category": "D01",
+      "production_pointer": "/direction_context/preferred_options/0/candidate/scientific_argument/current_state",
+      "fixture_pointer": "/view/direction_context/preferred_options/0/candidate/scientific_argument/current_state",
+      "element": "现况/应用/closest work",
+      "display_condition": "仅原 claim/source_refs 明示内容",
+      "empty_policy": "无文献来源不填引用或假结论",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/stage3_plan/direction_intent.py",
+          "lines": "228-258"
+        },
+        {
+          "path": "schemas/stage2-packet.v2_5.schema.json",
+          "section": "$defs/scientific_argument"
+        }
+      ]
+    },
+    {
+      "id": "gap",
+      "category": "D01",
+      "production_pointer": "/direction_context/preferred_options/0/candidate/scientific_argument/gaps/0/statement",
+      "fixture_pointer": "/view/direction_context/preferred_options/0/candidate/scientific_argument/gaps/0/statement",
+      "element": "gap/挑战",
+      "display_condition": "按原 gap_id / question.gap_ids",
+      "empty_policy": "缺字段保持缺件；意图贡献不写成已证贡献",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/stage3_plan/direction_intent.py",
+          "lines": "228-258"
+        },
+        {
+          "path": "schemas/stage2-packet.v2_5.schema.json",
+          "section": "$defs/scientific_argument"
+        }
+      ]
+    },
+    {
+      "id": "question",
+      "category": "D02",
+      "production_pointer": "/direction_context/questions/0/text",
+      "fixture_pointer": "/view/direction_context/questions/0/text",
+      "element": "逐 SQ 原题",
+      "display_condition": "conditional；question_ref 原样保留",
+      "empty_policy": "缺 SQ 显示 missing mapping，不创建新问题",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "formal-question",
+      "category": "D02",
+      "production_pointer": "/plan/questions/0/text",
+      "fixture_pointer": "/view/plan/questions/0/text",
+      "element": "逐 SQ 原题",
+      "display_condition": "structured plan view；不证明正式选择",
+      "empty_policy": "source version 缺失则不宣称同版",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "conditional-method",
+      "category": "D02",
+      "production_pointer": "/plan/question_plans/0/method",
+      "fixture_pointer": "/view/plan/question_plans/0/method",
+      "element": "方法/设计/验证/分析",
+      "display_condition": "question_ref 精确匹配；相邻原字段分别显示",
+      "empty_policy": "未记录逐字段缺件；不根据题目生成方法",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "conditional-material",
+      "category": "D02",
+      "production_pointer": "/plan/question_plans/0/materials",
+      "fixture_pointer": "/view/plan/question_plans/0/materials",
+      "element": "本题材料用途",
+      "display_condition": "conditional question_ref join",
+      "empty_policy": "保留原文/原 unknown",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "conditional-interpretation",
+      "category": "D02",
+      "production_pointer": "/plan/question_plans/0/interpretation",
+      "fixture_pointer": "/view/plan/question_plans/0/interpretation",
+      "element": "可能判读边界",
+      "display_condition": "conditional 原记录",
+      "empty_policy": "自由文本不自动拆成假结构化结论",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "resource-source",
+      "category": "D05",
+      "production_pointer": "/direction_context/preferred_cards/0/scientific_questions/0/resource_uses/0/resource",
+      "fixture_pointer": "/view/direction_context/preferred_cards/0/scientific_questions/0/resource_uses/0/resource",
+      "element": "材料入口/原资源",
+      "display_condition": "同 candidate/version + question_id；原 source resource 对象",
+      "empty_policy": "无 URL/原件收据则分别 unknown",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "resource-fit",
+      "category": "D05",
+      "production_pointer": "/direction_context/preferred_cards/0/scientific_questions/0/resource_uses/0/resource_ref/fit_status",
+      "fixture_pointer": "/view/direction_context/preferred_cards/0/scientific_questions/0/resource_uses/0/resource_ref/fit_status",
+      "element": "材料适配状态",
+      "display_condition": "只展示原 fit_status",
+      "empty_policy": "入口存在不等于适配",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "formal-resource",
+      "category": "D05",
+      "production_pointer": "/plan/resources/0/availability",
+      "fixture_pointer": "/view/plan/resources/0/availability",
+      "element": "来源记录的可用性",
+      "display_condition": "structured resource_id join",
+      "empty_policy": "unknown 不改 available；不等于已取得文件",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "permission",
+      "category": "D05",
+      "production_pointer": "/plan/resources/0/access_conditions",
+      "fixture_pointer": "/view/plan/resources/0/access_conditions",
+      "element": "使用条件/权利",
+      "display_condition": "有原条件才显示其文字",
+      "empty_policy": "没有合法权利证据时不显示已获许可",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "actual-file",
+      "category": "D05",
+      "production_pointer": null,
+      "fixture_pointer": null,
+      "element": "实际取得的文件与版本",
+      "display_condition": "基线 view 未保证含取得收据；未来仅接受原 owner 同版收据",
+      "empty_policy": "未取得/未提供保持 unknown，不从 availability 推断",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "missing or future; do not add shipping contract",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "shared-design",
+      "category": "D04",
+      "production_pointer": "/plan/designs/0/question_refs",
+      "fixture_pointer": "/view/plan/designs/0/question_refs",
+      "element": "方案卡与共享标记",
+      "display_condition": "design_id 精确 join；多 SQ 共享显示一次",
+      "empty_policy": "引用不闭合显示缺件，不静默修补",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "procedure",
+      "category": "D04",
+      "production_pointer": "/plan/designs/0/procedure",
+      "fixture_pointer": "/view/plan/designs/0/procedure",
+      "element": "输入/程序/验证/停止",
+      "display_condition": "仅显式设计字段，比较从 comparisons 保留不适用理由",
+      "empty_policy": "不将自由文字解析为 F02 DAG",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "analysis",
+      "category": "D02",
+      "production_pointer": "/plan/analyses/0/design_ids",
+      "fixture_pointer": "/view/plan/analyses/0/design_ids",
+      "element": "分析卡/引用",
+      "display_condition": "analysis_id 与设计、问题明确引用",
+      "empty_policy": "不重复当独立实验",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "expected",
+      "category": "D02",
+      "production_pointer": "/plan/results/0/artifact",
+      "fixture_pointer": "/view/plan/results/0/artifact",
+      "element": "预期产物",
+      "display_condition": "result_id join，标计划产物",
+      "empty_policy": "无产物说明则未记录，不编造图",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "actual-result",
+      "category": "D02",
+      "production_pointer": "/plan/results/0/observed_value",
+      "fixture_pointer": "/view/plan/results/0/observed_value",
+      "element": "本研究实际结果",
+      "display_condition": "与 status 同显；未执行显示 not-run/null",
+      "empty_policy": "不把 null 改0或画假趋势",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "interpretation",
+      "category": "D02",
+      "production_pointer": "/plan/results/0/interpretation/supports",
+      "fixture_pointer": "/view/plan/results/0/interpretation/supports",
+      "element": "支持/反驳/无法判定",
+      "display_condition": "同 result 的三个原字段",
+      "empty_policy": "缺一项即该项未记录，不填成功",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "F03",
+      "category": "D03",
+      "production_pointer": "/plan/question_plans/0/design_ids",
+      "fixture_pointer": "/view/plan/question_plans/0/design_ids",
+      "element": "F03 图位与完整文本对照",
+      "display_condition": "仅 structured 明确 question/design/analysis/result 引用",
+      "empty_policy": "conditional 无 IDs 时仅表/缺件；无图也不隐藏来源",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "F01",
+      "category": "D03",
+      "production_pointer": null,
+      "fixture_pointer": null,
+      "element": "整体科学路线占位",
+      "display_condition": "future；无足够 typed scientific-route 来源",
+      "empty_policy": "待补，禁止 Stage2→Python 替代科学论证",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "missing or future; do not add shipping contract",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "F02",
+      "category": "D03",
+      "production_pointer": null,
+      "fixture_pointer": null,
+      "element": "方案操作流程占位",
+      "display_condition": "future；无足够 typed procedure relation",
+      "empty_policy": "待补；不从 procedure 自由文字推 DAG",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "missing or future; do not add shipping contract",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "unknown",
+      "category": "D05",
+      "production_pointer": "/plan/unknowns/0/resolve_before",
+      "fixture_pointer": "/view/plan/unknowns/0/resolve_before",
+      "element": "unknown 最迟处理步骤",
+      "display_condition": "structured；与 question_refs/resource_ids 同版",
+      "empty_policy": "不是日历期限；owner/null 保留",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "source-unknown",
+      "category": "D05",
+      "production_pointer": "/direction_context/source_unresolved/0",
+      "fixture_pointer": "/view/direction_context/source_unresolved/0",
+      "element": "来源 unknown",
+      "display_condition": "conditional 分组显示",
+      "empty_policy": "空数组=无记录条目，不证明没有风险",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/stage3_plan/direction_intent.py",
+          "lines": "228-258"
+        },
+        {
+          "path": "schemas/stage2-packet.v2_5.schema.json",
+          "section": "$defs/scientific_argument"
+        }
+      ]
+    },
+    {
+      "id": "user-condition",
+      "category": "D05",
+      "production_pointer": "/direction_context/conditions/0",
+      "fixture_pointer": "/view/direction_context/conditions/0",
+      "element": "用户条件",
+      "display_condition": "与 source unknown 分组",
+      "empty_policy": "不作为已确认科学事实",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/stage3_plan/direction_intent.py",
+          "lines": "228-258"
+        },
+        {
+          "path": "schemas/stage2-packet.v2_5.schema.json",
+          "section": "$defs/scientific_argument"
+        }
+      ]
+    },
+    {
+      "id": "user-unknown",
+      "category": "D05",
+      "production_pointer": "/direction_context/unresolved/0",
+      "fixture_pointer": "/view/direction_context/unresolved/0",
+      "element": "用户 unresolved",
+      "display_condition": "与 pending_scope_questions/missing_mapping 分组",
+      "empty_policy": "缺件不消失、不变 available",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/stage3_plan/direction_intent.py",
+          "lines": "228-258"
+        },
+        {
+          "path": "schemas/stage2-packet.v2_5.schema.json",
+          "section": "$defs/scientific_argument"
+        }
+      ]
+    },
+    {
+      "id": "P7-P9",
+      "category": "D06",
+      "production_pointer": null,
+      "fixture_pointer": null,
+      "element": "P7/P8/P9 独立原评语/状态",
+      "display_condition": "基线 view 未提供完整绑定评审记录；未来由 core 接同版记录",
+      "empty_policy": "当前 not-run/null，无总分，无伪评语",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "missing or future; do not add shipping contract",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "revision-impact",
+      "category": "D06",
+      "production_pointer": null,
+      "fixture_pointer": null,
+      "element": "版本变动影响",
+      "display_condition": "只有既有 owner 绑定的 revision impact 才作为证据",
+      "empty_policy": "缺失为未知，设计不自行宣布未受影响",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "missing or future; do not add shipping contract",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "milestone",
+      "category": "D07",
+      "production_pointer": "/plan/milestones/0/duration_basis",
+      "fixture_pointer": "/view/plan/milestones/0/duration_basis",
+      "element": "按方案接续/规模依据",
+      "display_condition": "有同版 milestone 才显示",
+      "empty_policy": "工时/日期未知不补数；未有代码/数据不称可执行",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "minimum-output",
+      "category": "D07",
+      "production_pointer": "/plan/question_plans/0/minimum_deliverable",
+      "fixture_pointer": "/view/plan/question_plans/0/minimum_deliverable",
+      "element": "最小交付与下一步",
+      "display_condition": "对应原 SQ，不把文件存在当科学有效",
+      "empty_policy": "未记录保持缺件",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "job-state",
+      "category": "D07",
+      "production_pointer": "/job/outcome",
+      "fixture_pointer": "/view/job/outcome",
+      "element": "规划工作状态/主动作",
+      "display_condition": "与 status/planning_status 分开显示",
+      "empty_policy": "saved 不等于研究完成；failed/unknown 保留",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "request",
+      "category": "D07",
+      "production_pointer": "/default_request/key",
+      "fixture_pointer": "/view/default_request/key",
+      "element": "可展开的技术收据",
+      "display_condition": "仅原 typed request/key/hash；mock 为 null",
+      "empty_policy": "没有 request 不生成一个或重发 run",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    },
+    {
+      "id": "authority",
+      "category": "D07",
+      "production_pointer": "/execution_authorized",
+      "fixture_pointer": "/view/execution_authorized",
+      "element": "权限边界",
+      "display_condition": "五项 authority 原值始终保留",
+      "empty_policy": "false 不隐藏；不因视觉完成改变",
+      "version_label": "project/input_version/revision + candidate/version + original question_ref + plan/version or direction intent; full source hash only when supplied",
+      "source_status": "existing renderer/context/schema field; availability depends on view",
+      "source_locations": [
+        {
+          "path": "cli/research_workspace_native/web/project-stage3-planning.js",
+          "lines": "190-290",
+          "note": "supplied renderer field or explicit missing/future, not Host admission proof"
+        }
+      ]
+    }
+  ]
+}

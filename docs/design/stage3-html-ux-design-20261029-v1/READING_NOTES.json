@@ -1,0 +1,28 @@
+{
+  "scope": "local utilities, not product tests",
+  "events": [
+    {
+      "status": "FAILED",
+      "original_error": "Windows rg literal path glob: os error123",
+      "resolution": "-g direction*.py on directory read succeeded"
+    },
+    {
+      "status": "FAILED",
+      "original_error": "Missing saved worktree path: git exit128, checkpoint wrong root",
+      "resolution": "Five artifacts moved intact to explicit intended tree; hashes preserved; absolute paths used"
+    },
+    {
+      "status": "REJECTED",
+      "original_error": "Combined manifest/commit/checkpoint command: blocked by policy",
+      "resolution": "Split into reviewable source-inventory file, isolated execution and scoped Git steps"
+    },
+    {
+      "status": "EXPECTED_NONZERO",
+      "original_error": "No topic AGENTS matches; core.hooksPath unset",
+      "resolution": "Parent rules/default hooks inspected"
+    }
+  ],
+  "product_tests": "NOT_RUN",
+  "CI": "NOT_RUN",
+  "browser_UI_control": "NOT_RUN"
+}
