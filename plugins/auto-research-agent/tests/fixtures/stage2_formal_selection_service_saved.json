@@ -1,0 +1,748 @@
+{
+  "after": {
+    "brief_sha256": "3c0465a48ee208de660399c8d964be6f2cf190ec950ccdfe90ebdd82f6cb6e0d",
+    "cards": {
+      "cards": [
+        {
+          "alternatives": [],
+          "candidate_id": "direction-1",
+          "candidate_question": "Does the bounded design improve the stated outcome?",
+          "candidate_version": 1,
+          "closest_prior_work": {
+            "mapping_status": "mapped",
+            "review": {
+              "candidate_id": "direction-1",
+              "candidate_sha256": "a1b193edba1bebe6157516970b4dce346ef80d79fa26538dd8204cb828a79e09",
+              "candidate_version": 1,
+              "comparisons": [
+                {
+                  "difference": "The candidate tests a different method component.",
+                  "established": "The saved work establishes the bounded baseline.",
+                  "evidence_ids": [
+                    "claim1"
+                  ],
+                  "limitations": [
+                    "The excerpt does not establish global novelty."
+                  ],
+                  "overlap": "Both address the same recorded research need.",
+                  "role": "closest",
+                  "version_id": "v1",
+                  "work_id": "work1"
+                }
+              ],
+              "kind": "Stage2PriorWorkReview",
+              "positioning": "The candidate overlaps the saved precedent but tests a bounded difference.",
+              "review_status": "bounded-complete",
+              "schema_version": "1.0.0",
+              "search_limits": [
+                "One source family and one exact bounded query."
+              ],
+              "searches": [
+                {
+                  "need": "Find the closest saved precedent.",
+                  "outcome": "results",
+                  "query": "bounded precedent query",
+                  "raw_path": "receipts/search-1.json",
+                  "raw_sha256": "798537289f4558d9f350f9b91c64d1e250c77e828d4f07a3871f2edb0133e7c0",
+                  "search_id": "search-1",
+                  "status": "executed",
+                  "tool_ref": "native-search:search-1",
+                  "work_refs": [
+                    {
+                      "version_id": "v1",
+                      "work_id": "work1"
+                    }
+                  ]
+                }
+              ],
+              "source_set_sha256": "bf9a51faeb1bf292800f35963856689e270e99e99e2882b0823e252680033e15",
+              "stop_reason": "The declared search limit was reached.",
+              "unresolved": [
+                "Broader citation chaining remains unresolved."
+              ]
+            },
+            "source": "evaluation_packet.prior_work_reviews[0]"
+          },
+          "contribution": [
+            {
+              "question_ids": [
+                "question-core"
+              ],
+              "status": "proposal",
+              "text": "The comparison may resolve the bounded gap."
+            }
+          ],
+          "limitations": [
+            "The bounded search is not exhaustive."
+          ],
+          "next_checks": [
+            {
+              "source": "evaluation_packet.prior_work_reviews[0].unresolved[0]",
+              "text": "Broader citation chaining remains unresolved."
+            }
+          ],
+          "requirements": [
+            "Use the source-bound comparison."
+          ],
+          "research_mode": "method-development",
+          "scientific_argument_status": "recorded",
+          "scientific_questions": [
+            {
+              "contributions": [
+                {
+                  "question_ids": [
+                    "question-core"
+                  ],
+                  "status": "proposal",
+                  "text": "The comparison may resolve the bounded gap."
+                }
+              ],
+              "next_check_status": "recorded",
+              "next_checks": [
+                {
+                  "source": "evaluation_packet.prior_work_reviews[0].unresolved[0]",
+                  "text": "Broader citation chaining remains unresolved."
+                }
+              ],
+              "question": {
+                "gap_ids": [
+                  "gap-measurement"
+                ],
+                "intended_claim": "The design distinguishes the mechanism under stated conditions.",
+                "object": "The bounded measurement design",
+                "priority": "core",
+                "question_id": "question-core",
+                "status": "proposal",
+                "text": "Does the bounded design distinguish the proposed mechanism?"
+              },
+              "resource_mapping_status": "unmapped",
+              "resource_uses": [],
+              "unresolved_resource_refs": []
+            }
+          ],
+          "suggested_approach": "Compare the proposed design against the saved precedent.",
+          "unmapped_resources": []
+        }
+      ],
+      "kind": "Stage2DecisionCards",
+      "schema_version": "1.0.0"
+    },
+    "delivery_manifest_sha256": "609eeacc58439276449627889e2620306d4f3fb8bb96b3546f52c025d7beeac8",
+    "delivery_status": "local-report-ready",
+    "direction_intent": null,
+    "eligible": [
+      {
+        "candidate_id": "direction-1",
+        "candidate_version": 1
+      }
+    ],
+    "execution_authorized": false,
+    "identity_authenticated": false,
+    "input_origin": "projecthost-ui-submission",
+    "input_version": 1,
+    "kind": "Stage2SelectionView",
+    "planning_input": {
+      "brief": {
+        "decisions": [],
+        "kind": "ResearchBrief",
+        "needs": [
+          {
+            "need_id": "direct-request",
+            "question": "Compare bounded synthetic opportunities; preserve unknown access.\n"
+          }
+        ],
+        "original_description": "Compare bounded synthetic opportunities; preserve unknown access.\n",
+        "schema_version": "1.0.0",
+        "scope_fields": [
+          {
+            "field": "geography",
+            "material": false,
+            "reason": "Direct request retained verbatim; no derived scope decision."
+          }
+        ],
+        "suggestions": []
+      },
+      "comparison": "Stage 1 supplied 1 included works (Synthetic household research) for comparison across: Citation, Question, Method, Data / study area, Main claim, Evidence, Limitation, Relevance, Use as. Stage 2 has not yet compared these works, generated research directions, or selected a direction.",
+      "evidence": [
+        {
+          "claim_text": "Synthetic illustrative claim.",
+          "evidence_id": "claim1",
+          "evidence_level": "full-text",
+          "locator": "characters 0:20",
+          "origin": "stage2",
+          "quote": "Synthetic households",
+          "relation": "unverified",
+          "source_id": "src1",
+          "version_id": "v1",
+          "work_id": "work1"
+        }
+      ],
+      "execution_authorized": false,
+      "input_origin": {
+        "human_identity": "not-established",
+        "input_version": 1,
+        "kind": "projecthost-ui-submission",
+        "principal": "synthetic-owner",
+        "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+        "received_at": "2026-10-30T15:34:01.080938+00:00",
+        "request_sha256": "7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41"
+      },
+      "legacy_candidates": [],
+      "prior_work_reviews": {
+        "rows": [
+          {
+            "candidate_id": "direction-1",
+            "candidate_sha256": "a1b193edba1bebe6157516970b4dce346ef80d79fa26538dd8204cb828a79e09",
+            "candidate_version": 1,
+            "comparisons": [
+              {
+                "difference": "The candidate tests a different method component.",
+                "established": "The saved work establishes the bounded baseline.",
+                "evidence_ids": [
+                  "claim1"
+                ],
+                "limitations": [
+                  "The excerpt does not establish global novelty."
+                ],
+                "overlap": "Both address the same recorded research need.",
+                "role": "closest",
+                "version_id": "v1",
+                "work_id": "work1"
+              }
+            ],
+            "kind": "Stage2PriorWorkReview",
+            "positioning": "The candidate overlaps the saved precedent but tests a bounded difference.",
+            "review_status": "bounded-complete",
+            "schema_version": "1.0.0",
+            "search_limits": [
+              "One source family and one exact bounded query."
+            ],
+            "searches": [
+              {
+                "need": "Find the closest saved precedent.",
+                "outcome": "results",
+                "query": "bounded precedent query",
+                "raw_path": "receipts/search-1.json",
+                "raw_sha256": "798537289f4558d9f350f9b91c64d1e250c77e828d4f07a3871f2edb0133e7c0",
+                "search_id": "search-1",
+                "status": "executed",
+                "tool_ref": "native-search:search-1",
+                "work_refs": [
+                  {
+                    "version_id": "v1",
+                    "work_id": "work1"
+                  }
+                ]
+              }
+            ],
+            "source_set_sha256": "bf9a51faeb1bf292800f35963856689e270e99e99e2882b0823e252680033e15",
+            "stop_reason": "The declared search limit was reached.",
+            "unresolved": [
+              "Broader citation chaining remains unresolved."
+            ]
+          }
+        ],
+        "status": "recorded"
+      },
+      "questions": [
+        {
+          "candidate_id": "direction-1",
+          "candidate_version": 1,
+          "gap_ids": [
+            "gap-measurement"
+          ],
+          "intended_claim": "The design distinguishes the mechanism under stated conditions.",
+          "priority": "core",
+          "question_id": "question-core",
+          "question_ref": "direction-1@1/question-core",
+          "text": "Does the bounded design distinguish the proposed mechanism?"
+        }
+      ],
+      "resource_constraints": "Unknown; only the original research request is supplied.",
+      "resources": [],
+      "reviewer_planning_context": {
+        "kind": "Stage2ReviewerPlanningContext",
+        "review_batch_sha256": "58bd94780283e6070dd41fee22fd8c9225d91494c25b36413a75789758b9dbb2",
+        "review_view_version": "1.3.0",
+        "rows": [
+          {
+            "assessment": {
+              "candidate_id": "direction-1",
+              "candidate_version": 1,
+              "checks": {
+                "answerability": {
+                  "blocking": false,
+                  "evidence_ids": [
+                    "claim1"
+                  ],
+                  "next_check": null,
+                  "rationale": "The bound synthetic source supports this limited design judgment.",
+                  "score": 2,
+                  "status": "assessed"
+                },
+                "execution": {
+                  "blocking": false,
+                  "evidence_ids": [
+                    "claim1"
+                  ],
+                  "next_check": null,
+                  "rationale": "The bound synthetic source supports this limited design judgment.",
+                  "score": 2,
+                  "status": "assessed"
+                },
+                "materials": {
+                  "blocking": false,
+                  "evidence_ids": [
+                    "claim1"
+                  ],
+                  "next_check": null,
+                  "rationale": "The bound synthetic source supports this limited design judgment.",
+                  "score": 2,
+                  "status": "assessed"
+                },
+                "opportunity": {
+                  "blocking": false,
+                  "evidence_ids": [
+                    "claim1"
+                  ],
+                  "next_check": null,
+                  "rationale": "The bound synthetic source supports this limited design judgment.",
+                  "score": 2,
+                  "status": "assessed"
+                },
+                "value": {
+                  "blocking": false,
+                  "evidence_ids": [
+                    "claim1"
+                  ],
+                  "next_check": null,
+                  "rationale": "The bound synthetic source supports this limited design judgment.",
+                  "score": 2,
+                  "status": "assessed"
+                }
+              },
+              "disposition": "recommend",
+              "event_id": "check-1",
+              "kind": "Stage2Check",
+              "next_step": null,
+              "packet_sha256": "de43e58d1be4739b71c9b50dcdf71335fae3a917048a041bf049bb34f1f04977",
+              "reason": "A source-bound semantic assessor recorded this bounded judgment.",
+              "schema_version": "1.0.0",
+              "scope_change_requested": false
+            },
+            "assessment_sha256": "c0f072b0a27b3d7c970a52e50f146a471f401afdafcfeadf8c5d924378dcf011",
+            "candidate_id": "direction-1",
+            "candidate_version": 1
+          }
+        ],
+        "schema_version": "1.0.0",
+        "source_kind": "stage2-independent-review"
+      },
+      "scientific_arguments": [
+        {
+          "argument": {
+            "challenges": [
+              {
+                "challenge_id": "challenge-design",
+                "gap_ids": [
+                  "gap-measurement"
+                ],
+                "kind": "scientific",
+                "question_ids": [
+                  "question-core"
+                ],
+                "statement": {
+                  "evidence_ids": [],
+                  "proposal_spans": [],
+                  "source_refs": [],
+                  "status": "proposal",
+                  "text": "The comparison must distinguish the proposed mechanism."
+                }
+              }
+            ],
+            "contribution_claims": [
+              {
+                "question_ids": [
+                  "question-core"
+                ],
+                "status": "proposal",
+                "text": "The comparison may resolve the bounded gap."
+              }
+            ],
+            "current_state": [
+              {
+                "evidence_ids": [
+                  "claim1"
+                ],
+                "proposal_spans": [],
+                "source_refs": [
+                  {
+                    "source_id": "src1",
+                    "version_id": "v1",
+                    "work_id": "work1"
+                  }
+                ],
+                "status": "fact",
+                "text": "The saved source establishes the current observation."
+              }
+            ],
+            "gaps": [
+              {
+                "gap_id": "gap-measurement",
+                "importance": {
+                  "evidence_ids": [],
+                  "proposal_spans": [],
+                  "source_refs": [],
+                  "status": "proposal",
+                  "text": "Resolving it would support the bounded decision."
+                },
+                "statement": {
+                  "evidence_ids": [],
+                  "proposal_spans": [],
+                  "source_refs": [],
+                  "status": "unknown",
+                  "text": "The measurement relation remains unknown."
+                }
+              }
+            ],
+            "motivation": {
+              "evidence_ids": [],
+              "proposal_spans": [],
+              "source_refs": [],
+              "status": "proposal",
+              "text": "The bounded decision needs a scientific explanation."
+            },
+            "questions": [
+              {
+                "gap_ids": [
+                  "gap-measurement"
+                ],
+                "intended_claim": "The design distinguishes the mechanism under stated conditions.",
+                "object": "The bounded measurement design",
+                "priority": "core",
+                "question_id": "question-core",
+                "status": "proposal",
+                "text": "Does the bounded design distinguish the proposed mechanism?"
+              }
+            ],
+            "resource_refs": []
+          },
+          "candidate_id": "direction-1",
+          "candidate_version": 1
+        }
+      ],
+      "selected_candidates": [
+        {
+          "candidate_id": "direction-1",
+          "candidate_version": 1
+        }
+      ],
+      "selection_conditions": [
+        "unknown retained"
+      ],
+      "source_manifest_sha256": "24bc4e6565189c053d87b44bf1333fb4f832bb85fe01b958df3597536313c6d5",
+      "sources": [
+        {
+          "access_note": "Synthetic source for the bridge contract.",
+          "access_status": "available",
+          "evidence_level": "full-text",
+          "final_url": "https://example.org/study",
+          "origin": "stage2",
+          "path": "sources/src1.txt",
+          "retrieved_at": "2026-09-29T00:00:00Z",
+          "sha256": "64c928c3e899496bc1be4a480b5e0b5d82817be6123a96cddba59d5b122f5c31",
+          "source_id": "src1",
+          "source_url": "https://example.org/study",
+          "version_id": "v1",
+          "work_id": "work1"
+        }
+      ],
+      "unresolved": [
+        "unknown retained"
+      ]
+    },
+    "planning_status": "verified",
+    "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+    "revision": 4,
+    "selection_receipt": {
+      "artifact_ref": "stage2-choice-7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41",
+      "delivery_manifest_sha256": "609eeacc58439276449627889e2620306d4f3fb8bb96b3546f52c025d7beeac8",
+      "execution_authorized": false,
+      "input_origin": "projecthost-ui-submission",
+      "interaction_file_sha256": "4858ee97bddd650639a106a972834fbbd02183d6ee01f2e9159e1067315282c3",
+      "key": "synthetic-canonical-choice",
+      "planning_manifest_sha256": "24bc4e6565189c053d87b44bf1333fb4f832bb85fe01b958df3597536313c6d5",
+      "planning_status": "verified",
+      "request_sha256": "7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41",
+      "selection_status": "recorded",
+      "workflow_head_sha256": "c12d33a2fb629af67ff8410ea864114f3310fe4f8fe83371d3537c85d0f6a1ae"
+    },
+    "selection_status": "recorded",
+    "snapshot_sha256": "420ca009ba3bdb455707ab73ad6663cb00b2242f2403b6aa953a31580059ed3b",
+    "workflow_head_sha256": "c12d33a2fb629af67ff8410ea864114f3310fe4f8fe83371d3537c85d0f6a1ae"
+  },
+  "before": {
+    "brief_sha256": "3c0465a48ee208de660399c8d964be6f2cf190ec950ccdfe90ebdd82f6cb6e0d",
+    "cards": {
+      "cards": [
+        {
+          "alternatives": [],
+          "candidate_id": "direction-1",
+          "candidate_question": "Does the bounded design improve the stated outcome?",
+          "candidate_version": 1,
+          "closest_prior_work": {
+            "mapping_status": "mapped",
+            "review": {
+              "candidate_id": "direction-1",
+              "candidate_sha256": "a1b193edba1bebe6157516970b4dce346ef80d79fa26538dd8204cb828a79e09",
+              "candidate_version": 1,
+              "comparisons": [
+                {
+                  "difference": "The candidate tests a different method component.",
+                  "established": "The saved work establishes the bounded baseline.",
+                  "evidence_ids": [
+                    "claim1"
+                  ],
+                  "limitations": [
+                    "The excerpt does not establish global novelty."
+                  ],
+                  "overlap": "Both address the same recorded research need.",
+                  "role": "closest",
+                  "version_id": "v1",
+                  "work_id": "work1"
+                }
+              ],
+              "kind": "Stage2PriorWorkReview",
+              "positioning": "The candidate overlaps the saved precedent but tests a bounded difference.",
+              "review_status": "bounded-complete",
+              "schema_version": "1.0.0",
+              "search_limits": [
+                "One source family and one exact bounded query."
+              ],
+              "searches": [
+                {
+                  "need": "Find the closest saved precedent.",
+                  "outcome": "results",
+                  "query": "bounded precedent query",
+                  "raw_path": "receipts/search-1.json",
+                  "raw_sha256": "798537289f4558d9f350f9b91c64d1e250c77e828d4f07a3871f2edb0133e7c0",
+                  "search_id": "search-1",
+                  "status": "executed",
+                  "tool_ref": "native-search:search-1",
+                  "work_refs": [
+                    {
+                      "version_id": "v1",
+                      "work_id": "work1"
+                    }
+                  ]
+                }
+              ],
+              "source_set_sha256": "bf9a51faeb1bf292800f35963856689e270e99e99e2882b0823e252680033e15",
+              "stop_reason": "The declared search limit was reached.",
+              "unresolved": [
+                "Broader citation chaining remains unresolved."
+              ]
+            },
+            "source": "evaluation_packet.prior_work_reviews[0]"
+          },
+          "contribution": [
+            {
+              "question_ids": [
+                "question-core"
+              ],
+              "status": "proposal",
+              "text": "The comparison may resolve the bounded gap."
+            }
+          ],
+          "limitations": [
+            "The bounded search is not exhaustive."
+          ],
+          "next_checks": [
+            {
+              "source": "evaluation_packet.prior_work_reviews[0].unresolved[0]",
+              "text": "Broader citation chaining remains unresolved."
+            }
+          ],
+          "requirements": [
+            "Use the source-bound comparison."
+          ],
+          "research_mode": "method-development",
+          "scientific_argument_status": "recorded",
+          "scientific_questions": [
+            {
+              "contributions": [
+                {
+                  "question_ids": [
+                    "question-core"
+                  ],
+                  "status": "proposal",
+                  "text": "The comparison may resolve the bounded gap."
+                }
+              ],
+              "next_check_status": "recorded",
+              "next_checks": [
+                {
+                  "source": "evaluation_packet.prior_work_reviews[0].unresolved[0]",
+                  "text": "Broader citation chaining remains unresolved."
+                }
+              ],
+              "question": {
+                "gap_ids": [
+                  "gap-measurement"
+                ],
+                "intended_claim": "The design distinguishes the mechanism under stated conditions.",
+                "object": "The bounded measurement design",
+                "priority": "core",
+                "question_id": "question-core",
+                "status": "proposal",
+                "text": "Does the bounded design distinguish the proposed mechanism?"
+              },
+              "resource_mapping_status": "unmapped",
+              "resource_uses": [],
+              "unresolved_resource_refs": []
+            }
+          ],
+          "suggested_approach": "Compare the proposed design against the saved precedent.",
+          "unmapped_resources": []
+        }
+      ],
+      "kind": "Stage2DecisionCards",
+      "schema_version": "1.0.0"
+    },
+    "delivery_manifest_sha256": "609eeacc58439276449627889e2620306d4f3fb8bb96b3546f52c025d7beeac8",
+    "delivery_status": "local-report-ready",
+    "direction_intent": null,
+    "eligible": [
+      {
+        "candidate_id": "direction-1",
+        "candidate_version": 1
+      }
+    ],
+    "execution_authorized": false,
+    "identity_authenticated": false,
+    "input_origin": "projecthost-ui-submission",
+    "input_version": 1,
+    "kind": "Stage2SelectionView",
+    "planning_input": null,
+    "planning_status": "awaiting-valid-selection",
+    "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+    "revision": 0,
+    "selection_receipt": null,
+    "selection_status": "pending",
+    "snapshot_sha256": "420ca009ba3bdb455707ab73ad6663cb00b2242f2403b6aa953a31580059ed3b",
+    "workflow_head_sha256": "d88da1a8cb19e3dbfd66437f1a560ea0e2ba7197cfb21636e19386839311c61d"
+  },
+  "body": {
+    "brief_sha256": "3c0465a48ee208de660399c8d964be6f2cf190ec950ccdfe90ebdd82f6cb6e0d",
+    "confirmed": true,
+    "decision": {
+      "actor": "fixture",
+      "conditions": [
+        "unknown retained"
+      ],
+      "kind": "select",
+      "rationale": "fixture only",
+      "scope_or_resource_change": false,
+      "selected": [
+        {
+          "candidate_id": "direction-1",
+          "candidate_version": 1
+        }
+      ],
+      "unresolved": [
+        "unknown retained"
+      ],
+      "user_text": "synthetic choice"
+    },
+    "delivery_manifest_sha256": "609eeacc58439276449627889e2620306d4f3fb8bb96b3546f52c025d7beeac8",
+    "input_version": 1,
+    "key": "synthetic-canonical-choice",
+    "revision": 0,
+    "snapshot_sha256": "420ca009ba3bdb455707ab73ad6663cb00b2242f2403b6aa953a31580059ed3b",
+    "workflow_head_sha256": "d88da1a8cb19e3dbfd66437f1a560ea0e2ba7197cfb21636e19386839311c61d"
+  },
+  "history": {
+    "actions": [
+      {
+        "artifact_ref": "stage2-choice-7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41",
+        "delivery_manifest_sha256": "609eeacc58439276449627889e2620306d4f3fb8bb96b3546f52c025d7beeac8",
+        "execution_authorized": false,
+        "input_origin": "projecthost-ui-submission",
+        "interaction_file_sha256": "4858ee97bddd650639a106a972834fbbd02183d6ee01f2e9159e1067315282c3",
+        "key": "synthetic-canonical-choice",
+        "kind": "stage2-select",
+        "planning_manifest_sha256": "24bc4e6565189c053d87b44bf1333fb4f832bb85fe01b958df3597536313c6d5",
+        "planning_status": "verified",
+        "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+        "recorded_at": "2026-10-30T15:33:59.465558+00:00",
+        "replayed": false,
+        "request_sha256": "7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41",
+        "selection_status": "recorded",
+        "status": "saved",
+        "workflow_head_sha256": "c12d33a2fb629af67ff8410ea864114f3310fe4f8fe83371d3537c85d0f6a1ae"
+      },
+      {
+        "execution_authorized": false,
+        "frontier": {
+          "activation_sha256": "ac9168d6c06c5d7bd70f1cb9e85fd50b40481c0c881cea58c83efd8a46657e14",
+          "artifact_ref": "stage2-direct-3f6ac4a8ae9dae3f29382ed11bdc7ffa8e4e4504b169fbf7fc892bb564519c04",
+          "binding_sha256": "3f6ac4a8ae9dae3f29382ed11bdc7ffa8e4e4504b169fbf7fc892bb564519c04",
+          "brief_sha256": "3c0465a48ee208de660399c8d964be6f2cf190ec950ccdfe90ebdd82f6cb6e0d",
+          "delivery_manifest_sha256": "609eeacc58439276449627889e2620306d4f3fb8bb96b3546f52c025d7beeac8",
+          "initial_workflow_head_sha256": "d88da1a8cb19e3dbfd66437f1a560ea0e2ba7197cfb21636e19386839311c61d",
+          "input_origin": "stage2-direct-request",
+          "input_version": 1,
+          "kind": "Stage2WorkflowFrontier",
+          "offer_ref": "stage2-direct-3f6ac4a8ae9dae3f29382ed11bdc7ffa",
+          "offer_sha256": "847f6cc8c27cfaa9fecf4adf3357944ffa33b9cd4167cdec1060de0c7f923f18",
+          "packet_sha256": "de43e58d1be4739b71c9b50dcdf71335fae3a917048a041bf049bb34f1f04977",
+          "plan_manifest_sha256": null,
+          "project_id": "synthetic-direct",
+          "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+          "request_sha256": "b620da937339645054f225a6d0ed244570829aeb0fd3af7dc8eceaa95e26758e",
+          "schema_version": "1.1.0",
+          "sequence": 1,
+          "settings_sha256": "d401dbe5002a66f07765a912f27208febb0d0d71eada2038c4176bebc2b778d3",
+          "stage1_lineage": false,
+          "workflow_head_sha256": "c12d33a2fb629af67ff8410ea864114f3310fe4f8fe83371d3537c85d0f6a1ae",
+          "workflow_manifest_sha256": "4a1cb779f8b89b517b3549fca86b6455834b0dc3c2ca0d5b536ff6da207c0cde"
+        },
+        "key": "frontier-7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41",
+        "kind": "stage2-frontier",
+        "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+        "recorded_at": "2026-10-30T15:34:05.700567+00:00",
+        "replayed": false,
+        "request_sha256": "fefa0d27989bb7f6dc52a2718b1b2828d2db0ecf5df5683c2869f29299af0cf2",
+        "status": "saved"
+      }
+    ],
+    "execution_authorized": false,
+    "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+    "revision": 4,
+    "versions": [
+      {
+        "input_version": 1,
+        "sha256": "3c0465a48ee208de660399c8d964be6f2cf190ec950ccdfe90ebdd82f6cb6e0d"
+      }
+    ]
+  },
+  "post": {
+    "artifact_ref": "stage2-choice-7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41",
+    "delivery_manifest_sha256": "609eeacc58439276449627889e2620306d4f3fb8bb96b3546f52c025d7beeac8",
+    "execution_authorized": false,
+    "input_origin": "projecthost-ui-submission",
+    "interaction_file_sha256": "4858ee97bddd650639a106a972834fbbd02183d6ee01f2e9159e1067315282c3",
+    "key": "synthetic-canonical-choice",
+    "kind": "stage2-select",
+    "planning_manifest_sha256": "24bc4e6565189c053d87b44bf1333fb4f832bb85fe01b958df3597536313c6d5",
+    "planning_status": "verified",
+    "project_ref": "project-7f04f3b45da92095d8a33f9bc2ae87e3",
+    "recorded_at": "2026-10-30T15:33:59.465558+00:00",
+    "replayed": true,
+    "request_sha256": "7bf8e26e5381407394988f71eae7bc22ae330c8e6fb549e9b890be5728f83e41",
+    "selection_status": "recorded",
+    "status": "saved",
+    "workflow_head_sha256": "c12d33a2fb629af67ff8410ea864114f3310fe4f8fe83371d3537c85d0f6a1ae"
+  },
+  "fixture_kind": "authored-synthetic-service-output-no-research"
+}

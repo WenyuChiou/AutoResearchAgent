@@ -33,3 +33,6 @@ summary {cursor:pointer;padding:.5rem 0}
 @media(max-width:640px){.sq-fields{grid-template-columns:minmax(0,1fr)}.sq-fields dd{margin-bottom:.5rem}.sq-record{padding:.6rem}}
 pre {white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
 @media(max-width:480px){header,.planning-actions{align-items:stretch;flex-direction:column}button,select{max-width:100%}#actions{padding:.75rem}}
+
+.stage3-research-scroll:focus-visible {outline:3px solid #226b80;outline-offset:3px}
+@media print {.stage3-research-scroll {overflow-x:visible!important}.stage3-research-scroll svg {min-width:0!important;max-width:100%;height:auto}}

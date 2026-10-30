@@ -346,7 +346,8 @@
     document.documentElement.lang=el("language").value;
     document.querySelectorAll("[data-i18n]").forEach(n=>{n.textContent=w()[copyKey(n.dataset.i18n)];});
     const request=view?.default_request,job=view?.job,prepared=job?.status==="intent-recorded";
-    el("selection").href="/project-stage2-selection.html#"+encodeURIComponent(ref());
+    el("selection").href="/project-stage2-selection.html#"+encodeURIComponent(ref())+"?stage=2&lang="+encodeURIComponent(el("language").value);
+    if(boot.wiki_v9)el("return").href="/#"+encodeURIComponent(ref())+"?stage=3&lang="+encodeURIComponent(el("language").value);
     el("project").disabled=busy;el("refresh").disabled=busy || reading;
     el("prepare").disabled=busy || !request || Boolean(job);
     el("confirmed").disabled=busy || !prepared;
@@ -357,6 +358,8 @@
     const status=planningState();renderProgress(status);
     el("status").textContent=notice?w()[copyKey(status)]+" "+w().error+": "+notice:w()[copyKey(status)];
     renderEvidence();el("plan").hidden=!(view?.plan || view?.direction_context);if(view?.planning_mode==="direction-intent")renderDirectionPlan();else renderScientificPlan(view?.plan);
+    const diagram=el("plan-diagram");diagram.replaceChildren();
+    if(view?.plan && window.STAGE3_RESEARCH_DIAGRAM)window.STAGE3_RESEARCH_DIAGRAM.mount(diagram,view,{language:el("language").value});
     el("plan-json").textContent=view?.plan?JSON.stringify(view.plan,null,2):"";
     el("receipt").textContent=view?JSON.stringify({...view,plan:undefined},null,2):"";
   }

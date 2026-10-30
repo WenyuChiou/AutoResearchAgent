@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/project-stage2-selection.css">
   <link rel="stylesheet" href="/project-stage3-planning.css">
   <script defer src="/project-bootstrap.js"></script>
+  <script defer src="/project-stage3-research-diagram.js"></script>
   <script defer src="/project-stage3-planning.js"></script>
 </head>
 <body><main>
@@ -41,7 +42,7 @@
     <label id="confirmation"><input id="confirmed" type="checkbox"><span data-i18n="confirm">I want to start planning for this saved selection.</span></label>
     <button id="run" type="button" data-i18n="run">2. Start planning</button>
   </section>
-  <section id="plan" hidden tabindex="-1"><h2 id="plan-title" data-i18n="plan">Research plan</h2><div id="questions"></div>
+  <section id="plan" hidden tabindex="-1"><h2 id="plan-title" data-i18n="plan">Research plan</h2><div id="questions"></div><div id="plan-diagram"></div>
     <div id="plan-conditions" tabindex="-1"></div><div id="plan-milestones"></div>
     <details><summary data-i18n="fullPlan">Full plan, conditions and unresolved questions</summary><pre id="plan-json" translate="no"></pre></details>
   </section>

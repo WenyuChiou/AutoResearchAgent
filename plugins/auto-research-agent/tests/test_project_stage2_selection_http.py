@@ -137,7 +137,17 @@ class ProjectSelectionTests(Stage2SelectionFixture):
         self.assertEqual(receipt["input_origin"], "projecthost-ui-submission")
         status, raw, _ = self.request("/api/projects/" + self.ref + "/stage2/selection")
         self.assertEqual(status, 200, raw)
-        self.assertEqual(json.loads(raw)["selection_status"], "recorded")
+        saved_view = json.loads(raw)
+        self.assertEqual(saved_view["selection_status"], "recorded")
+        self.assertEqual(
+            saved_view["delivery_workflow_head_sha256"], body["workflow_head_sha256"]
+        )
+        self.assertEqual(
+            saved_view["workflow_head_sha256"], first["workflow_head_sha256"]
+        )
+        self.assertNotEqual(
+            saved_view["workflow_head_sha256"], body["workflow_head_sha256"]
+        )
 
     def test_hash_stale_version_auth_and_origin_guards(self):
         path = "/api/projects/" + self.ref + "/stage2/select"

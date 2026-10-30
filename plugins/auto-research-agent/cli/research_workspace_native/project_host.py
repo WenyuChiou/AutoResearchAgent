@@ -203,6 +203,7 @@ class ProjectHost(AtlasHost):
                 "project-stage2-selection.css",
                 "project-stage3-planning.html",
                 "project-stage3-planning.js",
+                "project-stage3-research-diagram.js",
                 "project-stage3-planning.css",
             )
         }
@@ -1087,6 +1088,7 @@ class ProjectHandler(AtlasHandler):
                 + json.dumps(
                     dict(
                         credential=self.server.credential,
+                        wiki_v9=self.server.host_binding.get("ui_version") == "V9",
                         views=self.server.views,
                         stage2_examples=self.server.stage2_examples,
                         stage2_readings=self.server.stage2_readings,

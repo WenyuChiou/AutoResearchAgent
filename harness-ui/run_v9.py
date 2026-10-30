@@ -10,7 +10,7 @@ from display_translations import load_translations, translation_script
 from review_reading import load_review_sources
 
 HERE = Path(__file__).resolve().parent
-MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js')
+MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage3-bridge.js')
 
 
 def private_directory(path):
@@ -48,6 +48,20 @@ def main(argv=None):
             raise ValueError('renderer closure missing')
         modules = {name: (HERE / name).read_bytes() for name in MODULES}
         host._assets['/app.js'] = app[:at] + b'\n' + translation_script(translations) + b'\n'.join(modules.values()) + b'\n' + app[at:]
+        selection = host._assets['/project-stage2-selection.html']
+        if selection.count(b'<main>') != 1 or selection.count(b'</main>') != 1:
+            raise ValueError('selection template structure differs')
+        selection_main = selection[selection.index(b'<main>'):selection.index(b'</main>') + len(b'</main>')]
+        if b'<script' in selection_main.lower() or b'<iframe' in selection_main.lower():
+            raise ValueError('selection template contains executable content')
+        template = b'<template id="v93-selection-template">' + selection_main + b'</template>'
+        scripts = (b'<script defer src="/project-stage3-research-diagram.js"></script>'
+                   b'<script defer src="/project-stage2-selection.js"></script>')
+        for route in ('/', '/index.html'):
+            html = host._assets[route]
+            if html.count(b'</head>') != 1 or html.count(b'</body>') != 1:
+                raise ValueError('Wiki document structure differs')
+            host._assets[route] = html.replace(b'</head>', scripts + b'</head>').replace(b'</body>', template + b'</body>')
         for route in ('/', '/index.html', '/app.js'):
             host._assets[route] = host._assets[route].replace(b'V7', b'V9') if route != '/app.js' else host._assets[route]
         host._assets['/runtime.css'] += b'\n' + (HERE/'stage2_display.css').read_bytes() + b'\n' + (HERE/'v9.css').read_bytes()
@@ -55,6 +69,10 @@ def main(argv=None):
         host.host_binding['review_sources_sha256'] = selected.review_sources_sha256
         host.host_binding.update(ui_version='V9', v9=dict(modules={k:sha(v) for k,v in modules.items()},
             material_registration=True, packet_projection=True, formal_selection=False,
+            formal_selection_scope='manual-packet-only',
+            current_delivery_selection_configured=bool(host.project_stage2_selection and host.project_stage2_selection.bindings),
+            stage3_planning_configured=bool(host.project_stage3_http and host.project_stage3_http.service.bindings),
+            configuration_is_not_selection=True,
             active_stage1='existing-bound-project-operations', model_permission='unchanged'))
         host.host_binding['served_files'] = {k:sha(v) for k,v in host._assets.items() if k != '/host-binding.json'}
         host._assets['/host-binding.json'] = canonical(host.host_binding)

@@ -59,6 +59,13 @@ class PortableHost(unittest.TestCase):
                     with urlopen(base+'/project-bootstrap.js', timeout=5) as response:
                         bootstrap = response.read().decode()
                     token = json.loads(bootstrap.split('=', 1)[1].strip().removesuffix(';'))['credential']
+                    with urlopen(base+'/host-binding.json', timeout=5) as response:
+                        binding = json.load(response)['v9']
+                    self.assertFalse(binding['formal_selection'])
+                    self.assertEqual(binding['formal_selection_scope'], 'manual-packet-only')
+                    self.assertFalse(binding['current_delivery_selection_configured'])
+                    self.assertFalse(binding['stage3_planning_configured'])
+                    self.assertTrue(binding['configuration_is_not_selection'])
 
                     def call(path, body=None, auth=True, origin=None):
                         headers = {'Origin':origin or base}

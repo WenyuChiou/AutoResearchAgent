@@ -198,6 +198,12 @@ class ProjectStage2SelectionView:
                 revision=project["revision"],
                 brief_sha256=project["brief_sha256"],
                 delivery_manifest_sha256=binding["delivery_manifest_sha256"],
+                # Selection admission requires the submitted head to equal the
+                # verified delivery head. Keep that pre-selection binding visible
+                # after the selection advances the current workflow head.
+                delivery_workflow_head_sha256=delivery["manifest"][
+                    "workflow_head_sha256"
+                ],
                 workflow_head_sha256=workflow["head_sha256"],
                 snapshot_sha256=delivery["manifest"]["snapshot_sha256"],
                 cards=derive_decision_cards(delivery["selection"]),

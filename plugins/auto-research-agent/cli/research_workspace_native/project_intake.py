@@ -852,14 +852,45 @@ class ProjectIntakeService:
         with self._lock:
             state = self._load(principal, project_ref)
             rows = self.db.execute(
-                "SELECT receipt FROM intake_actions WHERE principal=? AND (project=? OR project='') ORDER BY rowid",
+                "SELECT project,key,request_hash,receipt FROM intake_actions WHERE principal=? AND (project=? OR project='') ORDER BY rowid",
                 (principal, project_ref),
             )
-            actions = [
-                self._receipt(json.loads(row[0]))
-                for row in rows
-                if json.loads(row[0])["project_ref"] == project_ref
-            ]
+            actions = []
+            for row in rows:
+                saved = json.loads(row["receipt"])
+                if saved["project_ref"] != project_ref:
+                    continue
+                action = self._receipt(saved)
+                if saved.get("kind") == "stage2-direction-intent":
+                    from stage2_workflow.ui_submission import valid_input_version
+                    from .session_api import _hash
+
+                    request = saved.get("request")
+                    fields = (
+                        "input_version",
+                        "brief_sha256",
+                        "delivery_manifest_sha256",
+                        "workflow_head_sha256",
+                        "snapshot_sha256",
+                    )
+                    _check(
+                        isinstance(request, dict)
+                        and row["project"] == project_ref == saved["project_ref"]
+                        and row["key"] == saved.get("key")
+                        and request.get("key") == saved.get("key")
+                        and valid_input_version(
+                            request.get("input_version"), allow_string=True
+                        )
+                        and all(_hash(request.get(field)) for field in fields[1:])
+                        and sha(canonical({"kind": saved["kind"], "body": request}))
+                        == saved.get("request_sha256")
+                        == row["request_hash"],
+                        "stage2-direction-intent-history-binding-invalid",
+                    )
+                    action["request_binding"] = {
+                        field: request[field] for field in fields
+                    }
+                actions.append(action)
             return {
                 "project_ref": project_ref,
                 "revision": state["revision"],
