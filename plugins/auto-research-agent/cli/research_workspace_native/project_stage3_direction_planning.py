@@ -189,18 +189,15 @@ class ProjectStage3DirectionPlanning:
             result["default_request"] = dict(
                 body, request_sha256=digest(item["payload"])
             )
-            result["job"] = self.inspect(
+            inspected = self._inspect_saved(
                 credential,
                 ref,
                 result["default_request"],
                 check_deadline=check_deadline,
             )
+            result["job"] = self._public(ref, inspected)
             if result["job"]["outcome"] == "saved":
-                saved = jobs.inspect(
-                    body["key"],
-                    expected_request_sha256=digest(item["payload"]),
-                    current_checkpoint=item["payload"]["checkpoint"],
-                )["result"]
+                saved = inspected["result"]
                 result["plan"] = inspect_package(
                     saved["plan"]["package"], saved["plan"]["manifest_sha256"]
                 )["artifacts"]["plan.json"]
@@ -269,16 +266,19 @@ class ProjectStage3DirectionPlanning:
         return configured, item["payload"]["checkpoint"]
 
     def inspect(self, credential, ref, body, *, check_deadline=None):
+        return self._public(
+            ref,
+            self._inspect_saved(credential, ref, body, check_deadline=check_deadline),
+        )
+
+    def _inspect_saved(self, credential, ref, body, *, check_deadline=None):
         _fields(body, DIRECTION_FIELDS | {"request_sha256"})
         with self.intake._lock:
             configured, checkpoint = self._saved(credential, ref, body, check_deadline)
-            return self._public(
-                ref,
-                configured["jobs"].inspect(
-                    body["key"],
-                    expected_request_sha256=body["request_sha256"],
-                    current_checkpoint=checkpoint,
-                ),
+            return configured["jobs"].inspect(
+                body["key"],
+                expected_request_sha256=body["request_sha256"],
+                current_checkpoint=checkpoint,
             )
 
     def run(self, credential, ref, body, *, check_deadline=None):

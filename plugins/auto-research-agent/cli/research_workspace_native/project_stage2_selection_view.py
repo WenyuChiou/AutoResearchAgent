@@ -12,6 +12,7 @@ from stage2_workflow.store import inspect_workflow
 from stage2_workflow.ui_submission import valid_input_version
 from stage3_plan.intake import admit_intake
 from .project_stage2 import ProjectStage2Service
+from .project_selection_read_context import current_selection_context
 from .session_api import SessionApiError, _check, _hash
 
 
@@ -88,6 +89,13 @@ class ProjectStage2SelectionView:
         )[0]
 
     def _current_context(self, credential, project_ref, *, validate_frontier=True):
+        return current_selection_context(
+            self, credential, project_ref, validate_frontier=validate_frontier
+        )
+
+    def _verify_current_context(
+        self, credential, project_ref, *, validate_frontier=True
+    ):
         project = self.intake.read(credential, project_ref)
         binding = self.bindings.get(project_ref)
         _check(binding is not None, "stage2-selection-unconnected", 409)
