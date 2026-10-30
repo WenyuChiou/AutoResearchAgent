@@ -1,0 +1,474 @@
+{
+  "locales": [
+    "zh-CN",
+    "zh-TW",
+    "en"
+  ],
+  "labels": {
+    "mock": {
+      "zh-CN": "静态设计稿 · 不接 backend · 不调用 API",
+      "zh-TW": "靜態設計稿 · 不接 backend · 不呼叫 API",
+      "en": "Static design · no backend · no API calls"
+    },
+    "source": {
+      "zh-CN": "原文（合成；切换语言不改写）",
+      "zh-TW": "原文（合成；切換語言不改寫）",
+      "en": "Original text (synthetic; unchanged by language)"
+    },
+    "title": {
+      "zh-CN": "从已保存的方向继续研究",
+      "zh-TW": "從已儲存方向繼續研究",
+      "en": "Continue from a saved direction"
+    },
+    "saved": {
+      "zh-CN": "草稿已保存（合成状态）",
+      "zh-TW": "草稿已儲存（合成狀態）",
+      "en": "Draft saved (synthetic state)"
+    },
+    "pending": {
+      "zh-CN": "待核：材料／定义适配",
+      "zh-TW": "待核：材料／定義適配",
+      "en": "Pending: material / definition fit"
+    },
+    "notrun": {
+      "zh-CN": "研究未执行",
+      "zh-TW": "研究未執行",
+      "en": "Research not run"
+    },
+    "primary": {
+      "zh-CN": "查看需补的信息",
+      "zh-TW": "查看待補資訊",
+      "en": "Review missing information"
+    },
+    "back": {
+      "zh-CN": "返回同一方向",
+      "zh-TW": "返回同一方向",
+      "en": "Return to this direction"
+    },
+    "overview": {
+      "zh-CN": "方向与科学问题",
+      "zh-TW": "方向與科學問題",
+      "en": "Direction and scientific questions"
+    },
+    "sq": {
+      "zh-CN": "逐题方案",
+      "zh-TW": "逐題方案",
+      "en": "Question-by-question plan"
+    },
+    "graph": {
+      "zh-CN": "研究图与原引用",
+      "zh-TW": "研究圖與原引用",
+      "en": "Research figures and explicit references"
+    },
+    "unknown": {
+      "zh-CN": "资源与 unknown",
+      "zh-TW": "資源與 unknown",
+      "en": "Resources and unknowns"
+    },
+    "review": {
+      "zh-CN": "评审与修订",
+      "zh-TW": "評審與修訂",
+      "en": "Review and revision"
+    },
+    "resume": {
+      "zh-CN": "按方案继续",
+      "zh-TW": "依方案續接",
+      "en": "Continue with the plan"
+    },
+    "technical": {
+      "zh-CN": "版本与原始收据",
+      "zh-TW": "版本與原始收據",
+      "en": "Version and raw receipt"
+    },
+    "materials": {
+      "zh-CN": "材料／用途／适配",
+      "zh-TW": "材料／用途／適配",
+      "en": "Materials / purpose / fit"
+    },
+    "method": {
+      "zh-CN": "方法与设计",
+      "zh-TW": "方法與設計",
+      "en": "Method and design"
+    },
+    "validation": {
+      "zh-CN": "分析与验证",
+      "zh-TW": "分析與驗證",
+      "en": "Analysis and validation"
+    },
+    "interpret": {
+      "zh-CN": "可能判读与预期产物",
+      "zh-TW": "可能判讀與預期產物",
+      "en": "Interpretation and planned output"
+    },
+    "next": {
+      "zh-CN": "下一项需解决的条件",
+      "zh-TW": "下一項待解條件",
+      "en": "Next condition to resolve"
+    },
+    "no_graph": {
+      "zh-CN": "未提供结构化关联：保留逐题表，不从自由文字猜图。",
+      "zh-TW": "未提供結構化關聯：保留逐題表，不從自由文字猜圖。",
+      "en": "No structured links: keep the SQ table; do not infer a graph from free text."
+    },
+    "future": {
+      "zh-CN": "F01 / F02：future／待补结构化科学路线来源",
+      "zh-TW": "F01 / F02：future／待補結構化科學路線來源",
+      "en": "F01 / F02: future; typed scientific-route sources missing"
+    },
+    "graph_note": {
+      "zh-CN": "F03 静态引用示意，未接入私人候选图组件。共享设计只定义一次。",
+      "zh-TW": "F03 靜態引用示意，未接入私人候選圖元件。共享設計僅定義一次。",
+      "en": "F03 static reference sketch, not the private component. Shared design defined once."
+    },
+    "shared": {
+      "zh-CN": "共用方案卡",
+      "zh-TW": "共用方案卡",
+      "en": "Shared design card"
+    },
+    "missing": {
+      "zh-CN": "未记录／保持 unknown",
+      "zh-TW": "未記錄／保留 unknown",
+      "en": "Not recorded / remains unknown"
+    },
+    "data_entry": {
+      "zh-CN": "材料入口",
+      "zh-TW": "材料入口",
+      "en": "Material entry"
+    },
+    "file": {
+      "zh-CN": "实际取得文件",
+      "zh-TW": "實際取得檔案",
+      "en": "File actually acquired"
+    },
+    "fit": {
+      "zh-CN": "当前 SQ 适配",
+      "zh-TW": "目前 SQ 適配",
+      "en": "Fit to this SQ"
+    },
+    "rights": {
+      "zh-CN": "使用权利／条件",
+      "zh-TW": "使用權利／條件",
+      "en": "Usage rights / conditions"
+    },
+    "permission_unknown": {
+      "zh-CN": "未提供合法使用证据，保持 unknown",
+      "zh-TW": "未提供合法使用證據，保留 unknown",
+      "en": "No lawful-use evidence supplied; remains unknown"
+    },
+    "assessment": {
+      "zh-CN": "P7 / P8 / P9：not-run / null，分别保留，无总分。",
+      "zh-TW": "P7 / P8 / P9：not-run / null，分別保留，無總分。",
+      "en": "P7 / P8 / P9: not-run / null, separate; no total."
+    },
+    "repro": {
+      "zh-CN": "只列预定产物与原程序要求；没有代码／数据，不称可执行。",
+      "zh-TW": "只列預定產物與原程序要求；未有程式／資料，不稱可執行。",
+      "en": "Planned artifacts and recorded procedures only; no executable claim without code / data."
+    },
+    "boundary": {
+      "zh-CN": "偏好不等于正式选案；saved 不等于研究完成。",
+      "zh-TW": "偏好不等於正式選案；saved 不等於研究完成。",
+      "en": "Preference is not formal selection; saved is not completed research."
+    },
+    "demo_actions": {
+      "zh-CN": "以下按钮仅示意，全部停用；行为见状态矩阵。",
+      "zh-TW": "以下按鈕僅示意，全部停用；行為見狀態矩陣。",
+      "en": "Operation controls are illustrations, all disabled; see the state matrix."
+    },
+    "save": {
+      "zh-CN": "只保存",
+      "zh-TW": "只儲存",
+      "en": "Save only"
+    },
+    "save_start": {
+      "zh-CN": "保存并开始规划",
+      "zh-TW": "儲存並開始規劃",
+      "en": "Save and start planning"
+    },
+    "skip": {
+      "zh-CN": "跳到研究内容",
+      "zh-TW": "跳至研究內容",
+      "en": "Skip to research content"
+    },
+    "field_candidate": {
+      "zh-CN": "候选／版本",
+      "zh-TW": "候選／版本",
+      "en": "Candidate / version"
+    },
+    "field_motivation": {
+      "zh-CN": "背景／重要性",
+      "zh-TW": "背景／重要性",
+      "en": "Background / importance"
+    },
+    "field_current_state": {
+      "zh-CN": "现况／closest work",
+      "zh-TW": "現況／closest work",
+      "en": "Current state / closest work"
+    },
+    "field_gap": {
+      "zh-CN": "gap／意图贡献",
+      "zh-TW": "gap／意圖貢獻",
+      "en": "Gap / intended contribution"
+    },
+    "field_claim": {
+      "zh-CN": "意图主张",
+      "zh-TW": "意圖主張",
+      "en": "Intended claim"
+    },
+    "field_evidence_needed": {
+      "zh-CN": "所需证据",
+      "zh-TW": "所需證據",
+      "en": "Needed evidence"
+    },
+    "field_measurement": {
+      "zh-CN": "测量／形式单位",
+      "zh-TW": "測量／形式單位",
+      "en": "Measurement / formal unit"
+    },
+    "field_claim_boundary": {
+      "zh-CN": "论证范围",
+      "zh-TW": "論證範圍",
+      "en": "Claim boundary"
+    },
+    "field_design_ids": {
+      "zh-CN": "关联方案",
+      "zh-TW": "關聯方案",
+      "en": "Linked designs"
+    },
+    "field_analysis_ids": {
+      "zh-CN": "关联分析",
+      "zh-TW": "關聯分析",
+      "en": "Linked analyses"
+    },
+    "field_result_ids": {
+      "zh-CN": "预期产物",
+      "zh-TW": "預期產物",
+      "en": "Planned outputs"
+    },
+    "field_blockers": {
+      "zh-CN": "阻塞条件",
+      "zh-TW": "阻塞條件",
+      "en": "Blockers"
+    },
+    "field_minimum_deliverable": {
+      "zh-CN": "最小交付",
+      "zh-TW": "最小交付",
+      "en": "Minimum deliverable"
+    },
+    "field_resource_uses": {
+      "zh-CN": "材料用途",
+      "zh-TW": "材料用途",
+      "en": "Material purpose"
+    },
+    "field_fit_basis": {
+      "zh-CN": "适配依据",
+      "zh-TW": "適配依據",
+      "en": "Fit rationale"
+    },
+    "field_questions": {
+      "zh-CN": "所服务原问题",
+      "zh-TW": "所服務原問題",
+      "en": "Original questions served"
+    },
+    "field_procedure": {
+      "zh-CN": "研究步骤",
+      "zh-TW": "研究步驟",
+      "en": "Research procedure"
+    },
+    "field_comparisons": {
+      "zh-CN": "比较／不适用理由",
+      "zh-TW": "比較／不適用理由",
+      "en": "Comparison / non-applicability"
+    },
+    "field_checks": {
+      "zh-CN": "可信度检查",
+      "zh-TW": "可信度檢查",
+      "en": "Credibility checks"
+    },
+    "field_stop": {
+      "zh-CN": "失败／停止条件",
+      "zh-TW": "失敗／停止條件",
+      "en": "Failure / stopping conditions"
+    },
+    "field_supports": {
+      "zh-CN": "支持",
+      "zh-TW": "支持",
+      "en": "Supports"
+    },
+    "field_contradicts": {
+      "zh-CN": "反驳",
+      "zh-TW": "反駁",
+      "en": "Contradicts"
+    },
+    "field_inconclusive": {
+      "zh-CN": "无法判定",
+      "zh-TW": "無法判定",
+      "en": "Inconclusive"
+    },
+    "field_deadline": {
+      "zh-CN": "最迟处理步骤",
+      "zh-TW": "最遲處理步驟",
+      "en": "Latest resolution step"
+    },
+    "field_owner": {
+      "zh-CN": "原记录负责人",
+      "zh-TW": "原紀錄負責人",
+      "en": "Recorded owner"
+    },
+    "field_evidence_trigger": {
+      "zh-CN": "所需证据／触发点",
+      "zh-TW": "所需證據／觸發點",
+      "en": "Evidence / recheck trigger"
+    },
+    "field_fallback": {
+      "zh-CN": "原 fallback",
+      "zh-TW": "原 fallback",
+      "en": "Recorded fallback"
+    },
+    "field_source_unresolved": {
+      "zh-CN": "来源 unknown",
+      "zh-TW": "來源 unknown",
+      "en": "Source unknowns"
+    },
+    "field_conditions": {
+      "zh-CN": "用户条件",
+      "zh-TW": "使用者條件",
+      "en": "User conditions"
+    },
+    "field_unresolved": {
+      "zh-CN": "用户未决事项",
+      "zh-TW": "使用者未決事項",
+      "en": "User unresolved items"
+    },
+    "field_pending_scope_questions": {
+      "zh-CN": "范围待澄清",
+      "zh-TW": "範圍待澄清",
+      "en": "Scope questions"
+    },
+    "field_missing_mapping": {
+      "zh-CN": "材料／问题映射缺件",
+      "zh-TW": "材料／問題映射缺件",
+      "en": "Missing mappings"
+    },
+    "field_resource_rule": {
+      "zh-CN": "入口、实际文件、适配和权利分开，不互相推断。",
+      "zh-TW": "入口、實際檔案、適配和權利分開，不互相推斷。",
+      "en": "Keep entry, acquired files, fit and rights separate; none implies the others."
+    },
+    "field_origin": {
+      "zh-CN": "原来源",
+      "zh-TW": "原來源",
+      "en": "Recorded origin"
+    },
+    "field_availability": {
+      "zh-CN": "来源可用性",
+      "zh-TW": "來源可用性",
+      "en": "Recorded availability"
+    },
+    "field_access_conditions": {
+      "zh-CN": "使用条件",
+      "zh-TW": "使用條件",
+      "en": "Access conditions"
+    },
+    "field_fitness": {
+      "zh-CN": "当前问题适配",
+      "zh-TW": "目前問題適配",
+      "en": "Fit to the question"
+    },
+    "field_scale": {
+      "zh-CN": "最小／标准规模",
+      "zh-TW": "最小／標準規模",
+      "en": "Minimum / standard scope"
+    },
+    "field_scale_basis": {
+      "zh-CN": "规模依据",
+      "zh-TW": "規模依據",
+      "en": "Scale basis"
+    },
+    "field_entry": {
+      "zh-CN": "材料入口",
+      "zh-TW": "材料入口",
+      "en": "Material entry"
+    },
+    "field_url": {
+      "zh-CN": "原 URL",
+      "zh-TW": "原 URL",
+      "en": "Recorded URL"
+    },
+    "field_shared_resource": {
+      "zh-CN": "同一资源还服务",
+      "zh-TW": "同一資源亦服務",
+      "en": "Same resource also serves"
+    },
+    "field_review_missing": {
+      "zh-CN": "未提供同版原评语／修订影响记录；不是已完成科学审查。",
+      "zh-TW": "未提供同版原評語／修訂影響紀錄；不是已完成科學審查。",
+      "en": "No bound review / revision-impact record supplied; this is not completed scientific review."
+    },
+    "field_milestone": {
+      "zh-CN": "原里程碑",
+      "zh-TW": "原里程碑",
+      "en": "Recorded milestone"
+    },
+    "field_deliverable": {
+      "zh-CN": "预定产物",
+      "zh-TW": "預定產物",
+      "en": "Planned deliverable"
+    },
+    "field_duration": {
+      "zh-CN": "时程依据",
+      "zh-TW": "時程依據",
+      "en": "Duration basis"
+    },
+    "field_graph_table_caption": {
+      "zh-CN": "原文明列引用（静态示意，完整对照见 HTML）",
+      "zh-TW": "原文明列引用（靜態示意，完整對照見 HTML）",
+      "en": "Explicit recorded links (static sketch; full table in HTML)"
+    },
+    "field_wireframe_footer": {
+      "zh-CN": "版本／raw 收据可在离线 HTML 展开。本图由 GDI 绘制，不是产品或浏览器截图。",
+      "zh-TW": "版本／raw 收據可在離線 HTML 展開。本圖由 GDI 繪製，不是產品或瀏覽器截圖。",
+      "en": "Expand versions / raw receipts in the offline HTML. GDI wireframe, not a product or browser screenshot."
+    },
+    "field_stage2_title": {
+      "zh-CN": "Stage 2 · 比较方向与保存",
+      "zh-TW": "Stage 2 · 比較方向與儲存",
+      "en": "Stage 2 · Compare directions and save"
+    },
+    "field_comparison": {
+      "zh-CN": "方向比较",
+      "zh-TW": "方向比較",
+      "en": "Direction comparison"
+    },
+    "field_comparison_missing": {
+      "zh-CN": "本合成片段仅提供当前方向；其他候选和比较证据未提供，不补造第二个方向。",
+      "zh-TW": "本合成片段僅提供目前方向；其他候選與比較證據未提供，不補造第二個方向。",
+      "en": "This synthetic fragment provides one direction only; other candidates and comparison evidence are missing, not invented."
+    },
+    "field_source_review": {
+      "zh-CN": "查看原 SQ、材料用途、方法意图与限制。",
+      "zh-TW": "查看原 SQ、材料用途、方法意圖與限制。",
+      "en": "Review original SQs, material purpose, method intent and limits."
+    },
+    "field_other_candidate": {
+      "zh-CN": "其他候选：unknown／未记录比较材料",
+      "zh-TW": "其他候選：unknown／未記錄比較材料",
+      "en": "Other candidates: unknown / comparison evidence not recorded"
+    },
+    "field_save_intent": {
+      "zh-CN": "保存意图",
+      "zh-TW": "儲存意圖",
+      "en": "Save intention"
+    },
+    "field_selection_missing": {
+      "zh-CN": "暂定偏好不等于正式选择；此合成 fixture 没有真实选择收据。",
+      "zh-TW": "暫定偏好不等於正式選擇；此合成 fixture 沒有真實選擇收據。",
+      "en": "A preference is not formal selection; this synthetic fixture has no real choice receipt."
+    },
+    "field_open_stage3": {
+      "zh-CN": "查看保存后的 Stage 3 静态稿",
+      "zh-TW": "查看儲存後的 Stage 3 靜態稿",
+      "en": "Read the saved Stage 3 static mock"
+    }
+  }
+}

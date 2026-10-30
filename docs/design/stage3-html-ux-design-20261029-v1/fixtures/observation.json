@@ -1,0 +1,239 @@
+{
+  "mock_meta": {
+    "id": "observation",
+    "title": "缺测如何影响水质季节差异的判断",
+    "research_type": "观察／描述研究",
+    "view_version": "mock-observation-v1",
+    "synthetic": true,
+    "backend_connected": false,
+    "contract_validated": false,
+    "original_language": "zh-CN",
+    "note": "全部科学文字均为合成布局示例；不是实际选案、数据可用性或结果。",
+    "literal_values": {
+      "known_zero": 0,
+      "known_false": false,
+      "unknown": null,
+      "unrun": "not-run"
+    }
+  },
+  "view": {
+    "kind": "ProjectStage3PlanningView",
+    "project_ref": "SYNTH-WATER",
+    "input_version": "mock-intake-v1",
+    "revision": 1,
+    "selection_status": "pending",
+    "planning_mode": "direction-intent",
+    "planning_configured": false,
+    "direction_intent_sha256": null,
+    "default_request": null,
+    "formal_selected_receiver": false,
+    "agent_conversation_connected": false,
+    "execution_authorized": false,
+    "evaluation_calls_authorized": false,
+    "formal_execution_enabled": false,
+    "external_claim_ready": false,
+    "usable_for_formal_pairing": false,
+    "job": {
+      "status": "completed",
+      "outcome": "saved",
+      "planning_status": "needs-information"
+    },
+    "direction_context": {
+      "questions": [
+        {
+          "question_ref": "MOCK-WATER@2/SQ-01",
+          "candidate_id": "MOCK-WATER",
+          "candidate_version": 2,
+          "question_id": "SQ-01",
+          "text": "记录覆盖与缺测能否支持对水质季节差异的描述？",
+          "priority": "core",
+          "gap_ids": [
+            "G-MISSING"
+          ],
+          "intended_claim": "描述记录支持的差异与无法判定范围，不推断因果效果。"
+        },
+        {
+          "question_ref": "MOCK-WATER@2/SQ-02",
+          "candidate_id": "MOCK-WATER",
+          "candidate_version": 2,
+          "question_id": "SQ-02",
+          "text": "哪些站点或时段的缺测会改变上述描述的可解释范围？",
+          "priority": "secondary",
+          "gap_ids": [
+            "G-MISSING"
+          ],
+          "intended_claim": "说明覆盖限制与替代解释，不把缺测当作没有变化。"
+        }
+      ],
+      "preferred_directions": [
+        {
+          "candidate_id": "MOCK-WATER",
+          "candidate_version": 2
+        }
+      ],
+      "preferred_options": [
+        {
+          "candidate": {
+            "candidate_id": "MOCK-WATER",
+            "version": 2,
+            "scientific_argument": {
+              "motivation": {
+                "text": "在解释季节差异前，先区分记录覆盖、缺测和测量变化。",
+                "status": "proposal"
+              },
+              "current_state": {
+                "text": "closest work 尚未完成定点核对；这里只保留拟查的监测报告类别，没有补造文献结论。",
+                "status": "unknown",
+                "source_refs": []
+              },
+              "gaps": [
+                {
+                  "gap_id": "G-MISSING",
+                  "statement": "待核：现有记录能否区分季节性描述与覆盖/测量变化。",
+                  "importance": "规划意图，尚未证实为文献 gap。"
+                }
+              ],
+              "contribution_claims": [
+                {
+                  "text": "若材料条件允许，形成可解释范围与覆盖限制的有界说明。",
+                  "question_ids": [
+                    "SQ-01",
+                    "SQ-02"
+                  ],
+                  "status": "proposal"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "preferred_cards": [
+        {
+          "candidate_id": "MOCK-WATER",
+          "candidate_version": 2,
+          "scientific_questions": [
+            {
+              "question": {
+                "question_id": "SQ-01"
+              },
+              "resource_mapping_status": "recorded-but-unverified",
+              "resource_uses": [
+                {
+                  "resource_ref": {
+                    "resource_id": "R-WATER",
+                    "fit_status": "unknown",
+                    "purpose": "核对本题的站点、时间单位和覆盖。"
+                  },
+                  "resource": {
+                    "resource_id": "R-WATER",
+                    "name": "合成监测记录入口",
+                    "version": null,
+                    "url": null,
+                    "file_acquired": null,
+                    "use_permission": null,
+                    "availability": "unknown"
+                  }
+                }
+              ],
+              "unresolved_resource_refs": [],
+              "next_checks": [
+                {
+                  "text": "取得原记录样本和使用条款后核对适配",
+                  "source": "合成原规划文字"
+                }
+              ],
+              "next_check_status": "not-run"
+            },
+            {
+              "question": {
+                "question_id": "SQ-02"
+              },
+              "resource_mapping_status": "recorded-but-unverified",
+              "resource_uses": [
+                {
+                  "resource_ref": {
+                    "resource_id": "R-WATER",
+                    "fit_status": "unknown",
+                    "purpose": "核对本题的站点、时间单位和覆盖。"
+                  },
+                  "resource": {
+                    "resource_id": "R-WATER",
+                    "name": "合成监测记录入口",
+                    "version": null,
+                    "url": null,
+                    "file_acquired": null,
+                    "use_permission": null,
+                    "availability": "unknown"
+                  }
+                }
+              ],
+              "unresolved_resource_refs": [],
+              "next_checks": [
+                {
+                  "text": "取得原记录样本和使用条款后核对适配",
+                  "source": "合成原规划文字"
+                }
+              ],
+              "next_check_status": "not-run"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        "只做原记录能够支持的描述；不扩为因果效果估计。"
+      ],
+      "unresolved": [
+        "季节分组、测量单位和可比窗口尚未核对。"
+      ],
+      "source_unresolved": [
+        "实际原文件未取得；覆盖、测量与使用条件未知。"
+      ],
+      "pending_scope_questions": [
+        "若记录不支持原范围，应保留缺件并由原 owner 处理范围变化。"
+      ],
+      "missing_mapping": [],
+      "selected_options": [],
+      "human_selection": "pending",
+      "identity_authenticated": false,
+      "formal_selected_receiver": false,
+      "execution_authorized": false
+    },
+    "planning_blockers": [],
+    "plan": {
+      "kind": "Stage3DirectionPlanningResult",
+      "schema_version": "1.0.0",
+      "intent_sha256": null,
+      "planning_status": "needs-information",
+      "markdown": "合成条件式规划草稿；保存不代表研究完成。",
+      "execution_authorized": false,
+      "question_plans": [
+        {
+          "question_ref": "MOCK-WATER@2/SQ-01",
+          "materials": "拟核对逐站点、逐时段原记录；实际文件、覆盖范围和合法使用条件尚未取得。",
+          "method": "观察性描述；先核对记录单位和可比窗口，不将相关或季节差异写成因果作用。",
+          "design": "拟在有明示覆盖的相同站点/可比窗口内描述；若不满足可比条件，保留无法判定。",
+          "validation": "核对测量定义、采样/缺测记录、站点变更与替代解释；目前均为待核的规划文字。",
+          "analysis": "原计划拟报告覆盖/缺测说明和有界差异描述；具体分析设置待材料适配核对。",
+          "interpretation": "支持：只支持所覆盖窗口的描述；反驳：记录不支持原拟描述；无法判定：覆盖、测量或权利缺件。",
+          "unknowns": [
+            "原记录要求：在 material-design 前取得记录样本、站点/时间定义及使用条件；owner、日历日期与 fallback 未记录。"
+          ],
+          "minimum_deliverable": "覆盖与缺测说明、原问题可回答范围；没有实际研究结果。"
+        },
+        {
+          "question_ref": "MOCK-WATER@2/SQ-02",
+          "materials": "同一组拟用原记录，按本题用途核对缺测模式；不是另一份独立数据。",
+          "method": "比较不同覆盖情形下描述边界是否变化，不预填变化方向。",
+          "design": "仅记录原草稿的敏感性检查意图；未有材料时不指定假定样本量。",
+          "validation": "检查是否将站点改变、测量改变与真实变化混为一谈。",
+          "analysis": "待覆盖与测量条件明确后再锁定可解释范围。",
+          "interpretation": "支持/反驳/无法判定须对应原问题；本轮未执行任何分析。",
+          "unknowns": [
+            "覆盖定义未核对；所需证据与最迟步骤沿用本题原 unknown，不以0补未知数量。"
+          ],
+          "minimum_deliverable": "影响范围和未决条件清单（计划产物）。"
+        }
+      ]
+    }
+  }
+}

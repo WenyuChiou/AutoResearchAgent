@@ -1,0 +1,220 @@
+{
+  "case": {
+    "id": "observation",
+    "title": "缺测如何影响水质季节差异的判断",
+    "research_type": "观察／描述研究",
+    "view_version": "mock-observation-v1",
+    "synthetic": true,
+    "backend_connected": false,
+    "contract_validated": false,
+    "original_language": "zh-CN",
+    "note": "全部科学文字均为合成布局示例；不是实际选案、数据可用性或结果。",
+    "literal_values": {
+      "known_zero": 0,
+      "known_false": false,
+      "unknown": null,
+      "unrun": "not-run"
+    }
+  },
+  "locale": "zh-CN",
+  "labels": {
+    "mock": "静态设计稿 · 不接 backend · 不调用 API",
+    "source": "原文（合成；切换语言不改写）",
+    "title": "从已保存的方向继续研究",
+    "saved": "草稿已保存（合成状态）",
+    "pending": "待核：材料／定义适配",
+    "notrun": "研究未执行",
+    "primary": "查看需补的信息",
+    "back": "返回同一方向",
+    "overview": "方向与科学问题",
+    "sq": "逐题方案",
+    "graph": "研究图与原引用",
+    "unknown": "资源与 unknown",
+    "review": "评审与修订",
+    "resume": "按方案继续",
+    "technical": "版本与原始收据",
+    "materials": "材料／用途／适配",
+    "method": "方法与设计",
+    "validation": "分析与验证",
+    "interpret": "可能判读与预期产物",
+    "next": "下一项需解决的条件",
+    "no_graph": "未提供结构化关联：保留逐题表，不从自由文字猜图。",
+    "future": "F01 / F02：future／待补结构化科学路线来源",
+    "graph_note": "F03 静态引用示意，未接入私人候选图组件。共享设计只定义一次。",
+    "shared": "共用方案卡",
+    "missing": "未记录／保持 unknown",
+    "data_entry": "材料入口",
+    "file": "实际取得文件",
+    "fit": "当前 SQ 适配",
+    "rights": "使用权利／条件",
+    "permission_unknown": "未提供合法使用证据，保持 unknown",
+    "assessment": "P7 / P8 / P9：not-run / null，分别保留，无总分。",
+    "repro": "只列预定产物与原程序要求；没有代码／数据，不称可执行。",
+    "boundary": "偏好不等于正式选案；saved 不等于研究完成。",
+    "demo_actions": "以下按钮仅示意，全部停用；行为见状态矩阵。",
+    "save": "只保存",
+    "save_start": "保存并开始规划",
+    "skip": "跳到研究内容",
+    "field_candidate": "候选／版本",
+    "field_motivation": "背景／重要性",
+    "field_current_state": "现况／closest work",
+    "field_gap": "gap／意图贡献",
+    "field_claim": "意图主张",
+    "field_evidence_needed": "所需证据",
+    "field_measurement": "测量／形式单位",
+    "field_claim_boundary": "论证范围",
+    "field_design_ids": "关联方案",
+    "field_analysis_ids": "关联分析",
+    "field_result_ids": "预期产物",
+    "field_blockers": "阻塞条件",
+    "field_minimum_deliverable": "最小交付",
+    "field_resource_uses": "材料用途",
+    "field_fit_basis": "适配依据",
+    "field_questions": "所服务原问题",
+    "field_procedure": "研究步骤",
+    "field_comparisons": "比较／不适用理由",
+    "field_checks": "可信度检查",
+    "field_stop": "失败／停止条件",
+    "field_supports": "支持",
+    "field_contradicts": "反驳",
+    "field_inconclusive": "无法判定",
+    "field_deadline": "最迟处理步骤",
+    "field_owner": "原记录负责人",
+    "field_evidence_trigger": "所需证据／触发点",
+    "field_fallback": "原 fallback",
+    "field_source_unresolved": "来源 unknown",
+    "field_conditions": "用户条件",
+    "field_unresolved": "用户未决事项",
+    "field_pending_scope_questions": "范围待澄清",
+    "field_missing_mapping": "材料／问题映射缺件",
+    "field_resource_rule": "入口、实际文件、适配和权利分开，不互相推断。",
+    "field_origin": "原来源",
+    "field_availability": "来源可用性",
+    "field_access_conditions": "使用条件",
+    "field_fitness": "当前问题适配",
+    "field_scale": "最小／标准规模",
+    "field_scale_basis": "规模依据",
+    "field_entry": "材料入口",
+    "field_url": "原 URL",
+    "field_shared_resource": "同一资源还服务",
+    "field_review_missing": "未提供同版原评语／修订影响记录；不是已完成科学审查。",
+    "field_milestone": "原里程碑",
+    "field_deliverable": "预定产物",
+    "field_duration": "时程依据",
+    "field_graph_table_caption": "原文明列引用（静态示意，完整对照见 HTML）",
+    "field_wireframe_footer": "版本／raw 收据可在离线 HTML 展开。本图由 GDI 绘制，不是产品或浏览器截图。",
+    "field_stage2_title": "Stage 2 · 比较方向与保存",
+    "field_comparison": "方向比较",
+    "field_comparison_missing": "本合成片段仅提供当前方向；其他候选和比较证据未提供，不补造第二个方向。",
+    "field_source_review": "查看原 SQ、材料用途、方法意图与限制。",
+    "field_other_candidate": "其他候选：unknown／未记录比较材料",
+    "field_save_intent": "保存意图",
+    "field_selection_missing": "暂定偏好不等于正式选择；此合成 fixture 没有真实选择收据。",
+    "field_open_stage3": "查看保存后的 Stage 3 静态稿"
+  },
+  "source_fixture_sha256": "6800db3c450a8bb29da511bbec4e73c0d0886a219d32b057e06e02e6ca28d08d",
+  "blocks": [
+    {
+      "id": "overview",
+      "title": "方向与科学问题",
+      "paragraphs": [
+        "候选／版本: MOCK-WATER@2",
+        "背景／重要性: 在解释季节差异前，先区分记录覆盖、缺测和测量变化。",
+        "现况／closest work: closest work 尚未完成定点核对；这里只保留拟查的监测报告类别，没有补造文献结论。",
+        "gap／意图贡献: 待核：现有记录能否区分季节性描述与覆盖/测量变化。 / 若材料条件允许，形成可解释范围与覆盖限制的有界说明。",
+        "原文（合成；切换语言不改写）"
+      ],
+      "region": "full"
+    },
+    {
+      "id": "sq-SQ-01",
+      "title": "逐题方案 · SQ-01",
+      "paragraphs": [
+        "MOCK-WATER@2/SQ-01",
+        "记录覆盖与缺测能否支持对水质季节差异的描述？",
+        "意图主张: 描述记录支持的差异与无法判定范围，不推断因果效果。",
+        "材料／用途／适配：拟核对逐站点、逐时段原记录；实际文件、覆盖范围和合法使用条件尚未取得。",
+        "方法与设计：观察性描述；先核对记录单位和可比窗口，不将相关或季节差异写成因果作用。",
+        "方法与设计：拟在有明示覆盖的相同站点/可比窗口内描述；若不满足可比条件，保留无法判定。",
+        "分析与验证：核对测量定义、采样/缺测记录、站点变更与替代解释；目前均为待核的规划文字。",
+        "分析与验证：原计划拟报告覆盖/缺测说明和有界差异描述；具体分析设置待材料适配核对。",
+        "可能判读与预期产物：支持：只支持所覆盖窗口的描述；反驳：记录不支持原拟描述；无法判定：覆盖、测量或权利缺件。",
+        "按方案继续：覆盖与缺测说明、原问题可回答范围；没有实际研究结果。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "sq-SQ-02",
+      "title": "逐题方案 · SQ-02",
+      "paragraphs": [
+        "MOCK-WATER@2/SQ-02",
+        "哪些站点或时段的缺测会改变上述描述的可解释范围？",
+        "意图主张: 说明覆盖限制与替代解释，不把缺测当作没有变化。",
+        "材料／用途／适配：同一组拟用原记录，按本题用途核对缺测模式；不是另一份独立数据。",
+        "方法与设计：比较不同覆盖情形下描述边界是否变化，不预填变化方向。",
+        "方法与设计：仅记录原草稿的敏感性检查意图；未有材料时不指定假定样本量。",
+        "分析与验证：检查是否将站点改变、测量改变与真实变化混为一谈。",
+        "分析与验证：待覆盖与测量条件明确后再锁定可解释范围。",
+        "可能判读与预期产物：支持/反驳/无法判定须对应原问题；本轮未执行任何分析。",
+        "按方案继续：影响范围和未决条件清单（计划产物）。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "figures",
+      "title": "研究图与原引用",
+      "paragraphs": [
+        "未提供结构化关联：保留逐题表，不从自由文字猜图。",
+        "F01 / F02：future／待补结构化科学路线来源"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "unknowns",
+      "title": "资源与 unknown",
+      "paragraphs": [
+        "MOCK-WATER@2/SQ-01：原记录要求：在 material-design 前取得记录样本、站点/时间定义及使用条件；owner、日历日期与 fallback 未记录。",
+        "MOCK-WATER@2/SQ-02：覆盖定义未核对；所需证据与最迟步骤沿用本题原 unknown，不以0补未知数量。",
+        "来源 unknown: 实际原文件未取得；覆盖、测量与使用条件未知。",
+        "用户条件: 只做原记录能够支持的描述；不扩为因果效果估计。",
+        "用户未决事项: 季节分组、测量单位和可比窗口尚未核对。",
+        "范围待澄清: 若记录不支持原范围，应保留缺件并由原 owner 处理范围变化。",
+        "材料／问题映射缺件: []"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "resources",
+      "title": "材料／用途／适配",
+      "paragraphs": [
+        "入口、实际文件、适配和权利分开，不互相推断。",
+        "实际取得文件: null / unknown",
+        "使用权利／条件: 未提供合法使用证据，保持 unknown",
+        "材料入口: R-WATER · 合成监测记录入口; 原 URL: null / unknown",
+        "实际取得文件: null / unknown",
+        "使用权利／条件: null / unknown",
+        "SQ-01 · 材料用途: 核对本题的站点、时间单位和覆盖。; 当前问题适配: unknown",
+        "SQ-02 · 材料用途: 核对本题的站点、时间单位和覆盖。; 当前问题适配: unknown"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "reviews",
+      "title": "评审与修订",
+      "paragraphs": [
+        "P7 / P8 / P9：not-run / null，分别保留，无总分。",
+        "未提供同版原评语／修订影响记录；不是已完成科学审查。"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "resume",
+      "title": "按方案继续",
+      "paragraphs": [
+        "只列预定产物与原程序要求；没有代码／数据，不称可执行。"
+      ],
+      "region": "side"
+    }
+  ],
+  "explicit_edges": []
+}

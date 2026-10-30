@@ -1,0 +1,220 @@
+{
+  "case": {
+    "id": "observation",
+    "title": "缺测如何影响水质季节差异的判断",
+    "research_type": "观察／描述研究",
+    "view_version": "mock-observation-v1",
+    "synthetic": true,
+    "backend_connected": false,
+    "contract_validated": false,
+    "original_language": "zh-CN",
+    "note": "全部科学文字均为合成布局示例；不是实际选案、数据可用性或结果。",
+    "literal_values": {
+      "known_zero": 0,
+      "known_false": false,
+      "unknown": null,
+      "unrun": "not-run"
+    }
+  },
+  "locale": "en",
+  "labels": {
+    "mock": "Static design · no backend · no API calls",
+    "source": "Original text (synthetic; unchanged by language)",
+    "title": "Continue from a saved direction",
+    "saved": "Draft saved (synthetic state)",
+    "pending": "Pending: material / definition fit",
+    "notrun": "Research not run",
+    "primary": "Review missing information",
+    "back": "Return to this direction",
+    "overview": "Direction and scientific questions",
+    "sq": "Question-by-question plan",
+    "graph": "Research figures and explicit references",
+    "unknown": "Resources and unknowns",
+    "review": "Review and revision",
+    "resume": "Continue with the plan",
+    "technical": "Version and raw receipt",
+    "materials": "Materials / purpose / fit",
+    "method": "Method and design",
+    "validation": "Analysis and validation",
+    "interpret": "Interpretation and planned output",
+    "next": "Next condition to resolve",
+    "no_graph": "No structured links: keep the SQ table; do not infer a graph from free text.",
+    "future": "F01 / F02: future; typed scientific-route sources missing",
+    "graph_note": "F03 static reference sketch, not the private component. Shared design defined once.",
+    "shared": "Shared design card",
+    "missing": "Not recorded / remains unknown",
+    "data_entry": "Material entry",
+    "file": "File actually acquired",
+    "fit": "Fit to this SQ",
+    "rights": "Usage rights / conditions",
+    "permission_unknown": "No lawful-use evidence supplied; remains unknown",
+    "assessment": "P7 / P8 / P9: not-run / null, separate; no total.",
+    "repro": "Planned artifacts and recorded procedures only; no executable claim without code / data.",
+    "boundary": "Preference is not formal selection; saved is not completed research.",
+    "demo_actions": "Operation controls are illustrations, all disabled; see the state matrix.",
+    "save": "Save only",
+    "save_start": "Save and start planning",
+    "skip": "Skip to research content",
+    "field_candidate": "Candidate / version",
+    "field_motivation": "Background / importance",
+    "field_current_state": "Current state / closest work",
+    "field_gap": "Gap / intended contribution",
+    "field_claim": "Intended claim",
+    "field_evidence_needed": "Needed evidence",
+    "field_measurement": "Measurement / formal unit",
+    "field_claim_boundary": "Claim boundary",
+    "field_design_ids": "Linked designs",
+    "field_analysis_ids": "Linked analyses",
+    "field_result_ids": "Planned outputs",
+    "field_blockers": "Blockers",
+    "field_minimum_deliverable": "Minimum deliverable",
+    "field_resource_uses": "Material purpose",
+    "field_fit_basis": "Fit rationale",
+    "field_questions": "Original questions served",
+    "field_procedure": "Research procedure",
+    "field_comparisons": "Comparison / non-applicability",
+    "field_checks": "Credibility checks",
+    "field_stop": "Failure / stopping conditions",
+    "field_supports": "Supports",
+    "field_contradicts": "Contradicts",
+    "field_inconclusive": "Inconclusive",
+    "field_deadline": "Latest resolution step",
+    "field_owner": "Recorded owner",
+    "field_evidence_trigger": "Evidence / recheck trigger",
+    "field_fallback": "Recorded fallback",
+    "field_source_unresolved": "Source unknowns",
+    "field_conditions": "User conditions",
+    "field_unresolved": "User unresolved items",
+    "field_pending_scope_questions": "Scope questions",
+    "field_missing_mapping": "Missing mappings",
+    "field_resource_rule": "Keep entry, acquired files, fit and rights separate; none implies the others.",
+    "field_origin": "Recorded origin",
+    "field_availability": "Recorded availability",
+    "field_access_conditions": "Access conditions",
+    "field_fitness": "Fit to the question",
+    "field_scale": "Minimum / standard scope",
+    "field_scale_basis": "Scale basis",
+    "field_entry": "Material entry",
+    "field_url": "Recorded URL",
+    "field_shared_resource": "Same resource also serves",
+    "field_review_missing": "No bound review / revision-impact record supplied; this is not completed scientific review.",
+    "field_milestone": "Recorded milestone",
+    "field_deliverable": "Planned deliverable",
+    "field_duration": "Duration basis",
+    "field_graph_table_caption": "Explicit recorded links (static sketch; full table in HTML)",
+    "field_wireframe_footer": "Expand versions / raw receipts in the offline HTML. GDI wireframe, not a product or browser screenshot.",
+    "field_stage2_title": "Stage 2 · Compare directions and save",
+    "field_comparison": "Direction comparison",
+    "field_comparison_missing": "This synthetic fragment provides one direction only; other candidates and comparison evidence are missing, not invented.",
+    "field_source_review": "Review original SQs, material purpose, method intent and limits.",
+    "field_other_candidate": "Other candidates: unknown / comparison evidence not recorded",
+    "field_save_intent": "Save intention",
+    "field_selection_missing": "A preference is not formal selection; this synthetic fixture has no real choice receipt.",
+    "field_open_stage3": "Read the saved Stage 3 static mock"
+  },
+  "source_fixture_sha256": "6800db3c450a8bb29da511bbec4e73c0d0886a219d32b057e06e02e6ca28d08d",
+  "blocks": [
+    {
+      "id": "overview",
+      "title": "Direction and scientific questions",
+      "paragraphs": [
+        "Candidate / version: MOCK-WATER@2",
+        "Background / importance: 在解释季节差异前，先区分记录覆盖、缺测和测量变化。",
+        "Current state / closest work: closest work 尚未完成定点核对；这里只保留拟查的监测报告类别，没有补造文献结论。",
+        "Gap / intended contribution: 待核：现有记录能否区分季节性描述与覆盖/测量变化。 / 若材料条件允许，形成可解释范围与覆盖限制的有界说明。",
+        "Original text (synthetic; unchanged by language)"
+      ],
+      "region": "full"
+    },
+    {
+      "id": "sq-SQ-01",
+      "title": "Question-by-question plan · SQ-01",
+      "paragraphs": [
+        "MOCK-WATER@2/SQ-01",
+        "记录覆盖与缺测能否支持对水质季节差异的描述？",
+        "Intended claim: 描述记录支持的差异与无法判定范围，不推断因果效果。",
+        "Materials / purpose / fit：拟核对逐站点、逐时段原记录；实际文件、覆盖范围和合法使用条件尚未取得。",
+        "Method and design：观察性描述；先核对记录单位和可比窗口，不将相关或季节差异写成因果作用。",
+        "Method and design：拟在有明示覆盖的相同站点/可比窗口内描述；若不满足可比条件，保留无法判定。",
+        "Analysis and validation：核对测量定义、采样/缺测记录、站点变更与替代解释；目前均为待核的规划文字。",
+        "Analysis and validation：原计划拟报告覆盖/缺测说明和有界差异描述；具体分析设置待材料适配核对。",
+        "Interpretation and planned output：支持：只支持所覆盖窗口的描述；反驳：记录不支持原拟描述；无法判定：覆盖、测量或权利缺件。",
+        "Continue with the plan：覆盖与缺测说明、原问题可回答范围；没有实际研究结果。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "sq-SQ-02",
+      "title": "Question-by-question plan · SQ-02",
+      "paragraphs": [
+        "MOCK-WATER@2/SQ-02",
+        "哪些站点或时段的缺测会改变上述描述的可解释范围？",
+        "Intended claim: 说明覆盖限制与替代解释，不把缺测当作没有变化。",
+        "Materials / purpose / fit：同一组拟用原记录，按本题用途核对缺测模式；不是另一份独立数据。",
+        "Method and design：比较不同覆盖情形下描述边界是否变化，不预填变化方向。",
+        "Method and design：仅记录原草稿的敏感性检查意图；未有材料时不指定假定样本量。",
+        "Analysis and validation：检查是否将站点改变、测量改变与真实变化混为一谈。",
+        "Analysis and validation：待覆盖与测量条件明确后再锁定可解释范围。",
+        "Interpretation and planned output：支持/反驳/无法判定须对应原问题；本轮未执行任何分析。",
+        "Continue with the plan：影响范围和未决条件清单（计划产物）。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "figures",
+      "title": "Research figures and explicit references",
+      "paragraphs": [
+        "No structured links: keep the SQ table; do not infer a graph from free text.",
+        "F01 / F02: future; typed scientific-route sources missing"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "unknowns",
+      "title": "Resources and unknowns",
+      "paragraphs": [
+        "MOCK-WATER@2/SQ-01：原记录要求：在 material-design 前取得记录样本、站点/时间定义及使用条件；owner、日历日期与 fallback 未记录。",
+        "MOCK-WATER@2/SQ-02：覆盖定义未核对；所需证据与最迟步骤沿用本题原 unknown，不以0补未知数量。",
+        "Source unknowns: 实际原文件未取得；覆盖、测量与使用条件未知。",
+        "User conditions: 只做原记录能够支持的描述；不扩为因果效果估计。",
+        "User unresolved items: 季节分组、测量单位和可比窗口尚未核对。",
+        "Scope questions: 若记录不支持原范围，应保留缺件并由原 owner 处理范围变化。",
+        "Missing mappings: []"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "resources",
+      "title": "Materials / purpose / fit",
+      "paragraphs": [
+        "Keep entry, acquired files, fit and rights separate; none implies the others.",
+        "File actually acquired: null / unknown",
+        "Usage rights / conditions: No lawful-use evidence supplied; remains unknown",
+        "Material entry: R-WATER · 合成监测记录入口; Recorded URL: null / unknown",
+        "File actually acquired: null / unknown",
+        "Usage rights / conditions: null / unknown",
+        "SQ-01 · Material purpose: 核对本题的站点、时间单位和覆盖。; Fit to the question: unknown",
+        "SQ-02 · Material purpose: 核对本题的站点、时间单位和覆盖。; Fit to the question: unknown"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "reviews",
+      "title": "Review and revision",
+      "paragraphs": [
+        "P7 / P8 / P9: not-run / null, separate; no total.",
+        "No bound review / revision-impact record supplied; this is not completed scientific review."
+      ],
+      "region": "side"
+    },
+    {
+      "id": "resume",
+      "title": "Continue with the plan",
+      "paragraphs": [
+        "Planned artifacts and recorded procedures only; no executable claim without code / data."
+      ],
+      "region": "side"
+    }
+  ],
+  "explicit_edges": []
+}

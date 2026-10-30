@@ -1,0 +1,301 @@
+{
+  "case": {
+    "id": "theory",
+    "title": "有限图上两类路径约束的相容性",
+    "research_type": "理论／形式研究",
+    "view_version": "mock-theory-v1",
+    "synthetic": true,
+    "backend_connected": false,
+    "contract_validated": false,
+    "original_language": "zh-CN",
+    "note": "结构化草稿布局示例；没有真实选案、接收 pins、证明结果或执行授权。",
+    "literal_values": {
+      "known_zero": 0,
+      "known_false": false,
+      "unknown": null,
+      "unrun": "not-run"
+    }
+  },
+  "locale": "zh-TW",
+  "labels": {
+    "mock": "靜態設計稿 · 不接 backend · 不呼叫 API",
+    "source": "原文（合成；切換語言不改寫）",
+    "title": "從已儲存方向繼續研究",
+    "saved": "草稿已儲存（合成狀態）",
+    "pending": "待核：材料／定義適配",
+    "notrun": "研究未執行",
+    "primary": "查看待補資訊",
+    "back": "返回同一方向",
+    "overview": "方向與科學問題",
+    "sq": "逐題方案",
+    "graph": "研究圖與原引用",
+    "unknown": "資源與 unknown",
+    "review": "評審與修訂",
+    "resume": "依方案續接",
+    "technical": "版本與原始收據",
+    "materials": "材料／用途／適配",
+    "method": "方法與設計",
+    "validation": "分析與驗證",
+    "interpret": "可能判讀與預期產物",
+    "next": "下一項待解條件",
+    "no_graph": "未提供結構化關聯：保留逐題表，不從自由文字猜圖。",
+    "future": "F01 / F02：future／待補結構化科學路線來源",
+    "graph_note": "F03 靜態引用示意，未接入私人候選圖元件。共享設計僅定義一次。",
+    "shared": "共用方案卡",
+    "missing": "未記錄／保留 unknown",
+    "data_entry": "材料入口",
+    "file": "實際取得檔案",
+    "fit": "目前 SQ 適配",
+    "rights": "使用權利／條件",
+    "permission_unknown": "未提供合法使用證據，保留 unknown",
+    "assessment": "P7 / P8 / P9：not-run / null，分別保留，無總分。",
+    "repro": "只列預定產物與原程序要求；未有程式／資料，不稱可執行。",
+    "boundary": "偏好不等於正式選案；saved 不等於研究完成。",
+    "demo_actions": "以下按鈕僅示意，全部停用；行為見狀態矩陣。",
+    "save": "只儲存",
+    "save_start": "儲存並開始規劃",
+    "skip": "跳至研究內容",
+    "field_candidate": "候選／版本",
+    "field_motivation": "背景／重要性",
+    "field_current_state": "現況／closest work",
+    "field_gap": "gap／意圖貢獻",
+    "field_claim": "意圖主張",
+    "field_evidence_needed": "所需證據",
+    "field_measurement": "測量／形式單位",
+    "field_claim_boundary": "論證範圍",
+    "field_design_ids": "關聯方案",
+    "field_analysis_ids": "關聯分析",
+    "field_result_ids": "預期產物",
+    "field_blockers": "阻塞條件",
+    "field_minimum_deliverable": "最小交付",
+    "field_resource_uses": "材料用途",
+    "field_fit_basis": "適配依據",
+    "field_questions": "所服務原問題",
+    "field_procedure": "研究步驟",
+    "field_comparisons": "比較／不適用理由",
+    "field_checks": "可信度檢查",
+    "field_stop": "失敗／停止條件",
+    "field_supports": "支持",
+    "field_contradicts": "反駁",
+    "field_inconclusive": "無法判定",
+    "field_deadline": "最遲處理步驟",
+    "field_owner": "原紀錄負責人",
+    "field_evidence_trigger": "所需證據／觸發點",
+    "field_fallback": "原 fallback",
+    "field_source_unresolved": "來源 unknown",
+    "field_conditions": "使用者條件",
+    "field_unresolved": "使用者未決事項",
+    "field_pending_scope_questions": "範圍待澄清",
+    "field_missing_mapping": "材料／問題映射缺件",
+    "field_resource_rule": "入口、實際檔案、適配和權利分開，不互相推斷。",
+    "field_origin": "原來源",
+    "field_availability": "來源可用性",
+    "field_access_conditions": "使用條件",
+    "field_fitness": "目前問題適配",
+    "field_scale": "最小／標準規模",
+    "field_scale_basis": "規模依據",
+    "field_entry": "材料入口",
+    "field_url": "原 URL",
+    "field_shared_resource": "同一資源亦服務",
+    "field_review_missing": "未提供同版原評語／修訂影響紀錄；不是已完成科學審查。",
+    "field_milestone": "原里程碑",
+    "field_deliverable": "預定產物",
+    "field_duration": "時程依據",
+    "field_graph_table_caption": "原文明列引用（靜態示意，完整對照見 HTML）",
+    "field_wireframe_footer": "版本／raw 收據可在離線 HTML 展開。本圖由 GDI 繪製，不是產品或瀏覽器截圖。",
+    "field_stage2_title": "Stage 2 · 比較方向與儲存",
+    "field_comparison": "方向比較",
+    "field_comparison_missing": "本合成片段僅提供目前方向；其他候選與比較證據未提供，不補造第二個方向。",
+    "field_source_review": "查看原 SQ、材料用途、方法意圖與限制。",
+    "field_other_candidate": "其他候選：unknown／未記錄比較材料",
+    "field_save_intent": "儲存意圖",
+    "field_selection_missing": "暫定偏好不等於正式選擇；此合成 fixture 沒有真實選擇收據。",
+    "field_open_stage3": "查看儲存後的 Stage 3 靜態稿"
+  },
+  "source_fixture_sha256": "366c1b283ef55708d043d5bc897581f36415584445a000ed6f33e505844bb88f",
+  "blocks": [
+    {
+      "id": "overview",
+      "title": "方向與科學問題",
+      "paragraphs": [
+        "候選／版本: MOCK-FORMAL@1",
+        "背景／重要性: null / unknown",
+        "現況／closest work: null / unknown",
+        "gap／意圖貢獻: 未記錄／保留 unknown / null / unknown",
+        "原文（合成；切換語言不改寫）"
+      ],
+      "region": "full"
+    },
+    {
+      "id": "sq-SQ-01",
+      "title": "逐題方案 · SQ-01",
+      "paragraphs": [
+        "MOCK-FORMAL@1/SQ-01",
+        "在明示条件下，有限图上是否总存在满足两类约束的路径？",
+        "意圖主張: 只讨论明确假设范围内的命题，不外推到经验世界。",
+        "所需證據: 明确的约束定义、假设与可核对的证明/反例义务。",
+        "測量／形式單位: 不适用经验测量；使用定义、命题和满足条件的实例。",
+        "論證範圍: 只在声明的有限图与约束条件范围内讨论。",
+        "關聯方案: D-FORMAL-01",
+        "關聯分析: A-FORMAL-01",
+        "預期產物: R-OUTPUT-1",
+        "阻塞條件: U-DEFINITION",
+        "最小交付: 定义—命题—证明义务对照（计划）",
+        "材料用途: 核对定义和假设; 適配依據: 定义尚未完全给出，适配待核 (unknown)"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "sq-SQ-02",
+      "title": "逐題方案 · SQ-02",
+      "paragraphs": [
+        "MOCK-FORMAL@1/SQ-02",
+        "哪些边界情形可以成为该全称命题的反例？",
+        "意圖主張: 以有效反例界定命题适用范围；未实际找到或验证反例。",
+        "所需證據: 明确的约束定义、假设与可核对的证明/反例义务。",
+        "測量／形式單位: 不适用经验测量；使用定义、命题和满足条件的实例。",
+        "論證範圍: 只在声明的有限图与约束条件范围内讨论。",
+        "關聯方案: D-FORMAL-01",
+        "關聯分析: A-FORMAL-01",
+        "預期產物: R-OUTPUT-2",
+        "阻塞條件: U-DEFINITION",
+        "最小交付: 反例条件与适用范围记录（计划）",
+        "材料用途: 核对定义和假设; 適配依據: 定义尚未完全给出，适配待核 (unknown)"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "figures",
+      "title": "研究圖與原引用",
+      "paragraphs": [
+        "F03 靜態引用示意，未接入私人候選圖元件。共享設計僅定義一次。",
+        "F01 / F02：future／待補結構化科學路線來源"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "D-FORMAL-01",
+      "title": "共用方案卡 · D-FORMAL-01",
+      "paragraphs": [
+        "所服務原問題: MOCK-FORMAL@1/SQ-01\nMOCK-FORMAL@1/SQ-02",
+        "研究步驟: 先核对两类约束的定义和假设版本。\n列出证明义务与合法反例的条件。\n在明确范围内规划一致性/反例分析；本轮不执行证明或搜索。",
+        "比較／不適用理由: 不要求经验 baseline 或随机试验。; 本题需要定义、证明义务和反例；比较要求随主张而定。",
+        "可信度檢查: 假设是否完整\n反例是否满足原前提\n命题结论是否超出已声明范围",
+        "失敗／停止條件: 定义不清或引用不闭合 / 关键定义未解决则停止推进原命题，返回范围澄清。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "A-FORMAL-01",
+      "title": "分析與驗證 · A-FORMAL-01",
+      "paragraphs": [
+        "MOCK-FORMAL@1/SQ-01\nMOCK-FORMAL@1/SQ-02",
+        "D-FORMAL-01",
+        "核对证明义务、一致性与合法反例；尚未执行。",
+        "有效反例必须满足原前提；证明不能漏用未声明假设。",
+        "约束定义未定，当前无法判定命题。",
+        "形式范围内的支持不构成经验世界验证。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "R-OUTPUT-1",
+      "title": "可能判讀與預期產物 · R-OUTPUT-1",
+      "paragraphs": [
+        "MOCK-FORMAL@1/SQ-01",
+        "A-FORMAL-01",
+        "计划产物：定义/命题/证明义务表",
+        "not-run",
+        "null / unknown",
+        "支持: 只有有效证明才能支持声明范围内的命题。",
+        "反駁: 满足全部前提的有效反例可反驳全称命题。",
+        "無法判定: 定义或假设不足时保持无法判定；没有实际结果。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "R-OUTPUT-2",
+      "title": "可能判讀與預期產物 · R-OUTPUT-2",
+      "paragraphs": [
+        "MOCK-FORMAL@1/SQ-02",
+        "A-FORMAL-01",
+        "计划产物：反例条件与范围说明",
+        "not-run",
+        "null / unknown",
+        "支持: 只有有效证明才能支持声明范围内的命题。",
+        "反駁: 满足全部前提的有效反例可反驳全称命题。",
+        "無法判定: 定义或假设不足时保持无法判定；没有实际结果。"
+      ],
+      "region": "main"
+    },
+    {
+      "id": "unknowns",
+      "title": "資源與 unknown",
+      "paragraphs": [
+        "U-DEFINITION: 两类约束的精确定义与适用假设未提供。",
+        "所服務原問題: MOCK-FORMAL@1/SQ-01\nMOCK-FORMAL@1/SQ-02",
+        "最遲處理步驟: question-definition",
+        "原紀錄負責人: null / unknown",
+        "所需證據／觸發點: 明确的定义与假设版本。 / 原 owner 提供可核对定义后。",
+        "原 fallback: 原记录仅允许回到范围澄清；不自动改题。"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "resources",
+      "title": "材料／用途／適配",
+      "paragraphs": [
+        "入口、實際檔案、適配和權利分開，不互相推斷。",
+        "實際取得檔案: null / unknown",
+        "使用權利／條件: 未提供合法使用證據，保留 unknown",
+        "原來源: 合成形式定义草稿，不是实际取得文件",
+        "來源可用性: unknown",
+        "使用條件: 未记录完整使用条件；不表示已获许可。",
+        "目前問題適配: 定义与假设待核",
+        "最小／標準規模: 定义、证明义务与反例条件清单 / 在已界定范围内的完整论证计划",
+        "規模依據: null / unknown"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "reviews",
+      "title": "評審與修訂",
+      "paragraphs": [
+        "P7 / P8 / P9：not-run / null，分別保留，無總分。",
+        "未提供同版原評語／修訂影響紀錄；不是已完成科學審查。"
+      ],
+      "region": "side"
+    },
+    {
+      "id": "resume",
+      "title": "依方案續接",
+      "paragraphs": [
+        "只列預定產物與原程序要求；未有程式／資料，不稱可執行。",
+        "原里程碑: 核对定义、范围与证明义务; 預定產物: 原声明假设及边界清单（预定产物）; 時程依據: null / unknown"
+      ],
+      "region": "side"
+    }
+  ],
+  "explicit_edges": [
+    [
+      "A-FORMAL-01",
+      "R-OUTPUT-1"
+    ],
+    [
+      "A-FORMAL-01",
+      "R-OUTPUT-2"
+    ],
+    [
+      "D-FORMAL-01",
+      "A-FORMAL-01"
+    ],
+    [
+      "MOCK-FORMAL@1/SQ-01",
+      "D-FORMAL-01"
+    ],
+    [
+      "MOCK-FORMAL@1/SQ-02",
+      "D-FORMAL-01"
+    ]
+  ]
+}

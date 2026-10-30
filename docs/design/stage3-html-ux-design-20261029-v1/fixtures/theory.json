@@ -1,0 +1,264 @@
+{
+  "mock_meta": {
+    "id": "theory",
+    "title": "有限图上两类路径约束的相容性",
+    "research_type": "理论／形式研究",
+    "view_version": "mock-theory-v1",
+    "synthetic": true,
+    "backend_connected": false,
+    "contract_validated": false,
+    "original_language": "zh-CN",
+    "note": "结构化草稿布局示例；没有真实选案、接收 pins、证明结果或执行授权。",
+    "literal_values": {
+      "known_zero": 0,
+      "known_false": false,
+      "unknown": null,
+      "unrun": "not-run"
+    }
+  },
+  "view": {
+    "kind": "ProjectStage3PlanningView",
+    "project_ref": "SYNTH-FORMAL",
+    "input_version": "mock-intake-v1",
+    "revision": 1,
+    "selection_status": "pending",
+    "planning_mode": "selected",
+    "planning_configured": false,
+    "default_request": null,
+    "direction_context": null,
+    "formal_selected_receiver": false,
+    "agent_conversation_connected": false,
+    "execution_authorized": false,
+    "evaluation_calls_authorized": false,
+    "formal_execution_enabled": false,
+    "external_claim_ready": false,
+    "usable_for_formal_pairing": false,
+    "job": {
+      "status": "completed",
+      "outcome": "saved",
+      "planning_status": "needs-information"
+    },
+    "plan": {
+      "kind": "Stage3ResearchPlan",
+      "schema_version": "1.1.0",
+      "plan_id": "MOCK-FORMAL-PLAN",
+      "version": 1,
+      "source_manifest_sha256": null,
+      "selected_candidates": [],
+      "execution_authorized": false,
+      "questions": [
+        {
+          "question_ref": "MOCK-FORMAL@1/SQ-01",
+          "candidate_id": "MOCK-FORMAL",
+          "candidate_version": 1,
+          "question_id": "SQ-01",
+          "text": "在明示条件下，有限图上是否总存在满足两类约束的路径？",
+          "priority": "core",
+          "gap_ids": [],
+          "intended_claim": "只讨论明确假设范围内的命题，不外推到经验世界。"
+        },
+        {
+          "question_ref": "MOCK-FORMAL@1/SQ-02",
+          "candidate_id": "MOCK-FORMAL",
+          "candidate_version": 1,
+          "question_id": "SQ-02",
+          "text": "哪些边界情形可以成为该全称命题的反例？",
+          "priority": "secondary",
+          "gap_ids": [],
+          "intended_claim": "以有效反例界定命题适用范围；未实际找到或验证反例。"
+        }
+      ],
+      "question_plans": [
+        {
+          "question_ref": "MOCK-FORMAL@1/SQ-01",
+          "evidence_needed": "明确的约束定义、假设与可核对的证明/反例义务。",
+          "measurement": "不适用经验测量；使用定义、命题和满足条件的实例。",
+          "claim_boundary": "只在声明的有限图与约束条件范围内讨论。",
+          "resource_uses": [
+            {
+              "resource_id": "R-DEFINITION",
+              "purpose": "核对定义和假设",
+              "fit_rationale": "定义尚未完全给出，适配待核",
+              "status": "unknown"
+            }
+          ],
+          "design_ids": [
+            "D-FORMAL-01"
+          ],
+          "analysis_ids": [
+            "A-FORMAL-01"
+          ],
+          "result_ids": [
+            "R-OUTPUT-1"
+          ],
+          "blockers": [
+            "U-DEFINITION"
+          ],
+          "minimum_deliverable": "定义—命题—证明义务对照（计划）"
+        },
+        {
+          "question_ref": "MOCK-FORMAL@1/SQ-02",
+          "evidence_needed": "明确的约束定义、假设与可核对的证明/反例义务。",
+          "measurement": "不适用经验测量；使用定义、命题和满足条件的实例。",
+          "claim_boundary": "只在声明的有限图与约束条件范围内讨论。",
+          "resource_uses": [
+            {
+              "resource_id": "R-DEFINITION",
+              "purpose": "核对定义和假设",
+              "fit_rationale": "定义尚未完全给出，适配待核",
+              "status": "unknown"
+            }
+          ],
+          "design_ids": [
+            "D-FORMAL-01"
+          ],
+          "analysis_ids": [
+            "A-FORMAL-01"
+          ],
+          "result_ids": [
+            "R-OUTPUT-2"
+          ],
+          "blockers": [
+            "U-DEFINITION"
+          ],
+          "minimum_deliverable": "反例条件与适用范围记录（计划）"
+        }
+      ],
+      "designs": [
+        {
+          "design_id": "D-FORMAL-01",
+          "question_refs": [
+            "MOCK-FORMAL@1/SQ-01",
+            "MOCK-FORMAL@1/SQ-02"
+          ],
+          "family": "theoretical/formal",
+          "procedure": [
+            "先核对两类约束的定义和假设版本。",
+            "列出证明义务与合法反例的条件。",
+            "在明确范围内规划一致性/反例分析；本轮不执行证明或搜索。"
+          ],
+          "comparisons": {
+            "status": "not-applicable",
+            "description": "不要求经验 baseline 或随机试验。",
+            "reason": "本题需要定义、证明义务和反例；比较要求随主张而定。"
+          },
+          "credibility_checks": [
+            "假设是否完整",
+            "反例是否满足原前提",
+            "命题结论是否超出已声明范围"
+          ],
+          "failure_conditions": [
+            "定义不清或引用不闭合"
+          ],
+          "stop_conditions": [
+            "关键定义未解决则停止推进原命题，返回范围澄清。"
+          ]
+        }
+      ],
+      "analyses": [
+        {
+          "analysis_id": "A-FORMAL-01",
+          "question_refs": [
+            "MOCK-FORMAL@1/SQ-01",
+            "MOCK-FORMAL@1/SQ-02"
+          ],
+          "design_ids": [
+            "D-FORMAL-01"
+          ],
+          "method": "核对证明义务、一致性与合法反例；尚未执行。",
+          "criteria": "有效反例必须满足原前提；证明不能漏用未声明假设。",
+          "uncertainty": "约束定义未定，当前无法判定命题。",
+          "limitations": "形式范围内的支持不构成经验世界验证。"
+        }
+      ],
+      "results": [
+        {
+          "result_id": "R-OUTPUT-1",
+          "question_refs": [
+            "MOCK-FORMAL@1/SQ-01"
+          ],
+          "analysis_ids": [
+            "A-FORMAL-01"
+          ],
+          "artifact": "计划产物：定义/命题/证明义务表",
+          "status": "not-run",
+          "observed_value": null,
+          "interpretation": {
+            "supports": "只有有效证明才能支持声明范围内的命题。",
+            "contradicts": "满足全部前提的有效反例可反驳全称命题。",
+            "inconclusive": "定义或假设不足时保持无法判定；没有实际结果。"
+          }
+        },
+        {
+          "result_id": "R-OUTPUT-2",
+          "question_refs": [
+            "MOCK-FORMAL@1/SQ-02"
+          ],
+          "analysis_ids": [
+            "A-FORMAL-01"
+          ],
+          "artifact": "计划产物：反例条件与范围说明",
+          "status": "not-run",
+          "observed_value": null,
+          "interpretation": {
+            "supports": "只有有效证明才能支持声明范围内的命题。",
+            "contradicts": "满足全部前提的有效反例可反驳全称命题。",
+            "inconclusive": "定义或假设不足时保持无法判定；没有实际结果。"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "resource_id": "R-DEFINITION",
+          "origin": "合成形式定义草稿，不是实际取得文件",
+          "availability": "unknown",
+          "access_conditions": "未记录完整使用条件；不表示已获许可。",
+          "fitness": "定义与假设待核",
+          "scale_basis": null,
+          "minimum": "定义、证明义务与反例条件清单",
+          "standard": "在已界定范围内的完整论证计划",
+          "uncertainties": [
+            "定义未完成",
+            "无实际证明/反例结果"
+          ]
+        }
+      ],
+      "unknowns": [
+        {
+          "unknown_id": "U-DEFINITION",
+          "description": "两类约束的精确定义与适用假设未提供。",
+          "question_refs": [
+            "MOCK-FORMAL@1/SQ-01",
+            "MOCK-FORMAL@1/SQ-02"
+          ],
+          "resource_ids": [
+            "R-DEFINITION"
+          ],
+          "kind": "question-meaning",
+          "blocking": true,
+          "resolve_before": "question-definition",
+          "resolution": "pending",
+          "resolution_evidence_needed": "明确的定义与假设版本。",
+          "owner": null,
+          "recheck_trigger": "原 owner 提供可核对定义后。",
+          "fallback": "原记录仅允许回到范围澄清；不自动改题。",
+          "scope_change_required": true,
+          "disposition": "pending"
+        }
+      ],
+      "milestones": [
+        {
+          "milestone_id": "M-DEFINITION",
+          "description": "核对定义、范围与证明义务",
+          "depends_on": [],
+          "design_ids": [
+            "D-FORMAL-01"
+          ],
+          "duration_basis": null,
+          "deliverable": "原声明假设及边界清单（预定产物）"
+        }
+      ],
+      "condition_dispositions": []
+    }
+  }
+}
