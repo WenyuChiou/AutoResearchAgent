@@ -89,6 +89,14 @@ def _validated(intake, credential, configuration):
         for path in (
             _path(row["jobs_root"], private=True),
             _path(native["capture_dir"], private=True),
+            _path(
+                str(
+                    Path(native["capture_dir"]).with_name(
+                        Path(native["capture_dir"]).name + "-direction"
+                    )
+                ),
+                private=True,
+            ),
         ):
             if any(_overlaps(path, existing) for existing in outputs):
                 raise Stage3Error("stage3-planning-configuration-output-overlap")

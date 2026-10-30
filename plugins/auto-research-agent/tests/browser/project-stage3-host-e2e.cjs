@@ -48,13 +48,25 @@ async function readSaved(page) {
   return saved.json();
 }
 
+async function inspectSaved(page) {
+  const details = page.locator("#planning-details");
+  if (!(await details.evaluate(element => element.open))) {
+    await details.locator(":scope > summary").click();
+  }
+  const inspected = page.waitForResponse(r => new URL(r.url()).pathname === endpoint + "/inspect");
+  await page.getByRole("button", {name: "Inspect saved result", exact: true}).click();
+  assert.equal((await inspected).status(), 200);
+}
+
 async function profiles(page, viewport, expectedPlan) {
   for (const [language, text] of Object.entries(labels)) {
     await page.locator("#language").selectOption(language);
     await page.getByRole("heading", {level: 1, name: text[0], exact: true}).waitFor();
     assert.equal(await page.locator("html").getAttribute("lang"), language);
     assert.deepEqual(JSON.parse(await page.locator("#plan-json").textContent()), expectedPlan);
-    assert.equal(await page.getByRole("button", {name: text[1], exact: true}).isDisabled(), true);
+    assert.equal(await page.locator("#run").textContent(), text[1]);
+    assert.equal(await page.locator("#run").isVisible(), false);
+    assert.equal(await page.locator("#run").isDisabled(), true);
     assert.equal(await page.locator("#recover").isDisabled(), true);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true,
       `Horizontal overflow for ${viewport}/${language}`);
@@ -139,9 +151,7 @@ async function main() {
   summary.question_refs = plan.questions.map(row => row.question_ref);
   summary.plan_manifest_sha256 = saved.job.plan_manifest_sha256;
   summary.planning_status = saved.job.planning_status;
-  const inspected = page.waitForResponse(r => new URL(r.url()).pathname === endpoint + "/inspect");
-  await page.getByRole("button", {name: "Inspect saved result", exact: true}).click();
-  assert.equal((await inspected).status(), 200);
+  await inspectSaved(page);
   await page.waitForFunction(() => !document.getElementById("refresh").disabled);
   assert.equal(summary.run_requests, 1);
   await profiles(page, "desktop-1440", plan);

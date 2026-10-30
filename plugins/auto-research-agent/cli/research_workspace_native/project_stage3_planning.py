@@ -75,6 +75,9 @@ class ProjectStage3PlanningService:
                 callback=callback,
                 adapter_context=context,
             )
+        from .project_stage3_direction_planning import ProjectStage3DirectionPlanning
+
+        self.direction = ProjectStage3DirectionPlanning(self)
 
     def _current(self, credential, project_ref, body=None, check_deadline=None):
         if check_deadline:
@@ -116,7 +119,7 @@ class ProjectStage3PlanningService:
             project, _, ack, _, configured = self._current(
                 credential, project_ref, check_deadline=check_deadline
             )
-            return dict(
+            result = dict(
                 kind="ProjectStage3PlanningView",
                 project_ref=project_ref,
                 input_version=project["input_version"],
@@ -129,6 +132,11 @@ class ProjectStage3PlanningService:
                 if ack is not None and configured
                 else "unavailable",
                 **POLICY,
+            )
+            return (
+                self.direction.read(credential, project_ref, result, check_deadline)
+                if ack is None
+                else result
             )
 
     def _job(self, current, key):
@@ -179,6 +187,10 @@ class ProjectStage3PlanningService:
 
     def prepare(self, credential, project_ref, body, *, check_deadline=None):
         """Save a genuine workflow checkpoint and opt-in 1.1 intent; zero calls."""
+        if type(body) is dict and body.get("mode") == "direction-intent":
+            return self.direction.prepare(
+                credential, project_ref, body, check_deadline=check_deadline
+            )
         _fields(body, SOURCE_FIELDS)
         with self.intake._lock:
             current = self._current(credential, project_ref, body, check_deadline)
@@ -233,6 +245,10 @@ class ProjectStage3PlanningService:
         return configured, item["payload"]["checkpoint"]
 
     def inspect(self, credential, project_ref, body, *, check_deadline=None):
+        if type(body) is dict and body.get("mode") == "direction-intent":
+            return self.direction.inspect(
+                credential, project_ref, body, check_deadline=check_deadline
+            )
         _fields(body, SOURCE_FIELDS | {"request_sha256"})
         with self.intake._lock:
             configured, checkpoint = self._saved(
@@ -246,6 +262,10 @@ class ProjectStage3PlanningService:
             return self._public(project_ref, result)
 
     def run(self, credential, project_ref, body, *, check_deadline=None):
+        if type(body) is dict and body.get("mode") == "direction-intent":
+            return self.direction.run(
+                credential, project_ref, body, check_deadline=check_deadline
+            )
         _fields(body, SOURCE_FIELDS | {"request_sha256", "confirmed"})
         _check(body["confirmed"] is True, "explicit-stage3-planning-required", 400)
         with self.intake._lock:
@@ -287,6 +307,14 @@ class ProjectStage3PlanningService:
         check_deadline=None,
     ):
         """Trusted Host supplies the external saved-result pin; never redispatch."""
+        if type(body) is dict and body.get("mode") == "direction-intent":
+            return self.direction.recover(
+                credential,
+                project_ref,
+                body,
+                expected_plan_manifest_sha256=expected_plan_manifest_sha256,
+                check_deadline=check_deadline,
+            )
         _fields(body, SOURCE_FIELDS | {"request_sha256"})
         with self.intake._lock:
             configured, checkpoint = self._saved(

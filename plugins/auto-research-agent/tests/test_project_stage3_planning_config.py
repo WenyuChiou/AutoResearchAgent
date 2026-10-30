@@ -106,6 +106,16 @@ class Stage3PlanningConfigurationTests(unittest.TestCase):
         self.assertFalse((self.root / "jobs-0").exists())
         self.assertFalse((self.root / "capture-0").exists())
 
+    def test_direction_capture_collision_rejects_before_opening_journal(self):
+        value = deepcopy(self.value)
+        capture = Path(value["bindings"][0]["native"]["capture_dir"])
+        value["bindings"][0]["jobs_root"] = str(
+            capture.with_name(capture.name + "-direction")
+        )
+        with self.assertRaisesRegex(Stage3Error, "output-overlap"):
+            self.load(value)
+        self.assertFalse((self.root / "planning.sqlite").exists())
+
     def test_closed_shapes_identity_deadline_and_output_collisions_fail_before_io(self):
         cases = []
         for name, mutate in (

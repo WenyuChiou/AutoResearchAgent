@@ -52,6 +52,26 @@ def _runtime():
     }
 
 
+def _check_adapter_context(adapter_context):
+    if not isinstance(adapter_context, dict):
+        raise Stage3Error("explicit host adapter context required")
+    deadline = adapter_context.get("timeout_seconds")
+    if (
+        type(deadline) not in (int, float)
+        or not math.isfinite(deadline)
+        or deadline <= 0
+    ):
+        raise Stage3Error("existing adapter must declare its finite positive deadline")
+
+
+def _bounded_job_payload(value):
+    from .contracts import canonical_bytes
+
+    if len(canonical_bytes(value)) > MAX_ARTIFACT_BYTES:
+        raise Stage3Error("job request exceeds the existing artifact bound")
+    return copy.deepcopy(value)
+
+
 class PlanningJobs:
     """Wrap host-owned Journal intents; the host retains authentication and ownership."""
 
@@ -101,17 +121,7 @@ class PlanningJobs:
         closed(configuration, {"model", "reasoning"}, "host planning configuration")
         for value in configuration.values():
             text(value, "host planning configuration")
-        if not isinstance(adapter_context, dict):
-            raise Stage3Error("explicit host adapter context required")
-        deadline = adapter_context.get("timeout_seconds")
-        if (
-            type(deadline) not in (int, float)
-            or not math.isfinite(deadline)
-            or deadline <= 0
-        ):
-            raise Stage3Error(
-                "existing adapter must declare its finite positive deadline"
-            )
+        _check_adapter_context(adapter_context)
         schema = plan_schema_path(schema_version)
         value = {
             "kind": self.kind,
@@ -145,11 +155,7 @@ class PlanningJobs:
             "output": str(self.root / digest([self.project_id, self.method, key])),
             "policy": dict(POLICY),
         }
-        from .contracts import canonical_bytes
-
-        if len(canonical_bytes(value)) > MAX_ARTIFACT_BYTES:
-            raise Stage3Error("job request exceeds the existing artifact bound")
-        return copy.deepcopy(value)
+        return _bounded_job_payload(value)
 
     def prepare(
         self,
