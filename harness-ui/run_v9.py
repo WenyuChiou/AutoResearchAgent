@@ -11,7 +11,7 @@ from display_translations import load_translations, translation_script
 from review_reading import load_review_sources
 
 HERE = Path(__file__).resolve().parent
-MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage3-bridge.js')
+MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage3-bridge.js', 'v9-research-guide-contract.js', 'v9-research-guide-view.js', 'v9-research-guide.js')
 
 
 def private_directory(path):
@@ -67,7 +67,7 @@ def main(argv=None):
             host._assets[route] = html.replace(b'</head>', scripts + b'</head>').replace(b'</body>', template + b'</body>')
         for route in ('/', '/index.html', '/app.js'):
             host._assets[route] = host._assets[route].replace(b'V7', b'V9') if route != '/app.js' else host._assets[route]
-        host._assets['/runtime.css'] += b'\n' + (HERE/'stage2_display.css').read_bytes() + b'\n' + (HERE/'v9.css').read_bytes()
+        host._assets['/runtime.css'] += b'\n' + (HERE/'stage2_display.css').read_bytes() + b'\n' + (HERE/'v9.css').read_bytes() + b'\n' + (HERE/'v9-research-guide.css').read_bytes()
         host.host_binding['display_translations_sha256'] = sha(translation_script(translations))
         host.host_binding['review_sources_sha256'] = selected.review_sources_sha256
         host.host_binding.update(ui_version='V9', v9=dict(modules={k:sha(v) for k,v in modules.items()},

@@ -148,6 +148,13 @@ class ConfiguredWikiHttpTests(unittest.TestCase):
                 assert host_binding["current_delivery_selection_configured"] is True
                 assert host_binding["stage3_planning_configured"] is True
                 assert host_binding["configuration_is_not_selection"] is True
+                _, app_bytes = raw_get("/app.js")
+                for name in ("v9-research-guide-contract.js", "v9-research-guide-view.js", "v9-research-guide.js"):
+                    module_bytes = (repo / "harness-ui" / name).read_bytes()
+                    assert host_binding["modules"][name] == hashlib.sha256(module_bytes).hexdigest()
+                    assert module_bytes in app_bytes
+                _, css_bytes = raw_get("/runtime.css")
+                assert (repo / "harness-ui/v9-research-guide.css").read_bytes() in css_bytes
                 status, bootstrap = raw_get("/project-bootstrap.js")
                 boot = json.loads(
                     bootstrap.decode().split("=", 1)[1].strip().removesuffix(";")
