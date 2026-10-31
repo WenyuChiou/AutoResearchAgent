@@ -79,7 +79,7 @@ class SelectionReadSourcesTests(unittest.TestCase):
 class SourceReadScopeTests(unittest.TestCase):
     def setUp(self):
         temporary = self.enterContext(tempfile.TemporaryDirectory())
-        self.root = Path(temporary)
+        self.root = Path(temporary).resolve()
         self.path = self.root / "source.txt"
         self.path.write_text("original", encoding="utf-8")
         self.intake = object()
