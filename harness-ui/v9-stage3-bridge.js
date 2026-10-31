@@ -87,7 +87,14 @@ function v93MountChoice(app){
   css.rel='stylesheet';css.href='/project-stage2-selection.css';root.append(css,template.content.cloneNode(true));
   const nav=root.querySelector('nav');if(nav)nav.style.display='none'; // Wiki owns the outer project and language controls.
   const current=b=>app.page==='workspace'&&app.stage===2&&v93Matches(b,v93ChoiceIdentity());
-  const navigate=event=>{if(current(basis)&&event?.projectRef===basis.project_ref&&['en','zh-TW','zh-CN'].includes(event.language))window.location.assign('/'+v93Fragment(event.projectRef,{lang:{en:'en','zh-TW':'tw','zh-CN':'zh'}[event.language]||'en'},3));};
+   const navigate=event=>{
+    if(current(basis)&&event?.projectRef===basis.project_ref&&['en','zh-TW','zh-CN'].includes(event.language)){
+     window.location.hash=v93Fragment(event.projectRef,{lang:{en:'en','zh-TW':'tw','zh-CN':'zh'}[event.language]||'en'},3);
+     // Hash-only navigation keeps the pre-write overview. Re-enter the existing
+     // authenticated bootstrap to read the committed revision without resending.
+     window.location.reload();
+    }
+   };
   const instance=window.STAGE2_SELECTION.mount(root,{embedded:true,bootstrap:window.RESEARCH_PROJECTS,binding:basis,language:v93Language(app),isCurrent:current,onAccepted:navigate,onNavigate:navigate,onRecoveryChange:()=>{if(current(basis))livePaint();}});
   record={binding:basis,element,instance,language:v93Language(app)};v93Choices.set(basis.project_ref,record);
  }

@@ -7,6 +7,7 @@ and dispatch do not enter this scope and keep their fresh admission checks.
 from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import deepcopy
+from pathlib import Path
 from threading import get_ident
 
 from stage2_common import Stage2Error, canonical_hash
@@ -18,13 +19,62 @@ _READ = ContextVar("project_selection_read", default=None)
 @contextmanager
 def verified_selection_read(intake):
     """The caller holds intake._lock through this synchronous read scope."""
-    scope = dict(intake=intake, thread=get_ident(), active=True, key=None, result=None)
+    current = _READ.get()
+    if (
+        current is not None
+        and current["active"]
+        and current["intake"] is intake
+        and current["thread"] == get_ident()
+    ):
+        yield
+        return
+    scope = dict(
+        intake=intake,
+        thread=get_ident(),
+        active=True,
+        key=None,
+        result=None,
+        sources={},
+    )
     token = _READ.set(scope)
     try:
         yield
     finally:
-        scope.update(active=False, result=None)
+        scope.update(active=False, result=None, sources={})
         _READ.reset(token)
+
+
+def verified_source_read(intake, verifier, root, *pins):
+    """Reuse a source snapshot only during the same locked, read-only request.
+
+    This caches no project, credential, mutable workflow or write admission.
+    New requests, foreign intake instances, threads and verifier implementations
+    always perform their original verification. Failed verification is not saved.
+    """
+    scope = _READ.get()
+    if (
+        scope is None
+        or not scope["active"]
+        or scope["intake"] is not intake
+        or scope["thread"] != get_ident()
+    ):
+        return verifier(root, *pins)
+    try:
+        key = (
+            verifier,
+            str(Path(root).absolute()),
+            str(Path(root).resolve()),
+            *pins,
+        )
+        hash(key)
+    except (OSError, TypeError, ValueError):
+        return verifier(root, *pins)
+    if key in scope["sources"]:
+        return deepcopy(scope["sources"][key])
+    result = verifier(root, *pins)
+    if len(scope["sources"]) < 4:
+        scope["sources"][key] = deepcopy(result)
+    return result
 
 
 def _copy_result(result):

@@ -52,12 +52,12 @@ test('error from a prior project or version is not shown on a new binding',async
 });
 
 test('Wiki preserves a mounted choice across redraw and suspends on project or stage switch',()=>{
- const f=fixture(),placed=[],navigations=[],calls=[],pending={value:false};f.app.stage=2;
+  const f=fixture(),placed=[],navigations=[],calls=[],pending={value:false};let reloads=0;f.app.stage=2;
  f.app.el.querySelector=selector=>selector==='[data-v93-choice]'?{append:item=>placed.push(item)}:null;
  const template={content:{cloneNode:()=>({})}};
  f.ctx.document.getElementById=id=>id==='v93-selection-template'?template:null;
  f.ctx.document.createElement=tag=>tag==='link'?{}:{children:[],append(...nodes){this.children.push(...nodes);},attachShadow(){this.shadowRoot={append(){},querySelector:()=>null,activeElement:null};return this.shadowRoot;}};
- f.ctx.window.location={assign:url=>navigations.push(url)};
+  f.ctx.window.location={set hash(value){navigations.push('/'+value);},reload:()=>reloads++};
  let saved;
  f.ctx.window.STAGE2_SELECTION={mount:(root,opts)=>{calls.push('mount');saved=opts;return {
    suspend:()=>calls.push('suspend'),resume:()=>calls.push('resume'),
@@ -70,10 +70,31 @@ test('Wiki preserves a mounted choice across redraw and suspends on project or s
 
  f.app.lang='en';f.ctx.v7AfterRender(f.app);assert.ok(calls.includes('language:en'));
  saved.onNavigate({projectRef:'other',language:'en'});assert.deepEqual(navigations,[]);
+  saved.onAccepted({projectRef:'project-a',language:'invalid'});assert.equal(reloads,0);
  saved.onNavigate({projectRef:'project-a',language:'en'});assert.deepEqual(navigations,['/#project-a?stage=3&lang=en']);
+  assert.equal(reloads,1,'hash-only navigation must reload the Wiki to adopt the committed project revision');
+  saved.onAccepted({projectRef:'project-a',language:'zh-TW'});
+  assert.deepEqual(navigations,['/#project-a?stage=3&lang=en','/#project-a?stage=3&lang=zh-TW']);assert.equal(reloads,2);
  f.app.stage=3;f.ctx.v7BeforeRender(f.app);assert.ok(calls.includes('suspend'));
+  saved.onAccepted({projectRef:'project-a',language:'en'});assert.equal(reloads,2,'a suspended stage cannot navigate');
  f.app.stage=2;f.state.overview.project={...f.basis,revision:3};pending.value=true;f.ctx.v7AfterRender(f.app);
  assert.equal(calls.filter(x=>x==='mount').length,1);assert.ok(calls.includes('dispose'));
+  saved.onAccepted({projectRef:'project-a',language:'en'});assert.equal(reloads,2,'a stale revision cannot navigate');
+});
+
+for(const wikiPath of ['/','/index.html?view=wiki'])test('accepted continuation preserves the Wiki path '+wikiPath,()=>{
+  const f=fixture(),reloads=[],url=new URL('http://wiki.test'+wikiPath+'#project-a?stage=2&lang=zh-TW');let options;
+  f.app.stage=2;f.app.el.querySelector=selector=>selector==='[data-v93-choice]'?{append(){}}:null;
+  f.ctx.document.getElementById=id=>id==='v93-selection-template'?{content:{cloneNode:()=>({})}}:null;
+  f.ctx.document.createElement=tag=>tag==='link'?{}:{append(){},attachShadow(){return {append(){},querySelector:()=>null};}};
+  f.ctx.window.location={
+    assign:value=>{url.href=new URL(value,url).href;},
+    set hash(value){url.hash=value;},
+    reload:()=>reloads.push(url.pathname+url.search+url.hash),
+  };
+  f.ctx.window.STAGE2_SELECTION={mount:(_root,args)=>{options=args;return {state:()=>({recovery:null}),resume(){},suspend(){}};}};
+  f.ctx.v7AfterRender(f.app);options.onAccepted({projectRef:'project-a',language:'en'});
+  assert.deepEqual(reloads,[wikiPath+'#project-a?stage=3&lang=en']);
 });
 
 test('missing or malformed project version cannot authorize a graph read',async()=>{
