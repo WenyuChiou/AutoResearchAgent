@@ -23,7 +23,7 @@ function v93RouteTarget(list){
  const raw=location.hash.slice(1),i=raw.indexOf('?');if(i<0)return null;
  let ref;try{ref=decodeURIComponent(raw.slice(0,i));}catch(_){return null;}
  const params=new URLSearchParams(raw.slice(i+1)),stage=Number(params.get('stage')),lang=params.get('lang');
- if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)||![2,3].includes(stage)||!['en','zh-TW','zh-CN'].includes(lang)||!list.some(p=>p.project_ref===ref))return null;
+  if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)||!Number.isInteger(stage)||stage<1||stage>6||!['en','zh-TW','zh-CN'].includes(lang)||!list.some(p=>p.project_ref===ref))return null;
  return {ref,stage,lang:{en:'en','zh-TW':'tw','zh-CN':'zh'}[lang]};
 }
 const v93Choices=new Map();let v93ActiveChoice=null;
@@ -125,18 +125,24 @@ function v93SavedPlanSummary(view){
  const labels={method:rl('方法','Method','方法'),materials:rl('资料与参考','Data and references','資料與參考'),design:rl('实验设计','Study design','實驗設計'),analysis:rl('分析','Analysis','分析'),interpretation:rl('结果判读','Interpretation','結果判讀'),validation:rl('验证','Validation','驗證'),minimum_deliverable:rl('最小交付','Minimum deliverable','最小交付')};
  const content=rows.map((row,index)=>{
   const question=questions.find(q=>q.question_ref===row.question_ref),title=question?.text||rl('研究问题','Research question','研究問題')+' '+(index+1);
-  const stages=[
-   [rl('研究问题','Research question','研究問題'),[['question',title]]],
-   [rl('资料与方法','Data and method','資料與方法'),['materials','method'].map(key=>[labels[key],row[key]])],
-   [labels.design,[[labels.design,row.design]]],
-   [rl('分析与验证','Analysis and validation','分析與驗證'),['analysis','validation'].map(key=>[labels[key],row[key]])],
-   [labels.interpretation,[[labels.interpretation,row.interpretation]]],
-   [labels.minimum_deliverable,[[labels.minimum_deliverable,row.minimum_deliverable]]]
-  ];
-  const flow=`<h4>${rl('研究规划流程（拟议）','Proposed research planning flow','研究規劃流程（擬議）')}</h4><p class="n9-flow-note">${rl('顺序表示规划如何组织；各步骤尚未执行，资料与方法仍待核验。','The sequence organizes the plan; these steps have not been run and materials and methods still require verification.','順序表示規劃如何組織；各步驟尚未執行，資料與方法仍待核驗。')}</p><ol class="n9-plan-flow">${stages.map(([heading,items],step)=>`<li><div class="n9-flow-heading"><span aria-hidden="true">${step+1}</span><strong>${heading}</strong></div>${items.map(([label,value])=>`<div class="n9-flow-field"><b>${rx(label==='question'?rl('问题','Question','問題'):label)}</b><p class="n9-plan-preview">${rx(typeof value==='string'?value:rl('尚未记录；请查看完整原记录。','Not recorded; inspect the complete source record.','尚未記錄；請查看完整原紀錄。'))}</p></div>`).join('')}</li>`).join('')}</ol>`;
+   const stages=[['question',rl('研究问题','Research question','研究問題'),title],
+    ['materials',labels.materials,row.materials],['method',labels.method,row.method],
+    ['design',labels.design,row.design],['analysis',labels.analysis,row.analysis],
+    ['validation',labels.validation,row.validation],['interpretation',labels.interpretation,row.interpretation],
+    ['minimum_deliverable',labels.minimum_deliverable,row.minimum_deliverable]];
+   const missing=rl('尚未记录；请查看完整原记录。','Not recorded; inspect the complete source record.','尚未記錄；請查看完整原紀錄。');
+   const valueText=value=>typeof value==='string'&&value.trim()?value:missing;
+   const preview=value=>{const text=valueText(value);return text.length>150?text.slice(0,149).trimEnd()+'…':text;};
+   // These are source-field navigation steps, not inferred scientific edges or pass states.
+   const flow=`<h4>${rl('研究规划流程（拟议）','Proposed research planning flow','研究規劃流程（擬議）')}</h4><p class="n9-flow-note">${rl('顺序表示规划如何组织；各步骤尚未执行。选择一步查看完整原文；资料与方法仍待核验。','The sequence organizes the plan; these steps have not been run. Open a step to read its complete source. Materials and methods still require verification.','順序表示規劃如何組織；各步驟尚未執行。選擇一步查看完整原文；資料與方法仍待核驗。')}</p><ol class="n9-plan-flow n9-source-flow">${stages.map(([key,heading,value],step)=>`<li><details class="n9-flow-source"><summary><span class="n9-flow-heading"><span aria-hidden="true">${step+1}</span><strong>${heading}</strong></span><span class="n9-plan-preview">${rx(preview(value))}</span></summary><p class="n9-source-text">${rx(valueText(value))}</p><small>${rx(key==='question'?'/direction_context/questions':`/plan/question_plans/${index}/${key}`)}</small></details></li>`).join('')}</ol>`;
+   const cards=Array.isArray(view.direction_context?.preferred_cards)?view.direction_context.preferred_cards:[];
+   const questionCards=cards.flatMap(card=>(Array.isArray(card.scientific_questions)?card.scientific_questions:[]).filter(item=>item.question?.question_id&&row.question_ref===`${card.candidate_id}@${card.candidate_version}/${item.question.question_id}`));
+   const uses=questionCards.flatMap(item=>Array.isArray(item.resource_uses)?item.resource_uses:[]);
+   const resourceRows=uses.map(use=>{const resource=use.resource||{},ref=use.resource_ref||{};return `<tr><th scope="row">${rx(valueText(resource.name))}</th><td>${rx(valueText(ref.purpose||resource.purpose))}</td><td>${rx(typeof resource.status==='string'?resource.status:'unknown')}<br>${rx(typeof ref.fit_status==='string'?ref.fit_status:'unknown')}</td></tr>`;}).join('');
+   const materials=`<section class="n9-material-map"><h4>${rl('材料如何支持这个问题','How materials support this question','材料如何支持這個問題')}</h4><p>${rl('下表仅显示已明确映射的资源；材料说明中的其他线索不等于已可用数据。','Only explicitly mapped resources appear below. Other leads in the material description do not establish available data.','下表僅顯示已明確映射的資源；材料說明中的其他線索不等於已可用資料。')}</p>${resourceRows?`<div class="n9-material-scroll" role="region" tabindex="0" aria-label="${rl('材料用途对照表','Material-use table','材料用途對照表')}"><table><thead><tr><th>${rl('资源','Resource','資源')}</th><th>${rl('用途','Use','用途')}</th><th>${rl('可用性／适配','Availability / fit','可用性／適配')}</th></tr></thead><tbody>${resourceRows}</tbody></table></div>`:`<p class="n9-material-unknown">${rl('本问题没有已映射的资源；保持 unknown。','No resources are mapped to this question; availability remains unknown.','本問題沒有已映射的資源；保持 unknown。')}</p>`}<details class="n9-plan-details"><summary>${labels.materials} · ${rl('完整原记录','Complete source record','完整原紀錄')}</summary><p>${rx(valueText(row.materials))}</p></details></section>`;
   const fields=Object.entries(labels).filter(([key])=>typeof row[key]==='string').map(([key,label])=>`<h4>${label}</h4><p>${rx(row[key])}</p>`).join('');
   const unknowns=Array.isArray(row.unknowns)?row.unknowns:[];
-   return `<article class="n9-plan-question"><h3>${rx(title)}</h3><p>${unknowns.length} ${rl('项待查事项','open checks','項待查事項')}</p>${flow}<details class="n9-plan-details"><summary>${rl('完整规划与待查事项','Full planning details and open checks','完整規劃與待查事項')}</summary>${fields}<h4>${rl('待查事项','Open checks','待查事項')}</h4><ul>${unknowns.map(item=>`<li>${rx(typeof item==='string'?item:JSON.stringify(item))}</li>`).join('')}</ul><p>${rx(row.question_ref||'')}</p></details></article>`;
+    return `<article class="n9-plan-question"><h3>${rx(title)}</h3><p>${unknowns.length} ${rl('项待查事项','open checks','項待查事項')}</p>${flow}${materials}<details class="n9-plan-details"><summary>${rl('完整规划与待查事项','Full planning details and open checks','完整規劃與待查事項')}</summary>${fields}<h4>${rl('待查事项','Open checks','待查事項')}</h4><ul>${unknowns.map(item=>`<li>${rx(typeof item==='string'?item:JSON.stringify(item))}</li>`).join('')}</ul><p>${rx(row.question_ref||'')}</p></details></article>`;
  }).join('');
  return `<section class="n9-plan-overview"><h2>${rl('已保存的规划摘要','Saved planning summary','已保存的規劃摘要')}</h2><p class="n9-plan-state">${plan.planning_status==='conditional-draft'?rl('条件式草案','Conditional draft','條件式草案'):rl('规划草案','Planning draft','規劃草案')} · ${rl('尚未执行实验','Experiments have not been run','尚未執行實驗')}</p>${lead?`<p class="n9-plan-lead">${rx(lead)}</p>`:''}${content}</section>`;
 }

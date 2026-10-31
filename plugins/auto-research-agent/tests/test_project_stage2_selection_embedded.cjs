@@ -78,6 +78,19 @@ function harness(options={}) {
 
 module.exports={harness,Element,descendants,memoryStorage,memoryLocks};
 if(require.main===module) {
+test('a saved preference receipt stays distinct from an empty or edited local draft',async()=>{
+ const receipt={status:'saved',intent_sha256:'f'.repeat(64)},f=harness({existingIntent:receipt,deferMount:true});
+ f.binding.revision=2;const handle=f.window.STAGE2_SELECTION.mount(f.root,f.args);await tick();
+ for(const [lang,saved,draft,empty,count] of [['en',/already saved/,/Current editing draft/,/No directions added/,/1 direction/],['zh-TW',/已有保存/,/目前編輯草稿/,/尚未加入方向/,/已加入 1/],['zh-CN',/已有保存/,/当前编辑草稿/,/尚未加入方向/,/已加入 1/]]){
+  handle.setLanguage(lang);const summary=f.els.get('preference-summary');
+  assert.match(summary.textContent,saved);assert.match(summary.textContent,draft);assert.match(summary.textContent,empty);
+  const box=descendants(f.els.get('cards')).find(n=>n.name==='tentative-direction');assert.equal(box.checked,false);
+  assert.equal(f.els.get('intent-confirmed').checked,false);assert.equal(f.els.get('intent-message').value,'');
+  box.checked=true;box.onchange();assert.match(summary.textContent,saved);assert.match(summary.textContent,count);
+  box.checked=false;box.onchange();assert.match(summary.textContent,empty);
+ }
+ assert.equal(f.writes.length,0);assert.equal(f.navigations.length,0);assert.equal(f.store.length,0);
+});
 test('scoped current cards retain unknowns, and zero recommendation never creates a choice',async()=>{
  const f=harness({empty:true});await tick();assert.equal(f.els.get('choice').hidden,true);assert.match(f.els.get('status').textContent,/沒有可推薦/);assert.equal(f.writes.length,0);assert.equal(f.handle.state().submitted,false);
 });

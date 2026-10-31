@@ -141,6 +141,9 @@
       "guidanceHelp": "Required: describe what you want to focus on. You can retain unresolved questions.",
       "intentBoundary": "Choose 1–16 directions for planning advice. Formal selection and experiment authorization remain pending; saved input origin does not authenticate identity.",
       "nothingChosen": "No directions chosen yet. Compare the summaries below.",
+      "savedPreference": "A preference is already saved",
+      "editingDraft": "Current editing draft",
+      "emptyDraft": "No directions added",
       "chosenCount": "{n} direction(s) in your preference",
       "reviewDetails": "Read evidence, materials and limitations",
       "canPrefer": "You can express a preference; formal selection is not available",
@@ -163,6 +166,9 @@
       "guidanceHelp": "必填：補一句你想聚焦什麼；仍不確定的問題可以保留。",
       "intentBoundary": "可選 1–16 個方向交給 Stage 3 釐清，正式選案與實驗授權仍待確認。紀錄保存輸入來源，未驗證身分。",
       "nothingChosen": "尚未選擇；先比較下方的方向摘要。",
+      "savedPreference": "已有保存的方向偏好",
+      "editingDraft": "目前編輯草稿",
+      "emptyDraft": "尚未加入方向",
       "chosenCount": "已加入 {n} 個方向",
       "reviewDetails": "展開證據、材料與限制",
       "canPrefer": "可先表達偏好；尚未開放正式選案",
@@ -185,6 +191,9 @@
       "guidanceHelp": "必填：补一句你想聚焦什么；仍不确定的问题可以保留。",
       "intentBoundary": "可选 1–16 个方向交给 Stage 3 厘清，正式选案与实验授权仍待确认。记录保存输入来源，未验证身份。",
       "nothingChosen": "尚未选择；先比较下方的方向摘要。",
+      "savedPreference": "已有保存的方向偏好",
+      "editingDraft": "当前编辑草稿",
+      "emptyDraft": "尚未加入方向",
       "chosenCount": "已加入 {n} 个方向",
       "reviewDetails": "展开证据、材料与限制",
       "canPrefer": "可先表达偏好；尚未开放正式选案",
@@ -264,7 +273,9 @@
     const chosen=(view?.cards.cards || []).filter(card=>preferredDirections.has(JSON.stringify([card.candidate_id,card.candidate_version])));
     const selected=root.querySelector('input[name="direction"]:checked');
     const formal=selected && view?.cards.cards.find(card=>card.candidate_id===selected.value && String(card.candidate_version)===selected.dataset.version);
-    area.textContent=formal?w().choose+" · "+formal.candidate_question+" · v"+formal.candidate_version:chosen.length?w().chosenCount.replace("{n}",String(chosen.length))+" · "+previewText(chosen.map(card=>card.candidate_question+" · v"+card.candidate_version).join("; "),130):w().nothingChosen;
+    const saved=view?.direction_intent?.status==="saved";
+    const draft=formal?w().choose+" · "+formal.candidate_question+" · v"+formal.candidate_version:chosen.length?w().chosenCount.replace("{n}",String(chosen.length))+" · "+previewText(chosen.map(card=>card.candidate_question+" · v"+card.candidate_version).join("; "),130):saved?w().emptyDraft:w().nothingChosen;
+    area.textContent=(saved?w().savedPreference+" · "+w().editingDraft+": ":"")+draft;
     const full=byId("chosen-directions"); if(full){full.replaceChildren();list(full,chosen.map(card=>card.candidate_question+" · v"+card.candidate_version));}
     const button=byId("review-preference");if(button){button.textContent=formal?w().confirm:w().reviewPreference;button.disabled=busy || !view || !view.cards.cards.length || !!(embedded && recovery && recovery.status!=="verified");}
   }
