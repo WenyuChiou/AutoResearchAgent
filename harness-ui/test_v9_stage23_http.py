@@ -138,6 +138,8 @@ class ConfiguredWikiHttpTests(unittest.TestCase):
                 status, page = raw_get("/")
                 assert status == 200 and b"project-stage3-research-diagram.js" in page
                 assert b'id="v93-selection-template"' in page
+                assert b'<template id="v93-selection-template"><main id="selection-layout">' in page
+                assert b'id="preference-bar"' in page
                 assert b"project-stage2-selection.js" in page
                 _, raw_binding = raw_get("/host-binding.json")
                 host_binding = json.loads(raw_binding)["v9"]
