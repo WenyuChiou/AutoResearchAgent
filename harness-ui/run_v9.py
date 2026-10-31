@@ -1,6 +1,7 @@
 """Opt-in V9 renderer on the repository's existing loopback ProjectHost."""
 import argparse
 from pathlib import Path
+import re
 import sys
 
 import run_v7
@@ -49,9 +50,11 @@ def main(argv=None):
         modules = {name: (HERE / name).read_bytes() for name in MODULES}
         host._assets['/app.js'] = app[:at] + b'\n' + translation_script(translations) + b'\n'.join(modules.values()) + b'\n' + app[at:]
         selection = host._assets['/project-stage2-selection.html']
-        if selection.count(b'<main>') != 1 or selection.count(b'</main>') != 1:
+        main_tags = list(re.finditer(rb'<main(?:\s[^<>]*)?>', selection))
+        if (len(main_tags) != 1 or selection.count(b'</main>') != 1
+                or main_tags[0].end() > selection.index(b'</main>')):
             raise ValueError('selection template structure differs')
-        selection_main = selection[selection.index(b'<main>'):selection.index(b'</main>') + len(b'</main>')]
+        selection_main = selection[main_tags[0].start():selection.index(b'</main>') + len(b'</main>')]
         if b'<script' in selection_main.lower() or b'<iframe' in selection_main.lower():
             raise ValueError('selection template contains executable content')
         template = b'<template id="v93-selection-template">' + selection_main + b'</template>'

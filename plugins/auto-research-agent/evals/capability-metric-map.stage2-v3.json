@@ -1033,7 +1033,9 @@
         "plugins/auto-research-agent/tests/test_project_stage2_direct_cli.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
-        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_embedded.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_comparison.cjs"
       ],
       "metric_effects": [
         {
@@ -1058,7 +1060,8 @@
       "projecthost_direction_intent_ui_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
-      ]
+      ],
+      "mechanism": "Comparison-first direction summaries keep source-bound evidence in labeled disclosures, preserve exact preference versions, and expose a reachable confirmation panel without altering submission, recovery or eligibility."
     }
   ]
 }

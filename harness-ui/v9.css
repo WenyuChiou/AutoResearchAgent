@@ -15,3 +15,5 @@
 .n9-original-reviews{max-width:960px;margin:16px auto}.n9-original-reviews summary{cursor:pointer;padding:12px 16px;line-height:1.5}.n9-review-body{max-width:75ch;padding:8px 16px 18px;font-size:15px;line-height:1.65;overflow-wrap:anywhere}.n9-review-body section+section{margin-top:20px}.n9-review-body h3{font-size:17px;line-height:1.5}.n9-review-body pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}.n9-review-body dt{font-weight:600;margin-top:12px}.n9-review-body dd{margin-left:0}
 
 .n9-original-reviews h2{font-size:17px;line-height:1.5;margin:16px}.n9-review-body h3{font-size:16px}
+[data-v93-choice] { min-width:0; }
+#harness-trace-workbench-v6 .hs-panel:has([data-v93-choice]) { overflow:visible; }

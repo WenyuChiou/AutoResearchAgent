@@ -131,6 +131,75 @@
   Object.assign(words.en,{recoveryPending:"A previous submission is not yet confirmed. Check its saved receipt before submitting again.",recoveryUnavailable:"Recovery storage is unavailable or invalid. Submission is disabled; no research or planning was started by this check."});
   Object.assign(words["zh-TW"],{recoveryPending:"先前的送出尚未確認。請先檢查保存的收據，再進行其他提交。",recoveryUnavailable:"恢復儲存不可用或資料無效，已停用提交；此檢查不會開始研究或規劃。"});
   Object.assign(words["zh-CN"],{recoveryPending:"先前的提交尚未确认。请先检查保存的收据，再进行其他提交。",recoveryUnavailable:"恢复存储不可用或数据无效，已停用提交；此检查不会开始研究或规划。"});
+  const comparisonWords = {
+    "en": {
+      "projectDetails": "Project and input version",
+      "yourPreference": "Your preference",
+      "reviewPreference": "Review preference and next step",
+      "preferenceOptions": "Preference guidance and next step",
+      "formalOptions": "Formal selection, when eligible",
+      "guidanceHelp": "Required: describe what you want to focus on. You can retain unresolved questions.",
+      "intentBoundary": "Choose 1–16 directions for planning advice. Formal selection and experiment authorization remain pending; saved input origin does not authenticate identity.",
+      "nothingChosen": "No directions chosen yet. Compare the summaries below.",
+      "chosenCount": "{n} direction(s) in your preference",
+      "reviewDetails": "Read evidence, materials and limitations",
+      "canPrefer": "You can express a preference; formal selection is not available",
+      "canChoose": "Eligible for formal selection",
+      "overviewMethod": "Method",
+      "overviewMaterials": "Possible materials — verify access in details",
+      "overviewLimit": "Main limitation",
+      "overviewNext": "Next check",
+      "noMaterials": "No material mapping recorded; availability remains unverified.",
+      "directionCount": "{n} directions to compare",
+      "eligibleCount": "{n} eligible for formal selection",
+      "none": "No directions are currently recommended for formal selection. You can save a tentative preference for planning advice."
+    },
+    "zh-TW": {
+      "projectDetails": "專案與輸入版本",
+      "yourPreference": "我的方向偏好",
+      "reviewPreference": "確認偏好與下一步",
+      "preferenceOptions": "偏好說明與下一步",
+      "formalOptions": "正式選案（符合條件時）",
+      "guidanceHelp": "必填：補一句你想聚焦什麼；仍不確定的問題可以保留。",
+      "intentBoundary": "可選 1–16 個方向交給 Stage 3 釐清，正式選案與實驗授權仍待確認。紀錄保存輸入來源，未驗證身分。",
+      "nothingChosen": "尚未選擇；先比較下方的方向摘要。",
+      "chosenCount": "已加入 {n} 個方向",
+      "reviewDetails": "展開證據、材料與限制",
+      "canPrefer": "可先表達偏好；尚未開放正式選案",
+      "canChoose": "目前可正式選案",
+      "overviewMethod": "怎麼研究",
+      "overviewMaterials": "可能用到的材料（存取條件見詳細資料）",
+      "overviewLimit": "主要限制",
+      "overviewNext": "下一個查核",
+      "noMaterials": "尚未記錄材料對應，可用性仍待查證。",
+      "directionCount": "可比較 {n} 個方向",
+      "eligibleCount": "可正式選案 {n} 個",
+      "none": "目前沒有可推薦作正式選案的方向；仍可先保存偏好，請 Stage 3 協助規劃與查核。"
+    },
+    "zh-CN": {
+      "projectDetails": "项目与输入版本",
+      "yourPreference": "我的方向偏好",
+      "reviewPreference": "确认偏好与下一步",
+      "preferenceOptions": "偏好说明与下一步",
+      "formalOptions": "正式选案（符合条件时）",
+      "guidanceHelp": "必填：补一句你想聚焦什么；仍不确定的问题可以保留。",
+      "intentBoundary": "可选 1–16 个方向交给 Stage 3 厘清，正式选案与实验授权仍待确认。记录保存输入来源，未验证身份。",
+      "nothingChosen": "尚未选择；先比较下方的方向摘要。",
+      "chosenCount": "已加入 {n} 个方向",
+      "reviewDetails": "展开证据、材料与限制",
+      "canPrefer": "可先表达偏好；尚未开放正式选案",
+      "canChoose": "当前可正式选案",
+      "overviewMethod": "怎么研究",
+      "overviewMaterials": "可能用到的材料（访问条件见详细资料）",
+      "overviewLimit": "主要限制",
+      "overviewNext": "下一个查核",
+      "noMaterials": "尚未记录材料对应，可用性仍待查证。",
+      "directionCount": "可比较 {n} 个方向",
+      "eligibleCount": "可正式选案 {n} 个",
+      "none": "当前没有可推荐作正式选案的方向；仍可先保存偏好，请 Stage 3 协助规划与查核。"
+    }
+  };
+  for (const [language, labels] of Object.entries(comparisonWords)) Object.assign(words[language],labels);
   const projectNames=new Map(); let projectNamesFailed=false;
   let notice = null, planningSubmission = null;
   let view = null, busy = false, requestKey = null, lastBody = null, viewProject = null, loadSerial = 0;
@@ -185,11 +254,33 @@
       event.preventDefault(); if(isActive()) options.onNavigate({projectRef:ref,language:byId("language").value});
     };
   }
+
+  const previewText = (value, limit=120) => {
+    const text=String(typeof value==="string"?value:value?.text || value?.reason || w().unknown);
+    return text.length>limit?text.slice(0,limit-1).trimEnd()+"…":text;
+  };
+  function updatePreferenceSummary() {
+    const area=byId("preference-summary"); if(!area)return;
+    const chosen=(view?.cards.cards || []).filter(card=>preferredDirections.has(JSON.stringify([card.candidate_id,card.candidate_version])));
+    const selected=root.querySelector('input[name="direction"]:checked');
+    const formal=selected && view?.cards.cards.find(card=>card.candidate_id===selected.value && String(card.candidate_version)===selected.dataset.version);
+    area.textContent=formal?w().choose+" · "+formal.candidate_question+" · v"+formal.candidate_version:chosen.length?w().chosenCount.replace("{n}",String(chosen.length))+" · "+previewText(chosen.map(card=>card.candidate_question+" · v"+card.candidate_version).join("; "),130):w().nothingChosen;
+    const full=byId("chosen-directions"); if(full){full.replaceChildren();list(full,chosen.map(card=>card.candidate_question+" · v"+card.candidate_version));}
+    const button=byId("review-preference");if(button){button.textContent=formal?w().confirm:w().reviewPreference;button.disabled=busy || !view || !view.cards.cards.length || !!(embedded && recovery && recovery.status!=="verified");}
+  }
+  if(byId("review-preference"))byId("review-preference").onclick=()=>{
+    const formal=!!root.querySelector('input[name="direction"]:checked');
+    const panel=byId(formal?"formal-panel":"intent-panel");if(panel){panel.open=true;panel.scrollIntoView({block:"start"});}
+    const input=byId(formal?"actor":"intent-message");if(input && typeof input.focus==="function")input.focus();
+  };
+
   function renderProjectContext() {
     const area=byId("project-context");
     if(area) area.textContent=view?(projectNames.get(viewProject) || (projectNamesFailed?w().unknown+" · ":"")+viewProject)+" · "+w().inputVersion+": "+JSON.stringify(view.input_version):"";
   }
   function render() {
+    const layout=byId("selection-layout");if(layout)layout.dataset.embedded=String(embedded);
+    const expanded=new Set([...root.querySelectorAll("details[data-direction-details]")].filter(n=>n.open).map(n=>n.dataset.directionDetails));
     const selectedBeforeRender = root.querySelector('input[name="direction"]:checked');
     const selectedKey = selectedBeforeRender ? JSON.stringify([selectedBeforeRender.value,selectedBeforeRender.dataset.version]) : null;
     for(const n of root.querySelectorAll("[data-i18n]")) n.textContent=w()[n.dataset.i18n];
@@ -221,15 +312,26 @@
       byId("intent-planning-link").hidden=!view?.direction_intent;
       bindPlanningLink(byId("intent-planning-link"),viewProject || "");
     }
+    if(byId("intent-panel"))byId("intent-panel").hidden=byId("direction-intent").hidden;
+    if(byId("formal-panel"))byId("formal-panel").hidden=byId("choice").hidden;
+    if(byId("preference-bar"))byId("preference-bar").hidden=!view || view.selection_status==="recorded";
+    if(byId("decision-context"))byId("decision-context").textContent=view?w().directionCount.replace("{n}",String(view.cards.cards.length))+" · "+w().eligibleCount.replace("{n}",String(view.eligible.length)):"";
+    updatePreferenceSummary();
     if(!view) { if(held)byId("status").textContent=recovery.code?.startsWith("project-lock-")?w().lockUnavailable:recovery.status==="unavailable"?w().recoveryUnavailable:w().recoveryPending; return; }
     byId("planning-link").href="#"+viewProject;
     byId("return-cards").href="#"+viewProject;
     byId("status").textContent=held?(recovery.code?.startsWith("project-lock-")?w().lockUnavailable:recovery.status==="unavailable"?w().recoveryUnavailable:w().recoveryPending):notice || w()[view.selection_status==="recorded"?"saved":view.eligible.length?"ready":"none"];
     for(const card of view.cards.cards) {
-      const a=node(byId("cards"),"article",""); node(a,"h2",card.candidate_question || card.candidate_id); node(a,"p",card.candidate_id+" · v"+card.candidate_version);
-      if(byId("direction-intent") && view.selection_status!=="recorded") {const label=node(a,"label",""),checkbox=document.createElement("input"),key=JSON.stringify([card.candidate_id,card.candidate_version]);checkbox.type="checkbox";checkbox.name="tentative-direction";checkbox.value=card.candidate_id;checkbox.dataset.version=String(card.candidate_version);checkbox.checked=preferredDirections.has(key);checkbox.disabled=busy;checkbox.onchange=()=>{if(checkbox.checked)preferredDirections.set(key,{candidate_id:card.candidate_id,candidate_version:card.candidate_version});else preferredDirections.delete(key);};label.append(checkbox,document.createTextNode(w().prefer));}
+      const article=node(byId("cards"),"article","");node(article,"h2",card.candidate_question || card.candidate_id);
+      const version=node(article,"p","v"+card.candidate_version);version.className="card-version";
       const eligible=view.eligible.some(x=>x.candidate_id===card.candidate_id && x.candidate_version===card.candidate_version);
-      if(eligible && view.selection_status!=="recorded") { const label=node(a,"label",""); const radio=document.createElement("input"); radio.type="radio"; radio.name="direction"; radio.value=card.candidate_id; radio.dataset.version=String(card.candidate_version); radio.checked=selectedKey===JSON.stringify([radio.value,radio.dataset.version]); radio.required=true; label.append(radio,document.createTextNode(w().choose)); }
+      const badge=node(article,"p",eligible?w().canChoose:w().canPrefer);badge.className="card-status";
+      const preview=node(article,"dl","");preview.className="card-preview";
+      const materials=Array.from(new Set([...card.scientific_questions.flatMap(q=>q.resource_uses.map(use=>(use.resource || use).name)),...card.unmapped_resources.map(r=>r.name)].filter(Boolean)));
+      for(const [label,text] of [[w().overviewMethod,card.suggested_approach],[w().overviewMaterials,materials.length?materials.slice(0,2).join("; ")+(materials.length>2?" +"+(materials.length-2):""):w().noMaterials],[w().overviewLimit,card.limitations[0]],[w().overviewNext,card.next_checks[0]]]){node(preview,"dt",label);node(preview,"dd",previewText(text));}
+      if(byId("direction-intent") && view.selection_status!=="recorded") {const label=node(article,"label",""),checkbox=document.createElement("input"),key=JSON.stringify([card.candidate_id,card.candidate_version]);checkbox.type="checkbox";checkbox.name="tentative-direction";checkbox.value=card.candidate_id;checkbox.dataset.version=String(card.candidate_version);checkbox.checked=preferredDirections.has(key);checkbox.disabled=busy;checkbox.onchange=()=>{if(checkbox.checked)preferredDirections.set(key,{candidate_id:card.candidate_id,candidate_version:card.candidate_version});else preferredDirections.delete(key);updatePreferenceSummary();};label.append(checkbox,document.createTextNode(w().prefer));const context=node(label,"span",": "+(card.candidate_question || card.candidate_id)+" · v"+card.candidate_version);context.className="control-context";}
+      if(eligible && view.selection_status!=="recorded") { const label=node(article,"label",""); const radio=document.createElement("input"); radio.type="radio"; radio.name="direction"; radio.value=card.candidate_id; radio.dataset.version=String(card.candidate_version); radio.checked=selectedKey===JSON.stringify([radio.value,radio.dataset.version]); radio.required=true;radio.onchange=updatePreferenceSummary; label.append(radio,document.createTextNode(w().choose));const context=node(label,"span",": "+(card.candidate_question || card.candidate_id)+" · v"+card.candidate_version);context.className="control-context"; }
+      const a=node(article,"details","");a.className="direction-details";a.dataset.directionDetails=JSON.stringify([card.candidate_id,card.candidate_version]);a.open=expanded.has(a.dataset.directionDetails);node(a,"summary",w().reviewDetails);node(a,"p",card.candidate_id+" · v"+card.candidate_version);
       node(a,"h3",w().approach); node(a,"p",card.suggested_approach);
       node(a,"h3",w().precedent); const review=card.closest_prior_work.review; if(!review) node(a,"p",w().unknown); for(const c of review?.comparisons || []) { node(a,"p",[c.work_id,c.established,c.overlap,c.difference].filter(Boolean).join(" · ")); list(a,c.limitations || c.evidence_limits); }
       node(a,"h3",w().contribution); claims(a,card.contribution);
@@ -240,6 +342,7 @@
       node(a,"h3",w().limits); list(a,card.limitations); for(const alt of card.alternatives) list(a,alt.alternatives);
       node(a,"h3",w().next); list(a,card.next_checks);
     }
+    updatePreferenceSummary();
     if(view.planning_input) { const p=view.planning_input; if(p.legacy_candidates.length) node(byId("planning-summary"),"p",w().legacy); for(const q of p.questions) {node(byId("planning-summary"),"h3",q.text);node(byId("planning-summary"),"p",q.intended_claim);} list(byId("planning-summary"),p.selection_conditions);list(byId("planning-summary"),p.unresolved);byId("planning-input").textContent=JSON.stringify(p,null,2);
       if((boot.stage3_planning_projects || []).includes(viewProject) && view.selection_status==="recorded") {const link=node(byId("planning-summary"),"a",w().continuePlanning);link.id="stage3-entry";bindPlanningLink(link,viewProject);}
     }
