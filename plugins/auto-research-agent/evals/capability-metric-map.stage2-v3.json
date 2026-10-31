@@ -1061,7 +1061,7 @@
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
       ],
-      "mechanism": "Comparison-first direction summaries keep source-bound evidence in labeled disclosures, preserve exact preference versions, and expose a reachable confirmation panel without altering submission, recovery or eligibility."
+      "mechanism": "Comparison-first direction summaries keep source-bound evidence in labeled disclosures, preserve exact preference versions, and expose a reachable confirmation panel without altering submission, recovery or eligibility. Shared Wiki gutters, readable prose and explicit shadow-root typography follow the UI acceptance principles. Saved Stage3 plans expose recorded questions, methods, materials, draft status and open checks before optional full details and graphs; reading remains GET-only and retains the exact project/version boundary. Visual and implementation checks do not attest research quality or experiment authority."
     }
   ]
 }
