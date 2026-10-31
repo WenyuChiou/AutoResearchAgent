@@ -165,8 +165,32 @@ function savedResultLayout() {
     'planned-stage purpose precedes material registration');
 }
 
+function stageNavigationRoute() {
+  const source=fs.readFileSync(path.join(__dirname,'renderer/src/base.js'),'utf8');
+  const stageSource=source.slice(source.indexOf('  function localStage('),source.indexOf('  const localContextKeys='));
+  const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
+  const location=new URL('http://localhost/nested/wiki/?theme=night#project-A?stage=3&lang=en&view=matrix');
+  const replacements=[],state={retained:'navigation-state'};
+  const context={rt:{ref:'project-A'},location,URLSearchParams,history:{state,replaceState(received,unused,target){assert.equal(received,state);replacements.push(target);location.href=new URL(target,location).href;}}};
+  vm.createContext(context);vm.runInContext(bridge.match(/^function v93Language.*$/m)[0]+'\n'+stageSource,context);
+  const app={stage:3,lang:'tw',previewStageContexts:{},selected:{id:'retained'},focal:'retained'};
+  for(const stage of [2,1,4,6,3]){
+    context.localStage(app,stage);
+    assert.equal(app.stage,stage);assert.equal(location.pathname,'/nested/wiki/');assert.equal(location.search,'?theme=night');
+    assert.equal(location.hash,'#project-A?stage='+stage+'&lang=zh-TW&view=matrix');
+  }
+  const count=replacements.length;context.localStage(app,3);assert.equal(replacements.length,count);
+  app.lang='en';context.localStage(app,2);assert.match(location.hash,/stage=2&lang=en&view=matrix/);
+  context.rt.ref='project-B';app.lang='zh';context.localStage(app,2);assert.equal(location.hash,'#project-B?stage=2&lang=zh-CN&view=matrix');
+  const before=location.href;
+  context.rt.ref='../invalid';context.localStage(app,2);assert.equal(location.href,before);
+  context.rt.ref='project-B';context.localStage(app,7);assert.equal(location.href,before);
+  delete context.rt;context.localStage(app,1);assert.equal(location.href,before);
+}
+
 async function main() {
   const checks = [
+    ['stage navigation preserves canonical project, locale, path and read-only URL state', stageNavigationRoute],
     ['saved-result hierarchy and on-demand operations/materials', savedResultLayout],
     ['save/revalidate/reload and project/material-scoped draft recovery', reviewDraftRecovery],
     ['restore exact current comparison', () => staleComparison(() => {}, null)],

@@ -3,13 +3,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),test=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,'v9-stage3-bridge.js'),'utf8');
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
+const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function fixture(request){
  const basis={project_ref:'project-a',input_version:1,revision:2,brief_sha256:'a'.repeat(64)};
  const target={},button={},listeners={},mounts=[];
  const app={page:'workspace',stage:3,lang:'tw',el:{contains:x=>x===button,querySelector:x=>x==='#v93-diagram'?target:null}};
  const state={ref:'project-a',epoch:1,overview:{project:basis}};
  const ctx={rt:state,apps:[app],canonicalReadonly:()=>false,stage2:()=>'<old/>',laterStage:()=>'<later/>',otherPage:()=>'<div class="hs-heading"><p class="hs-eyebrow">STAGE 01 / 06</p><h1>Literature</h1><p>Repeated project brief</p></div><p role="alert">Original pending outcome</p>',v7BeforeRender:()=>{},v7AfterRender:()=>{},
-  rl:(zh,en,tw)=>tw||zh,rx:String,canonicalTop:()=>'<top/>',livePaint:()=>{},projectPath:(r,p)=>'/api/projects/'+r+'/'+p,
+  rl:(zh,en,tw)=>tw||zh,rx:escapeHtml,canonicalTop:()=>'<top/>',livePaint:()=>{},projectPath:(r,p)=>'/api/projects/'+r+'/'+p,
   liveRequest:request|| (async()=>({...basis,plan:{kind:'Stage3ResearchPlan'}})),
   window:{RESEARCH_PROJECTS:{stage2_selection_projects:['project-a'],stage3_planning_projects:['project-a']},STAGE3_RESEARCH_DIAGRAM:{mount:(...x)=>mounts.push(x)}},
   document:{addEventListener:(name,fn)=>listeners[name]=fn},location:{hash:'#project-a?stage=3&lang=zh-TW'},URLSearchParams,encodeURIComponent,decodeURIComponent,console};
@@ -28,7 +29,13 @@ test('utility headings follow the current page and preserve pending/error conten
 test('Wiki routes restore only an existing project and permitted stage/language',()=>{
  const f=fixture();assert.equal(JSON.stringify(f.ctx.v93RouteTarget([{project_ref:'project-a'}])),JSON.stringify({ref:'project-a',stage:3,lang:'tw'}));
  assert.equal(f.ctx.v93RouteTarget([{project_ref:'other'}]),null);
- f.ctx.location.hash='#project-a?stage=4&lang=zh-TW';assert.equal(f.ctx.v93RouteTarget([{project_ref:'project-a'}]),null);
+  for(const stage of [1,2,3,4,5,6]){
+    f.ctx.location.hash='#project-a?stage='+stage+'&lang=zh-TW';
+    assert.equal(f.ctx.v93RouteTarget([{project_ref:'project-a'}]).stage,stage);
+  }
+  for(const stage of [0,7,2.5]){
+    f.ctx.location.hash='#project-a?stage='+stage+'&lang=zh-TW';assert.equal(f.ctx.v93RouteTarget([{project_ref:'project-a'}]),null);
+  }
 });
 test('same-version GET mounts the graph in the Wiki and changes no data',async()=>{
  const calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,plan:{kind:'Stage3ResearchPlan'}}});
@@ -57,12 +64,34 @@ test('saved conditional planning leads with readable materials and method, keepi
  assert.ok(html.indexOf('已保存的規劃摘要')<html.indexOf('研究關係圖與來源'));
  for(const text of ['How does age composition affect demand?','Compare held-fixed rules.','Published age tables; access still unknown.','Verify table definitions.','尚未執行實驗'])assert.ok(html.includes(text));
  assert.match(html,/<details class="n9-plan-details">/);assert.match(html,/<details class="n9-plan-graph">/);
- assert.match(html,/<ol class="n9-plan-flow">/);
- assert.equal((html.match(/class="n9-flow-heading"/g)||[]).length,6);
+  assert.match(html,/<ol class="n9-plan-flow n9-source-flow">/);
+  assert.equal((html.match(/class="n9-flow-heading"/g)||[]).length,8);
  assert.ok(html.includes('研究規劃流程（擬議）'));assert.ok(html.includes('各步驟尚未執行'));
  assert.doesNotMatch(html,/<details[^>]*\bopen(?:\s|>)/);
  assert.deepEqual(calls,['/api/projects/project-a/stage3/planning']);
  assert.equal(f.mounts.length,0,'Rendering a summary does not dispatch or mount a generation');
+});
+
+test('conditional resource view preserves exact question/version use, unknowns and source without generation',async()=>{
+  const row={question_ref:'idea-a@2/q1',materials:'Public table leads; access unknown.',method:'Saved rule method',unknowns:['Original missing rights']};
+  const resource={name:'A mapped tool',status:'unknown',purpose:'General purpose'};
+  const card={candidate_id:'idea-a',candidate_version:2,scientific_questions:[{question:{question_id:'q1'},resource_uses:[{resource,resource_ref:{purpose:'Question-specific accounting',fit_status:'proposed'}}]}]};
+  const other={candidate_id:'idea-a',candidate_version:1,scientific_questions:[{question:{question_id:'q1'},resource_uses:[{resource:{name:'OLD VERSION RESOURCE'}}]}]};
+  const view={plan:{kind:'Stage3DirectionPlanningResult',planning_status:'conditional-draft',question_plans:[row]},direction_context:{questions:[{question_ref:row.question_ref,text:'Saved question'}],preferred_cards:[card,other]}};
+  const before=JSON.stringify(view),calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,...view};});
+  await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+  for(const value of ['A mapped tool','Question-specific accounting','unknown','proposed','Original missing rights','/plan/question_plans/0/method'])assert.ok(html.includes(value));
+  assert.doesNotMatch(html,/OLD VERSION RESOURCE/);assert.equal(JSON.stringify(view),before);
+  assert.equal((html.match(/<details class="n9-flow-source">/g)||[]).length,8);
+  assert.doesNotMatch(html,/<details[^>]*\bopen(?:\s|>)/);assert.deepEqual(calls,['/api/projects/project-a/stage3/planning']);
+});
+
+test('saved source fields remain inert and unmapped material leads are not promoted',async()=>{
+  const f=fixture(async()=>({...f.basis,plan:{kind:'Stage3DirectionPlanningResult',question_plans:[{question_ref:'q1',materials:'<img src=x onerror=alert(1)>',method:'<script>unsafe()</script>',unknowns:['Original source limit']}]}}));
+  await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+  assert.ok(html.includes('&lt;img'));assert.ok(html.includes('&lt;script&gt;'));assert.doesNotMatch(html,/<script>|<img/);
+  assert.ok(html.includes('本問題沒有已映射的資源；保持 unknown。'));
+  assert.ok(html.includes('Original source limit'));
 });
 
 test('unmatched or unavailable plan fields remain explicit and no old plan leaks across versions',async()=>{
