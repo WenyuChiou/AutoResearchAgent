@@ -50,3 +50,20 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 }
 
 .control-context{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+
+/* A standalone body and an embedded shadow host share the same type contract. */
+:root, :host {
+ --ara-panel-inset:24px;
+ --ara-control-size:44px;
+ --ara-reading-width:72ch;
+ --ara-body-size:16px;
+ --ara-body-leading:1.6;
+}
+body, :host { font-size:var(--ara-body-size); line-height:var(--ara-body-leading); }
+:host { display:block; font-family:inherit; color:inherit; }
+#selection-layout { box-sizing:border-box; }
+#selection-layout > p, .direction-details p { max-width:var(--ara-reading-width); }
+button, select, summary, input:not([type=checkbox]):not([type=radio]) { min-height:var(--ara-control-size); }
+.project-metadata[open] { padding-bottom:16px; }
+#chosen-directions { border-left:0; border:1px solid var(--selection-line); border-radius:6px; }
+@media(max-width:600px) { :root, :host { --ara-panel-inset:16px; } }

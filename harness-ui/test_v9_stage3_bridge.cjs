@@ -8,13 +8,23 @@ function fixture(request){
  const target={},button={},listeners={},mounts=[];
  const app={page:'workspace',stage:3,lang:'tw',el:{contains:x=>x===button,querySelector:x=>x==='#v93-diagram'?target:null}};
  const state={ref:'project-a',epoch:1,overview:{project:basis}};
- const ctx={rt:state,apps:[app],canonicalReadonly:()=>false,stage2:()=>'<old/>',laterStage:()=>'<later/>',v7BeforeRender:()=>{},v7AfterRender:()=>{},
+ const ctx={rt:state,apps:[app],canonicalReadonly:()=>false,stage2:()=>'<old/>',laterStage:()=>'<later/>',otherPage:()=>'<div class="hs-heading"><p class="hs-eyebrow">STAGE 01 / 06</p><h1>Literature</h1><p>Repeated project brief</p></div><p role="alert">Original pending outcome</p>',v7BeforeRender:()=>{},v7AfterRender:()=>{},
   rl:(zh,en,tw)=>tw||zh,rx:String,canonicalTop:()=>'<top/>',livePaint:()=>{},projectPath:(r,p)=>'/api/projects/'+r+'/'+p,
   liveRequest:request|| (async()=>({...basis,plan:{kind:'Stage3ResearchPlan'}})),
   window:{RESEARCH_PROJECTS:{stage2_selection_projects:['project-a'],stage3_planning_projects:['project-a']},STAGE3_RESEARCH_DIAGRAM:{mount:(...x)=>mounts.push(x)}},
   document:{addEventListener:(name,fn)=>listeners[name]=fn},location:{hash:'#project-a?stage=3&lang=zh-TW'},URLSearchParams,encodeURIComponent,decodeURIComponent,console};
  vm.createContext(ctx);vm.runInContext(source,ctx);return {ctx,state,app,button,listeners,mounts,basis};
 }
+test('utility headings follow the current page and preserve pending/error content',()=>{
+ const f=fixture();
+ for(const [page,title] of [['files','專案檔案'],['history','操作歷史'],['settings','連線與設定']]){
+  f.app.page=page;const html=f.ctx.otherPage(f.app);
+  assert.match(html,new RegExp('<h1>'+title+'</h1>'));assert.ok(html.includes('Original pending outcome'));
+  assert.equal((html.match(/<h1>/g)||[]).length,1);
+  assert.doesNotMatch(html,/STAGE 01|Repeated project brief/);assert.ok(html.includes('PROJECT'));
+ }
+ f.app.page='workspace';assert.ok(f.ctx.otherPage(f.app).includes('<h1>Literature</h1>'));
+});
 test('Wiki routes restore only an existing project and permitted stage/language',()=>{
  const f=fixture();assert.equal(JSON.stringify(f.ctx.v93RouteTarget([{project_ref:'project-a'}])),JSON.stringify({ref:'project-a',stage:3,lang:'tw'}));
  assert.equal(f.ctx.v93RouteTarget([{project_ref:'other'}]),null);
@@ -38,6 +48,39 @@ test('Wiki labels the older cards and does not imply a missing plan exists',asyn
  assert.match(f.ctx.stage2(f.app),/較早匯入版本/);assert.match(f.ctx.stage2(f.app),/data-v93-choice/);
  f.app.stage=3;await f.listeners.click({target:{closest:()=>f.button}});
  assert.match(f.ctx.laterStage(f.app),/沒有已保存的規劃/);
+});
+
+test('saved conditional planning leads with readable materials and method, keeping full details closed',async()=>{
+ const calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,plan:{kind:'Stage3DirectionPlanningResult',planning_status:'conditional-draft',markdown:'A saved conditional plan.\n\nAdditional paragraph.',question_plans:[{question_ref:'q1',method:'Compare held-fixed rules.',materials:'Published age tables; access still unknown.',design:'Proposed design only.',unknowns:['Verify table definitions.']}]},direction_context:{questions:[{question_ref:'q1',text:'How does age composition affect demand?'}]}};});
+ await f.listeners.click({target:{closest:()=>f.button}});
+ const html=f.ctx.laterStage(f.app);
+ assert.ok(html.indexOf('已保存的規劃摘要')<html.indexOf('研究關係圖與來源'));
+ for(const text of ['How does age composition affect demand?','Compare held-fixed rules.','Published age tables; access still unknown.','Verify table definitions.','尚未執行實驗'])assert.ok(html.includes(text));
+ assert.match(html,/<details class="n9-plan-details">/);assert.match(html,/<details class="n9-plan-graph">/);
+ assert.match(html,/<ol class="n9-plan-flow">/);
+ assert.equal((html.match(/class="n9-flow-heading"/g)||[]).length,6);
+ assert.ok(html.includes('研究規劃流程（擬議）'));assert.ok(html.includes('各步驟尚未執行'));
+ assert.doesNotMatch(html,/<details[^>]*\bopen(?:\s|>)/);
+ assert.deepEqual(calls,['/api/projects/project-a/stage3/planning']);
+ assert.equal(f.mounts.length,0,'Rendering a summary does not dispatch or mount a generation');
+});
+
+test('unmatched or unavailable plan fields remain explicit and no old plan leaks across versions',async()=>{
+ const f=fixture(async()=>({...f.basis,plan:{kind:'Stage3DirectionPlanningResult',question_plans:[{question_ref:'missing'}]}}));
+ await f.listeners.click({target:{closest:()=>f.button}});
+ let html=f.ctx.laterStage(f.app);assert.match(html,/尚未記錄/);assert.match(html,/研究問題 1/);
+ f.state.overview.project={...f.basis,revision:3};html=f.ctx.laterStage(f.app);assert.doesNotMatch(html,/已保存的規劃摘要/);
+});
+
+test('formal saved plans retain their linked-record graph without a false scalar summary',async()=>{
+ const calls=[],plan={kind:'Stage3ResearchPlan',questions:[{question_ref:'q1',text:'Formal saved question'}],question_plans:[{question_ref:'q1',design_ids:['d1'],analysis_ids:['a1'],result_ids:['r1']}],designs:[{design_id:'d1',family:'Saved design'}],analyses:[{analysis_id:'a1',method:'Saved analysis',design_ids:['d1']}],results:[{result_id:'r1',artifact:'Saved output',analysis_ids:['a1']}],unknowns:[{reason:'Actual unresolved material'}]};
+ const before=JSON.stringify(plan),f=fixture(async path=>{calls.push(path);return {...f.basis,plan};});
+ await f.listeners.click({target:{closest:()=>f.button}});
+ const html=f.ctx.laterStage(f.app);f.ctx.v7AfterRender(f.app);
+ assert.doesNotMatch(html,/n9-plan-overview|尚未記錄|0 項待查事項/);
+ assert.match(html,/<details class="n9-plan-graph" open>/);
+ assert.equal(f.mounts.length,1);assert.equal(f.mounts[0][1].plan,plan);
+ assert.deepEqual(calls,['/api/projects/project-a/stage3/planning']);assert.equal(JSON.stringify(plan),before);
 });
 
 test('error from a prior project or version is not shown on a new binding',async()=>{

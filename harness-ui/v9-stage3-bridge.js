@@ -1,4 +1,14 @@
 // Wiki Stage 2 / Stage 3 entry and saved-plan graph. Reading never dispatches planning.
+// Utility pages describe their own purpose rather than repeating the active stage.
+if(typeof otherPage==='function'){
+ const v93OtherPage=otherPage;
+ otherPage=function(app){
+  const labels={files:rl('项目文件','Project files','專案檔案'),history:rl('操作历史','History','操作歷史'),settings:rl('连接与设置','Connection and settings','連線與設定')};
+  const html=v93OtherPage(app),title=labels[app.page];if(!title)return html;
+  const heading=`<h1>${title}</h1>`;
+  return /<h1>[^]*?<\/h1>/.test(html)?html.replace(/<p class="hs-eyebrow">[^<]*<\/p>/,'<p class="hs-eyebrow">PROJECT</p>').replace(/<h1>[^]*?<\/h1>(?:<p>[^]*?<\/p>)?/,heading):`<div class="hs-heading">${heading}</div>${html}`;
+ };
+}
 const v93={view:null,basis:null,errorBasis:null,sequence:0,busy:false,error:''};
 function v93ValidProject(p){return !!p&&((typeof p.input_version==='string'&&p.input_version.length>0&&p.input_version.length<=128)||(Number.isSafeInteger(p.input_version)&&p.input_version>=0))&&Number.isSafeInteger(p.revision)&&p.revision>=0&&typeof p.brief_sha256==='string'&&/^[a-f0-9]{64}$/.test(p.brief_sha256);}
 function v93Identity(){
@@ -107,12 +117,35 @@ function v93MountChoice(app){
  if(record.language!==v93Language(app)){record.instance.setLanguage(v93Language(app));record.language=v93Language(app);}
  record.instance.resume();
 }
+function v93SavedPlanSummary(view){
+ const plan=view?.plan;if(plan?.kind!=='Stage3DirectionPlanningResult')return '';
+ const text=typeof plan.markdown==='string'?plan.markdown:'',lead=text.split(/\n\s*\n/)[0];
+ const questions=Array.isArray(view.direction_context?.questions)?view.direction_context.questions:[];
+ const rows=Array.isArray(plan.question_plans)?plan.question_plans:[];
+ const labels={method:rl('方法','Method','方法'),materials:rl('资料与参考','Data and references','資料與參考'),design:rl('实验设计','Study design','實驗設計'),analysis:rl('分析','Analysis','分析'),interpretation:rl('结果判读','Interpretation','結果判讀'),validation:rl('验证','Validation','驗證'),minimum_deliverable:rl('最小交付','Minimum deliverable','最小交付')};
+ const content=rows.map((row,index)=>{
+  const question=questions.find(q=>q.question_ref===row.question_ref),title=question?.text||rl('研究问题','Research question','研究問題')+' '+(index+1);
+  const stages=[
+   [rl('研究问题','Research question','研究問題'),[['question',title]]],
+   [rl('资料与方法','Data and method','資料與方法'),['materials','method'].map(key=>[labels[key],row[key]])],
+   [labels.design,[[labels.design,row.design]]],
+   [rl('分析与验证','Analysis and validation','分析與驗證'),['analysis','validation'].map(key=>[labels[key],row[key]])],
+   [labels.interpretation,[[labels.interpretation,row.interpretation]]],
+   [labels.minimum_deliverable,[[labels.minimum_deliverable,row.minimum_deliverable]]]
+  ];
+  const flow=`<h4>${rl('研究规划流程（拟议）','Proposed research planning flow','研究規劃流程（擬議）')}</h4><p class="n9-flow-note">${rl('顺序表示规划如何组织；各步骤尚未执行，资料与方法仍待核验。','The sequence organizes the plan; these steps have not been run and materials and methods still require verification.','順序表示規劃如何組織；各步驟尚未執行，資料與方法仍待核驗。')}</p><ol class="n9-plan-flow">${stages.map(([heading,items],step)=>`<li><div class="n9-flow-heading"><span aria-hidden="true">${step+1}</span><strong>${heading}</strong></div>${items.map(([label,value])=>`<div class="n9-flow-field"><b>${rx(label==='question'?rl('问题','Question','問題'):label)}</b><p class="n9-plan-preview">${rx(typeof value==='string'?value:rl('尚未记录；请查看完整原记录。','Not recorded; inspect the complete source record.','尚未記錄；請查看完整原紀錄。'))}</p></div>`).join('')}</li>`).join('')}</ol>`;
+  const fields=Object.entries(labels).filter(([key])=>typeof row[key]==='string').map(([key,label])=>`<h4>${label}</h4><p>${rx(row[key])}</p>`).join('');
+  const unknowns=Array.isArray(row.unknowns)?row.unknowns:[];
+   return `<article class="n9-plan-question"><h3>${rx(title)}</h3><p>${unknowns.length} ${rl('项待查事项','open checks','項待查事項')}</p>${flow}<details class="n9-plan-details"><summary>${rl('完整规划与待查事项','Full planning details and open checks','完整規劃與待查事項')}</summary>${fields}<h4>${rl('待查事项','Open checks','待查事項')}</h4><ul>${unknowns.map(item=>`<li>${rx(typeof item==='string'?item:JSON.stringify(item))}</li>`).join('')}</ul><p>${rx(row.question_ref||'')}</p></details></article>`;
+ }).join('');
+ return `<section class="n9-plan-overview"><h2>${rl('已保存的规划摘要','Saved planning summary','已保存的規劃摘要')}</h2><p class="n9-plan-state">${plan.planning_status==='conditional-draft'?rl('条件式草案','Conditional draft','條件式草案'):rl('规划草案','Planning draft','規劃草案')} · ${rl('尚未执行实验','Experiments have not been run','尚未執行實驗')}</p>${lead?`<p class="n9-plan-lead">${rx(lead)}</p>`:''}${content}</section>`;
+}
 const v93Later=laterStage;
 laterStage=function(app){
  const basis=v93Identity();if(app.stage!==3||!basis)return v93Later(app);
  const view=v93Matches(v93.basis,basis)?v93.view:null, error=v93Matches(v93.errorBasis,basis)?v93.error:'';
  const href='/project-stage3-planning.html'+v93Fragment(basis.project_ref,app,3);
- return `${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('图表只展示已保存规划的明确关系，不代表研究已经执行。','The diagram shows explicit relationships in the saved plan; research has not been run.','圖表只顯示已保存規劃的明確關係，不代表研究已執行。')}</p><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a> <button class="hs-button" data-v93-read ${v93.busy?'disabled':''}>${rl('读取保存的规划图','Read saved planning diagram','讀取已保存的規劃圖')}</button><p role="status">${rx(error||(!view?rl('尚未读取规划。','No saved plan read yet.','尚未讀取規劃。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p><div id="v93-diagram"></div></section>`;
+ return `${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('将偏好方向逐题对应到资料、方法、设计与结果判读；草案不代表研究已执行。','Connect the preferred direction to data, methods, study design and interpretation, one question at a time. A draft does not mean research has been run.','將偏好方向逐題對應到資料、方法、設計與結果判讀；草案不代表研究已執行。')}</p><div class="n9-page-actions"><button class="hs-button hs-button-primary" data-v93-read ${v93.busy?'disabled':''}>${rl('查看已保存的规划','View saved plan','檢視已保存的規劃')}</button><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a></div><p role="status">${rx(error||(v93.busy?rl('正在读取已保存的规划，不会重新生成。','Reading the saved plan; no generation will be started.','正在讀取已保存的規劃，不會重新生成。'):!view?rl('先读取已保存的规划，查看摘要与待查事项。','Read the saved plan to see its summary and open checks.','先讀取已保存的規劃，查看摘要與待查事項。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p>${v93SavedPlanSummary(view)}<details class="n9-plan-graph"${view?.plan?.kind==='Stage3ResearchPlan'?' open':''}><summary>${rl('研究关系图与来源','Research map and sources','研究關係圖與來源')}</summary><div id="v93-diagram"></div></details></section>`;
 };
 const v93After=v7AfterRender;
 v7AfterRender=function(app){
