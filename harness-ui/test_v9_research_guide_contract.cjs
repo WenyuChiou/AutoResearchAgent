@@ -139,6 +139,7 @@ test('saved-plan click replaces a pending guide read even when binding and epoch
   rl:(z,e,t)=>t||z,rx:String,location:{hash:'#project-a?stage=3&lang=zh-TW'},
   document:{addEventListener:(name,listener)=>{if(name==='click')listeners.push(listener);}},
   fetch:(url,options)=>new Promise(resolve=>requests.push({url,options,resolve}))});
+ f.ctx.window.addEventListener=()=>{};
  f.ctx.window.RESEARCH_PROJECTS.stage3_planning_projects=['project-a'];
  vm.runInContext(fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8'),f.ctx);
  vm.runInContext(adapter,f.ctx);
