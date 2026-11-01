@@ -10,6 +10,7 @@ function setup(options={}){
  const slot={append:element=>placed.push(element)},app={page:'workspace',stage:2,lang:'tw',el:{querySelector:selector=>selector==='[data-v93-choice]'?slot:null,contains:()=>false}};
  const state={ref:basis.project_ref,epoch:1,overview:{project:basis}};
  const template={content:{cloneNode:()=>({})}},doc={body:{},activeElement:null,getElementById:id=>id==='v93-selection-template'?template:null,addEventListener(){},createElement:tag=>tag==='link'?{}:{children:[],append(...nodes){this.children.push(...nodes);},attachShadow(){this.shadowRoot=f.root;return f.root;}}};
+  f.window.addEventListener=()=>{};
   f.window.location={set hash(value){moves.push('/'+value);},reload:()=>reloads.push(moves.at(-1))};
  const ctx={rt:state,apps:[app],canonicalReadonly:()=>false,stage2:()=>'<older/>',laterStage:()=>'<later/>',v7BeforeRender:()=>{},v7AfterRender:()=>{},rl:(zh,en,tw)=>tw||zh,rx:String,canonicalTop:()=>'',livePaint:()=>{},projectPath:(ref,sub)=>'/api/projects/'+ref+'/'+sub,liveRequest:async()=>{throw Error('unexpected graph request')},window:f.window,document:doc,location:{hash:''},URLSearchParams,encodeURIComponent,decodeURIComponent,console};
   vm.createContext(ctx);vm.runInContext(source,ctx);return {f,ctx,app,state,placed,moves,reloads};

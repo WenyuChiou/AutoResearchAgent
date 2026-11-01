@@ -26,6 +26,15 @@ function v93RouteTarget(list){
   if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)||!Number.isInteger(stage)||stage<1||stage>6||!['en','zh-TW','zh-CN'].includes(lang)||!list.some(p=>p.project_ref===ref))return null;
  return {ref,stage,lang:{en:'en','zh-TW':'tw','zh-CN':'zh'}[lang]};
 }
+// Restore only the currently loaded project; navigation never submits or refreshes it.
+function v93RestoreStageRoute(){
+ const route=v93RouteTarget(rt.list),app=apps[0];
+ if(!route||!app||route.ref!==rt.ref||rt.overview?.project?.project_ref!==route.ref)return;
+ if(app.page==='workspace'&&app.stage===route.stage&&app.lang===route.lang)return;
+ app.lang=route.lang;localStage(app,route.stage,{historyMode:'restore'});livePaint();
+}
+window.addEventListener('popstate',v93RestoreStageRoute);
+window.addEventListener('hashchange',v93RestoreStageRoute);
 const v93Choices=new Map();let v93ActiveChoice=null;
 function v93ChoiceIdentity(){
  const p=rt.overview?.project, configured=window.RESEARCH_PROJECTS?.stage2_selection_projects;

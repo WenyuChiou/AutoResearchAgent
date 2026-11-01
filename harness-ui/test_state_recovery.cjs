@@ -171,7 +171,7 @@ function stageNavigationRoute() {
   const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
   const location=new URL('http://localhost/nested/wiki/?theme=night#project-A?stage=3&lang=en&view=matrix');
   const replacements=[],state={retained:'navigation-state'};
-  const context={rt:{ref:'project-A'},location,URLSearchParams,history:{state,replaceState(received,unused,target){assert.equal(received,state);replacements.push(target);location.href=new URL(target,location).href;}}};
+  const context={rt:{ref:'project-A'},location,URLSearchParams,history:{state,pushState(received,unused,target){assert.equal(received,state);replacements.push(target);location.href=new URL(target,location).href;}}};
   vm.createContext(context);vm.runInContext(bridge.match(/^function v93Language.*$/m)[0]+'\n'+stageSource,context);
   const app={stage:3,lang:'tw',previewStageContexts:{},selected:{id:'retained'},focal:'retained'};
   for(const stage of [2,1,4,6,3]){
