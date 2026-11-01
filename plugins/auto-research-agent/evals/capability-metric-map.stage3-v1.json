@@ -253,8 +253,12 @@
       "wiki_readability_test_refs": [
         "harness-ui/test_v9_stage3_bridge.cjs",
         "harness-ui/test_state_recovery.cjs",
-        "plugins/auto-research-agent/tests/test_project_stage2_selection_embedded.cjs"
-      ]
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_embedded.cjs",
+        "harness-ui/test_v9_research_guide_contract.cjs",
+        "harness-ui/test_v9_research_guide_view.cjs",
+        "harness-ui/test_v9_stage23_http.py"
+      ],
+      "wiki_research_presentation_contract": "An optional authored display guide is read through the existing authenticated manual-material GET API. Exact project, typed input version, direction-intent and saved plan-manifest bind its fixed filename and closed bounded JSON contract; every graph node, edge, material lead and baseline cites a verbatim string under the same question. Metadata byte count and SHA256, source quotes, graph references and duplicate ambiguity are verified before rendering. Old or malformed guides fail closed to the untouched original plan; abort and current-view guards prevent late cross-project painting. The generic renderer does not infer scientific relationships, promote prose material leads to mapped or available data, or change plan, choice, journal, permission or execution state. Research visuals are authored interpretations requiring semantic review, not scientific proof. Original complete planning and unknowns remain available. Reading makes no model call or POST."
     }
   ]
 }
