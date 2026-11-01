@@ -126,3 +126,40 @@ test('same-binding refresh replaces a pending epoch and an old completion cannot
  assert.doesNotMatch(f.ctx.v93SavedPlanSummary(f.view),/data-v94-read disabled/);
  assert.match(f.ctx.v93SavedPlanSummary(f.view),/Retained original/);
 });
+
+test('saved-plan click replaces a pending guide read even when binding and epoch are unchanged',async()=>{
+ const f=fixture(),basis={project_ref:'project-a',input_version:1,revision:2,brief_sha256:pin},requests=[],listeners=[],planningReads=[];
+ const button={},app={page:'workspace',stage:3,lang:'tw',el:{contains:value=>value===button,querySelector:()=>null}};
+ const currentView=()=>({...clone(f.view),...basis});
+ Object.assign(f.ctx,{AbortController,setTimeout,clearTimeout,URLSearchParams,encodeURIComponent,decodeURIComponent,
+  apps:[app],rt:{epoch:1,ref:'project-a',overview:{project:basis}},canonicalReadonly:()=>false,
+  stage2:()=>'',laterStage:()=>'',v7BeforeRender:()=>{},v7AfterRender:()=>{},canonicalTop:()=>'',
+  projectPath:(ref,tail)=>'/api/projects/'+ref+'/'+tail,
+  liveRequest:async url=>{planningReads.push(url);return currentView();},livePaint:()=>{},
+  rl:(z,e,t)=>t||z,rx:String,location:{hash:'#project-a?stage=3&lang=zh-TW'},
+  document:{addEventListener:(name,listener)=>{if(name==='click')listeners.push(listener);}},
+  fetch:(url,options)=>new Promise(resolve=>requests.push({url,options,resolve}))});
+ f.ctx.window.RESEARCH_PROJECTS.stage3_planning_projects=['project-a'];
+ vm.runInContext(fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8'),f.ctx);
+ vm.runInContext(adapter,f.ctx);
+ const click={target:{closest:selector=>selector==='[data-v93-read]'?button:null}};
+ try {
+  await listeners[0](click);f.ctx.v7AfterRender(app);
+  assert.equal(requests.length,1);const oldView=vm.runInContext('v93.view',f.ctx);
+  // livePaint is coalesced: the same-binding GET completes before an animation frame.
+  await listeners[0](click);const newView=vm.runInContext('v93.view',f.ctx);
+  assert.notEqual(newView,oldView);assert.equal(JSON.stringify(newView),JSON.stringify(oldView));assert.equal(f.ctx.rt.epoch,1);
+  f.ctx.v7AfterRender(app);assert.equal(requests.length,2);assert.equal(requests[0].options.signal.aborted,true);
+  const replacement=vm.runInContext('v94.controller',f.ctx);
+  requests[0].resolve(new Response('{"materials":[]}'));await new Promise(setImmediate);
+  assert.equal(vm.runInContext('v94.controller',f.ctx),replacement);assert.equal(vm.runInContext('v94.status',f.ctx),'loading');
+  requests[1].resolve(new Response('{"materials":[]}'));await new Promise(setImmediate);
+  assert.equal(vm.runInContext('v94.status',f.ctx),'absent');assert.equal(vm.runInContext('v94.controller',f.ctx),null);
+  assert.doesNotMatch(f.ctx.v93SavedPlanSummary(newView),/data-v94-read disabled/);
+  assert.deepEqual(planningReads,['/api/projects/project-a/stage3/planning','/api/projects/project-a/stage3/planning']);
+  assert.ok(requests.every(request=>request.url==='/api/v9/materials'&&!request.options.method));
+ } finally {
+  for(const request of requests)request.resolve(new Response('{"materials":[]}'));
+  await new Promise(setImmediate);
+ }
+});
