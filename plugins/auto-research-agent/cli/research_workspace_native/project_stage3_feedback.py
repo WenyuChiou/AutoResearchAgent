@@ -1,14 +1,13 @@
-"""User comments and manual plan revisions on the existing owned journal.
+"""User comments on the existing owned planning journal.
 
 These records are not native messages, model output, review acceptance or an
-execution grant. Original planning packages remain immutable. A revision is an
-explicit user-authored draft, with its parent and comment receipts preserved.
+execution grant. Original planning packages remain immutable.
 """
 
 from copy import deepcopy
 import json
 
-from stage3_plan.contracts import canonical_bytes, digest
+from stage3_plan.contracts import digest
 from stage3_plan.jobs import POLICY
 
 from .project_intake_contract import _fields
@@ -25,15 +24,6 @@ BINDING_FIELDS = {
     "parent_plan_manifest_sha256",
     "parent_plan_sha256",
     "plan_request_sha256",
-}
-EDIT_FIELDS = {
-    "method",
-    "materials",
-    "design",
-    "analysis",
-    "interpretation",
-    "validation",
-    "minimum_deliverable",
 }
 
 
@@ -78,7 +68,7 @@ def _rows(jobs, binding):
         if record.get("binding") != binding:
             continue
         _check(
-            record.get("kind") in {"comment", "revision"}
+            record.get("kind") == "comment"
             and record.get("request_sha256") == digest(record.get("request"))
             and item["request_identity"] is None
             and item["record_sha256"]
@@ -103,22 +93,6 @@ def _key(binding, kind, key):
     return "stage3-feedback-" + digest([binding, kind, key])
 
 
-def _reference(rows, ref, kind):
-    _fields(ref, {"key", "sha256"})
-    matched = [
-        row
-        for row in rows
-        if row["record"]["kind"] == kind
-        and row["record"]["request"]["key"] == ref["key"]
-    ]
-    _check(
-        len(matched) == 1 and matched[0]["receipt_sha256"] == ref["sha256"],
-        "stage3-feedback-parent-receipt-differs",
-        409,
-    )
-    return matched[0]["record"]
-
-
 def read_feedback(jobs, ref, view):
     """Read only records for the currently verified saved planning package."""
     binding = _context(ref, view)
@@ -138,13 +112,9 @@ def record_feedback(jobs, ref, view, body, action, check_deadline=None):
     Journal.record_intent supplies its existing atomic transaction and owner
     checks. This local-record method is never dispatched as a native request.
     """
-    kind = {"comment": "comment", "revise": "revision"}[action]
-    extra = (
-        {"text", "question_ref"}
-        if kind == "comment"
-        else {"comments", "parent_revision", "changes"}
-    )
-    _fields(body, BINDING_FIELDS | {"key"} | extra)
+    _check(action == "comment", "stage3-feedback-action-invalid", 400)
+    kind = "comment"
+    _fields(body, BINDING_FIELDS | {"key", "text", "question_ref"})
     _text(body["key"], "stage3-feedback-key", 128)
     binding = _context(ref, view)
     _check(
@@ -187,87 +157,13 @@ def record_feedback(jobs, ref, view, body, action, check_deadline=None):
         "model_generated": False,
         **POLICY,
     }
-    if kind == "comment":
-        _text(body["text"], "stage3-feedback-text")
-        _check(
-            body["question_ref"] is None or body["question_ref"] in questions,
-            "stage3-feedback-question-differs",
-            409,
-        )
-        record.update(text=body["text"], question_ref=body["question_ref"])
-    else:
-        # Bound draft copies without hiding a previously valid original plan.
-        _check(len(canonical_bytes(plan)) <= 262144, "stage3-feedback-plan-bound", 413)
-        refs, changes = body["comments"], body["changes"]
-        _check(
-            type(refs) is list and 0 < len(refs) <= 8,
-            "stage3-feedback-comments-required",
-            400,
-        )
-        comments = [_reference(rows, value, "comment") for value in refs]
-        _check(
-            len({digest(value) for value in refs}) == len(refs),
-            "stage3-feedback-duplicate-comment",
-            400,
-        )
-        parent = (
-            None
-            if body["parent_revision"] is None
-            else _reference(rows, body["parent_revision"], "revision")
-        )
-        revised = deepcopy(plan if parent is None else parent["plan"])
-        revised_questions = {
-            row["question_ref"]: row for row in revised.get("question_plans", [])
-        }
-        _check(
-            type(changes) is list and 0 < len(changes) <= 8,
-            "stage3-feedback-changes-required",
-            400,
-        )
-        seen = set()
-        for change in changes:
-            _check(
-                type(change) is dict
-                and set(change) == {"question_ref", "field", "value"},
-                "stage3-feedback-change-invalid",
-                400,
-            )
-            _check(
-                type(change["question_ref"]) is str and type(change["field"]) is str,
-                "stage3-feedback-change-invalid",
-                400,
-            )
-            target = (change["question_ref"], change["field"])
-            _check(
-                target not in seen
-                and target[0] in revised_questions
-                and target[1] in EDIT_FIELDS
-                and type(revised_questions[target[0]].get(target[1])) is str,
-                "stage3-feedback-change-invalid",
-                400,
-            )
-            _text(change["value"], "stage3-feedback-change")
-            seen.add(target)
-            revised_questions[target[0]][target[1]] = change["value"]
-        _check(
-            all(
-                comment["question_ref"] is None
-                or comment["question_ref"] in {target[0] for target in seen}
-                for comment in comments
-            ),
-            "stage3-feedback-comment-scope-differs",
-            409,
-        )
-        record.update(
-            revision_number=2 if parent is None else parent["revision_number"] + 1,
-            parent_revision=deepcopy(body["parent_revision"]),
-            comments=deepcopy(refs),
-            changes=deepcopy(changes),
-            plan=revised,
-            authoring_mode="manual-planning-draft",
-            original_markdown_preserved=True,
-            comment_texts=[comment["text"] for comment in comments],
-        )
+    _text(body["text"], "stage3-feedback-text")
+    _check(
+        body["question_ref"] is None or body["question_ref"] in questions,
+        "stage3-feedback-question-differs",
+        409,
+    )
+    record.update(text=body["text"], question_ref=body["question_ref"])
     pending = {
         "receipt_sha256": "0" * 64,
         "record": record,

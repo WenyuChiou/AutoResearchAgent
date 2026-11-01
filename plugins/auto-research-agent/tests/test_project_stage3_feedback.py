@@ -79,42 +79,27 @@ class Stage3FeedbackFixture:
         body = dict(self.request(key), text=text, question_ref=question)
         return record_feedback(self.jobs, "authored-ref", self.view, body, "comment")
 
-    def revision(self, comment, *, parent=None, changes=None, key="revision-1"):
-        body = dict(
-            self.request(key),
-            comments=[
-                {
-                    "key": comment["record"]["request"]["key"],
-                    "sha256": comment["receipt_sha256"],
-                }
-            ],
-            parent_revision=parent,
-            changes=changes
-            or [
-                {
-                    "question_ref": "q1",
-                    "field": "method",
-                    "value": "A user-authored alternative",
-                }
-            ],
-        )
-        return record_feedback(self.jobs, "authored-ref", self.view, body, "revise")
-
 
 class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
-    def test_large_original_remains_readable_and_commentable_without_draft_copy(self):
+    def test_large_original_remains_readable_and_commentable_without_plan_copy(self):
         self.view["plan"]["markdown"] = "Original text " * 22000
         self.binding = read_feedback(self.jobs, "authored-ref", self.view)["binding"]
+        original = deepcopy(self.view)
         comment = self.comment()
-        with self.assertRaises(SessionApiError) as error:
-            self.revision(comment)
-        self.assertEqual(error.exception.status, 413)
+        self.assertNotIn("plan", comment["record"])
+        self.assertEqual(self.view, original)
         self.assertEqual(
-            len(read_feedback(self.jobs, "authored-ref", self.view)["records"]), 1
+            read_feedback(self.jobs, "authored-ref", self.view)["records"],
+            [{name: comment[name] for name in ("receipt_sha256", "record")}],
         )
 
     def test_comment_is_honestly_attributed_and_replays_without_another_write(self):
-        result = self.comment(text="原文保留\nInclude the limitation.")
+        text = "原文保留\nInclude the limitation."
+        result = self.comment(text=text)
+        self.assertEqual(result["record"]["text"], text)
+        self.assertEqual(result["record"]["request"]["text"], text)
+        self.assertEqual(result["record"]["binding"], self.binding)
+        self.assertFalse(result["record"]["execution_authorized"])
         self.assertFalse(result["record"]["native_message"])
         self.assertFalse(result["record"]["model_generated"])
         self.assertEqual(
@@ -131,45 +116,6 @@ class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
         with self.assertRaises(SessionApiError) as error:
             self.comment(text="A changed request cannot replace the first comment.")
         self.assertEqual(error.exception.status, 409)
-
-    def test_manual_revision_preserves_parent_unknowns_and_original_plan(self):
-        original = deepcopy(self.view)
-        result = self.revision(self.comment())
-        record = result["record"]
-        self.assertEqual(record["revision_number"], 2)
-        self.assertEqual(record["authoring_mode"], "manual-planning-draft")
-        self.assertEqual(
-            record["plan"]["question_plans"][0]["method"], "A user-authored alternative"
-        )
-        self.assertEqual(
-            record["plan"]["question_plans"][0]["unknowns"], ["Rights remain unknown"]
-        )
-        self.assertEqual(record["plan"]["markdown"], self.view["plan"]["markdown"])
-        self.assertFalse(record["execution_authorized"])
-        self.assertEqual(self.view, original)
-
-    def test_revision_chain_binds_exact_parent_receipt(self):
-        comment = self.comment()
-        first = self.revision(comment)
-        second = self.revision(
-            comment,
-            key="revision-2",
-            parent={"key": "revision-1", "sha256": first["receipt_sha256"]},
-            changes=[
-                {"question_ref": "q1", "field": "validation", "value": "Proposed check"}
-            ],
-        )
-        self.assertEqual(second["record"]["revision_number"], 3)
-        self.assertEqual(
-            second["record"]["plan"]["question_plans"][0]["method"],
-            "A user-authored alternative",
-        )
-        with self.assertRaises(SessionApiError):
-            self.revision(
-                comment,
-                key="bad-parent",
-                parent={"key": "revision-1", "sha256": "f" * 64},
-            )
 
     def test_changed_project_or_plan_pin_does_not_carry_records_forward(self):
         self.comment()
@@ -202,25 +148,48 @@ class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
             read_feedback(self.jobs, "authored-ref", self.view)["records"], []
         )
 
-    def test_unrecognized_or_policy_fields_cannot_be_edited(self):
-        comment = self.comment()
-        for field in ("execution_authorized", "unknowns", "question_ref", "kind"):
-            with self.subTest(field=field), self.assertRaises(SessionApiError):
-                self.revision(
-                    comment,
-                    key="invalid-" + field,
-                    changes=[
-                        {"question_ref": "q1", "field": field, "value": "replace"}
-                    ],
-                )
-
-    def test_nonexistent_question_and_wrong_comment_receipt_are_rejected(self):
+    def test_nonexistent_question_is_rejected_without_write(self):
+        before = self.journal.snapshot(self.jobs.project_id)
         with self.assertRaises(SessionApiError):
             self.comment(question="other-question")
-        comment = self.comment()
-        comment["receipt_sha256"] = "e" * 64
-        with self.assertRaises(SessionApiError):
-            self.revision(comment)
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_comment_action_and_payload_cannot_request_revision(self):
+        body = dict(self.request("invalid"), text="Text", question_ref=None)
+        cases = [("revise", body)] + [
+            ("comment", dict(body, **{field: value}))
+            for field, value in (
+                ("comments", []),
+                ("parent_revision", None),
+                ("changes", []),
+                ("execution_authorized", True),
+            )
+        ]
+        before = self.journal.snapshot(self.jobs.project_id)
+        for action, payload in cases:
+            with self.subTest(action=action, payload=payload):
+                with self.assertRaises(SessionApiError) as error:
+                    record_feedback(
+                        self.jobs, "authored-ref", self.view, payload, action
+                    )
+                self.assertEqual(error.exception.status, 400)
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_record_limit_rejects_new_comment_but_allows_existing_replay(self):
+        first = self.comment(key="bounded-0")
+        for index in range(1, 32):
+            self.comment(key="bounded-" + str(index))
+        before = self.journal.snapshot(self.jobs.project_id)
+        replay = self.comment(key="bounded-0")
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(replay["receipt_sha256"], first["receipt_sha256"])
+        with self.assertRaises(SessionApiError) as error:
+            self.comment(key="bounded-32")
+        self.assertEqual(error.exception.status, 409)
+        self.assertEqual(
+            len(read_feedback(self.jobs, "authored-ref", self.view)["records"]), 32
+        )
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
 
     def test_no_saved_plan_has_no_feedback_mutation(self):
         view = dict(self.view, plan=None)
@@ -256,15 +225,20 @@ class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
             with self.assertRaises(SessionApiError):
                 read_feedback(self.jobs, "authored-ref", self.view)
 
-    def test_generic_saved_plan_allows_comment_but_not_unknown_question_edit(self):
+    def test_generic_saved_plan_allows_only_whole_plan_comment(self):
         self.view["plan"] = {
             "kind": "Stage3ResearchPlan",
             "execution_authorized": False,
         }
         self.binding = read_feedback(self.jobs, "authored-ref", self.view)["binding"]
+        original = deepcopy(self.view)
         comment = self.comment(question=None)
+        self.assertIsNone(comment["record"]["question_ref"])
+        self.assertEqual(self.view, original)
+        before = self.journal.snapshot(self.jobs.project_id)
         with self.assertRaises(SessionApiError):
-            self.revision(comment)
+            self.comment(key="unknown-question", question="q1")
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
 
 
 if __name__ == "__main__":
