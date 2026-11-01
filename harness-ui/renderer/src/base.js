@@ -397,11 +397,17 @@ import * as V7Three from "./vendor/three.core.js";window.V7Three=V7Three;
   function emptyResult(app){return `<section class="hs-panel lp-empty" data-local-empty="${app.stage}"><div class="lp-empty-icon" aria-hidden="true">${app.stage===1?'◎':'▤'}</div><span class="lp-eyebrow">STAGE ${String(app.stage).padStart(2,'0')} / OUTPUT</span><h2>${localText(app,'emptyTitle')}</h2><p>${localText(app,app.stage===1?'emptyBody':'emptyStage2')}</p><span class="hs-status">${localText(app,'notGenerated')}</span></section>`;}
   function bottomAssistant(app){return `<details class="hs-panel lp-assistant"><summary>${localText(app,'foldedAssistant')}<small>${localText(app,'cannotRun')}</small></summary><div>${assistant(app)}</div></details>`;}
   function localStage(app,stage,{historyMode='push'}={}){
+    const previousStage=app.stage;
     app.previewStageContexts[app.stage]={selected:app.selected,topicPaperOpen:app.topicPaperOpen,focal:app.focal};app.stage=stage;app.page='workspace';Object.assign(app,app.previewStageContexts[stage]||{selected:{type:'paper',id:'P01'},topicPaperOpen:false,focal:'P01'});app.notice='';app.taskDrawerOpen=false;app.noteOpen=false;app.scopeOpen=false;app.reviewOpen=false;
     if(historyMode==='push' && typeof rt!=='undefined' && typeof v93Language==='function' && /^[A-Za-z0-9_-]{1,64}$/.test(rt.ref||'') && Number.isInteger(stage) && stage>=1 && stage<=6){
       const separator=location.hash.indexOf('?'),params=new URLSearchParams(separator<0?'':location.hash.slice(separator+1));
       params.set('stage',String(stage));params.set('lang',v93Language(app));
-      const target=location.pathname+location.search+'#'+encodeURIComponent(rt.ref)+'?'+params.toString();
+      const route=location.pathname+location.search+'#'+encodeURIComponent(rt.ref)+'?';
+      if(!location.hash && Number.isInteger(previousStage) && previousStage>=1 && previousStage<=6){
+        const previousParams=new URLSearchParams(params);previousParams.set('stage',String(previousStage));
+        history.replaceState(history.state,'',route+previousParams.toString());
+      }
+      const target=route+params.toString();
       if(target!==location.pathname+location.search+location.hash)history.pushState(history.state,'',target);
     }
   }

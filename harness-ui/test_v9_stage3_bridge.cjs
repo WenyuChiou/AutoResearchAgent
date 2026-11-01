@@ -65,6 +65,27 @@ test('browser Back and Forward restore stages and language without requests or d
  location.hash='#project-a?stage=2&lang=en';f.state.overview={project:{...f.basis,project_ref:'project-b'}};f.listeners.popstate();assert.equal(f.app.stage,1,'mismatched overview is not restored');
 });
 
+
+test('first stage navigation canonicalizes a hashless entry before pushing',()=>{
+ for(const firstStage of [1,2]){
+  const f=fixture(()=>assert.fail('history restoration cannot request or dispatch'));
+  const base=fs.readFileSync(require('node:path').join(__dirname,'renderer/src/base.js'),'utf8');
+  vm.runInContext(base.slice(base.indexOf('  function localStage('),base.indexOf('  const localContextKeys=')),f.ctx);
+  const location=new URL('http://localhost/nested/wiki/?theme=night');
+  const entries=[location.href],state={retained:'initial-state'};let position=0,replacements=0,pushes=0;
+  const setLocation=target=>{location.href=new URL(target,location).href;};
+  f.ctx.location=location;f.state.list=[{project_ref:'project-a'}];
+  f.ctx.history={state,replaceState(received,unused,target){assert.equal(received,state);replacements++;entries[position]=new URL(target,location).href;setLocation(target);},pushState(received,unused,target){assert.equal(received,state);pushes++;entries.splice(++position);entries.push(new URL(target,location).href);setLocation(target);}};
+  Object.assign(f.app,{stage:1,lang:'en',previewStageContexts:{},selected:{id:'stage1'},focal:'stage1',draftNotes:{note:'unsent'}});
+  f.ctx.localStage(f.app,firstStage);if(firstStage===1){assert.equal(pushes,0,'initial same-stage click only normalizes');f.ctx.localStage(f.app,2);}
+  assert.equal(replacements,1);assert.equal(pushes,1);assert.equal(entries.length,2);
+  assert.equal(new URL(entries[0]).hash,'#project-a?stage=1&lang=en');assert.equal(location.hash,'#project-a?stage=2&lang=en');
+  position--;location.href=entries[position];f.listeners.popstate();f.listeners.hashchange();
+  assert.equal(f.app.stage,1);assert.equal(f.app.lang,'en');assert.equal(f.app.focal,'stage1');assert.equal(f.app.draftNotes.note,'unsent');assert.equal(location.pathname,'/nested/wiki/');assert.equal(location.search,'?theme=night');
+  position++;location.href=entries[position];f.listeners.popstate();f.listeners.hashchange();assert.equal(f.app.stage,2);assert.equal(replacements,1);assert.equal(pushes,1);
+ }
+});
+
 test('same-version GET mounts the graph in the Wiki and changes no data',async()=>{
  const calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,plan:{kind:'Stage3ResearchPlan'}}});
  await f.listeners.click({target:{closest:()=>f.button}});f.ctx.v7AfterRender(f.app);
