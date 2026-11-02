@@ -1,0 +1,26 @@
+.n9f-panel { min-width: 0; margin-block: 1.5rem; padding: clamp(1rem, 3vw, 2rem); overflow-wrap: anywhere; }
+.n9f-panel, .n9f-panel *, .n9f-panel *::before, .n9f-panel *::after { box-sizing: border-box; }
+.n9f-panel h2, .n9f-panel h3, .n9f-panel h4 { margin-block: 1.25rem .5rem; }
+.n9f-panel > h2 { margin-top: 0; }
+.n9f-panel p, .n9f-panel li { line-height: 1.65; }
+.n9f-panel fieldset { min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line, #cbd5e1); border-radius: .6rem; }
+.n9f-panel legend { padding-inline: .4rem; font-weight: 650; }
+.n9f-control { display: grid; gap: .4rem; margin-block: .9rem; max-width: 70rem; font-weight: 600; }
+.n9f-control select, .n9f-control textarea { width: 100%; min-width: 0; padding: .7rem; color: inherit; background: var(--panel, #fff); border: 1px solid var(--line, #94a3b8); border-radius: .4rem; font: inherit; font-weight: 400; }
+.n9f-control textarea { resize: vertical; min-height: 6rem; }
+.n9f-panel:focus-visible, .n9f-panel :is(button, select, textarea, summary):focus-visible, .n9f-original > summary:focus-visible { outline: 3px solid var(--accent, #2563eb); outline-offset: 3px; }
+.n9f-panel button { min-height: 2.75rem; margin: .35rem .5rem .35rem 0; }
+.n9f-details, .n9f-original { min-width: 0; margin-block: 1rem; padding: .8rem 1rem; overflow-wrap: anywhere; border: 1px solid var(--line, #cbd5e1); border-radius: .5rem; }
+.n9f-details > summary, .n9f-original > summary { cursor: pointer; padding-block: .3rem; font-weight: 600; }
+.n9f-details dl { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr); gap: .5rem 1rem; }
+.n9f-details dd { margin: 0; overflow-wrap: anywhere; }
+.n9f-details pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.65; }
+.n9f-comments { padding-inline-start: 1.5rem; }
+.n9f-comments > li { padding: .5rem 0 1rem .25rem; border-bottom: 1px solid var(--line, #cbd5e1); }
+.n9f-context { font-weight: 650; }
+.n9f-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.n9f-manual { padding: 1rem; border-inline-start: .25rem solid var(--accent, #2563eb); background: var(--surface, #f8fafc); }
+.n9f-manual article + article { border-top: 1px solid var(--line, #cbd5e1); margin-top: 1.5rem; }
+.n9f-recovery { padding: 1rem; border: 1px solid var(--line, #94a3b8); border-radius: .5rem; }
+.n9f-original-note { margin-top: 1.5rem; }
+@media (max-width: 600px) { .n9f-details dl { grid-template-columns: minmax(0, 1fr); } }
