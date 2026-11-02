@@ -9,8 +9,8 @@ import sys
 
 from .contracts import Stage3Error, digest, plan_schema_path
 from .intake import admit_intake
-from .planner import draft_plan
-from .preparation import closed, file_binding, text
+from .planner import draft_plan, inspect_saved_plan
+from .preparation import closed, file_binding, sha256, text
 from .storage import (
     MAX_ARTIFACT_BYTES,
     decode_json,
@@ -191,7 +191,7 @@ class PlanningJobs:
             key, expected_request_sha256=digest(payload), current_checkpoint=checkpoint
         )
 
-    def _item(self, key, expected_request_sha256, current_checkpoint):
+    def _recorded_item(self, key, expected_request_sha256, current_checkpoint):
         item = self.journal.snapshot(self.project_id)["intents"].get(self._key(key))
         if item is None or item["method"] != self.method:
             raise Stage3Error("unknown Stage3 planning job")
@@ -200,6 +200,11 @@ class PlanningJobs:
             payload["checkpoint"]
         ) != digest(current_checkpoint):
             raise Stage3Error("job request or current workflow differs")
+        return item
+
+    def _item(self, key, expected_request_sha256, current_checkpoint):
+        item = self._recorded_item(key, expected_request_sha256, current_checkpoint)
+        payload = item["payload"]
         expected = self._payload(
             key,
             current_checkpoint,
@@ -236,6 +241,15 @@ class PlanningJobs:
             schema_version=payload["plan"]["schema_version"],
             resume_manifest_sha256=manifest_sha256,
         )
+        return self._verified_saved(payload, manifest_sha256, saved, attach=attach)
+
+    def _saved_for_read(self, payload, manifest_sha256):
+        saved = inspect_saved_plan(payload, manifest_sha256)
+        return self._verified_saved(payload, manifest_sha256, saved)
+
+    def _verified_saved(self, payload, manifest_sha256, saved, *, attach=False):
+        root = Path(payload["output"])
+        plan_root = root / "plan"
         artifacts = saved["artifacts"]
         plan = artifacts.get("plan.json")
         if plan is None:
@@ -276,6 +290,68 @@ class PlanningJobs:
             "planning_status": checkpoint["status"]["planning_status"],
             "policy": dict(POLICY),
         }
+
+    def inspect_saved(
+        self,
+        key,
+        *,
+        expected_request_sha256,
+        current_checkpoint,
+        expected_plan_manifest_sha256,
+    ):
+        """Read only a completed original pinned outside its mutable journal.
+
+        The trusted Host supplies request/manifest pins. This never admits a
+        changed environment to prepare, run or recover, and cannot invoke a callback.
+        """
+        sha256(expected_request_sha256)
+        sha256(expected_plan_manifest_sha256)
+        item = self._recorded_item(key, expected_request_sha256, current_checkpoint)
+        evidence = item["evidence"] or {}
+        if (
+            item["status"] != "completed"
+            or evidence.get("outcome") != "saved"
+            or evidence.get("plan", {}).get("manifest_sha256")
+            != expected_plan_manifest_sha256
+        ):
+            raise Stage3Error("trusted completed planning manifest required")
+        payload = item["payload"]
+        expected = self._payload(
+            key,
+            current_checkpoint,
+            payload["configuration"],
+            payload["adapter_context"],
+            payload["plan"]["plan_id"],
+            payload["plan"]["version"],
+            payload["plan"]["schema_version"],
+        )
+        environment = {"runtime", "producer_sha256"}
+        if set(payload) != set(expected) or digest(
+            {k: v for k, v in payload.items() if k not in environment}
+        ) != digest({k: v for k, v in expected.items() if k not in environment}):
+            raise Stage3Error("saved planning semantic source or identity changed")
+        runtime = payload["runtime"]
+        closed(runtime, {"python", "jsonschema", "stage3_sources"}, "recorded runtime")
+        for name in ("python", "jsonschema"):
+            text(runtime[name], "recorded " + name)
+        if type(runtime["stage3_sources"]) is not dict or not runtime["stage3_sources"]:
+            raise Stage3Error("recorded planning sources required")
+        for name, value in runtime["stage3_sources"].items():
+            text(name, "recorded source name")
+            sha256(value)
+        result = self._saved_for_read(payload, expected_plan_manifest_sha256)
+        if digest(result) != digest(evidence):
+            raise Stage3Error("pinned completion evidence differs")
+        return dict(
+            key=key,
+            request_sha256=expected_request_sha256,
+            status="completed",
+            result=result,
+            resume_action="no-dispatch",
+            policy=dict(POLICY),
+            inspection_scope="pinned-completed-artifact-read-only",
+            recorded_runtime_sha256=digest(runtime),
+        )
 
     def inspect(self, key, *, expected_request_sha256, current_checkpoint):
         """Read only: neither unknown attempts nor saved results cause a new call."""

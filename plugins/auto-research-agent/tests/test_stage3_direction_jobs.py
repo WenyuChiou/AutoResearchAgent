@@ -116,6 +116,43 @@ class Stage3DirectionJobsTests(unittest.TestCase):
             callback=callback,
         )
 
+    def test_pinned_saved_read_survives_environment_upgrade_without_dispatch(self):
+        callback = self.callback()
+        prepared = self.prepare("historical-read", callback)
+        saved = self.run_job("historical-read", prepared, callback)
+        before = self.journal.snapshot(self.jobs.project_id)
+        from stage3_plan.jobs import _runtime
+
+        upgraded = _runtime()
+        upgraded["stage3_sources"]["jobs.py"] = "b" * 64
+        with (
+            patch("stage3_plan.direction_jobs._runtime", return_value=upgraded),
+            patch("stage3_plan.direction_jobs._producer_sha256", return_value="c" * 64),
+        ):
+            read = self.jobs.inspect_saved(
+                "historical-read",
+                expected_request_sha256=prepared["request_sha256"],
+                current_checkpoint=self.checkpoint,
+                expected_plan_manifest_sha256=saved["result"]["plan"][
+                    "manifest_sha256"
+                ],
+            )
+            self.assertEqual(read["result"], saved["result"])
+            self.assertIs(read["result"]["formal_selected_receiver"], False)
+            with self.assertRaises(Stage3Error):
+                self.run_job("historical-read", prepared, callback)
+            with self.assertRaises(Stage3Error):
+                self.jobs.inspect_saved(
+                    "historical-read",
+                    expected_request_sha256="0" * 64,
+                    current_checkpoint=self.checkpoint,
+                    expected_plan_manifest_sha256=saved["result"]["plan"][
+                        "manifest_sha256"
+                    ],
+                )
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        self.assertEqual(len(self.calls), 1)
+
     def test_conditional_job_reuses_journal_and_dispatches_once(self):
         callback = self.callback()
         prepared = self.prepare("original-plan-key", callback)

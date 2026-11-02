@@ -201,6 +201,8 @@ class Stage3PlanningConfigurationTests(unittest.TestCase):
             self.intake, TOKEN, self.selection, self.load(self.value)
         )
         identity = deepcopy(first.identities)
+        self.assertEqual(first.service.saved_read_pins, first.recovery_pins)
+        self.assertIsNot(first.service.saved_read_pins, first.recovery_pins)
         self.assertEqual(
             first.recovery_pins,
             {(self.project["project_ref"], "saved", "1" * 64): "2" * 64},

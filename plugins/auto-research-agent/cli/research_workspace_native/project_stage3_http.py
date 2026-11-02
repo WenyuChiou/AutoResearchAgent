@@ -107,7 +107,14 @@ class ProjectStage3Http:
             )
             if item is not None:
                 body = dict(body, request_sha256=digest(item["payload"]))
-                result["job"] = self.service.inspect(
+                pin = self.recovery_pins.get((ref, body["key"], body["request_sha256"]))
+                if (
+                    item["status"] != "completed"
+                    or (item["evidence"] or {}).get("outcome") != "saved"
+                ):
+                    pin = None
+                inspect = self.service.inspect_saved if pin else self.service.inspect
+                result["job"] = inspect(
                     credential, ref, body, check_deadline=check_deadline
                 )
                 result["default_request"] = body
@@ -117,10 +124,12 @@ class ProjectStage3Http:
                     body["request_sha256"],
                 ) in self.recovery_pins
                 if result["job"]["outcome"] == "saved":
-                    verified = jobs.inspect(
+                    read = jobs.inspect_saved if pin else jobs.inspect
+                    verified = read(
                         body["key"],
                         expected_request_sha256=body["request_sha256"],
                         current_checkpoint=item["payload"]["checkpoint"],
+                        **({"expected_plan_manifest_sha256": pin} if pin else {}),
                     )["result"]["plan"]
                     result["plan"] = inspect_package(
                         verified["package"], verified["manifest_sha256"]
