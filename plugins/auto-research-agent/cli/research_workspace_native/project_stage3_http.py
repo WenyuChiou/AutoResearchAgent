@@ -21,6 +21,7 @@ from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS
 from .project_stage3_direction_planning import DIRECTION_FIELDS
 from .project_stage3_feedback import fits_response, read_feedback, record_feedback
+from .project_selection_read_context import verified_selection_read
 
 
 ROUTE = re.compile(
@@ -56,7 +57,10 @@ class ProjectStage3Http:
 
     def view(self, credential, ref, *, check_deadline=None):
         intake = getattr(self.service, "intake", None)
-        with intake._lock if intake is not None else nullcontext():
+        with (
+            intake._lock if intake is not None else nullcontext(),
+            verified_selection_read(intake) if intake is not None else nullcontext(),
+        ):
             view = self._view(credential, ref, check_deadline=check_deadline)
             if view.get("plan") is not None:
                 configured = getattr(self.service, "bindings", {}).get(ref)
