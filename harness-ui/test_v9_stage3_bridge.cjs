@@ -38,6 +38,51 @@ test('Wiki routes restore only an existing project and permitted stage/language'
   }
 });
 
+test('language changes retain the current route and document language without dispatch',()=>{
+  for(const stage of [1,2,3]){
+    const f=fixture(()=>assert.fail('a language change must not request or dispatch'));
+    const location=new URL('http://localhost/nested/wiki/?theme=night#project-a?stage='+stage+'&lang=zh-TW&view=matrix');
+    const state={retained:'history-state'};let replacements=0;
+    f.app.stage=stage;f.state.list=[{project_ref:'project-a'}];f.ctx.location=location;
+    f.ctx.document.documentElement={lang:'zh-CN'};
+    f.ctx.history={state,replaceState(received,unused,target){assert.equal(received,state);location.href=new URL(target,location).href;replacements++;}};
+    const select={matches:selector=>selector==='[data-language]'};
+    f.app.draftNotes={note:'keep the unsent draft'};
+    f.ctx.v7AfterRender(f.app);f.ctx.v7AfterRender(f.app);
+    assert.equal(f.ctx.document.documentElement.lang,'zh-TW');
+    for(const [value,locale] of [['en','en'],['zh','zh-CN'],['tw','zh-TW']]){
+      // The existing app change listener updates the language before bubbling
+      // to document; render replaces the old select, so use its event path.
+      f.app.lang=value;f.listeners.change({target:select,composedPath:()=>[select,f.app.el]});
+      f.ctx.v7AfterRender(f.app);
+      const route=f.ctx.v93RouteTarget(f.state.list);
+      assert.equal(route.lang,value);assert.equal(route.stage,stage);assert.equal(route.ref,'project-a');
+      assert.equal(f.ctx.document.documentElement.lang,locale);
+      assert.equal(location.pathname,'/nested/wiki/');assert.equal(location.search,'?theme=night');
+      assert.match(location.hash,/view=matrix/);
+    }
+    assert.equal(replacements,3);
+    assert.equal(f.app.draftNotes.note,'keep the unsent draft');
+  }
+});
+
+test('language synchronization cannot overwrite an unrestored or different-project route',()=>{
+  const f=fixture(()=>assert.fail('synchronization must not request or dispatch'));
+  const location=new URL('http://localhost/wiki/#project-a?stage=3&lang=en');
+  f.state.list=[{project_ref:'project-a'},{project_ref:'project-b'}];f.ctx.location=location;
+  f.ctx.document.documentElement={lang:'unchanged'};
+  f.ctx.history={replaceState(){assert.fail('rendering must not replace an unrestored route');}};
+  f.ctx.v7AfterRender(f.app);
+  assert.equal(f.ctx.document.documentElement.lang,'unchanged');
+  assert.equal(f.app.lang,'tw');assert.match(location.hash,/lang=en/);
+  const select={matches:selector=>selector==='[data-language]'};
+  f.ctx.v7AfterRender(f.app);
+  for(const hash of ['#project-b?stage=3&lang=en','#project-a?stage=7&lang=en','#project-a?stage=2&lang=en']){
+    location.hash=hash;f.app.lang='en';f.listeners.change({target:select,composedPath:()=>[select,f.app.el]});
+    assert.equal(location.hash,hash);assert.equal(f.ctx.document.documentElement.lang,'unchanged');
+  }
+});
+
 test('browser Back and Forward restore stages and language without requests or draft loss',()=>{
  const f=fixture(()=>assert.fail('navigation must not request or dispatch'));
  const base=fs.readFileSync(require('node:path').join(__dirname,'renderer/src/base.js'),'utf8');
