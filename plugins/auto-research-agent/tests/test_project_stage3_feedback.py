@@ -79,6 +79,27 @@ class Stage3FeedbackFixture:
         body = dict(self.request(key), text=text, question_ref=question)
         return record_feedback(self.jobs, "authored-ref", self.view, body, "comment")
 
+    def revision(self, comment, *, parent=None, changes=None, key="revision-1"):
+        body = dict(
+            self.request(key),
+            comments=[
+                {
+                    "key": comment["record"]["request"]["key"],
+                    "sha256": comment["receipt_sha256"],
+                }
+            ],
+            parent_revision=parent,
+            changes=changes
+            or [
+                {
+                    "question_ref": "q1",
+                    "field": "method",
+                    "value": "A user-authored alternative",
+                }
+            ],
+        )
+        return record_feedback(self.jobs, "authored-ref", self.view, body, "revise")
+
 
 class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
     def test_large_original_remains_readable_and_commentable_without_plan_copy(self):
@@ -156,7 +177,7 @@ class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
 
     def test_comment_action_and_payload_cannot_request_revision(self):
         body = dict(self.request("invalid"), text="Text", question_ref=None)
-        cases = [("revise", body)] + [
+        cases = [("revise", body), ("unknown", body)] + [
             ("comment", dict(body, **{field: value}))
             for field, value in (
                 ("comments", []),
@@ -238,6 +259,124 @@ class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
         before = self.journal.snapshot(self.jobs.project_id)
         with self.assertRaises(SessionApiError):
             self.comment(key="unknown-question", question="q1")
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_manual_revision_preserves_parent_unknowns_and_original_plan(self):
+        original = deepcopy(self.view)
+        result = self.revision(self.comment())
+        record = result["record"]
+        self.assertEqual(record["revision_number"], 2)
+        self.assertEqual(record["authoring_mode"], "manual-planning-draft")
+        self.assertEqual(
+            record["plan"]["question_plans"][0]["method"], "A user-authored alternative"
+        )
+        self.assertEqual(
+            record["plan"]["question_plans"][0]["unknowns"], ["Rights remain unknown"]
+        )
+        self.assertEqual(record["plan"]["markdown"], self.view["plan"]["markdown"])
+        self.assertFalse(record["execution_authorized"])
+        self.assertEqual(self.view, original)
+
+    def test_revision_chain_binds_exact_parent_receipt(self):
+        comment = self.comment()
+        first = self.revision(comment)
+        second = self.revision(
+            comment,
+            key="revision-2",
+            parent={"key": "revision-1", "sha256": first["receipt_sha256"]},
+            changes=[
+                {"question_ref": "q1", "field": "validation", "value": "Proposed check"}
+            ],
+        )
+        self.assertEqual(second["record"]["revision_number"], 3)
+        self.assertEqual(
+            second["record"]["plan"]["question_plans"][0]["method"],
+            "A user-authored alternative",
+        )
+        with self.assertRaises(SessionApiError):
+            self.revision(
+                comment,
+                key="bad-parent",
+                parent={"key": "revision-1", "sha256": "f" * 64},
+            )
+
+    def test_unrecognized_or_policy_fields_cannot_be_edited(self):
+        comment = self.comment()
+        for field in ("execution_authorized", "unknowns", "question_ref", "kind"):
+            with self.subTest(field=field), self.assertRaises(SessionApiError):
+                self.revision(
+                    comment,
+                    key="invalid-" + field,
+                    changes=[
+                        {"question_ref": "q1", "field": field, "value": "replace"}
+                    ],
+                )
+
+    def test_nonexistent_question_and_wrong_comment_receipt_are_rejected(self):
+        with self.assertRaises(SessionApiError):
+            self.comment(question="other-question")
+        comment = self.comment()
+        comment["receipt_sha256"] = "e" * 64
+        with self.assertRaises(SessionApiError):
+            self.revision(comment)
+
+    def test_generic_saved_plan_allows_comment_but_not_unknown_question_edit(self):
+        self.view["plan"] = {
+            "kind": "Stage3ResearchPlan",
+            "execution_authorized": False,
+        }
+        self.binding = read_feedback(self.jobs, "authored-ref", self.view)["binding"]
+        comment = self.comment(question=None)
+        with self.assertRaises(SessionApiError):
+            self.revision(comment)
+
+    def test_lost_revision_reply_recovers_exact_receipt_without_another_write(self):
+        comment = self.comment()
+        original = self.journal.record_intent
+
+        def commit_then_disconnect(*args, **kwargs):
+            original(*args, **kwargs)
+            raise OSError("reply lost after durable local record")
+
+        with patch.object(self.journal, "record_intent", commit_then_disconnect):
+            with self.assertRaises(OSError):
+                self.revision(comment)
+        revisions = [
+            row
+            for row in read_feedback(self.jobs, "authored-ref", self.view)["records"]
+            if row["record"]["kind"] == "revision"
+        ]
+        self.assertEqual(len(revisions), 1)
+        saved = revisions[0]
+        before = self.journal.snapshot(self.jobs.project_id)
+        replay = self.revision(comment)
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(replay["receipt_sha256"], saved["receipt_sha256"])
+        self.assertEqual(replay["record"], saved["record"])
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_revision_copy_bound_preserves_original_and_comment(self):
+        self.view["plan"]["markdown"] = "Original text " * 22000
+        self.binding = read_feedback(self.jobs, "authored-ref", self.view)["binding"]
+        comment = self.comment()
+        before = self.journal.snapshot(self.jobs.project_id)
+        with self.assertRaises(SessionApiError) as error:
+            self.revision(comment)
+        self.assertEqual(error.exception.status, 413)
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_revision_replay_at_record_cap_but_new_revision_is_rejected(self):
+        comment = self.comment()
+        first = self.revision(comment)
+        for index in range(30):
+            self.comment(key="filler-" + str(index))
+        before = self.journal.snapshot(self.jobs.project_id)
+        self.assertEqual(
+            self.revision(comment)["receipt_sha256"], first["receipt_sha256"]
+        )
+        with self.assertRaises(SessionApiError) as error:
+            self.revision(comment, key="new-at-cap")
+        self.assertEqual(error.exception.code, "stage3-feedback-record-bound")
         self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
 
 
