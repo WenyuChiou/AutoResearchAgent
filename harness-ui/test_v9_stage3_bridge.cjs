@@ -263,3 +263,32 @@ test('Wiki explains unavailable and busy cross-tab protection',async()=>{
   f.ctx.v93RecoveryControl(slot,{instance},f.basis,f.app);await slot.children[0].children[1].onclick();assert.match(slot.children[0].children[0].textContent,pattern);
  }
 });
+
+test('composed saved-plan bridge and feedback share bindings, history and original plan',async()=>{
+ const calls=[],plan={kind:'Stage3DirectionPlanningResult',markdown:'Original authored plan.',question_plans:[{question_ref:'q1',method:'Original method',materials:'Access unknown',unknowns:['Keep original unknown']}]};
+ let f,view;
+ f=fixture(async(url,body)=>{
+  calls.push({url,body:body?JSON.parse(JSON.stringify(body)):null});
+  if(!body)return view;
+  const record={kind:'comment',binding:view.feedback.binding,request:JSON.parse(JSON.stringify(body)),text:body.text,question_ref:body.question_ref,input_source:'project-host-user-submission',native_message:false,model_generated:false,execution_authorized:false};
+  const row={receipt_sha256:'e'.repeat(64),record,replayed:false};view.feedback.records.push(row);return row;
+ });
+ view={...f.basis,job:{outcome:'saved',request_sha256:'d'.repeat(64),plan_manifest_sha256:'b'.repeat(64)},plan,direction_context:{questions:[{question_ref:'q1',text:'A recorded question'}]},feedback:{kind:'ProjectStage3PlanningFeedbackView',schema_version:1,binding:{...f.basis,parent_plan_manifest_sha256:'b'.repeat(64),parent_plan_sha256:'c'.repeat(64),plan_request_sha256:'d'.repeat(64)},records:[]}};
+ const original=JSON.stringify(plan),handlers=new Map(Object.entries(f.listeners).map(([name,fn])=>[name,[fn]]));
+ f.ctx.document.addEventListener=(name,fn)=>{const list=handlers.get(name)||[];list.push(fn);handlers.set(name,list);f.listeners[name]=async event=>{for(const handler of list)await handler(event);};};
+ Object.assign(f.ctx,{Map,TextEncoder,crypto:{randomUUID:()=> 'composed-operation'}});
+ Object.assign(f.ctx.document,{body:{},activeElement:null});
+ vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'v9-stage3-feedback.js'),'utf8'),f.ctx);
+ assert.doesNotMatch(f.ctx.laterStage(f.app),/data-v94f-panel/);
+ await f.listeners.click({target:{closest:selector=>selector==='[data-v93-read]'?f.button:null}});
+ let html=f.ctx.laterStage(f.app);assert.match(html,/data-v94f-panel/);assert.match(html,/Original method/);assert.match(html,/Keep original unknown/);
+ const state=f.ctx.v94fState(f.ctx.v94fContext(f.app));state.commentText='A retained supporting comment';state.commentQuestion='q1';
+ const form=f.button;form.dataset={v94fForm:'comment'};form.closest=selector=>selector==='[data-v94f-form]'?form:null;
+ await f.listeners.submit({target:form,preventDefault(){}});await settle();
+ html=f.ctx.laterStage(f.app);assert.match(html,/A retained supporting comment/);assert.equal(calls.length,2);assert.equal(calls[1].url,'/api/projects/project-a/stage3/planning/comment');
+ assert.equal(calls[1].body.input_version,1);assert.equal(calls[1].body.parent_plan_manifest_sha256,'b'.repeat(64));assert.equal(state.records.length,1);
+ f.ctx.v7BeforeRender(f.app);f.ctx.v7AfterRender(f.app);assert.equal(f.mounts.length,1);assert.equal(calls.length,2);assert.equal(JSON.stringify(plan),original);
+ f.state.ref='project-b';f.state.overview.project={...f.basis,project_ref:'project-b'};f.ctx.window.RESEARCH_PROJECTS.stage3_planning_projects.push('project-b');
+ assert.doesNotMatch(f.ctx.laterStage(f.app),/A retained supporting comment|data-v94f-panel/);
+ assert.equal(calls.length,2);
+});

@@ -609,7 +609,9 @@ with tempfile.TemporaryDirectory() as temporary:
             ],
             capture_output=True,
             text=True,
-            timeout=20,
+            # The outer fixture includes cold isolated imports and setup.
+            # Worker, HTTP and native deadlines are unchanged; no worker starts.
+            timeout=60,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(
