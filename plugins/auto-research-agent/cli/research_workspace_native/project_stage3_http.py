@@ -25,7 +25,7 @@ from .project_stage3_feedback import fits_response, read_feedback, record_feedba
 
 ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage3/planning"
-    r"(?:/(prepare|run|inspect|recover|comment))?"
+    r"(?:/(prepare|run|inspect|recover|comment|revise))?"
 )
 
 
@@ -285,7 +285,7 @@ def handle_planning(handler, method):
                     # response. The original adapter still owns the native limit.
                     service.run(token, ref, body, check_deadline=transport.check_open)
                     return
-            elif action == "comment":
+            elif action in {"comment", "revise"}:
                 transport.admit_feedback(ref, body, action)
                 running = True
                 result = transport.feedback(
