@@ -188,3 +188,13 @@ test('saved-plan action reaches feedback without request, draft loss or cross-pr
  assert.deepEqual(focus,['start',true]);assert.equal(f.getState().commentText,'Unsent comment');assert.deepEqual(f.calls,[]);
  f.state.ref='beta';await f.dispatch('click',button);assert.deepEqual(focus,['start',true]);assert.deepEqual(f.calls,[]);
 });
+
+test('question picker remains reachable when the selected question has no supporting comment',async()=>{
+ const f=fixture(),body={key:'q1-only',...Object.fromEntries(Object.entries(f.binding).filter(([k])=>k!=='project_ref')),text:'Review q1 only',question_ref:'q1'};
+ f.view.feedback.records=[f.response(body)];f.html();f.getState().value='Unsent revision';
+ await f.dispatch('change',f.control('revisionQuestion','q2'));
+ assert.match(f.html(),/data-v94f-control="revisionQuestion"/);assert.doesNotMatch(f.html(),/<form data-v94f-form="revise">/);
+ await f.dispatch('change',f.control('revisionQuestion','q1'));assert.match(f.html(),/<form data-v94f-form="revise">/);
+ assert.equal(f.getState().value,'Unsent revision');assert.deepEqual(f.calls,[]);
+ f.getState().pending={action:'revise',body:f.ctx.v94fBody(f.ctx.v94fContext(f.app),f.getState(),'revise')};assert.match(f.html(),/<select data-v94f-control="revisionQuestion" disabled>/);assert.deepEqual(f.calls,[]);
+});
