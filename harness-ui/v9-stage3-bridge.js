@@ -19,6 +19,21 @@ function v93Identity(){
 function v93Matches(a,b){return !!a&&!!b&&['project_ref','input_version','revision','brief_sha256'].every(k=>a[k]===b[k]);}
 function v93Language(app){return {zh:'zh-CN',tw:'zh-TW',en:'en'}[app.lang]||'en';}
 function v93Fragment(ref,app,stage){return '#'+encodeURIComponent(ref)+'?stage='+stage+'&lang='+encodeURIComponent(v93Language(app));}
+function v93SyncLanguageRoute(app,updateRoute=false){
+ const project=rt.overview?.project,route=v93RouteTarget(Array.isArray(rt.list)?rt.list:[]);
+ if(app!==apps[0]||!v93ValidProject(project)||project.project_ref!==rt.ref||
+    !route||route.ref!==rt.ref||route.stage!==app.stage||!['zh','tw','en'].includes(app.lang))return;
+ // Initial renders must not overwrite a route that bootstrap has not restored.
+ if(!updateRoute&&route.lang!==app.lang)return;
+ const language=v93Language(app);
+ if(updateRoute){
+  const separator=location.hash.indexOf('?'),params=new URLSearchParams(location.hash.slice(separator+1));
+  params.set('lang',language);
+  const hash=location.hash.slice(0,separator+1)+params.toString();
+  if(hash!==location.hash)history.replaceState(history.state,'',location.pathname+location.search+hash);
+ }
+ if(document.documentElement)document.documentElement.lang=language;
+}
 function v93RouteTarget(list){
  const raw=location.hash.slice(1),i=raw.indexOf('?');if(i<0)return null;
  let ref;try{ref=decodeURIComponent(raw.slice(0,i));}catch(_){return null;}
@@ -164,10 +179,17 @@ laterStage=function(app){
 };
 const v93After=v7AfterRender;
 v7AfterRender=function(app){
- v93After(app);v93MountChoice(app);const basis=v93Identity(),target=app.el.querySelector('#v93-diagram');
+ v93After(app);v93SyncLanguageRoute(app);v93MountChoice(app);const basis=v93Identity(),target=app.el.querySelector('#v93-diagram');
  if(app.stage===3&&target&&v93Matches(v93.basis,basis)&&v93.view&&window.STAGE3_RESEARCH_DIAGRAM)
   window.STAGE3_RESEARCH_DIAGRAM.mount(target,v93.view,{language:v93Language(app)});
 };
+document.addEventListener('change',event=>{
+ if(!event.target?.matches?.('[data-language]'))return;
+ // The app's existing delegated handler has already changed its language and
+ // replaced its children. The original event path still identifies that app.
+ const path=event.composedPath(),app=apps.find(item=>path.includes(item.el));
+ if(app)v93SyncLanguageRoute(app,true);
+});
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-v93-read]');if(!button||v93.busy)return;
  const app=apps.find(a=>a.el.contains(button)),basis=v93Identity();if(!app||app.stage!==3||!basis)return;
