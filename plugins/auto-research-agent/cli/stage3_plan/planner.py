@@ -34,21 +34,15 @@ def _producer_sha256():
     )
 
 
-def _draft_from_intake(
+def _planning_request(
     intake,
-    output_dir,
-    callback,
-    *,
     configuration,
+    callback_context,
     plan_id,
-    version=1,
-    resume_manifest_sha256=None,
+    version,
+    schema_version,
     admission_scope,
-    schema_version="1.0.0",
 ):
-    """The callback is a trusted host seam, not proof of a native or human call."""
-    if not callable(callback):
-        raise Stage3Error("planning callback required")
     if set(configuration) != {"model", "reasoning"} or any(
         not isinstance(value, str) or not value.strip()
         for value in configuration.values()
@@ -78,9 +72,7 @@ def _draft_from_intake(
             "python": sys.version,
             "jsonschema": importlib.metadata.version("jsonschema"),
         },
-        "callback_context": getattr(
-            callback, "request_context", {"kind": "host-callback-unverified"}
-        ),
+        "callback_context": callback_context,
         "plan_id": plan_id,
         "version": version,
         "policy": {
@@ -90,6 +82,33 @@ def _draft_from_intake(
             "execution_authorized": False,
         },
     }
+    return request, prompt, schema_path, schema
+
+
+def _draft_from_intake(
+    intake,
+    output_dir,
+    callback,
+    *,
+    configuration,
+    plan_id,
+    version=1,
+    resume_manifest_sha256=None,
+    admission_scope,
+    schema_version="1.0.0",
+):
+    """The callback is a trusted host seam, not proof of a native or human call."""
+    if not callable(callback):
+        raise Stage3Error("planning callback required")
+    request, prompt, schema_path, schema = _planning_request(
+        intake,
+        configuration,
+        getattr(callback, "request_context", {"kind": "host-callback-unverified"}),
+        plan_id,
+        version,
+        schema_version,
+        admission_scope,
+    )
     request_sha = digest(request)
     output = private_output(output_dir)
     if output.exists():
@@ -233,3 +252,41 @@ def draft_synthetic_plan(
         admission_scope="synthetic-test",
         schema_version=schema_version,
     )
+
+
+def inspect_saved_plan(payload, manifest_sha256):
+    """Read an externally pinned original; never generate, resume or rewrite it."""
+    from .intake import admit_intake
+    from .preparation import sha256
+
+    source = payload["source"]
+    intake = admit_intake(
+        source["package"],
+        source["delivery"],
+        expected_manifest_sha256=source["manifest_sha256"],
+    )
+    saved = inspect_package(Path(payload["output"]) / "plan", manifest_sha256)
+    request = saved["artifacts"]["request.json"]
+    identity = payload["plan"]
+    expected, prompt, _, schema = _planning_request(
+        intake,
+        payload["configuration"],
+        payload["adapter_context"],
+        identity["plan_id"],
+        identity["version"],
+        identity["schema_version"],
+        "strict-selected",
+    )
+    # These describe the pinned original producer, not this reader's environment.
+    sha256(request.get("producer_sha256"))
+    expected["producer_sha256"] = request["producer_sha256"]
+    expected["runtime"] = {
+        name: payload["runtime"][name] for name in ("python", "jsonschema")
+    }
+    if (
+        request != expected
+        or read_bytes(Path(payload["output"]) / "plan/prompt.txt") != prompt.encode()
+        or read_bytes(Path(payload["output"]) / "plan/schema.json") != schema
+    ):
+        raise Stage3Error("pinned saved planning request or source differs")
+    return saved

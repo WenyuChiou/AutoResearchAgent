@@ -101,6 +101,42 @@ class PlanningJobTests(unittest.TestCase):
             callback=self.callback,
         )
 
+    def test_pinned_saved_read_survives_environment_upgrade_without_dispatch(self):
+        prepared = self.prepare()
+        saved = self.execute(prepared)
+        before = self.journal.snapshot("project-a")
+        from stage3_plan.jobs import _runtime
+
+        upgraded = _runtime()
+        upgraded["stage3_sources"]["jobs.py"] = "b" * 64
+        with (
+            patch("stage3_plan.jobs._runtime", return_value=upgraded),
+            patch("stage3_plan.planner._producer_sha256", return_value="c" * 64),
+        ):
+            read = self.jobs.inspect_saved(
+                "one",
+                expected_request_sha256=prepared["request_sha256"],
+                current_checkpoint=self.checkpoint,
+                expected_plan_manifest_sha256=saved["result"]["plan"][
+                    "manifest_sha256"
+                ],
+            )
+            self.assertEqual(read["result"], saved["result"])
+            self.assertEqual(
+                read["inspection_scope"], "pinned-completed-artifact-read-only"
+            )
+            with self.assertRaises(Stage3Error):
+                self.execute(prepared)
+            with self.assertRaises(Stage3Error):
+                self.jobs.inspect_saved(
+                    "one",
+                    expected_request_sha256=prepared["request_sha256"],
+                    current_checkpoint=self.checkpoint,
+                    expected_plan_manifest_sha256="0" * 64,
+                )
+        self.assertEqual(self.journal.snapshot("project-a"), before)
+        self.assertEqual(self.callback.call_count, 1)
+
     def test_prepare_once_save_replay_and_inspect_have_no_new_calls(self):
         prepared = self.prepare()
         self.assertEqual(prepared["status"], "intent-recorded")
@@ -117,6 +153,7 @@ class PlanningJobTests(unittest.TestCase):
         self.assertEqual(self.execute(prepared), saved)
         self.assertEqual(self.prepare(), saved)
         self.assertEqual(self.journal.snapshot("project-a")["revision"], revision)
+
         self.assertEqual(self.callback.call_count, 1)
         revision = self.journal.snapshot("project-a")["revision"]
         self.assertEqual(
@@ -128,6 +165,26 @@ class PlanningJobTests(unittest.TestCase):
             saved,
         )
         self.assertEqual(self.journal.snapshot("project-a")["revision"], revision)
+
+    def test_pinned_read_rejects_incomplete_and_changed_saved_artifacts(self):
+        prepared = self.prepare()
+        arguments = dict(
+            expected_request_sha256=prepared["request_sha256"],
+            current_checkpoint=self.checkpoint,
+            expected_plan_manifest_sha256="0" * 64,
+        )
+        with self.assertRaises(Stage3Error):
+            self.jobs.inspect_saved("one", **arguments)
+        self.callback.assert_not_called()
+        saved = self.execute(prepared)
+        arguments["expected_plan_manifest_sha256"] = saved["result"]["plan"][
+            "manifest_sha256"
+        ]
+        raw = Path(saved["result"]["plan"]["package"]) / "raw-response.json"
+        raw.write_bytes(raw.read_bytes() + b" ")
+        with self.assertRaises(Stage3Error):
+            self.jobs.inspect_saved("one", **arguments)
+        self.assertEqual(self.callback.call_count, 1)
 
     def test_generic_types_all_questions_and_reviewer_tasks_reach_existing_prompt(self):
         for topic in ("numeric", "observational", "qualitative", "theory"):

@@ -257,6 +257,67 @@ class ProjectStage3PlanningTests(unittest.TestCase):
         self.addCleanup(self.process.assert_not_called)
         self.addCleanup(self.native.assert_not_called)
 
+    def test_http_completed_read_uses_only_server_pins_after_environment_upgrade(self):
+        from research_workspace_native.project_stage3_http import (
+            ProjectStage3Http,
+            ROUTE,
+        )
+        from stage3_plan.jobs import _runtime
+
+        http = ProjectStage3Http(self.bridge)
+        self.addCleanup(http.close)
+        ref = self.f.ref
+        self.key = http.view("own", ref)["default_request"]["key"]
+        self.plan = authored_plan(
+            self.admitted,
+            self.selection["planning_manifest_sha256"],
+            "host-plan-" + digest(self.key),
+        )
+        self.callback.return_value["raw_response"] = canonical_bytes(self.plan)
+        body = self.prepared()
+        saved = self.bridge.run("own", ref, dict(body, confirmed=True))
+        identity = (ref, body["key"], body["request_sha256"])
+        pin = saved["plan_manifest_sha256"]
+        before = self.journal.snapshot(self.jobs.project_id)
+        upgraded = _runtime()
+        upgraded["stage3_sources"]["jobs.py"] = "b" * 64
+        with (
+            patch("stage3_plan.jobs._runtime", return_value=upgraded),
+            patch("stage3_plan.planner._producer_sha256", return_value="c" * 64),
+        ):
+            with self.assertRaises(Stage3Error):
+                http.view("own", ref)
+            with self.assertRaises(SessionApiError):
+                self.bridge.inspect_saved(
+                    "own", ref, dict(body, plan_manifest_sha256=pin)
+                )
+            http.recovery_pins[identity] = pin
+            with self.assertRaises(SessionApiError):
+                http.view("own", ref)
+            self.bridge.saved_read_pins[identity] = pin
+            view = http.view("own", ref)
+            self.assertEqual(view["plan"], self.plan)
+            self.assertEqual(
+                view["job"]["inspection_scope"], "pinned-completed-artifact-read-only"
+            )
+            self.assertFalse(view["execution_authorized"])
+            for bad in (dict(body, revision=0), dict(body, request_sha256="0" * 64)):
+                with self.subTest(body=bad), self.assertRaises(SessionApiError):
+                    self.bridge.inspect_saved("own", ref, bad)
+            with self.assertRaises(SessionApiError):
+                http.view("foreign", ref)
+            self.bridge.saved_read_pins[identity] = "0" * 64
+            with self.assertRaises(Stage3Error):
+                http.view("own", ref)
+            self.bridge.saved_read_pins[identity] = pin
+            with self.assertRaises(Stage3Error):
+                self.bridge.run("own", ref, dict(body, confirmed=True))
+        self.assertIsNone(
+            ROUTE.fullmatch("/api/projects/" + ref + "/stage3/planning/inspect_saved")
+        )
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        self.assertEqual(self.callback.call_count, 1)
+
     def service(self, binding=None):
         return ProjectStage3PlanningService(
             self.f.intake, self.choice, bindings={self.f.ref: binding or self.binding}
@@ -429,6 +490,13 @@ class ProjectStage3PlanningTests(unittest.TestCase):
         self.assertEqual(self.item(), before)
 
     def test_saved_artifact_recovery_never_redispatches(self):
+        from research_workspace_native.project_stage3_http import ProjectStage3Http
+
+        http = ProjectStage3Http(self.bridge)
+        self.addCleanup(http.close)
+        self.key = http.view("own", self.f.ref)["default_request"]["key"]
+        self.plan["plan_id"] = "host-plan-" + digest(self.key)
+        self.callback.return_value["raw_response"] = canonical_bytes(self.plan)
         body = self.prepared()
         original = self.jobs._transition
 
@@ -444,6 +512,17 @@ class ProjectStage3PlanningTests(unittest.TestCase):
         self.bridge.inspect("own", self.f.ref, body)
         path = Path(self.item()["payload"]["output"]) / "plan/manifest.json"
         pin = read_json(path)["manifest_sha256"]
+        identity = (self.f.ref, body["key"], body["request_sha256"])
+        self.bridge.saved_read_pins[identity] = http.recovery_pins[identity] = pin
+        for status in ("dispatching", "execution-unknown"):
+            if status == "execution-unknown":
+                original(body["key"], status, {"outcome": status})
+            before = self.journal.snapshot(self.jobs.project_id)
+            view = http.view("own", self.f.ref)
+            self.assertEqual(view["job"]["status"], status)
+            self.assertTrue(view["recovery_pin_available"])
+            self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+            self.assertEqual(self.callback.call_count, 1)
         recovered = self.bridge.recover(
             "own", self.f.ref, body, expected_plan_manifest_sha256=pin
         )

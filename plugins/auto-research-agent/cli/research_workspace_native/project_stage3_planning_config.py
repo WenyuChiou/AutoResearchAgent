@@ -175,7 +175,10 @@ class Stage3PlanningHostResources:
                     key = (ref, pin["key"], pin["request_sha256"])
                     self.recovery_pins[key] = pin["plan_manifest_sha256"]
             self.service = ProjectStage3PlanningService(
-                intake, selection_view, bindings=bindings
+                intake,
+                selection_view,
+                bindings=bindings,
+                saved_read_pins=self.recovery_pins,
             )
         except BaseException as error:
             try:

@@ -194,6 +194,14 @@ class ProjectStage3DirectionPlanning:
                 ref,
                 result["default_request"],
                 check_deadline=check_deadline,
+                saved_plan_manifest_sha256=(
+                    getattr(self.planning, "saved_read_pins", {}).get(
+                        (ref, body["key"], digest(item["payload"]))
+                    )
+                    if item["status"] == "completed"
+                    and (item["evidence"] or {}).get("outcome") == "saved"
+                    else None
+                ),
             )
             result["job"] = self._public(ref, inspected)
             if result["job"]["outcome"] == "saved":
@@ -271,10 +279,33 @@ class ProjectStage3DirectionPlanning:
             self._inspect_saved(credential, ref, body, check_deadline=check_deadline),
         )
 
-    def _inspect_saved(self, credential, ref, body, *, check_deadline=None):
+    def _inspect_saved(
+        self,
+        credential,
+        ref,
+        body,
+        *,
+        check_deadline=None,
+        saved_plan_manifest_sha256=None,
+    ):
         _fields(body, DIRECTION_FIELDS | {"request_sha256"})
         with self.intake._lock:
             configured, checkpoint = self._saved(credential, ref, body, check_deadline)
+            if saved_plan_manifest_sha256 is not None:
+                _check(
+                    getattr(self.planning, "saved_read_pins", {}).get(
+                        (ref, body["key"], body["request_sha256"])
+                    )
+                    == saved_plan_manifest_sha256,
+                    "trusted-stage3-saved-read-pin-required",
+                    409,
+                )
+                return configured["jobs"].inspect_saved(
+                    body["key"],
+                    expected_request_sha256=body["request_sha256"],
+                    current_checkpoint=checkpoint,
+                    expected_plan_manifest_sha256=saved_plan_manifest_sha256,
+                )
             return configured["jobs"].inspect(
                 body["key"],
                 expected_request_sha256=body["request_sha256"],

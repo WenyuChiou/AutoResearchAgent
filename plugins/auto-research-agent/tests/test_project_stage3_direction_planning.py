@@ -22,7 +22,7 @@ from stage3_plan.contracts import Stage3Error, canonical_bytes, digest  # noqa: 
 from stage3_plan.jobs import POLICY, PlanningJobs  # noqa: E402
 from stage3_plan.native import NativePlanner  # noqa: E402
 from stage3_plan.prompts import MAX_CONTEXT_BYTES  # noqa: E402
-from stage3_plan.storage import write_new  # noqa: E402
+from stage3_plan.storage import read_json, write_new  # noqa: E402
 from stage3_direction_fixtures import DirectionFixture  # noqa: E402
 
 
@@ -145,6 +145,37 @@ class ProjectDirectionPlanningTests(unittest.TestCase):
         )
         self.native_forbidden.start()
 
+    def test_saved_read_requires_host_pin_after_environment_upgrade(self):
+        from stage3_plan.jobs import _runtime
+
+        ref = self.project["project_ref"]
+        prepared = self.service.prepare("own", ref, self.body)
+        body = dict(self.body, request_sha256=prepared["request_sha256"])
+        saved = self.service.run("own", ref, dict(body, confirmed=True))
+        pin = saved["plan_manifest_sha256"]
+        self.service.planning.saved_read_pins = {
+            (ref, body["key"], body["request_sha256"]): pin
+        }
+        before = self.journal.snapshot("project-direction-id")
+        upgraded = _runtime()
+        upgraded["stage3_sources"]["jobs.py"] = "b" * 64
+        with (
+            patch("stage3_plan.direction_jobs._runtime", return_value=upgraded),
+            patch("stage3_plan.direction_jobs._producer_sha256", return_value="c" * 64),
+        ):
+            view = self.service.read("own", ref, self.project)
+            self.assertIsNotNone(view["plan"])
+            self.assertEqual(
+                view["job"]["inspection_scope"], "pinned-completed-artifact-read-only"
+            )
+            with self.assertRaises(SessionApiError):
+                self.service.read("other", ref, self.project)
+            self.service.planning.saved_read_pins.clear()
+            with self.assertRaises(Stage3Error):
+                self.service.read("own", ref, self.project)
+        self.assertEqual(self.journal.snapshot("project-direction-id"), before)
+        self.assertEqual(self.callback.call_count, 1)
+
     def test_replacing_intent_uses_distinct_native_capture_and_keeps_old_attempt(self):
         parent = self.service.planning
         root = self.fixture.fixture.root / self._testMethodName
@@ -248,6 +279,51 @@ class ProjectDirectionPlanningTests(unittest.TestCase):
         saved = http.view("own", "project-direction")
         self.assertEqual(saved["job"]["outcome"], "saved")
         self.assertEqual(saved["plan"]["intent_sha256"], self.source["intent_sha256"])
+        self.assertEqual(self.callback.call_count, 1)
+
+    def test_pinned_incomplete_get_keeps_explicit_recovery_without_dispatch(self):
+        ref = self.project["project_ref"]
+        jobs = self.service.bindings[ref]["jobs"]
+        prepared = self.service.prepare("own", ref, self.body)
+        body = dict(self.body, request_sha256=prepared["request_sha256"])
+        transition = jobs._transition
+
+        def cut(key, status, evidence):
+            if status == "completed":
+                raise OSError("authored completion interruption")
+            return transition(key, status, evidence)
+
+        with (
+            patch.object(jobs, "_transition", side_effect=cut),
+            self.assertRaises(OSError),
+        ):
+            self.service.run("own", ref, dict(body, confirmed=True))
+        payload = self.journal.snapshot(jobs.project_id)["intents"][
+            jobs._key(body["key"])
+        ]["payload"]
+        pin = read_json(Path(payload["output"]) / "plan/manifest.json")[
+            "manifest_sha256"
+        ]
+        pins = {(ref, body["key"], body["request_sha256"]): pin}
+        self.service.planning.saved_read_pins = pins
+        facade = SimpleNamespace(
+            read=lambda c, r, **kw: self.service.read(c, r, self.project, **kw)
+        )
+        http = ProjectStage3Http(facade, recovery_pins=pins)
+        self.addCleanup(http.close)
+        for status in ("dispatching", "execution-unknown"):
+            if status == "execution-unknown":
+                transition(body["key"], status, {"outcome": status})
+            before = self.journal.snapshot(jobs.project_id)
+            view = http.view("own", ref)
+            self.assertEqual(view["job"]["status"], status)
+            self.assertTrue(view["recovery_pin_available"])
+            self.assertEqual(self.journal.snapshot(jobs.project_id), before)
+            self.assertEqual(self.callback.call_count, 1)
+        recovered = self.service.recover(
+            "own", ref, body, expected_plan_manifest_sha256=pin
+        )
+        self.assertEqual(recovered["outcome"], "saved")
         self.assertEqual(self.callback.call_count, 1)
 
     def test_changed_host_configuration_rejects_reuse_and_run_without_dispatch(self):
