@@ -270,6 +270,10 @@
         "harness-ui/test_stage3_material_capacity.py",
         "harness-ui/test_v9_stage3_materials.cjs",
         "plugins/auto-research-agent/tests/test_project_stage3_feedback_http.py"
+      ],
+      "project_material_access_contract": "Existing material file reads, upload chunks/finalization and catalog rows validate the stored project through the current authenticated ProjectIntakeService.read boundary. A caller-supplied project cannot replace that identity. Catalog filtering isolates unavailable project files per entry while retaining access to authorized readable projects; authorization and unexpected failures remain explicit. Configured saved-view semantics, original materials and authority remain unchanged. This independently reviewable security stage adds no revision reference, upload abort/restart, UI action, model call, stage completion or research permission. Controlled loopback faults and two authenticated fixture principals establish engineering behavior only, not deployed Host or scientific acceptance.",
+      "project_material_access_test_refs": [
+        "harness-ui/test_material_project_access.py"
       ]
     }
   ]

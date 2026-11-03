@@ -31,6 +31,8 @@ def install_materials(host, projects, root, incoming, entries=(), review_sources
                     except SessionApiError as error:
                         if error.status not in {403,404,409}: raise
                         allowed[ref]=False
+                    except OSError:
+                        allowed[ref]=False
                 return allowed[ref]
             for key in ('materials','operations','drafts'):
                 value[key]=[item for item in value[key] if visible(item)]
