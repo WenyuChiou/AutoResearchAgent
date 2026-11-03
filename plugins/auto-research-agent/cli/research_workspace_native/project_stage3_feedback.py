@@ -247,7 +247,7 @@ def record_feedback(jobs, ref, view, body, action, check_deadline=None):
                 "stage3-feedback-change-invalid",
                 400,
             )
-            _text(change["value"], "stage3-feedback-change")
+            _text(change["value"], "stage3-feedback-change", limit=2048)
             seen.add(target)
             revised_questions[target[0]][target[1]] = change["value"]
         _check(

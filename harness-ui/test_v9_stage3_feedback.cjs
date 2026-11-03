@@ -73,6 +73,27 @@ test('manual revision binds comment and parent receipts while preserving origina
  assert.equal(body.parent_revision.key,parent.record.request.key);assert.equal(body.parent_revision.sha256,parent.receipt_sha256);assert.match(f.html(),/Manual planning draft v3/);
  state.selected='';assert.doesNotMatch(f.html(),/data-v94f-manual/);assert.match(f.html(),/Original method/);
 });
+test('manual revision form accepts intact1932 and exact2048 UTF-8 bytes',async()=>{
+ for(const value of ['界'.repeat(494)+'x'.repeat(450),'界'.repeat(682)+'ab']){
+  const f=fixture(),original=JSON.stringify(f.plan),state=f.getState();state.commentText='Preserve the full material note';state.commentQuestion='q1';await f.ctx.v94fSubmit(f.app,'comment');f.html();
+  state.field='materials';await f.dispatch('input',f.control('value',value));
+  const form={dataset:{v94fForm:'revise'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
+  assert.equal(f.calls.length,2,state.error);assert.equal(f.calls[1].url,'/api/projects/alpha/stage3/planning/revise');
+  assert.equal(f.calls[1].body.changes[0].value,value);assert.equal(state.pending,null);assert.equal(state.error,'');
+  assert.equal(f.ctx.v94fRevision(state).record.plan.question_plans[0].materials,value);assert.equal(JSON.stringify(f.plan),original);assert.match(f.html(),/Original limitation/);
+ }
+});
+test('manual revision form rejects2049 UTF-8 bytes before POST',async()=>{
+ const f=fixture(),state=f.getState();state.commentText='Keep the bound';await f.ctx.v94fSubmit(f.app,'comment');f.html();
+ state.field='materials';await f.dispatch('input',f.control('value','界'.repeat(683)));
+ const form={dataset:{v94fForm:'revise'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
+ assert.equal(f.calls.length,1);assert.match(state.error,/2048 UTF-8/);assert.equal(state.pending,null);assert.equal(state.records.length,1);
+});
+test('comment form still accepts exactly1800 UTF-8 bytes',async()=>{
+ const f=fixture(),text='界'.repeat(600);await f.dispatch('input',f.control('commentText',text));
+ const form={dataset:{v94fForm:'comment'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
+ assert.equal(f.calls.length,1);assert.equal(f.calls[0].body.text,text);assert.equal(f.getState().error,'');
+});
 test('question-specific saved comments open their matching editable question',()=>{
  const f=fixture(),body={key:'comment-q2',...Object.fromEntries(Object.entries(f.binding).filter(([k])=>k!=='project_ref')),text:'Only question two',question_ref:'q2'};
  f.view.feedback.records=[f.response(body)];const html=f.html();assert.equal(f.getState().revisionQuestion,'q2');assert.match(html,/<form data-v94f-form="revise">/);assert.match(html,/Second method/);
