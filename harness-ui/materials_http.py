@@ -8,6 +8,8 @@ def install_materials(host, projects, root, incoming, entries=(), review_sources
     from research_workspace_native.session_api import SessionApiError
     store=Materials(root,incoming,list(entries),review_sources)
     host.materials=store
+    if getattr(host, 'project_stage3_http', None) is not None:
+        host.project_stage3_http.material_resolver = store.stage3_reference
     inherited=host.RequestHandlerClass
 
     class V9Handler(inherited):
@@ -72,11 +74,12 @@ def install_materials(host, projects, root, incoming, entries=(), review_sources
                 operation=self.path.removeprefix('/api/v9/')
                 methods={'register':store.register_delivery,'upload/start':store.begin_upload,
                     'upload/chunk':store.upload_chunk,'upload/finish':store.finish_upload,
+                    'upload/abort':store.abort_upload,
                     'import-packet':store.import_packet,'workflow/prepare':store.workflow,'draft':store.draft}
                 if operation not in methods: raise SessionApiError('unknown-material-operation',404)
                 if operation in {'register','upload/start','import-packet'}:
                     self.material_project(credential,body.get('project_ref'))
-                if operation in {'upload/chunk','upload/finish'}:
+                if operation in {'upload/chunk','upload/finish','upload/abort'}:
                     item=store._get('materials',body.get('id'))
                     self.material_project(credential,item.get('project_ref'))
                 self._remaining()
