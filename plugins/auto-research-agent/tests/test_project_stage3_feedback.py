@@ -277,6 +277,75 @@ class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
         self.assertFalse(record["execution_authorized"])
         self.assertEqual(self.view, original)
 
+    def test_manual_material_revision_accepts_1932_utf8_bytes_intact_and_replays(self):
+        text = "界" * 494 + "x" * 450
+        self.assertEqual((len(text), len(text.encode("utf8"))), (944, 1932))
+        original = deepcopy(self.view)
+        comment = self.comment()
+        changes = [{"question_ref": "q1", "field": "materials", "value": text}]
+        result = self.revision(comment, changes=changes)
+        record = result["record"]
+        expected_plan = deepcopy(original["plan"])
+        expected_plan["question_plans"][0]["materials"] = text
+        self.assertEqual(record["plan"], expected_plan)
+        self.assertEqual(record["changes"], changes)
+        self.assertEqual(record["request"]["changes"], changes)
+        self.assertEqual(record["comment_texts"], [comment["record"]["text"]])
+        self.assertFalse(record["execution_authorized"])
+        self.assertFalse(record["native_message"])
+        self.assertFalse(record["model_generated"])
+        self.assertEqual(self.view, original)
+        self.assertCountEqual(
+            read_feedback(self.jobs, "authored-ref", self.view)["records"],
+            [
+                {name: row[name] for name in ("receipt_sha256", "record")}
+                for row in (comment, result)
+            ],
+        )
+        before = self.journal.snapshot(self.jobs.project_id)
+        replay = self.revision(comment, changes=changes)
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(replay["receipt_sha256"], result["receipt_sha256"])
+        self.assertEqual(replay["record"], record)
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_manual_material_revision_accepts_exactly_2048_utf8_bytes(self):
+        text = "界" * 682 + "ab"
+        self.assertEqual(len(text.encode("utf8")), 2048)
+        result = self.revision(
+            self.comment(),
+            changes=[{"question_ref": "q1", "field": "materials", "value": text}],
+        )
+        self.assertEqual(
+            result["record"]["plan"]["question_plans"][0]["materials"], text
+        )
+
+    def test_manual_material_revision_rejects_2049_utf8_bytes_before_write(self):
+        text = "界" * 683
+        self.assertEqual(len(text.encode("utf8")), 2049)
+        comment = self.comment()
+        before = self.journal.snapshot(self.jobs.project_id)
+        with self.assertRaises(SessionApiError) as error:
+            self.revision(
+                comment,
+                changes=[{"question_ref": "q1", "field": "materials", "value": text}],
+            )
+        self.assertEqual(error.exception.status, 400)
+        self.assertEqual(error.exception.code, "stage3-feedback-change-too-long")
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_comment_text_keeps_1800_utf8_byte_limit(self):
+        text = "界" * 600
+        self.assertEqual(len(text.encode("utf8")), 1800)
+        comment = self.comment(text=text)
+        self.assertEqual(comment["record"]["text"], text)
+        before = self.journal.snapshot(self.jobs.project_id)
+        with self.assertRaises(SessionApiError) as error:
+            self.comment(key="comment-too-long", text=text + "a")
+        self.assertEqual(error.exception.status, 400)
+        self.assertEqual(error.exception.code, "stage3-feedback-text-too-long")
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
     def test_revision_chain_binds_exact_parent_receipt(self):
         comment = self.comment()
         first = self.revision(comment)

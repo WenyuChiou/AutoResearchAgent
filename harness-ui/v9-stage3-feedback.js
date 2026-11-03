@@ -99,7 +99,8 @@ async function v94fSubmit(app,action){
  try{
   const text=action==='comment'?state.commentText:state.value;
   if(!text.trim())throw Error(rl('请填写内容。','Enter text before saving.','請填寫內容。'));
-  if(new TextEncoder().encode(text).length>1800)throw Error(rl('内容超过 1800 UTF-8 字节，请缩短。','Text exceeds 1800 UTF-8 bytes; shorten it before saving.','內容超過 1800 UTF-8 位元組，請縮短。'));
+  const limit=action==='comment'?1800:2048;
+  if(new TextEncoder().encode(text).length>limit)throw Error(rl(`内容超过 ${limit} UTF-8 字节，请缩短。`,`Text exceeds ${limit} UTF-8 bytes; shorten it before saving.`,`內容超過 ${limit} UTF-8 位元組，請縮短。`));
   const body=v94fBody(context,state,action);
   if(new TextEncoder().encode(JSON.stringify(body)).length>4096)throw Error(rl('请求超过 4096 UTF-8 字节，请缩短内容。','Request exceeds 4096 UTF-8 bytes; shorten the text before saving.','請求超過 4096 UTF-8 位元組，請縮短內容。'));
   state.pending={action,body};await v94fSend(app);
