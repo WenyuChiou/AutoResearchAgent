@@ -4,22 +4,35 @@ const v94Object = (value, keys) => value && typeof value === 'object' && !Array.
  Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
 function v94Require(ok, code) { if (!ok) throw Error('research-guide-' + code); }
 function v94Text(value, max) { return typeof value === 'string' && value.trim().length > 0 && value.length <= max; }
-function v94PlanBinding(view) {
+function v94PlanBinding(view, revision = null) {
  if (view?.plan?.kind !== 'Stage3DirectionPlanningResult' || !v94Pin(view.direction_intent_sha256) ||
      !v94Pin(view.job?.plan_manifest_sha256) || !Array.isArray(view.plan.question_plans)) return null;
- return {project_ref:view.project_ref, input_version:view.input_version,
+ const binding = {project_ref:view.project_ref, input_version:view.input_version,
   direction_intent_sha256:view.direction_intent_sha256, plan_manifest_sha256:view.job.plan_manifest_sha256};
+ if (revision !== null) {
+  const record = revision?.record, parent = record?.binding, expected = view.feedback?.binding;
+  if (!v94Pin(revision?.receipt_sha256) || record?.kind !== 'revision' || !Number.isSafeInteger(record.revision_number) ||
+      record.revision_number < 2 || record.plan?.kind !== view.plan.kind || !Array.isArray(record.plan.question_plans) ||
+      !expected || !['project_ref','input_version','revision','brief_sha256','parent_plan_manifest_sha256','parent_plan_sha256','plan_request_sha256'].every(key => parent?.[key] === expected[key]) ||
+      !['project_ref','input_version','revision','brief_sha256'].every(key => parent[key] === view[key]) ||
+      parent.parent_plan_manifest_sha256 !== binding.plan_manifest_sha256 || parent.plan_request_sha256 !== view.job.request_sha256) return null;
+  Object.assign(binding, {revision_receipt_sha256:revision.receipt_sha256, revision_number:record.revision_number});
+ }
+ return binding;
 }
-function v94GuideName(view) {
- const binding = v94PlanBinding(view);
- return binding ? 'stage3-research-' + binding.plan_manifest_sha256 + '.json' : null;
+function v94GuideName(view, revision = null) {
+ const binding = v94PlanBinding(view, revision);
+ return binding ? (revision ? 'stage3-revision-' + binding.revision_receipt_sha256 : 'stage3-research-' + binding.plan_manifest_sha256) + '.json' : null;
 }
-function v94ValidateGuide(guide, view) {
- const binding = v94PlanBinding(view);
- v94Require(binding && v94Object(guide, ['kind','version','project_ref','input_version','direction_intent_sha256','plan_manifest_sha256','question_ref','flow','loop','materials','baselines']), 'shape');
- v94Require(guide.kind === 'Stage3ResearchPresentation' && guide.version === 1, 'kind');
+function v94ValidateGuide(guide, view, revision = null) {
+ const binding = v94PlanBinding(view, revision);
+ const fields = ['kind','version','project_ref','input_version','direction_intent_sha256','plan_manifest_sha256','question_ref','flow','loop','materials','baselines'];
+ if (revision) fields.push('revision_receipt_sha256','revision_number');
+ v94Require(binding && v94Object(guide, fields), 'shape');
+ v94Require(guide.kind === 'Stage3ResearchPresentation' && guide.version === (revision ? 2 : 1), 'kind');
  v94Require(Object.keys(binding).every(key => guide[key] === binding[key]), 'binding');
- const index = view.plan.question_plans.findIndex(row => row.question_ref === guide.question_ref);
+ const plan = revision ? revision.record.plan : view.plan;
+ const index = plan.question_plans.findIndex(row => row.question_ref === guide.question_ref);
  v94Require(index >= 0 && v94Text(guide.question_ref, 240), 'question');
  const prefix = '/question_plans/' + index + '/';
  function sources(items) {
@@ -29,7 +42,7 @@ function v94ValidateGuide(guide, view) {
     typeof source.pointer === 'string' && source.pointer.startsWith(prefix), 'source-shape');
    const field = source.pointer.slice(prefix.length);
    v94Require(/^(method|materials|design|analysis|validation|interpretation|minimum_deliverable|unknowns\/(0|[1-9][0-9]?))$/.test(field), 'source-pointer');
-   const value = field.split('/').reduce((object, key) => object?.[key], view.plan.question_plans[index]);
+   const value = field.split('/').reduce((object, key) => object?.[key], plan.question_plans[index]);
    v94Require(typeof value === 'string' && value.includes(source.quote), 'source-quote');
   }
  }
@@ -61,9 +74,9 @@ function v94ValidateGuide(guide, view) {
  }
  return guide;
 }
-function v94ChooseMaterial(catalog, view) {
+function v94ChooseMaterial(catalog, view, revision = null) {
  v94Require(Array.isArray(catalog?.materials) && catalog.materials.length <= 1000, 'catalog');
- const matches = catalog.materials.filter(item => item.project_ref === view.project_ref && item.stage === 3 && item.name === v94GuideName(view));
+ const matches = catalog.materials.filter(item => item.project_ref === view.project_ref && item.stage === 3 && item.name === v94GuideName(view, revision));
  if (!matches.length) return null;
  v94Require(matches.length === 1, 'ambiguous');
  const item = matches[0];

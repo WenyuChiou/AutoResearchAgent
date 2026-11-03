@@ -1,9 +1,11 @@
 /* Synthetic display contract and GET/recovery cases; zero research calls. */
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
-const {webcrypto}=require('node:crypto');
+const {webcrypto,createHash}=require('node:crypto');
 const source=fs.readFileSync(path.join(__dirname,'v9-research-guide-contract.js'),'utf8');
 const adapter=fs.readFileSync(path.join(__dirname,'v9-research-guide.js'),'utf8');
+const feedback=fs.readFileSync(path.join(__dirname,'v9-stage3-feedback.js'),'utf8');
+const renderer=fs.readFileSync(path.join(__dirname,'v9-research-guide-view.js'),'utf8');
 const pin='a'.repeat(64),manifest='b'.repeat(64),quote='A synthetic method requiring verification; no study has run.';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const anchor=()=>[{pointer:'/question_plans/0/method',quote}];
@@ -19,6 +21,141 @@ function fixture(){
   baselines:[{name:'A baseline',change:'Remove an input',purpose:'Compare mechanisms',sources:anchor()}]};
  const ctx=vm.createContext({TextDecoder,Uint8Array,crypto:webcrypto,window:{RESEARCH_PROJECTS:{credential:'synthetic-only'}}});
  vm.runInContext(source,ctx);return {view,guide,ctx};
+}
+function manualFixture(){
+ const f=fixture(),view=f.view;
+ Object.assign(view,{revision:2,brief_sha256:pin});view.job.request_sha256='d'.repeat(64);view.plan.markdown='Original plan Markdown.';
+ const binding={project_ref:view.project_ref,input_version:view.input_version,revision:view.revision,brief_sha256:view.brief_sha256,
+  parent_plan_manifest_sha256:manifest,parent_plan_sha256:'e'.repeat(64),plan_request_sha256:view.job.request_sha256};
+ const revision={receipt_sha256:'c'.repeat(64),record:{kind:'revision',binding:clone(binding),request:{key:'manual-a'},revision_number:2,
+  plan:clone(view.plan),changes:[{question_ref:'idea-a@1/q',field:'method',value:'Manual method A; data remain unverified.'}],
+  execution_authorized:false,native_message:false,model_generated:false,parent_revision:null}};
+ revision.record.plan.question_plans[0].method=revision.record.changes[0].value;
+ view.feedback={kind:'ProjectStage3PlanningFeedbackView',schema_version:1,binding,records:[revision]};
+ function guideFor(row){
+  const guide=clone(f.guide),text=row.record.plan.question_plans[0].method;
+  Object.assign(guide,{version:2,revision_receipt_sha256:row.receipt_sha256,revision_number:row.record.revision_number});
+  for(const graph of [guide.flow,guide.loop])for(const item of [...graph.nodes,...graph.edges])item.sources.forEach(source=>source.quote=text);
+  for(const item of [...guide.materials,...guide.baselines])item.sources.forEach(source=>source.quote=text);
+  return guide;
+ }
+ return {...f,revision,manualGuide:guideFor(revision),guideFor};
+}
+test('manual v2 binds its exact receipt and number while source quotes resolve the selected draft',()=>{
+ const f=manualFixture(),before=JSON.stringify(f.view),expected={project_ref:'project-a',input_version:1,direction_intent_sha256:pin,
+  plan_manifest_sha256:manifest,revision_receipt_sha256:f.revision.receipt_sha256,revision_number:2};
+ assert.deepEqual(clone(f.ctx.v94PlanBinding(f.view,f.revision)),expected);
+ assert.equal(f.ctx.v94ValidateGuide(f.manualGuide,f.view,f.revision),f.manualGuide);
+ assert.equal(f.ctx.v94GuideName(f.view,f.revision),'stage3-revision-'+f.revision.receipt_sha256+'.json');
+ assert.equal(f.ctx.v94GuideName(f.view),'stage3-research-'+manifest+'.json');
+ assert.equal(f.ctx.v94ValidateGuide(f.guide,f.view),f.guide);assert.equal(JSON.stringify(f.view),before);
+ assert.throws(()=>f.ctx.v94ValidateGuide(f.manualGuide,f.view),/research-guide-/);
+ assert.throws(()=>f.ctx.v94ValidateGuide(f.guide,f.view,f.revision),/research-guide-/);
+ const stale=clone(f.manualGuide);stale.flow.nodes[0].sources[0].quote=quote;
+ assert.throws(()=>f.ctx.v94ValidateGuide(stale,f.view,f.revision),/source-quote/);
+});
+test('manual guide rejects changed bindings, receipts, revision numbers, pointers and authority fields',()=>{
+ const f=manualFixture();
+ for(const [key,value] of [['project_ref','project-b'],['input_version','1'],['direction_intent_sha256','f'.repeat(64)],
+  ['plan_manifest_sha256','f'.repeat(64)],['revision_receipt_sha256','f'.repeat(64)],['revision_number',3],['revision_number','2'],['version',1]]){
+  const bad=clone(f.manualGuide);bad[key]=value;assert.throws(()=>f.ctx.v94ValidateGuide(bad,f.view,f.revision),/research-guide-/,key);
+ }
+ for(const mutate of [g=>g.execution_authorized=true,g=>g.native_message=false,g=>delete g.revision_number,
+  g=>g.flow.nodes[0].sources[0].pointer='/question_plans/1/method',g=>g.flow.nodes[0].sources[0].pointer='/record/plan/question_plans/0/method',
+  g=>g.flow.nodes[0].sources[0].quote='An invented result.']){
+  const bad=clone(f.manualGuide);mutate(bad);assert.throws(()=>f.ctx.v94ValidateGuide(bad,f.view,f.revision),/research-guide-/);
+ }
+ for(const key of ['project_ref','input_version','revision','brief_sha256','parent_plan_manifest_sha256','parent_plan_sha256','plan_request_sha256']){
+  const stale=clone(f.revision);stale.record.binding[key]='stale';
+  assert.equal(f.ctx.v94PlanBinding(f.view,stale),null,key);assert.throws(()=>f.ctx.v94ValidateGuide(f.manualGuide,f.view,stale),/research-guide-/);
+ }
+ for(const mutate of [r=>r.receipt_sha256='bad',r=>r.record.revision_number=1,r=>r.record.revision_number='2',r=>r.record.kind='comment']){
+  const bad=clone(f.revision);mutate(bad);assert.equal(f.ctx.v94PlanBinding(f.view,bad),null);
+ }
+});
+test('manual material selection uses a unique receipt filename and cannot reuse the original guide',()=>{
+ const f=manualFixture(),item=(name,id)=>({id:'file-'+id.repeat(32),project_ref:'project-a',stage:3,name,kind:'manual-file',status:'registered',bytes:20,sha256:pin});
+ const original=item(f.ctx.v94GuideName(f.view),'1'),manual=item(f.ctx.v94GuideName(f.view,f.revision),'2');
+ assert.equal(f.ctx.v94ChooseMaterial({materials:[original,manual]},f.view),original);
+ assert.equal(f.ctx.v94ChooseMaterial({materials:[original,manual]},f.view,f.revision),manual);
+ assert.equal(f.ctx.v94ChooseMaterial({materials:[original]},f.view,f.revision),null);
+ assert.throws(()=>f.ctx.v94ChooseMaterial({materials:[manual,manual]},f.view,f.revision),/ambiguous/);
+});
+const settle=()=>new Promise(setImmediate);
+async function waitFor(check){for(let i=0;i<200;i++){if(check())return;await new Promise(resolve=>setTimeout(resolve,5));}assert.fail('synthetic guide read did not settle');}
+function composedFixture({deferred=false}={}){
+ const f=manualFixture(),ctx=f.ctx,second=clone(f.revision);
+ second.receipt_sha256='f'.repeat(64);second.record.request.key='manual-b';second.record.revision_number=3;
+ second.record.plan.question_plans[0].method='Manual method B; its separate limit is unverified.';
+ second.record.changes[0].value=second.record.plan.question_plans[0].method;
+ f.view.feedback.records.push(second);
+ const guides=[f.guide,f.manualGuide,f.guideFor(second)],files=guides.map((guide,i)=>{
+  const bytes=Buffer.from(JSON.stringify(guide)),row=i===0?null:i===1?f.revision:second;
+  return {bytes,item:{id:'file-'+String(i+1).repeat(32),project_ref:'project-a',stage:3,name:ctx.v94GuideName(f.view,row),kind:'manual-file',status:'registered',bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')}};
+ }),catalog={materials:files.map(file=>file.item)},calls=[],requests=[],listeners={},owned=new Set();let paints=0;
+ const basis={project_ref:'project-a',input_version:1,revision:2,brief_sha256:pin},app={page:'workspace',stage:3,lang:'en',el:{contains:element=>owned.has(element),querySelector:()=>null}};
+ const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ Object.assign(ctx,{TextEncoder,AbortController,setTimeout,clearTimeout,apps:[app],rt:{epoch:1},v93:{view:f.view,basis},v93Identity:()=>ctx.v93.basis,
+  v93Matches:(a,b)=>!!a&&!!b&&['project_ref','input_version','revision','brief_sha256'].every(key=>a[key]===b[key]),
+  v7BeforeRender:()=>{},v7AfterRender:()=>{},v93SavedPlanSummary:view=>'<p data-original-plan>'+escape(view.plan.question_plans[0].method)+'</p>',
+  laterStage:()=>'<main><div class="n9-page-actions"></div>'+ctx.v93SavedPlanSummary(ctx.v93.view)+'<details class="n9-plan-graph"><summary>Original graph</summary></details></main>',
+  livePaint:()=>paints++,liveRequest:async()=>{throw Error('guide reads must not dispatch a planning request');},projectPath:(ref,tail)=>'/api/projects/'+ref+'/'+tail,
+  rl:(z,e)=>e,rx:escape,document:{body:{},activeElement:null,addEventListener:(name,listener)=>(listeners[name]??=[]).push(listener)},
+  fetch:async(url,options)=>{
+   calls.push({url,options});if(url==='/api/v9/materials')return deferred?new Promise(resolve=>requests.push({url,options,resolve})):new Response(JSON.stringify(catalog));
+   const file=files.find(file=>url==='/api/v9/files/'+file.item.id);assert.ok(file,'only a registered guide is read');return new Response(file.bytes);
+  }});
+ vm.runInContext(renderer,ctx);vm.runInContext(adapter,ctx);vm.runInContext(feedback,ctx);
+ const guideState=()=>vm.runInContext('({...v94})',ctx),html=()=>ctx.laterStage(app),render=()=>{const value=html();ctx.v7AfterRender(app);return value;};
+ async function dispatch(type,element){owned.add(element);for(const listener of listeners[type]||[])await listener({target:element,preventDefault(){}});await settle();}
+ async function select(row){const control={dataset:{v94fControl:'selected'},value:row?'revision:'+row.record.request.key:'',closest:selector=>selector==='[data-v94f-control]'?control:null};await dispatch('change',control);render();}
+ async function reload(){const button={closest:selector=>selector==='[data-v94-read]'?button:null};await dispatch('click',button);}
+ async function close(){for(const request of requests)request.resolve(new Response('{"materials":[]}'));await settle();await settle();}
+ return {...f,second,files,catalog,ctx,app,calls,requests,guideState,html,render,select,reload,close,paints:()=>paints};
+}
+test('composed actual modules select, render and reload the exact manual guide using only GET',async t=>{
+ const f=composedFixture(),before=JSON.stringify(f.view);t.after(f.close);
+ f.render();await waitFor(()=>f.guideState().status==='ready');
+ assert.match(f.html(),/data-v94-guide/);assert.match(f.html(),new RegExp(quote));assert.equal(f.guideState().guide.version,1);
+ await f.select(f.revision);await waitFor(()=>f.guideState().status==='ready');
+ assert.equal(f.ctx.v94SelectedRevision(f.view).receipt_sha256,f.revision.receipt_sha256);
+ assert.equal(f.guideState().guide.revision_receipt_sha256,f.revision.receipt_sha256);
+ assert.match(f.html(),/This guide belongs to the selected manual draft/);assert.match(f.html(),/Manual method A/);
+ assert.match(f.html(),/Complete manual draft and open checks/);assert.match(f.html(),/Unverified data/);assert.match(f.html(),/Original plan Markdown/);
+ assert.match(f.html(),new RegExp('data-original-plan>'+quote));assert.equal(JSON.stringify(f.view),before);
+ const count=f.calls.length;await f.reload();await waitFor(()=>f.guideState().status==='ready');
+ assert.equal(f.calls.length,count+2);assert.equal(f.calls.at(-1).url,'/api/v9/files/'+f.files[1].item.id);
+ await f.select(f.second);await waitFor(()=>f.guideState().status==='ready');
+ assert.equal(f.guideState().guide.revision_receipt_sha256,f.second.receipt_sha256);assert.match(f.html(),/Manual method B/);
+ await f.select(null);await waitFor(()=>f.guideState().status==='ready');
+ assert.equal(f.guideState().guide.version,1);assert.doesNotMatch(f.html(),/data-v94f-manual/);assert.match(f.html(),new RegExp(quote));
+ assert.ok(f.calls.every(call=>!call.options.method));assert.ok(f.calls.every(call=>call.url==='/api/v9/materials'||call.url.startsWith('/api/v9/files/')));
+});
+for(const transition of ['original-to-manual','manual-a-to-b','same-binding-refresh','cross-project']){
+ test('late '+transition+' completion cannot repaint or clear its replacement read',async t=>{
+  const f=composedFixture({deferred:true});t.after(f.close);
+  if(transition==='original-to-manual')f.render();else await f.select(f.revision);
+  assert.equal(f.requests.length,1);const first=f.requests[0];
+  if(transition==='original-to-manual')await f.select(f.revision);
+  else if(transition==='manual-a-to-b')await f.select(f.second);
+  else {
+   const view=clone(f.ctx.v93.view);
+   if(transition==='cross-project'){
+    view.project_ref='project-b';view.feedback.binding.project_ref='project-b';view.feedback.records=[];
+    f.ctx.v93.basis={...f.ctx.v93.basis,project_ref:'project-b'};
+   }
+   f.ctx.v93.view=view;f.render();
+  }
+  assert.equal(f.requests.length,2);assert.equal(first.options.signal.aborted,true);
+  const current=f.guideState().controller,paints=f.paints();
+  first.resolve(new Response('{"materials":[]}'));await settle();await settle();
+  assert.equal(f.guideState().controller,current);assert.equal(f.guideState().status,'loading');assert.equal(f.paints(),paints);assert.equal(f.guideState().guide,null);
+  f.requests[1].resolve(new Response(JSON.stringify(transition==='cross-project'?{materials:[]}:f.catalog)));
+  await waitFor(()=>f.guideState().controller===null);
+  assert.equal(f.guideState().status,transition==='cross-project'?'absent':'ready');
+  if(transition!=='cross-project')assert.equal(f.guideState().guide.revision_receipt_sha256,transition==='manual-a-to-b'?f.second.receipt_sha256:f.revision.receipt_sha256);
+  assert.ok(f.calls.every(call=>!call.options.method));
+ });
 }
 test('authored guide keeps exact source, typed binding and original plan untouched',()=>{
  const {view,guide,ctx}=fixture(),before=JSON.stringify(view);
@@ -163,4 +300,13 @@ test('saved-plan click replaces a pending guide read even when binding and epoch
   for(const request of requests)request.resolve(new Response('{"materials":[]}'));
   await new Promise(setImmediate);
  }
+});
+
+test('exhausted feedback state capacity retains the original saved plan without throwing',async t=>{
+ const f=composedFixture();t.after(f.close);
+ vm.runInContext('v94fStates.clear(); for(let i=0;i<8;i++)v94fStates.set("occupied-"+i,{busy:true,pending:{}});',f.ctx);
+ assert.equal(f.ctx.v94SelectedRevision(f.view),null);assert.doesNotThrow(()=>f.render());
+ assert.match(f.html(),/data-original-plan/);assert.doesNotMatch(f.html(),/data-v94f-panel/);
+ await waitFor(()=>f.guideState().status==='ready');assert.match(f.html(),/data-original-plan/);
+ assert.ok(f.calls.every(call=>!call.options.method));
 });
