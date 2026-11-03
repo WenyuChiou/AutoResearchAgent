@@ -14,6 +14,7 @@ from stage3_plan.jobs import POLICY
 from .project_intake_contract import _fields
 from .http import MAX_BODY, MAX_RESPONSE
 from .session_api import _check
+from .project_stage3_material_refs import revision_materials
 
 
 METHOD = "stage3/project-host-feedback/1"
@@ -131,7 +132,9 @@ def read_feedback(jobs, ref, view):
     }
 
 
-def record_feedback(jobs, ref, view, body, action, check_deadline=None):
+def record_feedback(
+    jobs, ref, view, body, action, check_deadline=None, *, material_resolver=None
+):
     """Append once; replay uses the stored record and never a planning callback.
 
     The caller holds the same intake lock used to authenticate/read the parent.
@@ -153,7 +156,12 @@ def record_feedback(jobs, ref, view, body, action, check_deadline=None):
             "stage3-feedback-request-bound",
             413,
         )
-        _fields(body, BINDING_FIELDS | {"key"} | extra, max_bytes=MAX_BODY)
+        _fields(
+            body,
+            BINDING_FIELDS | {"key"} | extra,
+            optional={"material_refs"},
+            max_bytes=MAX_BODY,
+        )
     else:
         _fields(body, BINDING_FIELDS | {"key"} | extra)
     _text(body["key"], "stage3-feedback-key", 128)
@@ -279,6 +287,11 @@ def record_feedback(jobs, ref, view, body, action, check_deadline=None):
             original_markdown_preserved=True,
             comment_texts=[comment["text"] for comment in comments],
         )
+        materials = revision_materials(
+            body, parent, seen, binding, material_resolver, check_deadline
+        )
+        if materials or "material_refs" in body or (parent or {}).get("material_refs"):
+            record.update(schema_version=2, material_refs=materials)
     pending = {
         "receipt_sha256": "0" * 64,
         "record": record,

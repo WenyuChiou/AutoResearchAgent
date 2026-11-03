@@ -11,7 +11,7 @@ from display_translations import load_translations, translation_script
 from review_reading import load_review_sources
 
 HERE = Path(__file__).resolve().parent
-MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage3-bridge.js', 'v9-research-guide-contract.js', 'v9-research-guide-view.js', 'v9-research-guide.js', 'v9-stage3-feedback.js')
+MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage3-bridge.js', 'v9-research-guide-contract.js', 'v9-research-guide-view.js', 'v9-research-guide.js', 'v9-stage3-materials.js', 'v9-stage3-feedback.js')
 
 
 def private_directory(path):
