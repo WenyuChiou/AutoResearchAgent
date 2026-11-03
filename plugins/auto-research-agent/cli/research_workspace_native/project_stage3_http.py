@@ -50,6 +50,7 @@ class ProjectStage3Http:
         self._errors = {}
         self._closed = False
         self._owner_closed = False
+        self.material_resolver = None
 
     def check_open(self):
         with self._lock:
@@ -159,7 +160,13 @@ class ProjectStage3Http:
             if configured is None:
                 raise SessionApiError("stage3-planning-unconnected", 409)
             return record_feedback(
-                configured["jobs"], ref, view, body, action, check_deadline
+                configured["jobs"],
+                ref,
+                view,
+                body,
+                action,
+                check_deadline,
+                material_resolver=self.material_resolver,
             )
 
     def admit_run(self, credential, ref, body, check_deadline):

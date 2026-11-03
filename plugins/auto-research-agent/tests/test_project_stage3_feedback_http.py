@@ -1,8 +1,11 @@
 """Real owned journal behind the transport handler; no network/model dispatch."""
 
 from copy import deepcopy
+import hashlib
 import io
 import json
+from pathlib import Path
+import sys
 import threading
 from types import SimpleNamespace
 import unittest
@@ -16,6 +19,9 @@ from research_workspace_native.project_stage3_http import (
 )
 from research_workspace_native.session_api import SessionApiError
 from research_workspace_native.http import MAX_BODY, MAX_RESPONSE, SessionHandler
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "harness-ui"))
+from test_stage3_material_capacity import MaterialsHttpHarness, synthetic_payload
 
 
 class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
@@ -194,6 +200,164 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
         before = self.journal.snapshot(self.jobs.project_id)
         handle_planning(handler, "POST")
         self.assertEqual(handler.replies[0][0], 413)
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+
+    def test_real_25mib_http_material_reference_replay_inheritance_and_replacement(
+        self,
+    ):
+        original = deepcopy(self.view)
+        http = MaterialsHttpHarness(self.root / "materials", transport=self.transport)
+        self.addCleanup(http.close)
+        data = synthetic_payload(25 * 1024 * 1024)
+        self.assertEqual(len(data), 26214400)
+        self.assertIn('界😀"\\\n', data.decode("utf8"))
+        material = http.upload(data)
+        self.assertEqual(http.request("files/" + material["id"]), (200, data))
+        self.assertEqual(material["sha256"], hashlib.sha256(data).hexdigest())
+        self.assertEqual(
+            self.transport.material_resolver("authored-ref", material["id"]), material
+        )
+        route = "/api/projects/authored-ref/stage3/planning"
+        status, raw = http.request(route + "/comment", self.comment_body())
+        self.assertEqual(status, 200)
+        receipt = json.loads(raw)
+        reference = dict(
+            question_ref="q1",
+            file_id=material["id"],
+            sha256=material["sha256"],
+            bytes=len(data),
+        )
+        text = "Complete authored file attached; access and rights remain unverified."
+        body = dict(
+            self.request("material-reference"),
+            comments=[{"key": "http-comment", "sha256": receipt["receipt_sha256"]}],
+            parent_revision=None,
+            changes=[{"question_ref": "q1", "field": "materials", "value": text}],
+            material_refs=[reference],
+        )
+        status, raw = http.request(route + "/revise", body)
+        self.assertEqual(status, 200)
+        saved = json.loads(raw)
+        record = saved["record"]
+        self.assertEqual(record["schema_version"], 2)
+        self.assertEqual(
+            record["material_refs"], [{**reference, "name": material["name"]}]
+        )
+        expected = deepcopy(original["plan"])
+        expected["question_plans"][0]["materials"] = text
+        self.assertEqual(record["plan"], expected)
+        self.assertEqual(record["request"], body)
+        for flag in (
+            "execution_authorized",
+            "evaluation_calls_authorized",
+            "formal_execution_enabled",
+            "external_claim_ready",
+            "usable_for_formal_pairing",
+        ):
+            self.assertIs(record[flag], False)
+            self.assertIs(saved[flag], False)
+        self.assertLess(len(json.dumps(saved, ensure_ascii=True).encode("utf8")), 16384)
+        self.assert_actual_reply_readable(saved)
+        before = self.journal.snapshot(self.jobs.project_id)
+        status, raw = http.request(route + "/revise", body)
+        self.assertEqual(status, 200)
+        replay = json.loads(raw)
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(replay["record"], record)
+        self.assertEqual(replay["receipt_sha256"], saved["receipt_sha256"])
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        status, raw = http.request(route)
+        self.assertEqual(status, 200)
+        self.assertIn(
+            {name: saved[name] for name in ("receipt_sha256", "record")},
+            json.loads(raw)["feedback"]["records"],
+        )
+        for key, field, value, expected_refs in (
+            ("inherited", "method", "A separate method edit", record["material_refs"]),
+            ("replaced", "materials", "A replacement without the prior attachment", []),
+        ):
+            body = dict(
+                self.request(key),
+                comments=body["comments"],
+                parent_revision={
+                    "key": saved["record"]["request"]["key"],
+                    "sha256": saved["receipt_sha256"],
+                },
+                changes=[{"question_ref": "q1", "field": field, "value": value}],
+            )
+            status, raw = http.request(route + "/revise", body)
+            self.assertEqual(status, 200)
+            saved = json.loads(raw)
+            self.assertEqual(saved["record"]["material_refs"], expected_refs)
+            self.assertEqual(
+                saved["record"]["plan"]["question_plans"][0]["unknowns"],
+                ["Rights remain unknown"],
+            )
+        self.assertEqual(self.view, original)
+
+    def test_material_reference_mismatches_incomplete_and_stale_requests_do_not_write(
+        self,
+    ):
+        http = MaterialsHttpHarness(self.root / "materials", transport=self.transport)
+        self.addCleanup(http.close)
+        data = synthetic_payload(4000)
+        complete = http.upload(data)
+        foreign = http.upload(data, project_ref="foreign-ref")
+        incomplete = http.upload(data, name="incomplete.txt", finish=False)
+        corrupted = http.upload(data, name="corrupted.txt")
+        (http.root / "files" / (corrupted["id"] + ".bin")).write_bytes(
+            b"Changed saved bytes"
+        )
+        comment = self.comment()
+        reference = dict(
+            question_ref="q1",
+            file_id=complete["id"],
+            sha256=complete["sha256"],
+            bytes=len(data),
+        )
+        body = dict(
+            self.request("bad-reference"),
+            comments=[{"key": "comment-1", "sha256": comment["receipt_sha256"]}],
+            parent_revision=None,
+            changes=[
+                {
+                    "question_ref": "q1",
+                    "field": "materials",
+                    "value": "Retain all unknowns.",
+                }
+            ],
+            material_refs=[reference],
+        )
+        cases = [
+            dict(body, material_refs=[dict(reference, sha256="0" * 64)]),
+            dict(body, material_refs=[dict(reference, bytes=len(data) + 1)]),
+            dict(body, material_refs=[dict(reference, file_id=foreign["id"])]),
+            dict(body, material_refs=[dict(reference, file_id=incomplete["id"])]),
+            dict(body, material_refs=[dict(reference, file_id=corrupted["id"])]),
+            dict(body, input_version="1"),
+            dict(
+                body,
+                changes=[
+                    {
+                        "question_ref": "q1",
+                        "field": "method",
+                        "value": "An unrelated edit",
+                    }
+                ],
+            ),
+        ]
+        before = self.journal.snapshot(self.jobs.project_id)
+        for payload in cases:
+            with self.subTest(payload=payload):
+                handler = self.handler("revise", payload)
+                handle_planning(handler, "POST")
+                self.assertEqual(handler.replies[0][0], 409)
+                self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        handler = self.handler(
+            "comment", dict(self.comment_body(), material_refs=[reference])
+        )
+        handle_planning(handler, "POST")
+        self.assertEqual(handler.replies[0][0], 400)
         self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
 
     def test_auth_cross_site_unknown_project_and_limits_do_not_write(self):
