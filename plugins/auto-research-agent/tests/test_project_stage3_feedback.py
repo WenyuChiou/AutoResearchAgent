@@ -15,6 +15,9 @@ from research_workspace_native.project_stage3_feedback import (
     record_feedback,
 )
 from research_workspace_native.session_api import SessionApiError
+from research_workspace_native.http import MAX_BODY
+from research_workspace_native.project_intake_contract import _fields
+from stage3_plan.contracts import canonical_bytes
 from stage3_plan.jobs import PlanningJobs
 
 
@@ -320,18 +323,85 @@ class Stage3FeedbackTests(Stage3FeedbackFixture, unittest.TestCase):
             result["record"]["plan"]["question_plans"][0]["materials"], text
         )
 
-    def test_manual_material_revision_rejects_2049_utf8_bytes_before_write(self):
+    def test_manual_material_revision_accepts_2049_utf8_bytes(self):
         text = "界" * 683
         self.assertEqual(len(text.encode("utf8")), 2049)
+        result = self.revision(
+            self.comment(),
+            changes=[{"question_ref": "q1", "field": "materials", "value": text}],
+        )
+        self.assertEqual(
+            result["record"]["plan"]["question_plans"][0]["materials"], text
+        )
+
+    def test_complete_manual_fields_preserve_text_unknowns_and_replay(self):
+        text = "界" * 3200 + "x" * 41
+        self.assertEqual(len(text.encode("utf8")), 9641)
+        original = deepcopy(self.view)
+        fields = (
+            "method",
+            "materials",
+            "design",
+            "analysis",
+            "interpretation",
+            "validation",
+            "minimum_deliverable",
+        )
+        changes = [
+            {"question_ref": "q1", "field": field, "value": text} for field in fields
+        ]
         comment = self.comment()
+        result = self.revision(comment, changes=changes)
+        expected = deepcopy(original["plan"])
+        expected["question_plans"][0].update({field: text for field in fields})
+        self.assertEqual(result["record"]["plan"], expected)
+        self.assertEqual(result["record"]["request"]["changes"], changes)
+        self.assertEqual(result["record"]["changes"], changes)
+        self.assertFalse(result["record"]["execution_authorized"])
+        self.assertFalse(result["record"]["native_message"])
+        self.assertFalse(result["record"]["model_generated"])
+        rows = read_feedback(self.jobs, "authored-ref", self.view)["records"]
+        self.assertCountEqual(
+            rows,
+            [
+                {name: row[name] for name in ("receipt_sha256", "record")}
+                for row in (comment, result)
+            ],
+        )
+        before = self.journal.snapshot(self.jobs.project_id)
+        replay = self.revision(comment, changes=changes)
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(replay["receipt_sha256"], result["receipt_sha256"])
+        self.assertEqual(replay["record"], result["record"])
+        self.assertEqual(
+            read_feedback(self.jobs, "authored-ref", self.view)["records"], rows
+        )
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        self.assertEqual(self.view, original)
+
+    def test_ordinary_intake_envelope_keeps_existing_request_bound(self):
+        body = {"text": "x" * 65536}
+        with self.assertRaises(SessionApiError) as error:
+            _fields(body, {"text"})
+        self.assertEqual(error.exception.status, 400)
+        self.assertEqual(error.exception.code, "intake-request-too-large")
+
+    def test_revision_whole_request_bound_rejects_before_write(self):
+        comment = self.comment()
+        text = "界" * 87381
+        self.assertLess(len(text.encode("utf8")), MAX_BODY)
+        body = dict(
+            self.request("whole-request-too-large"),
+            comments=[{"key": "comment-1", "sha256": comment["receipt_sha256"]}],
+            parent_revision=None,
+            changes=[{"question_ref": "q1", "field": "materials", "value": text}],
+        )
+        self.assertGreater(len(canonical_bytes(body)), MAX_BODY)
         before = self.journal.snapshot(self.jobs.project_id)
         with self.assertRaises(SessionApiError) as error:
-            self.revision(
-                comment,
-                changes=[{"question_ref": "q1", "field": "materials", "value": text}],
-            )
-        self.assertEqual(error.exception.status, 400)
-        self.assertEqual(error.exception.code, "stage3-feedback-change-too-long")
+            record_feedback(self.jobs, "authored-ref", self.view, body, "revise")
+        self.assertEqual(error.exception.status, 413)
+        self.assertEqual(error.exception.code, "stage3-feedback-request-bound")
         self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
 
     def test_comment_text_keeps_1800_utf8_byte_limit(self):

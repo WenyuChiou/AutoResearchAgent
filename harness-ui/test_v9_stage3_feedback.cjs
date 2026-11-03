@@ -8,7 +8,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(request){
  const basis={project_ref:'alpha',input_version:'imported-v1',revision:3,brief_sha256:'a'.repeat(64)};
  const binding={...basis,parent_plan_manifest_sha256:'b'.repeat(64),parent_plan_sha256:'c'.repeat(64),plan_request_sha256:'d'.repeat(64)};
- const plan={kind:'Stage3DirectionPlanningResult',markdown:'Original Markdown only.',question_plans:[{question_ref:'q1',method:'Original method',materials:'Unknown access',design:'Original design',unknowns:['Original limitation']},{question_ref:'q2',method:'Second method',unknowns:['Second unknown']}]};
+  const plan={kind:'Stage3DirectionPlanningResult',markdown:'Original Markdown only.',question_plans:[{question_ref:'q1',method:'Original method',materials:'Unknown access',design:'Original design',analysis:'Original analysis',interpretation:'Conditional',validation:'Not run',minimum_deliverable:'A draft',unknowns:['Original limitation']},{question_ref:'q2',method:'Second method',unknowns:['Second unknown']}]};
  const view={...basis,job:{outcome:'saved',request_sha256:binding.plan_request_sha256,plan_manifest_sha256:binding.parent_plan_manifest_sha256},plan,direction_context:{questions:[{question_ref:'q1',text:'Question one'},{question_ref:'q2',text:'Question two'}]},feedback:{kind:'ProjectStage3PlanningFeedbackView',schema_version:1,binding,records:[]}};
  const listeners={},calls=[],owned=new Set(),state={ref:'alpha',epoch:1},app={page:'workspace',stage:3,lang:'en',el:{contains:element=>owned.has(element),querySelector:()=>null}};
  let serial=0,paints=0;
@@ -73,8 +73,8 @@ test('manual revision binds comment and parent receipts while preserving origina
  assert.equal(body.parent_revision.key,parent.record.request.key);assert.equal(body.parent_revision.sha256,parent.receipt_sha256);assert.match(f.html(),/Manual planning draft v3/);
  state.selected='';assert.doesNotMatch(f.html(),/data-v94f-manual/);assert.match(f.html(),/Original method/);
 });
-test('manual revision form accepts intact1932 and exact2048 UTF-8 bytes',async()=>{
- for(const value of ['界'.repeat(494)+'x'.repeat(450),'界'.repeat(682)+'ab']){
+test('manual revision form accepts intact1932,2048 and2049 UTF-8 bytes',async()=>{
+  for(const value of ['界'.repeat(494)+'x'.repeat(450),'界'.repeat(682)+'ab','界'.repeat(683)]){
   const f=fixture(),original=JSON.stringify(f.plan),state=f.getState();state.commentText='Preserve the full material note';state.commentQuestion='q1';await f.ctx.v94fSubmit(f.app,'comment');f.html();
   state.field='materials';await f.dispatch('input',f.control('value',value));
   const form={dataset:{v94fForm:'revise'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
@@ -83,11 +83,28 @@ test('manual revision form accepts intact1932 and exact2048 UTF-8 bytes',async()
   assert.equal(f.ctx.v94fRevision(state).record.plan.question_plans[0].materials,value);assert.equal(JSON.stringify(f.plan),original);assert.match(f.html(),/Original limitation/);
  }
 });
-test('manual revision form rejects2049 UTF-8 bytes before POST',async()=>{
- const f=fixture(),state=f.getState();state.commentText='Keep the bound';await f.ctx.v94fSubmit(f.app,'comment');f.html();
- state.field='materials';await f.dispatch('input',f.control('value','界'.repeat(683)));
- const form={dataset:{v94fForm:'revise'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
- assert.equal(f.calls.length,1);assert.match(state.error,/2048 UTF-8/);assert.equal(state.pending,null);assert.equal(state.records.length,1);
+test('original input and submit callbacks preserve complete long text for all seven planning fields',async()=>{
+  const value='界'.repeat(3200)+'x'.repeat(41);assert.equal(new TextEncoder().encode(value).length,9641);
+  for(const field of ['method','materials','design','analysis','interpretation','validation','minimum_deliverable']){
+   const f=fixture(),original=JSON.stringify(f.plan),state=f.getState();state.commentText='Preserve the full planning note';state.commentQuestion='q1';await f.ctx.v94fSubmit(f.app,'comment');f.html();
+   await f.dispatch('change',f.control('field',field));await f.dispatch('input',f.control('value',value));
+   const form={dataset:{v94fForm:'revise'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
+   assert.equal(f.calls.length,2,state.error);assert.equal(f.calls[1].url,'/api/projects/alpha/stage3/planning/revise');
+   assert.deepEqual(f.calls[1].body.changes,[{question_ref:'q1',field,value}]);assert.ok(new TextEncoder().encode(JSON.stringify(f.calls[1].body)).length>4096);
+   const record=f.ctx.v94fRevision(state).record;assert.equal(record.plan.question_plans[0][field],value);assert.deepEqual(clone(record.plan.question_plans[0].unknowns),['Original limitation']);
+   assert.equal(record.execution_authorized,false);assert.equal(record.model_generated,false);assert.equal(record.native_message,false);assert.equal(JSON.stringify(f.plan),original);assert.equal(state.pending,null);assert.equal(state.error,'');
+  }
+});
+test('whole serialized manual request limit blocks POST and retains editable text',async()=>{
+  for(const value of ['界'.repeat(87381),'\u0001'.repeat(44000)]){
+   const f=fixture(),state=f.getState();state.commentText='Keep the whole request bound';await f.ctx.v94fSubmit(f.app,'comment');f.html();
+   await f.dispatch('change',f.control('field','materials'));await f.dispatch('input',f.control('value',value));
+   assert.ok(new TextEncoder().encode(value).length<262144);
+   const form={dataset:{v94fForm:'revise'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
+   assert.equal(f.calls.length,1);assert.match(state.error,/262144 UTF-8/);assert.equal(state.value,value);assert.equal(state.pending,null);assert.equal(state.records.length,1);
+   await f.dispatch('input',f.control('value','A complete shorter note'));await f.dispatch('submit',form);
+   assert.equal(f.calls.length,2);assert.equal(f.calls[1].body.changes[0].value,'A complete shorter note');assert.equal(state.error,'');
+  }
 });
 test('comment form still accepts exactly1800 UTF-8 bytes',async()=>{
  const f=fixture(),text='界'.repeat(600);await f.dispatch('input',f.control('commentText',text));
@@ -172,6 +189,20 @@ test('unknown transport and wire errors keep the original key and prohibit refus
   const button={closest:()=>button,hasAttribute:name=>name==='data-v94f-edit-refused'};f.owned.add(button);await f.dispatch('click',button);
   assert.deepEqual(clone(state.pending),pending);assert.equal(f.calls.length,1);assert.equal(state.lastRefused,undefined);
  }
+});
+test('long manual revision prewrite refusals retain text and require explicit edit before a new key',async()=>{
+  for(const code of ['stage3-feedback-request-bound','stage3-planning-body-bound-exceeded']){
+   let rejected=false,f;f=fixture(async(url,body)=>{if(url.endsWith('/revise')&&!rejected){rejected=true;throw Object.assign(Error(code),{status:413});}return f.response(body,url.endsWith('/comment')?'comment':'revision');});
+   const state=f.getState(),value='界'.repeat(3200)+'x'.repeat(41);state.commentText='Review this long planning note';await f.ctx.v94fSubmit(f.app,'comment');f.html();
+   await f.dispatch('change',f.control('field','materials'));await f.dispatch('input',f.control('value',value));
+   const form={dataset:{v94fForm:'revise'},closest:()=>form};f.owned.add(form);await f.dispatch('submit',form);
+   const original=clone(f.calls[1]);assert.ok(state.pending.refused);assert.equal(state.value,value);assert.match(f.html(),/data-v94f-edit-refused/);
+   await f.dispatch('input',f.control('value','Premature edit'));assert.equal(state.value,value);
+   const button={closest:()=>button,hasAttribute:name=>name==='data-v94f-edit-refused'};f.owned.add(button);await f.dispatch('click',button);
+   assert.equal(state.pending,null);assert.equal(state.value,value);assert.deepEqual(clone(state.lastRefused.body),original.body);assert.equal(f.calls.length,2);
+   await f.dispatch('input',f.control('value','A revised complete note'));await f.dispatch('submit',form);
+   assert.equal(f.calls.length,3);assert.notEqual(f.calls[2].body.key,original.body.key);assert.equal(f.calls[2].body.changes[0].value,'A revised complete note');assert.equal(state.error,'');
+  }
 });
 test('a later uncertain retry cannot inherit a previous definitive refusal',async()=>{
  let count=0;const f=fixture(async()=>{if(++count===1)throw Object.assign(Error('stage3-feedback-response-bound'),{status:413});throw Error('response lost');});

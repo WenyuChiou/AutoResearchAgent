@@ -203,7 +203,7 @@ def _text(value, maximum=4096):
     return value
 
 
-def _fields(body, expected, optional=()):
+def _fields(body, expected, optional=(), *, max_bytes=MAX_REQUEST):
     _check(
         type(body) is dict
         and set(body) <= set(expected) | set(optional)
@@ -211,7 +211,7 @@ def _fields(body, expected, optional=()):
         "intake-fields-invalid",
         400,
     )
-    _check(len(canonical(body)) <= MAX_REQUEST, "intake-request-too-large", 400)
+    _check(len(canonical(body)) <= max_bytes, "intake-request-too-large", 400)
     identifier(body["key"])
 
 

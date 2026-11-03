@@ -15,7 +15,7 @@ from research_workspace_native.project_stage3_http import (
     handle_planning,
 )
 from research_workspace_native.session_api import SessionApiError
-from research_workspace_native.http import MAX_RESPONSE, SessionHandler
+from research_workspace_native.http import MAX_BODY, MAX_RESPONSE, SessionHandler
 
 
 class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
@@ -131,6 +131,9 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
         self.assertEqual(self.view, original)
 
     def test_comment_revision_and_read_use_original_receipts_without_dispatch(self):
+        original = deepcopy(self.view)
+        text = "界" * 3200 + "x" * 41
+        self.assertEqual(len(text.encode("utf8")), 9641)
         comment = self.handler("comment", self.comment_body())
         handle_planning(comment, "POST")
         self.assertEqual(comment.replies[0][0], 200)
@@ -142,14 +145,21 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
             changes=[
                 {
                     "question_ref": "q1",
-                    "field": "design",
-                    "value": "A manual alternative",
+                    "field": "materials",
+                    "value": text,
                 }
             ],
         )
         revision = self.handler("revise", body)
+        self.assertGreater(revision.length, 4096)
         handle_planning(revision, "POST")
         self.assertEqual(revision.replies[0][0], 200)
+        saved = revision.replies[0][1]
+        self.assertEqual(saved["record"]["request"], body)
+        self.assertEqual(
+            saved["record"]["plan"]["question_plans"][0]["materials"], text
+        )
+        before = self.journal.snapshot(self.jobs.project_id)
         replay = self.handler("revise", body)
         handle_planning(replay, "POST")
         self.assertTrue(replay.replies[0][1]["replayed"])
@@ -157,14 +167,34 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
             replay.replies[0][1]["receipt_sha256"],
             revision.replies[0][1]["receipt_sha256"],
         )
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
         read = self.handler()
         handle_planning(read, "GET")
         self.assertEqual(read.replies[0][0], 200)
         self.assertEqual(len(read.replies[0][1]["feedback"]["records"]), 2)
-        self.assertFalse(revision.replies[0][1]["execution_authorized"])
-        self.assertEqual(
-            self.view["plan"]["question_plans"][0]["design"], "Original design"
+        self.assertIn(
+            {name: saved[name] for name in ("receipt_sha256", "record")},
+            read.replies[0][1]["feedback"]["records"],
         )
+        self.assertFalse(revision.replies[0][1]["execution_authorized"])
+        self.assertEqual(self.view, original)
+
+    def test_revision_whole_wire_request_bound_rejects_without_write(self):
+        comment = self.comment()
+        body = dict(
+            self.request("http-too-large"),
+            comments=[{"key": "comment-1", "sha256": comment["receipt_sha256"]}],
+            parent_revision=None,
+            changes=[
+                {"question_ref": "q1", "field": "materials", "value": "界" * 87381}
+            ],
+        )
+        handler = self.handler("revise", body)
+        self.assertGreater(handler.length, MAX_BODY)
+        before = self.journal.snapshot(self.jobs.project_id)
+        handle_planning(handler, "POST")
+        self.assertEqual(handler.replies[0][0], 413)
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
 
     def test_auth_cross_site_unknown_project_and_limits_do_not_write(self):
         cases = [
@@ -272,12 +302,33 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
         rejected = False
         for index in range(8):
             before = read_records(self)
-            try:
-                self.revision(comment, key="wire-" + str(index))
-            except SessionApiError as error:
-                self.assertEqual(error.status, 413)
+            before_state = self.journal.snapshot(self.jobs.project_id)
+            body = dict(
+                self.request("wire-" + str(index)),
+                comments=[{"key": "comment-1", "sha256": comment["receipt_sha256"]}],
+                parent_revision=None,
+                changes=[
+                    {
+                        "question_ref": "q1",
+                        "field": "materials",
+                        "value": "界" * 3200 + "x" * 41,
+                    }
+                ],
+            )
+            handler = self.handler("revise", body)
+            self.assertGreater(handler.length, 4096)
+            handle_planning(handler, "POST")
+            status, reply = handler.replies[0]
+            if status == 413:
+                self.assertEqual(reply["error"], "stage3-feedback-response-bound")
                 self.assertEqual(read_records(self), before)
+                self.assertEqual(
+                    self.journal.snapshot(self.jobs.project_id), before_state
+                )
                 rejected = True
+            else:
+                self.assertEqual(status, 200)
+                self.assertEqual(len(read_records(self)), len(before) + 1)
             self.assert_actual_reply_readable(
                 self.transport.view("own", "authored-ref")
             )

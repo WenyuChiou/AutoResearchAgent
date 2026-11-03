@@ -12,7 +12,7 @@ from stage3_plan.contracts import canonical_bytes, digest
 from stage3_plan.jobs import POLICY
 
 from .project_intake_contract import _fields
-from .http import MAX_RESPONSE
+from .http import MAX_BODY, MAX_RESPONSE
 from .session_api import _check
 
 
@@ -145,7 +145,17 @@ def record_feedback(jobs, ref, view, body, action, check_deadline=None):
         if kind == "comment"
         else {"comments", "parent_revision", "changes"}
     )
-    _fields(body, BINDING_FIELDS | {"key"} | extra)
+    if kind == "revision":
+        # Full planning fields share the transport's whole-request budget.
+        # Keep this check for direct callers as well as HTTP admission.
+        _check(
+            len(canonical_bytes(body)) <= MAX_BODY,
+            "stage3-feedback-request-bound",
+            413,
+        )
+        _fields(body, BINDING_FIELDS | {"key"} | extra, max_bytes=MAX_BODY)
+    else:
+        _fields(body, BINDING_FIELDS | {"key"} | extra)
     _text(body["key"], "stage3-feedback-key", 128)
     binding = _context(ref, view)
     _check(
@@ -247,7 +257,7 @@ def record_feedback(jobs, ref, view, body, action, check_deadline=None):
                 "stage3-feedback-change-invalid",
                 400,
             )
-            _text(change["value"], "stage3-feedback-change", limit=2048)
+            _text(change["value"], "stage3-feedback-change", limit=MAX_BODY)
             seen.add(target)
             revised_questions[target[0]][target[1]] = change["value"]
         _check(
