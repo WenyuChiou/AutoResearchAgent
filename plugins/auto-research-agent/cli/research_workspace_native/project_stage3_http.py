@@ -17,6 +17,7 @@ from stage3_plan.preparation import sha256
 from stage3_plan.storage import inspect_package
 
 from .session_api import SessionApiError
+from .http import MAX_BODY
 from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS
 from .project_stage3_direction_planning import DIRECTION_FIELDS
@@ -265,7 +266,8 @@ def handle_planning(handler, method):
                 raise SessionApiError("unknown-project-write", 404)
             if handler.headers.get("Content-Type", "").lower() != "application/json":
                 raise SessionApiError("json-content-type-required", 415)
-            if not 0 < length <= 4096:
+            body_limit = MAX_BODY if action == "revise" else 4096
+            if not 0 < length <= body_limit:
                 raise SessionApiError("stage3-planning-body-bound-exceeded", 413)
             raw = handler.rfile.read(length)
             if len(raw) != length:

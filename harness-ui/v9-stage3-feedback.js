@@ -91,7 +91,7 @@ async function v94fSend(app,retry=false){
   const row=await liveRequest(projectPath(context.binding.project_ref,'stage3/planning/'+operation.action),JSON.parse(JSON.stringify(operation.body)));
   if(!v94fRow(row,context.binding)||row.record.kind!==(operation.action==='comment'?'comment':'revision')||v94fCanonical(row.record.request)!==v94fCanonical(operation.body))throw Error('stage3-feedback-receipt-differs');
   v94fAccepted(state,row,retry||row.replayed===true);
- }catch(error){state.error=String(error?.message||error);operation.refused=error?.receipt===undefined&&((error?.status===413&&['stage3-feedback-response-bound','stage3-feedback-plan-bound'].includes(state.error))||(error?.status===409&&state.error==='stage3-feedback-record-bound'));}
+  }catch(error){state.error=String(error?.message||error);operation.refused=error?.receipt===undefined&&((error?.status===413&&['stage3-feedback-response-bound','stage3-feedback-plan-bound','stage3-feedback-request-bound','stage3-planning-body-bound-exceeded'].includes(state.error))||(error?.status===409&&state.error==='stage3-feedback-record-bound'));}
  finally{state.busy=false;if(v94fCurrent(context,epoch,app))livePaint();}
 }
 async function v94fSubmit(app,action){
@@ -99,10 +99,10 @@ async function v94fSubmit(app,action){
  try{
   const text=action==='comment'?state.commentText:state.value;
   if(!text.trim())throw Error(rl('请填写内容。','Enter text before saving.','請填寫內容。'));
-  const limit=action==='comment'?1800:2048;
-  if(new TextEncoder().encode(text).length>limit)throw Error(rl(`内容超过 ${limit} UTF-8 字节，请缩短。`,`Text exceeds ${limit} UTF-8 bytes; shorten it before saving.`,`內容超過 ${limit} UTF-8 位元組，請縮短。`));
+   if(action==='comment'&&new TextEncoder().encode(text).length>1800)throw Error(rl('评语超过 1800 UTF-8 字节。原文仍保留。','Comment exceeds 1800 UTF-8 bytes. Your text is retained.','評語超過 1800 UTF-8 位元組。原文仍保留。'));
   const body=v94fBody(context,state,action);
-  if(new TextEncoder().encode(JSON.stringify(body)).length>4096)throw Error(rl('请求超过 4096 UTF-8 字节，请缩短内容。','Request exceeds 4096 UTF-8 bytes; shorten the text before saving.','請求超過 4096 UTF-8 位元組，請縮短內容。'));
+   const requestLimit=action==='comment'?4096:262144;
+   if(new TextEncoder().encode(JSON.stringify(body)).length>requestLimit)throw Error(rl(`请求超过 ${requestLimit} UTF-8 字节，尚未送出；原文仍保留。`,`Request exceeds ${requestLimit} UTF-8 bytes and was not sent. Your text is retained.`,`請求超過 ${requestLimit} UTF-8 位元組，尚未送出；原文仍保留。`));
   state.pending={action,body};await v94fSend(app);
  }catch(error){state.error=String(error?.message||error);livePaint();}
 }
