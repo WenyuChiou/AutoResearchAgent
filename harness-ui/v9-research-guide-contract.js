@@ -84,6 +84,46 @@ function v94ChooseMaterial(catalog, view, revision = null) {
   /^file-[a-f0-9]{32}$/.test(item.id) && v94Pin(item.sha256) && Number.isSafeInteger(item.bytes) && item.bytes > 0 && item.bytes <= 65536, 'material');
  return item;
 }
+// Read saved text without inventing scientific edges. Authored guides retain
+// precedence and their existing byte, version and source validation.
+function v94PlanReadingGuide(view, revision = null, questionRef = null) {
+ const binding = v94PlanBinding(view, revision), plan = revision ? revision.record?.plan : view?.plan;
+ v94Require(binding && Number.isSafeInteger(binding.input_version) && binding.input_version > 0, 'reading-binding');
+ const questions = plan.question_plans;
+ v94Require(Array.isArray(questions) && questions.length > 0 && questions.length <= 32, 'reading-questions');
+ const context = view.direction_context?.questions;
+ const eligible = row => v94Text(row?.question_ref, 240) && (!context ||
+  (Array.isArray(context) && context.some(item => item.question_ref === row.question_ref)));
+ const index = questionRef === null ? questions.findIndex(eligible) : questions.findIndex(row => eligible(row) && row.question_ref === questionRef);
+ v94Require(index >= 0, 'reading-question');
+ const question = questions[index], prefix = '/question_plans/' + index + '/';
+ function excerpt(value, limit) {
+  v94Require(typeof value === 'string' && value.trim().length > 0, 'reading-text');
+  let text = value.trim().slice(0, limit);
+  if (/[\uD800-\uDBFF]$/.test(text)) text = text.slice(0, -1);
+  return text;
+ }
+ const labels = [
+  ['materials','material','Materials'], ['method','method','Method'], ['design','comparison','Design'],
+  ['validation','validation','Validation'], ['analysis','method','Analysis'],
+  ['interpretation','decision','Interpretation'], ['minimum_deliverable','output','Deliverable']
+ ];
+ const nodes = labels.filter(([field]) => typeof question[field] === 'string' && question[field].trim()).map(([field, kind, title]) => ({
+  id:field, kind, title, detail:excerpt(question[field], 400), sources:[{pointer:prefix + field, quote:excerpt(question[field], 2200)}]
+ }));
+ v94Require(nodes.some(node => node.id === 'method'), 'reading-method');
+ // Contiguous groups cover all method lines; source order is not a causal loop.
+ const lines = question.method.split('\n'), width = Math.max(1, Math.ceil(lines.length / 8)), steps = [];
+ for (let offset = 0; offset < lines.length; offset += width) {
+  const text = lines.slice(offset, offset + width).join('\n').trim();
+  if (!text) continue;
+  steps.push({id:'method-' + steps.length, kind:'method', title:excerpt(text.split('\n')[0], 100),
+   detail:excerpt(text, 400), sources:[{pointer:prefix + 'method', quote:excerpt(text, 2200)}]});
+ }
+ const guide = {kind:'Stage3ResearchPresentation', version:revision ? 2 : 1, ...binding,
+  question_ref:question.question_ref, flow:{nodes,edges:[]}, loop:{nodes:steps,edges:[]}, materials:[], baselines:[]};
+ return v94ValidateGuide(guide, view, revision);
+}
 async function v94FetchJson(path, limit, signal, expected) {
  const response = await fetch(path, {headers:{Authorization:'Bearer ' + window.RESEARCH_PROJECTS.credential},
   credentials:'same-origin', cache:'no-store', redirect:'error', signal});
