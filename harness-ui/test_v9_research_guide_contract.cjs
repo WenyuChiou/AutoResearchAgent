@@ -20,7 +20,7 @@ function fixture(){
   materials:[{name:'A public lead',use:'Verify its fit',gap:'Access unknown',sources:anchor()}],
   baselines:[{name:'A baseline',change:'Remove an input',purpose:'Compare mechanisms',sources:anchor()}]};
  const ctx=vm.createContext({TextDecoder,Uint8Array,crypto:webcrypto,window:{RESEARCH_PROJECTS:{credential:'synthetic-only'}}});
- vm.runInContext(source,ctx);return {view,guide,ctx};
+ vm.runInContext(source,ctx);vm.runInContext(renderer,ctx);return {view,guide,ctx};
 }
 function manualFixture(){
  const f=fixture(),view=f.view;
@@ -152,7 +152,10 @@ for(const transition of ['original-to-manual','manual-a-to-b','same-binding-refr
   assert.equal(f.guideState().controller,current);assert.equal(f.guideState().status,'loading');assert.equal(f.paints(),paints);assert.equal(f.guideState().guide,null);
   f.requests[1].resolve(new Response(JSON.stringify(transition==='cross-project'?{materials:[]}:f.catalog)));
   await waitFor(()=>f.guideState().controller===null);
-  assert.equal(f.guideState().status,transition==='cross-project'?'absent':'ready');
+  assert.equal(f.guideState().status,'ready');
+  if(transition==='cross-project'){
+   assert.equal(f.guideState().source,'plan-excerpts');assert.equal(f.guideState().guide.project_ref,'project-b');
+  }
   if(transition!=='cross-project')assert.equal(f.guideState().guide.revision_receipt_sha256,transition==='manual-a-to-b'?f.second.receipt_sha256:f.revision.receipt_sha256);
   assert.ok(f.calls.every(call=>!call.options.method));
  });
@@ -209,7 +212,7 @@ test('empty catalog leaves original saved plan visible without a planner call',a
   document:{addEventListener:()=>{}},fetch:async(p,o)=>{calls.push({p,o});return new Response('{"materials":[]}')}});
  vm.runInContext(adapter,f.ctx);await f.ctx.v94Load(f.view,basis,1);
  assert.deepEqual(calls.map(x=>x.p),['/api/v9/materials']);assert.match(f.ctx.v93SavedPlanSummary(f.view),/Original saved plan/);
- assert.equal(vm.runInContext('v94.status',f.ctx),'absent');
+ assert.equal(vm.runInContext('v94.status',f.ctx),'ready');assert.equal(vm.runInContext('v94.source',f.ctx),'plan-excerpts');
 });
 test('late responses cannot paint a different project/version',async()=>{
  const f=fixture(),basis={project_ref:'project-a',input_version:1,revision:2,brief_sha256:pin};let resolve,paints=0;
@@ -259,7 +262,7 @@ test('same-binding refresh replaces a pending epoch and an old completion cannot
  assert.equal(vm.runInContext('v94.controller',f.ctx),current);
  assert.equal(vm.runInContext('v94.status',f.ctx),'loading');
  requests[1].resolve(new Response('{"materials":[]}'));await new Promise(setImmediate);
- assert.equal(vm.runInContext('v94.status',f.ctx),'absent');assert.equal(vm.runInContext('v94.controller',f.ctx),null);
+ assert.equal(vm.runInContext('v94.status',f.ctx),'ready');assert.equal(vm.runInContext('v94.source',f.ctx),'plan-excerpts');assert.equal(vm.runInContext('v94.controller',f.ctx),null);
  assert.doesNotMatch(f.ctx.v93SavedPlanSummary(f.view),/data-v94-read disabled/);
  assert.match(f.ctx.v93SavedPlanSummary(f.view),/Retained original/);
 });
@@ -292,7 +295,7 @@ test('saved-plan click replaces a pending guide read even when binding and epoch
   requests[0].resolve(new Response('{"materials":[]}'));await new Promise(setImmediate);
   assert.equal(vm.runInContext('v94.controller',f.ctx),replacement);assert.equal(vm.runInContext('v94.status',f.ctx),'loading');
   requests[1].resolve(new Response('{"materials":[]}'));await new Promise(setImmediate);
-  assert.equal(vm.runInContext('v94.status',f.ctx),'absent');assert.equal(vm.runInContext('v94.controller',f.ctx),null);
+  assert.equal(vm.runInContext('v94.status',f.ctx),'ready');assert.equal(vm.runInContext('v94.source',f.ctx),'plan-excerpts');assert.equal(vm.runInContext('v94.controller',f.ctx),null);
   assert.doesNotMatch(f.ctx.v93SavedPlanSummary(newView),/data-v94-read disabled/);
   assert.deepEqual(planningReads,['/api/projects/project-a/stage3/planning','/api/projects/project-a/stage3/planning']);
   assert.ok(requests.every(request=>request.url==='/api/v9/materials'&&!request.options.method));

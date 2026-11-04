@@ -1,6 +1,6 @@
 // Read an optional, byte/source-bound visual guide through the existing material API.
 // This module only issues GETs. Accepted plan, selection and scientific state are untouched.
-const v94 = {key:null, view:null, status:'idle', guide:null, error:'', controller:null, dispose:null};
+const v94 = {key:null, view:null, status:'idle', guide:null, source:null, error:'', controller:null, dispose:null};
 function v94SelectedRevision(view) {
  if (typeof v94fContext !== 'function') return null;
  const context = v94fContext();
@@ -18,15 +18,15 @@ function v94Current(view, basis, epoch, revision = null) {
 }
 async function v94Load(view, basis, epoch, revision = v94SelectedRevision(view)) {
  const key = v94Key(view, basis, epoch, revision), controller = new AbortController();
- v94.controller?.abort(); Object.assign(v94, {key, view, controller, status:'loading', guide:null, error:''});
+ v94.controller?.abort(); Object.assign(v94, {key, view, controller, status:'loading', guide:null, source:null, error:''});
  livePaint();
  const timeout = setTimeout(() => controller.abort(), 20000);
  try {
   const catalog = await v94FetchJson('/api/v9/materials', 524288, controller.signal);
   const item = v94ChooseMaterial(catalog, view, revision);
-  const guide = item ? v94ValidateGuide(await v94FetchJson('/api/v9/files/' + item.id, 65536, controller.signal, item), view, revision) : null;
+  const guide = item ? v94ValidateGuide(await v94FetchJson('/api/v9/files/' + item.id, 65536, controller.signal, item), view, revision) : v94PlanReadingGuide(view, revision);
   if (!v94Current(view, basis, epoch, revision) || v94.key !== key || v94.controller !== controller) return;
-  v94.guide = guide; v94.status = guide ? 'ready' : 'absent';
+  v94.guide = guide; v94.source = item ? 'authored' : 'plan-excerpts'; v94.status = 'ready';
  } catch (error) {
   if (!v94Current(view, basis, epoch, revision) || v94.controller !== controller) return;
   v94.status = 'failed'; v94.error = error?.name === 'AbortError' ? 'research-guide-read-timeout' : String(error?.message || error);
@@ -43,7 +43,7 @@ function v94GuideSection(view, revision, original = '') {
   const count = plan.question_plans.reduce((sum, row) => sum + (Array.isArray(row.unknowns) ? row.unknowns.length : 0), 0);
   const question = view.direction_context?.questions?.find(row => row.question_ref === v94.guide.question_ref);
   const note = revision ? rl('图解对应当前人工草案；完整内容、待查事项与原规划继续保留。','This guide belongs to the selected manual draft. Its complete text, open checks and original plan remain available.','圖解對應目前人工草案；完整內容、待查事項與原規劃繼續保留。') : rl('以下图解只说明这个问题；原规划、其他问题与全部待查事项保留在下方。','The guide covers this question only. The original plan, other questions and all open checks remain below.','以下圖解只說明這個問題；原規劃、其他問題與全部待查事項保留在下方。');
-  return '<section class="n9-guide-question"><h2>'+rx(question?.text || v94.guide.question_ref)+'</h2><p>'+note+'</p></section><div data-v94-guide>'+v94GuideHtml(v94.guide)+'</div>'+(revision ? '' : '<details class="n9-plan-details"><summary>'+rl('完整原规划与待查事项','Complete saved plan and open checks','完整原規劃與待查事項')+' · '+count+'</summary>'+original+'</details>');
+  return '<section class="n9-guide-question"><h2>'+rx(question?.text || v94.guide.question_ref)+'</h2><p>'+note+'</p></section><div data-v94-guide>'+v94GuideHtml(v94.guide, {reading:v94.source === 'plan-excerpts'})+'</div>'+(revision ? '' : '<details class="n9-plan-details"><summary>'+rl('完整原规划与待查事项','Complete saved plan and open checks','完整原規劃與待查事項')+' · '+count+'</summary>'+original+'</details>');
  }
  const status = v94.key === key && v94.view === view ? v94.status : 'idle';
  const message = status === 'loading' ? rl('正在读取图解，不会生成研究。','Reading the visual guide; no research will be generated.','正在讀取圖解，不會生成研究。') :
@@ -61,7 +61,7 @@ const v94After = v7AfterRender;
 v7AfterRender = function(app) {
  v94After(app); v94.dispose?.(); v94.dispose = null;
  const view = v93.view, basis = v93Identity(), key = app.page === 'workspace' && app.stage === 3 && v93Matches(basis, v93.basis) ? v94Key(view, basis) : null;
- if (!key) { v94.controller?.abort(); Object.assign(v94, {key:null, view:null, guide:null, status:'idle', controller:null}); return; }
+ if (!key) { v94.controller?.abort(); Object.assign(v94, {key:null, view:null, guide:null, source:null, status:'idle', controller:null}); return; }
  const target = app.el.querySelector('[data-v94-guide]');
  if (target && typeof v94ConnectGuide === 'function') v94.dispose = v94ConnectGuide(target);
  if (v94.key !== key || v94.view !== view) v94Load(view, basis, rt.epoch);
