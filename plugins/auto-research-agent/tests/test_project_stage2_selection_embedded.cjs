@@ -13,6 +13,7 @@ class Element {
   constructor(tag='div') { this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.value='';this.checked=false;this.hidden=false;this.disabled=false;this._text=''; }
   append(...nodes) { this.children.push(...nodes); if(this.tagName==='SELECT'&&!this.value&&nodes[0])this.value=nodes[0].value||nodes[0].textContent; }
   replaceChildren(...nodes) { this.children=nodes; }
+  insertAdjacentElement(_position,element) { this.after=element; }
   scrollIntoView() {}
   set textContent(value) { this._text=String(value);this.children=[]; }
   get textContent() { return this._text+this.children.map(child=>child.textContent||'').join(''); }
@@ -39,7 +40,7 @@ function harness(options={}) {
   if(init?.method==='POST')writes.push({url,body});else reads.push(url);
   if(url==='/api/projects')return response({projects:[]});
   if(url.endsWith('/history')) {if(options.holdHistory)await new Promise(resolve=>{historyRelease=resolve});const actions=[];if(selected)actions.push(real?structuredClone(real.history.actions[0]):{...selectReceipt,project_ref:binding.project_ref,kind:'stage2-select',status:'saved'});if(intentReceipt)actions.push({...intentReceipt,project_ref:binding.project_ref,kind:'stage2-direction-intent'});let h={project_ref:binding.project_ref,revision:real?(selected?real.after.revision:real.before.revision):(selected||intentReceipt?2:1),versions:[{input_version:binding.input_version,sha256:binding.brief_sha256}],actions,execution_authorized:false};return response(options.historyTransform?options.historyTransform(h):h);}
-  if(url.endsWith('/stage2/selection')){const captured=view();if(holdRead){holdRead=false;await new Promise(resolve=>{readRelease=resolve});}return response(captured);}
+  if(url.endsWith('/stage2/selection')){const captured=view();if(holdRead){holdRead=false;await new Promise(resolve=>{readRelease=resolve});}return response(options.readTransform?options.readTransform(captured):captured);}
   if(url.endsWith('/stage2/select')){
    if(waitSelect)await new Promise(resolve=>{release=resolve});
    selected=true;ack=real?real.post.request_sha256:digest('stage2-select',body);selectReceipt=real?real.after.selection_receipt:{key:body.key,request_sha256:ack,delivery_manifest_sha256:'c'.repeat(64),interaction_file_sha256:'7'.repeat(64),planning_manifest_sha256:'8'.repeat(64),workflow_head_sha256:'9'.repeat(64),artifact_ref:'stage2-choice-'+ack,selection_status:'recorded',planning_status:'verified',execution_authorized:false};
@@ -96,6 +97,40 @@ test('scoped current cards retain unknowns, and zero recommendation never create
 });
 test('mismatched typed version is rejected without exposing cards or sending writes',async()=>{
  const f=harness({versionMismatch:true});await tick();assert.match(f.els.get('status').textContent,/version-differs/);assert.equal(f.els.get('cards').children.length,0);assert.equal(f.writes.length,0);
+});
+test('actual retry button follows the verified saved revision without writes or marker changes',async()=>{
+ for(const preference of [true,false]){
+  const f=harness({intentReady:preference,losePrepareResponse:true});await tick();
+  if(preference){
+   const box=descendants(f.els.get('cards')).find(n=>n.name==='tentative-direction');box.checked=true;box.onchange();
+   f.els.get('intent-message').value='Synthetic direction';f.els.get('intent-confirmed').checked=true;
+   await f.els.get('direction-intent').onsubmit({preventDefault(){},submitter:f.els.get('intent-start')});
+  }else{
+   f.selectRadio();f.form();await f.els.get('choice').onsubmit({preventDefault(){},submitter:f.els.get('submit-and-start')});
+  }
+  assert.equal(f.binding.revision,1);assert.equal(JSON.parse(f.els.get('receipt').textContent).input_version,1);
+  const marker=[...f.store.values.entries()];assert.equal(marker.length,1);assert.equal(JSON.parse(marker[0][1]).phase,'planning');
+  const retry=f.els.get('status').after.children.find(n=>n.id==='selection-read-again');assert.equal(retry.hidden,false);assert.equal(retry.disabled,false);
+  const reads=f.reads.length,writes=f.writes.length,uuids=f.uuids();await retry.onclick();
+  assert.equal(f.reads.length-reads,1);assert.equal(f.reads.at(-1),'/api/projects/project-a/stage2/selection');
+  assert.equal(f.writes.length-writes,0);assert.equal(f.uuids(),uuids);assert.equal(f.binding.revision,1);
+  assert.deepEqual([...f.store.values.entries()],marker);
+  assert.doesNotMatch(f.els.get('status').textContent,/stage2-embedded-version-differs|最新讀取失敗/);
+  assert.equal(f.handle.state().reading,false);assert.equal(f.handle.state().recovery.status,'unknown');
+ }
+});
+test('retry still rejects unverified revisions and project, typed input or brief changes',async()=>{
+ for(const bad of [{revision:1},{revision:3},{revision:'2'},{project_ref:'project-b'},{input_version:'1'},{brief_sha256:'0'.repeat(64)}]){
+  let tamper=false;const f=harness({intentReady:true,losePrepareResponse:true,readTransform:v=>tamper?{...v,...bad}:v});await tick();
+  const box=descendants(f.els.get('cards')).find(n=>n.name==='tentative-direction');box.checked=true;box.onchange();
+  f.els.get('intent-message').value='Synthetic direction';f.els.get('intent-confirmed').checked=true;
+  await f.els.get('direction-intent').onsubmit({preventDefault(){},submitter:f.els.get('intent-start')});
+  const retry=f.els.get('status').after.children.find(n=>n.id==='selection-read-again'),marker=[...f.store.values.entries()],reads=f.reads.length,writes=f.writes.length,receipt=f.els.get('receipt').textContent;
+  assert.doesNotMatch(f.els.get('status').textContent,/最新讀取失敗/);
+  tamper=true;await retry.onclick();assert.match(f.els.get('status').textContent,/最新讀取失敗.*修訂: 2/);
+  assert.equal(f.els.get('receipt').textContent,receipt);
+  assert.equal(f.reads.length-reads,1);assert.equal(f.writes.length-writes,0);assert.deepEqual([...f.store.values.entries()],marker);
+ }
 });
 test('language changes preserve input, original candidate selection and three-language link',async()=>{
  const f=harness();await tick();f.selectRadio();f.form();

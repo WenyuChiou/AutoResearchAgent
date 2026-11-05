@@ -45,6 +45,11 @@
       throw new Error("stage2-embedded-session-retained");
     }
   }
+  // Keep the parent's mount identity fixed; only receipt-verified saves advance GET binding.
+  let verifiedReadBinding = binding;
+  function rememberVerifiedReadBinding(state) {
+    if(embedded) verifiedReadBinding=Object.freeze({project_ref:state.project_ref,input_version:state.input_version,revision:state.revision,brief_sha256:state.brief_sha256});
+  }
   let active = true, disposed = false, reading = false, reloadAfterRead = false, uncertain = false;
   let storage=null, pendingMarker=null, pendingRaw=null, recovery=null, recoverySerial=0, recoveryNoticeKey=null;
   const hex=/^[a-f0-9]{64}$/, actionKey=/^[A-Za-z0-9_-]{1,128}$/;
@@ -390,13 +395,13 @@
   async function load() {
     const ref=byId("project").value;
     if(!isActive() || (busy && viewProject===ref) || (reading && (embedded || readingProject===ref)))return;
-    const serial=++loadSerial;
+    const serial=++loadSerial, expectedBinding=verifiedReadBinding;
     if(viewProject!==ref){view=null;viewProject=null;readAt=null;requestKey=null;lastBody=null;planningSubmission=null;intentTransaction=null;intentNotice=null;intentHold=null;planningContinuation=null;preferredDirections.clear();if(byId("intent-message")){byId("intent-message").value="";byId("intent-confirmed").checked=false;}}
     reading=true;readingProject=ref;readFailed=false;operationFailed=false;notice=null;phase="readingSaved";render();
     try{
       if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)){notice=w().unconnected;return;}
       const loaded=await api("/api/projects/"+ref+"/stage2/selection");if(!current(ref,serial))return;
-      if(embedded && !["project_ref","input_version","revision","brief_sha256"].every(key=>loaded[key]===binding[key]))throw new Error("stage2-embedded-version-differs");
+      if(embedded && !["project_ref","input_version","revision","brief_sha256"].every(key=>loaded[key]===expectedBinding[key]))throw new Error("stage2-embedded-version-differs");
       view=loaded;viewProject=ref;readAt=new Date().toISOString();
       const saved=intentTransactions.get(intentBinding(ref,view));
       if(saved){intentTransaction=saved;for(const direction of saved.body.preferred_directions)preferredDirections.set(JSON.stringify([direction.candidate_id,direction.candidate_version]),direction);if(byId("intent-message")){byId("intent-message").value=saved.body.user_input;byId("intent-confirmed").checked=true;}}
@@ -478,6 +483,7 @@
         ["workflow_head_sha256","interaction_file_sha256","planning_manifest_sha256"].every(k=>isHex(saved[k])) && refreshed.workflow_head_sha256===saved.workflow_head_sha256;
       if(embedded && (!verified || receipt.request_sha256!==pendingMarker?.request_sha256)) throw new Error("stage2-embedded-selection-receipt-differs");
       confirmedStage2=!!verified;
+      if(verified) rememberVerifiedReadBinding(refreshed);
       if(verified && (!embedded || !start)) { if(embedded) clearPending(); else uncertain=false; }
       view=refreshed; viewProject=ref;readAt=new Date().toISOString();if(!start)phase=null;render();
       if(start) {
@@ -572,7 +578,7 @@
       verifyIntentReceipt(receipt,transaction);if(embedded && receipt.request_sha256!==pendingMarker?.request_sha256)throw Error("stage2-embedded-intent-receipt-differs");transaction.receipt=receipt;
       progress("readingPreference");const refreshed=await api("/api/projects/"+ref+"/stage2/selection");
       if(!current(ref,serial))return;
-      verifyIntentView(ref,refreshed,transaction);confirmedStage2=true;if(!start){if(embedded)clearPending();else uncertain=false;phase=null;}view=refreshed;viewProject=ref;readAt=new Date().toISOString();intentNotice=w().intentSaved;render();
+      verifyIntentView(ref,refreshed,transaction);rememberVerifiedReadBinding(refreshed);confirmedStage2=true;if(!start){if(embedded)clearPending();else uncertain=false;phase=null;}view=refreshed;viewProject=ref;readAt=new Date().toISOString();intentNotice=w().intentSaved;render();
       if(start)await startIntentPlanning(ref,serial,transaction,refreshed);
     } catch(e) {if(current(ref,serial)){intentNotice=e.message || w().intentHeld;operationFailed=true;readFailed=["readingPreference","readingPrepared"].includes(phase);}}
     finally {if(embedded && confirmedStage2 && pendingMarker?.phase==="stage2" && current(ref,serial)) {try{clearPending();}catch(_){recovery=recoveryState("unavailable","storage-unavailable","stage2-direction-intent");}}busy=false;render();}
