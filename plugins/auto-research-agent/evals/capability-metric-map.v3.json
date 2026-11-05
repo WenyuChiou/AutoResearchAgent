@@ -1018,7 +1018,8 @@
         "No new research, evaluation, scheduler, native budget or model authority",
         "No required job rename, branch-protection bypass, path-filtered required workflow or continue-on-error",
         "New, deleted, renamed, type-changed or unclassified production paths stay on broad standard CI",
-        "Long integration profile remains explicitly manual; Windows standard deferred coverage stays visible"
+        "Long integration profile remains explicitly manual; Windows standard deferred coverage stays visible",
+        "Selected named tests and worker modules must resolve inside the selected tests root; foreign search-path or preloaded modules cannot replace missing local tests"
       ],
       "test_refs": [
         ".github/scripts/test_ci_test_routing.py",
