@@ -636,6 +636,78 @@ class Stage1TestScopeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "outside selected test directory"):
                 scope.run_partition([name + ".T.test_ok"], self.repo / scope.TEST_DIR)
 
+    def test_local_packages_support_selected_cached_and_spawn_worker_loading(self):
+        self.write(TESTS + "test_origin_pkg/__init__.py", "")
+        self.write(TESTS + "test_origin_pkg/test_case.py", PASSING)
+        self.write(TESTS + "test_origin_pkg/nested/__init__.py", "")
+        self.write(TESTS + "test_origin_pkg/nested/test_case.py", PASSING)
+        for name in ("test_origin_pkg.test_case", "test_origin_pkg.nested.test_case"):
+            for preload in ((), (name,)):
+                with self.subTest(module=name, preload=preload):
+                    result = self.fixture(
+                        {"mode": "selected", "modules": [name]},
+                        pythonpath=[self.repo / TESTS],
+                        preload=preload,
+                    )
+                    self.assertEqual(
+                        result.returncode, 0, result.stdout + result.stderr
+                    )
+                    self.assertEqual(
+                        json.loads(result.stdout.splitlines()[-1])["tests_run"], 1
+                    )
+        for workers in (1, 2):
+            with self.subTest(workers=workers):
+                result = self.fixture(workers=workers, profile="full")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(
+                    json.loads(result.stdout.splitlines()[-1])["tests_run"], 4
+                )
+
+    def test_preloaded_foreign_child_modules_and_packages_are_rejected(self):
+        self.write(TESTS + "test_origin_pkg/__init__.py", "")
+        self.write(TESTS + "test_origin_pkg/nested/__init__.py", "")
+        self.write(TESTS + "test_origin_pkg/nested/test_case.py", PASSING)
+        for name, source in (
+            ("test_origin_pkg.nested", "external/nested/__init__.py"),
+            ("test_origin_pkg.nested.test_case", "external/test_case.py"),
+            ("test_origin_pkg.nested.test_case", TESTS + "test_wrong_origin.py"),
+        ):
+            path = self.write(source, PASSING)
+            with (
+                self.subTest(module=name, source=source),
+                patch.dict(sys.modules),
+                patch.object(sys, "path", [str(self.repo / TESTS), *sys.path]),
+            ):
+                parent_name, attribute = name.rsplit(".", 1)
+                parent = importlib.import_module(parent_name)
+                spec = importlib.util.spec_from_file_location(name, path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                sys.modules[name] = module
+                setattr(parent, attribute, module)
+                selector = "test_origin_pkg.nested.test_case"
+                message = f"Test module {name} is outside selected test directory"
+                with self.assertRaisesRegex(ValueError, message):
+                    scope.run_suite(
+                        {"mode": "selected", "modules": [selector]}, repo=self.repo
+                    )
+                with self.assertRaisesRegex(ValueError, message):
+                    scope.run_partition([selector + ".T.test_ok"], self.repo / TESTS)
+
+    def test_local_package_cannot_load_missing_child_from_extended_search_path(self):
+        external = self.write("external/test_case.py", PASSING).parent
+        self.write(
+            TESTS + "test_origin_pkg/__init__.py",
+            f"__path__.append({str(external)!r})\n",
+        )
+        name = "test_origin_pkg.test_case"
+        result = self.fixture({"mode": "selected", "modules": [name]})
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            f"Test module {name} is outside selected test directory", result.stderr
+        )
+        self.assertNotIn('"passed": true', result.stdout)
+
     def test_contract_flag_runs_real_contract_fixtures(self):
         for name in scope.CONTRACT_MODULES:
             self.write(".github/scripts/" + name + ".py", PASSING)

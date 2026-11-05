@@ -299,25 +299,37 @@ def partition_tests(ids, workers):
 def require_local_test_modules(names, directory):
     """Keep named selection and worker reloads bound to this checkout's tests."""
     directory = Path(directory).resolve()
-    for name in sorted({name.split(".", 1)[0] for name in names}):
-        module = sys.modules.get(name)
-        if module is not None:
-            origin = getattr(module, "__file__", None)
-        else:
-            spec = importlib.util.find_spec(name)
-            if spec is None:
-                # Retain unittest's ordinary missing-module failure accounting.
-                continue
-            origin = spec.origin
-        if (
-            not origin
-            or Path(origin).resolve().parent != directory
-            or not Path(origin).is_file()
-        ):
-            raise ValueError(
-                f"Test module {name} is outside selected test directory "
-                f"{directory}: {origin}"
+    for selector in sorted(set(names)):
+        parts = selector.split(".")
+        for length in range(1, len(parts) + 1):
+            name = ".".join(parts[:length])
+            module = sys.modules.get(name)
+            if module is not None:
+                origin = getattr(module, "__file__", None)
+                package = hasattr(module, "__path__")
+            else:
+                spec = importlib.util.find_spec(name)
+                if spec is None:
+                    # Retain unittest's ordinary missing-module failure accounting.
+                    break
+                origin = spec.origin
+                package = spec.submodule_search_locations is not None
+            expected = directory.joinpath(*parts[:length])
+            expected = (
+                expected / "__init__.py" if package else expected.with_suffix(".py")
             )
+            if (
+                not origin
+                or Path(origin).resolve() != expected
+                or not expected.is_file()
+            ):
+                raise ValueError(
+                    f"Test module {name} is outside selected test directory "
+                    f"{directory}: {origin}"
+                )
+            if not package:
+                # Remaining selector components name a test class or method.
+                break
 
 
 def run_partition(ids, directory):
