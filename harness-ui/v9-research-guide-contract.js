@@ -47,8 +47,8 @@ function v94ValidateGuide(guide, view, revision = null) {
   }
  }
  const kinds = ['question','material','decision','method','comparison','validation','output','fallback'];
- function graph(value, maxNodes) {
-  v94Require(v94Object(value, ['nodes','edges']) && Array.isArray(value.nodes) && value.nodes.length > 0 &&
+  function graph(value, maxNodes, minNodes) {
+   v94Require(v94Object(value, ['nodes','edges']) && Array.isArray(value.nodes) && value.nodes.length >= minNodes &&
    value.nodes.length <= maxNodes && Array.isArray(value.edges) && value.edges.length <= 18, 'graph');
   const ids = new Set();
   for (const node of value.nodes) {
@@ -64,7 +64,7 @@ function v94ValidateGuide(guide, view, revision = null) {
    pairs.add(edge.from + '/' + edge.to); sources(edge.sources);
   }
  }
- graph(guide.flow, 12); graph(guide.loop, 8);
+  graph(guide.flow, 12, 1); graph(guide.loop, 8, 0);
  for (const [key, fields] of [['materials',['name','use','gap','sources']], ['baselines',['name','change','purpose','sources']]]) {
   v94Require(Array.isArray(guide[key]) && guide[key].length <= 8, key);
   for (const row of guide[key]) {
@@ -84,6 +84,11 @@ function v94ChooseMaterial(catalog, view, revision = null) {
   /^file-[a-f0-9]{32}$/.test(item.id) && v94Pin(item.sha256) && Number.isSafeInteger(item.bytes) && item.bytes > 0 && item.bytes <= 65536, 'material');
  return item;
 }
+function v94PlanQuestionIndex(plan, context, questionRef = null) {
+ return plan.question_plans.findIndex(row => v94Text(row?.question_ref, 240) &&
+  (questionRef === null || row.question_ref === questionRef) &&
+  (!context || (Array.isArray(context) && context.some(item => item.question_ref === row.question_ref))));
+}
 // Read saved text without inventing scientific edges. Authored guides retain
 // precedence and their existing byte, version and source validation.
 function v94PlanReadingGuide(view, revision = null, questionRef = null) {
@@ -91,10 +96,7 @@ function v94PlanReadingGuide(view, revision = null, questionRef = null) {
  v94Require(binding && Number.isSafeInteger(binding.input_version) && binding.input_version > 0, 'reading-binding');
  const questions = plan.question_plans;
  v94Require(Array.isArray(questions) && questions.length > 0 && questions.length <= 32, 'reading-questions');
- const context = view.direction_context?.questions;
- const eligible = row => v94Text(row?.question_ref, 240) && (!context ||
-  (Array.isArray(context) && context.some(item => item.question_ref === row.question_ref)));
- const index = questionRef === null ? questions.findIndex(eligible) : questions.findIndex(row => eligible(row) && row.question_ref === questionRef);
+ const index = v94PlanQuestionIndex(plan, view.direction_context?.questions, questionRef);
  v94Require(index >= 0, 'reading-question');
  const question = questions[index], prefix = '/question_plans/' + index + '/';
  function excerpt(value, limit) {

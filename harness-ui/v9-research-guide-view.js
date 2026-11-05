@@ -13,20 +13,97 @@ function v94Sources(sources){
 function v94Graph(graph,isLoop,reading=false){
  const index=new Map(graph.nodes.map((node,i)=>[node.id,i]));
  const fieldTitles=reading?{materials:rl('材料','Materials','材料'),method:rl('方法','Method','方法'),design:rl('设计','Design','設計'),validation:rl('验证','Validation','驗證'),analysis:rl('分析','Analysis','分析'),interpretation:rl('结果判读','Interpretation','結果判讀'),minimum_deliverable:rl('交付','Deliverable','交付')}:{};
- const nodeHtml=(node,i,position='')=>`<article class="n94-node" data-n94-node="${i}" data-n94-ref="${rx(node.id)}"${position}>${graph.edges.filter(edge=>edge.to===node.id).map(edge=>`<p class="n94-route-condition"><span aria-hidden="true">↳ </span>${rx(edge.label)}</p>`).join('')}<div class="n94-node-kind">${v94Icon(node.kind)}<span>${v94Kind(node.kind)}</span></div><h4>${rx(fieldTitles[node.id]||node.title)}</h4><p>${rx(node.detail)}</p>${v94Sources(node.sources)}</article>`;
+ const nodeHtml=(node,i,position='')=>{
+  const incoming=graph.edges.filter(edge=>edge.to===node.id),outgoing=graph.edges.filter(edge=>edge.from===node.id);
+  const next=outgoing.map(edge=>`<li>${rx(graph.nodes[index.get(edge.to)].title)} · ${rx(edge.label)}</li>`).join('');
+  return `<article class="n94-node" data-n94-node="${i}" data-n94-ref="${rx(node.id)}"${position}>${incoming.map(edge=>`<p class="n94-route-condition"><span aria-hidden="true">↳ </span>${rx(edge.label)}</p>`).join('')}<div class="n94-node-kind">${v94Icon(node.kind)}<span>${isLoop?'':(i+1)+' · '}${v94Kind(node.kind)}</span></div><h4>${rx(fieldTitles[node.id]||node.title)}</h4>${v94Disclosure(rl('查看这一步','Read this step','查看這一步'),`<p>${rx(node.detail)}</p>${next?`<p><strong>${rl('接续步骤','Next steps','接續步驟')}</strong></p><ul>${next}</ul>`:''}${v94Sources(node.sources)}`)}</article>`;
+ };
  // Placement follows authored array order; only the supplied edges express relationships.
  const columns=isLoop?2:3;
  const nodes=graph.nodes.map((node,i)=>nodeHtml(node,i,` style="grid-column:${Math.floor(i/columns)%2?columns-i%columns:1+i%columns};grid-row:${Math.floor(i/columns)+1}"`)).join('');
  const relations=graph.edges.map(edge=>`<li data-n94-edge data-n94-from="${index.get(edge.from)}" data-n94-to="${index.get(edge.to)}"><p><strong>${rx(graph.nodes[index.get(edge.from)].title)}</strong><span class="n94-relation-arrow" aria-hidden="true"> → </span><span>${rx(edge.label)}</span><span class="n94-relation-arrow" aria-hidden="true"> → </span><strong>${rx(graph.nodes[index.get(edge.to)].title)}</strong></p>${v94Sources(edge.sources)}</li>`).join('');
- const heading=reading?(isLoop?rl('方法原文顺序','Method in source order','方法原文順序'):rl('当前研究规划','Current research plan','目前研究規劃')):(isLoop?rl('反馈循环（拟议）','Proposed feedback loop','回饋循環（擬議）'):rl('研究流程（拟议）','Proposed research flow','研究流程（擬議）'));
+ const feedback=isLoop&&graph.edges.length>0;
+ const heading=reading?(isLoop?rl('方法原文顺序','Method in source order','方法原文順序'):rl('当前研究规划','Current research plan','目前研究規劃')):
+  feedback?rl('反馈循环（拟议）','Proposed feedback loop','回饋循環（擬議）'):
+  isLoop?rl('已记录的方法说明','Recorded method notes','已記錄的方法說明'):rl('研究流程（拟议）','Proposed research flow','研究流程（擬議）');
  if(reading)return `<section class="n94-graph"><h3>${heading}</h3><p class="n94-caption">${rl('以下为当前版本的原文摘录；完整内容与待查事项仍可展开。原文顺序不表示因果或反馈关系。','Excerpts from the current version. Expand the complete text and open checks below. Source order does not establish causal or feedback relationships.','以下為目前版本的原文摘錄；完整內容與待查事項仍可展開。原文順序不表示因果或回饋關係。')}</p><div class="n94-board${isLoop?' n94-loop-grid':''}"><svg class="n94-connectors" aria-hidden="true" focusable="false"></svg>${nodes}</div></section>`;
-  return `<section class="n94-graph"><h3>${heading}</h3><p class="n94-caption">${isLoop?rl('箭头表示计划中的回访关系；尚未运行迭代。','Arrows show planned feedback relationships; no iterations have been run.','箭頭表示計畫中的回訪關係；尚未執行迭代。'):rl('箭头表示作者整理的研究关系；各步骤和条件尚待核验。','Arrows show authored research relationships; steps and conditions still require verification.','箭頭表示作者整理的研究關係；各步驟與條件尚待核驗。')}</p><div class="n94-board${isLoop?' n94-loop-grid':''}"><svg class="n94-connectors" aria-hidden="true" focusable="false"></svg>${nodes}</div>${relations?`<details class="n94-relations"><summary>${rl('完整关系与来源','Complete relationships and sources','完整關係與來源')} <span>(${graph.edges.length})</span></summary><ul>${relations}</ul></details>`:`<p class="n94-caption">${rl('未提供步骤之间的关系。','No relationships between steps are provided.','未提供步驟之間的關係。')}</p>`}</section>`;
+  const caption=feedback?rl('箭头表示计划中的回访关系；尚未运行迭代。','Arrows show planned feedback relationships; no iterations have been run.','箭頭表示計畫中的回訪關係；尚未執行迭代。'):
+   rl('箭头表示作者整理的研究关系；各步骤和条件尚待核验。','Arrows show authored research relationships; steps and conditions still require verification.','箭頭表示作者整理的研究關係；各步驟與條件尚待核驗。');
+  return `<section class="n94-graph"><h3>${heading}</h3>${relations?`<p class="n94-caption">${caption}</p>`:''}<div class="n94-board${isLoop?' n94-loop-grid':''}"><svg class="n94-connectors" aria-hidden="true" focusable="false"></svg>${nodes}</div>${relations?`<details class="n94-relations"><summary>${rl('完整关系与来源','Complete relationships and sources','完整關係與來源')} <span>(${graph.edges.length})</span></summary><ul>${relations}</ul></details>`:`<p class="n94-caption">${rl('未提供步骤之间的关系。','No relationships between steps are provided.','未提供步驟之間的關係。')}</p>`}</section>`;
 }
-function v94GuideHtml(guide,{reading=false}={}){
- if(reading)return `<section class="n94-guide"><header class="n94-intro"><h2>${rl('已保存规划导读','Saved planning guide','已保存規劃導讀')}</h2><p>${rl('由这个题目与版本的规划原文整理；尚未执行。没有另行生成研究或推断模型关系。','Organized from this question and version’s saved text; not run. No additional research or model relationships are generated.','由這個題目與版本的規劃原文整理；尚未執行。沒有另行生成研究或推斷模型關係。')}</p></header>${v94Graph(guide.flow,false,true)}${v94Graph(guide.loop,true,true)}</section>`;
- const materials=guide.materials.map(item=>`<article class="n94-material"><h4>${v94Icon('material')}${rx(item.name)}</h4><dl><dt>${rl('预期用途','Intended use','預期用途')}</dt><dd>${rx(item.use)}</dd><dt>${rl('待核验','Still to verify','待核驗')}</dt><dd>${rx(item.gap)}</dd></dl>${v94Sources(item.sources)}</article>`).join('');
- const baselines=guide.baselines.map(item=>`<article class="n94-baseline"><h4>${v94Icon('comparison')}${rx(item.name)}</h4><dl><dt>${rl('比较变化','Comparison change','比較變化')}</dt><dd>${rx(item.change)}</dd><dt>${rl('比较目的','Comparison purpose','比較目的')}</dt><dd>${rx(item.purpose)}</dd></dl>${v94Sources(item.sources)}</article>`).join('');
- return `<section class="n94-guide"><header class="n94-intro"><p class="n94-eyebrow">${rl('研究规划导读','Research planning guide','研究規劃導讀')}</p><h2>${rl('从问题走向可检验的研究','From question to a testable study','從問題走向可檢驗的研究')}</h2><p>${rl('作者整理的规划导读 · 仅为拟议，尚未执行。请结合完整原规划审阅。','Authored planning guide · proposed, not run. Review it alongside the complete original plan.','作者整理的規劃導讀 · 僅為擬議，尚未執行。請結合完整原規劃審閱。')}</p></header>${v94Graph(guide.flow,false)}${v94Graph(guide.loop,true)}<section class="n94-materials"><h3>${rl('材料线索与用途','Material leads and uses','材料線索與用途')}</h3><p class="n94-caption">${rl('以下仅为待核验的材料线索，不代表已映射或已可用资源。','These are material leads requiring verification; they do not establish mapped or available resources.','以下僅為待核驗的材料線索，不代表已映射或已可用資源。')}</p><div class="n94-records">${materials||`<p>${rl('未提供材料线索。','No material leads are provided.','未提供材料線索。')}</p>`}</div></section><section class="n94-baselines"><h3>${rl('基线与对照（拟议）','Proposed baselines and comparisons','基線與對照（擬議）')}</h3><p class="n94-caption">${rl('以下对照尚未运行，不代表实验结果或验证通过。','These comparisons have not been run; they are not results or completed validation.','以下對照尚未執行，不代表實驗結果或驗證通過。')}</p><div class="n94-records">${baselines||`<p>${rl('未提供基线或对照。','No baselines or comparisons are provided.','未提供基線或對照。')}</p>`}</div></section></section>`;
+function v94Disclosure(label,html){
+ return html?`<details class="n94-disclosure"><summary>${label}</summary>${html}</details>`:'';
+}
+function v94Field(label,value){
+ return typeof value==='string'&&value.trim()?v94Disclosure(label,`<p>${rx(value)}</p>`):'';
+}
+function v94GuideHtml(guide,{reading=false,question=null,row=null,resources=[],version=null,canComment=false}={}){
+ const compare=guide?.baselines??[],leads=guide?.materials??[];
+ const authoredQuestion=reading?null:guide?.flow.nodes.find(node=>node.kind==='question');
+ const title=authoredQuestion?.detail||question?.text||rl('已保存的研究问题','Saved research question','已保存的研究問題');
+ const unknowns=Array.isArray(row?.unknowns)?row.unknowns.filter(value=>typeof value==='string'&&value.trim()):[];
+ const conditions=unknowns.map(value=>{
+  const title=value.split(/[：:]/u,1)[0].trim();
+  const characters=Array.from(title||value.trim());
+  return characters.length<=80?characters.join(''):characters.slice(0,79).join('')+'…';
+ });
+ const feasibility=unknowns.length?rl(`${unknowns.length} 项条件待确认`,`${unknowns.length} ${unknowns.length===1?'condition':'conditions'} to check`,`${unknowns.length} 項條件待確認`):
+  rl('仍需确认资料与设计是否可行','Confirm that the data and design are feasible','仍需確認資料與設計是否可行');
+ const availability=new Map([
+  ['available',rl('已记录可用','Recorded as available','已記錄可用')],
+  ['restricted',rl('存取有限制','Access is restricted','存取有限制')],
+  ['unavailable',rl('目前不可用','Unavailable','目前不可用')],
+  ['not-applicable',rl('不适用','Not applicable','不適用')],
+ ]);
+ const resourceRows=resources.map(({resource,resource_ref:use})=>`<li><strong>${rx(resource.name)}</strong> · ${availability.get(resource.status)??rl('待核验','To verify','待核驗')}<p>${rx(use?.purpose||resource.purpose||rl('用途待确认','Use to verify','用途待確認'))}</p></li>`).join('');
+ const materials=leads.map(item=>`<article><h4>${v94Icon('material')}${rx(item.name)}</h4><p>${rx(item.use)}</p><p><strong>${rl('待核验','Still to verify','待核驗')}</strong> ${rx(item.gap)}</p>${v94Sources(item.sources)}</article>`).join('');
+ const comparisons=compare.map(item=>`<article><h4>${v94Icon('comparison')}${rx(item.name)}</h4><p>${rx(item.change)}</p><p>${rx(item.purpose)}</p>${v94Sources(item.sources)}</article>`).join('');
+ const comparisonDesign=v94Field(rl('查看已保存的比较条件','Read the saved comparison conditions','查看已保存的比較條件'),row?.design);
+ const noComparisons=rl('未提供基线或对照。','No baselines or comparisons are provided.','未提供基線或對照。');
+ const hasFeedback=!reading&&!!guide?.loop.edges.length;
+ const primaryGraph=hasFeedback?guide.loop:guide?.flow;
+ const firstStep=primaryGraph?.nodes[0];
+ const secondary=hasFeedback?v94Disclosure(rl('查看规划与交付顺序','View planning and delivery sequence','查看規劃與交付順序'),v94Graph(guide.flow,false)):
+  guide?.loop.nodes.length?v94Disclosure(reading?rl('查看方法原文顺序','Read the method in source order','查看方法原文順序'):
+   rl('查看已记录的方法说明','Read the recorded method notes','查看已記錄的方法說明'),v94Graph(guide.loop,true,reading)):'';
+ const output=question?.object||(!reading&&guide?.flow.nodes.find(node=>node.kind==='output')?.title);
+ return `<section class="n94-guide">
+  <header class="n94-intro" data-n94-design="question">
+   <p class="n94-eyebrow">${rl('研究方向摘要','Research direction','研究方向摘要')}${version===null?'':` · ${rl('草案','Draft','草案')} ${rx(version)}`}</p>
+   <h2>${rx(title)}</h2>
+   <p class="n94-feasibility">${rl('规划草案','Planning draft','規劃草案')} · ${feasibility}</p>
+   ${firstStep?`<p><strong>${rl('流程起点','Where the study starts','流程起點')}</strong> ${rx(reading?v94Kind(firstStep.kind):firstStep.title)}</p>`:''}
+   ${conditions.length?`<p><strong>${rl('先确认','Check first','先確認')}</strong> ${conditions.slice(0,3).map(rx).join(' · ')}</p>`:''}
+   ${title===question?.text?'':v94Field(rl('查看原研究问题','Read the original research question','查看原研究問題'),question?.text)}
+   ${question?.intended_claim?`<p><strong>${rl('能回答什么','What it can answer','能回答什麼')}</strong> ${rx(question.intended_claim)}</p>`:''}
+   ${compare.length?`<p><strong>${rl('主要对照','Main comparison','主要對照')}</strong> ${rx(compare[0].change)}</p>`:''}
+   ${comparisonDesign}
+   ${comparisons?v94Disclosure(rl('查看基线与对照','View baselines and comparisons','查看基線與對照'),`<p>${rl('以下对照尚未运行。','These comparisons have not been run.','以下對照尚未執行。')}</p><div class="n94-records">${comparisons}</div>`):comparisonDesign?'':`<p>${noComparisons}</p>`}
+  </header>
+  <section data-n94-design="flow">
+   <h3>${rl('研究设计与流程','Study design and flow','研究設計與流程')}</h3>
+   ${firstStep?'':`<p>${rl('目前没有可显示的流程图。','A flow diagram is currently unavailable.','目前沒有可顯示的流程圖。')}</p>`}
+   ${primaryGraph?v94Graph(primaryGraph,hasFeedback,reading):v94Field(rl('查看已保存的方法','Read the saved method','查看已保存的方法'),row?.method)}
+   ${secondary}
+  </section>
+  <section data-n94-design="materials">
+   <h3>${rl('资料与可行性','Data and feasibility','資料與可行性')}</h3>
+   ${resourceRows?`<ul class="n94-resource-status">${resourceRows}</ul>`:`<p>${rl('本问题没有已对应的资源，资料可用性仍待确认。','No resources are mapped to this question. Availability still needs checking.','本問題沒有已對應的資源，資料可用性仍待確認。')}</p>`}
+   ${conditions.length?`<ul class="n94-open-checks">${conditions.map(value=>`<li>${rx(value)}</li>`).join('')}</ul>`:''}
+   ${v94Disclosure(rl('查看材料线索与依据','View material leads and sources','查看材料線索與依據'),`<p>${rl('材料线索不代表已对应或已可用资源。','Material leads do not establish mapped or available resources.','材料線索不代表已對應或已可用資源。')}</p>${materials?`<div class="n94-records">${materials}</div>`:`<p>${rl('未提供材料线索。','No material leads are provided.','未提供材料線索。')}</p>`}`)}
+   ${v94Field(rl('查看资料要求原文','Read the data requirements','查看資料要求原文'),row?.materials)}
+   ${v94Field(rl('查看如何验证','Read how to validate the design','查看如何驗證'),row?.validation)}
+   ${unknowns.length?v94Disclosure(rl('查看完整待查事项','Read the complete open checks','查看完整待查事項'),`<ul>${unknowns.map(value=>`<li>${rx(value)}</li>`).join('')}</ul>`):''}
+  </section>
+  <section data-n94-design="next">
+   <h3>${rl('预期产出与下一步','Expected outputs and next steps','預期產出與下一步')}</h3>
+   ${output?`<p><strong>${rl('预期产出','Expected output','預期產出')}</strong> ${rx(output)}</p>`:''}
+   ${v94Field(rl('查看计划交付物','Read the planned deliverables','查看計畫交付物'),row?.minimum_deliverable)}
+   <p>${canComment?rl('核对资料条件后，可通过「评语与修订」提出修改或说明缺件。','After checking data conditions, use Comment or revise to propose changes or record missing material.','核對資料條件後，可透過「評語與修訂」提出修改或說明缺件。'):
+    rl('核对待查事项，并查看已保存的完整规划。','Review the open checks and the complete saved plan.','核對待查事項，並查看已保存的完整規劃。')}</p>
+   <p>${rl('规划仍是草案，研究尚未执行。','The design is a draft. The study has not been run.','規劃仍是草案，研究尚未執行。')}</p>
+  </section>
+ </section>`;
 }
 function v94ConnectGuide(target){
  const graphs=Array.from(target.querySelectorAll('.n94-graph'));

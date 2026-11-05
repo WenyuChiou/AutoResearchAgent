@@ -19,7 +19,7 @@ function fixture(){
   plan_manifest_sha256:manifest,question_ref:'idea-a@1/q',flow:graph,loop:clone(graph),
   materials:[{name:'A public lead',use:'Verify its fit',gap:'Access unknown',sources:anchor()}],
   baselines:[{name:'A baseline',change:'Remove an input',purpose:'Compare mechanisms',sources:anchor()}]};
- const ctx=vm.createContext({TextDecoder,Uint8Array,crypto:webcrypto,window:{RESEARCH_PROJECTS:{credential:'synthetic-only'}}});
+ const ctx=vm.createContext({TextDecoder,Uint8Array,crypto:webcrypto,v93QuestionResourceUses:()=>[],window:{RESEARCH_PROJECTS:{credential:'synthetic-only'}}});
  vm.runInContext(source,ctx);vm.runInContext(renderer,ctx);return {view,guide,ctx};
 }
 function manualFixture(){
@@ -120,7 +120,9 @@ test('composed actual modules select, render and reload the exact manual guide u
  await f.select(f.revision);await waitFor(()=>f.guideState().status==='ready');
  assert.equal(f.ctx.v94SelectedRevision(f.view).receipt_sha256,f.revision.receipt_sha256);
  assert.equal(f.guideState().guide.revision_receipt_sha256,f.revision.receipt_sha256);
- assert.match(f.html(),/This guide belongs to the selected manual draft/);assert.match(f.html(),/Manual method A/);
+ assert.match(f.html(),/Research direction · Draft 2/);assert.match(f.html(),/Manual method A/);
+ assert.equal((f.html().match(/data-v94-guide>/g)||[]).length,1);
+ assert.ok(f.html().indexOf('Research direction · Draft 2')<f.html().indexOf('View the original planning version'));
  assert.match(f.html(),/Complete manual draft and open checks/);assert.match(f.html(),/Unverified data/);assert.match(f.html(),/Original plan Markdown/);
  assert.match(f.html(),new RegExp('data-original-plan>'+quote));assert.equal(JSON.stringify(f.view),before);
  const count=f.calls.length;await f.reload();await waitFor(()=>f.guideState().status==='ready');
@@ -164,6 +166,11 @@ test('authored guide keeps exact source, typed binding and original plan untouch
  const {view,guide,ctx}=fixture(),before=JSON.stringify(view);
  assert.equal(ctx.v94ValidateGuide(guide,view),guide);assert.equal(JSON.stringify(view),before);
  assert.equal(ctx.v94GuideName(view),'stage3-research-'+manifest+'.json');
+});
+test('an authored plan without feedback accepts an empty loop without inventing relationships',()=>{
+ const {view,guide,ctx}=fixture();guide.loop={nodes:[],edges:[]};
+ assert.equal(ctx.v94ValidateGuide(guide,view),guide);
+ guide.loop.edges=guide.flow.edges;assert.throws(()=>ctx.v94ValidateGuide(guide,view),/research-guide-edge/);
 });
 test('wrong project, typed version, intent, manifest or question is rejected',()=>{
  const {view,guide,ctx}=fixture();
@@ -241,7 +248,7 @@ test('wrong material hash yields readable failure and original source, never a r
  const bytes=Buffer.from(JSON.stringify(f.guide)),item={id:'file-'+'c'.repeat(32),project_ref:'project-a',stage:3,name:f.ctx.v94GuideName(f.view),kind:'manual-file',status:'registered',bytes:bytes.length,sha256:pin};
  Object.assign(f.ctx,{AbortController,setTimeout,clearTimeout,apps:[{page:'workspace',stage:3}],rt:{epoch:1},v93:{view:f.view,basis},
   v93Identity:()=>basis,v93Matches:(a,b)=>a===b,v7AfterRender:()=>{},v93SavedPlanSummary:()=>'<p>Retained original</p>',
-  v94GuideHtml:()=>{throw Error('must not render')},livePaint:()=>{},rl:(z,e,t)=>t||z,rx:String,document:{addEventListener:()=>{}},
+  v94GuideHtml:g=>{assert.equal(g,null);return '<p>Safe plan-only view</p>';},livePaint:()=>{},rl:(z,e,t)=>t||z,rx:String,document:{addEventListener:()=>{}},
   fetch:async p=>new Response(p.endsWith('/materials')?JSON.stringify({materials:[item]}):bytes)});
  vm.runInContext(adapter,f.ctx);await f.ctx.v94Load(f.view,basis,1);
  assert.equal(vm.runInContext('v94.status',f.ctx),'failed');assert.equal(vm.runInContext('v94.guide',f.ctx),null);

@@ -36,6 +36,13 @@ test('the same product path projects a different topic without a household or LL
  const html=ctx.v94GuideHtml(ctx.v94PlanReadingGuide(view),{reading:true});
  assert.match(html,/river gauges/);assert.match(html,/held-out discharge/);assert.doesNotMatch(html,/LLM|household/);
 });
+test('saved comparison text stays readable without an absent comparison claim',()=>{
+ const {ctx,view,question}=fixture();
+ question.design='Compare two sites with the same measurement period.';
+ const html=ctx.v94GuideHtml(ctx.v94PlanReadingGuide(view),{reading:true,row:question});
+ assert.match(html,/<summary>Read the saved comparison conditions<\/summary><p>Compare two sites/);
+ assert.doesNotMatch(html,/No baselines or comparisons are provided/);
+});
 test('three interface locales translate reading labels and keep the saved research text',()=>{
  const {ctx,view}=fixture(),guide=ctx.v94PlanReadingGuide(view);
  for(const [locale,label] of [[0,'设计'],[1,'Design'],[2,'設計']]){
@@ -72,12 +79,18 @@ test('missing method is explicit failure instead of a fabricated process',()=>{
  const {ctx,view,question}=fixture();delete question.method;assert.throws(()=>ctx.v94PlanReadingGuide(view),/reading-method/);
 });
 test('the actual loader projects an absent guide with one GET and leaves saved planning untouched',async()=>{
- const {ctx,view}=fixture(),calls=[],before=JSON.stringify(view),basis={project_ref:view.project_ref};
+ const {ctx,view,question}=fixture(),calls=[],basis={project_ref:view.project_ref};
+ view.direction_context.questions.push({question_ref:'second@1/q',text:'Compare matched rivers'});
+ view.plan.question_plans.unshift({...question,question_ref:'second@1/q'});
+ const before=JSON.stringify(view);
  Object.assign(ctx,{AbortController,setTimeout,clearTimeout,apps:[{page:'workspace',stage:3}],rt:{epoch:1},v93:{view,basis},
-  v93Identity:()=>basis,v93Matches:(a,b)=>a===b,livePaint:()=>{},v93SavedPlanSummary:()=>'<p>Complete source text</p>',v7AfterRender:()=>{},
+  v93Identity:()=>basis,v93Matches:(a,b)=>a===b,livePaint:()=>{},v93QuestionResourceUses:()=>[],v93SavedPlanSummary:()=>'<p>Complete source text</p>',v7AfterRender:()=>{},
   document:{addEventListener:()=>{}},fetch:async(url,options)=>{calls.push({url,options});return new Response('{"materials":[]}');}});
  vm.runInContext(fs.readFileSync(path.join(__dirname,'v9-research-guide.js'),'utf8'),ctx);
+ assert.match(ctx.v94GuideSection(view,null),/<h2>Compare matched rivers<\/h2>/);
  await ctx.v94Load(view,basis,1);const state=vm.runInContext('({status:v94.status,source:v94.source,guide:v94.guide})',ctx);
+ assert.equal(state.guide.question_ref,'second@1/q');
+ assert.match(ctx.v94GuideSection(view,null),/<h2>Compare matched rivers<\/h2>/);
  assert.equal(state.status,'ready');assert.equal(state.source,'plan-excerpts');assert.equal(calls.length,1);assert.equal(calls[0].url,'/api/v9/materials');
  assert.equal(calls[0].options.method,undefined);assert.equal(JSON.stringify(view),before);
  assert.match(ctx.v94GuideSection(view,null,'<p>Complete source text</p>'),/Complete source text/);
