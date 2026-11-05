@@ -136,6 +136,9 @@
   Object.assign(words.en,{recoveryPending:"A previous submission is not yet confirmed. Check its saved receipt before submitting again.",recoveryUnavailable:"Recovery storage is unavailable or invalid. Submission is disabled; no research or planning was started by this check."});
   Object.assign(words["zh-TW"],{recoveryPending:"先前的送出尚未確認。請先檢查保存的收據，再進行其他提交。",recoveryUnavailable:"恢復儲存不可用或資料無效，已停用提交；此檢查不會開始研究或規劃。"});
   Object.assign(words["zh-CN"],{recoveryPending:"先前的提交尚未确认。请先检查保存的收据，再进行其他提交。",recoveryUnavailable:"恢复存储不可用或数据无效，已停用提交；此检查不会开始研究或规划。"});
+  Object.assign(words.en,{recoveryRefreshStep:"Open “Stage2 · Operations” and click “Refresh progress & results” to read the latest project version.",recoveryCheckStep:"Then click “Check unconfirmed submission” for the original key {key}. The save remains unconfirmed until its receipt is verified; nothing is resent and planning is not started."});
+  Object.assign(words["zh-TW"],{recoveryRefreshStep:"先開啟「Stage2 · 操作」，點「刷新进度与结果」讀取最新專案版本。",recoveryCheckStep:"再點「檢查未確認提交」，核對原 key {key} 的收據。核驗前保存結果仍未確認；不會重送，也不會開始規劃。"});
+  Object.assign(words["zh-CN"],{recoveryRefreshStep:"先打开“Stage2 · 操作”，点击“刷新进度与结果”读取最新项目版本。",recoveryCheckStep:"再点击“检查未确认提交”，核对原 key {key} 的回执。核验前保存结果仍未确认；不会重发，也不会开始规划。"});
   const comparisonWords = {
     "en": {
       "projectDetails": "Project and input version",
@@ -278,10 +281,14 @@
       event.preventDefault(); if(isActive()) options.onNavigate({projectRef:ref,language:byId("language").value});
     };
   }
-  const feedback=document.createElement("div"),retryRead=node(feedback,"button",""),continuePrepared=node(feedback,"a","");
+  const feedback=document.createElement("div"),retryRead=node(feedback,"button",""),continuePrepared=node(feedback,"a",""),recoverySteps=node(feedback,"ol","");
   retryRead.type="button";retryRead.id="selection-read-again";continuePrepared.id="selection-continue-planning";
+  recoverySteps.id="selection-recovery-steps";
   if(byId("status").insertAdjacentElement)byId("status").insertAdjacentElement("afterend",feedback);
-  retryRead.onclick=()=>load();
+  // An unverified save cannot advance the embedded GET binding. The parent must
+  // first refresh its project version, then use the existing receipt reconciliation.
+  const needsParentRecovery=()=>embedded && pendingMarker?.phase==="stage2" && recovery && recovery.status!=="verified";
+  retryRead.onclick=()=>needsParentRecovery()?undefined:load();
   function progress(step){phase=step;render();if(isActive())byId("status").scrollIntoView({block:"nearest"});}
   function renderFeedback(){
     const status=byId("status");
@@ -290,7 +297,10 @@
     if(phase && !operationFailed)status.textContent=w()[phase]+" "+status.textContent;
     if(readFailed)status.textContent=w().readLost+" "+status.textContent;
     if(view && readAt && (reading || readFailed))status.textContent+=" · "+w().lastVerified+": "+readAt+" · "+w().inputVersion+": "+JSON.stringify(view.input_version)+" · "+w().revisionLabel+": "+String(view.revision);
-    retryRead.hidden=!readFailed && !operationFailed;retryRead.disabled=busy || reading;retryRead.textContent=w().retryRead;
+    const parentRecovery=needsParentRecovery();
+    retryRead.hidden=!!parentRecovery || (!readFailed && !operationFailed);retryRead.disabled=busy || reading || !!parentRecovery;retryRead.textContent=w().retryRead;
+    recoverySteps.hidden=!parentRecovery || busy || reading;recoverySteps.replaceChildren();
+    if(!recoverySteps.hidden){node(recoverySteps,"li",w().recoveryRefreshStep);node(recoverySteps,"li",w().recoveryCheckStep.replace("{key}",pendingMarker.key));}
     continuePrepared.hidden=!planningContinuation || planningContinuation.project!==viewProject || planningContinuation.input_version!==view?.input_version || planningContinuation.revision!==view?.revision || planningContinuation.brief_sha256!==view?.brief_sha256;
     continuePrepared.textContent=w().continuePrepared;
     bindPlanningLink(continuePrepared,viewProject || "");
