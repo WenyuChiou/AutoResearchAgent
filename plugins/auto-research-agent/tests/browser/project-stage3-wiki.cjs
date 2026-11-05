@@ -286,6 +286,53 @@ if (require.main === module) {
     assert.equal(p.elements.refresh.disabled,false);assert.equal(p.calls.length,1);
     assert.ok(p.calls.every(c=>c.options.method==="GET"));
   });
+  test("failed refresh keeps a timestamped versioned result and GET-only recovery", async () => {
+    const data=fixture();data.input_version="fresh-1";data.revision=8;
+    let fail=false;
+    const p=await page(data,()=>{if(fail)throw Error("saved-read-lost");return {ok:true,json:async()=>structuredClone(data)};});
+    const plan=p.elements["plan-json"].textContent;
+    fail=true;await p.elements.refresh.onclick();
+    assert.equal(p.elements.plan.hidden,false);assert.equal(p.elements["plan-json"].textContent,plan);
+    assert.match(p.elements.status.textContent,/Last verified read.*\d{4}-\d{2}-\d{2}T.*fresh-1.*8/);
+    assert.equal(p.elements.actions.hidden,true);assert.equal(p.elements.refresh.disabled,false);
+    assert.match(p.elements.refresh.textContent,/Read saved state again/);
+    fail=false;await p.elements.refresh.onclick();
+    assert.equal(p.elements["plan-json"].textContent,plan);
+    assert.equal(p.calls.length,3);assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
+  test("an in-flight read retains content and coalesces another recovery click", async () => {
+    const data=fixture();let release;
+    const p=await page(data,()=>release?new Promise(resolve=>{release=()=>resolve({ok:true,json:async()=>structuredClone(data)});}):{ok:true,json:async()=>structuredClone(data)});
+    release=true;const reading=p.elements.refresh.onclick();
+    assert.equal(p.elements.plan.hidden,false);assert.equal(p.elements.refresh.disabled,true);
+    const repeated=p.elements.refresh.onclick();assert.equal(p.calls.length,2);
+    release();await reading;await repeated;assert.equal(p.calls.length,2);
+  });
+  test("accepted run followed by read loss never resubmits its prepared key", async () => {
+    const data=conditionalView();data.job={status:"intent-recorded"};data.plan=null;
+    let writes=0,reads=0;
+    const p=await page(data,(_url,options)=>{
+      if(options.method==="POST"){writes++;return {ok:true,json:async()=>({submission_status:"accepted"})};}
+      if(++reads===2)throw Error("accepted-read-lost");
+      return {ok:true,json:async()=>structuredClone(data)};
+    });
+    p.elements.confirmed.checked=true;await p.elements.run.onclick();
+    assert.match(p.elements.status.textContent,/accepted/i);
+    assert.equal(p.elements.actions.hidden,true);
+    p.elements.confirmed.checked=true;await p.elements.run.onclick();assert.equal(writes,1);
+    await p.elements.refresh.onclick();
+    p.elements.confirmed.checked=true;await p.elements.run.onclick();assert.equal(writes,1);
+    assert.equal(p.calls.filter(c=>c.options.method==="POST").length,1);
+    assert.equal(JSON.parse(p.calls.find(c=>c.options.method==="POST").options.body).key,"same-direction-key");
+  });
+  test("a failed read for another project cannot expose the previous saved plan", async () => {
+    const p=await page(fixture(),url=>{if(url.includes("project-b"))throw Error("project-b-unavailable");return {ok:true,json:async()=>fixture()};});
+    assert.equal(p.elements.plan.hidden,false);
+    p.elements.project.value="project-b";await p.elements.project.onchange();
+    assert.equal(p.elements.plan.hidden,true);assert.equal(p.elements["plan-json"].textContent,"");
+    assert.doesNotMatch(p.elements.status.textContent,/Last verified read/);
+    assert.ok(p.calls.every(c=>c.options.method==="GET"));
+  });
   test("fragment entry language is allowlisted and a running context is not labeled as a generated plan", async () => {
     for(const [query,language] of [["?lang=zh-TW","zh-TW"],["?lang=zh-CN","zh-CN"],["?lang=en","en"],["?lang=other","en"]]){
       const data=conditionalView();data.plan=null;data.job={status:"dispatching"};
