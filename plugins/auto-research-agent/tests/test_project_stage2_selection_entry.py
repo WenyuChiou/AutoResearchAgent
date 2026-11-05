@@ -1,6 +1,7 @@
 """Execute the synthetic three-language Stage2 entry contract in CI."""
 
 from pathlib import Path
+import json
 import shutil
 import subprocess
 import unittest
@@ -81,7 +82,19 @@ class Stage2SelectionEntryTests(unittest.TestCase):
             shell=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('"cases":14', result.stdout)
+        self.assertEqual(
+            json.loads(result.stdout.splitlines()[-1]),
+            {
+                "kind": "synthetic-selection-oneclick",
+                "cases": 18,
+                "failures": 0,
+                "network": False,
+                "model_calls": 0,
+                "real_human_selection": False,
+                "execution_authorized": False,
+            },
+            result.stdout,
+        )
 
 
 if __name__ == "__main__":
