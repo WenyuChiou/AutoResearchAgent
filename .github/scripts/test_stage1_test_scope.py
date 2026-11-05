@@ -1,6 +1,7 @@
 """Behavioral checks for affected tests and the fail-closed CI runner."""
 
 import contextlib
+import importlib.util
 import io
 import json
 from concurrent.futures import Future
@@ -54,6 +55,8 @@ class Stage1TestScopeTests(unittest.TestCase):
         workers=1,
         profile="standard",
         platform="",
+        pythonpath=(),
+        preload=(),
     ):
         script = self.repo / ".github/scripts/stage1_test_scope.py"
         env = {
@@ -73,7 +76,8 @@ class Stage1TestScopeTests(unittest.TestCase):
             command = [
                 sys.executable,
                 "-c",
-                "import json,sys; import stage1_test_scope as s; "
+                "import importlib,json,sys; import stage1_test_scope as s; "
+                f"[importlib.import_module(name) for name in {preload!r}]; "
                 "sys.exit(s.run_suite(json.loads(sys.argv[1]), workers=int(sys.argv[2]), profile=sys.argv[3], platform=sys.argv[4]))",
                 json.dumps(selection),
                 str(workers),
@@ -81,6 +85,10 @@ class Stage1TestScopeTests(unittest.TestCase):
                 platform,
             ]
             env["PYTHONPATH"] = str(script.parent)
+        if pythonpath:
+            env["PYTHONPATH"] = os.pathsep.join(
+                [env.get("PYTHONPATH", ""), *map(str, pythonpath)]
+            )
         return subprocess.run(
             command, cwd=self.repo, env=env, capture_output=True, text=True, timeout=20
         )
@@ -247,7 +255,8 @@ class Stage1TestScopeTests(unittest.TestCase):
         (self.repo / TESTS / "test_stage_contracts.py").unlink()
         result = self.fixture(selection, platform="Windows")
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertGreater(json.loads(result.stdout.splitlines()[-1])["errors"], 0)
+        self.assertIn("test_stage_contracts", result.stderr)
+        self.assertNotIn('"passed": true', result.stdout)
 
     def test_docs_smoke_does_not_require_cli_loading_on_any_platform(self):
         self.write(
@@ -279,7 +288,8 @@ class Stage1TestScopeTests(unittest.TestCase):
         (self.repo / TESTS / "test_stage_contracts.py").unlink()
         missing = self.fixture(event=event, kind="pull_request", platform="Linux")
         self.assertNotEqual(missing.returncode, 0)
-        self.assertGreater(json.loads(missing.stdout.splitlines()[-1])["errors"], 0)
+        self.assertIn("test_stage_contracts", missing.stderr)
+        self.assertNotIn('"passed": true', missing.stdout)
 
     def test_windows_manual_full_and_other_platforms_keep_non_smoke_failures(self):
         selection = self.slow_fixture()
@@ -559,6 +569,72 @@ class Stage1TestScopeTests(unittest.TestCase):
             with self.subTest(modules=modules):
                 result = self.fixture({"mode": "selected", "modules": modules})
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_selected_module_cannot_fall_back_to_external_pythonpath(self):
+        name = "test_stage_contracts"
+        external = self.write("external/" + name + ".py", PASSING).parent
+        (self.repo / TESTS / (name + ".py")).unlink()
+        selection = {
+            "mode": "selected",
+            "modules": [name],
+            "changed_paths": ["plugins/auto-research-agent/README.md"],
+        }
+        for platform in ("", "Linux", "macOS", "Windows"):
+            with self.subTest(platform=platform):
+                result = self.fixture(
+                    selection, platform=platform, pythonpath=[external]
+                )
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("outside selected test directory", result.stderr)
+                self.assertNotIn('"passed": true', result.stdout)
+
+    def test_preloaded_external_module_cannot_replace_present_local_module(self):
+        name = "test_stage_contracts"
+        external = self.write("external/" + name + ".py", PASSING).parent
+        self.write(TESTS + name + ".py", PASSING.replace("pass", "self.fail('local')"))
+        result = self.fixture(
+            {"mode": "selected", "modules": [name]},
+            pythonpath=[external],
+            preload=[name],
+        )
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("outside selected test directory", result.stderr)
+        self.assertNotIn('"passed": true', result.stdout)
+
+    def test_local_module_keeps_precedence_over_external_pythonpath(self):
+        name = "test_stage_contracts"
+        external = self.write(
+            "external/" + name + ".py", "raise RuntimeError('foreign imported')"
+        ).parent
+        result = self.fixture(
+            {"mode": "selected", "modules": [name]}, pythonpath=[external]
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout.splitlines()[-1])["tests_run"], 1)
+
+    def test_contract_module_cannot_fall_back_to_external_pythonpath(self):
+        for name in scope.CONTRACT_MODULES:
+            self.write(".github/scripts/" + name + ".py", PASSING)
+        name = scope.CONTRACT_MODULES[0]
+        external = self.write("external/" + name + ".py", PASSING).parent
+        (self.repo / ".github/scripts" / (name + ".py")).unlink()
+        result = self.fixture(contracts=True, pythonpath=[external])
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("outside selected test directory", result.stderr)
+        self.assertNotIn('"passed": true', result.stdout)
+
+    def test_worker_rejects_preloaded_external_module(self):
+        name = "test_origin_worker"
+        external = self.write("external/" + name + ".py", PASSING)
+        module_spec = importlib.util.spec_from_file_location(name, external)
+        module = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(module)
+        with (
+            patch.dict(sys.modules, {name: module}),
+            patch.object(sys, "path", sys.path[:]),
+        ):
+            with self.assertRaisesRegex(ValueError, "outside selected test directory"):
+                scope.run_partition([name + ".T.test_ok"], self.repo / scope.TEST_DIR)
 
     def test_contract_flag_runs_real_contract_fixtures(self):
         for name in scope.CONTRACT_MODULES:

@@ -5,6 +5,7 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from fnmatch import fnmatchcase
 import hashlib
+import importlib.util
 import json
 import multiprocessing
 import os
@@ -295,8 +296,33 @@ def partition_tests(ids, workers):
     return groups
 
 
+def require_local_test_modules(names, directory):
+    """Keep named selection and worker reloads bound to this checkout's tests."""
+    directory = Path(directory).resolve()
+    for name in sorted({name.split(".", 1)[0] for name in names}):
+        module = sys.modules.get(name)
+        if module is not None:
+            origin = getattr(module, "__file__", None)
+        else:
+            spec = importlib.util.find_spec(name)
+            if spec is None:
+                # Retain unittest's ordinary missing-module failure accounting.
+                continue
+            origin = spec.origin
+        if (
+            not origin
+            or Path(origin).resolve().parent != directory
+            or not Path(origin).is_file()
+        ):
+            raise ValueError(
+                f"Test module {name} is outside selected test directory "
+                f"{directory}: {origin}"
+            )
+
+
 def run_partition(ids, directory):
     sys.path.insert(0, str(directory))
+    require_local_test_modules(ids, directory)
     loader = unittest.TestLoader()
     suite = loader.loadTestsFromNames(ids)
     actual = list(test_ids(suite))
@@ -476,6 +502,7 @@ def run_suite(
             else selection["modules"]
         )
         for name in modules:
+            require_local_test_modules([name], directory)
             module_suite = loader.loadTestsFromName(name)
             if module_suite.countTestCases() == 0:
                 raise ValueError(f"Selected test module is empty: {name}")
