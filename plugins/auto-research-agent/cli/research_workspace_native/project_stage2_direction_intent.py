@@ -159,12 +159,15 @@ class ProjectStage2DirectionIntent:
                 result = self._recover_direction(
                     credential, project_ref, body, check_deadline
                 )
+            # Confirm the durable receipt and its sealed inputs after saving.
+            # Current planning eligibility is checked by read/prepare/run; it
+            # cannot change whether this preference was successfully saved.
             self._direction_intent_context(
                 credential,
                 project_ref,
                 expected_intent_sha256=result["intent_sha256"],
                 check_deadline=check_deadline,
-                replay_key=body["key"] if result["replayed"] else None,
+                replay_key=body["key"],
             )
             return result
         except SessionApiError:
@@ -320,7 +323,7 @@ class ProjectStage2DirectionIntent:
                     credential, project_ref, saved["request"]
                 )
             else:
-                # Completed-key replay proves history, never current planning authority.
+                # A saved receipt proves history, never current planning authority.
                 binding = self.bindings.get(project_ref)
                 _check(
                     binding is not None
