@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import sys
 import traceback
+import types
 import unittest
 
 from ci_test_routing import ROUTING_FILES, routed_modules
@@ -304,6 +305,10 @@ def require_local_test_modules(names, directory):
         for length in range(1, len(parts) + 1):
             name = ".".join(parts[:length])
             module = sys.modules.get(name)
+            parent = sys.modules.get(".".join(parts[: length - 1]))
+            bound = getattr(parent, parts[length - 1], None)
+            if module is None and isinstance(bound, types.ModuleType):
+                module = bound
             if module is not None:
                 origin = getattr(module, "__file__", None)
                 package = hasattr(module, "__path__")
@@ -327,8 +332,18 @@ def require_local_test_modules(names, directory):
                     f"Test module {name} is outside selected test directory "
                     f"{directory}: {origin}"
                 )
-            if not package:
-                # Remaining selector components name a test class or method.
+            if parent is not None and module is not None and bound is not module:
+                raise ValueError(
+                    f"Test module binding differs from local module {name}: "
+                    f"{getattr(bound, '__file__', None)}"
+                )
+            if not package and (
+                length == len(parts)
+                or not isinstance(
+                    getattr(module, parts[length], None), types.ModuleType
+                )
+            ):
+                # Class/method selectors end the chain; module attributes do not.
                 break
 
 
@@ -337,6 +352,7 @@ def run_partition(ids, directory):
     require_local_test_modules(ids, directory)
     loader = unittest.TestLoader()
     suite = loader.loadTestsFromNames(ids)
+    require_local_test_modules(ids, directory)
     actual = list(test_ids(suite))
     if loader.errors or Counter(actual) != Counter(ids):
         raise ValueError("Worker test inventory differs from full discovery")
@@ -516,6 +532,7 @@ def run_suite(
         for name in modules:
             require_local_test_modules([name], directory)
             module_suite = loader.loadTestsFromName(name)
+            require_local_test_modules([name], directory)
             if module_suite.countTestCases() == 0:
                 raise ValueError(f"Selected test module is empty: {name}")
             suite.addTests(module_suite)
