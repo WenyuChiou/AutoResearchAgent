@@ -1,7 +1,7 @@
-"""Reuse strict selection verification only inside one locked planning GET.
+"""Reuse strict selection verification inside one locked, read-only snapshot.
 
-No caller credential, failed verification or result survives the read. Writes
-and dispatch do not enter this scope and keep their fresh admission checks.
+No caller credential, failed verification or result survives the read. Admission
+reads end this scope before writes or dispatch, retaining fresh later checks.
 """
 
 from contextlib import contextmanager

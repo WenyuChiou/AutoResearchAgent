@@ -13,6 +13,7 @@ from stage2_workflow.direction_intent import (
     validate_preferences,
 )
 from .project_intake_contract import BOUND_FIELDS, _fields, _text
+from .project_selection_read_context import verified_selection_read
 from .session_api import SessionApiError, _check
 
 KIND = "stage2-direction-intent"
@@ -32,7 +33,7 @@ class ProjectStage2DirectionIntent:
     """Mixin using the same principal, intake journal, current view and paths."""
 
     def read(self, credential, project_ref, *, check_deadline=None):
-        with self.intake._lock:
+        with self.intake._lock, verified_selection_read(self.intake):
             result = super().read(
                 credential, project_ref, check_deadline=check_deadline
             )

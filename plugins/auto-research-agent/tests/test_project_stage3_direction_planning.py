@@ -246,6 +246,41 @@ class ProjectDirectionPlanningTests(unittest.TestCase):
         self.assertEqual(view["plan"]["kind"], "Stage3DirectionPlanningResult")
         self.assertFalse(view["formal_selected_receiver"])
 
+    def test_prepared_read_cannot_hide_project_drift_before_dispatch(self):
+        ref = self.project["project_ref"]
+        prepared = self.service.prepare("own", ref, self.body)
+        body = dict(self.body, request_sha256=prepared["request_sha256"])
+        self.service.inspect("own", ref, body)
+        before = self.journal.snapshot(self.project["project_id"])
+        self.project["revision"] += 1
+        with self.assertRaisesRegex(SessionApiError, "project-version-differs"):
+            self.service.run("own", ref, dict(body, confirmed=True))
+        self.assertEqual(self.journal.snapshot(self.project["project_id"]), before)
+        self.callback.assert_not_called()
+
+    def test_callback_time_project_drift_cannot_publish_conditional_plan(self):
+        ref = self.project["project_ref"]
+        prepared = self.service.prepare("own", ref, self.body)
+        body = dict(self.body, request_sha256=prepared["request_sha256"])
+
+        def response(**request):
+            self.project["revision"] += 1
+            return self.callback.return_value
+
+        self.callback.side_effect = response
+        result = self.service.run("own", ref, dict(body, confirmed=True))
+        self.assertEqual(result["status"], "execution-unknown")
+        self.assertEqual(result["outcome"], "execution-unknown")
+        jobs = self.service.bindings[ref]["jobs"]
+        item = self.journal.snapshot(self.project["project_id"])["intents"][
+            jobs._key(body["key"])
+        ]
+        output = Path(item["payload"]["output"]) / "plan"
+        self.assertFalse((output / "plan.json").exists())
+        self.assertTrue((output / "failure.json").exists())
+        self.assertEqual(item["status"], "execution-unknown")
+        self.assertEqual(self.callback.call_count, 1)
+
     def test_http_view_and_admission_retain_conditional_pins_without_dispatch(self):
         facade = SimpleNamespace(
             read=lambda credential, ref, **kwargs: self.service.read(
