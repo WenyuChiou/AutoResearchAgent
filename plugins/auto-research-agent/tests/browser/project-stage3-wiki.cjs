@@ -296,6 +296,9 @@ if (require.main === module) {
     assert.match(p.elements.status.textContent,/Last verified read.*\d{4}-\d{2}-\d{2}T.*fresh-1.*8/);
     assert.equal(p.elements.actions.hidden,true);assert.equal(p.elements.refresh.disabled,false);
     assert.match(p.elements.refresh.textContent,/Read saved state again/);
+    const stamp=JSON.parse(p.elements.receipt.textContent).client_read.read_at_utc;
+    for(const language of ["zh-TW","zh-CN","en"]){p.elements.language.value=language;p.elements.language.onchange();assert.equal(p.elements["plan-json"].textContent,plan);assert.equal(JSON.parse(p.elements.receipt.textContent).client_read.read_at_utc,stamp);}
+    assert.equal(p.calls.length,2);
     fail=false;await p.elements.refresh.onclick();
     assert.equal(p.elements["plan-json"].textContent,plan);
     assert.equal(p.calls.length,3);assert.ok(p.calls.every(c=>c.options.method==="GET"));

@@ -370,7 +370,7 @@
     const status=planningState();renderProgress(status);
     el("status").textContent=notice?w()[copyKey(status)]+" "+w().error+": "+notice:w()[copyKey(status)];
     if(phase)el("status").textContent=w()[phase]+" "+el("status").textContent;
-    if(acceptedRequest && (readFailed || reading))el("status").textContent=w().accepted+" "+el("status").textContent;
+    if(acceptedRequest===requestIdentity(ref(),request) && (readFailed || reading))el("status").textContent=w().accepted+" "+el("status").textContent;
     if(submittedRuns.has(requestIdentity(ref(),request)) && status==="unknown" && !notice)el("status").textContent=w().sentOnce;
     if(view && readAt && (reading || readFailed))el("status").textContent+=" · "+w().lastVerified+": "+readAt+" · "+w().inputVersionLabel+": "+JSON.stringify(view.input_version ?? null)+" · "+w().revisionLabel+": "+String(view.revision ?? w().unknownValue);
     el("refresh").textContent=readFailed?w().retryRead:w().refresh;
@@ -382,7 +382,7 @@
     el("receipt").textContent=view?JSON.stringify({...view,plan:undefined,client_read:{read_at_utc:readAt,displaying_last_verified:reading || readFailed}},null,2):"";
   }
   async function load(){
-    const project=ref();if(busy || (reading && readingProject===project))return;
+    const project=ref();if((busy && viewProject===project) || (reading && readingProject===project))return;
     const sequence=++serial;
     if(viewProject!==project){view=null;readAt=null;acceptedRequest=null;viewProject=null;}
     notice=null;phase=null;reading=true;readingProject=project;readFailed=false;el("confirmed").checked=false;render();
