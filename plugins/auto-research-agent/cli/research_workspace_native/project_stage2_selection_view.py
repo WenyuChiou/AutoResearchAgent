@@ -12,7 +12,11 @@ from stage2_workflow.store import inspect_workflow
 from stage2_workflow.ui_submission import valid_input_version
 from stage3_plan.intake import admit_intake
 from .project_stage2 import ProjectStage2Service
-from .project_selection_read_context import current_selection_context
+from .project_selection_read_context import (
+    current_selection_context,
+    verified_selection_read,
+    verified_source_read,
+)
 from .session_api import SessionApiError, _check, _hash
 
 
@@ -106,8 +110,11 @@ class ProjectStage2SelectionView:
             "stage2-selection-project-stale",
         )
         try:
-            delivery = inspect_delivery(
-                binding["delivery_root"], binding["delivery_manifest_sha256"]
+            delivery = verified_source_read(
+                self.intake,
+                inspect_delivery,
+                binding["delivery_root"],
+                binding["delivery_manifest_sha256"],
             )
             workflow = inspect_workflow(binding["workflow_root"])
         except (Stage2Error, OSError, ValueError) as error:
@@ -185,7 +192,7 @@ class ProjectStage2SelectionView:
         return (project, binding, delivery, workflow, ack, admitted), context
 
     def read(self, credential, project_ref, *, check_deadline=None):
-        with self.intake._lock:
+        with self.intake._lock, verified_selection_read(self.intake):
             if check_deadline:
                 check_deadline()
             project, binding, delivery, workflow, ack, admitted = self._current(

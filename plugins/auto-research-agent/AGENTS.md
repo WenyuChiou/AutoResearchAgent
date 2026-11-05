@@ -131,9 +131,22 @@ Downloaded papers and copyrighted full text remain private and never enter Git.
   `AI contribution`, and `Human verification`.
 - Report every related external PR, including research-hub and
   ai-research-skills changes. Do not merge it before core-team review.
-- Contributors and their AI do not approve or merge their own harness PRs. The
-  core team reviews and merges into `WenyuChiou/AutoResearchAgent` only; do not
-  send this harness to OpenAI upstream.
+- Default ownership: Contributors and their AI do not approve or merge their
+  own harness PRs. The core team reviews and merges into
+  `WenyuChiou/AutoResearchAgent` only; do not send this harness to OpenAI upstream.
+- Exception for merge execution: the core team may explicitly delegate it to
+  the task's
+  integrating agent. Record the actual user authorization and its repository
+  and task scope; standing authorization covers later in-scope PRs without a
+  renewed per-PR consent request. Never infer or self-grant this authority.
+  This is an explicit exception to the default merge wording in
+  `CONTRIBUTING.md` and `evals/PR_GUIDE.md`; independent approval remains mandatory.
+- Before a delegated merge, require the applicable independent reviews and
+  tests, all required CI on the current exact head, and normal branch protection.
+  Do not use force, admin overrides, or protection bypasses.
+- Merge only into `WenyuChiou/AutoResearchAgent`, never OpenAI upstream. Verify
+  the actual merge and required post-main checks before safe, recoverable
+  cleanup of only the task's owned branch.
 - Governance changes require independent code review and harness-drift review.
 
 The governance-only CI fast path is classified from the complete base/head Git
@@ -188,5 +201,6 @@ their full scientific standards.
   fixed test count for the current selector and run evidence.
 - Keep review read-only: do not edit findings into the implementation, install
   packages, launch paid models, or merge. Preserve the core-team-only merge
-  ownership stated above and require separate explicit user consent for every
-  merge after the review and actual test summary are available.
+  ownership or explicit delegated integration authority stated above. Review
+  tasks remain read-only; merge execution follows those recorded authority,
+  independent-review, test, CI, and post-main requirements.

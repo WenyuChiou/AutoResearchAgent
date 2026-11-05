@@ -810,8 +810,10 @@ class Stage3CliJourneyTests(unittest.TestCase):
                         cli.request(route + "/run", dict(pinned, confirmed=True))[0],
                         202,
                     )
+                    # HTTP 202 acknowledges transport admission. Waiting for the
+                    # provider must not consume the separate completion window.
+                    self.assertTrue(entered.wait(30))
                     deadline = time.monotonic() + 30
-                    self.assertTrue(entered.wait(max(0, deadline - time.monotonic())))
                     saved = wait_for_cli_submission(self, cli, route, deadline)
                     self.assertEqual(saved["job"]["outcome"], "saved", saved)
                     self.assertEqual(

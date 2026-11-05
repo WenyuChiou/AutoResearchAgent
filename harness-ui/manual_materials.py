@@ -7,10 +7,12 @@ from contextlib import contextmanager
 import base64
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import sqlite3
 import threading
+import tempfile
 from datetime import datetime, timezone
 
 
@@ -104,18 +106,31 @@ class Materials:
         require(isinstance(name,str) and 0 < len(name) <= 240 and not any(c in name for c in '/\\\r\n\x00'), 'invalid-file-name')
         require(type(stage) is int and 1 <= stage <= 6, 'invalid-stage')
         require(type(size) is int and 0 <= size <= 128*1024*1024, 'file-exceeds-128MiB')
+        purpose = body.get('purpose')
+        require(purpose in (None, 'stage3-planning-material'), 'invalid-material-purpose')
+        if purpose:
+            require(stage == 3 and 0 < size <= 128*1024*1024, 'stage3-material-capacity-exceeded')
         require(isinstance(pin,str) and re.fullmatch('[0-9a-f]{64}',pin), 'file-hash-required')
         require(Path(name).suffix.lower() in {'.pdf','.json','.jsonl','.md','.txt','.csv','.tsv','.bib','.zip','.docx','.png','.jpg','.xlsx'}, 'unsupported-material-extension')
-        identity = 'file-' + digest(raw([body['project_ref'], stage, name, size, pin]))[:32]
+        require(type(body.get('restart_aborted',False)) is bool, 'invalid-upload-restart')
+        identity = 'file-' + digest(raw([body['project_ref'], stage, name, size, pin] + ([purpose] if purpose else [])))[:32]
         with self.lock:
             try:
-                return self._get('materials', identity)
+                item = self._get('materials', identity)
             except MaterialError:
-                pass
+                item = None
+            if item is not None:
+                if item['status']=='aborted' and body.get('restart_aborted') is True:
+                    item.update(status='uploading', received=0,
+                                upload_attempt=item.get('upload_attempt',1)+1, restarted_at=stamp())
+                    self._put('materials',identity,item)
+                return item
             value = dict(id=identity, kind='manual-file', project_ref=body['project_ref'], stage=stage,
                          name=name, bytes=size, sha256=pin, status='uploading', received=0,
-                         registered_at=stamp(), execution_authorized=False,
+                         upload_attempt=1, registered_at=stamp(), execution_authorized=False,
                          content_status='unreviewed-material-not-screened-or-read')
+            if purpose:
+                value['purpose'] = purpose
             self._put('materials', identity, value)
             return value
 
@@ -144,19 +159,62 @@ class Materials:
             if item['status']=='registered':
                 require(digest(self.file_bytes(item['id']))==item['sha256'], 'saved-material-differs')
                 return item
+            require(item['status']=='uploading', 'upload-not-active')
             require(item['received']==item['bytes'], 'upload-incomplete')
             with self.connect() as db:
                 data = b''.join(r[0] for r in db.execute('SELECT data FROM chunks WHERE id=? ORDER BY offset',(item['id'],)))
             require(len(data)==item['bytes'] and digest(data)==item['sha256'], 'uploaded-bytes-hash-mismatch')
             path = self.root/'files'/(item['id']+'.bin')
+            require(not path.is_symlink(), 'material-link-rejected')
             if path.exists():
                 require(path.read_bytes()==data, 'material-file-conflict')
             else:
-                with path.open('xb') as stream:
-                    stream.write(data)
+                temporary = None
+                try:
+                    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=item['id']+'.', delete=False) as stream:
+                        temporary = Path(stream.name)
+                        stream.write(data)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    try:
+                        os.link(temporary, path)
+                    except FileExistsError:
+                        require(not path.is_symlink() and path.read_bytes()==data, 'material-file-conflict')
+                finally:
+                    if temporary is not None:
+                        temporary.unlink(missing_ok=True)
             item.update(status='registered', completed_at=stamp())
             self._put('materials',item['id'],item)
             return item
+
+    def abort_upload(self, body):
+        """Discard incomplete chunks, retaining the original upload identity/history."""
+        with self.lock:
+            item = self._get('materials', body.get('id'))
+            require(item['kind']=='manual-file' and item['status'] in {'uploading', 'aborted'}, 'upload-not-active')
+            attempt = item.get('upload_attempt',1)
+            require(type(body.get('expected_generation',1)) is int and body.get('expected_generation',1)==attempt, 'upload-generation-differs')
+            if item['status']=='aborted':
+                return item
+            require(not (self.root/'files'/(item['id']+'.bin')).exists(), 'material-finalization-pending')
+            event = dict(kind='manual-upload-abort', upload_id=item['id'], project_ref=item['project_ref'],
+                         upload_attempt=attempt, received=item['received'], sha256=item['sha256'],
+                         aborted_at=stamp(), execution_authorized=False)
+            event_id = 'upload-abort-'+digest(raw([item['id'],attempt]))[:32]
+            with self.connect() as db:
+                db.execute('INSERT INTO operations VALUES (?,?)',(event_id,raw(event).decode()))
+                db.execute('DELETE FROM chunks WHERE id=?', (item['id'],))
+                item.update(status='aborted', received=0)
+                db.execute('UPDATE materials SET body=? WHERE id=?', (raw(item).decode(), item['id']))
+            return item
+
+    def stage3_reference(self, project_ref, identity):
+        """Verify complete file bytes before binding them to a small revision record."""
+        item = self._get('materials', identity)
+        require(item.get('project_ref') == project_ref and item.get('stage') == 3, 'stage3-material-project-differs')
+        require(0 < item.get('bytes', 0) <= 128*1024*1024, 'stage3-material-capacity-exceeded')
+        self.file_bytes(identity)
+        return item
 
     def file_bytes(self, identity):
         item = self._get('materials',identity)

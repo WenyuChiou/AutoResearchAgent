@@ -6,6 +6,7 @@ HTTP admission and the configured native planning deadline remain separate.
 """
 
 from copy import deepcopy
+from contextlib import nullcontext
 import re
 import threading
 import time
@@ -16,14 +17,17 @@ from stage3_plan.preparation import sha256
 from stage3_plan.storage import inspect_package
 
 from .session_api import SessionApiError
+from .http import MAX_BODY
 from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS
 from .project_stage3_direction_planning import DIRECTION_FIELDS
+from .project_stage3_feedback import fits_response, read_feedback, record_feedback
+from .project_selection_read_context import verified_selection_read
 
 
 ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage3/planning"
-    r"(?:/(prepare|run|inspect|recover))?"
+    r"(?:/(prepare|run|inspect|recover|comment|revise))?"
 )
 
 
@@ -46,6 +50,7 @@ class ProjectStage3Http:
         self._errors = {}
         self._closed = False
         self._owner_closed = False
+        self.material_resolver = None
 
     def check_open(self):
         with self._lock:
@@ -53,6 +58,23 @@ class ProjectStage3Http:
                 raise TimeoutError("planning Host closed")
 
     def view(self, credential, ref, *, check_deadline=None):
+        intake = getattr(self.service, "intake", None)
+        with (
+            intake._lock if intake is not None else nullcontext(),
+            verified_selection_read(intake) if intake is not None else nullcontext(),
+        ):
+            view = self._view(credential, ref, check_deadline=check_deadline)
+            if view.get("plan") is not None:
+                configured = getattr(self.service, "bindings", {}).get(ref)
+                if configured is not None:
+                    projected = dict(
+                        view, feedback=read_feedback(configured["jobs"], ref, view)
+                    )
+                    if fits_response(projected):
+                        view = projected
+            return view
+
+    def _view(self, credential, ref, *, check_deadline=None):
         view = self.service.read(credential, ref, check_deadline=check_deadline)
         if view.get("planning_mode") == "direction-intent":
             if check_deadline:
@@ -91,7 +113,14 @@ class ProjectStage3Http:
             )
             if item is not None:
                 body = dict(body, request_sha256=digest(item["payload"]))
-                result["job"] = self.service.inspect(
+                pin = self.recovery_pins.get((ref, body["key"], body["request_sha256"]))
+                if (
+                    item["status"] != "completed"
+                    or (item["evidence"] or {}).get("outcome") != "saved"
+                ):
+                    pin = None
+                inspect = self.service.inspect_saved if pin else self.service.inspect
+                result["job"] = inspect(
                     credential, ref, body, check_deadline=check_deadline
                 )
                 result["default_request"] = body
@@ -101,10 +130,12 @@ class ProjectStage3Http:
                     body["request_sha256"],
                 ) in self.recovery_pins
                 if result["job"]["outcome"] == "saved":
-                    verified = jobs.inspect(
+                    read = jobs.inspect_saved if pin else jobs.inspect
+                    verified = read(
                         body["key"],
                         expected_request_sha256=body["request_sha256"],
                         current_checkpoint=item["payload"]["checkpoint"],
+                        **({"expected_plan_manifest_sha256": pin} if pin else {}),
                     )["result"]["plan"]
                     result["plan"] = inspect_package(
                         verified["package"], verified["manifest_sha256"]
@@ -112,6 +143,31 @@ class ProjectStage3Http:
         if check_deadline:
             check_deadline()
         return result
+
+    def admit_feedback(self, ref, body, action):
+        """Track local writes through response completion and existing drain."""
+        marker = ("feedback:" + action + ":" + str(body.get("key")), digest(body))
+        with self._lock:
+            self.check_open()
+            if ref in self._active:
+                raise SessionApiError("stage3-planning-project-busy", 409)
+            self._active[ref] = (marker, threading.current_thread())
+
+    def feedback(self, credential, ref, body, action, *, check_deadline=None):
+        with self.service.intake._lock:
+            view = self._view(credential, ref, check_deadline=check_deadline)
+            configured = self.service.bindings.get(ref)
+            if configured is None:
+                raise SessionApiError("stage3-planning-unconnected", 409)
+            return record_feedback(
+                configured["jobs"],
+                ref,
+                view,
+                body,
+                action,
+                check_deadline,
+                material_resolver=self.material_resolver,
+            )
 
     def admit_run(self, credential, ref, body, check_deadline):
         if (
@@ -190,6 +246,9 @@ class ProjectStage3Http:
 
 def handle_planning(handler, method):
     """Keep the existing Host/auth/body/CSP rules and explicit job semantics."""
+    match = ROUTE.fullmatch(handler.path)
+    if match is None:
+        return False
     running = False
     sent = False
     transport = None
@@ -200,7 +259,7 @@ def handle_planning(handler, method):
             raise SessionApiError("cross-site-rejected", 403)
         if handler.server.authenticate(token) is None:
             raise SessionApiError("credential-rejected", 401)
-        ref, action = ROUTE.fullmatch(handler.path).groups()
+        ref, action = match.groups()
         transport = handler.server.project_stage3_http
         if transport is None:
             raise SessionApiError("stage3-planning-unconnected", 409)
@@ -214,7 +273,8 @@ def handle_planning(handler, method):
                 raise SessionApiError("unknown-project-write", 404)
             if handler.headers.get("Content-Type", "").lower() != "application/json":
                 raise SessionApiError("json-content-type-required", 415)
-            if not 0 < length <= 4096:
+            body_limit = MAX_BODY if action == "revise" else 4096
+            if not 0 < length <= body_limit:
                 raise SessionApiError("stage3-planning-body-bound-exceeded", 413)
             raw = handler.rfile.read(length)
             if len(raw) != length:
@@ -247,6 +307,12 @@ def handle_planning(handler, method):
                     # response. The original adapter still owns the native limit.
                     service.run(token, ref, body, check_deadline=transport.check_open)
                     return
+            elif action in {"comment", "revise"}:
+                transport.admit_feedback(ref, body, action)
+                running = True
+                result = transport.feedback(
+                    token, ref, body, action, check_deadline=handler._remaining
+                )
             elif action == "recover":
                 identity = (ref, body.get("key"), body.get("request_sha256"))
                 pin = transport.recovery_pins.get(identity)

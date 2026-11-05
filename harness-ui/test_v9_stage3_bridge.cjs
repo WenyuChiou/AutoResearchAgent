@@ -3,23 +3,134 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),test=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,'v9-stage3-bridge.js'),'utf8');
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
+const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function fixture(request){
  const basis={project_ref:'project-a',input_version:1,revision:2,brief_sha256:'a'.repeat(64)};
  const target={},button={},listeners={},mounts=[];
  const app={page:'workspace',stage:3,lang:'tw',el:{contains:x=>x===button,querySelector:x=>x==='#v93-diagram'?target:null}};
  const state={ref:'project-a',epoch:1,overview:{project:basis}};
- const ctx={rt:state,apps:[app],canonicalReadonly:()=>false,stage2:()=>'<old/>',laterStage:()=>'<later/>',v7BeforeRender:()=>{},v7AfterRender:()=>{},
-  rl:(zh,en,tw)=>tw||zh,rx:String,canonicalTop:()=>'<top/>',livePaint:()=>{},projectPath:(r,p)=>'/api/projects/'+r+'/'+p,
+ const ctx={rt:state,apps:[app],canonicalReadonly:()=>false,stage2:()=>'<old/>',laterStage:()=>'<later/>',otherPage:()=>'<div class="hs-heading"><p class="hs-eyebrow">STAGE 01 / 06</p><h1>Literature</h1><p>Repeated project brief</p></div><p role="alert">Original pending outcome</p>',v7BeforeRender:()=>{},v7AfterRender:()=>{},
+  rl:(zh,en,tw)=>tw||zh,rx:escapeHtml,canonicalTop:()=>'<top/>',livePaint:()=>{},projectPath:(r,p)=>'/api/projects/'+r+'/'+p,
   liveRequest:request|| (async()=>({...basis,plan:{kind:'Stage3ResearchPlan'}})),
-  window:{RESEARCH_PROJECTS:{stage2_selection_projects:['project-a'],stage3_planning_projects:['project-a']},STAGE3_RESEARCH_DIAGRAM:{mount:(...x)=>mounts.push(x)}},
+  window:{addEventListener:(name,fn)=>listeners[name]=fn,RESEARCH_PROJECTS:{stage2_selection_projects:['project-a'],stage3_planning_projects:['project-a']},STAGE3_RESEARCH_DIAGRAM:{mount:(...x)=>mounts.push(x)}},
   document:{addEventListener:(name,fn)=>listeners[name]=fn},location:{hash:'#project-a?stage=3&lang=zh-TW'},URLSearchParams,encodeURIComponent,decodeURIComponent,console};
  vm.createContext(ctx);vm.runInContext(source,ctx);return {ctx,state,app,button,listeners,mounts,basis};
 }
+test('utility headings follow the current page and preserve pending/error content',()=>{
+ const f=fixture();
+ for(const [page,title] of [['files','專案檔案'],['history','操作歷史'],['settings','連線與設定']]){
+  f.app.page=page;const html=f.ctx.otherPage(f.app);
+  assert.match(html,new RegExp('<h1>'+title+'</h1>'));assert.ok(html.includes('Original pending outcome'));
+  assert.equal((html.match(/<h1>/g)||[]).length,1);
+  assert.doesNotMatch(html,/STAGE 01|Repeated project brief/);assert.ok(html.includes('PROJECT'));
+ }
+ f.app.page='workspace';assert.ok(f.ctx.otherPage(f.app).includes('<h1>Literature</h1>'));
+});
 test('Wiki routes restore only an existing project and permitted stage/language',()=>{
  const f=fixture();assert.equal(JSON.stringify(f.ctx.v93RouteTarget([{project_ref:'project-a'}])),JSON.stringify({ref:'project-a',stage:3,lang:'tw'}));
  assert.equal(f.ctx.v93RouteTarget([{project_ref:'other'}]),null);
- f.ctx.location.hash='#project-a?stage=4&lang=zh-TW';assert.equal(f.ctx.v93RouteTarget([{project_ref:'project-a'}]),null);
+  for(const stage of [1,2,3,4,5,6]){
+    f.ctx.location.hash='#project-a?stage='+stage+'&lang=zh-TW';
+    assert.equal(f.ctx.v93RouteTarget([{project_ref:'project-a'}]).stage,stage);
+  }
+  for(const stage of [0,7,2.5]){
+    f.ctx.location.hash='#project-a?stage='+stage+'&lang=zh-TW';assert.equal(f.ctx.v93RouteTarget([{project_ref:'project-a'}]),null);
+  }
 });
+
+test('language changes retain the current route and document language without dispatch',()=>{
+  for(const stage of [1,2,3]){
+    const f=fixture(()=>assert.fail('a language change must not request or dispatch'));
+    const location=new URL('http://localhost/nested/wiki/?theme=night#project-a?stage='+stage+'&lang=zh-TW&view=matrix');
+    const state={retained:'history-state'};let replacements=0;
+    f.app.stage=stage;f.state.list=[{project_ref:'project-a'}];f.ctx.location=location;
+    f.ctx.document.documentElement={lang:'zh-CN'};
+    f.ctx.history={state,replaceState(received,unused,target){assert.equal(received,state);location.href=new URL(target,location).href;replacements++;}};
+    const select={matches:selector=>selector==='[data-language]'};
+    f.app.draftNotes={note:'keep the unsent draft'};
+    f.ctx.v7AfterRender(f.app);f.ctx.v7AfterRender(f.app);
+    assert.equal(f.ctx.document.documentElement.lang,'zh-TW');
+    for(const [value,locale] of [['en','en'],['zh','zh-CN'],['tw','zh-TW']]){
+      // The existing app change listener updates the language before bubbling
+      // to document; render replaces the old select, so use its event path.
+      f.app.lang=value;f.listeners.change({target:select,composedPath:()=>[select,f.app.el]});
+      f.ctx.v7AfterRender(f.app);
+      const route=f.ctx.v93RouteTarget(f.state.list);
+      assert.equal(route.lang,value);assert.equal(route.stage,stage);assert.equal(route.ref,'project-a');
+      assert.equal(f.ctx.document.documentElement.lang,locale);
+      assert.equal(location.pathname,'/nested/wiki/');assert.equal(location.search,'?theme=night');
+      assert.match(location.hash,/view=matrix/);
+    }
+    assert.equal(replacements,3);
+    assert.equal(f.app.draftNotes.note,'keep the unsent draft');
+  }
+});
+
+test('language synchronization cannot overwrite an unrestored or different-project route',()=>{
+  const f=fixture(()=>assert.fail('synchronization must not request or dispatch'));
+  const location=new URL('http://localhost/wiki/#project-a?stage=3&lang=en');
+  f.state.list=[{project_ref:'project-a'},{project_ref:'project-b'}];f.ctx.location=location;
+  f.ctx.document.documentElement={lang:'unchanged'};
+  f.ctx.history={replaceState(){assert.fail('rendering must not replace an unrestored route');}};
+  f.ctx.v7AfterRender(f.app);
+  assert.equal(f.ctx.document.documentElement.lang,'unchanged');
+  assert.equal(f.app.lang,'tw');assert.match(location.hash,/lang=en/);
+  const select={matches:selector=>selector==='[data-language]'};
+  f.ctx.v7AfterRender(f.app);
+  for(const hash of ['#project-b?stage=3&lang=en','#project-a?stage=7&lang=en','#project-a?stage=2&lang=en']){
+    location.hash=hash;f.app.lang='en';f.listeners.change({target:select,composedPath:()=>[select,f.app.el]});
+    assert.equal(location.hash,hash);assert.equal(f.ctx.document.documentElement.lang,'unchanged');
+  }
+});
+
+test('browser Back and Forward restore stages and language without requests or draft loss',()=>{
+ const f=fixture(()=>assert.fail('navigation must not request or dispatch'));
+ const base=fs.readFileSync(require('node:path').join(__dirname,'renderer/src/base.js'),'utf8');
+ vm.runInContext(base.slice(base.indexOf('  function localStage('),base.indexOf('  const localContextKeys=')),f.ctx);
+ const location=new URL('http://localhost/nested/wiki/?theme=night#project-a?stage=3&lang=zh-TW&view=matrix');
+ const entries=[location.href],state={retained:'state'};let position=0,paints=0,pushes=0;
+ f.ctx.location=location;f.ctx.livePaint=()=>paints++;f.state.list=[{project_ref:'project-a'},{project_ref:'project-b'}];
+ f.ctx.history={state,pushState(received,unused,target){assert.equal(received,state);entries.splice(++position);entries.push(new URL(target,location).href);location.href=entries[position];pushes++;},replaceState(){assert.fail('stage clicks must add a history entry');}};
+ Object.assign(f.app,{previewStageContexts:{},selected:{id:'stage3'},focal:'stage3',draftAnswers:{question:'unsent'},draftNotes:{note:'retained'}});
+ const drafts=JSON.stringify([f.app.draftAnswers,f.app.draftNotes]);
+ f.ctx.localStage(f.app,2);f.app.selected={id:'stage2'};f.app.focal='stage2';
+ f.app.lang='en';f.ctx.localStage(f.app,1);
+ assert.equal(entries.length,3);assert.equal(pushes,2);
+ const travel=delta=>{position+=delta;location.href=entries[position];f.listeners.popstate();f.listeners.hashchange();};
+ travel(-1);assert.equal(f.app.stage,2);assert.equal(f.app.lang,'tw');assert.equal(f.app.selected.id,'stage2');assert.equal(paints,1);
+ travel(-1);assert.equal(f.app.stage,3);assert.equal(f.app.focal,'stage3');assert.equal(paints,2);
+ travel(1);assert.equal(f.app.stage,2);assert.equal(paints,3);
+ travel(1);assert.equal(f.app.stage,1);assert.equal(f.app.lang,'en');assert.equal(paints,4);
+ assert.equal(pushes,2);assert.equal(entries.length,3);assert.equal(location.pathname,'/nested/wiki/');assert.equal(location.search,'?theme=night');assert.match(location.hash,/view=matrix/);
+ assert.equal(JSON.stringify([f.app.draftAnswers,f.app.draftNotes]),drafts);
+ f.ctx.localStage(f.app,1);assert.equal(pushes,2,'same stage does not add a duplicate entry');
+ for(const fragment of ['#project-b?stage=2&lang=en','#project-a?stage=7&lang=en','#project-a?stage=2&lang=xx','#%ZZ?stage=2&lang=en']){
+  const before=JSON.stringify(f.app);location.hash=fragment;f.listeners.popstate();f.listeners.hashchange();assert.equal(JSON.stringify(f.app),before);assert.equal(paints,4);
+ }
+ location.hash='#project-a?stage=2&lang=en';f.state.overview={project:{...f.basis,project_ref:'project-b'}};f.listeners.popstate();assert.equal(f.app.stage,1,'mismatched overview is not restored');
+});
+
+
+test('first stage navigation canonicalizes a hashless entry before pushing',()=>{
+ for(const firstStage of [1,2]){
+  const f=fixture(()=>assert.fail('history restoration cannot request or dispatch'));
+  const base=fs.readFileSync(require('node:path').join(__dirname,'renderer/src/base.js'),'utf8');
+  vm.runInContext(base.slice(base.indexOf('  function localStage('),base.indexOf('  const localContextKeys=')),f.ctx);
+  const location=new URL('http://localhost/nested/wiki/?theme=night');
+  const entries=[location.href],state={retained:'initial-state'};let position=0,replacements=0,pushes=0;
+  const setLocation=target=>{location.href=new URL(target,location).href;};
+  f.ctx.location=location;f.state.list=[{project_ref:'project-a'}];
+  f.ctx.history={state,replaceState(received,unused,target){assert.equal(received,state);replacements++;entries[position]=new URL(target,location).href;setLocation(target);},pushState(received,unused,target){assert.equal(received,state);pushes++;entries.splice(++position);entries.push(new URL(target,location).href);setLocation(target);}};
+  Object.assign(f.app,{stage:1,lang:'en',previewStageContexts:{},selected:{id:'stage1'},focal:'stage1',draftNotes:{note:'unsent'}});
+  f.ctx.localStage(f.app,firstStage);if(firstStage===1){assert.equal(pushes,0,'initial same-stage click only normalizes');f.ctx.localStage(f.app,2);}
+  assert.equal(replacements,1);assert.equal(pushes,1);assert.equal(entries.length,2);
+  assert.equal(new URL(entries[0]).hash,'#project-a?stage=1&lang=en');assert.equal(location.hash,'#project-a?stage=2&lang=en');
+  position--;location.href=entries[position];f.listeners.popstate();f.listeners.hashchange();
+  assert.equal(f.app.stage,1);assert.equal(f.app.lang,'en');assert.equal(f.app.focal,'stage1');assert.equal(f.app.draftNotes.note,'unsent');assert.equal(location.pathname,'/nested/wiki/');assert.equal(location.search,'?theme=night');
+  position++;location.href=entries[position];f.listeners.popstate();f.listeners.hashchange();assert.equal(f.app.stage,2);assert.equal(replacements,1);assert.equal(pushes,1);
+ }
+});
+
 test('same-version GET mounts the graph in the Wiki and changes no data',async()=>{
  const calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,plan:{kind:'Stage3ResearchPlan'}}});
  await f.listeners.click({target:{closest:()=>f.button}});f.ctx.v7AfterRender(f.app);
@@ -40,6 +151,61 @@ test('Wiki labels the older cards and does not imply a missing plan exists',asyn
  assert.match(f.ctx.laterStage(f.app),/沒有已保存的規劃/);
 });
 
+test('saved conditional planning leads with readable materials and method, keeping full details closed',async()=>{
+ const calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,plan:{kind:'Stage3DirectionPlanningResult',planning_status:'conditional-draft',markdown:'A saved conditional plan.\n\nAdditional paragraph.',question_plans:[{question_ref:'q1',method:'Compare held-fixed rules.',materials:'Published age tables; access still unknown.',design:'Proposed design only.',unknowns:['Verify table definitions.']}]},direction_context:{questions:[{question_ref:'q1',text:'How does age composition affect demand?'}]}};});
+ await f.listeners.click({target:{closest:()=>f.button}});
+ const html=f.ctx.laterStage(f.app);
+ assert.ok(html.indexOf('已保存的規劃摘要')<html.indexOf('研究關係圖與來源'));
+ for(const text of ['How does age composition affect demand?','Compare held-fixed rules.','Published age tables; access still unknown.','Verify table definitions.','尚未執行實驗'])assert.ok(html.includes(text));
+ assert.match(html,/<details class="n9-plan-details">/);assert.match(html,/<details class="n9-plan-graph">/);
+  assert.match(html,/<ol class="n9-plan-flow n9-source-flow">/);
+  assert.equal((html.match(/class="n9-flow-heading"/g)||[]).length,8);
+ assert.ok(html.includes('研究規劃流程（擬議）'));assert.ok(html.includes('各步驟尚未執行'));
+ assert.doesNotMatch(html,/<details[^>]*\bopen(?:\s|>)/);
+ assert.deepEqual(calls,['/api/projects/project-a/stage3/planning']);
+ assert.equal(f.mounts.length,0,'Rendering a summary does not dispatch or mount a generation');
+});
+
+test('conditional resource view preserves exact question/version use, unknowns and source without generation',async()=>{
+  const row={question_ref:'idea-a@2/q1',materials:'Public table leads; access unknown.',method:'Saved rule method',unknowns:['Original missing rights']};
+  const resource={name:'A mapped tool',status:'unknown',purpose:'General purpose'};
+  const card={candidate_id:'idea-a',candidate_version:2,scientific_questions:[{question:{question_id:'q1'},resource_uses:[{resource,resource_ref:{purpose:'Question-specific accounting',fit_status:'proposed'}}]}]};
+  const other={candidate_id:'idea-a',candidate_version:1,scientific_questions:[{question:{question_id:'q1'},resource_uses:[{resource:{name:'OLD VERSION RESOURCE'}}]}]};
+  const view={plan:{kind:'Stage3DirectionPlanningResult',planning_status:'conditional-draft',question_plans:[row]},direction_context:{questions:[{question_ref:row.question_ref,text:'Saved question'}],preferred_cards:[card,other]}};
+  const before=JSON.stringify(view),calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,...view};});
+  await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+  for(const value of ['A mapped tool','Question-specific accounting','unknown','proposed','Original missing rights','/plan/question_plans/0/method'])assert.ok(html.includes(value));
+  assert.doesNotMatch(html,/OLD VERSION RESOURCE/);assert.equal(JSON.stringify(view),before);
+  assert.equal((html.match(/<details class="n9-flow-source">/g)||[]).length,8);
+  assert.doesNotMatch(html,/<details[^>]*\bopen(?:\s|>)/);assert.deepEqual(calls,['/api/projects/project-a/stage3/planning']);
+});
+
+test('saved source fields remain inert and unmapped material leads are not promoted',async()=>{
+  const f=fixture(async()=>({...f.basis,plan:{kind:'Stage3DirectionPlanningResult',question_plans:[{question_ref:'q1',materials:'<img src=x onerror=alert(1)>',method:'<script>unsafe()</script>',unknowns:['Original source limit']}]}}));
+  await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+  assert.ok(html.includes('&lt;img'));assert.ok(html.includes('&lt;script&gt;'));assert.doesNotMatch(html,/<script>|<img/);
+  assert.ok(html.includes('本問題沒有已映射的資源；保持 unknown。'));
+  assert.ok(html.includes('Original source limit'));
+});
+
+test('unmatched or unavailable plan fields remain explicit and no old plan leaks across versions',async()=>{
+ const f=fixture(async()=>({...f.basis,plan:{kind:'Stage3DirectionPlanningResult',question_plans:[{question_ref:'missing'}]}}));
+ await f.listeners.click({target:{closest:()=>f.button}});
+ let html=f.ctx.laterStage(f.app);assert.match(html,/尚未記錄/);assert.match(html,/研究問題 1/);
+ f.state.overview.project={...f.basis,revision:3};html=f.ctx.laterStage(f.app);assert.doesNotMatch(html,/已保存的規劃摘要/);
+});
+
+test('formal saved plans retain their linked-record graph without a false scalar summary',async()=>{
+ const calls=[],plan={kind:'Stage3ResearchPlan',questions:[{question_ref:'q1',text:'Formal saved question'}],question_plans:[{question_ref:'q1',design_ids:['d1'],analysis_ids:['a1'],result_ids:['r1']}],designs:[{design_id:'d1',family:'Saved design'}],analyses:[{analysis_id:'a1',method:'Saved analysis',design_ids:['d1']}],results:[{result_id:'r1',artifact:'Saved output',analysis_ids:['a1']}],unknowns:[{reason:'Actual unresolved material'}]};
+ const before=JSON.stringify(plan),f=fixture(async path=>{calls.push(path);return {...f.basis,plan};});
+ await f.listeners.click({target:{closest:()=>f.button}});
+ const html=f.ctx.laterStage(f.app);f.ctx.v7AfterRender(f.app);
+ assert.doesNotMatch(html,/n9-plan-overview|尚未記錄|0 項待查事項/);
+ assert.match(html,/<details class="n9-plan-graph" open>/);
+ assert.equal(f.mounts.length,1);assert.equal(f.mounts[0][1].plan,plan);
+ assert.deepEqual(calls,['/api/projects/project-a/stage3/planning']);assert.equal(JSON.stringify(plan),before);
+});
+
 test('error from a prior project or version is not shown on a new binding',async()=>{
  const f=fixture(async()=>{throw Error('project A only failure')});
  await f.listeners.click({target:{closest:()=>f.button}});
@@ -52,12 +218,12 @@ test('error from a prior project or version is not shown on a new binding',async
 });
 
 test('Wiki preserves a mounted choice across redraw and suspends on project or stage switch',()=>{
- const f=fixture(),placed=[],navigations=[],calls=[],pending={value:false};f.app.stage=2;
+  const f=fixture(),placed=[],navigations=[],calls=[],pending={value:false};let reloads=0;f.app.stage=2;
  f.app.el.querySelector=selector=>selector==='[data-v93-choice]'?{append:item=>placed.push(item)}:null;
  const template={content:{cloneNode:()=>({})}};
  f.ctx.document.getElementById=id=>id==='v93-selection-template'?template:null;
  f.ctx.document.createElement=tag=>tag==='link'?{}:{children:[],append(...nodes){this.children.push(...nodes);},attachShadow(){this.shadowRoot={append(){},querySelector:()=>null,activeElement:null};return this.shadowRoot;}};
- f.ctx.window.location={assign:url=>navigations.push(url)};
+  f.ctx.window.location={set hash(value){navigations.push('/'+value);},reload:()=>reloads++};
  let saved;
  f.ctx.window.STAGE2_SELECTION={mount:(root,opts)=>{calls.push('mount');saved=opts;return {
    suspend:()=>calls.push('suspend'),resume:()=>calls.push('resume'),
@@ -70,10 +236,31 @@ test('Wiki preserves a mounted choice across redraw and suspends on project or s
 
  f.app.lang='en';f.ctx.v7AfterRender(f.app);assert.ok(calls.includes('language:en'));
  saved.onNavigate({projectRef:'other',language:'en'});assert.deepEqual(navigations,[]);
+  saved.onAccepted({projectRef:'project-a',language:'invalid'});assert.equal(reloads,0);
  saved.onNavigate({projectRef:'project-a',language:'en'});assert.deepEqual(navigations,['/#project-a?stage=3&lang=en']);
+  assert.equal(reloads,1,'hash-only navigation must reload the Wiki to adopt the committed project revision');
+  saved.onAccepted({projectRef:'project-a',language:'zh-TW'});
+  assert.deepEqual(navigations,['/#project-a?stage=3&lang=en','/#project-a?stage=3&lang=zh-TW']);assert.equal(reloads,2);
  f.app.stage=3;f.ctx.v7BeforeRender(f.app);assert.ok(calls.includes('suspend'));
+  saved.onAccepted({projectRef:'project-a',language:'en'});assert.equal(reloads,2,'a suspended stage cannot navigate');
  f.app.stage=2;f.state.overview.project={...f.basis,revision:3};pending.value=true;f.ctx.v7AfterRender(f.app);
  assert.equal(calls.filter(x=>x==='mount').length,1);assert.ok(calls.includes('dispose'));
+  saved.onAccepted({projectRef:'project-a',language:'en'});assert.equal(reloads,2,'a stale revision cannot navigate');
+});
+
+for(const wikiPath of ['/','/index.html?view=wiki'])test('accepted continuation preserves the Wiki path '+wikiPath,()=>{
+  const f=fixture(),reloads=[],url=new URL('http://wiki.test'+wikiPath+'#project-a?stage=2&lang=zh-TW');let options;
+  f.app.stage=2;f.app.el.querySelector=selector=>selector==='[data-v93-choice]'?{append(){}}:null;
+  f.ctx.document.getElementById=id=>id==='v93-selection-template'?{content:{cloneNode:()=>({})}}:null;
+  f.ctx.document.createElement=tag=>tag==='link'?{}:{append(){},attachShadow(){return {append(){},querySelector:()=>null};}};
+  f.ctx.window.location={
+    assign:value=>{url.href=new URL(value,url).href;},
+    set hash(value){url.hash=value;},
+    reload:()=>reloads.push(url.pathname+url.search+url.hash),
+  };
+  f.ctx.window.STAGE2_SELECTION={mount:(_root,args)=>{options=args;return {state:()=>({recovery:null}),resume(){},suspend(){}};}};
+  f.ctx.v7AfterRender(f.app);options.onAccepted({projectRef:'project-a',language:'en'});
+  assert.deepEqual(reloads,[wikiPath+'#project-a?stage=3&lang=en']);
 });
 
 test('missing or malformed project version cannot authorize a graph read',async()=>{
@@ -120,4 +307,33 @@ test('Wiki explains unavailable and busy cross-tab protection',async()=>{
   const instance={pendingActions:()=>[{key:'one'}],reconcile:async()=>({status:'unavailable',code})};
   f.ctx.v93RecoveryControl(slot,{instance},f.basis,f.app);await slot.children[0].children[1].onclick();assert.match(slot.children[0].children[0].textContent,pattern);
  }
+});
+
+test('composed saved-plan bridge and feedback share bindings, history and original plan',async()=>{
+ const calls=[],plan={kind:'Stage3DirectionPlanningResult',markdown:'Original authored plan.',question_plans:[{question_ref:'q1',method:'Original method',materials:'Access unknown',unknowns:['Keep original unknown']}]};
+ let f,view;
+ f=fixture(async(url,body)=>{
+  calls.push({url,body:body?JSON.parse(JSON.stringify(body)):null});
+  if(!body)return view;
+  const record={kind:'comment',binding:view.feedback.binding,request:JSON.parse(JSON.stringify(body)),text:body.text,question_ref:body.question_ref,input_source:'project-host-user-submission',native_message:false,model_generated:false,execution_authorized:false};
+  const row={receipt_sha256:'e'.repeat(64),record,replayed:false};view.feedback.records.push(row);return row;
+ });
+ view={...f.basis,job:{outcome:'saved',request_sha256:'d'.repeat(64),plan_manifest_sha256:'b'.repeat(64)},plan,direction_context:{questions:[{question_ref:'q1',text:'A recorded question'}]},feedback:{kind:'ProjectStage3PlanningFeedbackView',schema_version:1,binding:{...f.basis,parent_plan_manifest_sha256:'b'.repeat(64),parent_plan_sha256:'c'.repeat(64),plan_request_sha256:'d'.repeat(64)},records:[]}};
+ const original=JSON.stringify(plan),handlers=new Map(Object.entries(f.listeners).map(([name,fn])=>[name,[fn]]));
+ f.ctx.document.addEventListener=(name,fn)=>{const list=handlers.get(name)||[];list.push(fn);handlers.set(name,list);f.listeners[name]=async event=>{for(const handler of list)await handler(event);};};
+ Object.assign(f.ctx,{Map,TextEncoder,crypto:{randomUUID:()=> 'composed-operation'}});
+ Object.assign(f.ctx.document,{body:{},activeElement:null});
+ vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'v9-stage3-feedback.js'),'utf8'),f.ctx);
+ assert.doesNotMatch(f.ctx.laterStage(f.app),/data-v94f-panel/);
+ await f.listeners.click({target:{closest:selector=>selector==='[data-v93-read]'?f.button:null}});
+ let html=f.ctx.laterStage(f.app);assert.match(html,/data-v94f-panel/);assert.match(html,/Original method/);assert.match(html,/Keep original unknown/);
+ const state=f.ctx.v94fState(f.ctx.v94fContext(f.app));state.commentText='A retained supporting comment';state.commentQuestion='q1';
+ const form=f.button;form.dataset={v94fForm:'comment'};form.closest=selector=>selector==='[data-v94f-form]'?form:null;
+ await f.listeners.submit({target:form,preventDefault(){}});await settle();
+ html=f.ctx.laterStage(f.app);assert.match(html,/A retained supporting comment/);assert.equal(calls.length,2);assert.equal(calls[1].url,'/api/projects/project-a/stage3/planning/comment');
+ assert.equal(calls[1].body.input_version,1);assert.equal(calls[1].body.parent_plan_manifest_sha256,'b'.repeat(64));assert.equal(state.records.length,1);
+ f.ctx.v7BeforeRender(f.app);f.ctx.v7AfterRender(f.app);assert.equal(f.mounts.length,1);assert.equal(calls.length,2);assert.equal(JSON.stringify(plan),original);
+ f.state.ref='project-b';f.state.overview.project={...f.basis,project_ref:'project-b'};f.ctx.window.RESEARCH_PROJECTS.stage3_planning_projects.push('project-b');
+ assert.doesNotMatch(f.ctx.laterStage(f.app),/A retained supporting comment|data-v94f-panel/);
+ assert.equal(calls.length,2);
 });

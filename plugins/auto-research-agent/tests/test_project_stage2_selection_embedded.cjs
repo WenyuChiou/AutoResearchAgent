@@ -23,7 +23,7 @@ function digest(kind,body){const semantic={...body};delete semantic.revision;ret
 function memoryStorage() {const values=new Map();return {get length(){return values.size},key:i=>[...values.keys()][i]??null,getItem:k=>values.has(k)?values.get(k):null,setItem:(k,v)=>values.set(k,String(v)),removeItem:k=>values.delete(k),values};}
 function memoryLocks() { const held=new Set(); return {async request(name,opts,callback){if(held.has(name))return callback(null);held.add(name);try{return await callback({name});}finally{held.delete(name);}}}; }
 function harness(options={}) {
- const names=['language','project','project-context','cards','planning','planning-link','return-cards','planning-summary','choice','submit','submit-and-start','receipt','status','planning-input','actor','message','rationale','conditions','unresolved','confirmed','direction-intent','intent-save','intent-start','intent-status','intent-blockers','intent-receipt','intent-planning-link','intent-message','intent-confirmed'];
+ const names=['selection-layout','decision-context','preference-bar','preference-summary','review-preference','chosen-directions','intent-panel','formal-panel','language','project','project-context','cards','planning','planning-link','return-cards','planning-summary','choice','submit','submit-and-start','receipt','status','planning-input','actor','message','rationale','conditions','unresolved','confirmed','direction-intent','intent-save','intent-start','intent-status','intent-blockers','intent-receipt','intent-planning-link','intent-message','intent-confirmed'];
  const els=new Map(names.map(id=>[id,new Element(id==='project'||id==='language'?'select':'div')]));
  for(const [id,e] of els)e.id=id;
  const real=options.realFixture, chosen=real?real.body.decision.selected[0]:{candidate_id:'candidate',candidate_version:1};
@@ -32,7 +32,7 @@ function harness(options={}) {
  let selected=!!options.preselected, current=true, writes=[], reads=[], uuid=0, release, waitSelect=false, intent=!!options.intent, prepared=false, readRelease, holdRead=!!options.holdRead, runRelease, intentRelease, holdIntent=false, intentReceipt=options.existingIntent||null, historyRelease;
  if(real && options.preselected){selectReceipt=real.after.selection_receipt;ack=real.post.request_sha256;}
  const card={candidate_id:chosen.candidate_id,candidate_version:chosen.candidate_version,candidate_question:'Bounded question',suggested_approach:'A method',closest_prior_work:{review:null},contribution:[],scientific_questions:[],requirements:[],unmapped_resources:[],limitations:[],alternatives:[],next_checks:[]};
- const view=()=>real?{...structuredClone(selected?real.after:real.before),delivery_workflow_head_sha256:real.before.workflow_head_sha256}:({ ...binding,delivery_workflow_head_sha256:'d'.repeat(64),revision:(selected||intentReceipt)?2:1,delivery_manifest_sha256:'c'.repeat(64),workflow_head_sha256:selected?'9'.repeat(64):'d'.repeat(64),snapshot_sha256:'e'.repeat(64),eligible:options.empty?[]:[chosen],selection_status:selected?'recorded':'pending',selection_receipt:selected?selectReceipt:null,planning_input:selected?{questions:[],legacy_candidates:[],selection_conditions:['keep'],unresolved:['unknown'],execution_authorized:false}:null,planning_status:selected?'verified':'pending',execution_authorized:false,direction_intent:intentReceipt || (intent?{intent_sha256:'f'.repeat(64)}:null),cards:{cards:[card]},...(options.versionMismatch?{input_version:'1'}:{}),...(selected && options.driftAfterSave?{workflow_head_sha256:'0'.repeat(64)}:{}) });
+ const view=()=>real?{...structuredClone(selected?real.after:real.before),delivery_workflow_head_sha256:real.before.workflow_head_sha256}:({ ...binding,delivery_workflow_head_sha256:'d'.repeat(64),revision:(selected||intentReceipt)?2:1,delivery_manifest_sha256:'c'.repeat(64),workflow_head_sha256:selected?'9'.repeat(64):'d'.repeat(64),snapshot_sha256:'e'.repeat(64),eligible:options.empty?[]:[chosen],selection_status:selected?'recorded':'pending',selection_receipt:selected?selectReceipt:null,planning_input:selected?{questions:[],legacy_candidates:[],selection_conditions:['keep'],unresolved:['unknown'],execution_authorized:false}:null,planning_status:selected?'verified':'pending',execution_authorized:false,direction_intent:intentReceipt || (intent?{intent_sha256:'f'.repeat(64)}:null),cards:{cards:options.cards || [card]},...(options.versionMismatch?{input_version:'1'}:{}),...(selected && options.driftAfterSave?{workflow_head_sha256:'0'.repeat(64)}:{}) });
  const response=(v,status=200)=>({ok:status>=200&&status<300,status,json:async()=>structuredClone(v)});
  const fetch=async (url,init)=>{
   const body=init?.body?JSON.parse(init.body):null;
@@ -78,6 +78,19 @@ function harness(options={}) {
 
 module.exports={harness,Element,descendants,memoryStorage,memoryLocks};
 if(require.main===module) {
+test('a saved preference receipt stays distinct from an empty or edited local draft',async()=>{
+ const receipt={status:'saved',intent_sha256:'f'.repeat(64)},f=harness({existingIntent:receipt,deferMount:true});
+ f.binding.revision=2;const handle=f.window.STAGE2_SELECTION.mount(f.root,f.args);await tick();
+ for(const [lang,saved,draft,empty,count] of [['en',/already saved/,/Current editing draft/,/No directions added/,/1 direction/],['zh-TW',/已有保存/,/目前編輯草稿/,/尚未加入方向/,/已加入 1/],['zh-CN',/已有保存/,/当前编辑草稿/,/尚未加入方向/,/已加入 1/]]){
+  handle.setLanguage(lang);const summary=f.els.get('preference-summary');
+  assert.match(summary.textContent,saved);assert.match(summary.textContent,draft);assert.match(summary.textContent,empty);
+  const box=descendants(f.els.get('cards')).find(n=>n.name==='tentative-direction');assert.equal(box.checked,false);
+  assert.equal(f.els.get('intent-confirmed').checked,false);assert.equal(f.els.get('intent-message').value,'');
+  box.checked=true;box.onchange();assert.match(summary.textContent,saved);assert.match(summary.textContent,count);
+  box.checked=false;box.onchange();assert.match(summary.textContent,empty);
+ }
+ assert.equal(f.writes.length,0);assert.equal(f.navigations.length,0);assert.equal(f.store.length,0);
+});
 test('scoped current cards retain unknowns, and zero recommendation never creates a choice',async()=>{
  const f=harness({empty:true});await tick();assert.equal(f.els.get('choice').hidden,true);assert.match(f.els.get('status').textContent,/沒有可推薦/);assert.equal(f.writes.length,0);assert.equal(f.handle.state().submitted,false);
 });

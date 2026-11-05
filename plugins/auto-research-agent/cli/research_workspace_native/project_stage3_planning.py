@@ -34,7 +34,7 @@ class ProjectStage3PlanningService:
     Inspect/recover accept only a saved request; neither can invoke a callback.
     """
 
-    def __init__(self, intake, selection_view, *, bindings=None):
+    def __init__(self, intake, selection_view, *, bindings=None, saved_read_pins=None):
         _check(
             isinstance(selection_view, ProjectStage2SelectionView)
             and selection_view.intake is intake,
@@ -79,6 +79,21 @@ class ProjectStage3PlanningService:
         from .project_stage3_direction_planning import ProjectStage3DirectionPlanning
 
         self.direction = ProjectStage3DirectionPlanning(self)
+        _check(
+            saved_read_pins is None or type(saved_read_pins) is dict,
+            "stage3-saved-read-pins-invalid",
+        )
+        self.saved_read_pins = deepcopy(saved_read_pins or {})
+        for identity, pin in self.saved_read_pins.items():
+            _check(
+                type(identity) is tuple and len(identity) == 3,
+                "stage3-saved-read-identity",
+            )
+            ref, key, request = identity
+            _check(ref in self.bindings, "stage3-saved-read-project-differs")
+            text(key, "saved read key")
+            sha256(request)
+            sha256(pin)
 
     def _current(self, credential, project_ref, body=None, check_deadline=None):
         if check_deadline:
@@ -183,8 +198,41 @@ class ProjectStage3PlanningService:
             outcome=saved.get("outcome"),
             planning_status=saved.get("planning_status"),
             plan_manifest_sha256=saved.get("plan", {}).get("manifest_sha256"),
+            **(
+                {"inspection_scope": result["inspection_scope"]}
+                if "inspection_scope" in result
+                else {}
+            ),
             **POLICY,
         )
+
+    def inspect_saved(self, credential, project_ref, body, *, check_deadline=None):
+        """Host-only pinned read; the HTTP write router never exposes this method."""
+        _check(type(body) is dict, "stage3-saved-read-object-required", 400)
+        identity = (project_ref, body.get("key"), body.get("request_sha256"))
+        pin = self.saved_read_pins.get(identity)
+        _check(pin is not None, "trusted-stage3-saved-read-pin-required", 409)
+        if body.get("mode") == "direction-intent":
+            result = self.direction._inspect_saved(
+                credential,
+                project_ref,
+                body,
+                check_deadline=check_deadline,
+                saved_plan_manifest_sha256=pin,
+            )
+            return self.direction._public(project_ref, result)
+        _fields(body, SOURCE_FIELDS | {"request_sha256"})
+        with self.intake._lock:
+            configured, checkpoint = self._saved(
+                credential, project_ref, body, check_deadline
+            )
+            result = configured["jobs"].inspect_saved(
+                body["key"],
+                expected_request_sha256=body["request_sha256"],
+                current_checkpoint=checkpoint,
+                expected_plan_manifest_sha256=pin,
+            )
+            return self._public(project_ref, result)
 
     def prepare(self, credential, project_ref, body, *, check_deadline=None):
         """Save a genuine workflow checkpoint and opt-in 1.1 intent; zero calls."""

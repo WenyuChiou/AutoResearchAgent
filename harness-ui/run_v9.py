@@ -1,6 +1,7 @@
 """Opt-in V9 renderer on the repository's existing loopback ProjectHost."""
 import argparse
 from pathlib import Path
+import re
 import sys
 
 import run_v7
@@ -10,7 +11,7 @@ from display_translations import load_translations, translation_script
 from review_reading import load_review_sources
 
 HERE = Path(__file__).resolve().parent
-MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage3-bridge.js')
+MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage3-bridge.js', 'v9-research-guide-contract.js', 'v9-research-guide-view.js', 'v9-research-guide.js', 'v9-stage3-materials.js', 'v9-stage3-feedback.js')
 
 
 def private_directory(path):
@@ -49,9 +50,11 @@ def main(argv=None):
         modules = {name: (HERE / name).read_bytes() for name in MODULES}
         host._assets['/app.js'] = app[:at] + b'\n' + translation_script(translations) + b'\n'.join(modules.values()) + b'\n' + app[at:]
         selection = host._assets['/project-stage2-selection.html']
-        if selection.count(b'<main>') != 1 or selection.count(b'</main>') != 1:
+        main_tags = list(re.finditer(rb'<main(?:\s[^<>]*)?>', selection))
+        if (len(main_tags) != 1 or selection.count(b'</main>') != 1
+                or main_tags[0].end() > selection.index(b'</main>')):
             raise ValueError('selection template structure differs')
-        selection_main = selection[selection.index(b'<main>'):selection.index(b'</main>') + len(b'</main>')]
+        selection_main = selection[main_tags[0].start():selection.index(b'</main>') + len(b'</main>')]
         if b'<script' in selection_main.lower() or b'<iframe' in selection_main.lower():
             raise ValueError('selection template contains executable content')
         template = b'<template id="v93-selection-template">' + selection_main + b'</template>'
@@ -64,7 +67,7 @@ def main(argv=None):
             host._assets[route] = html.replace(b'</head>', scripts + b'</head>').replace(b'</body>', template + b'</body>')
         for route in ('/', '/index.html', '/app.js'):
             host._assets[route] = host._assets[route].replace(b'V7', b'V9') if route != '/app.js' else host._assets[route]
-        host._assets['/runtime.css'] += b'\n' + (HERE/'stage2_display.css').read_bytes() + b'\n' + (HERE/'v9.css').read_bytes()
+        host._assets['/runtime.css'] += b'\n' + (HERE/'stage2_display.css').read_bytes() + b'\n' + (HERE/'v9.css').read_bytes() + b'\n' + (HERE/'v9-research-guide.css').read_bytes() + b'\n' + (HERE/'v9-stage3-feedback.css').read_bytes()
         host.host_binding['display_translations_sha256'] = sha(translation_script(translations))
         host.host_binding['review_sources_sha256'] = selected.review_sources_sha256
         host.host_binding.update(ui_version='V9', v9=dict(modules={k:sha(v) for k,v in modules.items()},

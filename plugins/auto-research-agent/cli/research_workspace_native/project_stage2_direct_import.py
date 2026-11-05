@@ -19,13 +19,25 @@ from stage2_workflow.delivery import inspect_delivery
 from stage2_workflow.store import inspect_workflow
 from stage2_workflow.ui_submission import valid_input_version
 from .project_intake_contract import MAX_PROJECTS, MAX_REQUEST
+from .project_selection_read_context import verified_source_read
 from .session_api import SessionApiError, _check, _hash
 
 PREFIX = "registered_history/workflow/"
 KIND = "Stage2DirectProjectContext"
 
 
-def _verified(delivery_dir, manifest_sha256, request_sha256):
+def _verified(delivery_dir, manifest_sha256, request_sha256, *, intake=None):
+    return verified_source_read(
+        intake,
+        _verify_direct_source,
+        delivery_dir,
+        manifest_sha256,
+        request_sha256,
+        intake,
+    )
+
+
+def _verify_direct_source(delivery_dir, manifest_sha256, request_sha256, intake):
     _check(
         _hash(manifest_sha256) and _hash(request_sha256),
         "direct-import-external-pins-required",
@@ -33,7 +45,7 @@ def _verified(delivery_dir, manifest_sha256, request_sha256):
     )
     root = private_output(Path(delivery_dir).absolute())
     try:
-        delivery = inspect_delivery(root, manifest_sha256)
+        delivery = verified_source_read(intake, inspect_delivery, root, manifest_sha256)
         manifest = delivery["manifest"]
         packet = decode(
             safe_path(root, "input_packet.json").read_bytes(), "direct Stage2 packet"
@@ -192,7 +204,7 @@ def import_direct_request_project(
         400,
     )
     source, delivery, packet = _verified(
-        delivery_dir, expected_manifest_sha256, expected_request_sha256
+        delivery_dir, expected_manifest_sha256, expected_request_sha256, intake=intake
     )
     manifest = delivery["manifest"]
     brief_raw = canonical(packet["brief"])
@@ -339,6 +351,7 @@ def direct_binding(intake, state):
         source["delivery_root"],
         source["delivery_manifest_sha256"],
         source["request_sha256"],
+        intake=intake,
     )
     row, _, brief = intake._brief(state)
     _check(

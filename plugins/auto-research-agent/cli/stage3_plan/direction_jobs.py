@@ -231,3 +231,6 @@ class DirectionPlanningJobs(PlanningJobs):
             "formal_selected_receiver": False,
             "policy": dict(POLICY),
         }
+
+    def _saved_for_read(self, payload, manifest_sha256):
+        return self._saved(payload, manifest_sha256)

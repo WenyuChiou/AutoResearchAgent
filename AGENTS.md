@@ -171,8 +171,9 @@ Base the staging suggestion on the actual diff, dependencies, and affected call 
 - Follow the platform's required finding format and location conventions.
   A review task itself does not modify code, install dependencies, start paid
   models, or merge. Any merge still requires the existing core-team process
-  and separate explicit user consent after the review summary and actual test
-  status are shown.
+  or explicit user-delegated integration authority. A recorded standing
+  delegation covers later in-scope PRs without per-PR consent renewal;
+  review tasks remain read-only.
 ## TUI style conventions
 
 See `codex-rs/tui/styles.md`.

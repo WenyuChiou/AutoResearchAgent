@@ -484,7 +484,8 @@
         "plugins/auto-research-agent/tests/test_project_stage1_execution.py",
         "plugins/auto-research-agent/tests/test_project_stage1_execution_http.py",
         "plugins/auto-research-agent/tests/test_project_stage1_review_regressions.py",
-        "plugins/auto-research-agent/tests/test_project_stage1_factory_adapter.py"
+        "plugins/auto-research-agent/tests/test_project_stage1_factory_adapter.py",
+        "plugins/auto-research-agent/tests/test_project_selection_read_sources.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -536,7 +537,8 @@
         "durable_frontier_reopened_after_cas": true,
         "source_and_runtime_mismatch": "refused; retained historical HostReplay is never silently rebound",
         "http_deadline_unchanged": true,
-        "execution_authorized": false
+        "execution_authorized": false,
+        "read_only_source_snapshots": "A single locked synchronous planning or selection GET verifies each exact sealed delivery and direct origin once, then returns independent source snapshots within that request only. Source pins, verifier identity, intake and thread isolate reuse; failed verification is not retained and each new request verifies bytes again. Mutable project/frontier checks, writes, dispatch and HTTP/native deadlines are unchanged."
       },
       "stage1_bounded_run_producer_contract": {
         "entry": "ProjectHost.continue_stage1 with an explicitly saved typed ProjectStage1RunGrantService issuer; original run-project-workspace.py opt-in request/resume only",
@@ -602,6 +604,9 @@
         "plugins/auto-research-agent/tests/test_project_saved_views_browser.cjs",
         "plugins/auto-research-agent/tests/test_project_operations_browser.cjs",
         "plugins/auto-research-agent/tests/test_project_typed_navigation.py"
+      ],
+      "stage2_selection_verification_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_selection_read_sources.py"
       ]
     },
     {

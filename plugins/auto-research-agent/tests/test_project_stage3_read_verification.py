@@ -5,6 +5,7 @@ from contextvars import copy_context
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import sys
+from threading import RLock
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -28,6 +29,7 @@ from research_workspace_native.project_stage2_selection_view import (
 from research_workspace_native.project_stage3_planning import (
     ProjectStage3PlanningService,
 )
+from research_workspace_native.project_stage3_http import ProjectStage3Http
 from research_workspace_native.session_api import SessionApiError
 
 
@@ -185,6 +187,38 @@ class ReadContextIsolationTests(unittest.TestCase):
             context = copy_context()
             with ThreadPoolExecutor(max_workers=1) as executor:
                 executor.submit(context.run, self.read).result(timeout=5)
+        self.assertEqual(self.view._verify_current_context.call_count, 2)
+
+    def test_http_projection_reuses_one_scope_but_each_request_is_fresh(self):
+        self.intake._lock = RLock()
+        transport = ProjectStage3Http(SimpleNamespace(intake=self.intake))
+
+        def project(*args, **kwargs):
+            with verified_selection_read(self.intake):
+                self.read()
+            self.read()
+            return {"plan": None}
+
+        with patch.object(transport, "_view", side_effect=project):
+            self.assertEqual(transport.view("owner", "project-a"), {"plan": None})
+            self.assertEqual(self.view._verify_current_context.call_count, 1)
+            transport.view("owner", "project-a")
+            self.assertEqual(self.view._verify_current_context.call_count, 2)
+
+    def test_failed_http_projection_cannot_reuse_its_scope_later(self):
+        self.intake._lock = RLock()
+        transport = ProjectStage3Http(SimpleNamespace(intake=self.intake))
+
+        def project(*args, **kwargs):
+            self.read()
+            raise TimeoutError("fixture deadline")
+
+        with (
+            patch.object(transport, "_view", side_effect=project),
+            self.assertRaisesRegex(TimeoutError, "fixture deadline"),
+        ):
+            transport.view("owner", "project-a")
+        self.read()
         self.assertEqual(self.view._verify_current_context.call_count, 2)
 
 

@@ -36,3 +36,12 @@ pre {white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
 
 .stage3-research-scroll:focus-visible {outline:3px solid #226b80;outline-offset:3px}
 @media print {.stage3-research-scroll {overflow-x:visible!important}.stage3-research-scroll svg {min-width:0!important;max-width:100%;height:auto}}
+
+/* Match the Wiki's reading and spacing contract without changing plan data. */
+:root {--ara-panel-inset:24px;--ara-reading-width:72ch;--ara-body-size:16px;--ara-body-leading:1.6}
+body {font-size:var(--ara-body-size);line-height:var(--ara-body-leading)}
+main {min-width:0}
+main>p,#context p,#progress p,.sq-fields dd {max-width:var(--ara-reading-width)}
+#context,#progress,#actions {padding:var(--ara-panel-inset)}
+button,select,summary {min-width:44px}
+@media(max-width:640px){:root{--ara-panel-inset:16px}header{flex-wrap:wrap}}
