@@ -1,8 +1,12 @@
 """Atomic publication retains exclusive ownership across Windows long paths."""
 
 import builtins
+import hashlib
+import json
 import os
 from pathlib import Path, PureWindowsPath
+import shutil
+import stat
 import sys
 import tempfile
 import unittest
@@ -11,6 +15,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 from stage2_common import Stage2Error  # noqa: E402
 from stage2_workflow import store  # noqa: E402
+from stage2_fixture_helpers import write_stage2_fixture  # noqa: E402
 
 
 def readable(path):
@@ -26,6 +31,21 @@ class AtomicPublicationTests(unittest.TestCase):
         self.temporary_path = self.target.with_name(
             f".{self.target.name}.{os.getpid()}.tmp"
         )
+
+    def cleanup_long_tree(self, path):
+        self.assertTrue(path.is_absolute() and path.is_relative_to(self.root))
+        self.assertNotEqual(path, self.root)
+        root_state = readable(self.root).lstat()
+        path_state = readable(path).lstat()
+        self.assertFalse(
+            path_state.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        )
+        shutil.rmtree(readable(path))
+        after = readable(self.root).lstat()
+        self.assertEqual(
+            (after.st_dev, after.st_ino), (root_state.st_dev, root_state.st_ino)
+        )
+        self.assertFalse(readable(path).exists())
 
     def test_portable_exact_bytes_and_same_directory_exclusive_link(self):
         raw = b"synthetic\x00bytes\r\n"
@@ -89,6 +109,128 @@ class AtomicPublicationTests(unittest.TestCase):
     def test_non_windows_representation_keeps_original_path_object(self):
         with patch.object(store, "_IS_WINDOWS", False):
             self.assertIs(store._io_path(self.target), self.target)
+            self.assertIs(store._io(self.target), self.target)
+
+    def test_status_observation_does_not_hide_permission_failure(self):
+        with patch.object(
+            Path, "stat", side_effect=PermissionError("synthetic denied")
+        ):
+            for kind in ("exists", "file", "dir"):
+                with self.subTest(kind=kind):
+                    with self.assertRaises(PermissionError):
+                        store._status(self.target, kind)
+        with patch.object(
+            Path, "lstat", side_effect=PermissionError("synthetic denied")
+        ):
+            with self.assertRaises(PermissionError):
+                store._status(self.target, "symlink")
+
+    def test_public_relative_inputs_and_lexical_artifact_guard(self):
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(self.root)
+            self.assertEqual(store._resolved(Path("relative")), self.root / "relative")
+            store._write_new(self.target, {"ok": True})
+            self.assertEqual(store._read_json(Path("result.json")), {"ok": True})
+            for relative in (
+                "../escape",
+                "./result.json",
+                "dir//file",
+                "dir\\file",
+                "file:stream",
+            ):
+                with self.subTest(relative=relative):
+                    with self.assertRaises(Stage2Error):
+                        store._inside(self.root, relative, "artifact")
+        finally:
+            os.chdir(original_cwd)
+
+    def test_inside_still_rejects_a_link_observed_by_the_real_predicate(self):
+        target = self.root / "linked"
+        original = store._status
+
+        def observe(path, kind):
+            return (
+                True if path == target and kind == "symlink" else original(path, kind)
+            )
+
+        with patch.object(store, "_status", side_effect=observe):
+            with self.assertRaisesRegex(Stage2Error, "symlink-artifact-path"):
+                store._inside(self.root, "linked/file.json", "artifact")
+
+    @unittest.skipUnless(os.name == "nt", "Real Windows guarded workflow lifecycle")
+    def test_windows_long_action_artifact_roundtrip_and_tampering_rejects(self):
+        sources = self.root / "sources"
+        packet = write_stage2_fixture(sources, candidate_count=1)
+        packet_path = self.root / "packet.json"
+        packet_path.write_text(json.dumps(packet), encoding="utf-8")
+        workflow = self.root / ("w" * (180 - len(str(self.root)) - 1))
+        store.initialize_workflow(
+            packet_path,
+            sources,
+            workflow,
+            {"model": "test-model", "reasoning": "medium"},
+            {"path": "policy.json", "sha256": "a" * 64},
+        )
+        self.addCleanup(self.cleanup_long_tree, workflow)
+        state = store.inspect_workflow(workflow)
+        action_id = "ui-choice-" + "a" * 64
+        action_dir = workflow / "actions" / action_id
+        self.assertGreater(len(str(action_dir)), 260)
+        started = store.start_action(
+            workflow, action_id, "search", {}, {}, state["head_sha256"]
+        )
+        artifact = self.root / "summary.json"
+        raw = b"retained synthetic summary"
+        artifact.write_bytes(raw)
+        completed = store.finish_action(
+            workflow,
+            action_id,
+            "complete",
+            {
+                "summary.json": {
+                    "path": str(artifact),
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                }
+            },
+            None,
+            None,
+            started["event"]["event_sha256"],
+        )
+        state = store.inspect_workflow(
+            workflow, expected_head=completed["event_sha256"]
+        )
+        self.assertEqual(state["actions"][action_id]["result"]["status"], "complete")
+        stored = action_dir / "artifacts" / "summary.json"
+        self.assertEqual(store._io(stored).read_bytes(), raw)
+        self.assertEqual(
+            {item.name for item in store._entries(workflow / "actions")}, {action_id}
+        )
+        self.assertTrue(store._status(action_dir, "dir"))
+        self.assertFalse(str(state["root"]).startswith("\\\\?\\"))
+        store._io(stored).write_bytes(b"actual tampering")
+        with self.assertRaisesRegex(Stage2Error, "artifact-hash-mismatch"):
+            store.inspect_workflow(workflow)
+
+    @unittest.skipUnless(os.name == "nt", "Real Windows long-path guard observation")
+    def test_windows_long_guard_status_json_and_listing_use_actual_objects(self):
+        parent = self.root / ("p" * (236 - len(str(self.root)) - 1))
+        parent.mkdir()
+        child = parent / ("d" * 40)
+        store._io(child).mkdir()
+        self.addCleanup(self.cleanup_long_tree, child)
+        target = child / "record.json"
+        store._write_new(target, {"value": "synthetic"})
+        self.assertTrue(store._status(child, "exists"))
+        self.assertTrue(store._status(child, "dir"))
+        self.assertFalse(store._status(child, "symlink"))
+        self.assertTrue(store._status(target, "file"))
+        self.assertEqual(store._read_json(target), {"value": "synthetic"})
+        self.assertEqual(list(store._entries(child)), [target])
+        self.assertEqual(store._resolved(target), target)
+        self.assertEqual(
+            store._inside(parent, child.name + "/record.json", "artifact"), target
+        )
 
     def test_windows_representation_rejects_unsafe_inputs_without_normalizing(self):
         unsafe = [

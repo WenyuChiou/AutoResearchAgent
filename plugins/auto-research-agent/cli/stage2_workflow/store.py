@@ -15,6 +15,7 @@ import os
 from pathlib import Path, PurePosixPath
 import platform
 import shutil
+import stat
 import sys
 
 from stage2_check import initialize_run, inspect_run
@@ -45,7 +46,7 @@ def _canonical_bytes(value):
 
 def _read_json(path):
     try:
-        data = path.read_bytes()
+        data = _io(path).read_bytes()
     except OSError as error:
         raise Stage2Error(f"workflow-read-failed: {path}: {error}") from error
     return decode_json(data, str(path))
@@ -64,7 +65,7 @@ def _io_path(path):
     value = os.fspath(path)
     if (
         not isinstance(value, str)
-        or len(value) < 4
+        or len(value) < 3
         or value[0] not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         or value[1:3] != ":\\"
     ):
@@ -73,7 +74,7 @@ def _io_path(path):
     reserved.update(
         prefix + digit for prefix in ("COM", "LPT") for digit in "123456789¹²³"
     )
-    for part in value[3:].split("\\"):
+    for part in value[3:].split("\\") if value[3:] else []:
         if (
             not part
             or part in {".", ".."}
@@ -83,6 +84,50 @@ def _io_path(path):
         ):
             raise Stage2Error("workflow-unsafe-windows-io-path")
     return "\\\\?\\" + value
+
+
+def _io(path):
+    """Keep public ordinary relative Path inputs without resolving links first."""
+
+    if not _IS_WINDOWS:
+        return path
+    if not path.is_absolute():
+        if path.drive or path.root:
+            raise Stage2Error("workflow-unsafe-windows-io-path")
+        # Joining cwd preserves '..' for rejection; it does not normalize it.
+        path = Path.cwd() / path
+    return Path(_io_path(path))
+
+
+def _resolved(path):
+    if not _IS_WINDOWS:
+        return path.resolve()
+    resolved = str(_io(path).resolve())
+    if resolved.startswith("\\\\?\\"):
+        resolved = resolved[4:]
+    ordinary = Path(resolved)
+    _io_path(ordinary)  # Reject a non-local/device resolution result as well.
+    return ordinary
+
+
+def _status(path, kind):
+    """Observe the original predicate; non-missing I/O errors remain failures."""
+
+    try:
+        state = _io(path).lstat() if kind == "symlink" else _io(path).stat()
+    except FileNotFoundError:
+        return False
+    if kind == "exists":
+        return True
+    return {"symlink": stat.S_ISLNK, "file": stat.S_ISREG, "dir": stat.S_ISDIR}[kind](
+        state.st_mode
+    )
+
+
+def _entries(path, pattern=None):
+    children = _io(path).glob(pattern) if pattern is not None else _io(path).iterdir()
+    for child in children:
+        yield path / child.name
 
 
 def _write_new(path, value):
@@ -128,14 +173,14 @@ def _safe_relative(value, label):
 def _inside(root, relative, label, *, reject_symlinks=True):
     relative = _safe_relative(relative, label)
     path = root.joinpath(*relative.split("/"))
-    resolved_root = root.resolve()
-    if not path.resolve().is_relative_to(resolved_root):
+    resolved_root = _resolved(root)
+    if not _resolved(path).is_relative_to(resolved_root):
         raise Stage2Error(f"escaping-{label}-path: {relative}")
     if reject_symlinks:
         current = resolved_root
         for part in relative.split("/"):
             current = current / part
-            if current.is_symlink():
+            if _status(current, "symlink"):
                 raise Stage2Error(f"symlink-{label}-path: {relative}")
     return path
 
@@ -156,14 +201,14 @@ def _event_hash(event):
 def _exclusive_lock(root):
     lock = root / ".workflow-write.lock"
     try:
-        lock.mkdir()
+        _io(lock).mkdir()
     except FileExistsError as error:
         raise Stage2Error("workflow-write-lock-conflict") from error
     try:
         yield
     finally:
         try:
-            lock.rmdir()
+            _io(lock).rmdir()
         except OSError as error:
             raise Stage2Error(f"workflow-lock-release-failed: {error}") from error
 
@@ -302,13 +347,13 @@ def _validate_impact(packet, impact):
 def _load_events(root, manifest_sha256):
     events_dir = _inside(root, "events", "event")
     try:
-        paths = sorted(events_dir.glob("*.json"))
+        paths = sorted(_entries(events_dir, "*.json"))
     except OSError as error:
         raise Stage2Error(f"workflow-event-list-failed: {error}") from error
     events = []
     previous = ZERO_HASH
     for sequence, path in enumerate(paths, 1):
-        if path.is_symlink() or path.name != f"{sequence:06d}.json":
+        if _status(path, "symlink") or path.name != f"{sequence:06d}.json":
             raise Stage2Error(f"workflow-event-sequence-invalid: {path.name}")
         event = _read_json(path)
         required = {
@@ -415,7 +460,7 @@ def _verify_result_artifacts(root, action_id, result):
         _safe_relative(name, "artifact-name")
         path = _inside(root, row["stored_path"], "artifact")
         try:
-            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+            actual = hashlib.sha256(_io(path).read_bytes()).hexdigest()
         except OSError as error:
             raise Stage2Error(
                 f"workflow-artifact-read-failed: {name}: {error}"
@@ -470,7 +515,7 @@ def initialize_workflow(
 
     if not isinstance(settings, dict) or not isinstance(policy_ref, dict):
         raise Stage2Error("workflow-settings-policy-must-be-objects")
-    initial_packet = _read_json(Path(packet_path).resolve())
+    initial_packet = _read_json(_resolved(Path(packet_path)))
     initial_packet_sha256 = canonical_hash(initial_packet)
     if initial_packet.get("schema_version") in {
         "2.0.0",
@@ -490,8 +535,8 @@ def initialize_workflow(
         and expected_packet_sha256 != initial_packet_sha256
     ):
         raise Stage2Error("stage2-external-packet-hash-mismatch")
-    root = Path(output_dir).resolve()
-    if root.exists():
+    root = _resolved(Path(output_dir))
+    if _status(root, "exists"):
         state = inspect_workflow(root)
         if (
             state["manifest"]["initial_packet_sha256"] != initial_packet_sha256
@@ -501,7 +546,7 @@ def initialize_workflow(
             raise Stage2Error("existing-workflow-input-mismatch")
         return state["manifest"]
     try:
-        root.mkdir(parents=False)
+        _io(root).mkdir(parents=False)
     except FileExistsError:
         return initialize_workflow(
             packet_path,
@@ -513,11 +558,11 @@ def initialize_workflow(
             clock=clock,
         )
     try:
-        (root / "events").mkdir()
-        (root / "snapshots").mkdir()
-        (root / "actions").mkdir()
+        _io(root / "events").mkdir()
+        _io(root / "snapshots").mkdir()
+        _io(root / "actions").mkdir()
         snapshot_dir = root / "snapshots" / "000001"
-        snapshot_dir.mkdir()
+        _io(snapshot_dir).mkdir()
         checker_manifest = initialize_run(
             packet_path,
             source_root,
@@ -567,14 +612,14 @@ def initialize_workflow(
         return manifest
     except Exception:
         # The directory was created exclusively by this call.
-        shutil.rmtree(root)
+        shutil.rmtree(_io(root))
         raise
 
 
 def inspect_workflow(run_dir, expected_head=None):
     """Validate the complete workflow and derive its current snapshot state."""
 
-    root = Path(run_dir).resolve()
+    root = _resolved(Path(run_dir))
     manifest = _read_json(root / "workflow_manifest.json")
     required = {
         "kind",
@@ -609,14 +654,17 @@ def inspect_workflow(run_dir, expected_head=None):
         raise Stage2Error("workflow-missing-snapshot")
     snapshots_root = _inside(root, "snapshots", "snapshot")
     try:
-        snapshot_entries = list(snapshots_root.iterdir())
+        snapshot_entries = list(_entries(snapshots_root))
     except OSError as error:
         raise Stage2Error(f"workflow-snapshot-list-failed: {error}") from error
     expected_snapshot_names = {
         f"{sequence:06d}" for sequence in range(1, len(snapshot_events) + 1)
     }
     if (
-        any(path.is_symlink() or not path.is_dir() for path in snapshot_entries)
+        any(
+            _status(path, "symlink") or not _status(path, "dir")
+            for path in snapshot_entries
+        )
         or {path.name for path in snapshot_entries} != expected_snapshot_names
     ):
         raise Stage2Error("workflow-snapshot-directory-inventory-mismatch")
@@ -726,7 +774,8 @@ def inspect_workflow(run_dir, expected_head=None):
             raise Stage2Error(f"workflow-action-request-mismatch: {action_id}")
         result = None
         if action_id not in finished and (
-            (action_dir / "artifacts").exists() or (action_dir / "result.json").exists()
+            _status(action_dir / "artifacts", "exists")
+            or _status(action_dir / "result.json", "exists")
         ):
             raise Stage2Error(f"workflow-incomplete-finalization: {action_id}")
         if action_id in finished:
@@ -770,7 +819,7 @@ def inspect_workflow(run_dir, expected_head=None):
     if set(finished) - set(started):
         raise Stage2Error("workflow-finish-without-start")
     known_action_dirs = {
-        path.name for path in (root / "actions").iterdir() if path.is_dir()
+        path.name for path in _entries(root / "actions") if _status(path, "dir")
     }
     if known_action_dirs != set(started):
         raise Stage2Error("workflow-orphan-action-directory")
@@ -804,17 +853,17 @@ def add_snapshot(
 
     if not isinstance(reason, str) or not reason.strip():
         raise Stage2Error("workflow-snapshot-reason-required")
-    root = Path(run_dir).resolve()
+    root = _resolved(Path(run_dir))
     with _exclusive_lock(root):
         state = inspect_workflow(root, expected_head=expected_head)
         sequence = len(state["snapshots"]) + 1
         snapshot_dir = root / "snapshots" / f"{sequence:06d}"
         try:
-            snapshot_dir.mkdir()
+            _io(snapshot_dir).mkdir()
         except FileExistsError as error:
             raise Stage2Error("workflow-snapshot-directory-conflict") from error
         try:
-            snapshot_packet = _read_json(Path(packet_path).resolve())
+            snapshot_packet = _read_json(_resolved(Path(packet_path)))
             checker_manifest = initialize_run(
                 packet_path,
                 source_root,
@@ -849,7 +898,7 @@ def add_snapshot(
                 root, state["events"], "snapshot_added", payload, clock=clock
             )
         except Exception:
-            shutil.rmtree(snapshot_dir)
+            shutil.rmtree(_io(snapshot_dir))
             raise
         inspect_workflow(root, expected_head=event["event_sha256"])
         return event
@@ -871,7 +920,7 @@ def start_action(
         raise Stage2Error("workflow-action-inputs-settings-must-be-objects")
     if not isinstance(action_kind, str) or not action_kind.strip():
         raise Stage2Error("workflow-action-kind-required")
-    root = Path(run_dir).resolve()
+    root = _resolved(Path(run_dir))
     with _exclusive_lock(root):
         state = inspect_workflow(root, expected_head=expected_head)
         request = _request_identity(
@@ -896,7 +945,7 @@ def start_action(
             raise Stage2Error("workflow-action-replay-not-authorized")
         action_dir = _action_directory(root, action_id)
         try:
-            action_dir.mkdir()
+            _io(action_dir).mkdir()
         except FileExistsError as error:
             raise Stage2Error("workflow-action-directory-conflict") from error
         try:
@@ -917,7 +966,7 @@ def start_action(
                 clock=clock,
             )
         except Exception:
-            shutil.rmtree(action_dir)
+            shutil.rmtree(_io(action_dir))
             raise
         return {"reuse": False, "request": request, "event": event}
 
@@ -942,7 +991,7 @@ def finish_action(
     if error is not None and not isinstance(error, str):
         raise Stage2Error("workflow-invalid-action-error")
     _validate_terminal_result(status, artifacts, cost, error)
-    root = Path(run_dir).resolve()
+    root = _resolved(Path(run_dir))
     with _exclusive_lock(root):
         state = inspect_workflow(root, expected_head=expected_head)
         action = state["actions"].get(action_id)
@@ -962,9 +1011,9 @@ def finish_action(
             if not isinstance(spec["path"], str):
                 raise Stage2Error(f"workflow-artifact-path: {name}")
             source = Path(spec["path"])
-            if source.is_symlink() or not source.is_file():
+            if _status(source, "symlink") or not _status(source, "file"):
                 raise Stage2Error(f"workflow-artifact-not-regular-file: {name}")
-            raw = source.read_bytes()
+            raw = _io(source).read_bytes()
             actual = hashlib.sha256(raw).hexdigest()
             if actual != spec["sha256"]:
                 raise Stage2Error(f"workflow-artifact-input-hash-mismatch: {name}")
@@ -979,11 +1028,11 @@ def finish_action(
                 ):
                     raise Stage2Error("workflow-artifact-path-conflict")
             prepared.append((name, destination, raw, actual))
-        artifact_dir.mkdir()
+        _io(artifact_dir).mkdir()
         stored = {}
         try:
             for name, destination, raw, actual in prepared:
-                destination.parent.mkdir(parents=True, exist_ok=True)
+                _io(destination.parent).mkdir(parents=True, exist_ok=True)
                 _write_new(destination, raw)
                 stored[name] = {
                     "stored_path": destination.relative_to(root).as_posix(),
