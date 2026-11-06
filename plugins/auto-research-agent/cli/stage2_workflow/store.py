@@ -125,9 +125,10 @@ def _status(path, kind):
 
 
 def _entries(path, pattern=None):
-    children = _io(path).glob(pattern) if pattern is not None else _io(path).iterdir()
-    for child in children:
-        yield path / child.name
+    # glob can suppress directory errors; an unreadable list must fail closed.
+    for child in _io(path).iterdir():
+        if pattern is None or child.match(pattern):
+            yield path / child.name
 
 
 def _write_new(path, value):
@@ -183,6 +184,25 @@ def _inside(root, relative, label, *, reject_symlinks=True):
             if _status(current, "symlink"):
                 raise Stage2Error(f"symlink-{label}-path: {relative}")
     return path
+
+
+def _workflow_bytes(root, relative, label):
+    """Read a guarded workflow-relative object, returning no I/O path."""
+    return _io(_inside(root, relative, label)).read_bytes()
+
+
+def _workflow_status(root, relative, kind, label):
+    return _status(_inside(root, relative, label), kind)
+
+
+def _workflow_entries(root, relative, label):
+    """Enumerate ordinary logical names; observation failures remain failures."""
+    directory = _inside(root, relative, label)
+    for path in _entries(directory):
+        name = path.relative_to(root).as_posix()
+        yield name
+        if _workflow_status(root, name, "dir", label):
+            yield from _workflow_entries(root, name, label)
 
 
 def _manifest_hash(manifest):
@@ -458,9 +478,10 @@ def _action_directory(root, action_id):
 def _verify_result_artifacts(root, action_id, result):
     for name, row in result["artifacts"].items():
         _safe_relative(name, "artifact-name")
-        path = _inside(root, row["stored_path"], "artifact")
         try:
-            actual = hashlib.sha256(_io(path).read_bytes()).hexdigest()
+            actual = hashlib.sha256(
+                _workflow_bytes(root, row["stored_path"], "artifact")
+            ).hexdigest()
         except OSError as error:
             raise Stage2Error(
                 f"workflow-artifact-read-failed: {name}: {error}"

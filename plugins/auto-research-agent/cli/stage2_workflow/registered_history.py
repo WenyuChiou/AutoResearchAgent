@@ -11,7 +11,13 @@ from pathlib import Path
 from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, canonical_hash
 from stage2_workflow.revision_provenance import _candidate_map, _revision_rows
-from stage2_workflow.store import _inside, inspect_workflow
+from stage2_workflow.store import (
+    _inside,
+    _workflow_bytes,
+    _workflow_entries,
+    _workflow_status,
+    inspect_workflow,
+)
 
 
 VERSION = "2.0.0"
@@ -67,10 +73,9 @@ def _required_files(state):
             for search in review["searches"]:
                 if search["status"] != "planned":
                     hashes[prefix + search["raw_path"]] = search["raw_sha256"]
-        original = _inside(
-            state["root"], prefix + "input_packet.json", "registered-history"
-        )
-        if original.exists():
+        if _workflow_status(
+            state["root"], prefix + "input_packet.json", "exists", "registered-history"
+        ):
             documents[prefix + "input_packet.json"] = snapshot["packet"]
     for action_id, action in state["actions"].items():
         prefix = f"actions/{action_id}/"
@@ -87,10 +92,9 @@ def _capture_verified(state):
     documents, hashes = _required_files(state)
     files = {}
     for relative in sorted(documents.keys() | hashes.keys()):
-        path = _inside(state["root"], relative, "registered-history")
-        if not path.is_file():
+        if not _workflow_status(state["root"], relative, "file", "registered-history"):
             raise Stage2Error("registered-history-file-not-regular")
-        raw = path.read_bytes()
+        raw = _workflow_bytes(state["root"], relative, "registered-history")
         if relative in hashes and _sha(raw) != hashes[relative]:
             raise Stage2Error("registered-history-file-hash-mismatch")
         if relative in documents and decode_json(raw, relative) != documents[relative]:
@@ -278,19 +282,18 @@ def inspect_registered_history(root, provenance, packet, manifest):
             ):
                 raise Stage2Error("registered-history-file-inventory-invalid")
             seen.add(name)
-            path = _inside(Path(root), name, "registered-history")
-            if not path.is_file():
+            if not _workflow_status(Path(root), name, "file", "registered-history"):
                 raise Stage2Error("registered-history-file-not-regular")
-            raw = path.read_bytes()
+            raw = _workflow_bytes(Path(root), name, "registered-history")
             if _sha(raw) != row["sha256"] or len(raw) != row["size_bytes"]:
                 raise Stage2Error("registered-history-file-hash-mismatch")
         archive_root = _inside(Path(root), ARCHIVE, "registered-history")
         actual_paths = set()
-        for path in archive_root.rglob("*"):
-            if path.is_symlink():
+        for name in _workflow_entries(Path(root), ARCHIVE, "registered-history"):
+            if _workflow_status(Path(root), name, "symlink", "registered-history"):
                 raise Stage2Error("registered-history-symlink-invalid")
-            if path.is_file():
-                actual_paths.add(path.relative_to(Path(root)).as_posix())
+            if _workflow_status(Path(root), name, "file", "registered-history"):
+                actual_paths.add(name)
         if actual_paths != seen:
             raise Stage2Error("registered-history-file-set-mismatch")
         state = inspect_workflow(
