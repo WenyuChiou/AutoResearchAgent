@@ -447,6 +447,11 @@
       "plain_native_policy_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_plain_native_policy.py"
       ],
+      "named_credential_store_contract": "Optional cli_auth_credentials_store accepts only the CLI's file, keyring, auto or ephemeral strings. Exact config bytes remain hash-bound; unknown keys, invalid values, missing home denial and other named permission violations still reject before dispatch. No login, credential access, runtime permission or scientific readiness is added.",
+      "named_credential_store_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
+        "plugins/auto-research-agent/tests/test_stage2_plain_native_policy.py"
+      ],
       "controller_action_identity_contract": "Controller replay compares the requested action kind as well as exact inputs, settings and snapshot before returning a completed result or a failed/interrupted recovery state. A changed operation fails before dispatch or journal mutation; identical complete requests reuse saved artifacts and identical incomplete requests preserve their original recovery state. This tightens action identity only and does not authorize retries, increase budgets, change source/runtime evidence or establish scientific or formal completion.",
       "controller_action_identity_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller_action_replay.py"
