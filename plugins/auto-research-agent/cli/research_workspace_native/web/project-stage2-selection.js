@@ -45,6 +45,11 @@
       throw new Error("stage2-embedded-session-retained");
     }
   }
+  // Keep the parent's mount identity fixed; only receipt-verified saves advance GET binding.
+  let verifiedReadBinding = binding;
+  function rememberVerifiedReadBinding(state) {
+    if(embedded) verifiedReadBinding=Object.freeze({project_ref:state.project_ref,input_version:state.input_version,revision:state.revision,brief_sha256:state.brief_sha256});
+  }
   let active = true, disposed = false, reading = false, reloadAfterRead = false, uncertain = false;
   let storage=null, pendingMarker=null, pendingRaw=null, recovery=null, recoverySerial=0, recoveryNoticeKey=null;
   const hex=/^[a-f0-9]{64}$/, actionKey=/^[A-Za-z0-9_-]{1,128}$/;
@@ -131,6 +136,9 @@
   Object.assign(words.en,{recoveryPending:"A previous submission is not yet confirmed. Check its saved receipt before submitting again.",recoveryUnavailable:"Recovery storage is unavailable or invalid. Submission is disabled; no research or planning was started by this check."});
   Object.assign(words["zh-TW"],{recoveryPending:"先前的送出尚未確認。請先檢查保存的收據，再進行其他提交。",recoveryUnavailable:"恢復儲存不可用或資料無效，已停用提交；此檢查不會開始研究或規劃。"});
   Object.assign(words["zh-CN"],{recoveryPending:"先前的提交尚未确认。请先检查保存的收据，再进行其他提交。",recoveryUnavailable:"恢复存储不可用或数据无效，已停用提交；此检查不会开始研究或规划。"});
+  Object.assign(words.en,{recoveryRefreshStep:"If the page shows “Earlier Wiki materials and local drafts” and it is collapsed, expand it first. Then open “Stage2 · Operations” and click “Refresh progress & results” to read the latest project version.",recoveryCheckStep:"Then click “Check unconfirmed submission” for the original key {key}. The save remains unconfirmed until its receipt is verified; nothing is resent and planning is not started."});
+  Object.assign(words["zh-TW"],{recoveryRefreshStep:"若頁面顯示「先前 Wiki 材料與本地草稿」且處於折疊狀態，先展開；再開啟「Stage2 · 操作」，點「刷新进度与结果」讀取最新專案版本。",recoveryCheckStep:"再點「檢查未確認提交」，核對原 key {key} 的收據。核驗前保存結果仍未確認；不會重送，也不會開始規劃。"});
+  Object.assign(words["zh-CN"],{recoveryRefreshStep:"如页面显示“先前 Wiki 材料与本地草稿”且处于折叠状态，先展开；再打开“Stage2 · 操作”，点击“刷新进度与结果”读取最新项目版本。",recoveryCheckStep:"再点击“检查未确认提交”，核对原 key {key} 的回执。核验前保存结果仍未确认；不会重发，也不会开始规划。"});
   const comparisonWords = {
     "en": {
       "projectDetails": "Project and input version",
@@ -214,6 +222,14 @@
   let view = null, busy = false, requestKey = null, lastBody = null, viewProject = null, loadSerial = 0;
   const preferredDirections=new Map(), intentTransactions=new Map();
   let intentTransaction=null, intentNotice=null, intentHold=null;
+  let readAt=null,readFailed=false,readingProject=null,phase=null,operationFailed=false,planningContinuation=null,preserveLanguage=false;
+  const sentPlanningRuns=new Set();
+  const progressWords={
+    en:{savingChoice:"Saving your selection…",savingPreference:"Saving your preference…",readingChoice:"Selection saved; reading its receipt…",readingPreference:"Preference saved; reading its receipt…",preparingInput:"Preparing the saved planning input…",readingPrepared:"Reading the prepared input…",sendingPlan:"Sending the planning request; waiting for acceptance…",planAccepted:"Planning request accepted; open Stage 3 to read its progress.",preparedContinue:"Input prepared. Continue in Stage 3; this link does not start another run.",continuePrepared:"Continue the prepared input in Stage 3",openPlanning:"Read the existing Stage 3 state",retryRead:"Read saved state again",readingSaved:"Reading saved state…",readLost:"The latest read failed; the current outcome is unconfirmed.",lastVerified:"Last verified read",inputVersion:"Input version",revisionLabel:"Revision"},
+    "zh-TW":{savingChoice:"正在保存你的選案…",savingPreference:"正在保存你的偏好…",readingChoice:"選案已保存，正在讀回收據…",readingPreference:"偏好已保存，正在讀回收據…",preparingInput:"正在準備已保存的規劃輸入…",readingPrepared:"正在讀回已準備的輸入…",sendingPlan:"正在送出規劃要求，等待接收…",planAccepted:"規劃要求已接收，請進入 Stage 3 讀取進度。",preparedContinue:"輸入已準備。可到 Stage 3 接續；此連結不會另啟規劃。",continuePrepared:"到 Stage 3 接續已準備的輸入",openPlanning:"讀取既有 Stage 3 狀態",retryRead:"重新讀取保存狀態",readingSaved:"正在讀取保存狀態…",readLost:"最新讀取失敗，目前結果仍未確認。",lastVerified:"最後可信讀取",inputVersion:"輸入版本",revisionLabel:"修訂"},
+    "zh-CN":{savingChoice:"正在保存你的选案…",savingPreference:"正在保存你的偏好…",readingChoice:"选案已保存，正在读回回执…",readingPreference:"偏好已保存，正在读回回执…",preparingInput:"正在准备已保存的规划输入…",readingPrepared:"正在读回已准备的输入…",sendingPlan:"正在发送规划请求，等待接收…",planAccepted:"规划请求已接收，请进入 Stage 3 读取进度。",preparedContinue:"输入已准备。可到 Stage 3 继续；此链接不会另启规划。",continuePrepared:"到 Stage 3 继续已准备的输入",openPlanning:"读取已有 Stage 3 状态",retryRead:"重新读取保存状态",readingSaved:"正在读取保存状态…",readLost:"最新读取失败，目前结果仍未确认。",lastVerified:"最后可信读取",inputVersion:"输入版本",revisionLabel:"修订"}
+  };
+  for(const [language,labels] of Object.entries(progressWords))Object.assign(words[language],labels);
   const current = (ref, serial) => isActive() && serial === loadSerial && byId("project").value === ref && (!embedded || ref === binding.project_ref);
   const w = () => words[byId("language").value] || words.en;
   Object.assign(words.en,{lockBusy:"Another tab is handling this project; try again when it finishes.",lockUnavailable:"This browser does not support the project transaction lock. Submission and recovery are disabled."});
@@ -248,6 +264,8 @@
       job.request_sha256!==request.request_sha256 || job.status!=="intent-recorded" ||
       job.kind!==(tentative?"ProjectStage3DirectionPlanningJob":"ProjectStage3PlanningJob") ||
       (tentative && (job.mode!=="direction-intent" || job.formal_selected_receiver!==false))) return;
+    if(tentative)intentNotice=w().intentStartAccepted+" "+w().intentWork+": "+request.key+" · "+job.status;else notice=w().startAccepted;
+    phase="planAccepted";render();
     const language=byId("language").value,query=["en","zh-TW","zh-CN"].includes(language)?"?lang="+encodeURIComponent(language):"";
     if(!embedded) uncertain=false;
     if(embedded) options.onAccepted({projectRef:ref,language,request,result});
@@ -262,6 +280,30 @@
     if(embedded && typeof options.onNavigate === "function") link.onclick=event=>{
       event.preventDefault(); if(isActive()) options.onNavigate({projectRef:ref,language:byId("language").value});
     };
+  }
+  const feedback=document.createElement("div"),retryRead=node(feedback,"button",""),continuePrepared=node(feedback,"a",""),recoverySteps=node(feedback,"ol","");
+  retryRead.type="button";retryRead.id="selection-read-again";continuePrepared.id="selection-continue-planning";
+  recoverySteps.id="selection-recovery-steps";
+  if(byId("status").insertAdjacentElement)byId("status").insertAdjacentElement("afterend",feedback);
+  // An unverified save cannot advance the embedded GET binding. The parent must
+  // first refresh its project version, then use the existing receipt reconciliation.
+  const needsParentRecovery=()=>embedded && pendingMarker?.phase==="stage2" && recovery && recovery.status!=="verified";
+  retryRead.onclick=()=>needsParentRecovery()?undefined:load();
+  function progress(step){phase=step;render();if(isActive())byId("status").scrollIntoView({block:"nearest"});}
+  function renderFeedback(){
+    const status=byId("status");
+    if(!view && notice)status.textContent=w().unconnected+" ("+notice+")";
+    if(status.setAttribute){status.setAttribute("role","status");status.setAttribute("aria-live","polite");}
+    if(phase && !operationFailed)status.textContent=w()[phase]+" "+status.textContent;
+    if(readFailed)status.textContent=w().readLost+" "+status.textContent;
+    if(view && readAt && (reading || readFailed))status.textContent+=" · "+w().lastVerified+": "+readAt+" · "+w().inputVersion+": "+JSON.stringify(view.input_version)+" · "+w().revisionLabel+": "+String(view.revision);
+    const parentRecovery=needsParentRecovery();
+    retryRead.hidden=!!parentRecovery || (!readFailed && !operationFailed);retryRead.disabled=busy || reading || !!parentRecovery;retryRead.textContent=w().retryRead;
+    recoverySteps.hidden=!parentRecovery || busy || reading;recoverySteps.replaceChildren();
+    if(!recoverySteps.hidden){node(recoverySteps,"li",w().recoveryRefreshStep);node(recoverySteps,"li",w().recoveryCheckStep.replace("{key}",pendingMarker.key));}
+    continuePrepared.hidden=!planningContinuation || planningContinuation.project!==viewProject || planningContinuation.input_version!==view?.input_version || planningContinuation.revision!==view?.revision || planningContinuation.brief_sha256!==view?.brief_sha256;
+    continuePrepared.textContent=w().continuePrepared;
+    bindPlanningLink(continuePrepared,viewProject || "");
   }
 
   const previewText = (value, limit=120) => {
@@ -308,14 +350,14 @@
       const state=recovery && {...recovery}, key=JSON.stringify(state);
       if(key!==recoveryNoticeKey) { recoveryNoticeKey=key; Promise.resolve().then(()=>{if(isActive() && JSON.stringify(recovery && {...recovery})===key) options.onRecoveryChange(state);}); }
     }
-    byId("submit").disabled=busy || !!held;
-    byId("submit-and-start").disabled=busy || !!held;
+    byId("submit").disabled=busy || reading || readFailed || !!held;
+    byId("submit-and-start").disabled=busy || reading || readFailed || !!held;
     byId("submit-and-start").hidden=!(boot.stage3_planning_projects || []).includes(viewProject);
     byId("project").disabled=busy || embedded;
     if(byId("direction-intent")) {
       byId("direction-intent").hidden=!view || view.selection_status==="recorded" || !view.cards.cards.length;
-      byId("intent-save").disabled=busy || !!held;
-      byId("intent-start").disabled=busy || !!held;
+      byId("intent-save").disabled=busy || reading || readFailed || !!held;
+      byId("intent-start").disabled=busy || reading || readFailed || !!held;
       byId("intent-start").hidden=!(boot.stage3_planning_projects || []).includes(viewProject);
       byId("intent-status").textContent=intentHold?[w()[intentHold.kind],intentNotice].filter(Boolean).join(" "):intentNotice || (view?.direction_intent?w().intentSaved:"");
       const blockers=byId("intent-blockers");if(blockers){blockers.hidden=!intentHold?.blockers.length;blockers.textContent=intentHold?intentHold.blockers.map(blocker=>typeof blocker==="string"?blocker:JSON.stringify(blocker,null,2)).join("\n"):"";}
@@ -328,7 +370,7 @@
     if(byId("preference-bar"))byId("preference-bar").hidden=!view || view.selection_status==="recorded";
     if(byId("decision-context"))byId("decision-context").textContent=view?w().directionCount.replace("{n}",String(view.cards.cards.length))+" · "+w().eligibleCount.replace("{n}",String(view.eligible.length)):"";
     updatePreferenceSummary();
-    if(!view) { if(held)byId("status").textContent=recovery.code?.startsWith("project-lock-")?w().lockUnavailable:recovery.status==="unavailable"?w().recoveryUnavailable:w().recoveryPending; return; }
+    if(!view) { if(held)byId("status").textContent=recovery.code?.startsWith("project-lock-")?w().lockUnavailable:recovery.status==="unavailable"?w().recoveryUnavailable:w().recoveryPending; renderFeedback();return; }
     byId("planning-link").href="#"+viewProject;
     byId("return-cards").href="#"+viewProject;
     byId("status").textContent=held?(recovery.code?.startsWith("project-lock-")?w().lockUnavailable:recovery.status==="unavailable"?w().recoveryUnavailable:w().recoveryPending):notice || w()[view.selection_status==="recorded"?"saved":view.eligible.length?"ready":"none"];
@@ -358,12 +400,26 @@
       if((boot.stage3_planning_projects || []).includes(viewProject) && view.selection_status==="recorded") {const link=node(byId("planning-summary"),"a",w().continuePlanning);link.id="stage3-entry";bindPlanningLink(link,viewProject);}
     }
     byId("receipt").textContent=JSON.stringify({project_ref:view.project_ref,input_version:view.input_version,selection_receipt:view.selection_receipt,delivery_manifest_sha256:view.delivery_manifest_sha256,snapshot_sha256:view.snapshot_sha256,planning_status:view.planning_status,planning_submission:planningSubmission,execution_authorized:false},null,2);
+    renderFeedback();
   }
-  async function load() { if(!isActive() || (embedded && reading))return; reading=true; try { const ref=byId("project").value, serial=++loadSerial; view=null; viewProject=null; requestKey=null; lastBody=null; notice=null; planningSubmission=null; intentTransaction=null;intentNotice=null;intentHold=null;preferredDirections.clear();if(byId("intent-message")){byId("intent-message").value="";byId("intent-confirmed").checked=false;} render(); if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {byId("status").textContent=w().unconnected;return;} try { const loaded=await api("/api/projects/"+ref+"/stage2/selection"); if(!current(ref,serial))return; if(embedded && !["project_ref","input_version","revision","brief_sha256"].every(key=>loaded[key]===binding[key]))throw new Error("stage2-embedded-version-differs"); view=loaded; viewProject=ref;const saved=intentTransactions.get(intentBinding(ref,view));if(saved){intentTransaction=saved;for(const direction of saved.body.preferred_directions)preferredDirections.set(JSON.stringify([direction.candidate_id,direction.candidate_version]),direction);if(byId("intent-message")){byId("intent-message").value=saved.body.user_input;byId("intent-confirmed").checked=true;}} if(!embedded) history.replaceState(null,"","#"+encodeURIComponent(ref)+(boot.wiki_v9?"?stage=2&lang="+encodeURIComponent(byId("language").value):"")); render(); } catch(e) {if(current(ref,serial))byId("status").textContent=w().unconnected+" ("+e.message+")";}  } finally {
-    reading=false;
-    if(reloadAfterRead) { reloadAfterRead=false; if(isActive() && !view && !busy && !lastBody && !intentTransactions.size) void load(); }
-  } }
-  byId("language").onchange=()=>{if(!embedded && boot.wiki_v9 && byId("project").value)history.replaceState(null,"","#"+encodeURIComponent(byId("project").value)+"?stage=2&lang="+encodeURIComponent(byId("language").value));render();}; byId("project").onchange=embedded?()=>{byId("project").value=binding.project_ref;}:load;
+  async function load() {
+    const ref=byId("project").value;
+    if(!isActive() || (busy && viewProject===ref) || (reading && (embedded || readingProject===ref)))return;
+    const serial=++loadSerial, expectedBinding=verifiedReadBinding;
+    if(viewProject!==ref){view=null;viewProject=null;readAt=null;requestKey=null;lastBody=null;planningSubmission=null;intentTransaction=null;intentNotice=null;intentHold=null;planningContinuation=null;preferredDirections.clear();if(byId("intent-message")){byId("intent-message").value="";byId("intent-confirmed").checked=false;}}
+    reading=true;readingProject=ref;readFailed=false;operationFailed=false;notice=null;phase="readingSaved";render();
+    try{
+      if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)){notice=w().unconnected;return;}
+      const loaded=await api("/api/projects/"+ref+"/stage2/selection");if(!current(ref,serial))return;
+      if(embedded && !["project_ref","input_version","revision","brief_sha256"].every(key=>loaded[key]===expectedBinding[key]))throw new Error("stage2-embedded-version-differs");
+      view=loaded;viewProject=ref;readAt=new Date().toISOString();
+      const saved=intentTransactions.get(intentBinding(ref,view));
+      if(saved){intentTransaction=saved;for(const direction of saved.body.preferred_directions)preferredDirections.set(JSON.stringify([direction.candidate_id,direction.candidate_version]),direction);if(byId("intent-message")){byId("intent-message").value=saved.body.user_input;byId("intent-confirmed").checked=true;}}
+      if(!embedded)history.replaceState(null,"","#"+encodeURIComponent(ref)+(boot.wiki_v9 || preserveLanguage?"?"+(boot.wiki_v9?"stage=2&":"")+"lang="+encodeURIComponent(byId("language").value):""));
+    }catch(e){if(current(ref,serial)){readFailed=true;notice=e.message;}}
+    finally{if(embedded || serial===loadSerial){reading=false;phase=null;}if(current(ref,serial))render();if(reloadAfterRead && !reading){reloadAfterRead=false;if(isActive() && !view && !busy && !lastBody && !intentTransactions.size)void load();}}
+  }
+  byId("language").onchange=()=>{preserveLanguage=Object.hasOwn(words,byId("language").value);if(!embedded && preserveLanguage && byId("project").value)history.replaceState(null,"","#"+encodeURIComponent(byId("project").value)+"?"+(boot.wiki_v9?"stage=2&":"")+"lang="+encodeURIComponent(byId("language").value));render();}; byId("project").onchange=embedded?()=>{byId("project").value=binding.project_ref;}:load;
   for(const [link,target] of [["planning-link","planning"],["return-cards","cards"]]) {
     byId(link).onclick=event=>{event.preventDefault();byId(target).scrollIntoView({block:"start"});};
   }
@@ -377,29 +433,39 @@
       state.revision===selectedView.revision && state.brief_sha256===selectedView.brief_sha256;
     const state=await api(path);
     if(!current(ref,serial)) return;
-    requireMatch(matches(state) && state.planning_configured && state.default_request && !state.job && !state.submission_in_progress && !state.submission_error);
+    requireMatch(matches(state) && state.planning_configured && state.default_request);
+    if(state.job){
+      const request=state.default_request;
+      if(state.job.status==="intent-recorded" && !state.submission_in_progress && !state.submission_error && isHex(request.request_sha256) && state.job.request_sha256===request.request_sha256 && !sentPlanningRuns.has(JSON.stringify([ref,request.key,request.request_sha256]))){planningContinuation={project:ref,input_version:selectedView.input_version,revision:selectedView.revision,brief_sha256:selectedView.brief_sha256,key:request.key,request_sha256:request.request_sha256};progress("preparedContinue");}else progress("openPlanning");
+      return;
+    }
+    requireMatch(!state.submission_in_progress && !state.submission_error);
     const request={...state.default_request};
     requireMatch(request.selection_request_sha256===receipt.request_sha256);
     uncertain=true;
     if(embedded) updatePending({phase:"planning",planning_key:request.key});
-    await api(path+"/prepare",request);
+    progress("preparingInput");await api(path+"/prepare",request);
     if(!current(ref,serial)) return;
-    const prepared=await api(path);
+    progress("readingPrepared");const prepared=await api(path);
     if(!current(ref,serial)) return;
     const next=prepared.default_request;
     requireMatch(matches(prepared) && next && Object.keys(request).every(key=>next[key]===request[key]) &&
       prepared.job?.status==="intent-recorded" && !prepared.submission_in_progress && !prepared.submission_error &&
       isHex(next.request_sha256) && prepared.job.request_sha256===next.request_sha256);
+    planningContinuation={project:ref,input_version:selectedView.input_version,revision:selectedView.revision,brief_sha256:selectedView.brief_sha256,key:next.key,request_sha256:next.request_sha256};
+    const identity=JSON.stringify([ref,next.key,next.request_sha256]);requireMatch(!sentPlanningRuns.has(identity));sentPlanningRuns.add(identity);
+    planningContinuation=null;
     if(embedded) updatePending({planning_key:next.key,planning_sha256:next.request_sha256});
+    progress("sendingPlan");
     const response=await api(path+"/run",{...next,confirmed:true},{includeStatus:true}),result=response.data;
     if(!current(ref,serial)) return;
     planningSubmission=result;
-    notice=result.submission_status==="accepted" ? w().startAccepted : w().startHeld;
+    notice=w().startHeld;
     enterPlanning(ref,serial,selectedView,next,response);
   }
   byId("choice").onsubmit=async event=>{
     event.preventDefault();
-    if(busy || (embedded && recovery) || !view || !current(viewProject,loadSerial)) return;
+    if(busy || reading || readFailed || (embedded && recovery) || !view || !current(viewProject,loadSerial)) return;
     const start=event.submitter?.id==="submit-and-start", ref=viewProject, serial=loadSerial;
     if(start && !(boot.stage3_planning_projects || []).includes(ref)) return;
     const selected=root.querySelector('input[name="direction"]:checked');
@@ -407,13 +473,13 @@
     const lines=id=>byId(id).value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
     const body={key:requestKey || crypto.randomUUID(),revision:view.revision,input_version:view.input_version,brief_sha256:view.brief_sha256,delivery_manifest_sha256:view.delivery_manifest_sha256,workflow_head_sha256:view.workflow_head_sha256,snapshot_sha256:view.snapshot_sha256,confirmed:true,decision:{actor:byId("actor").value,kind:"select",user_text:byId("message").value,selected:[{candidate_id:selected.value,candidate_version:Number(selected.dataset.version)}],conditions:lines("conditions"),unresolved:lines("unresolved"),rationale:byId("rationale").value,scope_or_resource_change:false}};
     if(lastBody && JSON.stringify({...body,key:lastBody.key})!==JSON.stringify(lastBody)) {notice="Reload the current version before changing a submitted request.";render();return;}
-    requestKey=body.key; lastBody=body; busy=true; uncertain=true; notice=null; planningSubmission=null; let confirmedStage2=false; render();
+    requestKey=body.key; lastBody=body; busy=true; uncertain=true; notice=null; planningSubmission=null;operationFailed=false;let confirmedStage2=false;progress("savingChoice");
     try {
       if(embedded && !(await beginPending("stage2-select",body,start,serial)))return;
       if(!current(ref,serial))return;
       const receipt=await api("/api/projects/"+ref+"/stage2/select",body);
       if(!current(ref,serial)) return;
-      const refreshed=await api("/api/projects/"+ref+"/stage2/selection");
+      progress("readingChoice");const refreshed=await api("/api/projects/"+ref+"/stage2/selection");
       if(!current(ref,serial)) return;
       // Recording the selection appends to the workflow; the retained receipt,
       // not the pre-submit head, binds the resulting current workflow head.
@@ -427,13 +493,14 @@
         ["workflow_head_sha256","interaction_file_sha256","planning_manifest_sha256"].every(k=>isHex(saved[k])) && refreshed.workflow_head_sha256===saved.workflow_head_sha256;
       if(embedded && (!verified || receipt.request_sha256!==pendingMarker?.request_sha256)) throw new Error("stage2-embedded-selection-receipt-differs");
       confirmedStage2=!!verified;
+      if(verified) rememberVerifiedReadBinding(refreshed);
       if(verified && (!embedded || !start)) { if(embedded) clearPending(); else uncertain=false; }
-      view=refreshed; viewProject=ref; render();
+      view=refreshed; viewProject=ref;readAt=new Date().toISOString();if(!start)phase=null;render();
       if(start) {
         if(refreshed.project_ref!==ref || refreshed.input_version!==body.input_version || refreshed.brief_sha256!==body.brief_sha256) throw new Error(w().startHeld);
         await startPlanning(ref,serial,receipt,refreshed);
       }
-    } catch(e) {if(current(ref,serial)) notice=(start?w().startHeld+" ":"")+e.message;}
+    } catch(e) {if(current(ref,serial)){notice=(start?w().startHeld+" ":"")+e.message;operationFailed=true;readFailed=["readingChoice","readingPrepared"].includes(phase);}}
     finally {if(embedded && confirmedStage2 && pendingMarker?.phase==="stage2" && current(ref,serial)) {try{clearPending();}catch(_){recovery=recoveryState("unavailable","storage-unavailable","stage2-select");}}busy=false;render();}
   };
   function intentBinding(ref,state) {
@@ -443,7 +510,7 @@
   function holdIntentPlanning(state) {
     const kind=state.planning_status==="needs-information" || state.dispatch_action==="needs-information"?"intentFocus":state.planning_status==="unavailable" || state.dispatch_action==="unavailable"?"intentUnavailable":null;
     if(!kind)return false;
-    intentHold={kind,blockers:Array.isArray(state.planning_blockers)?state.planning_blockers:[]};intentNotice=null;return true;
+    intentHold={kind,blockers:Array.isArray(state.planning_blockers)?state.planning_blockers:[]};intentNotice=null;phase=null;return true;
   }
   function verifyIntentReceipt(receipt, transaction) {
     requireIntent(receipt?.status==="saved" && receipt.key===transaction.body.key && receipt.mode==="direction-advice" && receipt.human_selection==="pending" && receipt.execution_authorized===false && typeof receipt.artifact_ref==="string" && receipt.artifact_ref.length>0);
@@ -464,16 +531,22 @@
     requireIntent(matches(state),w().intentRefresh);
     if(holdIntentPlanning(state))return;
     intentHold=null;
-    requireIntent(state.planning_configured && state.default_request && !state.job && !state.submission_in_progress && !state.submission_error);
+    requireIntent(state.planning_configured && state.default_request);
+    if(state.job){
+      const request=state.default_request;
+      if(state.job.status==="intent-recorded" && !state.submission_in_progress && !state.submission_error && isHex(request.request_sha256) && state.job.request_sha256===request.request_sha256 && !sentPlanningRuns.has(JSON.stringify([ref,request.key,request.request_sha256]))){planningContinuation={project:ref,input_version:selectedView.input_version,revision:selectedView.revision,brief_sha256:selectedView.brief_sha256,key:request.key,request_sha256:request.request_sha256};progress("preparedContinue");}else progress("openPlanning");
+      return;
+    }
+    requireIntent(!state.submission_in_progress && !state.submission_error);
     const source={...state.default_request};
     requireIntent(source.direction_intent_sha256===intentHash,w().intentRefresh);
     requireIntent(typeof source.key==="string" && source.key.length>0 && source.mode==="direction-intent" && source.direction_intent_sha256===intentHash && source.revision===selectedView.revision && source.input_version===selectedView.input_version && source.brief_sha256===selectedView.brief_sha256 && !source.request_sha256);
     const request={key:source.key,revision:source.revision,input_version:source.input_version,brief_sha256:source.brief_sha256,mode:"direction-intent",direction_intent_sha256:intentHash};
     transaction.prepareSent=true;uncertain=true;
     if(embedded) updatePending({phase:"planning",planning_key:request.key});
-    await api(path+"/prepare",request);
+    progress("preparingInput");await api(path+"/prepare",request);
     if(!current(ref,serial))return;
-    const prepared=await api(path);
+    progress("readingPrepared");const prepared=await api(path);
     if(!current(ref,serial))return;
     requireIntent(matches(prepared),w().intentRefresh);
     if(holdIntentPlanning(prepared))return;
@@ -481,18 +554,21 @@
     const next=prepared.default_request;
     requireIntent(next?.direction_intent_sha256===intentHash,w().intentRefresh);
     requireIntent(prepared.planning_configured && next && Object.keys(source).every(key=>next[key]===source[key]) && Object.keys(next).every(key=>key==="request_sha256" || Object.hasOwn(source,key)) && prepared.job?.status==="intent-recorded" && !prepared.submission_in_progress && !prepared.submission_error && isHex(next.request_sha256) && prepared.job.request_sha256===next.request_sha256);
+    planningContinuation={project:ref,input_version:selectedView.input_version,revision:selectedView.revision,brief_sha256:selectedView.brief_sha256,key:next.key,request_sha256:next.request_sha256};
+    const identity=JSON.stringify([ref,next.key,next.request_sha256]);requireIntent(!sentPlanningRuns.has(identity));sentPlanningRuns.add(identity);planningContinuation=null;
     transaction.runSent=true;
     transaction.planningWork={key:next.key,request_sha256:next.request_sha256,mode:next.mode,direction_intent_sha256:intentHash};
     if(embedded) updatePending({planning_key:next.key,planning_sha256:next.request_sha256});
+    progress("sendingPlan");
     const response=await api(path+"/run",{...next,confirmed:true},{includeStatus:true}),result=response.data;
     if(!current(ref,serial))return;
     transaction.submission=result;
-    intentNotice=(result.submission_status==="accepted"?w().intentStartAccepted:w().intentHeld)+" "+w().intentWork+": "+next.key+" · "+(result.job?.status || result.submission_status || w().unknown);
+    intentNotice=w().intentHeld+" "+w().intentWork+": "+next.key+" · "+(result.job?.status || result.submission_status || w().unknown);
     enterPlanning(ref,serial,selectedView,next,response);
   }
   if(byId("direction-intent"))byId("direction-intent").onsubmit=async event=>{
     event.preventDefault();
-    if(busy || (embedded && recovery) || !view || view.selection_status==="recorded" || !current(viewProject,loadSerial))return;
+    if(busy || reading || readFailed || (embedded && recovery) || !view || view.selection_status==="recorded" || !current(viewProject,loadSerial))return;
     const start=event.submitter?.id==="intent-start",ref=viewProject,serial=loadSerial;
     if(start && !(boot.stage3_planning_projects || []).includes(ref))return;
     if(view.project_ref!==ref){intentNotice=w().intentHeld;render();return;}
@@ -502,7 +578,7 @@
     const body={key:existing?.body.key || crypto.randomUUID(),revision:existing?.body.revision ?? view.revision,input_version:view.input_version,brief_sha256:view.brief_sha256,delivery_manifest_sha256:view.delivery_manifest_sha256,workflow_head_sha256:view.workflow_head_sha256,snapshot_sha256:view.snapshot_sha256,preferred_directions:preferred,user_input:text,conditions:[],unresolved:[],confirmed:true};
     if(existing && JSON.stringify(body)!==JSON.stringify(existing.body)) {intentNotice=w().intentChanged;render();return;}
     const transaction=existing || {body,binding,prepareSent:false,runSent:false};
-    intentTransactions.set(binding,transaction);intentTransaction=transaction;intentNotice=null;busy=true;uncertain=true;let confirmedStage2=false;render();
+    intentTransactions.set(binding,transaction);intentTransaction=transaction;intentNotice=null;busy=true;uncertain=true;operationFailed=false;let confirmedStage2=false;progress("savingPreference");
     try {
       requireIntent(!start || (!transaction.prepareSent && !transaction.runSent));
       if(embedded && !(await beginPending("stage2-direction-intent",body,start,serial)))return;
@@ -510,11 +586,11 @@
       const receipt=await api("/api/projects/"+ref+"/stage2/direction-intent",body);
       if(!current(ref,serial))return;
       verifyIntentReceipt(receipt,transaction);if(embedded && receipt.request_sha256!==pendingMarker?.request_sha256)throw Error("stage2-embedded-intent-receipt-differs");transaction.receipt=receipt;
-      const refreshed=await api("/api/projects/"+ref+"/stage2/selection");
+      progress("readingPreference");const refreshed=await api("/api/projects/"+ref+"/stage2/selection");
       if(!current(ref,serial))return;
-      verifyIntentView(ref,refreshed,transaction);confirmedStage2=true;if(!start){if(embedded)clearPending();else uncertain=false;}view=refreshed;viewProject=ref;intentNotice=w().intentSaved;render();
+      verifyIntentView(ref,refreshed,transaction);rememberVerifiedReadBinding(refreshed);confirmedStage2=true;if(!start){if(embedded)clearPending();else uncertain=false;phase=null;}view=refreshed;viewProject=ref;readAt=new Date().toISOString();intentNotice=w().intentSaved;render();
       if(start)await startIntentPlanning(ref,serial,transaction,refreshed);
-    } catch(e) {if(current(ref,serial)){intentNotice=e.message || w().intentHeld;}}
+    } catch(e) {if(current(ref,serial)){intentNotice=e.message || w().intentHeld;operationFailed=true;readFailed=["readingPreference","readingPrepared"].includes(phase);}}
     finally {if(embedded && confirmedStage2 && pendingMarker?.phase==="stage2" && current(ref,serial)) {try{clearPending();}catch(_){recovery=recoveryState("unavailable","storage-unavailable","stage2-direction-intent");}}busy=false;render();}
   };
   if(embedded) for(const id of ["choice","direction-intent"]) {
@@ -524,7 +600,7 @@
   for(const ref of embedded ? [binding.project_ref] : boot.stage2_selection_projects || []) {const option=node(byId("project"),"option",ref);option.value=ref;}
   const fragment=embedded ? "" : location.hash.slice(1),separator=fragment.indexOf("?");
   let ref="";try{ref=decodeURIComponent(separator<0?fragment:fragment.slice(0,separator));}catch{}
-  if(separator>=0){const language=new URLSearchParams(fragment.slice(separator+1)).get("lang");if(Object.hasOwn(words,language))byId("language").value=language;}
+  if(separator>=0){const language=new URLSearchParams(fragment.slice(separator+1)).get("lang");if(Object.hasOwn(words,language)){byId("language").value=language;preserveLanguage=true;}}
   if(embedded) { byId("project").value=binding.project_ref; if(Object.hasOwn(words,options.language)) byId("language").value=options.language; }
   else if((boot.stage2_selection_projects || []).includes(ref)) byId("project").value=ref;
   load();

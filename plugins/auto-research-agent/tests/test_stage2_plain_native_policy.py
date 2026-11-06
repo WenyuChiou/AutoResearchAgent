@@ -84,6 +84,34 @@ class PlainNativePolicyTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.assertEqual(self.fixture.calls, [])
 
+    def test_keyring_config_resolves_each_root_bound_role_policy(self):
+        f = self.fixture
+        for version in ("1.1.0", "1.2.0"):
+            with self.subTest(version=version):
+                raw = legacy_fixture._config(
+                    f.workspace, f.home, f.telemetry, self.capture_root
+                )
+                if version == "1.2.0":
+                    raw, _ = self.install()
+                raw = b'cli_auth_credentials_store = "keyring"\n' + raw
+                _, args = self.install(version=version, raw=raw)
+                spec = {
+                    "schema_version": version,
+                    "native": {"model": "gpt-test", "reasoning": "high"},
+                    "execution_policies": {
+                        environment.environment_key(f.home, f.workspace): args[
+                            "policy_bindings"
+                        ]
+                    },
+                }
+                resolved = environment.native_for_environment(spec, f.home, f.workspace)
+                self.assertEqual(resolved["policy_bindings"], args["policy_bindings"])
+                self.assertEqual(
+                    spec["native"], {"model": "gpt-test", "reasoning": "high"}
+                )
+        self.assertEqual(f.calls, [])
+        self.assertFalse(self.output.exists())
+
     def test_malformed_feature_tables_are_rejected_before_dispatch(self):
         original, _ = self.install()
         prefix, remaining = original.split(b"[features]\n", 1)

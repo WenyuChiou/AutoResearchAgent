@@ -606,7 +606,16 @@
         "plugins/auto-research-agent/tests/test_project_typed_navigation.py"
       ],
       "stage2_selection_verification_test_refs": [
-        "plugins/auto-research-agent/tests/test_project_selection_read_sources.py"
+        "plugins/auto-research-agent/tests/test_project_selection_read_sources.py",
+        "plugins/auto-research-agent/tests/test_project_direction_verification_budget.py",
+        "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.py",
+        "plugins/auto-research-agent/tests/test_project_stage3_direction_planning.py"
+      ],
+      "stage23_planning_recovery_contract": "Conditional planning reuses strict verification only inside one locked read; writes and dispatch retain fresh admission. A completed preference save returns its authenticated historical receipt and sealed artifact pins, without granting current planning eligibility. Browser progress follows saved/prepared/accepted receipts, binds recovery to the current project and version, and retains dated verified results during failed GET reads. Unknown submission outcomes never create another run or key; saved state is not human selection, research quality or execution authority.",
+      "stage23_planning_recovery_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_oneclick.cjs",
+        "plugins/auto-research-agent/tests/test_project_stage2_selection_embedded.cjs",
+        "plugins/auto-research-agent/tests/browser/project-stage3-wiki.cjs"
       ]
     },
     {
@@ -1018,7 +1027,8 @@
         "No new research, evaluation, scheduler, native budget or model authority",
         "No required job rename, branch-protection bypass, path-filtered required workflow or continue-on-error",
         "New, deleted, renamed, type-changed or unclassified production paths stay on broad standard CI",
-        "Long integration profile remains explicitly manual; Windows standard deferred coverage stays visible"
+        "Long integration profile remains explicitly manual; Windows standard deferred coverage stays visible",
+        "Selected named tests and worker modules must resolve inside the selected tests root; foreign search-path or preloaded modules cannot replace missing local tests"
       ],
       "test_refs": [
         ".github/scripts/test_ci_test_routing.py",

@@ -18,6 +18,9 @@ from test_stage2_checker import assessment, finding
 from research_workspace_native.project_stage2_selection import (
     ProjectStage2SelectionService,
 )
+from research_workspace_native.project_stage3_planning import (
+    ProjectStage3PlanningService,
+)
 from research_workspace_native.session_api import SessionApiError
 import stage2_workflow.direction_intent as core
 
@@ -51,6 +54,119 @@ class DirectionIntentTests(Stage2SelectionFixture):
         else:
             result = self.prepare_choice(ProjectStage2SelectionService)
         return result[0], intent_body(result[1]), result[2]
+
+    def test_saved_receipt_survives_later_frontier_drift_but_planning_rejects(self):
+        service, body, _ = self.choice()
+        perform = self.intake._perform
+
+        def saved_then_changed(*args, **kwargs):
+            receipt = perform(*args, **kwargs)
+            state = self.intake._load("researcher", self.ref)
+            state["stage2_frontier"]["workflow_head_sha256"] = "0" * 64
+            self.intake._save(state, "synthetic-frontier-drift", {"fixture": True})
+            self.intake.db.commit()
+            return receipt
+
+        with patch.object(self.intake, "_perform", side_effect=saved_then_changed):
+            receipt = service.direction_intent("own", self.ref, body)
+        self.assertEqual(receipt["status"], "saved")
+        self.assertFalse(receipt["replayed"])
+        self.assertFalse(receipt["execution_authorized"])
+        direction = ProjectStage3PlanningService(self.intake, service).direction
+        state = self.intake._load("researcher", self.ref)
+        request = {name: body[name] for name in ("input_version", "brief_sha256")}
+        request.update(
+            revision=state["revision"],
+            key="stage3-direction-" + receipt["intent_sha256"],
+            mode="direction-intent",
+            direction_intent_sha256=receipt["intent_sha256"],
+        )
+        for operation in (
+            lambda: service.read("own", self.ref),
+            lambda: service.direction_intent_context(
+                "own", self.ref, expected_intent_sha256=receipt["intent_sha256"]
+            ),
+            lambda: direction.prepare("own", self.ref, request),
+            lambda: direction.run(
+                "own",
+                self.ref,
+                dict(request, request_sha256="1" * 64, confirmed=True),
+            ),
+        ):
+            with (
+                self.subTest(operation=operation),
+                self.assertRaisesRegex(
+                    SessionApiError, "frontier-state-journal-differs"
+                ),
+            ):
+                operation()
+
+    def test_frontier_drift_after_reservation_rejects_before_artifact_write(self):
+        service, body, _ = self.choice()
+        save = self.intake._save
+
+        def changed_at_reservation(state, kind, receipt):
+            if kind == "stage2-direction-intent-intent":
+                state["stage2_frontier"]["workflow_head_sha256"] = "0" * 64
+            return save(state, kind, receipt)
+
+        with (
+            patch.object(self.intake, "_save", side_effect=changed_at_reservation),
+            self.assertRaisesRegex(SessionApiError, "intake-operation-failed") as error,
+        ):
+            service.direction_intent("own", self.ref, body)
+        self.assertIn("frontier-state-journal-differs", str(error.exception.__cause__))
+        state = self.intake._load("researcher", self.ref)
+        self.assertNotIn("stage2_direction_intent", state)
+        pending = state["stage2_direction_intent_pending"]
+        artifact = self.intake._path(
+            self.ref, "stage2-direction-" + pending["request_sha256"]
+        )
+        self.assertFalse(artifact.exists())
+
+    def test_first_saved_response_still_rejects_receipt_artifact_and_pin_tamper(self):
+        service, body, _ = self.choice()
+        perform = self.intake._perform
+        binding = service.bindings[self.ref]
+        original_pin = binding["delivery_manifest_sha256"]
+        for tamper in ("receipt", "artifact", "delivery-pin"):
+            with self.subTest(tamper=tamper):
+                body = dict(
+                    body,
+                    key="first-save-" + tamper,
+                    revision=self.intake._load("researcher", self.ref)["revision"],
+                )
+
+                def saved_then_changed(*args, **kwargs):
+                    receipt = perform(*args, **kwargs)
+                    self.assertEqual(receipt["status"], "saved")
+                    if tamper == "receipt":
+                        row = self.intake.db.execute(
+                            "SELECT receipt FROM intake_actions WHERE project=? AND key=?",
+                            (self.ref, body["key"]),
+                        ).fetchone()
+                        saved = json.loads(row[0])
+                        saved["key"] = "different-key"
+                        self.intake.db.execute(
+                            "UPDATE intake_actions SET receipt=? WHERE project=? AND key=?",
+                            (json.dumps(saved), self.ref, body["key"]),
+                        )
+                        self.intake.db.commit()
+                    elif tamper == "artifact":
+                        output = self.intake._path(self.ref, receipt["artifact_ref"])
+                        (output / "intent.json").write_text("{}")
+                    else:
+                        binding["delivery_manifest_sha256"] = "0" * 64
+                    return receipt
+
+                with (
+                    patch.object(
+                        self.intake, "_perform", side_effect=saved_then_changed
+                    ),
+                    self.assertRaises(SessionApiError),
+                ):
+                    service.direction_intent("own", self.ref, body)
+                binding["delivery_manifest_sha256"] = original_pin
 
     def test_history_exposes_only_verified_preference_binding_and_rejects_tamper(self):
         service, body, _ = self.choice()
