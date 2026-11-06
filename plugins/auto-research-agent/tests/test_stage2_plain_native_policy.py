@@ -177,7 +177,7 @@ class PlainNativePolicyTests(unittest.TestCase):
     def test_rehashed_permission_changes_and_ancestor_layers_still_reject(self):
         raw, _ = self.install()
         changes = [
-            raw.replace(b'"/" = "read"', b'"/" = "write"'),
+            raw.replace(b'":root" = "read"', b'":root" = "write"'),
             raw.replace(b'"localhost" = "deny"', b'"localhost" = "allow"'),
             raw.replace(b"allow_local_binding = false", b"allow_local_binding = true"),
             raw.replace(b'trust_level = "untrusted"', b'trust_level = "trusted"'),
