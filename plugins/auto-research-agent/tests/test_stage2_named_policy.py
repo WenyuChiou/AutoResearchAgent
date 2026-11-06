@@ -36,7 +36,7 @@ def _config(workspace, home, telemetry, output, **changes):
     values.update(changes)
     omit = set(values.get("omit", ()))
     filesystem = [
-        ("root", "/", "read"),
+        ("root", ":root", "read"),
         ("workspace", str(workspace.resolve()), "write"),
         ("home", str(home.resolve()), "deny"),
         ("telemetry", str(telemetry.resolve()), "deny"),
