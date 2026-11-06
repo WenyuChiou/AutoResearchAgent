@@ -4,6 +4,7 @@ import math
 import os
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -183,9 +184,20 @@ def run_bound_process(
     refuses a known-exited PID before addressing the spawned PID and descendants
     through ``taskkill /PID /T /F``. Callers must retain exclusive ownership of
     the ``Popen`` object; concurrent waits cannot be made race-free here.
+
+    After timeout validation, ``autoresearch.bound_submission`` audits the
+    original command, input, cwd, env and timeout_seconds before process setup.
+    A trusted operator hook may observe or raise to reject; it must not mutate
+    these arguments. The event grants no profile/window authorization and does
+    not replace transport or change authentic/injected capture provenance.
+    Input and env may contain sensitive data; consumers should retain only
+    hashes or explicitly allowed safe fields rather than raw request values.
     """
 
     timeout_seconds = validate_timeout_seconds(timeout_seconds)
+    sys.audit(
+        "autoresearch.bound_submission", command, input, cwd, env, timeout_seconds
+    )
     popen_options = {
         "env": env,
         "cwd": cwd,
