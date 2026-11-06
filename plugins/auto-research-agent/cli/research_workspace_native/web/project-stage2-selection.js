@@ -136,9 +136,9 @@
   Object.assign(words.en,{recoveryPending:"A previous submission is not yet confirmed. Check its saved receipt before submitting again.",recoveryUnavailable:"Recovery storage is unavailable or invalid. Submission is disabled; no research or planning was started by this check."});
   Object.assign(words["zh-TW"],{recoveryPending:"先前的送出尚未確認。請先檢查保存的收據，再進行其他提交。",recoveryUnavailable:"恢復儲存不可用或資料無效，已停用提交；此檢查不會開始研究或規劃。"});
   Object.assign(words["zh-CN"],{recoveryPending:"先前的提交尚未确认。请先检查保存的收据，再进行其他提交。",recoveryUnavailable:"恢复存储不可用或数据无效，已停用提交；此检查不会开始研究或规划。"});
-  Object.assign(words.en,{recoveryRefreshStep:"Open “Stage2 · Operations” and click “Refresh progress & results” to read the latest project version.",recoveryCheckStep:"Then click “Check unconfirmed submission” for the original key {key}. The save remains unconfirmed until its receipt is verified; nothing is resent and planning is not started."});
-  Object.assign(words["zh-TW"],{recoveryRefreshStep:"先開啟「Stage2 · 操作」，點「刷新进度与结果」讀取最新專案版本。",recoveryCheckStep:"再點「檢查未確認提交」，核對原 key {key} 的收據。核驗前保存結果仍未確認；不會重送，也不會開始規劃。"});
-  Object.assign(words["zh-CN"],{recoveryRefreshStep:"先打开“Stage2 · 操作”，点击“刷新进度与结果”读取最新项目版本。",recoveryCheckStep:"再点击“检查未确认提交”，核对原 key {key} 的回执。核验前保存结果仍未确认；不会重发，也不会开始规划。"});
+  Object.assign(words.en,{recoveryRefreshStep:"If the page shows “Earlier Wiki materials and local drafts” and it is collapsed, expand it first. Then open “Stage2 · Operations” and click “Refresh progress & results” to read the latest project version.",recoveryCheckStep:"Then click “Check unconfirmed submission” for the original key {key}. The save remains unconfirmed until its receipt is verified; nothing is resent and planning is not started."});
+  Object.assign(words["zh-TW"],{recoveryRefreshStep:"若頁面顯示「先前 Wiki 材料與本地草稿」且處於折疊狀態，先展開；再開啟「Stage2 · 操作」，點「刷新进度与结果」讀取最新專案版本。",recoveryCheckStep:"再點「檢查未確認提交」，核對原 key {key} 的收據。核驗前保存結果仍未確認；不會重送，也不會開始規劃。"});
+  Object.assign(words["zh-CN"],{recoveryRefreshStep:"如页面显示“先前 Wiki 材料与本地草稿”且处于折叠状态，先展开；再打开“Stage2 · 操作”，点击“刷新进度与结果”读取最新项目版本。",recoveryCheckStep:"再点击“检查未确认提交”，核对原 key {key} 的回执。核验前保存结果仍未确认；不会重发，也不会开始规划。"});
   const comparisonWords = {
     "en": {
       "projectDetails": "Project and input version",

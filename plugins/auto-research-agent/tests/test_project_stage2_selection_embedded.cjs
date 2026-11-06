@@ -93,10 +93,11 @@ function parentRecoveryControls(f,options={}) {
   v93ChoiceIdentity:()=>state.overview.project,v93Matches:(a,b)=>['project_ref','input_version','revision','brief_sha256'].every(k=>a[k]===b[k]),v93Choices:new Map(),v93ActiveChoice:null};
  vm.runInNewContext(part(runtime,'async function liveRefresh(', 'async function liveReceiptBound(')+part(runtime,'function liveControls(', 'function liveEmpty(')+part(runtime,"document.addEventListener('click',async e=>{",'// Load only on this local server.')+part(bridge,'function v93RecoveryControl(', 'function v93MountChoice('),context);
  const html=context.liveControls(app),label=html.match(/<button[^>]*data-live-action="refresh"[^>]*>([^<]+)<\/button>/)[1];
+ const outerLabels=bridge.match(/<summary>\$\{rl\('([^']+)','([^']+)','([^']+)'\)\}<\/summary>/);assert.ok(outerLabels);
  const refresh=new Element('button');refresh.textContent=label;refresh.dataset.liveAction='refresh';refresh.hasAttribute=name=>name==='data-live-action';refresh.closest=selector=>selector.includes('data-live-action')?refresh:null;
  refresh.onclick=()=>listeners.click({target:refresh,preventDefault(){},stopImmediatePropagation(){}});
  function pendingControl(){if(!state.overview?.project)return null;const target=new Element();context.v93RecoveryControl(target,{instance:f.handle},state.overview.project,app);return {target,button:descendants(target).find(n=>n.tagName==='BUTTON')};}
- return {refresh,pendingControl,reads,state};
+ return {refresh,pendingControl,reads,state,outerLabel:context.rl(...outerLabels.slice(1))};
 }
 async function loseSavedPreference(options={}) {
  const f=harness({intentReady:true,loseIntentResponse:true,...options});await tick();
@@ -115,6 +116,9 @@ test('lost saved response replaces the embedded retry with named parent recovery
    f.handle.setLanguage(language);const feedback=f.els.get('status').after,retry=feedback.children.find(n=>n.id==='selection-read-again'),steps=feedback.children.find(n=>n.id==='selection-recovery-steps');
    assert.equal(retry.hidden,true);assert.equal(retry.disabled,true);assert.ok(steps && !steps.hidden);assert.equal(steps.tagName,'OL');assert.equal(steps.children.length,2);
    const parent=parentRecoveryControls(f);assert.ok(steps.textContent.includes(parent.refresh.textContent));assert.ok(steps.textContent.includes(parent.pendingControl().button.textContent.split(' · ')[0]));assert.ok(steps.textContent.includes(marker.key));
+   const first=steps.children[0].textContent;assert.ok(first.includes(parent.outerLabel),'refresh steps must name the actual outer disclosure: '+language);
+   assert.ok(first.indexOf(parent.outerLabel)<first.indexOf('Stage2 · '));
+   assert.match(first,{en:/If the page shows .* and it is collapsed/,'zh-TW':/若頁面顯示.*且處於折疊狀態/,'zh-CN':/如页面显示.*且处于折叠状态/}[language]);
    await retry.onclick();
   }
   assert.equal(f.reads.length,reads);assert.equal(f.writes.length,writes);assert.equal(f.uuids(),keys);assert.deepEqual([...f.store.values.entries()],raw);assert.equal(f.handle.state().recovery.status,'unknown');
