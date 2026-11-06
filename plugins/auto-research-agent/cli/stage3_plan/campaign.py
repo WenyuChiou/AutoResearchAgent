@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .campaign_views import assessor_view
 from .contracts import Stage3Error, canonical_bytes, digest
-from .evaluation import inspect_evaluation_request
+from .evaluation import FEEDBACK_PROTOCOL, inspect_evaluation_request
 from .preparation import closed, file_binding, sha256, text
 from .storage import MAX_ARTIFACT_BYTES, private_output, read_bytes, write_new
 
@@ -134,6 +134,7 @@ def build_campaign(definition, *, definition_sha256):
     if planned > definition["limits"]["max_units"]:
         raise Stage3Error("planned work exceeds configured work-unit bound")
     seen, splits, units, schedule, views = set(), {}, [], [], {}
+    feedback_profiles = set()
     for case in cases:
         closed(
             case,
@@ -225,6 +226,11 @@ def build_campaign(definition, *, definition_sha256):
                     ]:
                         raise Stage3Error(
                             "subject does not match declared source/selection/SQ"
+                        )
+                    feedback_profiles.add(FEEDBACK_PROTOCOL in request["assessor_view"])
+                    if len(feedback_profiles) > 1:
+                        raise Stage3Error(
+                            "campaign subjects use different feedback protocols"
                         )
                     view, aliases = assessor_view(request, subject_id)
                     view["request_sha256"] = row["request"]["sha256"]

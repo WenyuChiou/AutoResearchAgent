@@ -3,6 +3,7 @@
 from pathlib import PurePosixPath, PureWindowsPath
 
 from .contracts import Stage3Error, digest
+from .evaluation import FEEDBACK_PROTOCOL
 from .evaluation_text import REQUEST_KIND as TEXT_REQUEST_KIND
 
 
@@ -12,6 +13,8 @@ def assessor_view(request, subject_id):
         raise Stage3Error(
             "native text subjects use prepare/inspect/record; campaign masking is not enabled"
         )
+    assessor = request["assessor_view"]
+    subject = {key: assessor[key] for key in ("plan", "intake")}
     aliases = {}
 
     def collect(value, identifier=False):
@@ -24,8 +27,8 @@ def assessor_view(request, subject_id):
         elif identifier and isinstance(value, str):
             aliases.setdefault(value, "ref-" + digest(value)[:24])
 
-    collect(request["assessor_view"])
-    aliases[request["assessor_view"]["plan"]["plan_id"]] = subject_id
+    collect(subject)
+    aliases[subject["plan"]["plan_id"]] = subject_id
 
     def project(value):
         if isinstance(value, dict):
@@ -41,16 +44,19 @@ def assessor_view(request, subject_id):
             return aliases.get(value, value)
         return value
 
-    return {
+    view = {
         "kind": "Stage3CampaignAssessorView",
         "subject_id": subject_id,
         "request_sha256": None,
-        **project(request["assessor_view"]),
+        **project(subject),
         "catalog": request["catalog"]["selected_criteria"],
         "guidance_version": request["guidance"]["version"],
         "identity_and_isolation": "unverified",
         "blinding_limit": "Identifier/path masking does not prove absence of content clues.",
-    }, aliases
+    }
+    if FEEDBACK_PROTOCOL in assessor:
+        view[FEEDBACK_PROTOCOL] = assessor[FEEDBACK_PROTOCOL]
+    return view, aliases
 
 
 def restore_judgment(value, aliases):

@@ -111,15 +111,55 @@ def _source_snapshot(package, expected_manifest_sha256):
     return saved, plan, intake, request, question_refs
 
 
+FEEDBACK_PROTOCOL = "feedback_protocol"
+_FEEDBACK_VERSION = "stage3-actionable-feedback-v1"
+
+
+def _assessor_view(plan, intake, actionable_feedback):
+    view = {"plan": plan, "intake": intake}
+    if actionable_feedback:
+        view[FEEDBACK_PROTOCOL] = {
+            "version": _FEEDBACK_VERSION,
+            "criterion_id": CRITERIA["P9"],
+            "question_assessment_field": "revision_feedback",
+            "instructions": (
+                "For each question, report the first step supported by the supplied "
+                "inputs and its useful deliverable, and identify any dependency that "
+                "prevents a later step or the full plan. In revision_feedback, "
+                "startable is null or an object with first_step, input_basis and "
+                "deliverable. Set blocked to null or an object with dependency, "
+                "needed_evidence and fallback. Supply at least one entry. An "
+                "unverifiable P9 uses blocked on the affected questions to identify "
+                "the missing evidence. "
+                "Use the assessment's plan_locations "
+                "to support the feedback. Use null for startable when no step is "
+                "supported. A fallback must state a useful narrower output or an "
+                "explicit stop. Mark missing evidence rather than assuming access, "
+                "permission or available collaborators. Judge the concrete path "
+                "once even if it is described repeatedly. Adapt to the research "
+                "method. Feedback does not set the score or authorize execution."
+            ),
+        }
+    return view
+
+
 def _request_value(
-    source, bindings, plan, intake, *, kind, catalog_path, guidance_path
+    source,
+    bindings,
+    plan,
+    intake,
+    *,
+    kind,
+    catalog_path,
+    guidance_path,
+    actionable_feedback=False,
 ):
     return {
         "kind": kind,
         "schema_version": EVALUATION_SCHEMA_VERSION,
         "source": source,
         "bindings": bindings,
-        "assessor_view": {"plan": plan, "intake": intake},
+        "assessor_view": _assessor_view(plan, intake, actionable_feedback),
         "catalog": _catalog_binding(catalog_path),
         "guidance": _guidance_binding(guidance_path),
         "semantic_rubric": {
@@ -139,7 +179,9 @@ def _request_value(
     }
 
 
-def _text_request_value(source, catalog_path, guidance_path):
+def _text_request_value(
+    source, catalog_path, guidance_path, *, actionable_feedback=False
+):
     normalized, bindings, subject, intake = text_request_parts(source)
     return _request_value(
         normalized,
@@ -149,6 +191,7 @@ def _text_request_value(source, catalog_path, guidance_path):
         kind=TEXT_REQUEST_KIND,
         catalog_path=catalog_path,
         guidance_path=guidance_path,
+        actionable_feedback=actionable_feedback,
     )
 
 
@@ -162,6 +205,7 @@ def prepare_evaluation(
     native_text=None,
     expected_native_text_sha256=None,
     delivery=None,
+    actionable_feedback=False,
 ):
     """Save one immutable assessor request derived from a verified plan package."""
     target = private_output(output)
@@ -169,6 +213,8 @@ def prepare_evaluation(
         raise Stage3Error(
             "evaluation request output exists; inspect it, do not overwrite"
         )
+    if type(actionable_feedback) is not bool:
+        raise Stage3Error("actionable feedback selection must be boolean")
     native_args = (native_text, expected_native_text_sha256, delivery)
     if any(value is not None for value in native_args):
         if any(value is None for value in native_args):
@@ -185,6 +231,7 @@ def prepare_evaluation(
             },
             catalog_path,
             guidance_path,
+            actionable_feedback=actionable_feedback,
         )
         write_new(target, value)
         return value
@@ -215,6 +262,7 @@ def prepare_evaluation(
         kind="Stage3EvaluationRequest",
         catalog_path=catalog_path,
         guidance_path=guidance_path,
+        actionable_feedback=actionable_feedback,
     )
     # Reuse the inspected value so preparation cannot claim an unverified manifest.
     if saved["manifest"]["manifest_sha256"] != expected_manifest_sha256:
@@ -240,6 +288,10 @@ def _validate_request(value):
         },
         "evaluation request",
     )
+    view = value["assessor_view"]
+    if not isinstance(view, dict):
+        raise Stage3Error("invalid evaluation assessor view")
+    actionable_feedback = FEEDBACK_PROTOCOL in view
     if value["kind"] == TEXT_REQUEST_KIND:
         if value["schema_version"] != EVALUATION_SCHEMA_VERSION:
             raise Stage3Error("unsupported native text evaluation request version")
@@ -250,7 +302,10 @@ def _validate_request(value):
             closed(value[name], fields, "native text " + name)
             text(value[name]["path"], "native text " + name + " path")
         expected = _text_request_value(
-            value["source"], value["catalog"]["path"], value["guidance"]["path"]
+            value["source"],
+            value["catalog"]["path"],
+            value["guidance"]["path"],
+            actionable_feedback=actionable_feedback,
         )
         if digest(value) != digest(expected):
             raise Stage3Error("native text evaluation request binding mismatch")
@@ -324,7 +379,7 @@ def _validate_request(value):
     if (
         source != expected_source
         or digest(value["bindings"]) != digest(expected_bindings)
-        or digest(value["assessor_view"]) != digest({"plan": plan, "intake": intake})
+        or digest(view) != digest(_assessor_view(plan, intake, actionable_feedback))
         or value["catalog"] != _catalog_binding(value["catalog"].get("path"))
         or value["guidance"] != _guidance_binding(value["guidance"].get("path"))
         or digest(value["semantic_rubric"])
@@ -363,7 +418,27 @@ def _pointer_exists(plan, pointer):
     return True
 
 
-def _validate_judgment(judgment, request_sha256, plan, question_refs):
+def _validate_revision_feedback(value):
+    closed(value, {"startable", "blocked"}, "revision feedback")
+    startable = value["startable"]
+    blocked = value["blocked"]
+    if startable is None and blocked is None:
+        raise Stage3Error(
+            "revision feedback requires a supported step or explicit dependency"
+        )
+    for name, entry, fields in (
+        ("startable", startable, ("first_step", "input_basis", "deliverable")),
+        ("blocked", blocked, ("dependency", "needed_evidence", "fallback")),
+    ):
+        if entry is not None:
+            closed(entry, set(fields), "revision feedback " + name)
+            for field in fields:
+                text(entry[field], "revision feedback " + field)
+
+
+def _validate_judgment(
+    judgment, request_sha256, plan, question_refs, *, actionable_feedback=False
+):
     closed(
         judgment,
         {"kind", "schema_version", "request_sha256", "reviewer", "criteria"},
@@ -432,18 +507,18 @@ def _validate_judgment(judgment, request_sha256, plan, question_refs):
                 question_refs
             ):
                 raise Stage3Error("every selected question requires one assessment")
+            assessment_fields = {
+                "question_ref",
+                "applicability_basis",
+                "rationale",
+                "plan_locations",
+            }
+            require_feedback = actionable_feedback and criterion_id == CRITERIA["P9"]
+            if require_feedback:
+                assessment_fields.add("revision_feedback")
             seen = set()
             for item in assessments:
-                closed(
-                    item,
-                    {
-                        "question_ref",
-                        "applicability_basis",
-                        "rationale",
-                        "plan_locations",
-                    },
-                    "question assessment",
-                )
+                closed(item, assessment_fields, "question assessment")
                 question_ref = item["question_ref"]
                 if question_ref not in question_refs or question_ref in seen:
                     raise Stage3Error("question assessment is duplicate or unknown")
@@ -466,6 +541,19 @@ def _validate_judgment(judgment, request_sha256, plan, question_refs):
                     raise Stage3Error(
                         "question assessment plan location does not exist"
                     )
+                if require_feedback:
+                    _validate_revision_feedback(item["revision_feedback"])
+            if (
+                require_feedback
+                and status == "unverifiable"
+                and not any(
+                    item["revision_feedback"]["blocked"] is not None
+                    for item in assessments
+                )
+            ):
+                raise Stage3Error(
+                    "unverifiable P9 feedback requires a missing-evidence dependency"
+                )
             if seen != set(question_refs):
                 raise Stage3Error("criterion does not cover every selected question")
         else:
@@ -525,7 +613,11 @@ def record_evaluation(
     try:
         judgment_value = decode_json(judgment_raw, label=judgment)
         indexed = _validate_judgment(
-            judgment_value, expected_request_sha256, plan, question_refs
+            judgment_value,
+            expected_request_sha256,
+            plan,
+            question_refs,
+            actionable_feedback=FEEDBACK_PROTOCOL in request_value["assessor_view"],
         )
         # Reject unencodable text while the unchanged raw judgment can be retained.
         canonical_bytes(judgment_value)
@@ -610,6 +702,7 @@ def inspect_evaluation_record(record, *, expected_sha256, request, judgment):
             request["sha256"],
             request_value["assessor_view"]["plan"],
             request_value["bindings"]["question_refs"],
+            actionable_feedback=FEEDBACK_PROTOCOL in request_value["assessor_view"],
         )
         canonical_bytes(parsed)
     except (Stage3Error, OSError, ValueError) as error:

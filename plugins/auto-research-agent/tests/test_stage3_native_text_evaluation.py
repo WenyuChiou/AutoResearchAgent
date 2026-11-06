@@ -131,6 +131,43 @@ class NativeTextEvaluationTests(unittest.TestCase):
         )
         return path, target, record
 
+    def test_actionable_feedback_preserves_unknown_and_native_text_locations(self):
+        request = self.prepare(actionable_feedback=True)
+        self.assertIn("feedback_protocol", request["assessor_view"])
+        judgment = self.judgment()
+        assessments = judgment["criteria"][-1]["question_assessments"]
+        for row in assessments:
+            row["revision_feedback"] = {
+                "startable": None,
+                "blocked": {
+                    "dependency": "The native draft leaves the procedure open.",
+                    "needed_evidence": "A documented procedure tied to the question.",
+                    "fallback": "Retain the unresolved procedure and stop at design review.",
+                },
+            }
+        startable_only = {
+            "startable": {
+                "first_step": "Extract the stated outline for the second question.",
+                "input_basis": "The bound draft is available for inspection.",
+                "deliverable": "An inventory of steps stated in the draft.",
+            },
+            "blocked": None,
+        }
+        assessments[1]["revision_feedback"] = startable_only
+        path, _, record = self.record(judgment)
+        self.assertEqual(record["score_vector"]["P9"]["status"], "unverifiable")
+        self.assertIsNone(record["score_vector"]["P9"]["score"])
+        self.assertEqual(record["criteria"], judgment["criteria"])
+        self.assertEqual(record["raw_judgment_text"].encode(), path.read_bytes())
+
+        assessments[0]["revision_feedback"] = startable_only
+        with self.assertRaisesRegex(
+            Stage3Error, "requires a missing-evidence dependency"
+        ):
+            self.record(
+                judgment, name="missing-blocker.json", output="failed-record.json"
+            )
+
     def test_prepare_and_inspect_preserve_bytes_and_do_not_fill_design(self):
         request = self.prepare()
         subject = request["assessor_view"]["plan"]
