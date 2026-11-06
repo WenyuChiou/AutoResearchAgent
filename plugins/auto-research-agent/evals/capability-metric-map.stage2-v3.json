@@ -245,7 +245,8 @@
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_new_resolution_binds_v1_1_prompt_and_rejects_version_tampering",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_cannot_be_relabelled_as_new_contract",
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py",
-        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py",
+        "plugins/auto-research-agent/tests/test_stage2_windows_named_policy.py"
       ],
       "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
       "research_followup_test_refs": [
@@ -484,7 +485,8 @@
       "direction_readiness_contract": "Initial review view1.3 binds direction-readiness-1.0 to native initial review, tool-free extraction and reconciliation; rich controller inputs use it before current selection. Direction-stage evidence supports choosing a credible route; detailed staffing/sample/calls/GPU/cost/schedule tasks remain Stage3 planning. Necessary access/grain/answering-route/hard-limit blockers, all-applicable assessed=2, independent review, human choice and execution=false remain. Legacy1.0/1.1/1.2 views keep exact prior contracts; mixed or rehashed policy bindings reject. No automatic scientific promotion, old-score rewrite or A/B rerun.",
       "direction_readiness_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
-      ]
+      ],
+      "mechanism": "Native Windows named permissions use the exact symbolic :root spelling and typed special/root runtime path. Windows rejects the POSIX slash spelling before dispatch; legacy POSIX slash reads remain supported. Root aliases never admit unknown special paths, duplicate roots, weaker deny rules or additional writes, and raw config/runtime receipts and no-execution replay remain bound."
     },
     {
       "capability_id": "cli:stage2-workflow",
