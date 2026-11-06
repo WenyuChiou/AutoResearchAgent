@@ -188,7 +188,10 @@ def replay_unit(
         raise Stage2Error("replay-unit-value-mismatch")
     _verify_provenance(saved["provenance"], replayed_provenance)
     return {
-        "value": copy.deepcopy(saved["value"]),
+        # `value` is the archive-verified native output (or its single verified
+        # correction); `saved["value"]` is canonical-sorted JSON that only has to
+        # compare equal. Legacy no-context prompts depend on native key order.
+        "value": copy.deepcopy(value),
         "provenance": copy.deepcopy(saved["provenance"]),
         "actual_call_count": sum(
             p["attempt"] for p in (initial, correction) if p is not None
