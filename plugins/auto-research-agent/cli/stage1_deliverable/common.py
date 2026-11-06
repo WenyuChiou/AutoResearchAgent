@@ -63,10 +63,10 @@ def safe_path(root, name):
             raise DeliverableError("unsafe Windows artifact component")
     reject_links(root)
     root = Path(root).resolve()
-    path = root
-    for part in parts.parts:
-        path = path / part
-        reject_links(path)
+    path = root.joinpath(*parts.parts)
+    # This walk checks the leaf and every ancestor, including all intermediate
+    # components. Keep it fresh on every call rather than repeating each prefix.
+    reject_links(path)
     if not path.resolve().is_relative_to(root):
         raise DeliverableError("artifact escaped root")
     return path
