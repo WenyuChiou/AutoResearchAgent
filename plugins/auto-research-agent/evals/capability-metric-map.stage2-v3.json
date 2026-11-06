@@ -285,7 +285,7 @@
       "native_trace_observation_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_observation.py"
       ],
-      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. This primitive has no execution or formal admission authority.",
+      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. Windows anchors request traversal and attributes without requiring ancestor listing, retaining no-delete sharing and reparse/kind rejection; actual inventory enumeration and file access still require their own permissions. This primitive has no execution or formal admission authority.",
       "native_seal_io_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_seal_io.py"
       ],
