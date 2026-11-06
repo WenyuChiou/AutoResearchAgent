@@ -30,6 +30,7 @@ from stage2_workflow.delivery import inspect_delivery
 from stage2_workflow.orchestration import prepare_review_batch, reconcile_batch
 from stage2_workflow.reviews import REVIEW_VIEW_VERSION_CURRENT
 from stage2_workflow.store import (
+    _workflow_bytes,
     add_snapshot,
     finish_action,
     inspect_workflow,
@@ -632,10 +633,18 @@ def _artifact_value(state, result):
     row = result["artifacts"].get("summary.json")
     if row is None:
         raise Stage2Error("controller-action-summary-missing")
-    path = state["root"] / row["stored_path"]
-    if _file_sha(path) != row["sha256"]:
+    if (
+        hashlib.sha256(
+            _workflow_bytes(state["root"], row["stored_path"], "controller-artifact")
+        ).hexdigest()
+        != row["sha256"]
+    ):
         raise Stage2Error("controller-action-summary-hash-mismatch")
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(
+        _workflow_bytes(
+            state["root"], row["stored_path"], "controller-artifact"
+        ).decode("utf-8")
+    )
 
 
 def _require_saved_ideation_unit(

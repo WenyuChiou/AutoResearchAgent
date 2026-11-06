@@ -9,7 +9,7 @@ from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, canonical_hash
 
 from .delivery import inspect_delivery
-from .store import finish_action, inspect_workflow, start_action
+from .store import _workflow_bytes, finish_action, inspect_workflow, start_action
 
 KINDS = {"select", "compare", "clarify", "revise", "merge", "reopen"}
 SETTINGS = {"contract": "stage2-human-interaction", "version": "1.0.0"}
@@ -287,7 +287,8 @@ def record_interaction(
         )
         ref = reused["result"]["artifacts"]["interaction.json"]
         saved = decode_json(
-            (state["root"] / ref["stored_path"]).read_bytes(), "saved interaction"
+            _workflow_bytes(state["root"], ref["stored_path"], "interaction"),
+            "saved interaction",
         )
         return {"reuse": True, "record": saved, "head_sha256": state["head_sha256"]}
     record = _record(state, delivery, decision, raw, message_index, input_origin=origin)

@@ -153,6 +153,11 @@
     },
     {
       "capability_id": "cli:stage2-live",
+      "workflow_object_read_contract": "Controller summary verification uses the store owner's guarded root-plus-relative byte boundary for both the hash read and subsequent UTF-8/JSON read, in their original order. Ordinary logical paths, hash/JSON checks, strict current producer pins and durable no-redispatch behavior remain. This supports the fixed legal workflow layout only; controller/source/delivery/Stage3 root contracts, permissions, budgets and scientific readiness are unchanged.",
+      "workflow_object_read_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_windows_workflow_consumers.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
       "content_revision_native_config_contract": "Read-only content-revision authentication reconstructs the current model-call config with the shared builder, retaining namespace, dispatcher and effective cwd before exact archive fingerprint comparison. The original request runtime pin must match current executable/runtime bytes; missing pins, namespace drift and downgrade reject. Legacy absent-namespace config keeps its original shape. No model dispatch, archived-code execution, receipt/source/journal rewrite, scientific approval or execution authority is added.",
       "content_revision_native_config_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_content_revision.py"
@@ -280,7 +285,7 @@
       "native_trace_observation_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_observation.py"
       ],
-      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. This primitive has no execution or formal admission authority.",
+      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. Windows anchors request traversal and attributes without requiring ancestor listing, retaining no-delete sharing and reparse/kind rejection; actual inventory enumeration and file access still require their own permissions. This primitive has no execution or formal admission authority.",
       "native_seal_io_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_seal_io.py"
       ],
@@ -490,6 +495,12 @@
     },
     {
       "capability_id": "cli:stage2-workflow",
+      "windows_atomic_publication_contract": "The guarded workflow I/O lifecycle represents checked Windows paths only for atomic publication, readback, directory creation/removal, enumeration, resolution and real status observation. Root-plus-relative bytes and logical inventory interfaces also serve controller summary reads, explicit interaction replay and the registered-history dependency whitelist without persisting extended paths. Original lexical/root/source/hash/link predicates remain strict; non-missing read/stat/enumeration errors propagate. Ordinary public relative Path inputs retain cwd-relative behavior without normalizing traversal or unsafe UNC/device/ADS/alias inputs into acceptance. Temporary creation remains xb, flush/fsync precede same-directory exclusive hard-link publication, existing targets are never replaced, and cleanup removes only a temporary file created by the current call. Non-Windows I/O semantics, producer binding and incomplete-state replay guards remain unchanged. This fixed-layout engineering compatibility grants no execution authority or scientific improvement.",
+      "windows_atomic_publication_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_windows_atomic_io.py",
+        "plugins/auto-research-agent/tests/test_stage2_windows_workflow_consumers.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
       "decision_card_material_mapping_contract": "Pure current-version decision-card JSON preserves scientific questions, closest precedent, proposed difference, methods, requirements and exact resource rows. Per-question mappings and unmapped resources remain distinct; mapped does not attest adequacy or availability. Missing legacy scientific arguments, unknowns, limitations, alternatives and next checks remain visible without mutating selection bytes, granting selection or Stage3 execution, rerunning models, or claiming scientific improvement.",
       "decision_card_material_mapping_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_decision_cards.py"
@@ -589,6 +600,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_workflow_store.py",
+        "plugins/auto-research-agent/tests/test_stage2_windows_atomic_io.py",
         "plugins/auto-research-agent/tests/test_stage1_stage2_handoff.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_reviews.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_cli.py",
