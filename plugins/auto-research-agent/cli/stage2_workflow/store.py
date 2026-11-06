@@ -26,6 +26,7 @@ VERSION = "1.0.0"
 ZERO_HASH = "0" * 64
 TERMINAL_STATUSES = {"complete", "failed", "unavailable", "empty", "interrupted"}
 EVENT_TYPES = {"snapshot_added", "action_started", "action_finished"}
+_IS_WINDOWS = os.name == "nt"
 
 
 def _now():
@@ -50,27 +51,65 @@ def _read_json(path):
     return decode_json(data, str(path))
 
 
+def _io_path(path):
+    """Represent a checked local Windows absolute path at the final I/O edge.
+
+    Caller root/source/link guards still apply to the original path. Do not
+    resolve or normalize UNC, device, relative, traversal or aliasing inputs
+    into admissible paths. Non-Windows I/O keeps its original path object.
+    """
+
+    if not _IS_WINDOWS:
+        return path
+    value = os.fspath(path)
+    if (
+        not isinstance(value, str)
+        or len(value) < 4
+        or value[0] not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        or value[1:3] != ":\\"
+    ):
+        raise Stage2Error("workflow-unsafe-windows-io-path")
+    reserved = {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    reserved.update(
+        prefix + digit for prefix in ("COM", "LPT") for digit in "123456789¹²³"
+    )
+    for part in value[3:].split("\\"):
+        if (
+            not part
+            or part in {".", ".."}
+            or part.endswith((".", " "))
+            or any(ord(char) < 32 or char in '/:<>"|?*' for char in part)
+            or part.split(".", 1)[0].upper() in reserved
+        ):
+            raise Stage2Error("workflow-unsafe-windows-io-path")
+    return "\\\\?\\" + value
+
+
 def _write_new(path, value):
     """Atomically publish a new file without replacing an existing path."""
 
     data = value if isinstance(value, bytes) else _canonical_bytes(value)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary_io, destination_io = _io_path(temporary), _io_path(path)
+    created = False
     try:
-        with temporary.open("xb") as stream:
+        with open(temporary_io, "xb") as stream:
+            created = True
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
         try:
-            os.link(temporary, path)
+            os.link(temporary_io, destination_io)
         except FileExistsError as error:
             raise Stage2Error(f"workflow-exclusive-write-conflict: {path}") from error
         except OSError as error:
             raise Stage2Error(f"workflow-write-failed: {path}: {error}") from error
     finally:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
+        if created:
+            try:
+                os.unlink(temporary_io)
+            except FileNotFoundError:
+                pass
 
 
 def _safe_relative(value, label):
