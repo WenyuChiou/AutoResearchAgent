@@ -95,6 +95,7 @@ def named_policy_args(binding, config_bytes, output_dir):
             "model",
             "model_reasoning_effort",
             "web_search",
+            "cli_auth_credentials_store",
             "approval_policy",
             "default_permissions",
             "features",
@@ -104,6 +105,13 @@ def named_policy_args(binding, config_bytes, output_dir):
         },
         "named policy contains unsupported configuration",
     )
+    if "cli_auth_credentials_store" in config:
+        store = config["cli_auth_credentials_store"]
+        _require(
+            isinstance(store, str)
+            and store in {"file", "keyring", "auto", "ephemeral"},
+            "named policy credential store is invalid",
+        )
     _require(
         config.get("default_permissions") == name
         and config.get("approval_policy") == "never"
