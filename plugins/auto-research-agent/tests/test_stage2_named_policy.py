@@ -36,7 +36,7 @@ def _config(workspace, home, telemetry, output, **changes):
     values.update(changes)
     omit = set(values.get("omit", ()))
     filesystem = [
-        ("root", "/", "read"),
+        ("root", ":root", "read"),
         ("workspace", str(workspace.resolve()), "write"),
         ("home", str(home.resolve()), "deny"),
         ("telemetry", str(telemetry.resolve()), "deny"),
@@ -219,6 +219,111 @@ class NamedPolicyTests(unittest.TestCase):
         for label, changes in cases.items():
             with self.subTest(label=label):
                 self._reject(label, **changes)
+
+    def test_credential_store_modes_preserve_config_binding_and_completed_resume(self):
+        for store in ("file", "keyring", "auto", "ephemeral"):
+            with self.subTest(store=store):
+                output = self.root / store
+                raw = f'cli_auth_credentials_store = "{store}"\n'.encode() + _config(
+                    self.workspace, self.home, self.telemetry, output
+                )
+                (self.home / "config.toml").write_bytes(raw)
+                policy = _policy(raw, self.telemetry)
+                captured = native.capture_native(
+                    **self._args(output, policy), process_runner=self._runner
+                )
+                self.assertEqual(
+                    (output / "archive/profile-config.toml").read_bytes(), raw
+                )
+                self.assertEqual(
+                    captured["stable_request_binding"]["codex_profile_config"][
+                        "sha256"
+                    ],
+                    policy["config_sha256"],
+                )
+                replay = native.capture_native(
+                    **self._args(output, policy),
+                    resume=True,
+                    record_sha256_receipt=captured["record_sha256_receipt"],
+                    process_runner=lambda *a, **k: self.fail("resume re-executed"),
+                )
+                self.assertEqual(
+                    replay["resume_action"], "verified-replay-no-execution"
+                )
+                # Even another valid store changes the frozen config bytes.
+                changed = "auto" if store == "keyring" else "keyring"
+                (self.home / "config.toml").write_bytes(
+                    raw.replace(
+                        f'cli_auth_credentials_store = "{store}"'.encode(),
+                        f'cli_auth_credentials_store = "{changed}"'.encode(),
+                    )
+                )
+                with self.assertRaisesRegex(native.CaptureError, "config bytes differ"):
+                    native.capture_native(
+                        **self._args(output, policy), process_runner=self._runner
+                    )
+        self.assertEqual(len(self.calls), 4)
+
+    def test_invalid_credential_stores_fail_before_dispatch(self):
+        values = (
+            b'""',
+            b'"KEYRING"',
+            b'"keychain"',
+            b'"keyring "',
+            b"true",
+            b"1",
+            b"1.0",
+            b"[]",
+            b'["keyring"]',
+            b'{backend = "keyring"}',
+        )
+        for index, value in enumerate(values):
+            with self.subTest(value=value):
+                output = self.root / f"invalid-store-{index}"
+                raw = (
+                    b"cli_auth_credentials_store = "
+                    + value
+                    + b"\n"
+                    + _config(self.workspace, self.home, self.telemetry, output)
+                )
+                (self.home / "config.toml").write_bytes(raw)
+                with self.assertRaisesRegex(
+                    native.CaptureError, "credential store is invalid"
+                ):
+                    native.capture_native(
+                        **self._args(output, _policy(raw, self.telemetry)),
+                        process_runner=self._runner,
+                    )
+                self.assertFalse(output.exists())
+        self.assertEqual(self.calls, [])
+
+    def test_keyring_does_not_admit_unknown_config_or_relaxed_home_permissions(self):
+        output = self.root / "keyring-guardrails"
+        prefix = b'cli_auth_credentials_store = "keyring"\n'
+        for raw, message in (
+            (
+                prefix
+                + b'unknown_option = "value"\n'
+                + _config(self.workspace, self.home, self.telemetry, output),
+                "unsupported configuration",
+            ),
+            (
+                prefix
+                + _config(
+                    self.workspace, self.home, self.telemetry, output, omit={"home"}
+                ),
+                "restrictions differ",
+            ),
+        ):
+            with self.subTest(message=message):
+                (self.home / "config.toml").write_bytes(raw)
+                with self.assertRaisesRegex(native.CaptureError, message):
+                    native.capture_native(
+                        **self._args(output, _policy(raw, self.telemetry)),
+                        process_runner=self._runner,
+                    )
+                self.assertFalse(output.exists())
+        self.assertEqual(self.calls, [])
 
     def test_overlapping_directories_and_missing_named_config_fail_preprocess(self):
         output = self.root / "overlap"

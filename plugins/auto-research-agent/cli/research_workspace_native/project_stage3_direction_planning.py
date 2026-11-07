@@ -10,6 +10,7 @@ from stage3_plan.native import NativePlanner
 from stage3_plan.storage import inspect_package, read_json, safe_path, write_new
 
 from .project_intake_contract import _fields
+from .project_selection_read_context import verified_selection_read
 from .project_stage2_selection import ProjectStage2SelectionService
 from .session_api import _check
 
@@ -68,6 +69,13 @@ class ProjectStage3DirectionPlanning:
             }
 
     def _current(self, credential, ref, body=None, check_deadline=None):
+        # Reuse only this locked, read-only admission snapshot. The scope ends
+        # before prepare/run writes or callback dispatch; every later admission
+        # (including the post-callback publication check) verifies afresh.
+        with self.intake._lock, verified_selection_read(self.intake):
+            return self._read_current(credential, ref, body, check_deadline)
+
+    def _read_current(self, credential, ref, body, check_deadline):
         project, _, _, _, _ = self.planning._current(
             credential, ref, check_deadline=check_deadline
         )

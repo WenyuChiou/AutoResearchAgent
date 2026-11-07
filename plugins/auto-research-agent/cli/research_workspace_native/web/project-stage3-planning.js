@@ -8,6 +8,13 @@
     "zh-CN":{back:"返回项目",language:"语言",title:"Stage 3 · 研究规划",intro:"把选定方向转成研究计划，保留选案条件与未知事项。",project:"项目",selection:"查看选定方向",refresh:"读取保存状态",next:"继续规划",boundary:"准备输入不调用模型。开始规划会依原配置调用规划器一次，尚未授权执行实验。",prepare:"1. 准备规划输入",confirm:"我要针对这次保存的选案开始规划。",run:"2. 开始规划",inspect:"检查保存结果",recover:"恢复已验证保存结果",plan:"研究计划",fullPlan:"完整计划、条件与未解问题",receipt:"版本与规划回执",pending:"请先在 Stage 2 选择当前可选方向。",unconnected:"此项目尚未配置规划器；原选案仍已保存。",ready:"选案已保存。可准备规划输入。",prepared:"输入已准备，确认后才开始规划；尚未调用模型。",accepted:"已收到提交。请用「读取保存状态」查看实际规划进度。",dispatching:"规划进行中，原选案保持不变。",saved:"已取得经验证的计划草稿，请查看条件与未解问题。",failed:"规划未产生可接受计划。请查看原失败，不会自动重试。",unknown:"当前无法确认结果；请先检查保留证据。",loading:"正在读取当前项目与保存的规划状态…",error:"无法验证这次操作",choose:"选择项目"}
   };
   const labels=[
+    ["progressPreparing","Preparing the saved planning input…","正在準備已保存的規劃輸入…","正在准备已保存的规划输入…"],
+    ["progressReadback","Reading the saved outcome…","正在讀回保存結果…","正在读回保存结果…"],
+    ["lastVerified","Last verified read","最後可信讀取","最后可信读取"],
+    ["inputVersionLabel","Input version","輸入版本","输入版本"],
+    ["revisionLabel","Revision","修訂","修订"],
+    ["retryRead","Read saved state again","重新讀取保存狀態","重新读取保存状态"],
+    ["sentOnce","This request was already sent. Read its saved state; do not submit it again.","此要求已送出。請讀取保存狀態，不要再次提交。","此请求已发送。请读取保存状态，不要再次提交。"],
     ["evidenceState","Saved records and verification limits","保存紀錄與待驗證範圍","保存记录与待验证范围"],
     ["evidenceDetails","Version and authority details","版本與權限明細","版本与权限明细"],
     ["plan_id","Plan identifier","計畫識別","计划标识"],
@@ -172,11 +179,15 @@
   );
   for(const [key,en,tw,cn] of labels){words.en[key]=en;words["zh-TW"][key]=tw;words["zh-CN"][key]=cn;}
   let view=null,serial=0,busy=false,notice=null,reading=false,readFailed=false,activeAction=null;
+  let viewProject=null,readingProject=null,readAt=null,phase=null,acceptedRequest=null;
+  const submittedRuns=new Set();
   const w=()=>words[el("language").value] || words.en;
   const directionCopy={intro:"directionIntro",selection:"directionSelection",confirm:"directionConfirm",ready:"directionReady",prepared:"directionPrepared",saved:"directionSaved",dispatching:"directionDispatching",unconnected:"directionUnconnected"};
   const copyKey=key=>view?.planning_mode==="direction-intent" && Object.hasOwn(directionCopy,key)?directionCopy[key]:key;
   const ref=()=>el("project").value;
   const current=(project,sequence)=>ref()===project && serial===sequence;
+  const requestIdentity=(project,request)=>JSON.stringify([project,request?.key,request?.request_sha256]);
+  const remember=(data,project)=>{view=data;viewProject=project;readAt=new Date().toISOString();};
   const node=(parent,tag,text)=>{const n=document.createElement(tag);n.textContent=String(text ?? "Unknown");parent.append(n);return n;};
   const rows=value=>Array.isArray(value)?value:[];
   const missing=(parent,id)=>{const p=node(parent,"p",w().missingRef+": "+String(id ?? w().unknownValue));p.className="sq-missing";};
@@ -312,7 +323,7 @@
     if(needsInfo)return "needsInformation";
     const request=view.default_request,error=view.submission_error;
     if(request?.key && request?.request_sha256 && error?.key===request.key && error?.request_sha256===request.request_sha256)return "failed";
-    if(job?.status==="intent-recorded")return view.default_request?.request_sha256?"prepared":"unknown";
+    if(job?.status==="intent-recorded")return submittedRuns.has(requestIdentity(ref(),view.default_request))?"unknown":view.default_request?.request_sha256?"prepared":"unknown";
     return view.default_request && !job?"ready":"unknown";
   }
   function renderProgress(state){
@@ -328,7 +339,7 @@
       const list=node(box,"ul","");for(const text of texts)node(list,"li",typeof text==="string"?text:w().unknownValue);
       if(!texts.length)node(box,"p",w().unknownValue);
     }
-    const canPrepare=state==="ready",canRun=state==="prepared" || state==="submitting";
+    const canPrepare=state==="ready",canRun=state==="prepared";
     el("actions").hidden=!canPrepare && !canRun;
     el("prepare").hidden=!canPrepare;el("confirmation").hidden=!canRun;el("run").hidden=!canRun;
     el("review").hidden=!(view?.plan || view?.direction_context);
@@ -346,38 +357,59 @@
     document.documentElement.lang=el("language").value;
     document.querySelectorAll("[data-i18n]").forEach(n=>{n.textContent=w()[copyKey(n.dataset.i18n)];});
     const request=view?.default_request,job=view?.job,prepared=job?.status==="intent-recorded";
+    const blocked=busy || reading || readFailed || Boolean(notice);
     el("selection").href="/project-stage2-selection.html#"+encodeURIComponent(ref())+"?stage=2&lang="+encodeURIComponent(el("language").value);
     if(boot.wiki_v9)el("return").href="/#"+encodeURIComponent(ref())+"?stage=3&lang="+encodeURIComponent(el("language").value);
     el("project").disabled=busy;el("refresh").disabled=busy || reading;
-    el("prepare").disabled=busy || !request || Boolean(job);
-    el("confirmed").disabled=busy || !prepared;
-    el("run").disabled=busy || !prepared || !el("confirmed").checked || view?.submission_in_progress;
-    el("inspect").disabled=busy || !request?.request_sha256;
-    el("recover").disabled=busy || !request?.request_sha256 || !view?.recovery_pin_available || job?.outcome==="saved";
+    el("prepare").disabled=blocked || !request || Boolean(job);
+    el("confirmed").disabled=blocked || !prepared;
+    el("run").disabled=blocked || !prepared || !el("confirmed").checked || view?.submission_in_progress || submittedRuns.has(requestIdentity(ref(),request));
+    el("inspect").disabled=blocked || !request?.request_sha256;
+    el("recover").disabled=blocked || !request?.request_sha256 || !view?.recovery_pin_available || job?.outcome==="saved";
     el("inspect").hidden=!request?.request_sha256;el("recover").hidden=!request?.request_sha256 || !view?.recovery_pin_available || job?.outcome==="saved";
     const status=planningState();renderProgress(status);
     el("status").textContent=notice?w()[copyKey(status)]+" "+w().error+": "+notice:w()[copyKey(status)];
+    if(phase)el("status").textContent=w()[phase]+" "+el("status").textContent;
+    if(acceptedRequest===requestIdentity(ref(),request) && (readFailed || reading))el("status").textContent=w().accepted+" "+el("status").textContent;
+    if(submittedRuns.has(requestIdentity(ref(),request)) && status==="unknown" && !notice)el("status").textContent=w().sentOnce;
+    if(view && readAt && (reading || readFailed))el("status").textContent+=" · "+w().lastVerified+": "+readAt+" · "+w().inputVersionLabel+": "+JSON.stringify(view.input_version ?? null)+" · "+w().revisionLabel+": "+String(view.revision ?? w().unknownValue);
+    el("refresh").textContent=readFailed?w().retryRead:w().refresh;
+    if(el("status").setAttribute){el("status").setAttribute("role","status");el("status").setAttribute("aria-live","polite");}
     renderEvidence();el("plan").hidden=!(view?.plan || view?.direction_context);if(view?.planning_mode==="direction-intent")renderDirectionPlan();else renderScientificPlan(view?.plan);
     const diagram=el("plan-diagram");diagram.replaceChildren();
     if(view?.plan && window.STAGE3_RESEARCH_DIAGRAM)window.STAGE3_RESEARCH_DIAGRAM.mount(diagram,view,{language:el("language").value});
     el("plan-json").textContent=view?.plan?JSON.stringify(view.plan,null,2):"";
-    el("receipt").textContent=view?JSON.stringify({...view,plan:undefined},null,2):"";
+    el("receipt").textContent=view?JSON.stringify({...view,plan:undefined,client_read:{read_at_utc:readAt,displaying_last_verified:reading || readFailed}},null,2):"";
   }
-  async function load(){const project=ref(),sequence=++serial;view=null;notice=null;reading=true;readFailed=false;el("confirmed").checked=false;render();if(!/^[A-Za-z0-9_-]{1,64}$/.test(project)){reading=false;render();return;}try{const data=await api(project);if(!current(project,sequence))return;view=data;}catch(e){if(!current(project,sequence))return;notice=e.message;readFailed=true;}if(!current(project,sequence))return;reading=false;render();}
+  async function load(){
+    const project=ref();if((busy && viewProject===project) || (reading && readingProject===project))return;
+    const sequence=++serial;
+    if(viewProject!==project){view=null;readAt=null;acceptedRequest=null;viewProject=null;}
+    notice=null;phase=null;reading=true;readingProject=project;readFailed=false;el("confirmed").checked=false;render();
+    if(!/^[A-Za-z0-9_-]{1,64}$/.test(project)){reading=false;render();return;}
+    try{const data=await api(project);if(!current(project,sequence))return;remember(data,project);}
+    catch(e){if(!current(project,sequence))return;notice=e.message;readFailed=true;}
+    if(!current(project,sequence))return;reading=false;render();
+  }
   async function act(action){
-    if(busy || !view?.default_request)return;
+    if(busy || reading || readFailed || notice || !view?.default_request)return;
     const project=ref(),sequence=serial,source={...view.default_request};
     if(action!=="prepare" && !source.request_sha256)return;
     if(action==="run" && !el("confirmed").checked)return;
-    busy=true;activeAction=action;notice=null;render();
+    const identity=requestIdentity(project,source);
+    if(action==="run" && submittedRuns.has(identity))return;
+    if(action==="run")submittedRuns.add(identity);
+    busy=true;activeAction=action;notice=null;phase=action==="prepare"?"progressPreparing":action==="run"?"submitting":null;render();
+    let readingOutcome=false;
     try{
       const data=await api(project,action,{...source,...(action==="run"?{confirmed:true}:{})});
       if(!current(project,sequence))return;
-      if(action==="run" && data.submission_status==="accepted")el("confirmed").checked=false;
-      const dataView=await api(project);if(!current(project,sequence))return;view=dataView;
-    }catch(e){if(current(project,sequence))notice=e.message;}
+      if(action==="run" && data.submission_status==="accepted"){el("confirmed").checked=false;acceptedRequest=identity;}
+      readingOutcome=true;phase="progressReadback";render();
+      const dataView=await api(project);if(!current(project,sequence))return;remember(dataView,project);
+    }catch(e){if(current(project,sequence)){notice=e.message;readFailed=readingOutcome;}}
     finally{
-      busy=false;activeAction=null;render();
+      busy=false;activeAction=null;phase=null;render();
       if(current(project,sequence) && el(action).hidden){
         const target=!el("confirmation").hidden?"confirmed":view?.plan && !el("review").hidden?"review":"refresh";
         el(target).focus();

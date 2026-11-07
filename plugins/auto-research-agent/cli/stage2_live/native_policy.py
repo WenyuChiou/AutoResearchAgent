@@ -95,6 +95,7 @@ def named_policy_args(binding, config_bytes, output_dir):
             "model",
             "model_reasoning_effort",
             "web_search",
+            "cli_auth_credentials_store",
             "approval_policy",
             "default_permissions",
             "features",
@@ -104,6 +105,13 @@ def named_policy_args(binding, config_bytes, output_dir):
         },
         "named policy contains unsupported configuration",
     )
+    if "cli_auth_credentials_store" in config:
+        store = config["cli_auth_credentials_store"]
+        _require(
+            isinstance(store, str)
+            and store in {"file", "keyring", "auto", "ephemeral"},
+            "named policy credential store is invalid",
+        )
     _require(
         config.get("default_permissions") == name
         and config.get("approval_policy") == "never"
@@ -179,7 +187,7 @@ def named_policy_args(binding, config_bytes, output_dir):
     )
     expected = {
         "filesystem": {
-            "/": "read",
+            ":root": "read",
             workspace: "write",
             home: "deny",
             telemetry: "deny",
@@ -197,10 +205,13 @@ def named_policy_args(binding, config_bytes, output_dir):
             },
         },
     }
-    _require(
-        config.get("permissions") == {name: expected},
-        "named policy restrictions differ",
-    )
+    matches = config.get("permissions") == {name: expected}
+    if not matches and os.name != "nt":
+        # Preserve historical POSIX configs. A bare slash is not absolute in
+        # the native Windows CLI; :root is its explicit all-filesystem rule.
+        expected["filesystem"]["/"] = expected["filesystem"].pop(":root")
+        matches = config.get("permissions") == {name: expected}
+    _require(matches, "named policy restrictions differ")
     network = config["permissions"][name]["network"]
     _require(
         network["enabled"] is True and network["allow_local_binding"] is False,
@@ -279,13 +290,16 @@ def verify_named_runtime(binding, context):
                 "named filesystem entry differs",
             )
             path = entry["path"]
-            _require(
-                isinstance(path, dict)
-                and set(path) == {"type", "path"}
-                and path["type"] == "path",
-                "named filesystem path is unknown",
-            )
-            name = path["path"]
+            if path == {"type": "special", "value": {"kind": "root"}}:
+                name = "/"
+            else:
+                _require(
+                    isinstance(path, dict)
+                    and set(path) == {"type", "path"}
+                    and path["type"] == "path",
+                    "named filesystem path is unknown",
+                )
+                name = path["path"]
             _require(
                 isinstance(name, str) and name not in observed,
                 "named filesystem path is duplicated",

@@ -1,7 +1,7 @@
-"""Reuse strict selection verification only inside one locked planning GET.
+"""Reuse strict selection verification inside one locked, read-only snapshot.
 
-No caller credential, failed verification or result survives the read. Writes
-and dispatch do not enter this scope and keep their fresh admission checks.
+No caller credential, failed verification or result survives the read. Admission
+reads end this scope before writes or dispatch, retaining fresh later checks.
 """
 
 from contextlib import contextmanager
@@ -99,10 +99,16 @@ def current_selection_context(view, credential, project_ref, *, validate_frontie
     # Reauthenticate even a matching lookup. Different identities, bindings or
     # custom verifier implementations cannot share the original result.
     try:
-        binding_hash = canonical_hash(view.bindings.get(project_ref))
+        binding = view.bindings.get(project_ref)
+        if isinstance(binding, dict):
+            binding = dict(binding)
+            for field in ("workflow_root", "delivery_root"):
+                if type(binding.get(field)) is type(Path()):
+                    binding[field] = str(binding[field])
+        binding_hash = canonical_hash(binding)
     except Stage2Error:
-        # Programmatic callers may supply Path roots. Keep the original strict
-        # verifier rather than narrowing accepted inputs for an optimization.
+        # Unsupported binding values keep the original strict verifier rather
+        # than narrowing accepted inputs for an optimization.
         return verify(credential, project_ref, validate_frontier=True)
     key = (
         view.intake._principal(credential),

@@ -31,6 +31,7 @@ from research_workspace_native.project_stage3_planning import (
 )
 from research_workspace_native.project_stage3_http import ProjectStage3Http
 from research_workspace_native.session_api import SessionApiError
+from test_project_stage2_direction_intent import intent_body
 
 
 class PlanningReadVerificationTests(Stage2SelectionFixture):
@@ -56,6 +57,9 @@ class PlanningReadVerificationTests(Stage2SelectionFixture):
 
     def test_next_request_rejects_changed_hash_version_and_frontier(self):
         selection, planning = self.planning()
+        for view in (selection, planning.direction.selection):
+            for field in ("workflow_root", "delivery_root"):
+                view.bindings[self.ref][field] = Path(view.bindings[self.ref][field])
         planning.read("own", self.ref)
         binding = selection.bindings[self.ref]
         for field, value, error in (
@@ -92,9 +96,48 @@ class PlanningReadVerificationTests(Stage2SelectionFixture):
         ) as checked:
             self.assertEqual(planning.read("own", self.ref), expected)
             before = checked.call_count
-            self.assertEqual(before, 2)
+            self.assertEqual(before, 1)
             self.assertEqual(planning.read("own", self.ref), expected)
-            self.assertEqual(checked.call_count, before + 2)
+            self.assertEqual(checked.call_count, before + 1)
+
+    def test_path_selection_and_direction_share_receipt_then_recheck_next_request(self):
+        selection, body, _ = self.prepare_choice(ProjectStage2SelectionService)
+        receipt = selection.direction_intent("own", self.ref, intent_body(body))
+        planning = ProjectStage3PlanningService(self.intake, selection)
+        expected_selection = selection.read("own", self.ref)
+        expected_direction = planning.direction._current("own", self.ref)
+        expected_plan = planning.read("own", self.ref)
+        for view in (selection, planning.direction.selection):
+            for field in ("workflow_root", "delivery_root"):
+                view.bindings[self.ref][field] = Path(view.bindings[self.ref][field])
+        original = ProjectStage2SelectionView._verify_current_context
+        with patch.object(
+            ProjectStage2SelectionView,
+            "_verify_current_context",
+            autospec=True,
+            side_effect=original,
+        ) as checked:
+            with self.intake._lock, verified_selection_read(self.intake):
+                selected = selection.read("own", self.ref)
+                self.assertEqual(selected, expected_selection)
+                self.assertEqual(
+                    selected["direction_intent"]["intent_sha256"],
+                    receipt["intent_sha256"],
+                )
+                self.assertEqual(
+                    planning.direction._current("own", self.ref), expected_direction
+                )
+                self.assertEqual(planning.read("own", self.ref), expected_plan)
+                self.assertEqual(checked.call_count, 1)
+            self.assertEqual(planning.read("own", self.ref), expected_plan)
+            self.assertEqual(checked.call_count, 2)
+            state = self.intake._load("researcher", self.ref)
+            state["stage2_frontier"]["workflow_head_sha256"] = "0" * 64
+            self.intake._save(state, "synthetic-tampered-frontier", {"fixture": True})
+            self.intake.db.commit()
+            with self.assertRaises(SessionApiError):
+                planning.read("own", self.ref)
+            self.assertEqual(checked.call_count, 3)
 
     def test_deadline_failure_does_not_leave_a_verified_request(self):
         _, planning = self.planning()
@@ -142,6 +185,72 @@ class ReadContextIsolationTests(unittest.TestCase):
             second[0]["value"].append("second change")
             self.assertEqual(self.read()[0], {"value": []})
         self.assertEqual(self.view._verify_current_context.call_count, 1)
+
+    def test_path_roots_reuse_deep_copies_without_changing_binding(self):
+        binding = {
+            "workflow_root": Path("workflow"),
+            "delivery_root": Path("delivery"),
+        }
+        self.view.bindings["project-a"] = binding
+        original = dict(binding)
+        with verified_selection_read(self.intake):
+            first = self.read()
+            first[0]["value"].append("caller mutation")
+            first[1][1]["activation"].append("caller mutation")
+            second = self.read()
+            self.assertEqual(second[0], {"value": []})
+            self.assertEqual(second[1][1:], ({"activation": []}, {}, {}, Path(".")))
+            self.assertIs(second[1][0], first[1][0])
+            second[0]["value"].append("second mutation")
+            second[1][1]["activation"].append("second mutation")
+            third = self.read()
+            self.assertEqual(third[0], {"value": []})
+            self.assertEqual(third[1][1:], ({"activation": []}, {}, {}, Path(".")))
+        self.assertEqual(self.view._verify_current_context.call_count, 1)
+        self.assertIs(self.view.bindings["project-a"], binding)
+        self.assertEqual(binding, original)
+        for field in original:
+            self.assertIs(binding[field], original[field])
+
+    def test_each_changed_path_root_requires_fresh_verification(self):
+        for field in ("workflow_root", "delivery_root"):
+            with self.subTest(field=field):
+                binding = {field: Path("original")}
+                self.view.bindings["project-a"] = binding
+                checked = self.view._verify_current_context
+                checked.reset_mock()
+                checked.side_effect = lambda *a, **k: ({"root": binding[field]}, None)
+                with verified_selection_read(self.intake):
+                    self.assertEqual(self.read(), ({"root": Path("original")}, None))
+                    self.assertEqual(self.read(), ({"root": Path("original")}, None))
+                    self.assertEqual(checked.call_count, 1)
+                    binding[field] = Path("changed")
+                    self.assertEqual(self.read(), ({"root": Path("changed")}, None))
+                    self.assertEqual(checked.call_count, 2)
+
+    def test_unsupported_binding_values_keep_full_verification_fallback(self):
+        class CustomPath(type(Path())):
+            pass
+
+        class PathLike:
+            def __fspath__(self):
+                return "workflow"
+
+        cases = [
+            (field, value)
+            for field in ("workflow_root", "delivery_root")
+            for value in (CustomPath("workflow"), PathLike(), object())
+        ] + [("other", Path("workflow"))]
+        for field, value in cases:
+            with self.subTest(field=field, value_type=type(value).__name__):
+                binding = {"workflow_root": Path("workflow"), field: value}
+                self.view.bindings["project-a"] = binding
+                self.view._verify_current_context.reset_mock()
+                with verified_selection_read(self.intake):
+                    self.assertEqual(self.read(), self.result)
+                    self.assertEqual(self.read(), self.result)
+                self.assertEqual(self.view._verify_current_context.call_count, 2)
+                self.assertIs(binding[field], value)
 
     def test_principal_project_binding_and_verifier_changes_do_not_reuse(self):
         with verified_selection_read(self.intake):

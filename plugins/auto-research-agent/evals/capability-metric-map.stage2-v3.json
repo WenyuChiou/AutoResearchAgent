@@ -153,6 +153,11 @@
     },
     {
       "capability_id": "cli:stage2-live",
+      "workflow_object_read_contract": "Controller summary verification uses the store owner's guarded root-plus-relative byte boundary for both the hash read and subsequent UTF-8/JSON read, in their original order. Ordinary logical paths, hash/JSON checks, strict current producer pins and durable no-redispatch behavior remain. This supports the fixed legal workflow layout only; controller/source/delivery/Stage3 root contracts, permissions, budgets and scientific readiness are unchanged.",
+      "workflow_object_read_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_windows_workflow_consumers.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
       "content_revision_native_config_contract": "Read-only content-revision authentication reconstructs the current model-call config with the shared builder, retaining namespace, dispatcher and effective cwd before exact archive fingerprint comparison. The original request runtime pin must match current executable/runtime bytes; missing pins, namespace drift and downgrade reject. Legacy absent-namespace config keeps its original shape. No model dispatch, archived-code execution, receipt/source/journal rewrite, scientific approval or execution authority is added.",
       "content_revision_native_config_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_content_revision.py"
@@ -190,10 +195,15 @@
       "native_incomplete_capture_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
+      "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Initial POSIX ESRCH permits output collection only after the same Popen with an unchanged PID reports terminal status; collection retains the original remaining deadline and establishes no group ownership or descendant-exit claim. Other lookup errors, live or changed identities retain refusal without unconfirmed signals. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
+      "bound_submission_contract": "The shared stdlib transport emits autoresearch.bound_submission with original command, input, cwd, env and timeout_seconds after timeout validation and before process setup. A trusted operator audit hook can observe or reject each actual request; rejection propagates with zero Popen calls. Existing argument types and None remain unchanged. Input/env may contain sensitive data; consumers should retain hashes or explicitly allowed safe fields, while transport arguments remain unmodified. This event grants no profile/window authority and does not replace the runner or change authentic/injected provenance; scientific improvement remains not yet demonstrated.",
+      "bound_submission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_bound_submission.py"
+      ],
       "native_call_deadline_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_native_deadline.py",
         "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_stage2_posix_early_exit.py",
         "plugins/auto-research-agent/tests/test_stage2_live_native.py"
       ],
       "metric_effects": [
@@ -239,13 +249,15 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
+        "plugins/auto-research-agent/tests/test_stage2_bound_submission.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_replays_frozen_v1_prompt_without_mutation",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_new_resolution_binds_v1_1_prompt_and_rejects_version_tampering",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_cannot_be_relabelled_as_new_contract",
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py",
-        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
+        "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py",
+        "plugins/auto-research-agent/tests/test_stage2_windows_named_policy.py"
       ],
       "research_followup_mechanism": "Opt-in v3 task packs bind admitted followups and trusted history, seven closest-work query families, resource checks and no-progress stopping; task generation does not prove native completion.",
       "research_followup_test_refs": [
@@ -279,7 +291,7 @@
       "native_trace_observation_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_observation.py"
       ],
-      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. This primitive has no execution or formal admission authority.",
+      "native_seal_io_anchors": "Retained directory handles anchor regular-file reads and exclusive seal writes; pathname replacement cannot redirect writes. Windows anchors request traversal and attributes without requiring ancestor listing, retaining no-delete sharing and reparse/kind rejection; actual inventory enumeration and file access still require their own permissions. This primitive has no execution or formal admission authority.",
       "native_seal_io_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_trace_seal_io.py"
       ],
@@ -364,10 +376,11 @@
       "candidate_review_context_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_review_context.py"
       ],
-      "assessment_target_replay_contract": "Optional explicit assessment-target policy binds the expected config,request,prompt prefix,source-context supplement and rebuilt result. Read-only replay authenticates original native units without dispatching or editing them; missing or stale policy,rehashing and authority promotion fail closed. Omitted policy preserves legacy behavior,including its known no-source-context JSON-key-order limitation. Ordinary-B replay is not formal isolation or improvement.",
+      "assessment_target_replay_contract": "Optional explicit assessment-target policy binds the expected config,request,prompt prefix,source-context supplement and rebuilt result. Read-only replay authenticates original native units without dispatching or editing them; missing or stale policy,rehashing and authority promotion fail closed. Omitted policy preserves legacy behavior. Read-only replay of legacy no-source-context records returns the archive-verified native output (original key order) rather than the canonical-sorted saved copy, so rebuilt judge prompts keep the original bytes; unit, receipt, schema, prompt, provenance and correction checks are unchanged and no prompt is re-sorted or rewritten. Ordinary-B replay is not formal isolation or improvement.",
       "assessment_target_replay_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_daily_target_replay.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
+        "plugins/auto-research-agent/tests/test_stage2_legacy_prompt_replay.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_target_policy.py"
       ],
       "assessment_target_cli_contract": "Optional daily-v3 and verify-daily-v3 --assessment-target-policy accepts an exact host-generated policy binding object; omitted flags retain legacy call shape. Explicit null, non-object, unreadable, malformed or stale binding fails before scoring or replay admission. This exposes existing opt-in3.1 behavior; no rubric, model, authority, isolation or formal-quality promotion.",
@@ -446,6 +459,11 @@
       "plain_native_policy_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_plain_native_policy.py"
       ],
+      "named_credential_store_contract": "Optional cli_auth_credentials_store accepts only the CLI's file, keyring, auto or ephemeral strings. Exact config bytes remain hash-bound; unknown keys, invalid values, missing home denial and other named permission violations still reject before dispatch. No login, credential access, runtime permission or scientific readiness is added.",
+      "named_credential_store_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_named_policy.py",
+        "plugins/auto-research-agent/tests/test_stage2_plain_native_policy.py"
+      ],
       "controller_action_identity_contract": "Controller replay compares the requested action kind as well as exact inputs, settings and snapshot before returning a completed result or a failed/interrupted recovery state. A changed operation fails before dispatch or journal mutation; identical complete requests reuse saved artifacts and identical incomplete requests preserve their original recovery state. This tightens action identity only and does not authorize retries, increase budgets, change source/runtime evidence or establish scientific or formal completion.",
       "controller_action_identity_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller_action_replay.py"
@@ -478,10 +496,17 @@
       "direction_readiness_contract": "Initial review view1.3 binds direction-readiness-1.0 to native initial review, tool-free extraction and reconciliation; rich controller inputs use it before current selection. Direction-stage evidence supports choosing a credible route; detailed staffing/sample/calls/GPU/cost/schedule tasks remain Stage3 planning. Necessary access/grain/answering-route/hard-limit blockers, all-applicable assessed=2, independent review, human choice and execution=false remain. Legacy1.0/1.1/1.2 views keep exact prior contracts; mixed or rehashed policy bindings reject. No automatic scientific promotion, old-score rewrite or A/B rerun.",
       "direction_readiness_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
-      ]
+      ],
+      "mechanism": "Native Windows named permissions use the exact symbolic :root spelling and typed special/root runtime path. Windows rejects the POSIX slash spelling before dispatch; legacy POSIX slash reads remain supported. Root aliases never admit unknown special paths, duplicate roots, weaker deny rules or additional writes, and raw config/runtime receipts and no-execution replay remain bound."
     },
     {
       "capability_id": "cli:stage2-workflow",
+      "windows_atomic_publication_contract": "The guarded workflow I/O lifecycle represents checked Windows paths only for atomic publication, readback, directory creation/removal, enumeration, resolution and real status observation. Root-plus-relative bytes and logical inventory interfaces also serve controller summary reads, explicit interaction replay and the registered-history dependency whitelist without persisting extended paths. Original lexical/root/source/hash/link predicates remain strict; non-missing read/stat/enumeration errors propagate. Ordinary public relative Path inputs retain cwd-relative behavior without normalizing traversal or unsafe UNC/device/ADS/alias inputs into acceptance. Temporary creation remains xb, flush/fsync precede same-directory exclusive hard-link publication, existing targets are never replaced, and cleanup removes only a temporary file created by the current call. Non-Windows I/O semantics, producer binding and incomplete-state replay guards remain unchanged. This fixed-layout engineering compatibility grants no execution authority or scientific improvement.",
+      "windows_atomic_publication_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_windows_atomic_io.py",
+        "plugins/auto-research-agent/tests/test_stage2_windows_workflow_consumers.py",
+        "plugins/auto-research-agent/tests/test_project_stage123_controller_e2e.py"
+      ],
       "decision_card_material_mapping_contract": "Pure current-version decision-card JSON preserves scientific questions, closest precedent, proposed difference, methods, requirements and exact resource rows. Per-question mappings and unmapped resources remain distinct; mapped does not attest adequacy or availability. Missing legacy scientific arguments, unknowns, limitations, alternatives and next checks remain visible without mutating selection bytes, granting selection or Stage3 execution, rerunning models, or claiming scientific improvement.",
       "decision_card_material_mapping_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_decision_cards.py"
@@ -581,6 +606,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_workflow_store.py",
+        "plugins/auto-research-agent/tests/test_stage2_windows_atomic_io.py",
         "plugins/auto-research-agent/tests/test_stage1_stage2_handoff.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_reviews.py",
         "plugins/auto-research-agent/tests/test_stage2_workflow_cli.py",

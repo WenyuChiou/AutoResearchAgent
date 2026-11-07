@@ -5,6 +5,7 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from fnmatch import fnmatchcase
 import hashlib
+import importlib.util
 import json
 import multiprocessing
 import os
@@ -12,6 +13,7 @@ from pathlib import Path
 import re
 import sys
 import traceback
+import types
 import unittest
 
 from ci_test_routing import ROUTING_FILES, routed_modules
@@ -295,10 +297,62 @@ def partition_tests(ids, workers):
     return groups
 
 
+def require_local_test_modules(names, directory):
+    """Keep named selection and worker reloads bound to this checkout's tests."""
+    directory = Path(directory).resolve()
+    for selector in sorted(set(names)):
+        parts = selector.split(".")
+        for length in range(1, len(parts) + 1):
+            name = ".".join(parts[:length])
+            module = sys.modules.get(name)
+            parent = sys.modules.get(".".join(parts[: length - 1]))
+            bound = getattr(parent, parts[length - 1], None)
+            if module is None and isinstance(bound, types.ModuleType):
+                module = bound
+            if module is not None:
+                origin = getattr(module, "__file__", None)
+                package = hasattr(module, "__path__")
+            else:
+                spec = importlib.util.find_spec(name)
+                if spec is None:
+                    # Retain unittest's ordinary missing-module failure accounting.
+                    break
+                origin = spec.origin
+                package = spec.submodule_search_locations is not None
+            expected = directory.joinpath(*parts[:length])
+            expected = (
+                expected / "__init__.py" if package else expected.with_suffix(".py")
+            )
+            if (
+                not origin
+                or Path(origin).resolve() != expected
+                or not expected.is_file()
+            ):
+                raise ValueError(
+                    f"Test module {name} is outside selected test directory "
+                    f"{directory}: {origin}"
+                )
+            if parent is not None and module is not None and bound is not module:
+                raise ValueError(
+                    f"Test module binding differs from local module {name}: "
+                    f"{getattr(bound, '__file__', None)}"
+                )
+            if not package and (
+                length == len(parts)
+                or not isinstance(
+                    getattr(module, parts[length], None), types.ModuleType
+                )
+            ):
+                # Class/method selectors end the chain; module attributes do not.
+                break
+
+
 def run_partition(ids, directory):
     sys.path.insert(0, str(directory))
+    require_local_test_modules(ids, directory)
     loader = unittest.TestLoader()
     suite = loader.loadTestsFromNames(ids)
+    require_local_test_modules(ids, directory)
     actual = list(test_ids(suite))
     if loader.errors or Counter(actual) != Counter(ids):
         raise ValueError("Worker test inventory differs from full discovery")
@@ -476,7 +530,9 @@ def run_suite(
             else selection["modules"]
         )
         for name in modules:
+            require_local_test_modules([name], directory)
             module_suite = loader.loadTestsFromName(name)
+            require_local_test_modules([name], directory)
             if module_suite.countTestCases() == 0:
                 raise ValueError(f"Selected test module is empty: {name}")
             suite.addTests(module_suite)

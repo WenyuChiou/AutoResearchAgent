@@ -9,7 +9,9 @@ from unittest.mock import patch
 from stage3_campaign_test_support import CampaignFixture
 from stage3_plan.__main__ import main
 from stage3_plan.campaign import POLICY, binding, inspect_campaign
+from stage3_plan.campaign_records import record_campaign
 from stage3_plan.contracts import Stage3Error, canonical_bytes
+from stage3_plan.evaluation import prepare_evaluation
 from stage3_plan.storage import read_json
 
 
@@ -61,6 +63,66 @@ class CampaignPreparationTests(CampaignFixture):
             self.assertEqual(len(view["plan"]["questions"]), 3)
             self.assertIn("synthetic", unit["source_scope"])
             self.assertEqual(result["manifest"]["policy"], POLICY)
+
+    def test_actionable_feedback_must_match_across_blind_subjects(self):
+        source = self.request["source"]
+        actionable = self.root / "actionable-request.json"
+        request = prepare_evaluation(
+            source["package"],
+            expected_manifest_sha256=source["manifest_sha256"],
+            output=actionable,
+            actionable_feedback=True,
+        )
+        self.definition["cases"][0]["subjects"][0]["request"] = binding(actionable)
+        with self.assertRaisesRegex(Stage3Error, "different feedback protocols"):
+            self.prepare()
+        self.assertFalse(self.campaign.exists())
+
+        for case in self.definition["cases"]:
+            for subject in case["subjects"]:
+                subject["request"] = binding(actionable)
+        saved = self.prepare()
+        for unit in saved["manifest"]["units"]:
+            view = read_json(self.campaign / (unit["subject_id"] + ".json"))
+            protocol = request["assessor_view"]["feedback_protocol"]
+            self.assertEqual(view["feedback_protocol"], protocol)
+            self.assertNotIn(protocol["criterion_id"], unit["aliases"])
+            self.assertNotIn("arm", view)
+        self.assertEqual(
+            inspect_campaign(self.campaign, expected_sha256=self.campaign_sha), saved
+        )
+
+        unit = saved["manifest"]["units"][0]
+        judgment = self.judgment(unit)
+        visible = read_json(self.campaign / (unit["subject_id"] + ".json"))
+        judgment["criteria"][-1]["criterion_id"] = visible["feedback_protocol"][
+            "criterion_id"
+        ]
+        for assessment in judgment["criteria"][-1]["question_assessments"]:
+            assessment["revision_feedback"] = {
+                "startable": {
+                    "first_step": "List the premises already stated in the plan.",
+                    "input_basis": "The bound plan includes the formal assumptions.",
+                    "deliverable": "An assumption-to-proposition map.",
+                },
+                "blocked": None,
+            }
+        raw = self.save("actionable-judgment.json", judgment)
+        result = record_campaign(
+            self.campaign,
+            expected_sha256=self.campaign_sha,
+            unit_id=unit["unit_id"],
+            judgment=raw,
+            expected_judgment_sha256=binding(raw)["sha256"],
+            output=self.root / "actionable-unit",
+        )
+        self.assertEqual(result["receipt"]["status"], "recorded")
+        self.assertEqual(
+            read_json(result["receipt"]["record"]["path"])["criteria"][-1][
+                "question_assessments"
+            ][0]["revision_feedback"],
+            judgment["criteria"][-1]["question_assessments"][0]["revision_feedback"],
+        )
 
     def test_source_and_view_tampering_reject_even_after_rehash(self):
         self.prepare()
