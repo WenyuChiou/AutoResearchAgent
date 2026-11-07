@@ -1,9 +1,11 @@
 """Run one native subprocess with optional owned-tree deadline cleanup."""
 
+import errno
 import math
 import os
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -183,9 +185,20 @@ def run_bound_process(
     refuses a known-exited PID before addressing the spawned PID and descendants
     through ``taskkill /PID /T /F``. Callers must retain exclusive ownership of
     the ``Popen`` object; concurrent waits cannot be made race-free here.
+
+    After timeout validation, ``autoresearch.bound_submission`` audits the
+    original command, input, cwd, env and timeout_seconds before process setup.
+    A trusted operator hook may observe or raise to reject; it must not mutate
+    these arguments. The event grants no profile/window authorization and does
+    not replace transport or change authentic/injected capture provenance.
+    Input and env may contain sensitive data; consumers should retain only
+    hashes or explicitly allowed safe fields rather than raw request values.
     """
 
     timeout_seconds = validate_timeout_seconds(timeout_seconds)
+    sys.audit(
+        "autoresearch.bound_submission", command, input, cwd, env, timeout_seconds
+    )
     popen_options = {
         "env": env,
         "cwd": cwd,
@@ -224,12 +237,26 @@ def run_bound_process(
     ownership_confirmed = _IS_WINDOWS
     try:
         if bounded and not _IS_WINDOWS:
-            owned_pgid = _getpgid(process.pid)
-            ownership_confirmed = owned_pgid == process.pid
-            if not ownership_confirmed:
-                raise RuntimeError(
-                    "spawned process did not enter its owned process group"
-                )
+            spawned_pid = process.pid
+            try:
+                owned_pgid = _getpgid(spawned_pid)
+            except ProcessLookupError as error:
+                # A fast exit can remove the leader before the first query.
+                # Only this Popen's observed terminal state permits collection;
+                # no process-group ownership is inferred from the missing PID.
+                if (
+                    error.errno != errno.ESRCH
+                    or process.pid != spawned_pid
+                    or process.poll() is None
+                    or process.pid != spawned_pid
+                ):
+                    raise
+            else:
+                ownership_confirmed = owned_pgid == spawned_pid == process.pid
+                if not ownership_confirmed:
+                    raise RuntimeError(
+                        "spawned process did not enter its owned process group"
+                    )
         if not bounded:
             process.communicate(input=input)
         else:
