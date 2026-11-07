@@ -97,6 +97,16 @@ def publish_manifest(root, names, *, request_sha256, state):
 
 
 def inspect_package(root, expected_manifest_sha256):
+    """Validate using the current evaluator, including execution/resume paths."""
+    return _inspect_package(root, expected_manifest_sha256, completed_read=False)
+
+
+def inspect_completed_package(root, expected_manifest_sha256):
+    """Read an externally pinned original without authorizing any new execution."""
+    return _inspect_package(root, expected_manifest_sha256, completed_read=True)
+
+
+def _inspect_package(root, expected_manifest_sha256, *, completed_read):
     root = safe_path(root)
     manifest = read_json(root / "manifest.json")
     if (
@@ -156,5 +166,5 @@ def inspect_package(root, expected_manifest_sha256):
     if generation.get("kind") == "Stage3PlanningGeneration":
         from .native import verify_native_generation
 
-        verify_native_generation(root, generation)
+        verify_native_generation(root, generation, completed_read=completed_read)
     return {"manifest": manifest, "artifacts": values}

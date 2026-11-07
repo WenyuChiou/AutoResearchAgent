@@ -137,7 +137,12 @@ class ProjectStage3Http:
                         current_checkpoint=item["payload"]["checkpoint"],
                         **({"expected_plan_manifest_sha256": pin} if pin else {}),
                     )["result"]["plan"]
-                    result["plan"] = inspect_package(
+                    from stage3_plan.storage import inspect_completed_package
+
+                    inspect_package_view = (
+                        inspect_completed_package if pin else inspect_package
+                    )
+                    result["plan"] = inspect_package_view(
                         verified["package"], verified["manifest_sha256"]
                     )["artifacts"]["plan.json"]
         if check_deadline:

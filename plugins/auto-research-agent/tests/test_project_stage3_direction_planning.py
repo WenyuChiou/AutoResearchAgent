@@ -162,6 +162,18 @@ class ProjectDirectionPlanningTests(unittest.TestCase):
         with (
             patch("stage3_plan.direction_jobs._runtime", return_value=upgraded),
             patch("stage3_plan.direction_jobs._producer_sha256", return_value="c" * 64),
+            patch(
+                "stage3_plan.direction_jobs.inspect_package",
+                side_effect=AssertionError(
+                    "completed read fell back to current replay"
+                ),
+            ),
+            patch(
+                "research_workspace_native.project_stage3_direction_planning.inspect_package",
+                side_effect=AssertionError(
+                    "plan projection lost its completed-read scope"
+                ),
+            ),
         ):
             view = self.service.read("own", ref, self.project)
             self.assertIsNotNone(view["plan"])

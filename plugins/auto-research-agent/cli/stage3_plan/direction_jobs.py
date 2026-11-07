@@ -202,8 +202,11 @@ class DirectionPlanningJobs(PlanningJobs):
         )
         return self._saved(payload, manifest["manifest_sha256"])
 
-    def _saved(self, payload, manifest_sha256, *, attach=False):
-        saved = inspect_package(Path(payload["output"]) / "plan", manifest_sha256)
+    def _saved(self, payload, manifest_sha256, *, attach=False, completed_read=False):
+        from .storage import inspect_completed_package
+
+        inspect = inspect_completed_package if completed_read else inspect_package
+        saved = inspect(Path(payload["output"]) / "plan", manifest_sha256)
         request, context, prompt = self._request(payload)
         artifacts = saved["artifacts"]
         if artifacts.get("request.json") != request:
@@ -233,4 +236,4 @@ class DirectionPlanningJobs(PlanningJobs):
         }
 
     def _saved_for_read(self, payload, manifest_sha256):
-        return self._saved(payload, manifest_sha256)
+        return self._saved(payload, manifest_sha256, completed_read=True)
