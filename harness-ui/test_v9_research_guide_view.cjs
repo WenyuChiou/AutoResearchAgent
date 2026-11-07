@@ -54,11 +54,44 @@ test('every payload string remains inert, including IDs, relation labels and quo
  for(const graph of [input.flow,input.loop])for(const edge of graph.edges)assert.ok(html.includes(escape(edge.label)));
 });
 test('three interface locales retain original research language and not-run boundaries',()=>{
- const expected={en:['Research planning guide','Proposed research flow','Material leads and uses','proposed, not run','Complete relationships and sources'],zh:['研究规划导读','研究流程（拟议）','材料线索与用途','尚未执行','完整关系与来源'],tw:['研究規劃導讀','研究流程（擬議）','材料線索與用途','尚未執行','完整關係與來源']};
+ const expected={en:['Research direction','Proposed research flow','Data and feasibility','has not been run','Complete relationships and sources'],zh:['研究方向摘要','研究流程（拟议）','资料与可行性','尚未执行','完整关系与来源'],tw:['研究方向摘要','研究流程（擬議）','資料與可行性','尚未執行','完整關係與來源']};
  for(const locale of Object.keys(expected)){
   const html=renderer(locale).v94GuideHtml(guide());for(const label of expected[locale])assert.ok(html.includes(label));
   assert.ok(html.includes('研究标题 0'));assert.ok(html.includes('Exact condition 0'));
  }
+});
+test('design sheet leads with the question and feasibility and keeps technical proof in closed details',()=>{
+ const input=guide(),context={question:{text:'Compare basin responses',intended_claim:'Compare only within the measured range',object:'A held-out comparison table'},
+  row:{unknowns:['Access: confirm restrictions with the owner.'],validation:'Compare with measured values.',minimum_deliverable:'Table and plot with internal receipt ABC'},
+  resources:[{resource:{name:'Gauge data',status:'restricted'},resource_ref:{purpose:'Verify observed response'}},
+   {resource:{name:'Field survey',status:'not-applicable'}}],version:11,canComment:true};
+ input.materials[0].name='Technical pilot model 6 and 16 runs';
+ input.loop={nodes:[],edges:[]};
+ const html=renderer().v94GuideHtml(input,context);
+ assert.deepEqual([...html.matchAll(/data-n94-design="([^"]+)"/g)].map(match=>match[1]),['question','flow','materials','next']);
+ assert.match(html,/Compare basin responses/);assert.match(html,/1 condition to check/);
+ assert.match(html,/Gauge data<\/strong> · Access is restricted/);
+ assert.match(html,/Field survey<\/strong> · Not applicable/);
+ assert.match(html,/A held-out comparison table/);
+ assert.match(html,/<details class="n94-disclosure"><summary>View material leads and sources<\/summary>[^]*Technical pilot model 6 and 16 runs/);
+ assert.match(html,/<details class="n94-disclosure"><summary>Read the planned deliverables<\/summary><p>Table and plot with internal receipt ABC/);
+ assert.doesNotMatch(html,/Proposed feedback loop|data-v94f-form|<details[^>]*\bopen\b/);
+});
+test('an authored feedback mechanism is the main flow, with planning steps still available in details',()=>{
+ const input=guide();input.flow.nodes[0].title='Delivery administration';
+ input.loop.nodes[0].title='Initialize measured inputs';
+ const html=renderer().v94GuideHtml(input,{row:{unknowns:['Observed prices: align units first.']}});
+ const fold=html.indexOf('<summary>View planning and delivery sequence</summary>');
+ assert.match(html,/Where the study starts<\/strong> Initialize measured inputs/);
+ assert.match(html,/Check first<\/strong> Observed prices/);
+ assert.ok(fold>html.indexOf('Proposed feedback loop'));
+ assert.ok(html.indexOf('Delivery administration')>fold);
+});
+test('authored edge-free method notes stay available without a feedback claim',()=>{
+ const input=guide();input.loop.edges=[];input.loop.nodes[0].title='Retained method note';
+ const html=renderer().v94GuideHtml(input);
+ assert.match(html,/<summary>Read the recorded method notes<\/summary>[^]*Retained method note/);
+ assert.doesNotMatch(html,/Proposed feedback loop|Arrows show planned feedback/);
 });
 test('bounded larger graphs and empty optional records retain all content',()=>{
  const input=guide(12);input.flow.edges.push(...input.flow.edges.slice(0,7));input.materials=[];input.baselines=[];

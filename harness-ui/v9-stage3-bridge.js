@@ -141,6 +141,12 @@ function v93MountChoice(app){
  if(record.language!==v93Language(app)){record.instance.setLanguage(v93Language(app));record.language=v93Language(app);}
  record.instance.resume();
 }
+function v93QuestionResourceUses(view, questionRef){
+ const cards=Array.isArray(view.direction_context?.preferred_cards)?view.direction_context.preferred_cards:[];
+ return cards.flatMap(card=>(Array.isArray(card.scientific_questions)?card.scientific_questions:[])
+  .filter(item=>item.question?.question_id&&questionRef===`${card.candidate_id}@${card.candidate_version}/${item.question.question_id}`)
+  .flatMap(item=>Array.isArray(item.resource_uses)?item.resource_uses:[]));
+}
 function v93SavedPlanSummary(view){
  const plan=view?.plan;if(plan?.kind!=='Stage3DirectionPlanningResult')return '';
  const text=typeof plan.markdown==='string'?plan.markdown:'',lead=text.split(/\n\s*\n/)[0];
@@ -159,9 +165,7 @@ function v93SavedPlanSummary(view){
    const preview=value=>{const text=valueText(value);return text.length>150?text.slice(0,149).trimEnd()+'…':text;};
    // These are source-field navigation steps, not inferred scientific edges or pass states.
    const flow=`<h4>${rl('研究规划流程（拟议）','Proposed research planning flow','研究規劃流程（擬議）')}</h4><p class="n9-flow-note">${rl('顺序表示规划如何组织；各步骤尚未执行。选择一步查看完整原文；资料与方法仍待核验。','The sequence organizes the plan; these steps have not been run. Open a step to read its complete source. Materials and methods still require verification.','順序表示規劃如何組織；各步驟尚未執行。選擇一步查看完整原文；資料與方法仍待核驗。')}</p><ol class="n9-plan-flow n9-source-flow">${stages.map(([key,heading,value],step)=>`<li><details class="n9-flow-source"><summary><span class="n9-flow-heading"><span aria-hidden="true">${step+1}</span><strong>${heading}</strong></span><span class="n9-plan-preview">${rx(preview(value))}</span></summary><p class="n9-source-text">${rx(valueText(value))}</p><small>${rx(key==='question'?'/direction_context/questions':`/plan/question_plans/${index}/${key}`)}</small></details></li>`).join('')}</ol>`;
-   const cards=Array.isArray(view.direction_context?.preferred_cards)?view.direction_context.preferred_cards:[];
-   const questionCards=cards.flatMap(card=>(Array.isArray(card.scientific_questions)?card.scientific_questions:[]).filter(item=>item.question?.question_id&&row.question_ref===`${card.candidate_id}@${card.candidate_version}/${item.question.question_id}`));
-   const uses=questionCards.flatMap(item=>Array.isArray(item.resource_uses)?item.resource_uses:[]);
+    const uses=v93QuestionResourceUses(view,row.question_ref);
    const resourceRows=uses.map(use=>{const resource=use.resource||{},ref=use.resource_ref||{};return `<tr><th scope="row">${rx(valueText(resource.name))}</th><td>${rx(valueText(ref.purpose||resource.purpose))}</td><td>${rx(typeof resource.status==='string'?resource.status:'unknown')}<br>${rx(typeof ref.fit_status==='string'?ref.fit_status:'unknown')}</td></tr>`;}).join('');
    const materials=`<section class="n9-material-map"><h4>${rl('材料如何支持这个问题','How materials support this question','材料如何支持這個問題')}</h4><p>${rl('下表仅显示已明确映射的资源；材料说明中的其他线索不等于已可用数据。','Only explicitly mapped resources appear below. Other leads in the material description do not establish available data.','下表僅顯示已明確映射的資源；材料說明中的其他線索不等於已可用資料。')}</p>${resourceRows?`<div class="n9-material-scroll" role="region" tabindex="0" aria-label="${rl('材料用途对照表','Material-use table','材料用途對照表')}"><table><thead><tr><th>${rl('资源','Resource','資源')}</th><th>${rl('用途','Use','用途')}</th><th>${rl('可用性／适配','Availability / fit','可用性／適配')}</th></tr></thead><tbody>${resourceRows}</tbody></table></div>`:`<p class="n9-material-unknown">${rl('本问题没有已映射的资源；保持 unknown。','No resources are mapped to this question; availability remains unknown.','本問題沒有已映射的資源；保持 unknown。')}</p>`}<details class="n9-plan-details"><summary>${labels.materials} · ${rl('完整原记录','Complete source record','完整原紀錄')}</summary><p>${rx(valueText(row.materials))}</p></details></section>`;
   const fields=Object.entries(labels).filter(([key])=>typeof row[key]==='string').map(([key,label])=>`<h4>${label}</h4><p>${rx(row[key])}</p>`).join('');

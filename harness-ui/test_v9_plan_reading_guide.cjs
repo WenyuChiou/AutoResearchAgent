@@ -36,6 +36,13 @@ test('the same product path projects a different topic without a household or LL
  const html=ctx.v94GuideHtml(ctx.v94PlanReadingGuide(view),{reading:true});
  assert.match(html,/river gauges/);assert.match(html,/held-out discharge/);assert.doesNotMatch(html,/LLM|household/);
 });
+test('saved comparison text stays readable without an absent comparison claim',()=>{
+ const {ctx,view,question}=fixture();
+ question.design='Compare two sites with the same measurement period.';
+ const html=ctx.v94GuideHtml(ctx.v94PlanReadingGuide(view),{reading:true,row:question});
+ assert.match(html,/<summary>Read the saved comparison conditions<\/summary><p>Compare two sites/);
+ assert.doesNotMatch(html,/No baselines or comparisons are provided/);
+});
 test('three interface locales translate reading labels and keep the saved research text',()=>{
  const {ctx,view}=fixture(),guide=ctx.v94PlanReadingGuide(view);
  for(const [locale,label] of [[0,'设计'],[1,'Design'],[2,'設計']]){
@@ -72,13 +79,51 @@ test('missing method is explicit failure instead of a fabricated process',()=>{
  const {ctx,view,question}=fixture();delete question.method;assert.throws(()=>ctx.v94PlanReadingGuide(view),/reading-method/);
 });
 test('the actual loader projects an absent guide with one GET and leaves saved planning untouched',async()=>{
- const {ctx,view}=fixture(),calls=[],before=JSON.stringify(view),basis={project_ref:view.project_ref};
+ const {ctx,view,question}=fixture(),calls=[],basis={project_ref:view.project_ref};
+ view.direction_context.questions.push({question_ref:'second@1/q',text:'Compare matched rivers'});
+ view.plan.question_plans.unshift({...question,question_ref:'second@1/q'});
+ const before=JSON.stringify(view);
  Object.assign(ctx,{AbortController,setTimeout,clearTimeout,apps:[{page:'workspace',stage:3}],rt:{epoch:1},v93:{view,basis},
-  v93Identity:()=>basis,v93Matches:(a,b)=>a===b,livePaint:()=>{},v93SavedPlanSummary:()=>'<p>Complete source text</p>',v7AfterRender:()=>{},
+  v93Identity:()=>basis,v93Matches:(a,b)=>a===b,livePaint:()=>{},v93QuestionResourceUses:()=>[],v93SavedPlanSummary:()=>'<p>Complete source text</p>',v7AfterRender:()=>{},
   document:{addEventListener:()=>{}},fetch:async(url,options)=>{calls.push({url,options});return new Response('{"materials":[]}');}});
  vm.runInContext(fs.readFileSync(path.join(__dirname,'v9-research-guide.js'),'utf8'),ctx);
+ assert.match(ctx.v94GuideSection(view,null),/<h2>Compare matched rivers<\/h2>/);
  await ctx.v94Load(view,basis,1);const state=vm.runInContext('({status:v94.status,source:v94.source,guide:v94.guide})',ctx);
+ assert.equal(state.guide.question_ref,'second@1/q');
+ assert.match(ctx.v94GuideSection(view,null),/<h2>Compare matched rivers<\/h2>/);
  assert.equal(state.status,'ready');assert.equal(state.source,'plan-excerpts');assert.equal(calls.length,1);assert.equal(calls[0].url,'/api/v9/materials');
  assert.equal(calls[0].options.method,undefined);assert.equal(JSON.stringify(view),before);
  assert.match(ctx.v94GuideSection(view,null,'<p>Complete source text</p>'),/Complete source text/);
+});
+
+for(const selected of [false,true])test(`production wrapper order keeps the ${selected?'selected draft':'original'} design sheet visible`,()=>{
+ const {ctx,view}=fixture(),basis={project_ref:view.project_ref,input_version:view.input_version,revision:view.revision};
+ const binding={...basis,brief_sha256:view.brief_sha256,parent_plan_manifest_sha256:view.job.plan_manifest_sha256,
+  parent_plan_sha256:'d'.repeat(64),plan_request_sha256:view.job.request_sha256};
+ const revision={receipt_sha256:'e'.repeat(64),record:{kind:'revision',revision_number:8,binding,
+  request:{key:'current-draft'},changes:[],plan:clone(view.plan)}};
+ revision.record.plan.question_plans[0].method='Current draft method, separate from original v1.';
+ view.feedback={kind:'ProjectStage3PlanningFeedbackView',schema_version:1,binding,records:[revision]};
+ const app={page:'workspace',stage:3},before=JSON.stringify(view);
+ Object.assign(ctx,{AbortController,setTimeout,clearTimeout,apps:[app],rt:{epoch:1},v93:{view,basis},
+  v93Identity:()=>basis,v93Matches:(a,b)=>Object.keys(basis).every(key=>a?.[key]===b?.[key]),
+  v93QuestionResourceUses:()=>[],v93SavedPlanSummary:()=>'<p>Unchanged original v1 source</p>',
+  laterStage:()=>ctx.v93SavedPlanSummary(view)+'<details class="n9-plan-graph"><summary>Original map</summary></details>',
+  v7BeforeRender:()=>{},v7AfterRender:()=>{},document:{addEventListener:()=>{}}});
+ const modules=fs.readFileSync(path.join(__dirname,'run_v9.py'),'utf8').match(/^MODULES = \(([^\n]+)\)/m)[1];
+ for(const [,name] of modules.matchAll(/'([^']+)'/g))if(['v9-research-guide.js','v9-stage3-feedback.js'].includes(name))
+  vm.runInContext(fs.readFileSync(path.join(__dirname,name),'utf8'),ctx);
+ const state=ctx.v94fState(ctx.v94fContext());state.selected=selected?'revision:current-draft':'';
+ const html=ctx.laterStage(app),sheets=[...html.matchAll(/<div data-v94-guide>/g)];
+ assert.equal(sheets.length,1);
+ const ancestors=[];
+ for(const [tag] of html.slice(0,sheets[0].index).matchAll(/<\/?details\b[^>]*>/g)){
+  if(tag.startsWith('</'))ancestors.pop();else ancestors.push(tag);
+ }
+ assert.deepEqual(ancestors,[],'the active design sheet must not be nested inside a closed disclosure');
+ if(selected){
+  assert.match(html.slice(sheets[0].index),/Current draft method/);
+  assert.match(html,/<details class="n9f-original"><summary>Original plan v1[^]*Unchanged original v1 source/);
+ }else assert.doesNotMatch(html,/n9f-original"|Current draft method/);
+ assert.equal(JSON.stringify(view),before);assert.equal(view.plan.execution_authorized,false);
 });

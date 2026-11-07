@@ -38,20 +38,24 @@ async function v94Load(view, basis, epoch, revision = v94SelectedRevision(view))
 function v94GuideSection(view, revision, original = '') {
  const key = v94Key(view, v93Identity(), rt.epoch, revision);
  if (!key) return original;
- if (v94.key === key && v94.view === view && v94.status === 'ready') {
-  const plan = revision ? revision.record.plan : view.plan;
-  const count = plan.question_plans.reduce((sum, row) => sum + (Array.isArray(row.unknowns) ? row.unknowns.length : 0), 0);
-  const question = view.direction_context?.questions?.find(row => row.question_ref === v94.guide.question_ref);
-  const note = revision ? rl('图解对应当前人工草案；完整内容、待查事项与原规划继续保留。','This guide belongs to the selected manual draft. Its complete text, open checks and original plan remain available.','圖解對應目前人工草案；完整內容、待查事項與原規劃繼續保留。') : rl('以下图解只说明这个问题；原规划、其他问题与全部待查事项保留在下方。','The guide covers this question only. The original plan, other questions and all open checks remain below.','以下圖解只說明這個問題；原規劃、其他問題與全部待查事項保留在下方。');
-  return '<section class="n9-guide-question"><h2>'+rx(question?.text || v94.guide.question_ref)+'</h2><p>'+note+'</p></section><div data-v94-guide>'+v94GuideHtml(v94.guide, {reading:v94.source === 'plan-excerpts'})+'</div>'+(revision ? '' : '<details class="n9-plan-details"><summary>'+rl('完整原规划与待查事项','Complete saved plan and open checks','完整原規劃與待查事項')+' · '+count+'</summary>'+original+'</details>');
- }
  const status = v94.key === key && v94.view === view ? v94.status : 'idle';
- const message = status === 'loading' ? rl('正在读取图解，不会生成研究。','Reading the visual guide; no research will be generated.','正在讀取圖解，不會生成研究。') :
-  status === 'failed' ? rl('图解未通过读取或来源核对；完整规划仍保留。','The visual guide could not be read or source-verified. The complete plan is retained.','圖解未通過讀取或來源核對；完整規劃仍保留。') :
-  revision ? rl('本人工草案版本尚未登记研究图解；完整草案仍保留。','No visual guide is registered for this manual draft version. The complete draft is retained.','本人工草案版本尚未登記研究圖解；完整草案仍保留。') : rl('本版本尚未登记研究图解；下方是已保存的完整规划。','No research visual guide is registered for this version. The saved plan is below.','本版本尚未登記研究圖解；下方是已保存的完整規劃。');
- return '<section class="n9-guide-state"><p role="status">'+message+'</p>'+(status === 'failed' ? '<details><summary>'+rl('读取详情','Read details','讀取詳情')+'</summary><p>'+rx(v94.error)+'</p></details>' : '')+'<button class="hs-button" data-v94-read '+(status === 'loading' ? 'disabled' : '')+'>'+rl('重新读取图解','Reload visual guide','重新讀取圖解')+'</button></section>'+original;
+ const guide = status === 'ready' ? v94.guide : null;
+ const plan = revision ? revision.record.plan : view.plan;
+ const questions = Array.isArray(view.direction_context?.questions) ? view.direction_context.questions : [];
+ const row = plan.question_plans[v94PlanQuestionIndex(plan, view.direction_context?.questions, guide?.question_ref ?? null)];
+ const question = questions.find(item => item.question_ref === row?.question_ref);
+ const resources = row ? v93QuestionResourceUses(view,row.question_ref).filter(use => typeof use?.resource?.name === 'string') : [];
+ const design = v94GuideHtml(guide, {reading:guide !== null && v94.source === 'plan-excerpts', question, row, resources,
+  version:revision?.record.revision_number ?? null, canComment:typeof v94fContext==='function'&&v94fContext()?.view===view});
+ const message = status === 'loading' ? rl('正在读取同版本图解。','Reading the diagram for this version.','正在讀取同版本圖解。') :
+  status === 'failed' ? rl('图解未通过读取或来源核对；已保存的规划仍可查看。','The diagram could not be read or source-verified. The saved plan is still available.','圖解未通過讀取或來源核對；已保存的規劃仍可查看。') : '';
+ const state = message ? '<section class="n9-guide-state"><p role="status">'+message+'</p>'+(status === 'failed' ?
+  '<details><summary>'+rl('读取详情','Read details','讀取詳情')+'</summary><p>'+rx(v94.error)+'</p></details><button type="button" class="hs-button" data-v94-read>'+rl('重新读取图解','Reload visual guide','重新讀取圖解')+'</button>' : '')+'</section>' : '';
+ const saved = original ? '<details class="n9-plan-details"><summary>'+
+  (revision ? rl('查看原始规划版本','View the original planning version','查看原始規劃版本') :
+   rl('完整原规划与待查事项','Complete saved plan and open checks','完整原規劃與待查事項'))+'</summary>'+original+'</details>' : '';
+ return '<div data-v94-guide>'+design+'</div>'+state+saved;
 }
-function v94ManualGuide(view, revision) { return v94GuideSection(view, revision); }
 const v94OriginalSummary = v93SavedPlanSummary;
 v93SavedPlanSummary = function(view) {
  const original = v94OriginalSummary(view);
