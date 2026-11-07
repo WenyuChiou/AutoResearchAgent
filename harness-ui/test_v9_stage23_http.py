@@ -457,6 +457,9 @@ class ConfiguredWikiHttpTests(unittest.TestCase):
                     "v9-research-guide-contract.js",
                     "v9-research-guide-view.js",
                     "v9-research-guide.js",
+                    "v9-quantitative-contract.js",
+                    "v9-quantitative-view.js",
+                    "v9-quantitative-guide.js",
                 ):
                     module_bytes = (repo / "harness-ui" / name).read_bytes()
                     assert (
@@ -467,6 +470,9 @@ class ConfiguredWikiHttpTests(unittest.TestCase):
                 _, css_bytes = raw_get("/runtime.css")
                 assert (
                     repo / "harness-ui/v9-research-guide.css"
+                ).read_bytes() in css_bytes
+                assert (
+                    repo / "harness-ui/v9-quantitative-view.css"
                 ).read_bytes() in css_bytes
                 status, bootstrap = raw_get("/project-bootstrap.js")
                 boot = json.loads(
