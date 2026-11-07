@@ -58,7 +58,8 @@ function v94GuideSection(view, revision, original = '') {
 }
 const v94OriginalSummary = v93SavedPlanSummary;
 v93SavedPlanSummary = function(view) {
- return v94GuideSection(view, v94SelectedRevision(view), v94OriginalSummary(view));
+ const original = v94OriginalSummary(view);
+ return v94SelectedRevision(view) ? original : v94GuideSection(view, null, original);
 };
 const v94After = v7AfterRender;
 v7AfterRender = function(app) {

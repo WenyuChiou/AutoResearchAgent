@@ -122,7 +122,8 @@ test('composed actual modules select, render and reload the exact manual guide u
  assert.equal(f.guideState().guide.revision_receipt_sha256,f.revision.receipt_sha256);
  assert.match(f.html(),/Research direction · Draft 2/);assert.match(f.html(),/Manual method A/);
  assert.equal((f.html().match(/data-v94-guide>/g)||[]).length,1);
- assert.ok(f.html().indexOf('Research direction · Draft 2')<f.html().indexOf('View the original planning version'));
+  assert.match(f.html(),/<details class="n9f-original"><summary>Original plan v1[^]*data-original-plan>[^]*<\/details><section class="hs-panel n9f-panel"/);
+  assert.ok(f.html().indexOf('Research direction · Draft 2')>f.html().indexOf('data-v94f-manual'));
  assert.match(f.html(),/Complete manual draft and open checks/);assert.match(f.html(),/Unverified data/);assert.match(f.html(),/Original plan Markdown/);
  assert.match(f.html(),new RegExp('data-original-plan>'+quote));assert.equal(JSON.stringify(f.view),before);
  const count=f.calls.length;await f.reload();await waitFor(()=>f.guideState().status==='ready');
