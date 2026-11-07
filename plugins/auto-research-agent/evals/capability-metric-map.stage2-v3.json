@@ -195,10 +195,15 @@
       "native_incomplete_capture_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_controller.py"
       ],
-      "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
+      "native_call_deadline_contract": "Optional finite positive per-call deadline is immutable and checked before execution; the controller reuses its frozen extraction-policy deadline. Owned-process cleanup preserves original failure, partial streams and cleanup errors. Initial POSIX ESRCH permits output collection only after the same Popen with an unchanged PID reports terminal status; collection retains the original remaining deadline and establishes no group ownership or descendant-exit claim. Other lookup errors, live or changed identities retain refusal without unconfirmed signals. Completed replay binds the supplied deadline; failed calls cannot resume. Omitted deadlines preserve historical bindings. No overall budget, sandbox, model, formal readiness or scientific-quality claim changes.",
+      "bound_submission_contract": "The shared stdlib transport emits autoresearch.bound_submission with original command, input, cwd, env and timeout_seconds after timeout validation and before process setup. A trusted operator audit hook can observe or reject each actual request; rejection propagates with zero Popen calls. Existing argument types and None remain unchanged. Input/env may contain sensitive data; consumers should retain hashes or explicitly allowed safe fields, while transport arguments remain unmodified. This event grants no profile/window authority and does not replace the runner or change authentic/injected provenance; scientific improvement remains not yet demonstrated.",
+      "bound_submission_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_bound_submission.py"
+      ],
       "native_call_deadline_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_native_deadline.py",
         "plugins/auto-research-agent/tests/test_stage2_native_process.py",
+        "plugins/auto-research-agent/tests/test_stage2_posix_early_exit.py",
         "plugins/auto-research-agent/tests/test_stage2_live_native.py"
       ],
       "metric_effects": [
@@ -244,6 +249,7 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_source_context.py",
+        "plugins/auto-research-agent/tests/test_stage2_bound_submission.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_v3.py",
         "plugins/auto-research-agent/tests/test_stage2_daily_replay_v3.py",
         "tests/test_stage2_live_review_models.py::Stage2LiveReviewModelTests::test_historical_resolution_replays_frozen_v1_prompt_without_mutation",
