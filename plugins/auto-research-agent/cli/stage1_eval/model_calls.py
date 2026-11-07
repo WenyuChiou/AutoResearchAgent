@@ -389,8 +389,9 @@ def replay_native_model_call_archive(
     expected_config,
     expected_policy,
     for_correction=False,
+    expected_historical_request_fingerprint_sha256=None,
 ):
-    """Replay a native-complete generation, including semantic rejections."""
+    """Replay completed bytes; historical pins authorize inspection, never correction."""
     archive = Path(archive).resolve()
     request_path = archive / "request.json"
     if not request_path.is_file():
@@ -416,6 +417,28 @@ def replay_native_model_call_archive(
         policy,
         request.get("label"),
     )
+    if expected_historical_request_fingerprint_sha256 is not None:
+        pin = expected_historical_request_fingerprint_sha256
+        recorded_code = request.get("evaluator_code_sha256")
+        if (
+            for_correction
+            or type(pin) is not str
+            or len(pin) != 64
+            or any(c not in "0123456789abcdef" for c in pin)
+            or request.get("request_fingerprint_sha256") != pin
+            or type(recorded_code) is not str
+            or len(recorded_code) != 64
+            or any(c not in "0123456789abcdef" for c in recorded_code)
+        ):
+            raise EvaluationError("trusted historical request fingerprint required")
+        # The external completed-artifact pin fixes this original code identity.
+        # Recompute every semantic field; do not load or execute archived code.
+        expected["evaluator_code_sha256"] = recorded_code
+        expected["request_fingerprint_sha256"] = sha(
+            canonical(
+                {k: v for k, v in expected.items() if k != "request_fingerprint_sha256"}
+            )
+        )
     if request != expected:
         raise EvaluationError(
             "model-call request fingerprint or current evaluator changed"
@@ -536,6 +559,11 @@ def replay_native_model_call_archive(
         "execution_policy": policy,
         "config": expected_config,
         "semantic_status": record.get("semantic_status"),
+        **(
+            {"inspection_scope": "pinned-completed-artifact-read-only"}
+            if expected_historical_request_fingerprint_sha256 is not None
+            else {}
+        ),
     }
 
 

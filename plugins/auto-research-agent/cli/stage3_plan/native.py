@@ -97,7 +97,7 @@ class NativePlanner:
         }
 
 
-def verify_native_generation(root, generation):
+def verify_native_generation(root, generation, *, completed_read=False):
     """Read-only replay original native bytes; never dispatch or relabel proofs."""
     from stage1_eval.model_calls import replay_native_model_call_archive
     from .storage import read_bytes
@@ -117,6 +117,15 @@ def verify_native_generation(root, generation):
         expected_schema=root / "schema.json",
         expected_config=primitive["config"],
         expected_policy=primitive["execution_policy"],
+        **(
+            {
+                "expected_historical_request_fingerprint_sha256": primitive[
+                    "request_fingerprint_sha256"
+                ]
+            }
+            if completed_read
+            else {}
+        ),
     )
     for field in (
         "request_fingerprint_sha256",
