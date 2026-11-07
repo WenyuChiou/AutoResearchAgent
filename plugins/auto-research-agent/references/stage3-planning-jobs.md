@@ -34,3 +34,23 @@ streams, errors and null vectors; inspect/recover never calls the evaluator.
 Optional campaign receipts/index use Delivery A's pinned modules, not a new
 evaluator. Missing campaign dependencies reject before dispatch; that integration
 requires the combined candidate. Native identity/isolation remain unverified.
+
+## Actionable evaluator feedback
+
+Pass `evaluation-prepare --actionable-feedback` when a reviewer should give
+per-question revision feedback alongside P9. The prepared assessor view carries
+the versioned instructions. The P9 question assessment keeps its evidence
+locations and adds `revision_feedback` with two entries.
+
+- `startable` gives the first step, the evidence for its available inputs, and its
+  deliverable. Use null when the supplied evidence supports no such step.
+- `blocked` names the dependency, evidence needed to resolve it, and a narrower
+  deliverable or explicit stop. An assessment can record both a startable step
+  and a blocked later branch. Include at least one entry per question. For an
+  unverifiable P9, record missing evidence under `blocked` for the affected
+  questions. Other questions can still have a supported first step.
+
+A campaign uses the same feedback protocol for all available subjects. The
+feedback is part of the saved review for revision. The existing scores, raw
+judgment, plan authority and independent review requirements keep their own
+bindings.

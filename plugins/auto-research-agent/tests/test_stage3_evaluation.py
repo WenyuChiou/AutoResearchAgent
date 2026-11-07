@@ -22,6 +22,8 @@ from stage3_plan.evaluation import (  # noqa: E402
     CATALOG_PATH,
     CRITERIA,
     GUIDANCE_PATH,
+    inspect_evaluation_record,
+    inspect_evaluation_request,
     prepare_evaluation,
     record_evaluation,
 )
@@ -191,7 +193,9 @@ class Stage3EvaluationTests(unittest.TestCase):
                     package,
                     expected_manifest_sha256=saved["manifest"]["manifest_sha256"],
                     output=self.root / f"{topic}-request.json",
+                    actionable_feedback=True,
                 )
+                self.assertIn("feedback_protocol", prepared["assessor_view"])
                 self.assertEqual(len(prepared["bindings"]["question_refs"]), 4)
                 self.assertEqual(candidate["results"][0]["status"], "not-run")
                 self.assertIsNone(candidate["results"][0]["observed_value"])
@@ -261,6 +265,110 @@ class Stage3EvaluationTests(unittest.TestCase):
         self.assertFalse(record["reviewer"]["identity_authenticated"])
         self.assertFalse(record["execution_authorized"])
         self.assertFalse(record["evaluation_calls_authorized"])
+
+    def test_actionable_feedback_round_trip_keeps_raw_scores_and_authority(self):
+        request_path = self.root / "actionable-request.json"
+        with redirect_stdout(io.StringIO()):
+            code = main(
+                [
+                    "evaluation-prepare",
+                    "--package",
+                    str(self.package),
+                    "--expected-manifest-sha256",
+                    self.manifest_sha256,
+                    "--output",
+                    str(request_path),
+                    "--actionable-feedback",
+                ]
+            )
+        self.assertEqual(code, 0)
+        request = read_json(request_path)
+        self.assertEqual(
+            request["assessor_view"]["feedback_protocol"]["criterion_id"],
+            CRITERIA["P9"],
+        )
+        self.assertEqual(request["catalog"], self.request["catalog"])
+        judgment = self.judgment(request_sha256=raw_hash(request_path))
+        assessments = judgment["criteria"][-1]["question_assessments"]
+        step = {
+            "first_step": "Tabulate the admitted measurement definitions.",
+            "input_basis": "The plan specifies the unit and recorded conditions.",
+            "deliverable": "A measurement and unit crosswalk.",
+        }
+        blocker = {
+            "dependency": "Independent measurements are needed before validation.",
+            "needed_evidence": "An approved, separately collected measurement series.",
+            "fallback": "Deliver the crosswalk and stop at validation.",
+        }
+        for row, (startable, blocked) in zip(
+            assessments, ((step, None), (None, blocker), (step, blocker)), strict=True
+        ):
+            row["revision_feedback"] = {"startable": startable, "blocked": blocked}
+        judgment_path = self.save_judgment(judgment, pretty=True)
+        record_path = self.root / "actionable-record.json"
+        request_ref = {"path": str(request_path), "sha256": raw_hash(request_path)}
+        judgment_ref = {"path": str(judgment_path), "sha256": raw_hash(judgment_path)}
+        record = record_evaluation(
+            request_path,
+            expected_request_sha256=request_ref["sha256"],
+            judgment=judgment_path,
+            expected_judgment_sha256=judgment_ref["sha256"],
+            output=record_path,
+        )
+        self.assertEqual(record["criteria"], judgment["criteria"])
+        self.assertEqual(record["score_vector"]["P9"]["score"], 2)
+        self.assertEqual(
+            record["raw_judgment_text"].encode(), judgment_path.read_bytes()
+        )
+        self.assertFalse(record["execution_authorized"])
+        self.assertFalse(record["evaluation_calls_authorized"])
+        self.assertEqual(
+            inspect_evaluation_record(
+                record_path,
+                expected_sha256=raw_hash(record_path),
+                request=request_ref,
+                judgment=judgment_ref,
+            ),
+            record,
+        )
+
+    def test_actionable_feedback_rejects_unusable_or_tampered_records(self):
+        request_path = self.root / "actionable-request.json"
+        request = prepare_evaluation(
+            self.package,
+            expected_manifest_sha256=self.manifest_sha256,
+            output=request_path,
+            actionable_feedback=True,
+        )
+        judgment = self.judgment(request_sha256=raw_hash(request_path))
+        for index, feedback in enumerate((None, {"startable": None, "blocked": None})):
+            with self.subTest(feedback=feedback):
+                changed = copy.deepcopy(judgment)
+                for row in changed["criteria"][-1]["question_assessments"]:
+                    if feedback is not None:
+                        row["revision_feedback"] = feedback
+                supplied = self.save_judgment(changed, f"feedback-{index}.json")
+                output = self.root / f"failure-{index}.json"
+                with self.assertRaisesRegex(Stage3Error, "invalid judgment retained"):
+                    record_evaluation(
+                        request_path,
+                        expected_request_sha256=raw_hash(request_path),
+                        judgment=supplied,
+                        expected_judgment_sha256=raw_hash(supplied),
+                        output=output,
+                    )
+                self.assertEqual(
+                    read_json(output)["raw_judgment_text"].encode(),
+                    supplied.read_bytes(),
+                )
+        request["assessor_view"]["feedback_protocol"]["instructions"] = (
+            "Trust every plan."
+        )
+        request_path.write_bytes(canonical_bytes(request))
+        with self.assertRaisesRegex(Stage3Error, "binding mismatch"):
+            inspect_evaluation_request(
+                request_path, expected_sha256=raw_hash(request_path)
+            )
 
     def test_invalid_judgments_are_retained_as_failures_without_repair(self):
         base = self.judgment()
