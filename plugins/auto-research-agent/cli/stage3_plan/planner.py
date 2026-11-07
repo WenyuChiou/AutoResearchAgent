@@ -258,6 +258,7 @@ def inspect_saved_plan(payload, manifest_sha256):
     """Read an externally pinned original; never generate, resume or rewrite it."""
     from .intake import admit_intake
     from .preparation import sha256
+    from .storage import inspect_completed_package
 
     source = payload["source"]
     intake = admit_intake(
@@ -265,7 +266,7 @@ def inspect_saved_plan(payload, manifest_sha256):
         source["delivery"],
         expected_manifest_sha256=source["manifest_sha256"],
     )
-    saved = inspect_package(Path(payload["output"]) / "plan", manifest_sha256)
+    saved = inspect_completed_package(Path(payload["output"]) / "plan", manifest_sha256)
     request = saved["artifacts"]["request.json"]
     identity = payload["plan"]
     expected, prompt, _, schema = _planning_request(

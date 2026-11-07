@@ -295,7 +295,21 @@ class ProjectStage3PlanningTests(unittest.TestCase):
             with self.assertRaises(SessionApiError):
                 http.view("own", ref)
             self.bridge.saved_read_pins[identity] = pin
-            view = http.view("own", ref)
+            with (
+                patch(
+                    "research_workspace_native.project_stage3_http.inspect_package",
+                    side_effect=AssertionError(
+                        "plan projection lost its completed-read scope"
+                    ),
+                ),
+                patch(
+                    "stage3_plan.planner.inspect_package",
+                    side_effect=AssertionError(
+                        "completed read fell back to current replay"
+                    ),
+                ),
+            ):
+                view = http.view("own", ref)
             self.assertEqual(view["plan"], self.plan)
             self.assertEqual(
                 view["job"]["inspection_scope"], "pinned-completed-artifact-read-only"

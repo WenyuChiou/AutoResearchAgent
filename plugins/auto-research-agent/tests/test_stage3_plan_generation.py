@@ -245,6 +245,22 @@ class Stage3GenerationTests(unittest.TestCase):
             )
             self.assertEqual(replay["artifacts"]["plan.json"], self.plan)
             self.assertEqual(process.call_count, 1)
+            from stage3_plan.storage import inspect_completed_package
+
+            with patch(
+                "stage1_eval.model_calls._evaluator_code_sha", return_value="f" * 64
+            ):
+                with self.assertRaisesRegex(Exception, "current evaluator changed"):
+                    inspect_package(
+                        self.root / "native-plan", saved["manifest"]["manifest_sha256"]
+                    )
+                historical = inspect_completed_package(
+                    self.root / "native-plan", saved["manifest"]["manifest_sha256"]
+                )
+                self.assertEqual(historical["artifacts"]["plan.json"], self.plan)
+                with self.assertRaises(Stage3Error):
+                    inspect_completed_package(self.root / "native-plan", "0" * 64)
+                self.assertEqual(process.call_count, 1)
             archive = self.root / "native-archive/stage3-plan.model-call"
             record = json.loads(
                 next(archive.glob("attempt-*.record.json")).read_bytes()
@@ -252,6 +268,10 @@ class Stage3GenerationTests(unittest.TestCase):
             (archive / record["files"]["stdout"]["path"]).write_bytes(b"tampered")
             with self.assertRaises(Exception):
                 inspect_package(
+                    self.root / "native-plan", saved["manifest"]["manifest_sha256"]
+                )
+            with self.assertRaises(Exception):
+                inspect_completed_package(
                     self.root / "native-plan", saved["manifest"]["manifest_sha256"]
                 )
             self.assertEqual(process.call_count, 1)

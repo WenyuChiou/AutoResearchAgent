@@ -74,6 +74,100 @@ class ModelCallTests(unittest.TestCase):
         Path(command[command.index("-o") + 1]).write_bytes(json.dumps(value).encode())
         return SimpleNamespace(returncode=0, stdout=transcript(value), stderr=b"")
 
+    def test_pinned_historical_read_does_not_relax_current_replay(self):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
+        ):
+            _, provenance = self.invoke()
+        arguments = dict(
+            expected_prompt="raw prompt",
+            expected_schema=self.schema,
+            expected_config=provenance["config"],
+            expected_policy=provenance["execution_policy"],
+        )
+        archive = Path(provenance["call_archive"])
+        original = (archive / "request.json").read_bytes()
+        fingerprint = json.loads(original)["request_fingerprint_sha256"]
+        with (
+            mock.patch(
+                "stage1_eval.model_calls._evaluator_code_sha", return_value="f" * 64
+            ),
+            mock.patch("stage1_eval.model_calls._execute_bound_process") as process,
+        ):
+            with self.assertRaises(EvaluationError):
+                replay_native_model_call_archive(archive, **arguments)
+            output, replay = replay_native_model_call_archive(
+                archive,
+                **arguments,
+                expected_historical_request_fingerprint_sha256=fingerprint,
+            )
+            self.assertEqual(output, {"ok": True})
+            self.assertEqual(
+                replay["inspection_scope"], "pinned-completed-artifact-read-only"
+            )
+            with self.assertRaises(EvaluationError):
+                replay_native_model_call_archive(archive, **arguments)
+            process.assert_not_called()
+        self.assertEqual((archive / "request.json").read_bytes(), original)
+
+    def test_historical_pin_rejects_changes_and_correction_use(self):
+        with mock.patch(
+            "stage1_eval.model_calls._execute_bound_process", side_effect=self.success
+        ):
+            _, provenance = self.invoke()
+        archive = Path(provenance["call_archive"])
+        fingerprint = json.loads((archive / "request.json").read_bytes())[
+            "request_fingerprint_sha256"
+        ]
+        arguments = dict(
+            expected_prompt="raw prompt",
+            expected_schema=self.schema,
+            expected_config=provenance["config"],
+            expected_policy=provenance["execution_policy"],
+        )
+        with (
+            mock.patch(
+                "stage1_eval.model_calls._evaluator_code_sha", return_value="f" * 64
+            ),
+            mock.patch("stage1_eval.model_calls._execute_bound_process") as process,
+        ):
+            for overrides in (
+                {"expected_historical_request_fingerprint_sha256": "0" * 64},
+                {"expected_prompt": "changed prompt"},
+                {"expected_schema": dict(SCHEMA, title="changed schema")},
+                {"expected_config": dict(provenance["config"], model="other-model")},
+                {"for_correction": True},
+            ):
+                values = dict(
+                    arguments,
+                    expected_historical_request_fingerprint_sha256=fingerprint,
+                )
+                values.update(overrides)
+                with (
+                    self.subTest(overrides=overrides),
+                    self.assertRaises(EvaluationError),
+                ):
+                    replay_native_model_call_archive(archive, **values)
+            request = json.loads((archive / "request.json").read_bytes())
+            request["evaluator_code_sha256"] = "e" * 64
+            request["request_fingerprint_sha256"] = sha(
+                canonical(
+                    {
+                        k: v
+                        for k, v in request.items()
+                        if k != "request_fingerprint_sha256"
+                    }
+                )
+            )
+            (archive / "request.json").write_bytes(canonical(request))
+            with self.assertRaises(EvaluationError):
+                replay_native_model_call_archive(
+                    archive,
+                    **arguments,
+                    expected_historical_request_fingerprint_sha256=fingerprint,
+                )
+            process.assert_not_called()
+
     def test_default_timeout_is_600_and_success_is_bound_to_native_json(self):
         with mock.patch(
             "stage1_eval.model_calls._execute_bound_process", side_effect=self.success

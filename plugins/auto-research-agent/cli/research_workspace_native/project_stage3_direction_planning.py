@@ -214,7 +214,15 @@ class ProjectStage3DirectionPlanning:
             result["job"] = self._public(ref, inspected)
             if result["job"]["outcome"] == "saved":
                 saved = inspected["result"]
-                result["plan"] = inspect_package(
+                from stage3_plan.storage import inspect_completed_package
+
+                inspect = (
+                    inspect_completed_package
+                    if inspected.get("inspection_scope")
+                    == "pinned-completed-artifact-read-only"
+                    else inspect_package
+                )
+                result["plan"] = inspect(
                     saved["plan"]["package"], saved["plan"]["manifest_sha256"]
                 )["artifacts"]["plan.json"]
         return result
