@@ -1,5 +1,6 @@
 """Run one native subprocess with optional owned-tree deadline cleanup."""
 
+import errno
 import math
 import os
 import signal
@@ -236,12 +237,26 @@ def run_bound_process(
     ownership_confirmed = _IS_WINDOWS
     try:
         if bounded and not _IS_WINDOWS:
-            owned_pgid = _getpgid(process.pid)
-            ownership_confirmed = owned_pgid == process.pid
-            if not ownership_confirmed:
-                raise RuntimeError(
-                    "spawned process did not enter its owned process group"
-                )
+            spawned_pid = process.pid
+            try:
+                owned_pgid = _getpgid(spawned_pid)
+            except ProcessLookupError as error:
+                # A fast exit can remove the leader before the first query.
+                # Only this Popen's observed terminal state permits collection;
+                # no process-group ownership is inferred from the missing PID.
+                if (
+                    error.errno != errno.ESRCH
+                    or process.pid != spawned_pid
+                    or process.poll() is None
+                    or process.pid != spawned_pid
+                ):
+                    raise
+            else:
+                ownership_confirmed = owned_pgid == spawned_pid == process.pid
+                if not ownership_confirmed:
+                    raise RuntimeError(
+                        "spawned process did not enter its owned process group"
+                    )
         if not bounded:
             process.communicate(input=input)
         else:
