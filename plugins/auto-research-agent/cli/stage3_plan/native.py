@@ -12,8 +12,29 @@ from .contracts import Stage3Error, canonical_bytes, digest
 from .storage import private_output
 
 
+OPERATIONS = {
+    "stage3.scientific-plan.v1": ("prompt.txt", "schema.json", "raw-response.json"),
+    "stage3.direction-design-review.v1": (
+        "design-review-prompt.txt",
+        "design-review-schema.json",
+        "raw-design-review.txt",
+    ),
+}
+
+
 class NativePlanner:
-    def __init__(self, *, codex, codex_home, capture_dir, timeout_seconds):
+    def __init__(
+        self,
+        *,
+        codex,
+        codex_home,
+        capture_dir,
+        timeout_seconds,
+        operation="stage3.scientific-plan.v1",
+    ):
+        if operation not in OPERATIONS:
+            raise Stage3Error("unsupported native planning operation")
+        self.operation = operation
         self.codex = codex
         self.home = codex_home
         self.capture = private_output(capture_dir)
@@ -33,6 +54,11 @@ class NativePlanner:
             "codex_home": str(self.home),
             "capture_dir": str(self.capture),
             "timeout_seconds": self.timeout,
+            **(
+                {"operation": self.operation}
+                if self.operation != "stage3.scientific-plan.v1"
+                else {}
+            ),
         }
 
     def __call__(self, *, prompt, schema_path, output_dir, configuration):
@@ -59,7 +85,7 @@ class NativePlanner:
             "max_transient_transport_retries": 0,
             "evaluator_bundle_sha256": digest(
                 {
-                    "operation": "stage3.scientific-plan.v1",
+                    "operation": self.operation,
                     "schema_sha256": hashlib.sha256(
                         Path(schema_path).read_bytes()
                     ).hexdigest(),
@@ -87,7 +113,7 @@ class NativePlanner:
         return {
             "raw_response": canonical_bytes(result),
             "provenance": {
-                "operation": "stage3.scientific-plan.v1",
+                "operation": self.operation,
                 "kind": "Stage3PlanningGeneration",
                 "capture_dir": str(capture),
                 "primitive_provenance": primitive,
@@ -97,24 +123,42 @@ class NativePlanner:
         }
 
 
-def verify_native_generation(root, generation, *, completed_read=False):
+def verify_native_generation(
+    root,
+    generation,
+    *,
+    completed_read=False,
+    operation="stage3.scientific-plan.v1",
+):
     """Read-only replay original native bytes; never dispatch or relabel proofs."""
     from stage1_eval.model_calls import replay_native_model_call_archive
     from .storage import read_bytes
 
+    if operation not in OPERATIONS:
+        raise Stage3Error("unsupported native planning inspection operation")
+    prompt_name, schema_name, response_name = OPERATIONS[operation]
     primitive = generation["primitive_provenance"]
     if (
-        generation.get("operation") != "stage3.scientific-plan.v1"
+        generation.get("operation") != operation
         or primitive.get("config", {}).get("operation_config")
         != {"web_search": "disabled", "approval_policy": "never"}
         or primitive.get("execution_policy", {}).get("kind")
         != "Stage3PlanningExecutionPolicy"
+        or primitive.get("execution_policy", {}).get("evaluator_bundle_sha256")
+        != digest(
+            {
+                "operation": operation,
+                "schema_sha256": hashlib.sha256(
+                    read_bytes(root / schema_name)
+                ).hexdigest(),
+            }
+        )
     ):
         raise Stage3Error("native planning operation/policy is not source-only Stage3")
     output, replay = replay_native_model_call_archive(
         primitive["call_archive"],
-        expected_prompt=read_bytes(root / "prompt.txt").decode("utf-8"),
-        expected_schema=root / "schema.json",
+        expected_prompt=read_bytes(root / prompt_name).decode("utf-8"),
+        expected_schema=root / schema_name,
         expected_config=primitive["config"],
         expected_policy=primitive["execution_policy"],
         **(
@@ -138,5 +182,5 @@ def verify_native_generation(root, generation, *, completed_read=False):
     ):
         if primitive[field] != replay[field]:
             raise Stage3Error("native planning receipt changed")
-    if canonical_bytes(output) != read_bytes(root / "raw-response.json"):
+    if canonical_bytes(output) != read_bytes(root / response_name):
         raise Stage3Error("native planning output differs from saved response")
