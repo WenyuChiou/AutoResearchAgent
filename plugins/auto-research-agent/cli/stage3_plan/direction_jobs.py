@@ -87,6 +87,24 @@ def validate_direction_result(value, context):
         )
 
 
+def _direction_schema(context):
+    from .direction_study_route import PROFILE, SCHEMA as STUDY_SCHEMA
+
+    return (
+        STUDY_SCHEMA if context.get("direction_prompt_profile") == PROFILE else SCHEMA
+    )
+
+
+def _project_direction_result(raw, context):
+    from .direction_study_route import PROFILE, project_study_route
+
+    return (
+        project_study_route(raw)
+        if context.get("direction_prompt_profile") == PROFILE
+        else raw
+    )
+
+
 class DirectionPlanningJobs(PlanningJobs):
     """A typed advice job, sharing the existing durable planning state machine.
 
@@ -147,7 +165,9 @@ class DirectionPlanningJobs(PlanningJobs):
             "runtime": _runtime(),
             "producer_sha256": _producer_sha256(),
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
-            "schema_sha256": hashlib.sha256(read_bytes(SCHEMA)).hexdigest(),
+            "schema_sha256": hashlib.sha256(
+                read_bytes(_direction_schema(context))
+            ).hexdigest(),
             "policy": dict(POLICY),
         }
         return _direction_request(value, context)["payload"]
@@ -183,7 +203,9 @@ class DirectionPlanningJobs(PlanningJobs):
         output.mkdir()
         write_new(output / "request.json", request)
         write_new(output / "prompt.txt", prompt.encode(), raw=True)
-        write_new(output / "schema.json", read_bytes(SCHEMA), raw=True)
+        write_new(
+            output / "schema.json", read_bytes(_direction_schema(context)), raw=True
+        )
         names = ["request.json", "prompt.txt", "schema.json"]
         review = None
         try:
@@ -195,7 +217,7 @@ class DirectionPlanningJobs(PlanningJobs):
                 )
             response = callback(
                 prompt=prompt,
-                schema_path=SCHEMA,
+                schema_path=_direction_schema(context),
                 output_dir=output,
                 configuration=deepcopy(payload["configuration"]),
             )
@@ -213,7 +235,7 @@ class DirectionPlanningJobs(PlanningJobs):
             names.append("raw-response.json")
             write_new(output / "generation.json", response["provenance"])
             names.append("generation.json")
-            result = decode_json(raw)
+            result = _project_direction_result(decode_json(raw), context)
             validate_direction_result(result, context)
             write_new(output / "plan.json", result)
             names.append("plan.json")
@@ -309,6 +331,7 @@ class DirectionPlanningJobs(PlanningJobs):
         saved = inspect(Path(payload["output"]) / "plan", manifest_sha256)
         request, context, prompt = self._request(payload)
         artifacts = saved["artifacts"]
+        root = Path(payload["output"]) / "plan"
         if artifacts.get("request.json") != request:
             raise Stage3Error("saved conditional planning request differs")
         raw = decode_json(
@@ -317,14 +340,20 @@ class DirectionPlanningJobs(PlanningJobs):
         result = artifacts.get("plan.json")
         validate_direction_result(result, context)
         if (
-            result != raw
+            result != _project_direction_result(raw, context)
+            or hashlib.sha256(read_bytes(root / "schema.json")).hexdigest()
+            != payload["schema_sha256"]
             or read_bytes(Path(payload["output"]) / "plan/prompt.txt")
             != prompt.encode()
         ):
             raise Stage3Error("saved conditional planning output differs")
+        generation = artifacts.get("generation.json", {})
+        if generation.get("kind") == "Stage3PlanningGeneration":
+            from .native import verify_native_generation
+
+            verify_native_generation(root, generation, completed_read=completed_read)
         review = None
         if "direction_research_evidence" in context:
-            root = Path(payload["output"]) / "plan"
             review = validate_design_review(
                 artifacts.get("design-review.json"), result, context
             )

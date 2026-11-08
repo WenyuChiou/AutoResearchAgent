@@ -334,14 +334,35 @@ class ProjectStage3DirectionPlanning:
         with self.intake._lock:
             configured, checkpoint = self._saved(credential, ref, body, check_deadline)
         with ExitStack() as publication:
+            independent_review = (
+                getattr(configured["callback"], "review_design", None)
+                if "direction_research" in configured["adapter_context"]
+                else None
+            )
 
-            def callback(**request):
+            def dispatch(invoke, final, **request):
                 with self.intake._lock:
                     self._saved(credential, ref, body, check_deadline)
-                response = configured["callback"](**request)
-                publication.enter_context(self.intake._lock)
-                self._saved(credential, ref, body, check_deadline)
+                response = invoke(**request)
+                if final:
+                    publication.enter_context(self.intake._lock)
+                    self._saved(credential, ref, body, check_deadline)
+                else:
+                    with self.intake._lock:
+                        self._saved(credential, ref, body, check_deadline)
                 return response
+
+            def callback(**request):
+                return dispatch(
+                    configured["callback"], not callable(independent_review), **request
+                )
+
+            if callable(independent_review):
+
+                def review_design(**request):
+                    return dispatch(independent_review, True, **request)
+
+                callback.review_design = review_design
 
             callback.request_context = deepcopy(configured["adapter_context"])
             result = configured["jobs"].run(

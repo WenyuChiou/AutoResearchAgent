@@ -11,6 +11,7 @@ from stage2_workflow.ui_submission import valid_input_version
 from .contracts import Stage3Error, canonical_bytes, digest
 from .context_projection import pack_context
 from .direction_research import PROMPT_PROFILE
+from .direction_study_route import PROFILE as STUDY_PROFILE, GUIDANCE as STUDY_GUIDANCE
 from .preparation import sha256, text
 from .prompts import MAX_CONTEXT_BYTES
 from .storage import read_json
@@ -268,6 +269,8 @@ def admit_direction_intent(
 
 def build_direction_prompt(context):
     """Prepare a topic-independent request; never generate a missing SQ or result."""
+    from .direction_materials import validate_material_context
+
     _require(
         type(context) is dict
         and context.get("kind") == "Stage3DirectionPlanningContext"
@@ -282,6 +285,7 @@ def build_direction_prompt(context):
         not context["missing_mapping"],
         "needs-information: delivered scientific question mapping is missing",
     )
+    validate_material_context(context)
     original = canonical_bytes(context)
     shared = canonical_bytes(pack_context(context))
     raw = shared if len(shared) < len(original) else original
@@ -317,7 +321,11 @@ def build_direction_prompt(context):
         + (
             PLANNING_GUIDANCE
             if context.get("direction_prompt_profile") == PROMPT_PROFILE
-            else ""
+            else (
+                STUDY_GUIDANCE
+                if context.get("direction_prompt_profile") == STUDY_PROFILE
+                else ""
+            )
         )
         + "END_OF_PLANNING_INSTRUCTIONS\nUNTRUSTED_STAGE2_CONTEXT\n"
         + raw.decode("utf-8")
