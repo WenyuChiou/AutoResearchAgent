@@ -112,3 +112,15 @@ without this explicit profile keep the original prompt and single planning call.
 These checks establish recovery and traceability only. The caller still owns
 source admission, configured services and any explicit new revision; no automatic
 revision, scientific acceptance or research execution authority is introduced.
+
+## Registered-material preparation API
+
+A trusted caller can explicitly call prepare_registered_materials with an authenticated
+catalog, full-file reader and selected JSON pointers. inspect_registered_materials
+recomputes the saved projection from its externally pinned original files. The
+existing artifact and context bounds remain in force. Consumer project, typed
+input version, intent and delivery identity are bound separately from catalog
+metadata. Keep unreviewed status, access limitations and unknown rights visible.
+Matching partial preparation reuses saved reads; completed replay performs no read.
+This API prepares inputs only. Planner, independent-review and Host forwarding
+require their separate integration; no model dispatch or research authority is added.
