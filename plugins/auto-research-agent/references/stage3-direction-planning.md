@@ -136,3 +136,24 @@ project_study_route validates this raw value and derives the existing public
 method text, while retaining source unknowns and false execution authority.
 This schema/projection API does not enable a job/profile or dispatch a model.
 The original raw value is unchanged; durable sealing and Host integration are separate.
+
+## Explicit complete-study planning integration
+
+Only an explicitly configured source-study-v1 adapter enables the new raw schema
+and study guidance. Default profiles keep their previous prompts and result shapes.
+Durable jobs bind the profile and schema, preserve raw model bytes separately from
+the public projection, and review the entire projected plan. A new format requires
+a new profile/schema rather than rewriting a saved response. Unknown or rejected
+design reviews keep needs-information or failed status without repeated dispatch.
+
+The original authenticated Host forwards independent review only when the configured
+adapter explicitly supplies direction_research metadata. It rechecks project/source
+before and after both callbacks, runs them outside the intake lock, then retains
+the lock for final publication. Source drift prevents publication. Same-key replay
+does not dispatch again; a default callback attribute alone does not enable review.
+
+An optional registered-material binding is inspected against the current consumer
+frontier and its pinned original source files. Planner and independent reviewer
+receive the same bounded selected values, catalog metadata and limitations, without
+reader callbacks, credentials or internal frontier paths. Preserve snapshot times,
+unknown rights and observed-pilot status; registration is not scientific acceptance.
