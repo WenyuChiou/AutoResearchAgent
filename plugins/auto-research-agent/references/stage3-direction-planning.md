@@ -77,3 +77,20 @@ or an extra planning call. Review buttons scroll/focus without replacing the
 project fragment, so reloading retains the same project and language.
 Three-language, narrow-screen and keyboard checks establish presentation behavior
 only; usability with researchers and scientific acceptance remain unverified.
+
+## Supplemental evidence and design-review primitives
+
+The optional DirectionResearchAdapter pairs separate Host-configured planning and
+review callbacks. prepare_direction_evidence performs at most one trusted lookup
+per named gap; the planner receives only hash-bound evidence and source locators.
+Source status and limitations remain explicit; receipt integrity is not proof of
+scientific support, data rights or usable access. No lookup service reaches a model.
+research_context preserves every original question, source condition and unknown.
+The source-design-v1 profile is explicit and rejects unknown profiles.
+The independent review prompt includes the entire delivered plan, its overview,
+original conditions and separately labelled prior assessment advice. It asks whether
+the first comparison is feasible and whether a fallback still answers the question.
+Review results bind the exact plan, intent and every original question reference.
+This slice prepares and validates these inputs only. Automatic durable job/native
+review wiring, plan revision, deployed acceptance and scientific quality remain
+separate verification steps; no execution authority is added.
