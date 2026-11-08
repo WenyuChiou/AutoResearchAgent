@@ -124,3 +124,15 @@ metadata. Keep unreviewed status, access limitations and unknown rights visible.
 Matching partial preparation reuses saved reads; completed replay performs no read.
 This API prepares inputs only. Planner, independent-review and Host forwarding
 require their separate integration; no model dispatch or research authority is added.
+
+## Typed study-route projection API
+
+The separate structured-direction schema requires four proposed phases: baseline,
+prototype, independent verification and qualified continuation. Each phase names
+its inputs, procedure, output, decision, blocked branch and timebox. Response
+questions retain explicit acquisition, pairing, identification, development lock,
+pre-reveal prediction, independent reveal, scope and blocked-case steps.
+project_study_route validates this raw value and derives the existing public
+method text, while retaining source unknowns and false execution authority.
+This schema/projection API does not enable a job/profile or dispatch a model.
+The original raw value is unchanged; durable sealing and Host integration are separate.
