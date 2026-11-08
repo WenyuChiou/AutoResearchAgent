@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "intent_sha256",
+    "planning_status",
+    "question_plans",
+    "markdown",
+    "execution_authorized"
+  ],
+  "properties": {
+    "kind": {
+      "const": "Stage3StructuredDirectionPlanningResult"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "intent_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "planning_status": {
+      "enum": [
+        "conditional-draft",
+        "needs-information"
+      ]
+    },
+    "markdown": {
+      "type": "string",
+      "minLength": 1
+    },
+    "execution_authorized": {
+      "const": false
+    },
+    "question_plans": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question_ref",
+          "materials",
+          "design",
+          "validation",
+          "analysis",
+          "interpretation",
+          "unknowns",
+          "minimum_deliverable",
+          "study_route",
+          "response_validation"
+        ],
+        "properties": {
+          "question_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "materials": {
+            "type": "string",
+            "minLength": 1
+          },
+          "design": {
+            "type": "string",
+            "minLength": 1
+          },
+          "validation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "analysis": {
+            "type": "string",
+            "minLength": 1
+          },
+          "interpretation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unknowns": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "minimum_deliverable": {
+            "type": "string",
+            "minLength": 1
+          },
+          "study_route": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "baseline",
+              "prototype",
+              "holdout",
+              "continuation"
+            ],
+            "properties": {
+              "baseline": {
+                "$ref": "#/$defs/study_phase"
+              },
+              "prototype": {
+                "$ref": "#/$defs/study_phase"
+              },
+              "holdout": {
+                "$ref": "#/$defs/study_phase"
+              },
+              "continuation": {
+                "$ref": "#/$defs/study_phase"
+              }
+            }
+          },
+          "response_validation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "reason",
+              "acquire",
+              "pair",
+              "identify",
+              "train_and_lock",
+              "predict_before_reveal",
+              "reveal_and_verify",
+              "qualified_scope",
+              "if_blocked"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "matched-response",
+                  "not-applicable"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              },
+              "acquire": {
+                "type": "string",
+                "minLength": 1
+              },
+              "pair": {
+                "type": "string",
+                "minLength": 1
+              },
+              "identify": {
+                "type": "string",
+                "minLength": 1
+              },
+              "train_and_lock": {
+                "type": "string",
+                "minLength": 1
+              },
+              "predict_before_reveal": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reveal_and_verify": {
+                "type": "string",
+                "minLength": 1
+              },
+              "qualified_scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "if_blocked": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "study_phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "inputs",
+        "procedure",
+        "output",
+        "decision",
+        "if_blocked",
+        "timebox"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "procedure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "if_blocked": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timebox": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
