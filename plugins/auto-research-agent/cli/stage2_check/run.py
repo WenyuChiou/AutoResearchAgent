@@ -1,5 +1,9 @@
 """Immutable run initialization, assessment application, and export."""
 
+from stage2_common.packet_versions import (
+    BOUND_PACKET_VERSIONS,
+    PRIOR_WORK_PACKET_VERSIONS,
+)
 from contextlib import contextmanager
 import copy
 from datetime import datetime, timezone
@@ -312,15 +316,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
     _validate_manifest(manifest)
     packet_path = root / manifest["packet_path"]
     packet = _read_json(packet_path)
-    if packet.get("schema_version") in {
-        "2.0.0",
-        "2.1.0",
-        "2.2.0",
-        "2.3.0",
-        "2.4.0",
-        "2.5.0",
-        "2.6.0",
-    }:
+    if packet.get("schema_version") in BOUND_PACKET_VERSIONS:
         try:
             root = private_output(root)
         except DeliverableError as error:
@@ -329,15 +325,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
         root = root.resolve()
     if canonical_hash(packet) != manifest["stored_packet_sha256"]:
         raise Stage2Error("stored-packet-hash-mismatch")
-    if packet.get("schema_version") in {
-        "2.0.0",
-        "2.1.0",
-        "2.2.0",
-        "2.3.0",
-        "2.4.0",
-        "2.5.0",
-        "2.6.0",
-    }:
+    if packet.get("schema_version") in BOUND_PACKET_VERSIONS:
         input_packet_path = root / "input_packet.json"
         try:
             input_packet_bytes = input_packet_path.read_bytes()
@@ -441,15 +429,7 @@ def initialize_run(
     source_root = Path(source_root).resolve()
     source_packet = _read_json(packet_file)
     packet_sha256 = canonical_hash(source_packet)
-    if source_packet.get("schema_version") in {
-        "2.0.0",
-        "2.1.0",
-        "2.2.0",
-        "2.3.0",
-        "2.4.0",
-        "2.5.0",
-        "2.6.0",
-    }:
+    if source_packet.get("schema_version") in BOUND_PACKET_VERSIONS:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != packet_sha256:
@@ -459,8 +439,7 @@ def initialize_run(
     try:
         output = (
             private_output(Path(output_dir).absolute())
-            if source_packet.get("schema_version")
-            in {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}
+            if source_packet.get("schema_version") in BOUND_PACKET_VERSIONS
             else Path(output_dir).resolve()
         )
     except DeliverableError as error:
@@ -487,6 +466,9 @@ def initialize_run(
         snapshots = []
         receipt_snapshots = []
         stored_packet = copy.deepcopy(source_packet)
+        from stage2_common.core_source import copy_files
+
+        copy_files(source_packet, source_root, output)
         stored_sources = {row["source_id"]: row for row in stored_packet["sources"]}
         for source in source_packet["sources"]:
             relative = source["path"]
@@ -562,15 +544,7 @@ def initialize_run(
             if source_packet["schema_version"] == "2.6.0"
             else "stage1-stage2"
         )
-        if source_packet["schema_version"] in {
-            "2.0.0",
-            "2.1.0",
-            "2.2.0",
-            "2.3.0",
-            "2.4.0",
-            "2.5.0",
-            "2.6.0",
-        }:
+        if source_packet["schema_version"] in BOUND_PACKET_VERSIONS:
             _write_new(output / "input_packet.json", _canonical_bytes(source_packet))
             stored_packet_sha256 = canonical_hash(stored_packet)
             input_refs = [
@@ -618,7 +592,7 @@ def initialize_run(
                 "input_refs": input_refs,
             },
         }
-        if source_packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}:
+        if source_packet["schema_version"] in PRIOR_WORK_PACKET_VERSIONS:
             manifest["prior_work_receipts"] = receipt_snapshots
         manifest["manifest_sha256"] = _manifest_hash(manifest)
         _write_new(output / "run_manifest.json", manifest)

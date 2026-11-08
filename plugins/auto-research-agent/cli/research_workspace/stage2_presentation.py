@@ -5,6 +5,7 @@ import re
 from html import escape
 
 from stage1_deliverable.common import canonical
+from stage2_common.packet_versions import TABLE_PACKET_VERSIONS
 
 
 _DISPOSITION_LABELS = {
@@ -324,8 +325,7 @@ def render_stage2_card(attachment) -> str:
     bridge = attachment.get("bridge_receipt") or {}
     content_gate = (
         render_content_gate_html(derive_content_gate(selection))
-        if selection["evaluation_packet"].get("schema_version")
-        in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}
+        if selection["evaluation_packet"].get("schema_version") in TABLE_PACKET_VERSIONS
         else ""
     )
     recommendations = selection.get("recommendations") or []

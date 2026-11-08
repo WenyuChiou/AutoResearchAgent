@@ -64,6 +64,10 @@ def _required_files(state):
         documents[prefix + manifest["packet_path"]] = checker["packet"]
         for row in manifest["source_snapshots"]:
             hashes[prefix + row["stored_path"]] = row["sha256"]
+        from stage2_common.core_source import file_refs
+
+        for row in file_refs(checker["packet"]):
+            hashes[prefix + row["path"]] = row["sha256"]
         stage_run = manifest.get("stage_run") or {}
         for row in stage_run.get("input_refs", []):
             hashes[prefix + row["path"]] = row["sha256"]

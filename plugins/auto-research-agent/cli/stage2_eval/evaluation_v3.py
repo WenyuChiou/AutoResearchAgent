@@ -1,5 +1,11 @@
 """Offline Stage 2 v3 judging that preserves v2 bytes and behavior."""
 
+from stage2_common.packet_versions import (
+    PRIOR_WORK_PACKET_VERSIONS,
+    SCIENTIFIC_PACKET_VERSIONS,
+    SUPPLEMENTAL_PACKET_VERSIONS,
+    TABLE_PACKET_VERSIONS,
+)
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -116,7 +122,7 @@ def prepare_content_view_v3(
                 )
             }
         )
-        if packet.get("schema_version") in {"2.5.0", "2.6.0"}:
+        if packet.get("schema_version") in SCIENTIFIC_PACKET_VERSIONS:
             candidates[-1]["scientific_argument"] = deepcopy(row["scientific_argument"])
     brief = packet["brief"]
     view = {
@@ -154,7 +160,7 @@ def prepare_content_view_v3(
             "candidates": candidates,
         },
     }
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+    if packet.get("schema_version") in TABLE_PACKET_VERSIONS:
         tables = packet.get("research_tables")
         if tables is not None:
             from stage2_ideation.topic_tables import validate_research_tables
@@ -162,7 +168,7 @@ def prepare_content_view_v3(
             tables = validate_research_tables(tables, packet)
         content = view["scientific_content"]
         content["literature"] = deepcopy(packet["literature"])
-        if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+        if packet.get("schema_version") in SUPPLEMENTAL_PACKET_VERSIONS:
             content["supplemental_literature"] = deepcopy(
                 packet["supplemental_literature"]
             )
@@ -191,7 +197,7 @@ def prepare_content_view_v3(
             if tables is not None
             else None
         )
-        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
+        if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS:
             reviews = current_prior_work_reviews(packet)
             content["prior_work_reviews"] = [
                 reviews[row["candidate_id"]]

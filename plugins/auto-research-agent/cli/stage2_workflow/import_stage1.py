@@ -156,7 +156,11 @@ def _unresolved(records, unavailable, included):
         )
         for claim in records["claims"]
         if claim["work_id"] in included
-        and claim["relation"] in {"unverified", "partial", "contradicts"}
+        and (
+            claim["relation"] in {"unverified", "partial", "contradicts"}
+            or records["schema_version"] in {"1.1.0", "1.2.0"}
+            and claim["relation"] in {"pending", "unclear", "unverifiable", "context"}
+        )
     )
     return rows
 
@@ -218,6 +222,14 @@ def _project_stage1(deliverable_root, output, records, included, *, host_replay=
         for row in records["claims"]
         if row["work_id"] in included
     ]
+    if records["schema_version"] in {"1.1.0", "1.2.0"}:
+        from stage2_common.core_source import project_claim
+
+        evidence = [
+            project_claim(row)
+            for row in records["claims"]
+            if row["work_id"] in included
+        ]
     return literature, stage2_sources, evidence, unavailable
 
 
@@ -328,6 +340,7 @@ def build_stage2_seed(
     historical_exporter_root=None,
     replayer_exporter_root=None,
     verified_host_replay=None,
+    allow_current_core=False,
 ):
     """Validate Stage 1, then create an unstarted Stage 2 v2 packet."""
 
@@ -383,13 +396,18 @@ def build_stage2_seed(
             "stage1-deliverable-manifest",
         )
         records = manifest["canonical_records"]
-        if records["schema_version"] != "1.0.0":
+        current_core = records["schema_version"] in {"1.1.0", "1.2.0"}
+        if records["schema_version"] != "1.0.0" and not (
+            allow_current_core is True and current_core
+        ):
             raise Stage2Error(
                 "stage2-canonical-records-consumer-unconnected: "
                 + records["schema_version"]
             )
         if handoff is None:
             handoff = _read_bound_json(handoff_path, handoff_sha256, "stage1-handoff")
+        if current_core and handoff.get("schema_version") != "1.0.0":
+            raise Stage2Error("stage2-current-core-requires-native-handoff")
         saved_snapshot, resolved_replay = verify_stage1_handoff(
             handoff,
             deliverable_manifest_sha256,
@@ -491,6 +509,18 @@ def build_stage2_seed(
             "unresolved": unresolved,
             "upstream": upstream,
         }
+        if current_core:
+            from stage2_common.core_source import retain_core_source
+
+            packet.update(
+                schema_version="2.7.0",
+                supplemental_literature=[],
+                research_tables=None,
+                prior_work_reviews=[],
+                core_source=retain_core_source(
+                    deliverable_root, handoff_path, output, records
+                ),
+            )
         # Revalidate after source reads so the imported projection cannot mix
         # bytes from two deliverable states changed during this operation.
         _revalidate_deliverable(

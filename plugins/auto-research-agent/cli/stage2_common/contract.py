@@ -1,5 +1,10 @@
 """Fail-closed validation for the versioned Stage 2 scientific packet."""
 
+from stage2_common.packet_versions import (
+    PRIOR_WORK_PACKET_VERSIONS,
+    SCIENTIFIC_PACKET_VERSIONS,
+    SUPPLEMENTAL_PACKET_VERSIONS,
+)
 import hashlib
 import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -26,10 +31,12 @@ SCHEMA_PATHS = {
     / "schemas/stage2-packet.v2_5.schema.json",
     "2.6.0": Path(__file__).resolve().parents[2]
     / "schemas/stage2-packet.v2_6.schema.json",
+    "2.7.0": Path(__file__).resolve().parents[2]
+    / "schemas/stage2-packet.v2_7.schema.json",
 }
 
-V2_PACKET_VERSIONS = {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0"}
-TABLE_PACKET_VERSIONS = {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}
+V2_PACKET_VERSIONS = {"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.7.0"}
+TABLE_PACKET_VERSIONS = {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0", "2.7.0"}
 
 
 class Stage2Error(ValueError):
@@ -91,6 +98,7 @@ def _schema_validate(packet):
             "2.4.0": ["2.0.0", "2.1.0", "2.2.0", "2.3.0"],
             "2.5.0": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"],
             "2.6.0": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0"],
+            "2.7.0": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0"],
         }
         dependencies = [
             SCHEMA_PATHS[item] for item in dependency_versions.get(version, [])
@@ -206,7 +214,7 @@ def validate_packet(packet, root):
     candidates = packet["candidates"]
     if packet["schema_version"] in V2_PACKET_VERSIONS | {"2.6.0"}:
         _unique(literature, "work_id", "literature work_id")
-    if packet["schema_version"] in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+    if packet["schema_version"] in SUPPLEMENTAL_PACKET_VERSIONS:
         primary_work_ids = {row["work_id"] for row in literature}
         _require(
             all(row["origin"] == "stage2" for row in supplemental_literature),
@@ -348,6 +356,10 @@ def validate_packet(packet, root):
             "stage1-stage2-upstream-literature-set-mismatch",
         )
     for row in evidence:
+        if packet["schema_version"] == "2.7.0" and row["origin"] == "stage1":
+            # Core's source classification and nullable locator are original
+            # observations, replayed against its own bound artifacts below.
+            continue
         source = source_by_id.get(row["source_id"])
         _require(
             source is not None,
@@ -358,7 +370,7 @@ def validate_packet(packet, root):
             and row["version_id"] == source["version_id"],
             f"evidence work/version mismatch: {row['evidence_id']}",
         )
-        if packet["schema_version"] in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+        if packet["schema_version"] in SUPPLEMENTAL_PACKET_VERSIONS:
             levels = {"metadata": 0, "abstract": 1, "full-text": 2}
             _require(
                 levels[row["evidence_level"]] <= levels[source["evidence_level"]],
@@ -368,6 +380,11 @@ def validate_packet(packet, root):
             row["quote"] in source_text[row["source_id"]],
             f"evidence quote is not exact contiguous source text: {row['evidence_id']}",
         )
+
+    if packet["schema_version"] == "2.7.0":
+        from .core_source import validate_core_source
+
+        validate_core_source(packet, root)
 
     histories = {}
     for candidate in candidates:
@@ -398,13 +415,13 @@ def validate_packet(packet, root):
         from stage2_ideation.topic_tables import validate_research_tables
 
         validate_research_tables(packet["research_tables"], packet)
-    if packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}:
+    if packet["schema_version"] in PRIOR_WORK_PACKET_VERSIONS:
         from .prior_work import validate_prior_work_reviews
 
         validate_prior_work_reviews(
             packet, root, canonical_hash=canonical_hash, error_type=Stage2Error
         )
-    if packet["schema_version"] in {"2.5.0", "2.6.0"}:
+    if packet["schema_version"] in SCIENTIFIC_PACKET_VERSIONS:
         from .scientific_argument import validate_scientific_argument
 
         for candidate in candidates:

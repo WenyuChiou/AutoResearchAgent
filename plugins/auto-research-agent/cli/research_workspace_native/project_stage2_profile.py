@@ -34,10 +34,14 @@ def _profile_packet(seed_root, original):
     validate_packet(original, seed_root)
     packet, steps = original, []
     for options in (
-        {},
-        {"supplemental_versions": True},
-        {"prior_work_reviews": True},
-        {"scientific_arguments": True},
+        ()
+        if original["schema_version"] == "2.7.0"
+        else (
+            {},
+            {"supplemental_versions": True},
+            {"prior_work_reviews": True},
+            {"scientific_arguments": True},
+        )
     ):
         parent = canonical_hash(packet)
         packet = derive_opt_in_packet(packet, **options)

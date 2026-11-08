@@ -1,5 +1,9 @@
 """Append captured sources to a private packet; never attest their scientific truth."""
 
+from stage2_common.packet_versions import (
+    PRIOR_WORK_PACKET_VERSIONS,
+    SUPPLEMENTAL_PACKET_VERSIONS,
+)
 import copy
 import hashlib
 import json
@@ -124,14 +128,14 @@ def prepare_source_update(
             }
             target = (
                 "supplemental_literature"
-                if packet["schema_version"] in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}
+                if packet["schema_version"] in SUPPLEMENTAL_PACKET_VERSIONS
                 and row.get("work_id") in primary_work_ids
                 else "literature"
             )
             next_packet.setdefault(target, []).append(row)
         raw_files[source["path"]] = raw
     next_packet["candidates"].extend(copy.deepcopy(revisions))
-    if packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}:
+    if packet["schema_version"] in PRIOR_WORK_PACKET_VERSIONS:
         # Every added source/evidence row changes the complete source-set hash.
         # The immutable parent retains its reviews; the new packet requires fresh ones.
         next_packet["prior_work_reviews"] = []
@@ -178,6 +182,9 @@ def prepare_source_update(
         }:
             raise Stage2Error("source-update-control-path-collision")
     destination.mkdir(parents=True)
+    from stage2_common.core_source import copy_files
+
+    copy_files(packet, source_root, destination)
     # Only bound UTF-8 snapshots are copied. No credential/profile inventory.
     for source in packet["sources"]:
         raw_files[source["path"]] = _bound_path(

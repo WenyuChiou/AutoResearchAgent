@@ -1,5 +1,6 @@
 """Deterministic, inert Markdown rendering for a Stage 2 selection."""
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 import hashlib
 import json
 import re
@@ -118,11 +119,17 @@ def _validate_bindings(selection, source_snapshots):
         if evidence_id in evidence:
             raise Stage2Error(f"report-duplicate-evidence: {evidence_id}")
         source = snapshots.get(row.get("source_id"))
-        if source is None:
+        if source is None and not (
+            packet.get("schema_version") == "2.7.0"
+            and row.get("origin") == "stage1"
+            and row.get("source_id") is None
+            and row.get("core_artifact")
+        ):
             raise Stage2Error(f"report-evidence-source-missing: {evidence_id}")
-        if row.get("work_id") != source.get("work_id") or row.get(
-            "version_id"
-        ) != source.get("version_id"):
+        if source is not None and (
+            row.get("work_id") != source.get("work_id")
+            or row.get("version_id") != source.get("version_id")
+        ):
             raise Stage2Error(f"report-evidence-binding-mismatch: {evidence_id}")
         evidence[evidence_id] = row
 
@@ -322,14 +329,28 @@ def _assessment_details(lines, assessment, evidence):
     lines.extend(["", f"- Next step: {_text(next_step)}", ""])
 
 
+def _evidence_source(row, snapshots, artifact_prefix=""):
+    """Core excerpts point to their actual artifact, not inferred physical access."""
+    if row.get("origin") == "stage1" and "core_artifact" in row:
+        return {
+            **row["core_artifact"],
+            "path": artifact_prefix + row["core_artifact"]["path"],
+            "source_id": "Retained Core artifact (recorded observation)",
+            "work_id": row["work_id"],
+            "version_id": row["version_id"],
+            "evidence_level": row["evidence_level"],
+        }
+    return snapshots[row["source_id"]]
+
+
 def _prior_work_evidence(evidence_ids, evidence, snapshots):
     values = []
     for evidence_id in evidence_ids:
         row = evidence[evidence_id]
-        source = snapshots[row["source_id"]]
+        source = _evidence_source(row, snapshots)
         values.append(
             f"[{_text(evidence_id)}](#{_evidence_anchor(evidence_id)}) "
-            f"(level={_text(source['evidence_level'])}; locator={_text(row['locator'])})"
+            f"(level={_text(source['evidence_level'])}; locator={_text(row['locator'] or 'unavailable')})"
         )
     return "; ".join(values) or "None recorded"
 
@@ -542,7 +563,7 @@ def render_proposal(
     for option in selection["current_options"]:
         candidate = option["candidate"]
         _candidate_details(lines, candidate, evidence)
-        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
+        if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS:
             review = prior_reviews.get(
                 (candidate["candidate_id"], candidate["version"])
             )
@@ -643,7 +664,7 @@ def render_proposal(
     )
     for evidence_id in sorted(evidence):
         row = evidence[evidence_id]
-        source = snapshots[row["source_id"]]
+        source = _evidence_source(row, snapshots, audit_base)
         path = _safe_snapshot_path(source["path"])
         lines.extend(
             [
@@ -651,7 +672,7 @@ def render_proposal(
                 f"### Evidence {_text(evidence_id)}",
                 "",
                 f"- Source snapshot: [{_text(source['source_id'])}]({path})",
-                f"- Locator: {_text(row['locator'])}",
+                f"- Locator: {_text(row['locator'] or 'unavailable')}",
                 f"- Work: {_text(row['work_id'])}",
                 f"- Version: {_text(row['version_id'])}",
                 f"- Evidence level: {_text(source['evidence_level'])}",
@@ -674,7 +695,11 @@ def render_proposal(
                     else []
                 ),
                 "Exact excerpt:",
-                *_quote_block(row["quote"]),
+                *(
+                    _quote_block(row["quote"])
+                    if row["quote"] is not None
+                    else ["Unavailable in the original Core observation."]
+                ),
                 "",
             ]
         )
