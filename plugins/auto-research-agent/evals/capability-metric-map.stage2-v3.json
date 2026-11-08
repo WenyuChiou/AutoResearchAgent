@@ -699,9 +699,10 @@
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
       ],
-      "current_core_source_contract": "Opt-in packet2.7 consumes checkpoint-produced native Stage1Handoff1.0 with records1.1/1.2 through the existing scientific workflow. Raw Core relation/classification, nullable spans, original claim history and screening artifacts remain exact and hash-bound; physical source access is separate. Initialization, reopen, content/source transitions and delivery retain the closure; rehashed projection rewrites reject. Default legacy and independently admitted saved-source2.0 routes retain their original guards. These engineering fixtures grant no scientific, rights, execution or A/B acceptance.",
+      "current_core_source_contract": "Opt-in packet2.7 consumes checkpoint-produced native Stage1Handoff1.0 with records1.1/1.2 through the existing scientific workflow. Raw Core relation/classification, nullable spans, original claim history and screening artifacts remain exact and hash-bound; physical source access is separate. Initialization, reopen, content/source transitions and delivery retain the closure; rehashed projection rewrites reject. Default legacy and independently admitted saved-source2.0 routes retain their original guards. These engineering fixtures grant no scientific, rights, execution or A/B acceptance. Delivery resolves only its freshly allocated host temporary root; caller-provided source and destination links remain rejected.",
       "current_core_source_test_refs": [
-        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py"
+        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py",
+        "plugins/auto-research-agent/tests/test_stage1_core_lifecycle.py"
       ]
     },
     {

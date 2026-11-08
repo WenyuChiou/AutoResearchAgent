@@ -168,7 +168,8 @@ def _delivery_source_inputs(checker, source_root):
     # receipt paths. Reconstruct that input namespace from verified snapshots;
     # the temporary copies never replace the retained workflow or its hashes.
     with tempfile.TemporaryDirectory(prefix="stage2-delivery-input-") as temporary:
-        root = Path(temporary)
+        # Resolve only this host-allocated directory; caller paths keep their guards.
+        root = Path(temporary).resolve()
         copy_files(checker["packet"], checker["root"], root)
         for record in [*checker["manifest"]["source_snapshots"], *receipts]:
             stored = _safe_package_path(checker["root"], record["stored_path"])
