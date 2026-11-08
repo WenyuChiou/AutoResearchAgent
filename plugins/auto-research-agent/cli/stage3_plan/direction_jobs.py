@@ -8,11 +8,18 @@ from jsonschema import Draft202012Validator
 
 from .contracts import Stage3Error, digest
 from .direction_intent import admit_direction_intent, build_direction_prompt
+from .direction_research import (
+    REVIEW_SCHEMA,
+    build_design_review_prompt,
+    research_context,
+    validate_design_review,
+)
 from .jobs import (
     POLICY,
     PlanningJobs,
     _bounded_job_payload,
     _check_adapter_context,
+    _ref,
     _runtime,
 )
 from .planner import _producer_sha256
@@ -106,13 +113,15 @@ class DirectionPlanningJobs(PlanningJobs):
         closed(document, {"kind", "source"}, "direction input")
         if document["kind"] != "Stage3DirectionPlanningJobInput":
             raise Stage3Error("typed direction input required")
-        context = direction_context(document["source"])
+        _check_adapter_context(adapter_context)
+        context = research_context(
+            direction_context(document["source"]), adapter_context
+        )
         if context["project_ref"] != self.project_ref:
             raise Stage3Error("direction source belongs to another Host project")
         closed(configuration, {"model", "reasoning"}, "configuration")
         for value in configuration.values():
             text(value, "configuration value")
-        _check_adapter_context(adapter_context)
         text(key, "job key")
         text(plan_id, "plan identity")
         if type(version) is not int or version < 1 or schema_version != "1.0.0":
@@ -144,10 +153,29 @@ class DirectionPlanningJobs(PlanningJobs):
         return _direction_request(value, context)["payload"]
 
     def _request(self, payload):
-        context = direction_context(payload["source"])
+        context = research_context(
+            direction_context(payload["source"]), payload["adapter_context"]
+        )
         prompt = build_direction_prompt(context)
         request = _direction_request(payload, context)
         return request, context, prompt
+
+    def run(self, key, *, expected_request_sha256, current_checkpoint, callback):
+        item = self._item(key, expected_request_sha256, current_checkpoint)
+        if (
+            item["status"] == "intent-recorded"
+            and "direction_research" in item["payload"]["adapter_context"]
+            and not callable(getattr(callback, "review_design", None))
+        ):
+            raise Stage3Error(
+                "configured independent direction design reviewer required before dispatch"
+            )
+        return super().run(
+            key,
+            expected_request_sha256=expected_request_sha256,
+            current_checkpoint=current_checkpoint,
+            callback=callback,
+        )
 
     def _perform(self, payload, callback):
         request, context, prompt = self._request(payload)
@@ -157,7 +185,14 @@ class DirectionPlanningJobs(PlanningJobs):
         write_new(output / "prompt.txt", prompt.encode(), raw=True)
         write_new(output / "schema.json", read_bytes(SCHEMA), raw=True)
         names = ["request.json", "prompt.txt", "schema.json"]
+        review = None
         try:
+            if "direction_research_evidence" in context and not callable(
+                getattr(callback, "review_design", None)
+            ):
+                raise Stage3Error(
+                    "configured independent direction design reviewer required"
+                )
             response = callback(
                 prompt=prompt,
                 schema_path=SCHEMA,
@@ -182,6 +217,10 @@ class DirectionPlanningJobs(PlanningJobs):
             validate_direction_result(result, context)
             write_new(output / "plan.json", result)
             names.append("plan.json")
+            if "direction_research_evidence" in context:
+                review = self._review_design(
+                    payload, callback, result, context, output, names
+                )
         except BaseException as error:
             write_new(
                 output / "failure.json",
@@ -196,11 +235,72 @@ class DirectionPlanningJobs(PlanningJobs):
             output,
             names,
             request_sha256=digest(request),
-            state="needs-information"
-            if result["planning_status"] == "needs-information"
-            else "draft",
+            state=self._planning_status(result, review),
         )
         return self._saved(payload, manifest["manifest_sha256"])
+
+    def _review_design(self, payload, callback, result, context, output, names):
+        prompt = build_design_review_prompt(result, context)
+        write_new(output / "design-review-prompt.txt", prompt.encode(), raw=True)
+        names.append("design-review-prompt.txt")
+        write_new(
+            output / "design-review-schema.json", read_bytes(REVIEW_SCHEMA), raw=True
+        )
+        names.append("design-review-schema.json")
+        response = callback.review_design(
+            prompt=prompt,
+            schema_path=REVIEW_SCHEMA,
+            output_dir=output,
+            configuration=deepcopy(payload["configuration"]),
+        )
+        closed(
+            response, {"raw_response", "provenance"}, "direction design review response"
+        )
+        raw = response["raw_response"]
+        if isinstance(raw, str):
+            raw = raw.encode("utf-8")
+        if not isinstance(raw, bytes):
+            raise Stage3Error("direction design review must be bytes or text")
+        write_new(output / "raw-design-review.txt", raw, raw=True)
+        names.append("raw-design-review.txt")
+        write_new(output / "design-review-generation.json", response["provenance"])
+        names.append("design-review-generation.json")
+        review = validate_design_review(decode_json(raw), result, context)
+        write_new(output / "design-review.json", review)
+        names.append("design-review.json")
+        return review
+
+    @staticmethod
+    def _planning_status(result, review):
+        return (
+            "needs-information"
+            if (
+                result["planning_status"] == "needs-information"
+                or (
+                    review is not None
+                    and any(
+                        row["answerability"] != "adequate"
+                        for row in review["question_reviews"]
+                    )
+                )
+            )
+            else "draft"
+        )
+
+    def _failure_artifacts(self, payload):
+        artifacts = super()._failure_artifacts(payload)
+        root = Path(payload["output"]) / "plan"
+        for name in (
+            "plan.json",
+            "design-review-prompt.txt",
+            "design-review-schema.json",
+            "raw-design-review.txt",
+            "design-review-generation.json",
+            "design-review.json",
+        ):
+            if (root / name).is_file():
+                artifacts[name] = _ref(root / name)
+        return artifacts
 
     def _saved(self, payload, manifest_sha256, *, attach=False, completed_read=False):
         from .storage import inspect_completed_package
@@ -222,6 +322,32 @@ class DirectionPlanningJobs(PlanningJobs):
             != prompt.encode()
         ):
             raise Stage3Error("saved conditional planning output differs")
+        review = None
+        if "direction_research_evidence" in context:
+            root = Path(payload["output"]) / "plan"
+            review = validate_design_review(
+                artifacts.get("design-review.json"), result, context
+            )
+            if (
+                decode_json(read_bytes(root / "raw-design-review.txt")) != review
+                or read_bytes(root / "design-review-prompt.txt")
+                != build_design_review_prompt(result, context).encode()
+                or read_bytes(root / "design-review-schema.json")
+                != read_bytes(REVIEW_SCHEMA)
+            ):
+                raise Stage3Error("saved direction design review differs")
+            generation = artifacts.get("design-review-generation.json", {})
+            if generation.get("kind") == "Stage3PlanningGeneration":
+                from .native import verify_native_generation
+
+                verify_native_generation(
+                    root,
+                    generation,
+                    completed_read=completed_read,
+                    operation="stage3.direction-design-review.v1",
+                )
+        if saved["manifest"]["state"] != self._planning_status(result, review):
+            raise Stage3Error("saved direction planning state differs")
         return {
             "outcome": "saved",
             "mode": "direction-intent",
@@ -230,7 +356,12 @@ class DirectionPlanningJobs(PlanningJobs):
                 "manifest_sha256": manifest_sha256,
             },
             "checkpoint": deepcopy(payload["checkpoint"]),
-            "planning_status": result["planning_status"],
+            "planning_status": (
+                self._planning_status(result, review)
+                if review is not None
+                else result["planning_status"]
+            ),
+            **({"design_review": deepcopy(review)} if review is not None else {}),
             "formal_selected_receiver": False,
             "policy": dict(POLICY),
         }

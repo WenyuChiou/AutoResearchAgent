@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PLUGIN / "cli"), str(PLUGIN / "tests")]
-from stage3_plan.contracts import Stage3Error, canonical_bytes  # noqa: E402
+from stage3_plan.contracts import Stage3Error, canonical_bytes, digest  # noqa: E402
 from stage3_plan.intake import admit_intake, project_intake  # noqa: E402
 from stage3_plan.native import NativePlanner  # noqa: E402
 from stage3_plan.planner import draft_synthetic_plan as draft_plan  # noqa: E402
@@ -275,6 +275,181 @@ class Stage3GenerationTests(unittest.TestCase):
                     self.root / "native-plan", saved["manifest"]["manifest_sha256"]
                 )
             self.assertEqual(process.call_count, 1)
+
+    def test_design_review_native_operation_keeps_model_tools_and_deadline(self):
+        from stage3_plan.contracts import digest
+
+        schema = PLUGIN / "schemas/stage3-direction-design-review.v1.schema.json"
+        adapter = NativePlanner(
+            codex="host-codex",
+            codex_home=self.root / "review-home",
+            capture_dir=self.root / "review-capture",
+            timeout_seconds=30,
+            operation="stage3.direction-design-review.v1",
+        )
+        with patch(
+            "stage1_eval.model_calls.call_model_v31", return_value=({}, {})
+        ) as call:
+            response = adapter(
+                prompt="Authored review",
+                schema_path=schema,
+                output_dir=self.root / "review-output",
+                configuration=self.config,
+            )
+        args = call.call_args.kwargs
+        self.assertEqual(
+            (call.call_count, args["model"], args["reasoning"], args["timeout"]),
+            (1, self.config["model"], self.config["reasoning"], 30),
+        )
+        self.assertEqual(
+            args["operation_config"],
+            {"web_search": "disabled", "approval_policy": "never"},
+        )
+        self.assertEqual(args["execution_policy"]["tools"], "none")
+        self.assertEqual(args["execution_policy"]["max_transient_transport_retries"], 0)
+        import hashlib
+
+        self.assertEqual(
+            args["execution_policy"]["evaluator_bundle_sha256"],
+            digest(
+                {
+                    "operation": "stage3.direction-design-review.v1",
+                    "schema_sha256": hashlib.sha256(schema.read_bytes()).hexdigest(),
+                }
+            ),
+        )
+        self.assertEqual(
+            response["provenance"]["operation"], adapter.request_context["operation"]
+        )
+        with self.assertRaises(Stage3Error):
+            NativePlanner(
+                codex="host-codex",
+                codex_home=self.root / "home",
+                capture_dir=self.root / "bad",
+                timeout_seconds=30,
+                operation="execute-research",
+            )
+
+    def test_review_replay_uses_its_own_files_and_historical_scope(self):
+        import hashlib
+        from stage3_plan.native import verify_native_generation
+
+        primitive = {
+            "config": {
+                "operation_config": {
+                    "web_search": "disabled",
+                    "approval_policy": "never",
+                }
+            },
+            "execution_policy": {
+                "kind": "Stage3PlanningExecutionPolicy",
+                "evaluator_bundle_sha256": digest(
+                    {
+                        "operation": "stage3.direction-design-review.v1",
+                        "schema_sha256": hashlib.sha256(b"{}").hexdigest(),
+                    }
+                ),
+            },
+            "call_archive": "authored-archive",
+            **{
+                key: "a" * 64
+                for key in (
+                    "request_fingerprint_sha256",
+                    "attempt_record_sha256",
+                    "output_sha256",
+                    "stdout_sha256",
+                    "stderr_sha256",
+                )
+            },
+            "model": "stub",
+            "reasoning": "medium",
+        }
+        generation = {
+            "operation": "stage3.direction-design-review.v1",
+            "primitive_provenance": primitive,
+        }
+        (self.root / "design-review-prompt.txt").write_text(
+            "Original review", encoding="utf-8"
+        )
+        (self.root / "design-review-schema.json").write_text("{}", encoding="utf-8")
+        raw = self.root / "raw-design-review.txt"
+        raw.write_bytes(canonical_bytes({"original": "review"}))
+        with patch(
+            "stage1_eval.model_calls.replay_native_model_call_archive",
+            return_value=({"original": "review"}, primitive),
+        ) as replay:
+            with self.assertRaises(Stage3Error):
+                verify_native_generation(self.root, generation)
+            replay.assert_not_called()
+            verify_native_generation(
+                self.root,
+                generation,
+                completed_read=True,
+                operation="stage3.direction-design-review.v1",
+            )
+            self.assertEqual(
+                replay.call_args.kwargs["expected_prompt"], "Original review"
+            )
+            self.assertEqual(
+                replay.call_args.kwargs["expected_schema"],
+                self.root / "design-review-schema.json",
+            )
+            self.assertEqual(
+                replay.call_args.kwargs[
+                    "expected_historical_request_fingerprint_sha256"
+                ],
+                "a" * 64,
+            )
+            verify_native_generation(
+                self.root, generation, operation="stage3.direction-design-review.v1"
+            )
+            self.assertNotIn(
+                "expected_historical_request_fingerprint_sha256",
+                replay.call_args.kwargs,
+            )
+            raw.write_bytes(b"{}")
+            with self.assertRaises(Stage3Error):
+                verify_native_generation(
+                    self.root, generation, operation="stage3.direction-design-review.v1"
+                )
+
+    def test_review_rejects_wrong_operation_bundle_before_archive_replay(self):
+        import hashlib
+        from stage3_plan.native import verify_native_generation
+
+        schema = self.root / "design-review-schema.json"
+        schema.write_bytes(b"{}")
+        primitive = {
+            "config": {
+                "operation_config": {
+                    "web_search": "disabled",
+                    "approval_policy": "never",
+                }
+            },
+            "execution_policy": {
+                "kind": "Stage3PlanningExecutionPolicy",
+                "evaluator_bundle_sha256": digest(
+                    {
+                        "operation": "stage3.scientific-plan.v1",
+                        "schema_sha256": hashlib.sha256(
+                            schema.read_bytes()
+                        ).hexdigest(),
+                    }
+                ),
+            },
+        }
+        generation = {
+            "operation": "stage3.direction-design-review.v1",
+            "primitive_provenance": primitive,
+        }
+        with patch(
+            "stage1_eval.model_calls.replay_native_model_call_archive"
+        ) as replay:
+            with self.assertRaises(Stage3Error):
+                verify_native_generation(
+                    self.root, generation, operation="stage3.direction-design-review.v1"
+                )
+            replay.assert_not_called()
 
     def test_legacy_or_advice_cannot_be_promoted_by_planner(self):
         self.intake["legacy_candidates"] = [{"reason": "legacy-unstructured"}]

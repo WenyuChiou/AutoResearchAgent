@@ -94,3 +94,21 @@ Review results bind the exact plan, intent and every original question reference
 This slice prepares and validates these inputs only. Automatic durable job/native
 review wiring, plan revision, deployed acceptance and scientific quality remain
 separate verification steps; no execution authority is added.
+
+## Durable optional design review
+
+DirectionPlanningJobs uses the existing journal and immutable package for the
+explicit source-design-v1 profile. A configured independent review callback is
+required before planning dispatch. Each callback retains its own native capture;
+the review uses the dedicated stage3.direction-design-review.v1 operation with
+the configured model, tools and finite deadline unchanged.
+
+The package seals the full delivered plan, review prompt/schema, raw response and
+review record. Unknown or needs-revision answers retain a saved needs-information
+result. A reviewer failure retains the completed plan and all written review
+bytes; same-key replay inspects those hashes and never retries either callback.
+Completed read-only inspection preserves the historical request binding. Jobs
+without this explicit profile keep the original prompt and single planning call.
+These checks establish recovery and traceability only. The caller still owns
+source admission, configured services and any explicit new revision; no automatic
+revision, scientific acceptance or research execution authority is introduced.

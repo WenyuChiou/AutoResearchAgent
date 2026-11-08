@@ -10,10 +10,22 @@ from stage2_workflow.ui_submission import valid_input_version
 
 from .contracts import Stage3Error, canonical_bytes, digest
 from .context_projection import pack_context
+from .direction_research import PROMPT_PROFILE
 from .preparation import sha256, text
 from .prompts import MAX_CONTEXT_BYTES
 from .storage import read_json
 
+
+PLANNING_GUIDANCE = (
+    "Use the bound supplementary evidence only within its stated scope and limits. "
+    "For each question, identify the first executable comparison, its actual input "
+    "and output, and how it addresses the original question. Separate a useful "
+    "minimum study from a larger conditional extension. Distinguish available "
+    "resources from estimates and dependencies; do not assume an unprovided "
+    "license, collaborator or specialist. If the necessary evidence is unavailable, "
+    "state which original claim remains unanswered and the next specific check. "
+    "Keep prior reviewer advice separate from the user's actual conditions.\n"
+)
 
 INTENT_FIELDS = {
     "kind",
@@ -302,5 +314,11 @@ def build_direction_prompt(context):
         "identical original source value. $literal escapes a literal source "
         "object as key/value pairs. Sharing removes no questions, conditions, evidence or unknowns. "
         "The expanded source context is bound by context_sha256.\n"
-        "END_OF_PLANNING_INSTRUCTIONS\nUNTRUSTED_STAGE2_CONTEXT\n" + raw.decode("utf-8")
+        + (
+            PLANNING_GUIDANCE
+            if context.get("direction_prompt_profile") == PROMPT_PROFILE
+            else ""
+        )
+        + "END_OF_PLANNING_INSTRUCTIONS\nUNTRUSTED_STAGE2_CONTEXT\n"
+        + raw.decode("utf-8")
     )
