@@ -416,6 +416,9 @@ def prepare_content_revision(
     output.mkdir(parents=True)
     sources = output / "sources"
     sources.mkdir()
+    from stage2_common.core_source import copy_files
+
+    copy_files(current_packet, source_root, sources)
     for source in current_packet["sources"]:
         source_path = _bound_path(source_root, source["path"])
         target = (sources / source["path"]).resolve()

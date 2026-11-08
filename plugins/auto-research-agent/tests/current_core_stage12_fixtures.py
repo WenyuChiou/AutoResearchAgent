@@ -86,7 +86,7 @@ def _empty_query(ledger, query):
 
 
 @contextmanager
-def current_core_stage1_case(screened=False):
+def current_core_stage1_case(screened=False, *, metadata_observation=False):
     """Yield an eligible native Core package, retaining its actual identity.
 
     Core 1.2 is selected by the producer when an authored assessment is present;
@@ -120,6 +120,17 @@ def current_core_stage1_case(screened=False):
                 "actor_type": "agent",
                 "method": "authored-offline-contract-assertion",
             }
+            if metadata_observation:
+                ledger.claim(
+                    work_id=paper["work_id"],
+                    version_id=paper["version_id"],
+                    claim_text="Unknown: authored discovery-metadata context.",
+                    relation="pending",
+                    evidence_level="metadata",
+                    locator=None,
+                    source_ref=deepcopy(discovery["source_ref"]),
+                    verifier=verifier,
+                )
             for relation, level, located in (
                 ("partial", "full_text", True),
                 ("pending", "metadata", False),

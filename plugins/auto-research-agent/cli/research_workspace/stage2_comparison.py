@@ -4,6 +4,10 @@ from copy import deepcopy
 import json
 
 from stage2_common import current_prior_work_reviews
+from stage2_common.packet_versions import (
+    PRIOR_WORK_PACKET_VERSIONS,
+    SUPPLEMENTAL_PACKET_VERSIONS,
+)
 
 
 _CELL_FIELDS = {
@@ -184,7 +188,7 @@ def build_comparison_view(attachment):
     selection = attachment.get("selection") or {}
     packet = selection.get("evaluation_packet") or {}
     prior_work = None
-    if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
+    if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS:
         prior_work = current_prior_work_reviews(packet)
     view = {
         "schema_version": "1.0.0",
@@ -206,7 +210,7 @@ def build_comparison_view(attachment):
     if prior_work is not None:
         view["prior_work_reviews"] = deepcopy(list(prior_work.values()))
         view["prior_work_source_levels"] = _prior_work_source_levels(packet)
-    if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+    if packet.get("schema_version") in SUPPLEMENTAL_PACKET_VERSIONS:
         supplements = _literature(packet, "supplemental_literature")
         for row in supplements:
             row["record_kind"] = "supplemental-source-version"

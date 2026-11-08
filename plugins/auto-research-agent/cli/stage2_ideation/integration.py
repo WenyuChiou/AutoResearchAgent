@@ -1,5 +1,6 @@
 """Convert validated prose extraction into a new packet, never an approval."""
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 import copy
 
 from stage2_common import Stage2Error, canonical_hash, validate_packet
@@ -151,7 +152,7 @@ def build_next_packet(
         for unknown in result["unresolved"]:
             if unknown not in next_packet["unresolved"]:
                 next_packet["unresolved"].append(unknown)
-    if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"} and affected:
+    if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS and affected:
         affected_ids = set(affected)
         next_packet["prior_work_reviews"] = [
             row

@@ -240,3 +240,184 @@ class CurrentCoreStage2IntegrationTests(unittest.TestCase):
 
     def test_checkpoint_generated_screened12_handoff_and_package_without_dispatch(self):
         self._qualify_fixture(True)
+
+
+class CurrentCoreStage2AdapterIntegrationTests(unittest.TestCase):
+    def _exercise(self, screened):
+        from copy import deepcopy
+        from research_workspace_native.project_stage2 import ProjectStage2Service
+        from stage2_check.report_html import render_selection_html
+        from stage2_check.run import export_selection
+        from stage2_common import (
+            Stage2Error,
+            canonical_hash,
+            validate_packet,
+            stage1_projection_hash,
+        )
+        from stage2_workflow import initialize_workflow, inspect_workflow
+
+        with current_core_stage1_case(screened=screened) as fixture:
+            case, ref = fixture["case"], fixture["project_ref"]
+            resources = fixture["root"] / "native-resources.txt"
+            resources.write_text(
+                case.intake.binding(ref)["settings"]["resource_envelope"],
+                encoding="utf-8",
+            )
+            service = ProjectStage2Service(case.intake)
+            offer = service.register(
+                ref,
+                deliverable_dir=fixture["deliverable_dir"],
+                expected_manifest_sha256=fixture["manifest_sha256"],
+                handoff_path=fixture["handoff_path"],
+                expected_handoff_sha256=fixture["handoff_sha256"],
+                resources_path=resources,
+                expected_resources_sha256=sha(resources.read_bytes()),
+                policy_ref={
+                    "route": "stage2-general-v3/daily_v3",
+                    "execution_authorized": False,
+                    "packet_profile": "scientific-v3",
+                },
+            )
+            state = case.intake.read("alice-token", ref)
+            body = dict(
+                key="current-core-activate",
+                revision=state["revision"],
+                input_version=state["input_version"],
+                brief_sha256=state["brief_sha256"],
+                offer_ref=offer["offer_ref"],
+                offer_sha256=offer["offer_sha256"],
+                confirmed=True,
+            )
+            first = service.activate("alice-token", ref, body)
+            second = ProjectStage2Service(case.intake).activate(
+                "alice-token", ref, body
+            )
+            self.assertIs(first["replayed"], False)
+            self.assertIs(second["replayed"], True)
+            self.assertEqual(
+                {k: v for k, v in first.items() if k != "replayed"},
+                {k: v for k, v in second.items() if k != "replayed"},
+            )
+            public = service.read("alice-token", ref)
+            self.assertEqual(
+                public["activation"]["stage2_status"], "ready-for-explicit-stage2-run"
+            )
+            self.assertIs(public["execution_authorized"], False)
+            self.assertIs(public["stage2_complete"], False)
+            binding = service.binding(ref)
+            packet, root = read_json(binding["packet_path"]), binding["source_root"]
+            self.assertEqual(packet["schema_version"], "2.7.0")
+            self.assertEqual(canonical_hash(packet), binding["packet_sha256"])
+            self.assertEqual(
+                read_json(root / "stage1_core/records.original.json"),
+                fixture["records"],
+            )
+            self.assertEqual(
+                read_json(root / "stage1_core/handoff.json"), fixture["handoff"]
+            )
+            self.assertEqual(
+                packet["core_source"]["records_version"],
+                "1.2.0" if screened else "1.1.0",
+            )
+            self.assertTrue(
+                any(
+                    row["quote"] is None and row["relation"] == "pending"
+                    for row in packet["evidence"]
+                )
+            )
+            self.assertTrue(
+                any(
+                    row["evidence_level"] == "primary_data_or_table"
+                    for row in packet["evidence"]
+                )
+            )
+            self.assertEqual("reading_status" in packet["literature"][0], screened)
+            validate_packet(packet, root)
+            workflow = inspect_workflow(
+                binding["workflow_root"], expected_head=binding["workflow_head_sha256"]
+            )
+            self.assertEqual(workflow["actions"], {})
+            self.assertEqual(workflow["latest_snapshot"]["packet"], packet)
+            checker = workflow["latest_snapshot"]["checker"]
+            export_selection(checker["root"])
+            selection = read_json(checker["root"] / "selection.json")
+            html = render_selection_html(selection, checker["packet"]["sources"])
+            self.assertIn(b"Unavailable in the original Core observation", html)
+            self.assertIn(b"stage1_core/core_claim_artifacts/", html)
+            self.assertIn(
+                "Unavailable in the original Core observation",
+                (checker["root"] / "selection.md").read_text(encoding="utf-8"),
+            )
+            refused = fixture["root"] / "wrong-external-hash"
+            with self.assertRaisesRegex(Stage2Error, "external-packet-hash-mismatch"):
+                initialize_workflow(
+                    binding["packet_path"],
+                    root,
+                    refused,
+                    {},
+                    {},
+                    expected_packet_sha256="0" * 64,
+                )
+            self.assertFalse(refused.exists())
+            for field in ("claim_text", "quote"):
+                changed = deepcopy(packet)
+                pending = next(
+                    row for row in changed["evidence"] if row["relation"] == "pending"
+                )
+                if field == "claim_text":
+                    pending[field] = "Invented replacement assertion."
+                else:
+                    located = next(
+                        row for row in packet["evidence"] if row["quote"] is not None
+                    )
+                    for key in ("quote", "locator", "start", "end"):
+                        pending[key] = located[key]
+                upstream = changed["upstream"]
+                upstream["stage1_evidence_sha256"] = stage1_projection_hash(
+                    changed["evidence"]
+                )
+                upstream["binding_sha256"] = canonical_hash(
+                    {k: v for k, v in upstream.items() if k != "binding_sha256"}
+                )
+                with self.assertRaisesRegex(
+                    Stage2Error, "stage1-core-claim-projection-mismatch"
+                ):
+                    validate_packet(changed, root)
+            artifact = next(
+                row
+                for row in packet["core_source"]["files"]
+                if "/core_claim_artifacts/" in row["path"]
+            )
+            path = root / artifact["path"]
+            raw = path.read_bytes()
+            try:
+                path.unlink()
+                with self.assertRaisesRegex(Stage2Error, "stage1-core-"):
+                    validate_packet(packet, root)
+                path.write_bytes(raw + b"\nTampered fixture.\n")
+                changed = deepcopy(packet)
+                next(
+                    row
+                    for row in changed["core_source"]["files"]
+                    if row["path"] == artifact["path"]
+                )["sha256"] = sha(path.read_bytes())
+                with self.assertRaisesRegex(Stage2Error, "stage1-core-"):
+                    validate_packet(changed, root)
+            finally:
+                path.write_bytes(raw)
+            validate_packet(packet, root)
+            self.assertEqual(
+                inspect_workflow(binding["workflow_root"])["head_sha256"],
+                binding["workflow_head_sha256"],
+            )
+            self.assertEqual(
+                fixture["zero_callback_counts"],
+                {"query_runner": 0, "source_service": 0, "model": 0},
+            )
+            case.runner.assert_not_called()
+
+    def test_opted_in_core11_seed_reopens_without_dispatch(self):
+        self._exercise(False)
+
+    def test_opted_in_screened12_seed_reopens_without_dispatch(self):
+        self._exercise(True)

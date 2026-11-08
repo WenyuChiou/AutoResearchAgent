@@ -45,3 +45,17 @@ false. These engineering checks do not rerun or score any research.
 The project UI keeps imported Stage1 confirmation/revision forms read-only. Missing
 Stage1 budget and consent fields are left blank or ungranted, while the verified
 Stage2 activation offer remains available in all three interface languages.
+
+## Native checkpoint-produced Core records
+
+For an existing operational Stage 1 project, trusted register with
+policy_ref.packet_profile=scientific-v3 explicitly enables records1.1/1.2 and a
+native Stage1Handoff1.0. The public build_stage2_seed adapter exposes the same
+opt-in as allow_current_core=True; the default retains historical refusal.
+Packet2.7 directly uses the scientific workflow without rewriting an old packet.
+Original Core relations, evidence classifications, nullable locators, exact
+artifacts/history and screened reading status remain separately hash-bound.
+Physical source availability is not inferred from a Core classification.
+Reopen and delivery retain the original closure and do not dispatch research.
+This path does not issue saved-source2.0 independent acceptance, a scientific
+recommendation, a human choice or execution authority. Those gates remain separate.

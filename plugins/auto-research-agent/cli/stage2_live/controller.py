@@ -6,6 +6,7 @@ scientific truth.  The private adapter seam exists only for deterministic tests;
 results produced through it are permanently labelled synthetic.
 """
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 import copy
 import hashlib
 import json
@@ -155,7 +156,7 @@ def _initial_review_view_version(packet):
 
     return (
         "1.3.0"
-        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}
+        if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS
         else REVIEW_VIEW_VERSION_CURRENT
     )
 
@@ -169,7 +170,7 @@ def _prior_work_basis_sha256(packet):
 def _prior_work_completion(packet, snapshot_sha256):
     """Describe the explicit dossier gate needed before independent review."""
 
-    if packet.get("schema_version") not in {"2.4.0", "2.5.0", "2.6.0"}:
+    if packet.get("schema_version") not in PRIOR_WORK_PACKET_VERSIONS:
         return None
     current = _latest_map(packet)
     reviews = current_prior_work_reviews(packet)
@@ -273,7 +274,7 @@ def _extracted_next_packet(value):
 
 
 def _matching_ideation_snapshots(state, next_packet):
-    if next_packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
+    if next_packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS:
         basis_sha256 = _prior_work_basis_sha256(next_packet)
         return [
             row
@@ -312,7 +313,7 @@ def _portable_input_path(root, relative):
 def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
     """Build or verify a snapshot-bound combined source and receipt input view."""
 
-    if snapshot["packet"].get("schema_version") not in {"2.4.0", "2.5.0", "2.6.0"}:
+    if snapshot["packet"].get("schema_version") not in PRIOR_WORK_PACKET_VERSIONS:
         root = Path(snapshot["checker"]["root"]) / "sources"
         validate_packet(snapshot["packet"], root)
         return root
@@ -340,6 +341,23 @@ def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
         }
         for row in manifest.get("prior_work_receipts", [])
     ]
+    from stage2_common.core_source import file_refs
+
+    core_refs = file_refs(snapshot["packet"])
+    if {row["path"].casefold() for row in core_refs} & {
+        row["path"].casefold() for row in artifacts
+    }:
+        raise Stage2Error("controller-input-view-path-conflict")
+    artifacts.extend(
+        {
+            "kind": "stage1-core",
+            "binding_id": row["path"],
+            "path": row["path"],
+            "stored_path": row["path"],
+            "sha256": row["sha256"],
+        }
+        for row in core_refs
+    )
     view_manifest = {
         "kind": "Stage2ControllerInputView",
         "schema_version": "1.0.0",

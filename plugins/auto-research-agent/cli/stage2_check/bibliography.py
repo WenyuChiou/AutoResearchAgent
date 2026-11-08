@@ -1,5 +1,9 @@
 """Validated bibliography projection shared by Stage 2 report formats."""
 
+from stage2_common.packet_versions import (
+    BOUND_PACKET_VERSIONS,
+    SUPPLEMENTAL_PACKET_VERSIONS,
+)
 import json
 
 from jsonschema import Draft202012Validator
@@ -11,15 +15,7 @@ from stage2_ideation.report import _source_url
 
 def build_bibliography(packet, snapshots, evidence):
     """Validate and project packet literature without inventing metadata."""
-    if packet.get("schema_version") not in {
-        "2.0.0",
-        "2.1.0",
-        "2.2.0",
-        "2.3.0",
-        "2.4.0",
-        "2.5.0",
-        "2.6.0",
-    }:
+    if packet.get("schema_version") not in BOUND_PACKET_VERSIONS:
         return {
             "available": False,
             "message": (
@@ -38,6 +34,11 @@ def build_bibliography(packet, snapshots, evidence):
     if not isinstance(supplemental, list):
         raise Stage2Error("report-supplemental-literature-invalid")
     schema = json.loads(SCHEMA_PATHS["2.0.0"].read_text(encoding="utf-8"))
+    if packet.get("schema_version") == "2.7.0":
+        schema["$defs"]["literature"]["properties"]["reading_status"] = {
+            "type": "string",
+            "minLength": 1,
+        }
     validator = Draft202012Validator(
         {"$defs": schema["$defs"], "$ref": "#/$defs/literature"}
     )
@@ -111,7 +112,15 @@ def build_bibliography(packet, snapshots, evidence):
                     claim.get(field) != row.get(field)
                     for field in ("work_id", "version_id", "origin")
                 )
-                or claim.get("source_id") not in source_ids
+                or (
+                    claim.get("source_id") not in source_ids
+                    and not (
+                        packet.get("schema_version") == "2.7.0"
+                        and claim.get("origin") == "stage1"
+                        and claim.get("source_id") is None
+                        and claim.get("core_artifact")
+                    )
+                )
             ):
                 raise Stage2Error(
                     f"report-literature-claim-binding-mismatch: {work_id}"
@@ -167,7 +176,7 @@ def build_bibliography(packet, snapshots, evidence):
             item["support_scope"] = "supplemental-source-version-of-same-work"
             primary["supplemental_versions"].append(item)
         else:
-            if packet.get("schema_version") in {"2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+            if packet.get("schema_version") in SUPPLEMENTAL_PACKET_VERSIONS:
                 item["supplemental_versions"] = []
             projected.append(item)
             projected_by_work[work_id] = item

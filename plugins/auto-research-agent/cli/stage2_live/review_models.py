@@ -1,5 +1,6 @@
 """Structure independently captured research judgments without inventing receipts."""
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 import copy
 import hashlib
 import json
@@ -108,7 +109,7 @@ def _review_view_version(packet, candidate_id, snapshot_sha256, role, view_sha25
         version
         for version in REVIEW_VIEW_VERSIONS
         if version not in {"1.2.0", "1.3.0"}
-        or packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}
+        or packet["schema_version"] in PRIOR_WORK_PACKET_VERSIONS
     )
     matches = [
         version

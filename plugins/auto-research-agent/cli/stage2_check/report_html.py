@@ -1,5 +1,6 @@
 """Safe deterministic HTML view of a validated Stage 2 selection."""
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 import json
 from html import escape
 
@@ -143,10 +144,10 @@ def _prior_work_evidence(evidence_ids, evidence, snapshots):
     rows = []
     for evidence_id in evidence_ids:
         item = evidence[evidence_id]
-        source = snapshots[item["source_id"]]
+        source = canonical_report._evidence_source(item, snapshots)
         rows.append(
             f'<a href="#{_evidence_anchor(evidence_id)}">{_text(evidence_id)}</a> '
-            f"(level={_text(source['evidence_level'])}; locator={_text(item['locator'])})"
+            f"(level={_text(source['evidence_level'])}; locator={_text(item['locator'] or 'unavailable')})"
         )
     return "; ".join(rows) or "None recorded"
 
@@ -292,7 +293,7 @@ def _current_options(selection, evidence, snapshots, receipt_base):
     for option in selection["current_options"]:
         candidate = option["candidate"]
         cards.append(_candidate(candidate, evidence))
-        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
+        if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS:
             review = prior_reviews.get(
                 (candidate["candidate_id"], candidate["version"])
             )
@@ -448,7 +449,7 @@ def _bibliography(bibliography, evidence):
     )
 
 
-def _sources(snapshots, evidence, bibliography):
+def _sources(snapshots, evidence, bibliography, artifact_prefix=""):
     evidence_by_source = {}
     for row in evidence.values():
         evidence_by_source.setdefault(row["source_id"], []).append(row["evidence_id"])
@@ -472,12 +473,12 @@ def _sources(snapshots, evidence, bibliography):
     appendix = []
     for evidence_id in sorted(evidence):
         row = evidence[evidence_id]
-        source = snapshots[row["source_id"]]
+        source = canonical_report._evidence_source(row, snapshots, artifact_prefix)
         appendix.append(
             f'<article class="card evidence" id="{_evidence_anchor(evidence_id)}">'
             f"<h3>Evidence {_text(evidence_id)}</h3><dl>"
             f"<dt>Source snapshot</dt><dd>{_snapshot_link(source)}</dd>"
-            f"<dt>Locator</dt><dd>{_text(row['locator'])}</dd>"
+            f"<dt>Locator</dt><dd>{_text(row['locator'] or 'unavailable')}</dd>"
             f"<dt>Work</dt><dd>{_text(row['work_id'])}</dd>"
             f"<dt>Version</dt><dd>{_text(row['version_id'])}</dd>"
             f"<dt>Evidence level</dt><dd>{_text(source['evidence_level'])}</dd>"
@@ -499,7 +500,7 @@ def _sources(snapshots, evidence, bibliography):
                 and bibliography["by_evidence"].get(evidence_id)
                 else ""
             )
-            + f"</dl><h4>Exact excerpt</h4><pre>{_text(row['quote'])}</pre></article>"
+            + f"</dl><h4>Exact excerpt</h4><pre>{_text(row['quote'] if row['quote'] is not None else 'Unavailable in the original Core observation.')}</pre></article>"
         )
     return f"""
 <section id="sources"><h2>Saved source snapshots</h2>{inventory}
@@ -507,13 +508,20 @@ def _sources(snapshots, evidence, bibliography):
 <h2>Evidence appendix</h2>{"".join(appendix) or "<p>No evidence excerpts are recorded.</p>"}</section>"""
 
 
-def render_selection_html(selection, source_snapshots, *, receipt_prefix=None):
+def render_selection_html(
+    selection, source_snapshots, *, receipt_prefix=None, artifact_prefix=""
+):
     """Render complete validated Stage 2 content as safe standalone HTML bytes."""
     packet, snapshots, evidence, bibliography = canonical_report._validate_bindings(
         selection, source_snapshots
     )
     packet_hash = selection["packet_sha256"]
     receipt_base = canonical_report._receipt_base(receipt_prefix)
+    artifact_base = (
+        canonical_report._safe_snapshot_path(artifact_prefix) + "/"
+        if artifact_prefix
+        else ""
+    )
     comparison = _text(packet["comparison"])
     body = "".join(
         [
@@ -529,7 +537,7 @@ def render_selection_html(selection, source_snapshots, *, receipt_prefix=None):
             _questions(selection),
             _histories(selection, evidence),
             _bibliography(bibliography, evidence),
-            _sources(snapshots, evidence, bibliography),
+            _sources(snapshots, evidence, bibliography, artifact_base),
             (
                 '<section id="audit"><h2>Audit trail</h2>'
                 f"<p><strong>Original input packet SHA-256:</strong> <code>{_text(packet_hash)}</code></p>"

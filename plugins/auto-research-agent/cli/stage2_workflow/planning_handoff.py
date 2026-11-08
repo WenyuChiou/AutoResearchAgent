@@ -1,5 +1,6 @@
 """Derive and revalidate a non-authorizing Stage 2 planning package."""
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 import copy
 import hashlib
 import json
@@ -207,7 +208,7 @@ def _project_handoff(delivery, record, interaction_sha256, message_sha256):
             "status": "recorded",
             "rows": [copy.deepcopy(reviews[row["candidate_id"]]) for row in selected],
         }
-        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}
+        if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS
         else {"status": "unknown-not-recorded", "rows": []}
     )
     inventory = {row["path"] for row in delivery["manifest"]["files"]}

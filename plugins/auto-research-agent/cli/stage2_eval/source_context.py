@@ -214,6 +214,10 @@ def build_source_context(packet, source_root, policy):
         except UnicodeDecodeError as error:
             raise Stage2Error("source-context-source is not UTF-8") from error
         quote = evidence["quote"]
+        _require(
+            isinstance(quote, str) and bool(quote),
+            "source-context requires an available exact excerpt; original unknowns remain in the packet",
+        )
         start = entry["quote_start"]
         _require(
             type(start) is int

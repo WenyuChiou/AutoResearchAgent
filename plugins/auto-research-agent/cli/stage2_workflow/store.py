@@ -5,6 +5,7 @@ expected head.  They are not cryptographic attestation that an external action
 executed as described.
 """
 
+from stage2_common.packet_versions import BOUND_PACKET_VERSIONS
 from contextlib import contextmanager
 import copy
 from datetime import datetime, timezone
@@ -296,8 +297,11 @@ def _validate_append_only(previous, current, *, parent_snapshot_sha256=None):
         "2.3.0",
         "2.4.0",
         "2.5.0",
+        "2.7.0",
     } and canonical_hash(previous["upstream"]) != canonical_hash(current["upstream"]):
         raise Stage2Error("workflow-upstream-stage1-binding-rewritten")
+    if previous.get("core_source") != current.get("core_source"):
+        raise Stage2Error("workflow-core-source-binding-rewritten")
     if previous["schema_version"] == "2.6.0" and previous["entry"] != current["entry"]:
         raise Stage2Error("workflow-direct-request-binding-rewritten")
     old_tables = previous.get("research_tables")
@@ -538,15 +542,7 @@ def initialize_workflow(
         raise Stage2Error("workflow-settings-policy-must-be-objects")
     initial_packet = _read_json(_resolved(Path(packet_path)))
     initial_packet_sha256 = canonical_hash(initial_packet)
-    if initial_packet.get("schema_version") in {
-        "2.0.0",
-        "2.1.0",
-        "2.2.0",
-        "2.3.0",
-        "2.4.0",
-        "2.5.0",
-        "2.6.0",
-    }:
+    if initial_packet.get("schema_version") in BOUND_PACKET_VERSIONS:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
         if expected_packet_sha256 != initial_packet_sha256:

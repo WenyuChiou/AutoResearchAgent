@@ -4,6 +4,7 @@ The host must supply native session evidence. These checks bind the supplied
 records; they cannot authenticate a host that fabricates all session receipts.
 """
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 import copy
 import json
 import hashlib
@@ -132,7 +133,7 @@ def prepare_review(
     )
     if review_view_version in {"1.2.0", "1.3.0"}:
         _require(
-            packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"},
+            packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS,
             "review-view-1.2-requires-packet-2.4",
         )
     _, latest = latest_candidates(packet, [])

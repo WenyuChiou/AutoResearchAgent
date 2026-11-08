@@ -5,6 +5,7 @@ separate evidence. A verified app-server reply is not a production Controller
 capture or formal isolation certificate. Missing daily_v3 assessment stays open.
 """
 
+from stage2_common.packet_versions import PRIOR_WORK_PACKET_VERSIONS
 from contextlib import contextmanager
 from copy import deepcopy
 import hashlib
@@ -225,7 +226,7 @@ class StagePipeline:
         return next(iter(latest.values()))
 
     def _view_version(self):
-        if self.packet["schema_version"] in {"2.4.0", "2.5.0", "2.6.0"}:
+        if self.packet["schema_version"] in PRIOR_WORK_PACKET_VERSIONS:
             # Historical bindings reconstruct their original prompts unchanged.
             return self.binding.get("rich_review_view_version", "1.2.0")
         return (

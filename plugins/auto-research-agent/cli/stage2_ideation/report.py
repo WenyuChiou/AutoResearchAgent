@@ -1,5 +1,6 @@
 """Pure source-rich proposal views for Stage 2 literature and ideation."""
 
+from stage2_common.packet_versions import TABLE_PACKET_VERSIONS
 import copy
 import hashlib
 import ipaddress
@@ -27,6 +28,20 @@ def _unknown(value):
 
 
 def _evidence_view(row, sources):
+    if row.get("origin") == "stage1" and "core_artifact" in row:
+        source = sources.get(row["source_id"])
+        return {
+            **copy.deepcopy(row),
+            "source_sha256": source["sha256"] if source is not None else None,
+            "physical_source_access": (
+                {
+                    name: copy.deepcopy(source[name])
+                    for name in ("source_id", "sha256", "evidence_level")
+                }
+                if source is not None
+                else None
+            ),
+        }
     source = sources[row["source_id"]]
     return {
         **copy.deepcopy(row),
@@ -94,7 +109,13 @@ def build_proposal_view(packet, source_root, raw_proposal, extraction, snapshot_
             ),
         },
     }
-    if packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}:
+    if packet.get("schema_version") == "2.7.0":
+        view["validation_boundary"]["factual_source_validation"] = (
+            "passed: original Core records, history, artifact hashes and available "
+            "spans were replayed; unavailable observations remain unresolved. "
+            "Physical access and scientific support are not inferred."
+        )
+    if packet.get("schema_version") in TABLE_PACKET_VERSIONS:
         table_packet = build_next_packet(
             packet, source_root, raw_proposal, extraction, snapshot_sha256
         )["packet"]
@@ -173,7 +194,7 @@ def _md_identifier(identifier):
 
 
 def _md_source_ref(row):
-    return f"{_md(row['source_id'])} / {_md(row['work_id'])} / {_md(row['version_id'])}"
+    return f"{_md(_unknown(row['source_id']))} / {_md(row['work_id'])} / {_md(row['version_id'])}"
 
 
 def render_proposal_markdown(view):
@@ -214,7 +235,7 @@ def render_proposal_markdown(view):
     for index, row in enumerate(view["bibliography"], 1):
         lines.extend(
             [
-                f"### Bibliography {index}: {_md(row['source_id'])}",
+                f"### Bibliography {index}: {_md(_unknown(row['source_id']))}",
                 "",
                 f"- Title: {_md(row['title'])}",
                 f"- Authors: {_md(row['authors'])}",
@@ -222,7 +243,7 @@ def render_proposal_markdown(view):
                 f"- Identifier: {_md_identifier(row['identifier'])}",
                 f"- Roles: {', '.join(_md(value) for value in row['roles']) or 'unknown'}",
                 f"- Source / work / version: {_md_source_ref(row)}",
-                f"- Source SHA-256: `{row['source_sha256']}`",
+                f"- Source SHA-256: `{_unknown(row['source_sha256'])}`",
                 f"- Evidence level: {_md(row['evidence_level'])}",
                 "",
             ]
@@ -336,11 +357,15 @@ def render_proposal_markdown(view):
                 f"### Evidence {_md(row['evidence_id'])}",
                 "",
                 f"- Source / work / version: {_md_source_ref(row)}",
-                f"- Source SHA-256: `{row['source_sha256']}`",
+                f"- Source SHA-256: `{_unknown(row['source_sha256'])}`",
                 f"- Evidence level: {_md(row['evidence_level'])}",
-                f"- Locator: {_md(row['locator'])}",
+                f"- Locator: {_md(row['locator'] if row['locator'] is not None else 'Unavailable in the original Core observation.')}",
                 "- Exact excerpt (quoted data):",
-                *_fence(row["quote"]),
+                *(
+                    _fence(row["quote"])
+                    if row["quote"] is not None
+                    else ["Unavailable in the original Core observation."]
+                ),
                 "",
             ]
         )
@@ -379,7 +404,7 @@ def _html_identifier(identifier):
 
 
 def _html_source_ref(row):
-    return f"{_h(row['source_id'])} / {_h(row['work_id'])} / {_h(row['version_id'])}"
+    return f"{_h(_unknown(row['source_id']))} / {_h(row['work_id'])} / {_h(row['version_id'])}"
 
 
 def render_proposal_html(view):
@@ -392,14 +417,14 @@ def render_proposal_html(view):
     bibliography = []
     for row in view["bibliography"]:
         bibliography.append(
-            f"<article><h3>{_h(row['source_id'])}</h3><dl>"
+            f"<article><h3>{_h(_unknown(row['source_id']))}</h3><dl>"
             f"<dt>Title</dt><dd>{_h(row['title'])}</dd>"
             f"<dt>Authors</dt><dd>{_h(row['authors'])}</dd>"
             f"<dt>Year</dt><dd>{_h(row['year'])}</dd>"
             f"<dt>Identifier</dt><dd>{_html_identifier(row['identifier'])}</dd>"
             f"<dt>Roles</dt><dd>{_html_list(row['roles'])}</dd>"
             f"<dt>Source / work / version</dt><dd>{_html_source_ref(row)}</dd>"
-            f"<dt>Source SHA-256</dt><dd><code>{row['source_sha256']}</code></dd>"
+            f"<dt>Source SHA-256</dt><dd><code>{_h(_unknown(row['source_sha256']))}</code></dd>"
             f"<dt>Evidence level</dt><dd>{_h(row['evidence_level'])}</dd></dl></article>"
         )
     comparisons = []
@@ -481,10 +506,10 @@ def render_proposal_html(view):
     evidence = "".join(
         f"<article><h3>Evidence {_h(row['evidence_id'])}</h3><dl>"
         f"<dt>Source / work / version</dt><dd>{_html_source_ref(row)}</dd>"
-        f"<dt>Source SHA-256</dt><dd><code>{row['source_sha256']}</code></dd>"
+        f"<dt>Source SHA-256</dt><dd><code>{_h(_unknown(row['source_sha256']))}</code></dd>"
         f"<dt>Evidence level</dt><dd>{_h(row['evidence_level'])}</dd>"
-        f"<dt>Locator</dt><dd>{_h(row['locator'])}</dd></dl>"
-        f"<h4>Exact excerpt (quoted data)</h4><pre>{_h(row['quote'])}</pre></article>"
+        f"<dt>Locator</dt><dd>{_h(row['locator'] if row['locator'] is not None else 'Unavailable in the original Core observation.')}</dd></dl>"
+        f"<h4>Exact excerpt (quoted data)</h4><pre>{_h(row['quote'] if row['quote'] is not None else 'Unavailable in the original Core observation.')}</pre></article>"
         for row in view["evidence"]
     )
     document = f"""<!doctype html>

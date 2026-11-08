@@ -76,7 +76,7 @@ def _raw(path, expected, *, maximum=MAX_INPUT):
     return raw
 
 
-def _consumer_manifest(inputs):
+def _consumer_manifest(inputs, *, allow_current_core=False):
     manifest = decode(
         _raw(
             Path(inputs["deliverable_dir"]) / "provenance_manifest.json",
@@ -86,7 +86,8 @@ def _consumer_manifest(inputs):
     )
     version = manifest.get("canonical_records", {}).get("schema_version")
     _check(
-        version == "1.0.0",
+        version == "1.0.0"
+        or (allow_current_core is True and version in {"1.1.0", "1.2.0"}),
         "stage2-canonical-records-"
         + str(version).removesuffix(".0")
         + "-consumer-unconnected",
@@ -94,8 +95,11 @@ def _consumer_manifest(inputs):
     return manifest
 
 
-def _verified_inputs(binding, inputs):
-    manifest = _consumer_manifest(inputs)
+def _verified_inputs(binding, inputs, *, policy_ref=None):
+    manifest = _consumer_manifest(
+        inputs,
+        allow_current_core=(policy_ref or {}).get("packet_profile") == "scientific-v3",
+    )
     handoff = decode(
         _raw(inputs["handoff_path"], inputs["handoff_sha256"]), "stage1 handoff"
     )
@@ -317,7 +321,9 @@ class ProjectStage2Service:
                 "stage2-receiving-only-imported-context-required",
                 400,
             )
-            handoff, _, host_replay = _verified_inputs(binding, inputs)
+            handoff, _, host_replay = _verified_inputs(
+                binding, inputs, policy_ref=policy_ref
+            )
             basis = {
                 key: binding[key]
                 for key in (
@@ -499,7 +505,11 @@ class ProjectStage2Service:
             offer = state.get("stage2_offers", {}).get(body["offer_ref"])
             if offer is not None and offer["offer_sha256"] == body["offer_sha256"]:
                 _require_research_offer(offer)
-                _consumer_manifest(offer["inputs"])
+                _consumer_manifest(
+                    offer["inputs"],
+                    allow_current_core=offer["policy_ref"].get("packet_profile")
+                    == "scientific-v3",
+                )
 
         def work(state, request_hash, actor):
             binding = self.intake.binding(project_ref)
@@ -524,7 +534,9 @@ class ProjectStage2Service:
                 offer.get("admission_pins", {}) == _admission_pins(offer["inputs"]),
                 "stage2-offer-admission-pins-differ",
             )
-            _, _, host_replay = _verified_inputs(binding, offer["inputs"])
+            _, _, host_replay = _verified_inputs(
+                binding, offer["inputs"], policy_ref=offer["policy_ref"]
+            )
             active = state.get("stage2_activation")
             _check(active is None, "stage2-already-activated")
             if check_deadline is not None:
@@ -542,6 +554,8 @@ class ProjectStage2Service:
                 binding["brief_path"],
                 inputs["resources_path"],
                 output / "seed",
+                allow_current_core=offer["policy_ref"].get("packet_profile")
+                == "scientific-v3",
                 **(
                     _saved_inputs(inputs)
                     if host_replay is None
@@ -570,7 +584,9 @@ class ProjectStage2Service:
                 initial_sha256,
             )
             verified = inspect_workflow(output / "workflow")
-            handoff, _, host_replay = _verified_inputs(binding, inputs)
+            handoff, _, host_replay = _verified_inputs(
+                binding, inputs, policy_ref=offer["policy_ref"]
+            )
             if "saved_source_root" in inputs:
                 _verify_import_receipt(
                     receipt, inputs, handoff, output / "seed", host_replay=host_replay
@@ -718,7 +734,9 @@ class ProjectStage2Service:
             canonical_hash(current["settings"]) == offer["settings_sha256"],
             "stage2-settings-differ",
         )
-        handoff, _, host_replay = _verified_inputs(current, offer["inputs"])
+        handoff, _, host_replay = _verified_inputs(
+            current, offer["inputs"], policy_ref=offer["policy_ref"]
+        )
         artifact = state["stage2_artifacts"][activation["artifact_ref"]]
         relative = "stage2-" + saved[0]["request_sha256"]
         _check(

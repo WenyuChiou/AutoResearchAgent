@@ -149,6 +149,12 @@
       "projection_resume_contract": "Optional strict projection resume compares exact deterministic existing JSON/Markdown/decision/validator/stage-result bytes and writes only missing projections. Differing or linked evidence is retained and rejected; default explicit export still rebuilds projections. No model, assessment event, authority or rubric changes.",
       "projection_resume_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_atomic_delivery.py"
+      ],
+      "current_core_source_contract": "Opt-in packet2.7 consumes checkpoint-produced native Stage1Handoff1.0 with records1.1/1.2 through the existing scientific workflow. Raw Core relation/classification, nullable spans, original claim history and screening artifacts remain exact and hash-bound; physical source access is separate. Initialization, reopen, content/source transitions and delivery retain the closure; rehashed projection rewrites reject. Default legacy and independently admitted saved-source2.0 routes retain their original guards. These engineering fixtures grant no scientific, rights, execution or A/B acceptance.",
+      "current_core_source_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py",
+        "plugins/auto-research-agent/tests/test_stage1_core_lifecycle.py",
+        "plugins/auto-research-agent/tests/test_stage1_core_consumer_boundaries.py"
       ]
     },
     {
@@ -497,7 +503,12 @@
       "direction_readiness_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direction_readiness.py"
       ],
-      "mechanism": "Native Windows named permissions use the exact symbolic :root spelling and typed special/root runtime path. Windows rejects the POSIX slash spelling before dispatch; legacy POSIX slash reads remain supported. Root aliases never admit unknown special paths, duplicate roots, weaker deny rules or additional writes, and raw config/runtime receipts and no-execution replay remain bound."
+      "mechanism": "Native Windows named permissions use the exact symbolic :root spelling and typed special/root runtime path. Windows rejects the POSIX slash spelling before dispatch; legacy POSIX slash reads remain supported. Root aliases never admit unknown special paths, duplicate roots, weaker deny rules or additional writes, and raw config/runtime receipts and no-execution replay remain bound.",
+      "current_core_source_contract": "Opt-in packet2.7 consumes checkpoint-produced native Stage1Handoff1.0 with records1.1/1.2 through the existing scientific workflow. Raw Core relation/classification, nullable spans, original claim history and screening artifacts remain exact and hash-bound; physical source access is separate. Initialization, reopen, content/source transitions and delivery retain the closure; rehashed projection rewrites reject. Default legacy and independently admitted saved-source2.0 routes retain their original guards. These engineering fixtures grant no scientific, rights, execution or A/B acceptance.",
+      "current_core_source_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py",
+        "plugins/auto-research-agent/tests/test_stage1_core_consumer_boundaries.py"
+      ]
     },
     {
       "capability_id": "cli:stage2-workflow",
@@ -687,6 +698,10 @@
       "projecthost_direction_intent_ui_test_refs": [
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
+      ],
+      "current_core_source_contract": "Opt-in packet2.7 consumes checkpoint-produced native Stage1Handoff1.0 with records1.1/1.2 through the existing scientific workflow. Raw Core relation/classification, nullable spans, original claim history and screening artifacts remain exact and hash-bound; physical source access is separate. Initialization, reopen, content/source transitions and delivery retain the closure; rehashed projection rewrites reject. Default legacy and independently admitted saved-source2.0 routes retain their original guards. These engineering fixtures grant no scientific, rights, execution or A/B acceptance.",
+      "current_core_source_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py"
       ]
     },
     {
@@ -892,6 +907,10 @@
       ],
       "test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "current_core_source_contract": "Opt-in packet2.7 draft export retains original Core classification, artifact binding and nullable observations; physical source access remains separate. Missing original locators and excerpts render as unavailable. Legacy physical-source projection and draft/selection boundaries remain unchanged.",
+      "current_core_source_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_core_consumer_boundaries.py"
       ]
     },
     {
@@ -965,6 +984,10 @@
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
+      ],
+      "current_core_source_contract": "Opt-in packet2.7 reading preserves recorded prior-work dossiers, supplemental literature, same-work source versions and the visible content gate through the existing workspace projection. Existing versions retain their original rendering. An incomplete or unselected package never confers Stage3 execution or scientific acceptance.",
+      "current_core_source_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_core_consumer_boundaries.py"
       ]
     },
     {
@@ -1027,7 +1050,12 @@
       "direct_request_entry_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ],
-      "core_provenance_contract": "Standalone current-Core provenance helpers retain/replay the exact original1.1/1.2 records, native checkpoint handoff, full Core history/artifacts and screening closure. Raw relations, nullable locators and evidence classifications stay unchanged; physical source access, scientific acceptance and execution authority are not inferred. The legacy formal Stage2 consumer remains closed until its separate versioned integration.",
+      "current_core_source_contract": "Opt-in packet2.7 consumes checkpoint-produced native Stage1Handoff1.0 with records1.1/1.2 through the existing scientific workflow. Raw Core relation/classification, nullable spans, original claim history and screening artifacts remain exact and hash-bound; physical source access is separate. Initialization, reopen, content/source transitions and delivery retain the closure; rehashed projection rewrites reject. Default legacy and independently admitted saved-source2.0 routes retain their original guards. These engineering fixtures grant no scientific, rights, execution or A/B acceptance.",
+      "current_core_source_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py",
+        "plugins/auto-research-agent/tests/test_stage1_core_consumer_boundaries.py"
+      ],
+      "core_provenance_contract": "Standalone current-Core provenance helpers retain/replay the exact original1.1/1.2 records, native checkpoint handoff, full Core history/artifacts and screening closure. Raw relations, nullable locators and evidence classifications stay unchanged; physical source access, scientific acceptance and execution authority are not inferred. The standalone helpers do not enable intake; separately versioned packet2.7 connects the opt-in scientific consumer while legacy defaults remain unchanged.",
       "core_provenance_test_refs": [
         "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py"
       ]
@@ -1091,7 +1119,11 @@
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent_ui.py",
         "plugins/auto-research-agent/tests/test_project_stage2_direction_intent.cjs"
       ],
-      "mechanism": "Comparison-first direction summaries keep source-bound evidence in labeled disclosures, preserve exact preference versions, and expose a reachable confirmation panel without altering submission, recovery or eligibility. Shared Wiki gutters, readable prose and explicit shadow-root typography follow the UI acceptance principles. Saved Stage3 plans expose recorded questions, methods, materials, draft status and open checks before optional full details and graphs; reading remains GET-only and retains the exact project/version boundary. Visual and implementation checks do not attest research quality or experiment authority."
+      "mechanism": "Comparison-first direction summaries keep source-bound evidence in labeled disclosures, preserve exact preference versions, and expose a reachable confirmation panel without altering submission, recovery or eligibility. Shared Wiki gutters, readable prose and explicit shadow-root typography follow the UI acceptance principles. Saved Stage3 plans expose recorded questions, methods, materials, draft status and open checks before optional full details and graphs; reading remains GET-only and retains the exact project/version boundary. Visual and implementation checks do not attest research quality or experiment authority.",
+      "current_core_source_contract": "Opt-in packet2.7 consumes checkpoint-produced native Stage1Handoff1.0 with records1.1/1.2 through the existing scientific workflow. Raw Core relation/classification, nullable spans, original claim history and screening artifacts remain exact and hash-bound; physical source access is separate. Initialization, reopen, content/source transitions and delivery retain the closure; rehashed projection rewrites reject. Default legacy and independently admitted saved-source2.0 routes retain their original guards. These engineering fixtures grant no scientific, rights, execution or A/B acceptance.",
+      "current_core_source_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py"
+      ]
     }
   ]
 }

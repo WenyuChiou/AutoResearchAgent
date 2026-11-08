@@ -1,5 +1,9 @@
 """Recompute Stage 2 delivery completeness without granting scientific authority."""
 
+from stage2_common.packet_versions import (
+    PRIOR_WORK_PACKET_VERSIONS,
+    TABLE_PACKET_VERSIONS,
+)
 from html import escape
 
 from stage2_check.contracts import latest_candidates, validate_assessment
@@ -47,8 +51,7 @@ def derive_content_gate(selection):
 
     tables = packet.get("research_tables")
     prepared = (
-        packet.get("schema_version") in {"2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"}
-        and tables is not None
+        packet.get("schema_version") in TABLE_PACKET_VERSIONS and tables is not None
     )
     if prepared:
         try:
@@ -120,7 +123,7 @@ def derive_content_gate(selection):
         )
         if not current:
             continue
-        if packet.get("schema_version") in {"2.4.0", "2.5.0", "2.6.0"}:
+        if packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS:
             check(
                 key + ":prior-work",
                 candidate_id in prior_work,

@@ -158,7 +158,10 @@ def _verify_checker_input(checker, packet):
 @contextmanager
 def _delivery_source_inputs(checker, source_root):
     receipts = checker["manifest"].get("prior_work_receipts", [])
-    if not receipts:
+    from stage2_common.core_source import copy_files, file_refs
+
+    core_files = file_refs(checker["packet"])
+    if not receipts and not core_files:
         yield source_root
         return
     # initialize_run accepts one root for the original packet's source and
@@ -166,6 +169,7 @@ def _delivery_source_inputs(checker, source_root):
     # the temporary copies never replace the retained workflow or its hashes.
     with tempfile.TemporaryDirectory(prefix="stage2-delivery-input-") as temporary:
         root = Path(temporary)
+        copy_files(checker["packet"], checker["root"], root)
         for record in [*checker["manifest"]["source_snapshots"], *receipts]:
             stored = _safe_package_path(checker["root"], record["stored_path"])
             raw = stored.read_bytes()
@@ -285,6 +289,7 @@ def _root_html(checker, selection, reconciliation):
         selection,
         checker["packet"]["sources"],
         receipt_prefix="checker/prior_work_receipts",
+        artifact_prefix="checker",
     )
     next_step = (
         reconciliation["next_step"]
