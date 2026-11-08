@@ -251,3 +251,12 @@ snapshot hash as source run/state, and carries the missing historical trace and
 unverified claims in unresolved items. It adds no invented ledger events.
 The versioned external import receipt binds copied full notes and cumulative
 resources; candidate count stays zero and Stage2 remains not-started.
+
+### Standalone current-Core provenance
+
+stage2_common.core_source retains and replays the original native checkpoint
+handoff, records1.1/1.2, claim history and screening artifacts without rewriting
+nullable observations or ranking them as physical source access. Its authored
+zero-model fixtures exercise the real public checkpoint and package producer.
+This helper validates the provenance closure only; it does not enable the formal
+Stage2 consumer, admit saved-source2.0, recommend a direction or authorize execution.
