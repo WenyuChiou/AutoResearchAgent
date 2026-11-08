@@ -1026,6 +1026,10 @@
       "direct_request_entry_contract": "Opt-in packet2.6 binds the exact externally hashed direct request without Stage1 upstream, source origins or human scope/selection attestations. Empty research seeds enter the existing rich table, argument1.2 extraction, prior-work, independent review, source/content revision and delivery paths. Existing2.0–2.5 lineage validation remains unchanged. External packet hashes, immutable origin, level/quote checks and current-version gates remain strict; binding success does not establish science, live execution, whole-run budget parity or improvement.",
       "direct_request_entry_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+      ],
+      "core_provenance_contract": "Standalone current-Core provenance helpers retain/replay the exact original1.1/1.2 records, native checkpoint handoff, full Core history/artifacts and screening closure. Raw relations, nullable locators and evidence classifications stay unchanged; physical source access, scientific acceptance and execution authority are not inferred. The legacy formal Stage2 consumer remains closed until its separate versioned integration.",
+      "core_provenance_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage1_current_core_stage2_integration.py"
       ]
     },
     {
