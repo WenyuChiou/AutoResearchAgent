@@ -157,3 +157,10 @@ frontier and its pinned original source files. Planner and independent reviewer
 receive the same bounded selected values, catalog metadata and limitations, without
 reader callbacks, credentials or internal frontier paths. Preserve snapshot times,
 unknown rights and observed-pilot status; registration is not scientific acceptance.
+Before either model prompt is built, each selected pointer/value fragment and every
+material scalar (including catalog metadata) must fit 768 canonical UTF-8 JSON bytes.
+The material projection also retains the existing 48,000-byte ceiling before sharing.
+Oversized inputs are rejected with a request for smaller explicit JSON pointers;
+original snapshots are never trimmed, rewritten or silently omitted.
+Direct prompt callers must supply JSON types and string dictionary keys; nested
+Python tuples and implicit numeric-key conversion are rejected before serialization.

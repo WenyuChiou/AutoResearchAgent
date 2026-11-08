@@ -304,15 +304,22 @@ def research_context(context, adapter_context):
         ),
     }
     if "materials" in research:
-        from .direction_materials import inspect_registered_materials
+        from .direction_materials import (
+            inspect_registered_materials,
+            validate_material_context,
+        )
 
         result["registered_materials"] = inspect_registered_materials(
             research["materials"], result
         )
+        validate_material_context(result)
     return result
 
 
 def build_design_review_prompt(plan, context):
+    from .direction_materials import validate_material_context
+
+    validate_material_context(context)
     data = {
         "intent_sha256": context["intent_sha256"],
         "plan_sha256": digest(plan),

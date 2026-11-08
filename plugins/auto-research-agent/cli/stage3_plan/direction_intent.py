@@ -269,6 +269,8 @@ def admit_direction_intent(
 
 def build_direction_prompt(context):
     """Prepare a topic-independent request; never generate a missing SQ or result."""
+    from .direction_materials import validate_material_context
+
     _require(
         type(context) is dict
         and context.get("kind") == "Stage3DirectionPlanningContext"
@@ -283,6 +285,7 @@ def build_direction_prompt(context):
         not context["missing_mapping"],
         "needs-information: delivered scientific question mapping is missing",
     )
+    validate_material_context(context)
     original = canonical_bytes(context)
     shared = canonical_bytes(pack_context(context))
     raw = shared if len(shared) < len(original) else original

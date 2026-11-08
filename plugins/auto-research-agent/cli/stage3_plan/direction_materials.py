@@ -5,9 +5,10 @@ import hashlib
 from pathlib import Path
 import re
 
-from .contracts import Stage3Error, digest
+from .contracts import Stage3Error, canonical_bytes, digest
 from .direction_research import _bounded_lookup_context
 from .preparation import closed, file_binding, sha256, text
+from .prompts import MAX_CONTEXT_BYTES
 from .storage import (
     MAX_ARTIFACT_BYTES,
     decode_json,
@@ -18,6 +19,7 @@ from .storage import (
 )
 
 KIND = "Stage3RegisteredMaterialFrontier"
+MAX_MATERIAL_FRAGMENT_BYTES = 768
 SCOPE = ("project_ref", "input_version", "intent_sha256", "source_manifest_sha256")
 SELECTION = {
     "file_id",
@@ -41,6 +43,60 @@ META = (
     "registered_at",
     "execution_authorized",
 )
+
+
+def validate_material_context(context):
+    """Reject large injected fragments without trimming their pinned originals."""
+    if "registered_materials" not in context:
+        return
+    projection = context["registered_materials"]
+    reason = (
+        "registered material fragment exceeds 768 UTF-8 JSON bytes; "
+        "select smaller explicit JSON pointers"
+    )
+    try:
+        if (
+            type(projection) is not dict
+            or type(projection.get("materials")) is not list
+        ):
+            raise Stage3Error("invalid registered material context")
+        pending, active, scalars = [(projection, False)], set(), []
+        while pending:
+            value, exiting = pending.pop()
+            if exiting:
+                active.remove(id(value))
+            elif type(value) in (dict, list):
+                if type(value) is dict and any(type(key) is not str for key in value):
+                    raise Stage3Error("invalid registered material JSON type")
+                if id(value) in active:
+                    raise Stage3Error("invalid registered material JSON type")
+                active.add(id(value))
+                pending.append((value, True))
+                children = (
+                    [*value.keys(), *value.values()] if type(value) is dict else value
+                )
+                pending.extend((item, False) for item in children)
+            elif type(value) is str:
+                scalars.append(value)
+            elif value is None or type(value) in (bool, int, float):
+                scalars.append(value)
+            else:
+                raise Stage3Error("invalid registered material JSON type")
+        if len(canonical_bytes(projection)) > MAX_CONTEXT_BYTES:
+            raise Stage3Error("registered material context exceeds existing bound")
+        for row in projection["materials"]:
+            if type(row) is not dict or type(row.get("values")) is not list:
+                raise Stage3Error("invalid registered material fragments")
+            for fragment in row["values"]:
+                if len(canonical_bytes(fragment)) > MAX_MATERIAL_FRAGMENT_BYTES:
+                    raise Stage3Error(reason)
+        if any(
+            len(canonical_bytes(value)) > MAX_MATERIAL_FRAGMENT_BYTES
+            for value in scalars
+        ):
+            raise Stage3Error(reason)
+    except (RecursionError, UnicodeError) as error:
+        raise Stage3Error("invalid registered material JSON encoding") from error
 
 
 def _scope(context):

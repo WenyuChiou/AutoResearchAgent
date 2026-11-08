@@ -12,9 +12,12 @@ sys.path[:0] = [str(PLUGIN / "cli"), str(PLUGIN / "tests")]
 from stage3_plan.contracts import Stage3Error, canonical_bytes
 from stage3_plan.context_projection import expand_context
 from stage3_plan.direction_materials import (
+    MAX_MATERIAL_FRAGMENT_BYTES,
     prepare_registered_materials,
     inspect_registered_materials,
 )
+from stage3_plan.direction_intent import build_direction_prompt
+from stage3_plan.direction_research import build_design_review_prompt, research_context
 from stage3_plan.storage import decode_json
 from test_stage3_direction_research import _DirectionResearchFixture
 from test_stage3_study_jobs import _StudySetup
@@ -26,15 +29,16 @@ class RegisteredMaterialJobsTests(_DirectionResearchFixture, _StudySetup):
     run_job = fixture.Stage3DirectionResearchJobsTests.run_job
     saved_root = fixture.Stage3DirectionResearchJobsTests.saved_root
 
-    def configure_materials(self, context, root):
-        self.material_raw = canonical_bytes(
-            {
-                "unit": "authored units",
-                "availability": "unknown",
-                "source_limit": "Unverified survey weights.",
-                "observations": [2, 5],
-            }
-        )
+    def configure_materials(self, context, root, *, document=None, catalog_name=None):
+        material = {
+            "unit": "authored units",
+            "availability": "unknown",
+            "source_limit": "Unverified survey weights.",
+            "observations": [2, 5],
+        }
+        if document is not None:
+            material.update(document)
+        self.material_raw = canonical_bytes(material)
         self.material_id = "file-" + "1" * 32
         self.material_sha = hashlib.sha256(self.material_raw).hexdigest()
         entry = dict(
@@ -42,7 +46,7 @@ class RegisteredMaterialJobsTests(_DirectionResearchFixture, _StudySetup):
             kind="manual-file",
             project_ref=context["project_ref"],
             stage=3,
-            name="authored-original.json",
+            name="authored-original.json" if catalog_name is None else catalog_name,
             bytes=len(self.material_raw),
             sha256=self.material_sha,
             status="registered",
@@ -124,6 +128,117 @@ class RegisteredMaterialJobsTests(_DirectionResearchFixture, _StudySetup):
         self.study_adapter.materials = changed["direction_research"]["materials"]
         with self.assertRaises(Stage3Error):
             self.run_job(prepared, self.study_adapter)
+        self.assertEqual((self.study_calls, self.study_reviews), ([], []))
+
+    def test_large_scalar_rejects_before_either_model_callback(self):
+        self.setup_study(self.context, self.root)
+        self.configure_materials(
+            self.context,
+            self.root,
+            document={"observations": " ".join(str(i % 10) for i in range(12000))},
+        )
+        with self.assertRaisesRegex(Stage3Error, "material fragment exceeds"):
+            prepared = self.prepare_job(self.study_adapter)
+            self.run_job(prepared, self.study_adapter)
+        self.assertEqual((self.study_calls, self.study_reviews), ([], []))
+
+    def test_both_public_prompts_bound_values_and_catalog_metadata_before_sharing(self):
+        cases = (
+            ({"observations": [1] * 600}, None),
+            ({"unit": "界" * 300}, None),
+            ({"unit": "\n" * 400}, None),
+            (None, "n" * 900),
+        )
+        for index, (document, name) in enumerate(cases):
+            with self.subTest(index=index):
+                root = self.root / str(index)
+                root.mkdir()
+                self.setup_study(self.context, root)
+                self.configure_materials(
+                    self.context, root, document=document, catalog_name=name
+                )
+                context = dict(
+                    self.context, registered_materials=self.expected_materials
+                )
+                for build in (
+                    lambda: build_direction_prompt(context),
+                    lambda: build_design_review_prompt(self.study_plan, context),
+                ):
+                    with self.assertRaisesRegex(
+                        Stage3Error, "material fragment exceeds"
+                    ):
+                        build()
+                self.assertEqual((self.study_calls, self.study_reviews), ([], []))
+
+    def test_exact_fragment_boundary_preserves_original_in_both_model_inputs(self):
+        # JSON pointer/value envelope is included in the byte bound, not just text.
+        prefix = len(canonical_bytes({"pointer": "/unit", "value": ""}))
+        scalar = "a" * (MAX_MATERIAL_FRAGMENT_BYTES - prefix)
+        self.setup_study(self.context, self.root)
+        self.configure_materials(self.context, self.root, document={"unit": scalar})
+        prepared = self.prepare_job(self.study_adapter)
+        saved = self.run_job(prepared, self.study_adapter)
+        self.assertEqual(saved["result"]["outcome"], "saved")
+        for request, marker in (
+            (self.study_calls[0], "UNTRUSTED_STAGE2_CONTEXT\n"),
+            (self.study_reviews[0], "UNTRUSTED_RESEARCH_DESIGN\n"),
+        ):
+            material = self.prompt_context(request["prompt"], marker)[
+                "registered_materials"
+            ]
+            self.assertEqual(material, self.expected_materials)
+            self.assertEqual(material["materials"][0]["values"][0]["value"], scalar)
+        self.assertEqual((len(self.study_calls), len(self.study_reviews)), (1, 1))
+        too_large = dict(
+            self.context, registered_materials=deepcopy(self.expected_materials)
+        )
+        too_large["registered_materials"]["materials"][0]["values"][0]["value"] += "a"
+        for build in (
+            lambda: build_direction_prompt(too_large),
+            lambda: build_design_review_prompt(self.study_plan, too_large),
+        ):
+            with self.assertRaisesRegex(Stage3Error, "material fragment exceeds"):
+                build()
+
+    def test_direct_builders_reject_non_json_metadata_before_serialization(self):
+        self.setup_study(self.context, self.root)
+        self.configure_materials(self.context, self.root)
+        verified = research_context(self.context, self.study_adapter.request_context)
+        cyclic = []
+        cyclic.append(cyclic)
+        for name in (
+            ("x" * 23999,),
+            {"nested": ("x" * 23999,)},
+            cyclic,
+            {int("1" * 1000): 0},
+        ):
+            context = deepcopy(verified)
+            context["registered_materials"]["materials"][0]["catalog"]["name"] = name
+            for build in (
+                lambda: build_direction_prompt(context),
+                lambda: build_design_review_prompt(self.study_plan, context),
+            ):
+                with self.subTest(name_type=type(name).__name__, build=build):
+                    with self.assertRaisesRegex(
+                        Stage3Error, "invalid registered material JSON type"
+                    ):
+                        build()
+        self.assertEqual((self.study_calls, self.study_reviews), ([], []))
+
+    def test_direct_builders_bound_numeric_material_metadata(self):
+        self.setup_study(self.context, self.root)
+        self.configure_materials(self.context, self.root)
+        context = research_context(self.context, self.study_adapter.request_context)
+        context["registered_materials"]["materials"][0]["catalog"]["bytes"] = int(
+            "1" * 1000
+        )
+        for build in (
+            lambda: build_direction_prompt(context),
+            lambda: build_design_review_prompt(self.study_plan, context),
+        ):
+            with self.subTest(build=build):
+                with self.assertRaisesRegex(Stage3Error, "material fragment exceeds"):
+                    build()
         self.assertEqual((self.study_calls, self.study_reviews), ([], []))
 
 
