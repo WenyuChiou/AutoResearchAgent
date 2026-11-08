@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "intent_sha256",
+    "plan_sha256",
+    "question_reviews"
+  ],
+  "properties": {
+    "kind": {
+      "const": "Stage3DirectionDesignReview"
+    },
+    "intent_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "question_reviews": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question_ref",
+          "answerability",
+          "reason",
+          "supported_scope",
+          "revision"
+        ],
+        "properties": {
+          "question_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "answerability": {
+            "enum": [
+              "adequate",
+              "needs-revision",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "supported_scope": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
