@@ -1,0 +1,7 @@
+measure,age_45_54_cell,age_65_74_cell,age_45_54_usd,age_65_74_usd,delta_usd_per_one_percentage_point
+Total spending,F51,I51,106658,69333,-373.25
+Housing,F193,I193,31422,24036,-73.86
+Transportation,F395,I395,18059,12082,-59.77
+Food,F56,I56,15083,9037,-60.46
+Healthcare,F456,I456,6773,7793,10.2
+Entertainment,F482,I482,6909,3465,-34.44

@@ -1,0 +1,31 @@
+﻿Run,Criterion,Codex reviewer score,Codex + Harness reviewer score,Codex + Harness hypothetical score (+1),Evidence for the unadjusted ratings
+R01,Addresses Requirements,7,6,7,A keeps a multi-category study at the center. B starts with a much narrower age-band comparison.
+R01,Soundness,7,8,9,A groups holdouts and distinguishes descriptive age effects. B commits matched predictions and requires separately identified price exposure.
+R01,Clear Execution,7,8,9,"A has an actionable schedule. B specifies exact input keys, failure handling and a price update."
+R01,Feasibility,7,6,7,A can complete a broader public-data study with price extensions deferred. B still needs restricted price data for its fuller route.
+R01,Predicted Outcomes,7,6,7,A can produce a category-level composition study and a holdout comparison. B guarantees a narrower accounting contrast.
+R02,Addresses Requirements,7,7,8,A has a wider public-data route. B adds closer prior work and a five-category starting point.
+R02,Soundness,7,8,9,Both use held-out spending. B explicitly requires independent identification and separates forecast error from the price effect.
+R02,Clear Execution,7,7,8,A gives a staged schedule. B gives a structured freeze-and-reveal process but omits the published cell values from the calculation.
+R02,Feasibility,7,6,7,A lays out a fuller public-data route within 16 weeks. B still needs to recover inputs and establish access for its more ambitious work.
+R02,Predicted Outcomes,7,7,8,A plans a wider category analysis. B can start with the available published-data comparison and retain a separate prediction branch.
+R03,Addresses Requirements,7,6,7,A preserves a two-category food study and price scenarios. B falls back to a two-age-band comparison of one category.
+R03,Soundness,7,8,9,"B separates the composition contrast, holdout prediction, identified price exposure and scenario effects."
+R03,Clear Execution,7,7,8,A gives detailed milestones and estimation steps. B specifies a reproducible starting contrast and clear validation gates.
+R03,Feasibility,7,6,7,A can retain a public-data food study plus explicitly conditional price sensitivity. B needs unverified scanner access for price qualification.
+R03,Predicted Outcomes,7,6,7,A retains a broader research deliverable after a price-data failure. B’s supported fallback answers a narrower question.
+R04,Addresses Requirements,7,6,7,A keeps a multi-category public-data analysis and a next-step recommendation. B’s fallback centers on a food and total-spending contrast.
+R04,Soundness,7,8,9,A includes strong model checks. B distinguishes independent offer-price validation from a synthetic mechanics diagnostic.
+R04,Clear Execution,8,8,9,"A specifies thresholds and milestones. B specifies matched inputs, source checks and separate simulation checks in comparable detail."
+R04,Feasibility,7,7,8,"Both give a plausible fallback within the study horizon, with different scope and unresolved acquisition requirements."
+R04,Predicted Outcomes,7,6,7,A gives a broader composition and model-comparison output. B’s guaranteed report is more limited when access fails.
+R05,Addresses Requirements,8,6,7,A compares three candidate research routes and recommends a main path. B chiefly describes gates within a single direction.
+R05,Soundness,7,8,9,"B distinguishes fixed-price arithmetic, prediction and independently identified price response, with explicit attribution controls."
+R05,Clear Execution,8,7,8,A gives specific provisional thresholds and a reproducible schedule. B provides formulas and checkpoints but omits the needed cell values.
+R05,Feasibility,7,6,7,A retains a multi-category public-data route and clear decision dates. B’s fuller outputs rely on several unresolved access and validation steps.
+R05,Predicted Outcomes,7,6,7,A proposes findings that can support the researcher’s choice among routes. B’s immediate output mainly supports the narrower accounting comparison.
+R06,Addresses Requirements,7,6,7,A covers more ages and categories. B gives a narrow initial comparison and a strong path for a verified household test.
+R06,Soundness,6,8,9,A’s main error measure is grouped by age and category. B pairs losses on held-out consumer units and verifies price identification separately.
+R06,Clear Execution,7,8,9,"B gives the exact source values, arithmetic, group split, common inputs and failure rules. A gives fewer operational details for household validation."
+R06,Feasibility,7,7,8,"A has a broader but data-dependent public route. B’s modest starter is immediately specified, with later steps conditional on access."
+R06,Predicted Outcomes,7,7,8,A promises broader age-category findings. B offers more interpretable household-level validation and a narrower guaranteed starter.
