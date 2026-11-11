@@ -2,6 +2,7 @@
 
 # ruff: noqa: E402 -- use repository packages and existing authored fixtures.
 from contextlib import closing
+import json
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -24,10 +25,12 @@ from research_workspace_native.project_stage3_http import ProjectStage3Http
 from research_workspace_native.project_stage3_planning import (
     ProjectStage3PlanningService,
 )
-from stage1_deliverable.common import read_json, sha
+from stage1_deliverable.common import canonical, read_json, sha
 from stage2_common import canonical_hash
 from stage2_fixture_helpers import _candidate
-from stage2_workflow import inspect_workflow
+from stage2_live.controller import materialize_snapshot_input_root
+from stage2_workflow import add_snapshot, inspect_workflow
+from stage2_workflow.ui_submission import read_ui_submission
 from stage3_plan.contracts import canonical_bytes, digest
 from stage3_plan.intake import admit_intake
 from stage3_plan.jobs import POLICY, PlanningJobs
@@ -57,6 +60,29 @@ class CurrentCoreSyntheticAdapter(RichSyntheticAdapter):
         )
         packet["candidates"].append(candidate)
         return result
+
+
+class CurrentCorePreparation(SyntheticPreparation):
+    def prepare(self, request):
+        if request["gate"]["status"] != "needs-prior-work":
+            return super().prepare(request)
+
+        def add_core_snapshot(workflow, packet_path, _sources, reason, impact, head):
+            snapshot = inspect_workflow(workflow, expected_head=head)["latest_snapshot"]
+            source_root = materialize_snapshot_input_root(
+                snapshot, self.case.root / "prior-work-input"
+            )
+            return add_snapshot(
+                workflow, packet_path, source_root, reason, impact, head
+            )
+
+        # Reuse the Rich fixture's authored dossier and switch only its
+        # fixture-local snapshot input. The actual append and guards still run.
+        with patch(
+            "test_project_stage123_controller_e2e.add_snapshot",
+            side_effect=add_core_snapshot,
+        ):
+            return super().prepare(request)
 
 
 class CurrentCoreStage123E2ETests(unittest.TestCase):
@@ -116,6 +142,21 @@ class CurrentCoreStage123E2ETests(unittest.TestCase):
                 ("stage1_handoff_sha256", "handoff_sha256"),
             ):
                 self.assertEqual(packet["upstream"][packet_key], fixture[fixture_key])
+            print(
+                json.dumps(
+                    dict(
+                        stage="core-seed",
+                        project_ref=ref,
+                        **identity,
+                        records_sha256=fixture["records_sha256"],
+                        manifest_sha256=fixture["manifest_sha256"],
+                        handoff_sha256=fixture["handoff_sha256"],
+                        packet_sha256=binding["packet_sha256"],
+                        workflow_head_sha256=binding["workflow_head_sha256"],
+                    )
+                ),
+                flush=True,
+            )
 
             preparation = SimpleNamespace(
                 root=root,
@@ -130,7 +171,7 @@ class CurrentCoreStage123E2ETests(unittest.TestCase):
                 spec=preparation.spec,
                 controller_dir=root / "controller",
                 delivery_dir=delivery,
-                prerequisite_handler=SyntheticPreparation(preparation),
+                prerequisite_handler=CurrentCorePreparation(preparation),
             )
             with patch(
                 "stage2_live.controller._ProductionAdapter",
@@ -138,18 +179,38 @@ class CurrentCoreStage123E2ETests(unittest.TestCase):
             ):
                 generated = driver.run(credential, ref, key="synthetic-core-controller")
             self.assertEqual(generated["status"], "saved", generated)
-            self.assertTrue(generated["controller"]["synthetic_test_only"])
+            controller = generated["controller"]
+            self.assertEqual(controller["status"], "awaiting-human", controller)
+            self.assertEqual(controller["preparation"]["status"], "complete")
+            self.assertIn("delivery_manifest", controller)
+            self.assertTrue(controller["synthetic_test_only"])
+            self.assertFalse(generated["formal_ready"])
             self.assertFalse(generated["execution_authorized"])
             final = inspect_workflow(
-                workflow, expected_head=generated["controller"]["workflow_head_sha256"]
+                workflow, expected_head=controller["workflow_head_sha256"]
             )["latest_snapshot"]["packet"]
             self.assertEqual(final["schema_version"], "2.7.0")
             self.assertEqual(final["upstream"], packet["upstream"])
             self.assertEqual(final["core_source"], packet["core_source"])
 
-            delivery_pin = read_json(delivery / "delivery_manifest.json")[
-                "manifest_sha256"
-            ]
+            manifest = read_json(delivery / "delivery_manifest.json")
+            self.assertEqual(manifest, controller["delivery_manifest"])
+            delivery_pin = manifest["manifest_sha256"]
+            print(
+                json.dumps(
+                    dict(
+                        stage="stage2-delivery",
+                        project_ref=ref,
+                        controller_manifest_sha256=controller[
+                            "controller_manifest_sha256"
+                        ],
+                        delivery_manifest_sha256=delivery_pin,
+                        workflow_head_sha256=controller["workflow_head_sha256"],
+                        snapshot_sha256=manifest["snapshot_sha256"],
+                    )
+                ),
+                flush=True,
+            )
             selection = ProjectStage2SelectionService(
                 intake,
                 {
@@ -191,14 +252,31 @@ class CurrentCoreStage123E2ETests(unittest.TestCase):
             selected = selection.select(credential, ref, choice_body)
             self.assertEqual(selected["status"], "saved", selected)
             self.assertEqual(selected["planning_status"], "verified")
+            self.assertFalse(selected["execution_authorized"])
+            self.assertEqual(choice_body["brief_sha256"], fixture["brief_sha256"])
+            semantic = {
+                key: value for key, value in choice_body.items() if key != "revision"
+            }
+            request_pin = sha(canonical({"kind": "stage2-select", "body": semantic}))
+            self.assertEqual(selected["request_sha256"], request_pin)
             output = intake._path(ref, selected["artifact_ref"])
-            submission = read_json(output / "submission.json")
-            self.assertEqual(submission["project_ref"], ref)
-            for key, expected in identity.items():
-                self.assertEqual(submission[key], expected)
-                self.assertIs(type(submission[key]), type(expected))
-            self.assertEqual(submission["delivery_manifest_sha256"], delivery_pin)
+            submission = read_ui_submission(
+                (output / "submission.json").read_bytes(),
+                expected=dict(
+                    project_ref=ref,
+                    input_version=identity["input_version"],
+                    request_sha256=request_pin,
+                    delivery_manifest_sha256=delivery_pin,
+                    workflow_head_sha256=choice_body["workflow_head_sha256"],
+                    snapshot_sha256=choice_body["snapshot_sha256"],
+                ),
+            )
             self.assertEqual(submission["decision"], choice_body["decision"])
+            current = intake.read(credential, ref)
+            self.assertEqual(current["project_ref"], ref)
+            for key, expected in identity.items():
+                self.assertEqual(current[key], expected)
+                self.assertIs(type(current[key]), type(expected))
             interaction = output / "interaction" / "interaction.json"
             interaction_before = interaction.read_bytes()
             self.assertEqual(
@@ -221,8 +299,23 @@ class CurrentCoreStage123E2ETests(unittest.TestCase):
             )
             self.assertEqual(len(admitted["questions"]), 1)
             self.assertEqual(admitted["legacy_candidates"], [])
+            self.assertEqual(admitted["brief"], read_json(fixture["brief_path"]))
             self.assertEqual(
                 admitted["unresolved"], choice_body["decision"]["unresolved"]
+            )
+            print(
+                json.dumps(
+                    dict(
+                        stage="stage2-choice",
+                        project_ref=ref,
+                        **identity,
+                        selection_request_sha256=request_pin,
+                        interaction_file_sha256=selected["interaction_file_sha256"],
+                        planning_manifest_sha256=pin,
+                        replayed=replayed["replayed"],
+                    )
+                ),
+                flush=True,
             )
             with closing(Journal(root / "plan.sqlite")) as journal:
                 project_id = project["project_id"]
@@ -295,6 +388,22 @@ class CurrentCoreStage123E2ETests(unittest.TestCase):
                     self.assertEqual(callback.call_count, 1)
                     for flag in POLICY:
                         self.assertIs(saved[flag], False)
+                    print(
+                        json.dumps(
+                            dict(
+                                stage="stage3-plan",
+                                project_ref=ref,
+                                **identity,
+                                selection_request_sha256=request_pin,
+                                request_sha256=saved["request_sha256"],
+                                source_manifest_sha256=pin,
+                                plan_manifest_sha256=saved["plan_manifest_sha256"],
+                                callback_calls=callback.call_count,
+                                execution_authorized=saved["execution_authorized"],
+                            )
+                        ),
+                        flush=True,
+                    )
                 finally:
                     http.close()
             fixture["case"].runner.assert_not_called()
