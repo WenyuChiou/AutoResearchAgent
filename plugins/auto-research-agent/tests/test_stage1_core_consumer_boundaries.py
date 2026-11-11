@@ -30,6 +30,7 @@ from stage2_ideation.report import _evidence_view
 from stage2_live.controller import materialize_snapshot_input_root
 from stage2_workflow import initialize_workflow, inspect_workflow
 from stage2_workflow.import_stage1 import build_stage2_seed
+from stage2_workflow.store import _io
 import test_stage2_ideation_report as legacy_report
 import test_stage2_literature_versions as literature_versions
 import test_stage2_prior_work as prior_work
@@ -85,17 +86,18 @@ class CoreConsumerBoundaryTests(unittest.TestCase):
         validate_packet(snapshot["packet"], materialized)
         refs = snapshot["packet"]["core_source"]["files"]
         expected = {
-            r["path"]: (snapshot["checker"]["root"] / r["path"]).read_bytes()
+            r["path"]: _io(snapshot["checker"]["root"] / r["path"]).read_bytes()
             for r in refs
         }
         self.assertEqual(
-            {name: (materialized / name).read_bytes() for name in expected}, expected
+            {name: _io(materialized / name).read_bytes() for name in expected},
+            expected,
         )
         self.assertEqual(
             materialize_snapshot_input_root(snapshot, controller, create=False),
             materialized,
         )
-        path = materialized / refs[0]["path"]
+        path = _io(materialized / refs[0]["path"])
         raw = path.read_bytes()
         path.unlink()
         try:
@@ -107,10 +109,10 @@ class CoreConsumerBoundaryTests(unittest.TestCase):
         # the original Core archive's inner bindings must still reject it.
         changed = deepcopy(snapshot)
         clone = self.root / "owned-tampered-checker"
-        shutil.copytree(snapshot["checker"]["root"], clone)
+        shutil.copytree(_io(snapshot["checker"]["root"]), _io(clone))
         changed["checker"]["root"] = clone
         artifact = next(r for r in refs if "/core_claim_artifacts/" in r["path"])
-        target = clone / artifact["path"]
+        target = _io(clone / artifact["path"])
         target.write_bytes(target.read_bytes() + b"\nAuthored tamper.\n")
         for packet in (changed["packet"], changed["checker"]["packet"]):
             next(
